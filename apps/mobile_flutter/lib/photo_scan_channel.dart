@@ -9,8 +9,15 @@ Future<PhotoPermissionStatus> requestPhotoPermission() async {
   return PhotoPermissionStatus.fromRaw(raw);
 }
 
-Future<ScanResult> scanPhotos({int limit = 100}) async {
-  final Map raw = await _channel.invokeMethod('scanPhotos', {'limit': limit});
+/// Scans up to [limit] photo assets and returns geocoded country results.
+///
+/// [sinceDate]: when non-null, only assets created after this date are fetched.
+/// Pass the timestamp of the previous scan for an incremental rescan,
+/// or null for a full scan (first launch or user-initiated reset).
+Future<ScanResult> scanPhotos({int limit = 100, DateTime? sinceDate}) async {
+  final args = <String, dynamic>{'limit': limit};
+  if (sinceDate != null) args['sinceDate'] = sinceDate.toUtc().toIso8601String();
+  final Map raw = await _channel.invokeMethod('scanPhotos', args);
   return ScanResult.fromMap(Map<String, dynamic>.from(raw));
 }
 
