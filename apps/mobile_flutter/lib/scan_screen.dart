@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_models/shared_models.dart';
+
+import 'features/scan/scan_mapper.dart';
+import 'features/visits/review_screen.dart';
+import 'features/visits/visit_store.dart';
 import 'photo_scan_channel.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -10,16 +15,38 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   PhotoPermissionStatus? _permission;
+  bool _loading = true; // true while loading persisted visits on first frame
   bool _scanning = false;
-  ScanResult? _result;
+  ScanResult? _lastScanResult;
+  List<CountryVisit> _effectiveVisits = [];
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersisted();
+  }
+
+  Future<void> _loadPersisted() async {
+    try {
+      final saved = await VisitStore.load();
+      setState(() {
+        _effectiveVisits = effectiveVisits(saved);
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load saved visits: $e';
+        _loading = false;
+      });
+    }
+  }
 
   Future<void> _requestPermission() async {
     try {
       final status = await requestPhotoPermission();
       setState(() {
         _permission = status;
-        _result = null;
         _error = null;
       });
     } catch (e) {
@@ -30,12 +57,25 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _scan() async {
     setState(() {
       _scanning = true;
-      _result = null;
       _error = null;
     });
     try {
-      final result = await scanPhotos(limit: 100);
-      setState(() => _result = result);
+      final result = await scanPhotos(limit: 500);
+      final now = DateTime.now().toUtc();
+
+      // Convert scan output → domain visits and merge with any saved manual edits.
+      final fromScan = toCountryVisits(result.countries, now: now);
+      final saved = await VisitStore.load();
+      final merged = [...fromScan, ...saved];
+      final effective = effectiveVisits(merged);
+
+      // Persist the full merged list (including manual tombstones).
+      await VisitStore.save(merged);
+
+      setState(() {
+        _lastScanResult = result;
+        _effectiveVisits = effective;
+      });
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -43,33 +83,71 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
+  Future<void> _openReview() async {
+    await Navigator.of(context).push<List<CountryVisit>>(
+      MaterialPageRoute(
+        builder: (_) => ReviewScreen(initialVisits: _effectiveVisits),
+      ),
+    );
+    // Reload from store — ReviewScreen writes on Save.
+    final saved = await VisitStore.load();
+    setState(() => _effectiveVisits = effectiveVisits(saved));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Roavvy — Photo Scan Spike')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _PermissionStatus(status: _permission),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _requestPermission,
-              child: const Text('Request Permission'),
+      appBar: AppBar(
+        title: const Text('Roavvy — Photo Scan'),
+        actions: [
+          if (_effectiveVisits.isNotEmpty)
+            TextButton(
+              onPressed: _openReview,
+              child: const Text('Review & Edit'),
             ),
-            const SizedBox(height: 8),
-            FilledButton.tonal(
-              onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
-              child: const Text('Scan 100 Most Recent Photos'),
-            ),
-            const SizedBox(height: 24),
-            if (_error != null) _ErrorView(message: _error!),
-            if (_scanning) const _ScanningView(),
-            if (_result != null) Expanded(child: _ResultsView(result: _result!)),
-          ],
-        ),
+        ],
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _PermissionStatus(status: _permission),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _requestPermission,
+                    child: const Text('Request Permission'),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.tonal(
+                    onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
+                    child: const Text('Scan 500 Most Recent Photos'),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_error != null) _ErrorView(message: _error!),
+                  if (_scanning) const _ScanningView(),
+                  if (!_scanning) ...[
+                    if (_lastScanResult != null)
+                      _StatsCard(
+                        stats: _lastScanResult!.stats,
+                        countryCount: _effectiveVisits.length,
+                      ),
+                    if (_effectiveVisits.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Expanded(child: _VisitList(visits: _effectiveVisits)),
+                    ] else if (_lastScanResult != null) ...[
+                      const SizedBox(height: 16),
+                      const _EmptyResultsHint(),
+                    ] else if (_effectiveVisits.isEmpty && _lastScanResult == null) ...[
+                      const SizedBox(height: 16),
+                      const _NoScanYetHint(),
+                    ],
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }
@@ -78,7 +156,6 @@ class _ScanScreenState extends State<ScanScreen> {
 
 class _PermissionStatus extends StatelessWidget {
   const _PermissionStatus({required this.status});
-
   final PhotoPermissionStatus? status;
 
   @override
@@ -122,7 +199,6 @@ class _ScanningView extends StatelessWidget {
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message});
-
   final String message;
 
   @override
@@ -138,28 +214,10 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-class _ResultsView extends StatelessWidget {
-  const _ResultsView({required this.result});
-
-  final ScanResult result;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _StatsCard(stats: result.stats),
-        const SizedBox(height: 16),
-        _CountryList(countries: result.countries),
-      ],
-    );
-  }
-}
-
 class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.stats});
-
+  const _StatsCard({required this.stats, required this.countryCount});
   final ScanStats stats;
+  final int countryCount;
 
   @override
   Widget build(BuildContext context) {
@@ -169,12 +227,13 @@ class _StatsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Scan summary', style: Theme.of(context).textTheme.titleSmall),
+            Text('Last scan', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            _StatRow(label: 'Assets inspected', value: '${stats.inspected}'),
+            _StatRow(label: 'Assets scanned', value: '${stats.inspected}'),
             _StatRow(label: 'With location', value: '${stats.withLocation}'),
             _StatRow(label: 'Without location', value: '${stats.withoutLocation}'),
             _StatRow(label: 'Geocode successes', value: '${stats.geocodeSuccesses}'),
+            _StatRow(label: 'Unique countries', value: '$countryCount'),
           ],
         ),
       ),
@@ -184,7 +243,6 @@ class _StatsCard extends StatelessWidget {
 
 class _StatRow extends StatelessWidget {
   const _StatRow({required this.label, required this.value});
-
   final String label;
   final String value;
 
@@ -196,59 +254,88 @@ class _StatRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: Theme.of(context).textTheme.bodySmall),
-          Text(value, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
   }
 }
 
-class _CountryList extends StatelessWidget {
-  const _CountryList({required this.countries});
-
-  final List<DetectedCountry> countries;
+class _VisitList extends StatelessWidget {
+  const _VisitList({required this.visits});
+  final List<CountryVisit> visits;
 
   @override
   Widget build(BuildContext context) {
-    if (countries.isEmpty) {
-      return const Center(
-        child: Text(
-          'No geotagged photos found in the most recent 100 photos.\n'
-          'Try enabling location on your camera or increasing the scan limit.',
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${countries.length} ${countries.length == 1 ? 'country' : 'countries'} detected',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView.separated(
-              itemCount: countries.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (_, i) {
-                final c = countries[i];
-                return ListTile(
-                  leading: Text(
-                    c.code,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  title: Text(c.name),
-                  trailing: Text(
-                    '${c.photoCount} photo${c.photoCount == 1 ? '' : 's'}',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                );
-              },
+    // Sort A→Z by country code for a consistent display order.
+    final sorted = [...visits]..sort((a, b) => a.countryCode.compareTo(b.countryCode));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '${sorted.length} ${sorted.length == 1 ? 'country' : 'countries'} visited',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.separated(
+            itemCount: sorted.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final v = sorted[i];
+              return ListTile(
+                leading: Text(
+                  v.countryCode,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                trailing: v.source == VisitSource.manual
+                    ? const Icon(Icons.person, size: 14, color: Colors.grey)
+                    : null,
+              );
+            },
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _NoScanYetHint extends StatelessWidget {
+  const _NoScanYetHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        'Grant permission then tap Scan to detect\nthe countries in your photo library.',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+      ),
+    );
+  }
+}
+
+class _EmptyResultsHint extends StatelessWidget {
+  const _EmptyResultsHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        'No geotagged photos found.\n'
+        'Enable location on your camera or increase the scan limit.',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
       ),
     );
   }

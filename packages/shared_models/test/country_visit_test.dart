@@ -92,4 +92,28 @@ void main() {
       expect(autoVisit(isDeleted: false), isNot(equals(autoVisit(isDeleted: true))));
     });
   });
+
+  group('CountryVisit — JSON round-trip', () {
+    test('auto visit with no dates survives round-trip', () {
+      final v = autoVisit(code: 'GB', updatedAt: t0);
+      expect(CountryVisit.fromJson(v.toJson()), equals(v));
+    });
+
+    test('manual tombstone survives round-trip', () {
+      final v = manualVisit(code: 'JP', isDeleted: true, updatedAt: t1);
+      expect(CountryVisit.fromJson(v.toJson()), equals(v));
+    });
+
+    test('dates survive round-trip', () {
+      final v = autoVisit(code: 'FR', firstSeen: t0, lastSeen: t1, updatedAt: t1);
+      final decoded = CountryVisit.fromJson(v.toJson());
+      expect(decoded.firstSeen, equals(t0));
+      expect(decoded.lastSeen, equals(t1));
+    });
+
+    test('toJson source field uses enum name string', () {
+      expect(autoVisit().toJson()['source'], 'auto');
+      expect(manualVisit().toJson()['source'], 'manual');
+    });
+  });
 }

@@ -1,24 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile_flutter/main.dart';
 import 'package:mobile_flutter/photo_scan_channel.dart';
 
 // Builds the app with a mock MethodChannel handler.
+// Always primes SharedPreferences so ScanScreen.initState() can complete.
 Future<void> pumpApp(
   WidgetTester tester, {
   required Future<Object?> Function(MethodCall) handler,
 }) async {
+  SharedPreferences.setMockInitialValues({});
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
     const MethodChannel('roavvy/photo_scan'),
     handler,
   );
   await tester.pumpWidget(const RoavvySpike());
+  // Wait for _loadPersisted() to finish so the loading spinner clears.
+  await tester.pumpAndSettle();
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('roavvy/photo_scan'), null);
@@ -101,17 +108,17 @@ void main() {
     testWidgets('shows permission button and disabled scan button', (tester) async {
       await pumpApp(tester, handler: (_) async => null);
       expect(find.text('Request Permission'), findsOneWidget);
-      expect(find.text('Scan 100 Most Recent Photos'), findsOneWidget);
-      // Scan button is disabled before permission is granted
+      expect(find.text('Scan 500 Most Recent Photos'), findsOneWidget);
+      // Scan button is disabled before permission is granted.
       final scanBtn = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Scan 100 Most Recent Photos'),
+        find.widgetWithText(FilledButton, 'Scan 500 Most Recent Photos'),
       );
       expect(scanBtn.onPressed, isNull);
     });
   });
 
   group('ScanScreen — after scan with results', () {
-    testWidgets('shows stats card and country list', (tester) async {
+    testWidgets('shows stats card with all five rows', (tester) async {
       await pumpApp(tester, handler: (call) async {
         if (call.method == 'requestPermission') return 3; // authorized
         if (call.method == 'scanPhotos') {
@@ -130,27 +137,71 @@ void main() {
 
       await tester.tap(find.text('Request Permission'));
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Scan 100 Most Recent Photos'));
+      await tester.tap(find.text('Scan 500 Most Recent Photos'));
       await tester.pumpAndSettle();
 
       // Stats card
-      expect(find.text('Scan summary'), findsOneWidget);
-      expect(find.text('100'), findsOneWidget); // inspected
-      expect(find.text('72'), findsOneWidget);  // withLocation
-      expect(find.text('28'), findsOneWidget);  // withoutLocation
-      expect(find.text('8'), findsOneWidget);   // geocodeSuccesses
-
-      // Country list
-      expect(find.text('2 countries detected'), findsOneWidget);
-      expect(find.text('US'), findsOneWidget);
-      expect(find.text('United States'), findsOneWidget);
-      expect(find.text('50 photos'), findsOneWidget);
-      expect(find.text('GB'), findsOneWidget);
-      expect(find.text('22 photos'), findsOneWidget);
+      expect(find.text('Last scan'), findsOneWidget);
+      expect(find.text('100'), findsOneWidget); // assets scanned
+      expect(find.text('72'), findsOneWidget);  // with location
+      expect(find.text('28'), findsOneWidget);  // without location
+      expect(find.text('8'), findsOneWidget);   // geocode successes
+      // unique countries row appears (2 detected → 2 unique)
+      expect(find.text('2'), findsOneWidget);
     });
 
-    testWidgets('shows no-geotagged-photos message when countries is empty', (tester) async {
+    testWidgets('shows country list with ISO codes', (tester) async {
+      await pumpApp(tester, handler: (call) async {
+        if (call.method == 'requestPermission') return 3;
+        if (call.method == 'scanPhotos') {
+          return {
+            'inspected': 100,
+            'withLocation': 72,
+            'geocodeSuccesses': 8,
+            'countries': [
+              {'code': 'US', 'name': 'United States', 'photoCount': 50},
+              {'code': 'GB', 'name': 'United Kingdom', 'photoCount': 22},
+            ],
+          };
+        }
+        return null;
+      });
+
+      await tester.tap(find.text('Request Permission'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan 500 Most Recent Photos'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 countries visited'), findsOneWidget);
+      expect(find.text('US'), findsOneWidget);
+      expect(find.text('GB'), findsOneWidget);
+    });
+
+    testWidgets('shows Review & Edit button after scan', (tester) async {
+      await pumpApp(tester, handler: (call) async {
+        if (call.method == 'requestPermission') return 3;
+        if (call.method == 'scanPhotos') {
+          return {
+            'inspected': 10,
+            'withLocation': 5,
+            'geocodeSuccesses': 2,
+            'countries': [
+              {'code': 'JP', 'name': 'Japan', 'photoCount': 5},
+            ],
+          };
+        }
+        return null;
+      });
+
+      await tester.tap(find.text('Request Permission'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan 500 Most Recent Photos'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review & Edit'), findsOneWidget);
+    });
+
+    testWidgets('shows empty hint when scan returns no countries', (tester) async {
       await pumpApp(tester, handler: (call) async {
         if (call.method == 'requestPermission') return 3;
         if (call.method == 'scanPhotos') {
@@ -166,10 +217,10 @@ void main() {
 
       await tester.tap(find.text('Request Permission'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan 100 Most Recent Photos'));
+      await tester.tap(find.text('Scan 500 Most Recent Photos'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Scan summary'), findsOneWidget);
+      expect(find.text('Last scan'), findsOneWidget);
       expect(find.textContaining('No geotagged photos'), findsOneWidget);
     });
   });

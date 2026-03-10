@@ -76,6 +76,28 @@ class CountryVisit {
   int get hashCode =>
       Object.hash(countryCode, source, firstSeen, lastSeen, isDeleted, updatedAt);
 
+  Map<String, dynamic> toJson() => {
+        'countryCode': countryCode,
+        'source': source.name,
+        'isDeleted': isDeleted,
+        'updatedAt': updatedAt.toUtc().toIso8601String(),
+        'firstSeen': firstSeen?.toUtc().toIso8601String(),
+        'lastSeen': lastSeen?.toUtc().toIso8601String(),
+      };
+
+  factory CountryVisit.fromJson(Map<String, dynamic> json) => CountryVisit(
+        countryCode: json['countryCode'] as String,
+        source: VisitSource.values.byName(json['source'] as String),
+        isDeleted: json['isDeleted'] as bool? ?? false,
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+        firstSeen: json['firstSeen'] == null
+            ? null
+            : DateTime.parse(json['firstSeen'] as String),
+        lastSeen: json['lastSeen'] == null
+            ? null
+            : DateTime.parse(json['lastSeen'] as String),
+      );
+
   @override
   String toString() =>
       'CountryVisit($countryCode, $source, deleted=$isDeleted, updatedAt=$updatedAt)';
