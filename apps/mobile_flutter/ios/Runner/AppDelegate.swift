@@ -79,19 +79,18 @@ import UIKit
             )
 
             let assets = PHAsset.fetchAssets(with: options)
-            print("[PhotoScan] Total assets in library: \(assets.count)")
 
             // Bucket coordinates into a 0.5° grid (≈ 55 km) before geocoding
             // to minimise CLGeocoder calls.
             var buckets: [String: (CLLocation, Int)] = [:]
-            var geotaggedCount = 0
+            var withLocation = 0
             var inspected = 0
 
             assets.enumerateObjects { asset, _, stop in
                 guard inspected < limit else { stop.pointee = true; return }
                 inspected += 1
                 guard let loc = asset.location else { return }
-                geotaggedCount += 1
+                withLocation += 1
 
                 let lat = (loc.coordinate.latitude  * 2).rounded() / 2
                 let lng = (loc.coordinate.longitude * 2).rounded() / 2
@@ -104,16 +103,25 @@ import UIKit
                 }
             }
 
-            print("[PhotoScan] Inspected: \(inspected), geotagged: \(geotaggedCount), buckets: \(buckets.count)")
+            print("[PhotoScan] Inspected: \(inspected), withLocation: \(withLocation), buckets: \(buckets.count)")
 
             guard !buckets.isEmpty else {
-                DispatchQueue.main.async { result([]) }
+                let payload: [String: Any] = [
+                    "inspected": inspected,
+                    "withLocation": withLocation,
+                    "geocodeSuccesses": 0,
+                    "countries": [[String: Any]](),
+                ]
+                DispatchQueue.main.async { result(payload) }
                 return
             }
 
             self.geocodeSerially(
                 buckets: Array(buckets.values),
                 index: 0,
+                inspected: inspected,
+                withLocation: withLocation,
+                geocodeSuccesses: 0,
                 countryMap: [:],
                 result: result
             )
@@ -128,15 +136,24 @@ import UIKit
     private func geocodeSerially(
         buckets: [(CLLocation, Int)],
         index: Int,
+        inspected: Int,
+        withLocation: Int,
+        geocodeSuccesses: Int,
         countryMap: [String: (name: String, count: Int)],
         result: @escaping FlutterResult
     ) {
         guard index < buckets.count else {
-            let output: [[String: Any]] = countryMap
+            let countries: [[String: Any]] = countryMap
                 .map { code, value in ["code": code, "name": value.name, "photoCount": value.count] }
                 .sorted { ($0["photoCount"] as! Int) > ($1["photoCount"] as! Int) }
-            print("[PhotoScan] Done. Countries found: \(output.count)")
-            DispatchQueue.main.async { result(output) }
+            let payload: [String: Any] = [
+                "inspected": inspected,
+                "withLocation": withLocation,
+                "geocodeSuccesses": geocodeSuccesses,
+                "countries": countries,
+            ]
+            print("[PhotoScan] Done. Countries: \(countries.count), geocodeSuccesses: \(geocodeSuccesses)/\(buckets.count)")
+            DispatchQueue.main.async { result(payload) }
             return
         }
 
@@ -145,6 +162,7 @@ import UIKit
         CLGeocoder().reverseGeocodeLocation(location) { [weak self] placemarks, error in
             guard let self else { return }
             var updated = countryMap
+            var successes = geocodeSuccesses
 
             if let error {
                 print("[PhotoScan] Geocode error [\(index)]: \(error.localizedDescription)")
@@ -153,6 +171,7 @@ import UIKit
                       let name = placemark.country {
                 let existing = updated[code]
                 updated[code] = (name: name, count: (existing?.count ?? 0) + count)
+                successes += 1
                 print("[PhotoScan] [\(index)/\(buckets.count)] → \(code) (\(name))")
             }
 
@@ -160,6 +179,9 @@ import UIKit
                 self.geocodeSerially(
                     buckets: buckets,
                     index: index + 1,
+                    inspected: inspected,
+                    withLocation: withLocation,
+                    geocodeSuccesses: successes,
                     countryMap: updated,
                     result: result
                 )

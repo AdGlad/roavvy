@@ -11,7 +11,7 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   PhotoPermissionStatus? _permission;
   bool _scanning = false;
-  List<DetectedCountry>? _results;
+  ScanResult? _result;
   String? _error;
 
   Future<void> _requestPermission() async {
@@ -19,7 +19,7 @@ class _ScanScreenState extends State<ScanScreen> {
       final status = await requestPhotoPermission();
       setState(() {
         _permission = status;
-        _results = null;
+        _result = null;
         _error = null;
       });
     } catch (e) {
@@ -30,12 +30,12 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _scan() async {
     setState(() {
       _scanning = true;
-      _results = null;
+      _result = null;
       _error = null;
     });
     try {
-      final countries = await scanPhotos(limit: 100);
-      setState(() => _results = countries);
+      final result = await scanPhotos(limit: 100);
+      setState(() => _result = result);
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -66,7 +66,7 @@ class _ScanScreenState extends State<ScanScreen> {
             const SizedBox(height: 24),
             if (_error != null) _ErrorView(message: _error!),
             if (_scanning) const _ScanningView(),
-            if (_results != null) Expanded(child: _ResultsView(countries: _results!)),
+            if (_result != null) Expanded(child: _ResultsView(result: _result!)),
           ],
         ),
       ),
@@ -139,7 +139,72 @@ class _ErrorView extends StatelessWidget {
 }
 
 class _ResultsView extends StatelessWidget {
-  const _ResultsView({required this.countries});
+  const _ResultsView({required this.result});
+
+  final ScanResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StatsCard(stats: result.stats),
+        const SizedBox(height: 16),
+        _CountryList(countries: result.countries),
+      ],
+    );
+  }
+}
+
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.stats});
+
+  final ScanStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Scan summary', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            _StatRow(label: 'Assets inspected', value: '${stats.inspected}'),
+            _StatRow(label: 'With location', value: '${stats.withLocation}'),
+            _StatRow(label: 'Without location', value: '${stats.withoutLocation}'),
+            _StatRow(label: 'Geocode successes', value: '${stats.geocodeSuccesses}'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  const _StatRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Text(value, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountryList extends StatelessWidget {
+  const _CountryList({required this.countries});
 
   final List<DetectedCountry> countries;
 
@@ -154,35 +219,37 @@ class _ResultsView extends StatelessWidget {
         ),
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${countries.length} ${countries.length == 1 ? 'country' : 'countries'} detected',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.separated(
-            itemCount: countries.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final c = countries[i];
-              return ListTile(
-                leading: Text(
-                  c.code,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                title: Text(c.name),
-                trailing: Text(
-                  '${c.photoCount} photo${c.photoCount == 1 ? '' : 's'}',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              );
-            },
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${countries.length} ${countries.length == 1 ? 'country' : 'countries'} detected',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView.separated(
+              itemCount: countries.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (_, i) {
+                final c = countries[i];
+                return ListTile(
+                  leading: Text(
+                    c.code,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  title: Text(c.name),
+                  trailing: Text(
+                    '${c.photoCount} photo${c.photoCount == 1 ? '' : 's'}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

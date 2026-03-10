@@ -9,12 +9,9 @@ Future<PhotoPermissionStatus> requestPhotoPermission() async {
   return PhotoPermissionStatus.fromRaw(raw);
 }
 
-Future<List<DetectedCountry>> scanPhotos({int limit = 100}) async {
-  final List raw = await _channel.invokeMethod('scanPhotos', {'limit': limit});
-  return raw
-      .cast<Map>()
-      .map((m) => DetectedCountry.fromMap(Map<String, dynamic>.from(m)))
-      .toList();
+Future<ScanResult> scanPhotos({int limit = 100}) async {
+  final Map raw = await _channel.invokeMethod('scanPhotos', {'limit': limit});
+  return ScanResult.fromMap(Map<String, dynamic>.from(raw));
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -38,6 +35,41 @@ enum PhotoPermissionStatus {
         authorized => 'Authorised',
         limited => 'Limited access',
       };
+}
+
+class ScanStats {
+  const ScanStats({
+    required this.inspected,
+    required this.withLocation,
+    required this.geocodeSuccesses,
+  });
+
+  factory ScanStats.fromMap(Map<String, dynamic> m) => ScanStats(
+        inspected: m['inspected'] as int? ?? 0,
+        withLocation: m['withLocation'] as int? ?? 0,
+        geocodeSuccesses: m['geocodeSuccesses'] as int? ?? 0,
+      );
+
+  final int inspected;
+  final int withLocation;
+  int get withoutLocation => inspected - withLocation;
+
+  final int geocodeSuccesses;
+}
+
+class ScanResult {
+  const ScanResult({required this.stats, required this.countries});
+
+  factory ScanResult.fromMap(Map<String, dynamic> m) => ScanResult(
+        stats: ScanStats.fromMap(m),
+        countries: (m['countries'] as List? ?? [])
+            .cast<Map>()
+            .map((c) => DetectedCountry.fromMap(Map<String, dynamic>.from(c)))
+            .toList(),
+      );
+
+  final ScanStats stats;
+  final List<DetectedCountry> countries;
 }
 
 class DetectedCountry {
