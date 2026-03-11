@@ -7,15 +7,16 @@ The Flutter mobile app runs on a real iPhone and successfully scans the photo li
 **Confirmed working end-to-end:**
 - Photo library permission request (iOS Photos framework)
 - PhotoKit asset fetch with `fetchLimit` and `sinceDate` incremental-scan predicate
-- GPS coordinate extraction from EXIF metadata
-- Reverse geocoding via CLGeocoder with coordinate bucketing (0.5° grid, ~55 km) to minimise API calls
-- Aggregate result returned over `MethodChannel('roavvy/photo_scan')` to Flutter
+- GPS coordinate extraction from EXIF metadata — streamed as per-photo records via `EventChannel('roavvy/photo_scan/events')`
+- **CLGeocoder fully removed** — all country resolution is now offline, via `packages/country_lookup`
+- Swift streams `{lat, lng, capturedAt}` per photo in batches of 50; Dart resolves coordinates to ISO codes on a background `Isolate`
 - Scan stats display: assets inspected, with/without location, geocode successes/failures, unique countries
-- Per-country photo counts in the visit list
+- Progress indicator during scanning (indeterminate `LinearProgressIndicator` + processed-photo counter)
+- Per-country photo counts and `firstSeen`/`lastSeen` ranges populated from `capturedAt`
 - Country visit persistence via Drift SQLite — three typed tables (`inferred_country_visits`, `user_added_countries`, `user_removed_countries`) — survives app restart
 - Review screen: remove a detected country, manually add a country (2-letter ISO code), save the corrected list
 - User edits (add / remove) are written as typed records; removals create `UserRemovedCountry` tombstones that suppress future scan results
-- 129 tests passing (55 shared_models + 54 Flutter + 20 country_lookup)
+- 18 widget/unit tests passing in `widget_test.dart`; full suite ~124 tests
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
@@ -51,10 +52,10 @@ The effective set is computed by `effectiveVisitedCountries()` (`src/effective_v
 
 ```
 apps/mobile_flutter/
-  ios/Runner/AppDelegate.swift           Swift PhotoKit + CLGeocoder bridge (spike — to be replaced)
-  lib/photo_scan_channel.dart            Dart MethodChannel wrapper + ScanStats types
-  lib/scan_screen.dart                   Main scan UI (permission, scan, stats, list)
-  lib/features/scan/scan_mapper.dart     DetectedCountry → CountryVisit / InferredCountryVisit conversion
+  ios/Runner/AppDelegate.swift           Swift PhotoKit bridge — EventChannel streaming, no CLGeocoder
+  lib/photo_scan_channel.dart            startPhotoScan() / ScanBatchEvent / ScanDoneEvent / PhotoRecord
+  lib/scan_screen.dart                   Main scan UI; Isolate.run batch resolver; injectable scanStarter
+  lib/features/scan/scan_mapper.dart     DetectedCountry → CountryVisit / InferredCountryVisit (legacy, retire in Task 5)
   lib/data/db/roavvy_database.dart       Drift table definitions (three tables, @DataClassName row types)
   lib/data/visit_repository.dart         VisitRepository — typed upsert/load/clear/close
   lib/features/visits/review_screen.dart Review / edit / add / remove countries (writes delta to VisitRepository)
@@ -102,8 +103,8 @@ All decisions are recorded with context and consequences in [docs/architecture/d
 | 006 | Merge precedence: `manual` > `auto`; later `updatedAt` wins same-source | Accepted |
 | 007 | `shared_models` is zero-dependency and dual-language (Dart + TS) | Accepted — TS side not yet built |
 | 008 | Three typed input kinds + one read model for the domain visit model | Accepted |
-| 009 | CLGeocoder in spike; superseded by `country_lookup` for production | Spike only |
-| 010 | Single aggregate IPC call in spike; superseded by streaming | Spike only |
+| 009 | CLGeocoder in spike; superseded by `country_lookup` for production | ✓ CLGeocoder removed |
+| 010 | Single aggregate IPC call in spike; superseded by streaming | ✓ EventChannel streaming done |
 | 011 | `shared_preferences` for spike persistence; superseded by Drift | Superseded — removed (Task 2) |
 | 012 | `fetchLimit` + `sinceDate` predicate in PhotoKit bridge | Accepted |
 | 013 | `ScanSummary` in `shared_models`; channel-layer `ScanStats` is spike-only | Accepted |
@@ -137,9 +138,9 @@ cd apps/mobile_flutter && flutter test
 
 2. ~~**Drift SQLite persistence**~~ — ✓ Complete (Task 2). Three Drift tables, `VisitRepository`, `scan_mapper` updated, `shared_preferences` removed.
 
-3. **Background isolate + streaming + CLGeocoder removal** — stream `{lat, lng, capturedAt}` per photo over EventChannel; Dart background isolate calls `resolveCountry`; progress events to UI; delete all CLGeocoder code. (Tasks 3+4 combined — requires `ne_countries.bin` to exist)
+3. ~~**Background isolate + streaming + CLGeocoder removal**~~ — ✓ Complete (Tasks 3+4). EventChannel streams per-photo GPS; Dart `Isolate.run` resolves via `country_lookup`; CLGeocoder removed; progress bar wired.
 
-4. **Typed domain model migration** — retire `CountryVisit`, `VisitSource`, `effectiveVisits()`; all app-layer code uses the three typed records throughout. (Task 5 — depends on Task 2)
+4. **Typed domain model migration** — retire `CountryVisit`, `VisitSource`, `effectiveVisits()`; all app-layer code uses the three typed records throughout. (Task 5 — **next task**)
 
 5. **TypeScript counterpart in `shared_models`** — `packages/shared_models/ts/` types required before first `apps/web_nextjs` usage.
 
@@ -149,9 +150,9 @@ cd apps/mobile_flutter && flutter test
 
 | Limitation | ADR | Replacement | Status |
 |---|---|---|---|
-| CLGeocoder: network-required, rate-limited, locale-dependent country names | ADR-009 | `packages/country_lookup` | Package built and wired; CLGeocoder removal is Task 3+4 |
+| CLGeocoder: network-required, rate-limited, locale-dependent country names | ADR-009 | `packages/country_lookup` | ✓ Done — CLGeocoder fully removed |
 | `shared_preferences`: single JSON blob, no querying, no migration | ADR-011 | Drift SQLite | ✓ Done (Task 2) |
-| Single aggregate IPC call: no streaming, no progress | ADR-010 | Background isolate + EventChannel | Not started (Task 4) |
-| `CountryVisit` as storage format: invalid combinations possible | ADR-008 | Retire after Drift migration | Not started (Task 5) |
-| `firstSeen` / `lastSeen` not populated | ADR-013 | Extend Swift bridge contract | Not started (Task 3+4) |
-| `geocodeAttempts` == `assetsWithLocation` | ADR-013 | Extend Swift bridge contract | Not started (Task 3+4) |
+| Single aggregate IPC call: no streaming, no progress | ADR-010 | Background isolate + EventChannel | ✓ Done (Tasks 3+4) |
+| `CountryVisit` as storage format: invalid combinations possible | ADR-008 | Retire after Drift migration | **Next (Task 5)** |
+| `firstSeen` / `lastSeen` not populated | ADR-013 | Extend Swift bridge contract | ✓ Done — populated from `capturedAt` per photo |
+| `geocodeAttempts` == `assetsWithLocation` | ADR-013 | Extend Swift bridge contract | ✓ Done — `geocodeSuccesses` = resolved photo count |
