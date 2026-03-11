@@ -1,19 +1,105 @@
+import 'dart:isolate';
+import 'dart:typed_data';
+
+import 'package:country_lookup/country_lookup.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'data/db/roavvy_database.dart';
 import 'data/visit_repository.dart';
-import 'features/scan/scan_mapper.dart';
 import 'features/visits/review_screen.dart';
 import 'photo_scan_channel.dart';
 
-class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key, this.repository});
+// ── Background isolate helpers ─────────────────────────────────────────────────
 
-  /// Injected repository. When null the screen opens the production Drift DB.
-  /// Pass a non-null value in tests to avoid file-system access.
+/// Per-country accumulator used during batch processing.
+///
+/// Public so widget tests can inject predetermined results via [ScanScreen.batchResolver].
+class CountryAccum {
+  const CountryAccum({
+    required this.photoCount,
+    this.firstSeen,
+    this.lastSeen,
+  });
+
+  final int photoCount;
+  final DateTime? firstSeen;
+  final DateTime? lastSeen;
+
+  CountryAccum merge(CountryAccum other) => CountryAccum(
+        photoCount: photoCount + other.photoCount,
+        firstSeen: _earlier(firstSeen, other.firstSeen),
+        lastSeen: _later(lastSeen, other.lastSeen),
+      );
+}
+
+DateTime? _earlier(DateTime? a, DateTime? b) {
+  if (a == null) return b;
+  if (b == null) return a;
+  return a.isBefore(b) ? a : b;
+}
+
+DateTime? _later(DateTime? a, DateTime? b) {
+  if (a == null) return b;
+  if (b == null) return a;
+  return a.isAfter(b) ? a : b;
+}
+
+/// Resolves a batch of [PhotoRecord]s to per-country accumulators.
+///
+/// Top-level function — safe to pass to [Isolate.run].
+/// [initCountryLookup] is called on entry because each isolate has independent
+/// global state (the engine is not shared across isolate boundaries).
+Map<String, CountryAccum> _resolvePhotos(
+    Uint8List geodataBytes, List<PhotoRecord> photos) {
+  initCountryLookup(geodataBytes);
+  final result = <String, CountryAccum>{};
+
+  for (final photo in photos) {
+    // Bucket coordinates into a 0.5° grid (~55 km) to avoid resolving
+    // near-duplicate shots at the same location. (ADR-005)
+    final bucketLat = (photo.lat * 2).roundToDouble() / 2;
+    final bucketLng = (photo.lng * 2).roundToDouble() / 2;
+    final code = resolveCountry(bucketLat, bucketLng);
+    if (code == null) continue;
+
+    final accum =
+        CountryAccum(photoCount: 1, firstSeen: photo.capturedAt, lastSeen: photo.capturedAt);
+    final existing = result[code];
+    result[code] = existing == null ? accum : existing.merge(accum);
+  }
+
+  return result;
+}
+
+// ── ScanScreen ─────────────────────────────────────────────────────────────────
+
+class ScanScreen extends StatefulWidget {
+  const ScanScreen({
+    super.key,
+    this.repository,
+    this.geodataBytes,
+    this.batchResolver,
+    this.scanStarter,
+  });
+
+  /// Injected repository. Null = production Drift DB.
   final VisitRepository? repository;
+
+  /// Raw ne_countries.bin bytes passed to background isolates for offline
+  /// country resolution. Null in tests that do not exercise resolution.
+  final Uint8List? geodataBytes;
+
+  /// Optional resolver override for widget tests. When non-null, replaces the
+  /// [Isolate.run] call so tests can inject predetermined country results without
+  /// real geodata.
+  final Future<Map<String, CountryAccum>> Function(List<PhotoRecord>)? batchResolver;
+
+  /// Optional scan stream factory for widget tests. When non-null, replaces the
+  /// real [startPhotoScan] EventChannel call so tests can inject a plain Dart
+  /// stream without touching platform channel infrastructure.
+  final Stream<ScanEvent> Function({int limit})? scanStarter;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -25,9 +111,10 @@ class _ScanScreenState extends State<ScanScreen> {
   PhotoPermissionStatus? _permission;
   bool _loading = true;
   bool _scanning = false;
-  ScanResult? _lastScanResult;
+  ScanStats? _lastScanStats;
   List<EffectiveVisitedCountry> _effectiveVisits = [];
   String? _error;
+  _ScanProgress? _scanProgress;
 
   @override
   void initState() {
@@ -72,29 +159,87 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
+  /// Resolves [photos] to a country accumulator map.
+  ///
+  /// Uses the injected [batchResolver] when available (widget tests).
+  /// Otherwise runs [_resolvePhotos] on a background isolate.
+  Future<Map<String, CountryAccum>> _resolveBatch(List<PhotoRecord> photos) {
+    if (widget.batchResolver != null) return widget.batchResolver!(photos);
+    final bytes = widget.geodataBytes;
+    if (bytes == null) return Future.value({});
+    return Isolate.run(() => _resolvePhotos(bytes, photos));
+  }
+
   Future<void> _scan() async {
     setState(() {
       _scanning = true;
       _error = null;
+      _scanProgress = const _ScanProgress(processed: 0);
     });
-    try {
-      final result = await scanPhotos(limit: 500);
-      final now = DateTime.now().toUtc();
 
-      // Clear stale inferred data then persist the new scan results.
+    try {
+      final accum = <String, CountryAccum>{};
+      ScanDoneEvent? doneEvent;
+      var totalProcessed = 0;
+
+      final scanStream = widget.scanStarter != null
+          ? widget.scanStarter!(limit: 500)
+          : startPhotoScan(limit: 500);
+      await for (final event in scanStream) {
+        if (event is ScanBatchEvent) {
+          final batchResult = await _resolveBatch(event.photos);
+          for (final entry in batchResult.entries) {
+            final existing = accum[entry.key];
+            accum[entry.key] =
+                existing == null ? entry.value : existing.merge(entry.value);
+          }
+          totalProcessed += event.photos.length;
+          if (mounted) {
+            setState(() => _scanProgress = _ScanProgress(processed: totalProcessed));
+          }
+        } else if (event is ScanDoneEvent) {
+          doneEvent = event;
+        }
+      }
+
+      final resolveSuccesses =
+          accum.values.fold(0, (sum, a) => sum + a.photoCount);
+      final now = DateTime.now().toUtc();
+      final inferred = accum.entries
+          .map((e) => InferredCountryVisit(
+                countryCode: e.key,
+                inferredAt: now,
+                photoCount: e.value.photoCount,
+                firstSeen: e.value.firstSeen,
+                lastSeen: e.value.lastSeen,
+              ))
+          .toList();
+
       await _repo.clearInferred();
-      final visits = toInferredVisits(result.countries, now: now);
-      await _repo.saveAllInferred(visits);
+      await _repo.saveAllInferred(inferred);
 
       final effective = await _repo.loadEffective();
-      setState(() {
-        _lastScanResult = result;
-        _effectiveVisits = effective;
-      });
+      final stats = ScanStats(
+        inspected: doneEvent?.inspected ?? 0,
+        withLocation: doneEvent?.withLocation ?? 0,
+        geocodeSuccesses: resolveSuccesses,
+      );
+
+      if (mounted) {
+        setState(() {
+          _lastScanStats = stats;
+          _effectiveVisits = effective;
+        });
+      }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _scanning = false);
+      if (mounted) {
+        setState(() {
+          _scanning = false;
+          _scanProgress = null;
+        });
+      }
     }
   }
 
@@ -145,20 +290,20 @@ class _ScanScreenState extends State<ScanScreen> {
                   ),
                   const SizedBox(height: 24),
                   if (_error != null) _ErrorView(message: _error!),
-                  if (_scanning) const _ScanningView(),
+                  if (_scanning) _ScanningView(progress: _scanProgress),
                   if (!_scanning) ...[
-                    if (_lastScanResult != null)
+                    if (_lastScanStats != null)
                       _StatsCard(
-                        stats: _lastScanResult!.stats,
+                        stats: _lastScanStats!,
                         countryCount: _effectiveVisits.length,
                       ),
                     if (_effectiveVisits.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Expanded(child: _VisitList(visits: _effectiveVisits)),
-                    ] else if (_lastScanResult != null) ...[
+                    ] else if (_lastScanStats != null) ...[
                       const SizedBox(height: 16),
                       const _EmptyResultsHint(),
-                    ] else if (_effectiveVisits.isEmpty && _lastScanResult == null) ...[
+                    ] else if (_effectiveVisits.isEmpty && _lastScanStats == null) ...[
                       const SizedBox(height: 16),
                       const _NoScanYetHint(),
                     ],
@@ -170,7 +315,14 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
+// ── Progress ───────────────────────────────────────────────────────────────────
+
+class _ScanProgress {
+  const _ScanProgress({required this.processed});
+  final int processed;
+}
+
+// ── Sub-widgets ────────────────────────────────────────────────────────────────
 
 class _PermissionStatus extends StatelessWidget {
   const _PermissionStatus({required this.status});
@@ -197,19 +349,22 @@ class _PermissionStatus extends StatelessWidget {
 }
 
 class _ScanningView extends StatelessWidget {
-  const _ScanningView();
+  const _ScanningView({this.progress});
+  final _ScanProgress? progress;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final processed = progress?.processed ?? 0;
+    return Column(
       children: [
-        CircularProgressIndicator(),
-        SizedBox(height: 12),
-        Text('Scanning photos and reverse-geocoding\u2026'),
+        LinearProgressIndicator(value: null),
+        const SizedBox(height: 8),
         Text(
-          'This may take a few seconds.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
+        const SizedBox(height: 4),
+        const Text('Detecting visited countries'),
       ],
     );
   }
