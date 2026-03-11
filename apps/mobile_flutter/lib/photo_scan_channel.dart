@@ -62,6 +62,7 @@ class ScanStats {
   int get withoutLocation => inspected - withLocation;
 
   final int geocodeSuccesses;
+  int get geocodeFailures => withLocation - geocodeSuccesses;
 }
 
 class ScanResult {

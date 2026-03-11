@@ -1,0 +1,10 @@
+name: country_lookup
+description: Offline GPS coordinate to ISO 3166-1 alpha-2 country code resolution. Zero network dependency.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dev_dependencies:
+  test: ^1.25.0

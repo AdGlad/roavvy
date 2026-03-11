@@ -1,90 +1,103 @@
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
-import 'visit_store.dart';
+import '../../data/visit_repository.dart';
 
 /// Lets the user correct the detected visited-country list before it is saved.
 ///
-/// - Swipe left or tap the delete icon to remove a country (creates a manual
+/// - Tap the delete icon to remove a country (writes a [UserRemovedCountry]
 ///   tombstone so the next scan does not re-add it automatically).
-/// - Tap the FAB to add a country that was not detected.
-/// - Tap Save to persist the corrected list and return to the previous screen.
+/// - Tap the FAB to add a country that was not detected (writes a
+///   [UserAddedCountry] record).
+/// - Tap Save to persist only the delta (new adds and removals) and return.
 ///
 /// The screen operates on a local copy of [initialVisits]; nothing is written
 /// until Save is tapped.
 class ReviewScreen extends StatefulWidget {
-  const ReviewScreen({super.key, required this.initialVisits});
+  const ReviewScreen({
+    super.key,
+    required this.initialVisits,
+    required this.repository,
+  });
 
   /// The effective (already-merged) visits to start the review with.
-  final List<CountryVisit> initialVisits;
+  final List<EffectiveVisitedCountry> initialVisits;
+
+  /// Repository used to persist the delta on Save.
+  final VisitRepository repository;
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
 }
 
 class _ReviewScreenState extends State<ReviewScreen> {
-  // Working copy — mutated locally until Save is tapped.
-  late final List<CountryVisit> _visits;
+  late final List<_ReviewItem> _items;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    // Sort A→Z by country code for a stable, predictable order.
-    _visits = [...widget.initialVisits]
+    _items = widget.initialVisits
+        .map(_ReviewItem.fromEffective)
+        .toList()
       ..sort((a, b) => a.countryCode.compareTo(b.countryCode));
   }
 
   void _remove(int index) {
-    final visit = _visits[index];
-    setState(() {
-      // Replace with a manual tombstone so the next scan does not re-surface it.
-      _visits[index] = visit.copyWith(
-        source: VisitSource.manual,
-        isDeleted: true,
-        updatedAt: DateTime.now().toUtc(),
-      );
-    });
+    setState(() => _items[index].isPendingRemoval = true);
   }
 
   void _undoRemove(int index) {
-    setState(() {
-      _visits[index] = _visits[index].copyWith(
-        isDeleted: false,
-        updatedAt: DateTime.now().toUtc(),
-      );
-    });
+    setState(() => _items[index].isPendingRemoval = false);
   }
 
   Future<void> _addCountry() async {
-    final result = await showDialog<CountryVisit>(
+    final code = await showDialog<String>(
       context: context,
       builder: (_) => const _AddCountryDialog(),
     );
-    if (result == null) return;
+    if (code == null) return;
     setState(() {
-      // If the country already exists in the list (active or tombstone), update it.
-      final existing = _visits.indexWhere((v) => v.countryCode == result.countryCode);
+      final existing = _items.indexWhere((i) => i.countryCode == code);
       if (existing >= 0) {
-        _visits[existing] = result;
+        // If it was pending removal, undo that instead of adding a duplicate.
+        _items[existing].isPendingRemoval = false;
       } else {
-        _visits.add(result);
-        _visits.sort((a, b) => a.countryCode.compareTo(b.countryCode));
+        _items.add(_ReviewItem.newCountry(code));
+        _items.sort((a, b) => a.countryCode.compareTo(b.countryCode));
       }
     });
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    // Persist the full list including tombstones so they survive the next scan.
-    await VisitStore.save(_visits);
-    if (mounted) Navigator.of(context).pop(_visits);
+    final now = DateTime.now().toUtc();
+    try {
+      for (final item in _items) {
+        if (item.isNewlyAdded && !item.isPendingRemoval) {
+          // User added a brand-new country during this review session.
+          await widget.repository.saveAdded(
+            UserAddedCountry(countryCode: item.countryCode, addedAt: now),
+          );
+        } else if (!item.isNewlyAdded && item.isPendingRemoval) {
+          // User removed a country that was in the effective set.
+          await widget.repository.saveRemoved(
+            UserRemovedCountry(countryCode: item.countryCode, removedAt: now),
+          );
+        }
+        // isNewlyAdded && isPendingRemoval → cancel out, nothing to persist.
+        // !isNewlyAdded && !isPendingRemoval → unchanged, nothing to persist.
+      }
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final active = _visits.where((v) => v.isActive).toList();
-    final deleted = _visits.where((v) => v.isDeleted).toList();
+    final active = _items.where((i) => i.isActive).toList();
+    final removed = _items.where((i) => i.isPendingRemoval).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -107,7 +120,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         tooltip: 'Add country',
         child: const Icon(Icons.add),
       ),
-      body: active.isEmpty && deleted.isEmpty
+      body: active.isEmpty && removed.isEmpty
           ? const Center(child: Text('No countries yet. Tap + to add one.'))
           : ListView(
               children: [
@@ -115,20 +128,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   _SectionHeader(
                     '${active.length} ${active.length == 1 ? 'country' : 'countries'} visited',
                   ),
-                  ...active.map((v) {
-                    final index = _visits.indexOf(v);
+                  ...active.map((item) {
+                    final index = _items.indexOf(item);
                     return _VisitTile(
-                      visit: v,
+                      item: item,
                       onRemove: () => _remove(index),
                     );
                   }),
                 ],
-                if (deleted.isNotEmpty) ...[
+                if (removed.isNotEmpty) ...[
                   const _SectionHeader('Removed (will not re-appear after scan)'),
-                  ...deleted.map((v) {
-                    final index = _visits.indexOf(v);
+                  ...removed.map((item) {
+                    final index = _items.indexOf(item);
                     return _RemovedTile(
-                      visit: v,
+                      item: item,
                       onUndo: () => _undoRemove(index),
                     );
                   }),
@@ -137,6 +150,36 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
     );
   }
+}
+
+// ── Internal model ────────────────────────────────────────────────────────────
+
+class _ReviewItem {
+  _ReviewItem.fromEffective(EffectiveVisitedCountry v)
+      : countryCode = v.countryCode,
+        isManual = !v.hasPhotoEvidence,
+        isNewlyAdded = false,
+        isPendingRemoval = false;
+
+  _ReviewItem.newCountry(String code)
+      : countryCode = code,
+        isManual = true,
+        isNewlyAdded = true,
+        isPendingRemoval = false;
+
+  final String countryCode;
+
+  /// True when the country has no photo evidence (manually added previously
+  /// or newly added in this session). Drives the "Added manually" subtitle.
+  final bool isManual;
+
+  /// True when the user added this country during the current review session.
+  final bool isNewlyAdded;
+
+  /// True when the user has marked this country for removal in this session.
+  bool isPendingRemoval;
+
+  bool get isActive => !isPendingRemoval;
 }
 
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
@@ -161,39 +204,42 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _VisitTile extends StatelessWidget {
-  const _VisitTile({required this.visit, required this.onRemove});
-  final CountryVisit visit;
+  const _VisitTile({required this.item, required this.onRemove});
+  final _ReviewItem item;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: Text(
-        visit.countryCode,
+        item.countryCode,
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
       ),
       trailing: IconButton(
         icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-        tooltip: 'Remove ${visit.countryCode}',
+        tooltip: 'Remove ${item.countryCode}',
         onPressed: onRemove,
       ),
-      subtitle: visit.source == VisitSource.manual
-          ? const Text('Added manually', style: TextStyle(fontSize: 11, color: Colors.grey))
+      subtitle: item.isManual
+          ? const Text(
+              'Added manually',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            )
           : null,
     );
   }
 }
 
 class _RemovedTile extends StatelessWidget {
-  const _RemovedTile({required this.visit, required this.onUndo});
-  final CountryVisit visit;
+  const _RemovedTile({required this.item, required this.onUndo});
+  final _ReviewItem item;
   final VoidCallback onUndo;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: Text(
-        visit.countryCode,
+        item.countryCode,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 16,
@@ -234,12 +280,7 @@ class _AddCountryDialogState extends State<_AddCountryDialog> {
       setState(() => _error = 'Enter a 2-letter ISO country code (e.g. GB, JP, US)');
       return;
     }
-    final visit = CountryVisit(
-      countryCode: code,
-      source: VisitSource.manual,
-      updatedAt: DateTime.now().toUtc(),
-    );
-    Navigator.of(context).pop(visit);
+    Navigator.of(context).pop(code);
   }
 
   @override

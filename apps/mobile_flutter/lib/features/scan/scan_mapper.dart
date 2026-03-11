@@ -28,3 +28,24 @@ List<CountryVisit> toCountryVisits(
       )
       .toList();
 }
+
+/// Maps [DetectedCountry] results into [InferredCountryVisit] objects for
+/// persistence in the Drift [inferred_country_visits] table.
+///
+/// [firstSeen] and [lastSeen] are null — the current Swift bridge returns only
+/// country-level aggregates, not per-photo timestamps. These fields will become
+/// non-nullable once the bridge is extended in Task 3+4.
+List<InferredCountryVisit> toInferredVisits(
+  List<DetectedCountry> detected, {
+  required DateTime now,
+}) {
+  return detected
+      .map(
+        (d) => InferredCountryVisit(
+          countryCode: d.code,
+          inferredAt: now,
+          photoCount: d.photoCount,
+        ),
+      )
+      .toList();
+}

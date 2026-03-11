@@ -1,30 +1,36 @@
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:mobile_flutter/main.dart';
+import 'package:mobile_flutter/data/db/roavvy_database.dart';
+import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/photo_scan_channel.dart';
+import 'package:mobile_flutter/scan_screen.dart';
 
-// Builds the app with a mock MethodChannel handler.
-// Always primes SharedPreferences so ScanScreen.initState() can complete.
+VisitRepository _makeRepo() =>
+    VisitRepository(RoavvyDatabase(NativeDatabase.memory()));
+
+// Builds ScanScreen with an in-memory repository and a mock MethodChannel handler.
 Future<void> pumpApp(
   WidgetTester tester, {
   required Future<Object?> Function(MethodCall) handler,
+  VisitRepository? repository,
 }) async {
-  SharedPreferences.setMockInitialValues({});
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
     const MethodChannel('roavvy/photo_scan'),
     handler,
   );
-  await tester.pumpWidget(const RoavvySpike());
+  await tester.pumpWidget(
+    MaterialApp(home: ScanScreen(repository: repository ?? _makeRepo())),
+  );
   // Wait for _loadPersisted() to finish so the loading spinner clears.
   await tester.pumpAndSettle();
 }
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -109,7 +115,6 @@ void main() {
       await pumpApp(tester, handler: (_) async => null);
       expect(find.text('Request Permission'), findsOneWidget);
       expect(find.text('Scan 500 Most Recent Photos'), findsOneWidget);
-      // Scan button is disabled before permission is granted.
       final scanBtn = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Scan 500 Most Recent Photos'),
       );
@@ -118,7 +123,7 @@ void main() {
   });
 
   group('ScanScreen — after scan with results', () {
-    testWidgets('shows stats card with all five rows', (tester) async {
+    testWidgets('shows stats card with all six rows', (tester) async {
       await pumpApp(tester, handler: (call) async {
         if (call.method == 'requestPermission') return 3; // authorized
         if (call.method == 'scanPhotos') {
@@ -140,14 +145,13 @@ void main() {
       await tester.tap(find.text('Scan 500 Most Recent Photos'));
       await tester.pumpAndSettle();
 
-      // Stats card
       expect(find.text('Last scan'), findsOneWidget);
       expect(find.text('100'), findsOneWidget); // assets scanned
       expect(find.text('72'), findsOneWidget);  // with location
       expect(find.text('28'), findsOneWidget);  // without location
       expect(find.text('8'), findsOneWidget);   // geocode successes
-      // unique countries row appears (2 detected → 2 unique)
-      expect(find.text('2'), findsOneWidget);
+      expect(find.text('64'), findsOneWidget);  // geocode failures (72 - 8)
+      expect(find.text('2'), findsOneWidget);   // unique countries
     });
 
     testWidgets('shows country list with ISO codes', (tester) async {
@@ -174,7 +178,9 @@ void main() {
 
       expect(find.text('2 countries visited'), findsOneWidget);
       expect(find.text('US'), findsOneWidget);
+      expect(find.text('50 photos'), findsOneWidget);
       expect(find.text('GB'), findsOneWidget);
+      expect(find.text('22 photos'), findsOneWidget);
     });
 
     testWidgets('shows Review & Edit button after scan', (tester) async {

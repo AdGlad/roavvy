@@ -1,34 +1,45 @@
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/data/db/roavvy_database.dart';
+import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/features/visits/review_screen.dart';
 import 'package:shared_models/shared_models.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-// Helper to pump ReviewScreen inside a MaterialApp.
+VisitRepository _makeRepo() =>
+    VisitRepository(RoavvyDatabase(NativeDatabase.memory()));
+
 Future<void> pumpReview(
   WidgetTester tester,
-  List<CountryVisit> visits,
-) async {
-  SharedPreferences.setMockInitialValues({});
+  List<EffectiveVisitedCountry> visits, {
+  VisitRepository? repository,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: ReviewScreen(initialVisits: visits),
+      home: ReviewScreen(
+        initialVisits: visits,
+        repository: repository ?? _makeRepo(),
+      ),
     ),
   );
 }
 
-CountryVisit autoVisit(String code) => CountryVisit(
+EffectiveVisitedCountry autoVisit(String code) => EffectiveVisitedCountry(
       countryCode: code,
-      source: VisitSource.auto,
-      updatedAt: DateTime.utc(2025, 1, 1),
+      hasPhotoEvidence: true,
+      photoCount: 1,
     );
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
   group('ReviewScreen — rendering', () {
     testWidgets('shows all active visits', (tester) async {
-      await pumpReview(tester, [autoVisit('GB'), autoVisit('JP'), autoVisit('US')]);
+      await pumpReview(
+        tester,
+        [autoVisit('GB'), autoVisit('JP'), autoVisit('US')],
+      );
       expect(find.text('GB'), findsOneWidget);
       expect(find.text('JP'), findsOneWidget);
       expect(find.text('US'), findsOneWidget);
@@ -54,12 +65,10 @@ void main() {
     testWidgets('tapping remove icon moves country to Removed section', (tester) async {
       await pumpReview(tester, [autoVisit('GB'), autoVisit('JP')]);
 
-      // Tap the remove icon for GB.
       final removeIcon = find.byIcon(Icons.remove_circle_outline).first;
       await tester.tap(removeIcon);
       await tester.pump();
 
-      // GB should now appear in the Removed section header.
       expect(
         find.text('Removed (will not re-appear after scan)'),
         findsOneWidget,
@@ -122,7 +131,6 @@ void main() {
       await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
 
-      // DE should now appear (uppercased).
       expect(find.text('DE'), findsOneWidget);
     });
 
@@ -144,16 +152,38 @@ void main() {
       expect(find.text('Save'), findsOneWidget);
     });
 
+    testWidgets('tapping Save writes removal to repository', (tester) async {
+      final repo = _makeRepo();
+      final now = DateTime.utc(2025, 1, 1);
+      await repo.saveInferred(
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: now,
+          photoCount: 1,
+        ),
+      );
+
+      await pumpReview(tester, [autoVisit('GB')], repository: repo);
+      await tester.tap(find.byIcon(Icons.remove_circle_outline));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(await repo.loadRemoved(), hasLength(1));
+      expect((await repo.loadRemoved()).first.countryCode, 'GB');
+    });
+
     testWidgets('tapping Save pops the screen', (tester) async {
-      // Wrap in a Navigator so pop() has somewhere to go.
-      SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => ReviewScreen(initialVisits: [autoVisit('GB')]),
+                  builder: (_) => ReviewScreen(
+                    initialVisits: [autoVisit('GB')],
+                    repository: _makeRepo(),
+                  ),
                 ),
               ),
               child: const Text('Open'),
@@ -169,7 +199,6 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      // After pop, we should be back on the original screen.
       expect(find.text('Review countries'), findsNothing);
       expect(find.text('Open'), findsOneWidget);
     });
