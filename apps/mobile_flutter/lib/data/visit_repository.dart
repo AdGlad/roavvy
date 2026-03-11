@@ -155,6 +155,28 @@ class VisitRepository {
 
   // ── Deletes ──────────────────────────────────────────────────────────────
 
+  /// Clears the inferred table and writes [visits] in a single transaction.
+  ///
+  /// Preferred over separate [clearInferred] + [saveAllInferred] calls because
+  /// it eliminates the data-loss window where a failure between the two
+  /// operations leaves the user with no inferred visits.
+  Future<void> clearAndSaveAllInferred(List<InferredCountryVisit> visits) async {
+    await _db.transaction(() async {
+      await _db.delete(_db.inferredCountryVisits).go();
+      for (final v in visits) {
+        await _db.into(_db.inferredCountryVisits).insertOnConflictUpdate(
+          InferredCountryVisitsCompanion(
+            countryCode: Value(v.countryCode),
+            inferredAt: Value(v.inferredAt),
+            photoCount: Value(v.photoCount),
+            firstSeen: Value(v.firstSeen),
+            lastSeen: Value(v.lastSeen),
+          ),
+        );
+      }
+    });
+  }
+
   /// Clears only the inferred table. Used before a full rescan so stale
   /// inferred data does not accumulate with the new scan results.
   Future<void> clearInferred() =>

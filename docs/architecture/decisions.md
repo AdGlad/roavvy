@@ -25,7 +25,7 @@ Lightweight ADRs for Roavvy. Each decision records **what** was chosen, **why**,
 
 **Context:** The core user-trust concern: will Roavvy upload my photos? Privacy must be a structural guarantee, not a policy one — "we say we won't" is weaker than "the code cannot."
 
-**Decision:** The Swift bridge reads only `CLLocation` and `creationDate` from `PHAsset`. Image data is never accessed. GPS coordinates are resolved to a country code on-device and then discarded — they never reach the Flutter layer, the local DB, or Firestore. Only `{countryCode, firstSeen, lastSeen}` crosses any persistence boundary.
+**Decision:** The Swift bridge reads only `CLLocation` and `creationDate` from `PHAsset`. Image data is never accessed. GPS coordinates are streamed from Swift to the Dart layer via `EventChannel` for offline resolution by `packages/country_lookup`. After `resolveCountry()` returns, coordinates are released from memory — they are never written to the local database and never sent over any network connection. Only `{countryCode, firstSeen, lastSeen}` crosses any persistence boundary.
 
 **Consequences:**
 - Cannot re-resolve historical GPS data if the geodata is updated; requires a re-scan.

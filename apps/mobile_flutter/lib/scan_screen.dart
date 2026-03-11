@@ -46,22 +46,23 @@ DateTime? _later(DateTime? a, DateTime? b) {
   return a.isAfter(b) ? a : b;
 }
 
-/// Resolves a batch of [PhotoRecord]s to per-country accumulators.
+/// Resolves [photos] to per-country accumulators using [resolver].
 ///
-/// Top-level function — safe to pass to [Isolate.run].
-/// [initCountryLookup] is called on entry because each isolate has independent
-/// global state (the engine is not shared across isolate boundaries).
-Map<String, CountryAccum> _resolvePhotos(
-    Uint8List geodataBytes, List<PhotoRecord> photos) {
-  initCountryLookup(geodataBytes);
+/// Coordinates are bucketed to a 0.5° grid (~55 km) before calling [resolver],
+/// so that dense photo clusters make at most one lookup per unique bucket
+/// (ADR-005). Public so the bucketing + accumulation logic can be unit-tested
+/// independently of [initCountryLookup] and [Isolate.run].
+Map<String, CountryAccum> resolveBatch(
+    List<PhotoRecord> photos, String? Function(double lat, double lng) resolver) {
   final result = <String, CountryAccum>{};
+  // Cache per-bucket results so each unique bucket calls [resolver] once.
+  final bucketCache = <(double, double), String?>{};
 
   for (final photo in photos) {
-    // Bucket coordinates into a 0.5° grid (~55 km) to avoid resolving
-    // near-duplicate shots at the same location. (ADR-005)
     final bucketLat = (photo.lat * 2).roundToDouble() / 2;
     final bucketLng = (photo.lng * 2).roundToDouble() / 2;
-    final code = resolveCountry(bucketLat, bucketLng);
+    final key = (bucketLat, bucketLng);
+    final code = bucketCache.putIfAbsent(key, () => resolver(bucketLat, bucketLng));
     if (code == null) continue;
 
     final accum =
@@ -71,6 +72,16 @@ Map<String, CountryAccum> _resolvePhotos(
   }
 
   return result;
+}
+
+/// Top-level function — safe to pass to [Isolate.run].
+///
+/// Initialises [country_lookup] in the background isolate (each isolate has
+/// independent global state) then delegates to [resolveBatch].
+Map<String, CountryAccum> _resolvePhotos(
+    Uint8List geodataBytes, List<PhotoRecord> photos) {
+  initCountryLookup(geodataBytes);
+  return resolveBatch(photos, resolveCountry);
 }
 
 // ── ScanScreen ─────────────────────────────────────────────────────────────────
@@ -166,6 +177,7 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<Map<String, CountryAccum>> _resolveBatch(List<PhotoRecord> photos) {
     if (widget.batchResolver != null) return widget.batchResolver!(photos);
     final bytes = widget.geodataBytes;
+    assert(bytes != null, '_resolveBatch: geodataBytes is null and no batchResolver injected');
     if (bytes == null) return Future.value({});
     return Isolate.run(() => _resolvePhotos(bytes, photos));
   }
@@ -215,8 +227,7 @@ class _ScanScreenState extends State<ScanScreen> {
               ))
           .toList();
 
-      await _repo.clearInferred();
-      await _repo.saveAllInferred(inferred);
+      await _repo.clearAndSaveAllInferred(inferred);
 
       final effective = await _repo.loadEffective();
       final stats = ScanStats(

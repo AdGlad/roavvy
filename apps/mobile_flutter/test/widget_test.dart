@@ -190,6 +190,60 @@ void main() {
     });
   });
 
+  // ── resolveBatch unit tests ────────────────────────────────────────────────
+
+  group('resolveBatch', () {
+    test('accumulates photos by country code', () {
+      final photos = [
+        PhotoRecord(lat: 51.5, lng: -0.1, capturedAt: DateTime.utc(2023, 1, 1)),
+        PhotoRecord(lat: 51.6, lng: -0.2, capturedAt: DateTime.utc(2023, 6, 1)),
+        PhotoRecord(lat: 40.7, lng: -74.0, capturedAt: DateTime.utc(2022, 3, 1)),
+      ];
+      // Simple resolver: lat > 45 → GB, else → US
+      final result = resolveBatch(photos, (lat, lng) => lat > 45 ? 'GB' : 'US');
+      expect(result['GB']!.photoCount, 2);
+      expect(result['US']!.photoCount, 1);
+    });
+
+    test('firstSeen and lastSeen are set from capturedAt', () {
+      final t1 = DateTime.utc(2022, 1, 1);
+      final t2 = DateTime.utc(2023, 6, 15);
+      final photos = [
+        PhotoRecord(lat: 51.5, lng: -0.1, capturedAt: t2),
+        PhotoRecord(lat: 51.6, lng: -0.2, capturedAt: t1),
+      ];
+      final result = resolveBatch(photos, (_, __) => 'GB');
+      expect(result['GB']!.firstSeen, t1);
+      expect(result['GB']!.lastSeen, t2);
+    });
+
+    test('skips photos when resolver returns null', () {
+      final photos = [
+        PhotoRecord(lat: 0.0, lng: 0.0),
+        PhotoRecord(lat: 51.5, lng: -0.1),
+      ];
+      final result = resolveBatch(photos, (lat, _) => lat > 45 ? 'GB' : null);
+      expect(result.containsKey('GB'), isTrue);
+      expect(result.length, 1);
+    });
+
+    test('deduplicates resolver calls for photos in the same 0.5° bucket', () {
+      var callCount = 0;
+      final photos = [
+        // These two snap to the same 0.5° bucket
+        PhotoRecord(lat: 51.1, lng: -0.1),
+        PhotoRecord(lat: 51.2, lng: -0.2),
+        // This one is in a different bucket
+        PhotoRecord(lat: 40.7, lng: -74.0),
+      ];
+      resolveBatch(photos, (lat, lng) {
+        callCount++;
+        return 'XX';
+      });
+      expect(callCount, 2); // two unique buckets, not three photos
+    });
+  });
+
   // ── Widget tests ───────────────────────────────────────────────────────────
 
   group('ScanScreen — initial state', () {
