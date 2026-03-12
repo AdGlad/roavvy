@@ -118,12 +118,12 @@ All decisions are recorded with context and consequences in [docs/architecture/d
 |---|---|---|
 | `packages/shared_models` — `effectiveVisitedCountries` (typed merge) | 22 | `dart test` |
 | `packages/shared_models` — `TravelSummary` | 7 | `dart test` |
-| `packages/country_lookup` — known cities, null returns, border cases, binary format | 20 | `dart test` |
+| `packages/country_lookup` — known cities, null returns, border cases, binary format, loadPolygons | 27 | `dart test` |
 | `apps/mobile_flutter` — channel unit tests | 8 | `flutter test` |
 | `apps/mobile_flutter` — `VisitRepository` unit tests | 18 | `flutter test` |
 | `apps/mobile_flutter` — `ReviewScreen` widget tests | 13 | `flutter test` |
 | `apps/mobile_flutter` — `ScanScreen` widget tests | 11 | `flutter test` |
-| **Total** | **99** | |
+| **Total** | **106** | |
 
 ```bash
 cd packages/shared_models && dart test
@@ -141,9 +141,11 @@ cd apps/mobile_flutter && flutter test
 
 4. ~~**Typed domain model migration**~~ — ✓ Complete (Task 5). `CountryVisit`, `VisitSource`, `effectiveVisits()` fully retired.
 
-5. **TypeScript counterpart in `shared_models`** — `packages/shared_models/ts/` types required before first `apps/web_nextjs` usage.
+5. ~~**`loadPolygons()` API in `country_lookup`**~~ — ✓ Complete (Task 6, Milestone 6). `CountryPolygon` exported; 7 new tests; 27 total in package.
 
-6. **Firebase sync**, **world map view**, **achievements**, **sharing cards**, **Shopify** — each depends on the layers above.
+6. **World map screen** — Task 7 next. `flutter_map` + polygon rendering + visited/unvisited styling. ADR-017/018/019 written and approved by Architect.
+
+7. **Firebase sync**, **achievements**, **sharing cards**, **Shopify** — subsequent milestones.
 
 ## Spike Limitations (explicit — to be fixed before shipping)
 

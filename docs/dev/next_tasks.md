@@ -286,26 +286,25 @@ Task 5 (typed model)     ──────────────────�
 
 ---
 
-## Task 6 — Expose polygon geometry from `packages/country_lookup`
+## ~~Task 6~~ — Expose polygon geometry from `packages/country_lookup` ✓ COMPLETE
 
-**Why:** `CountryPolygon` and the full polygon list already exist inside `GeodataIndex._polygons` — the data is there but not accessible externally. The map screen needs it to render country outlines.
+### What was done
 
-### Deliverable
-
-A `loadPolygons()` public function in `country_lookup.dart` that returns all `CountryPolygon` records from the loaded binary. `CountryPolygon` exported as part of the package's public API.
+- Added `GeodataIndex.polygons` getter returning `List.unmodifiable(_polygons)`
+- Added `LookupEngine.polygons` getter passing through from index
+- Added `loadPolygons()` to `country_lookup.dart` public API
+- Exported `CountryPolygon` from the package
+- 7 new tests: length, code format, expected codes, vertex count ≥ 3, coordinate ranges, multi-ring grouping, unmodifiability
+- `country_lookup/CLAUDE.md` and `package_boundaries.md` updated
 
 ### Acceptance criteria
 
-- [ ] `loadPolygons()` returns a non-empty list (≥ 200 entries) after `initCountryLookup()` is called
-- [ ] Multiple entries exist for the same `isoCode` (multi-ring countries: US, RU, archipelagos)
-- [ ] All returned `isoCode` values are valid ISO 3166-1 alpha-2 (2 uppercase ASCII characters)
-- [ ] Calling `loadPolygons()` before `initCountryLookup()` asserts — same contract as `resolveCountry()`
-- [ ] All 20 existing `country_lookup` tests continue to pass
-- [ ] `country_lookup/CLAUDE.md` updated to document the expanded public API
-
-### Dependencies
-
-None. Can start immediately.
+- [x] `loadPolygons()` returns a non-empty list (≥ 200 entries) after `initCountryLookup()` is called
+- [x] Multiple entries exist for the same `isoCode` (multi-ring countries tested)
+- [x] All returned `isoCode` values are valid ISO 3166-1 alpha-2
+- [x] Calling `loadPolygons()` before `initCountryLookup()` asserts
+- [x] All 27 `country_lookup` tests pass (20 existing + 7 new)
+- [x] `country_lookup/CLAUDE.md` updated
 
 ---
 
@@ -413,11 +412,13 @@ Tasks 8 and 9 can proceed in parallel once Task 7 is done.
 
 ## Risks / open questions (Milestone 6)
 
-1. **`country_lookup` API contract** — `country_lookup/CLAUDE.md` currently states "exactly this one public function." Adding `loadPolygons()` widens the surface. Architect must confirm before Task 6 starts.
-2. **Rendering performance** — ADR-014 explicitly flags this as needing validation. Russia and the US have high vertex counts. If frame rate is unacceptable, vertex simplification must be added to `build_geodata.py` before Task 7 is done.
-3. **Multi-ring tap detection** — The binary stores one `CountryPolygon` per ring; the map widget must group by `isoCode` for tap detection. Architect should confirm grouping strategy.
-4. **Riverpod introduction (Task 9)** — First use of Riverpod in the app. Architect should define the provider structure before the Builder starts.
-5. **Country display names** — `Locale` API is offline but may return null for small territories. Fallback strategy (hardcoded map vs ISO code passthrough) to be decided by Architect.
+All risks resolved by Architect (ADR-017, ADR-018, ADR-019):
+
+1. ~~**`country_lookup` API contract**~~ — ✓ Resolved: ADR-017 authorises `loadPolygons()`; docs updated.
+2. **Rendering performance** — `polygonCulling: true` mandated in Task 7; vertex simplification deferred unless device testing reveals it's needed.
+3. ~~**Multi-ring tap detection**~~ — ✓ Resolved: use flutter_map `hitValue: polygon.isoCode` per polygon entry; no pre-grouping needed.
+4. ~~**Riverpod provider structure**~~ — ✓ Resolved: ADR-018 defines the full provider graph; core providers in `lib/core/providers.dart`.
+5. ~~**Country display names**~~ — ✓ Resolved: ADR-019 specifies static `const Map<String, String> kCountryNames` in `lib/core/country_names.dart`; falls back to ISO code.
 
 ---
 
