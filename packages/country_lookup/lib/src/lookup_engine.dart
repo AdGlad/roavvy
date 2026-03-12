@@ -13,6 +13,9 @@ class LookupEngine {
     return LookupEngine._(GeodataIndex.parse(bytes));
   }
 
+  /// All country polygons from the loaded binary. See [GeodataIndex.polygons].
+  List<CountryPolygon> get polygons => _index.polygons;
+
   /// Returns the ISO 3166-1 alpha-2 code for ([latitude], [longitude]),
   /// or null if the coordinate is over open water or otherwise unresolvable.
   String? resolve(double latitude, double longitude) {

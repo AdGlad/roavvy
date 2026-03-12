@@ -241,65 +241,191 @@ EventChannel('roavvy/photo_scan/events')
 
 ---
 
-## Task 5 — Migrate the app layer to the typed domain model; retire `CountryVisit`
+## ~~Task 5~~ — Migrate the app layer to the typed domain model; retire `CountryVisit` ✓ COMPLETE
 
-**Fixes spike limitation:** `CountryVisit` encodes three distinct domain kinds via `source + isDeleted` flags, which allows invalid combinations. Two merge functions exist in parallel. (ADR-008)
+**Fixes spike limitation:** `CountryVisit` encoded three distinct domain kinds via `source + isDeleted` flags, allowing invalid combinations. Two merge functions existed in parallel. (ADR-008)
 
-This task is the clean-up pass after Tasks 1–4 are done. It retires the legacy code paths.
+### What was done
 
-### Subtasks
-
-1. **Update `scan_mapper.dart`** to produce `InferredCountryVisit` directly from the scan output, not `CountryVisit`. The mapper currently converts `DetectedCountry → CountryVisit(source: auto)` — change it to `DetectedCountry → InferredCountryVisit`.
-
-2. **Update `review_screen.dart`** to operate on `UserAddedCountry` and `UserRemovedCountry` directly instead of building `CountryVisit` with `source: manual` and `isDeleted` flags.
-
-3. **Update `scan_screen.dart`** to call `effectiveVisitedCountries()` (the typed merge function) instead of `effectiveVisits()` (the legacy flat merge). The `_effectiveVisits: List<CountryVisit>` state field becomes `List<EffectiveVisitedCountry>`.
-
-4. **Update `_VisitList`** in `scan_screen.dart` to consume `EffectiveVisitedCountry` instead of `CountryVisit`. The `hasPhotoEvidence` field replaces the `source == VisitSource.manual` check for showing the manual icon.
-
-5. **Delete `visit_source.dart`**, `visit_merge.dart`, and `country_visit.dart`** from `packages/shared_models/lib/src/` once no consumer references them. Remove their exports from `shared_models.dart`.
-
-6. **Update all tests** that construct `CountryVisit` to use the three typed factory helpers instead.
-
-7. **Remove `shared_models` exports** for the deleted files. Run `dart analyze` across both packages and the app to confirm no remaining references.
+- Deleted `country_visit.dart`, `visit_source.dart`, `visit_merge.dart` from `packages/shared_models/lib/src/`
+- Deleted their test files (`country_visit_test.dart`, `visit_merge_test.dart`)
+- Deleted `scan_mapper.dart` and `scan_mapper_test.dart` — scan_screen.dart already built `InferredCountryVisit` directly from accumulators
+- Removed `ScanResult` and `DetectedCountry` legacy spike types from `photo_scan_channel.dart`
+- Removed legacy test groups for those types from `widget_test.dart`
+- Updated `TravelSummary.fromVisits` to accept `List<EffectiveVisitedCountry>` (removed `CountryVisit` dependency)
+- Updated `travel_summary_test.dart` to use `EffectiveVisitedCountry`
+- Removed legacy exports from `shared_models.dart`
 
 ### Acceptance criteria
 
-- [ ] `grep -r "CountryVisit" apps/ packages/` returns zero results
-- [ ] `grep -r "VisitSource" apps/ packages/` returns zero results
-- [ ] `grep -r "effectiveVisits(" apps/ packages/` returns zero results (only `effectiveVisitedCountries` is used)
-- [ ] All tests pass
-- [ ] `dart analyze` reports zero warnings
-
-### Dependencies
-
-Depends on Task 2 (Drift) being complete, since the Drift repository already writes typed records. Tasks 1, 3, and 4 should be done first to avoid mid-task channel contract conflicts.
+- [x] `grep -r "CountryVisit" apps/ packages/` returns zero results
+- [x] `grep -r "VisitSource" apps/ packages/` returns zero results
+- [x] `grep -r "effectiveVisits(" apps/ packages/` returns zero results
+- [x] All tests pass (77 total across shared_models + app)
+- [x] `dart analyze` reports zero warnings
 
 ---
 
-## Suggested execution order
+## Suggested execution order (Milestone 1–5)
 
 ```
 Task 1 (country_lookup)  ──────────────────────────────────────────► done
 Task 2 (Drift)           ──────────────────────────────────────────► done
 Task 3 (capturedAt)      ──────────────────────────────────────────► done (combined with Task 4)
 Task 4 (streaming)       ──────────────────────────────────────────► done
-
-                                                              ──────► Task 5 (typed model)  ← NEXT
+Task 5 (typed model)     ──────────────────────────────────────────► done
 ```
-
-Tasks 1 and 2 are fully independent and can be worked in parallel. Tasks 3 and 4 share changes to the Swift bridge and should be done together. Task 5 is the final integration and clean-up pass.
 
 ---
 
-## Out of scope for this milestone
+## Milestone 6 — World Map View
 
-The following are the subsequent milestones and must not be started until the five tasks above are complete:
+**Goal:** After scanning, the user sees a world map with all their visited countries highlighted. Tapping a country shows visit details.
+
+**Scope boundary:** Continent count, map zoom-to-country, tile background, and vertex simplification are explicitly out of scope for this milestone.
+
+---
+
+## Task 6 — Expose polygon geometry from `packages/country_lookup`
+
+**Why:** `CountryPolygon` and the full polygon list already exist inside `GeodataIndex._polygons` — the data is there but not accessible externally. The map screen needs it to render country outlines.
+
+### Deliverable
+
+A `loadPolygons()` public function in `country_lookup.dart` that returns all `CountryPolygon` records from the loaded binary. `CountryPolygon` exported as part of the package's public API.
+
+### Acceptance criteria
+
+- [ ] `loadPolygons()` returns a non-empty list (≥ 200 entries) after `initCountryLookup()` is called
+- [ ] Multiple entries exist for the same `isoCode` (multi-ring countries: US, RU, archipelagos)
+- [ ] All returned `isoCode` values are valid ISO 3166-1 alpha-2 (2 uppercase ASCII characters)
+- [ ] Calling `loadPolygons()` before `initCountryLookup()` asserts — same contract as `resolveCountry()`
+- [ ] All 20 existing `country_lookup` tests continue to pass
+- [ ] `country_lookup/CLAUDE.md` updated to document the expanded public API
+
+### Dependencies
+
+None. Can start immediately.
+
+---
+
+## Task 7 — `MapScreen`: world map with visited/unvisited polygon rendering
+
+**Why:** Core product moment — user can see their countries on a map.
+
+### Deliverable
+
+A `MapScreen` widget displaying all country polygons on an offline `flutter_map` canvas, with visited countries in a distinct highlight colour.
+
+### Acceptance criteria
+
+- [ ] `flutter_map` added to `apps/mobile_flutter/pubspec.yaml` only (not in any package)
+- [ ] All country polygons rendered; no tile layer (vector-only, offline guarantee preserved)
+- [ ] Visited country codes sourced from `VisitRepository` → `effectiveVisitedCountries()`
+- [ ] Antarctica (`AQ`) suppressed from rendering
+- [ ] No crash on multi-ring countries (US, RU, archipelagos render as multiple polygons)
+- [ ] Acceptable scroll/zoom frame rate on a real device (manual validation — document result)
+- [ ] Widget test: `MapScreen` renders with a mocked `VisitRepository` returning 0 countries; no crash
+
+### Dependencies
+
+Task 6 (polygon API).
+
+---
+
+## Task 8 — Country tap → detail bottom sheet
+
+**Why:** Turns the map from a display into an interactive record — users can tap any country for visit details.
+
+### Deliverable
+
+Tapping any country polygon opens a `showModalBottomSheet` with visit details.
+
+### Acceptance criteria
+
+- [ ] Tapping a visited country shows: display name, `firstSeen` date, `lastSeen` date, photo count, "manually added" badge when `hasPhotoEvidence == false`
+- [ ] Tapping an unvisited country shows: display name only, with a "manually add" action
+- [ ] Display name derived from ISO code via `Locale` (offline); falls back to ISO code itself if `Locale` returns null
+- [ ] Tapping open water (outside any polygon) does nothing
+- [ ] Widget test: tapping a visited polygon in a mocked map shows the expected country name
+
+### Dependencies
+
+Task 7.
+
+---
+
+## Task 9 — App navigation redesign and rename
+
+**Why:** Map is now the primary screen; the app is no longer a spike.
+
+### Deliverable
+
+Bottom navigation bar with Map and Scan tabs. `RoavvySpike` renamed to `RoavvyApp`. Riverpod introduced as the app's state management solution.
+
+### Acceptance criteria
+
+- [ ] Bottom nav: Map tab (default on launch) and Scan tab
+- [ ] `RoavvySpike` → `RoavvyApp` everywhere (`main.dart`, widget tests, app title)
+- [ ] Map screen shows persisted visit data immediately on launch (no scan required)
+- [ ] After scan completes, app navigates to Map tab automatically
+- [ ] `geodataBytes` widget constructor arg replaced with a Riverpod provider (`flutter_riverpod` added to `pubspec.yaml`)
+- [ ] All existing widget tests pass; new navigation tests cover tab switching
+
+### Dependencies
+
+Task 7. Architect sign-off on Riverpod provider structure required before Builder starts.
+
+---
+
+## Task 10 — Travel stats strip on the map screen
+
+**Why:** Gives users an at-a-glance summary of their travel history without leaving the map screen.
+
+### Deliverable
+
+A fixed stats strip on the `MapScreen` showing aggregate travel stats from the current effective visit set.
+
+### Acceptance criteria
+
+- [ ] Displays: total countries visited, earliest year, latest year (shows "—" when no date metadata)
+- [ ] Stats computed from `TravelSummary.fromVisits(effectiveVisitedCountries(...))`
+- [ ] Strip updates immediately after a scan completes (no restart required)
+- [ ] Continent count explicitly absent — no country→continent mapping exists yet
+- [ ] Widget test: strip shows correct counts and year range given mocked visits
+
+### Dependencies
+
+Task 9 (for live refresh after scan).
+
+---
+
+## Suggested execution order (Milestone 6)
+
+```
+Task 6 (polygon API) ──► Task 7 (map render) ──► Task 8 (tap detail)
+                                             ──► Task 9 (navigation) ──► Task 10 (stats strip)
+```
+
+Tasks 8 and 9 can proceed in parallel once Task 7 is done.
+
+---
+
+## Risks / open questions (Milestone 6)
+
+1. **`country_lookup` API contract** — `country_lookup/CLAUDE.md` currently states "exactly this one public function." Adding `loadPolygons()` widens the surface. Architect must confirm before Task 6 starts.
+2. **Rendering performance** — ADR-014 explicitly flags this as needing validation. Russia and the US have high vertex counts. If frame rate is unacceptable, vertex simplification must be added to `build_geodata.py` before Task 7 is done.
+3. **Multi-ring tap detection** — The binary stores one `CountryPolygon` per ring; the map widget must group by `isoCode` for tap detection. Architect should confirm grouping strategy.
+4. **Riverpod introduction (Task 9)** — First use of Riverpod in the app. Architect should define the provider structure before the Builder starts.
+5. **Country display names** — `Locale` API is offline but may return null for small territories. Fallback strategy (hardcoded map vs ISO code passthrough) to be decided by Architect.
+
+---
+
+## Out of scope for Milestone 6
 
 - TypeScript counterpart in `packages/shared_models/ts/`
 - Firebase Auth integration
 - Firestore sync (`isDirty` flush)
-- World map view
 - Achievements engine
 - Sharing cards
 - Shopify integration

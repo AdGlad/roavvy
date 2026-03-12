@@ -14,13 +14,24 @@ Resolves GPS coordinates to ISO 3166-1 alpha-2 country codes, entirely offline. 
 ## API Contract
 
 ```dart
-/// Resolves a GPS coordinate to a country code.
-/// Returns null if the coordinate is over international waters
-/// or cannot be resolved.
+/// Must be called once before any other function.
+/// [geodataBytes] is the raw content of assets/geodata/ne_countries.bin.
+void initCountryLookup(Uint8List geodataBytes);
+
+/// Resolves a GPS coordinate to an ISO 3166-1 alpha-2 country code.
+/// Returns null if the coordinate is over international waters or unresolvable.
 String? resolveCountry(double latitude, double longitude);
+
+/// Returns all country polygons from the loaded binary.
+/// Multiple entries may share the same [CountryPolygon.isoCode] for
+/// multi-ring countries (e.g. US, RU, archipelagos).
+/// Used by the map rendering layer; see ADR-017.
+List<CountryPolygon> loadPolygons();
 ```
 
-The package exposes exactly this one public function. No classes, no streams, no state.
+`CountryPolygon` is an exported type: `isoCode` (ISO 3166-1 alpha-2) and `vertices` (list of `(lat, lng)` pairs in decimal degrees).
+
+All three functions assert if called before `initCountryLookup()`.
 
 ## Data Source
 

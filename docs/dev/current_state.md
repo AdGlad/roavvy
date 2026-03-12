@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-11)
+# Roavvy — Development State (as of 2026-03-12)
 
 ## What Works
 
@@ -46,7 +46,7 @@ The effective set is computed by `effectiveVisitedCountries()` (`src/effective_v
 2. Merge `InferredCountryVisit` records by country code across scan runs (earliest `firstSeen`, latest `lastSeen`, summed `photoCount`).
 3. Apply `UserAddedCountry` records for any code not in the removal set.
 
-`CountryVisit` (the original flat model) is retained in `shared_models` for legacy mapper tests only. It will be retired in Task 5.
+`CountryVisit`, `VisitSource`, and `effectiveVisits()` have been fully retired (Task 5). Only the typed model remains.
 
 ## Key Files
 
@@ -55,7 +55,7 @@ apps/mobile_flutter/
   ios/Runner/AppDelegate.swift           Swift PhotoKit bridge — EventChannel streaming, no CLGeocoder
   lib/photo_scan_channel.dart            startPhotoScan() / ScanBatchEvent / ScanDoneEvent / PhotoRecord
   lib/scan_screen.dart                   Main scan UI; Isolate.run batch resolver; injectable scanStarter
-  lib/features/scan/scan_mapper.dart     DetectedCountry → CountryVisit / InferredCountryVisit (legacy, retire in Task 5)
+  lib/scan_screen.dart                   (also) builds InferredCountryVisit directly from CountryAccum; scan_mapper.dart deleted (Task 5)
   lib/data/db/roavvy_database.dart       Drift table definitions (three tables, @DataClassName row types)
   lib/data/visit_repository.dart         VisitRepository — typed upsert/load/clear/close
   lib/features/visits/review_screen.dart Review / edit / add / remove countries (writes delta to VisitRepository)
@@ -81,9 +81,9 @@ packages/shared_models/
   lib/src/effective_visited_country.dart Read model — computed effective set entry
   lib/src/scan_summary.dart              Per-run pipeline metrics + inferred visits
   lib/src/effective_visit_merge.dart     effectiveVisitedCountries() merge function
-  lib/src/country_visit.dart             Legacy flat model (storage format, spike only)
-  lib/src/visit_merge.dart               effectiveVisits() — legacy merge for CountryVisit
+  lib/src/travel_summary.dart            TravelSummary.fromVisits(List<EffectiveVisitedCountry>)
   test/effective_visit_merge_test.dart   22 tests for the typed merge function
+  test/travel_summary_test.dart          7 tests using EffectiveVisitedCountry
 
 docs/architecture/
   decisions.md                           16 ADRs covering all key design decisions
@@ -116,15 +116,14 @@ All decisions are recorded with context and consequences in [docs/architecture/d
 
 | Layer | Count | Framework |
 |---|---|---|
-| `packages/shared_models` — `CountryVisit` + `TravelSummary` | 21 | `dart test` |
-| `packages/shared_models` — `effectiveVisits` (legacy merge) | 12 | `dart test` |
 | `packages/shared_models` — `effectiveVisitedCountries` (typed merge) | 22 | `dart test` |
+| `packages/shared_models` — `TravelSummary` | 7 | `dart test` |
 | `packages/country_lookup` — known cities, null returns, border cases, binary format | 20 | `dart test` |
 | `apps/mobile_flutter` — channel unit tests | 8 | `flutter test` |
 | `apps/mobile_flutter` — `VisitRepository` unit tests | 18 | `flutter test` |
 | `apps/mobile_flutter` — `ReviewScreen` widget tests | 13 | `flutter test` |
-| `apps/mobile_flutter` — `ScanScreen` widget tests | 15 | `flutter test` |
-| **Total** | **129** | |
+| `apps/mobile_flutter` — `ScanScreen` widget tests | 11 | `flutter test` |
+| **Total** | **99** | |
 
 ```bash
 cd packages/shared_models && dart test
@@ -140,7 +139,7 @@ cd apps/mobile_flutter && flutter test
 
 3. ~~**Background isolate + streaming + CLGeocoder removal**~~ — ✓ Complete (Tasks 3+4). EventChannel streams per-photo GPS; Dart `Isolate.run` resolves via `country_lookup`; CLGeocoder removed; progress bar wired.
 
-4. **Typed domain model migration** — retire `CountryVisit`, `VisitSource`, `effectiveVisits()`; all app-layer code uses the three typed records throughout. (Task 5 — **next task**)
+4. ~~**Typed domain model migration**~~ — ✓ Complete (Task 5). `CountryVisit`, `VisitSource`, `effectiveVisits()` fully retired.
 
 5. **TypeScript counterpart in `shared_models`** — `packages/shared_models/ts/` types required before first `apps/web_nextjs` usage.
 
@@ -153,6 +152,6 @@ cd apps/mobile_flutter && flutter test
 | CLGeocoder: network-required, rate-limited, locale-dependent country names | ADR-009 | `packages/country_lookup` | ✓ Done — CLGeocoder fully removed |
 | `shared_preferences`: single JSON blob, no querying, no migration | ADR-011 | Drift SQLite | ✓ Done (Task 2) |
 | Single aggregate IPC call: no streaming, no progress | ADR-010 | Background isolate + EventChannel | ✓ Done (Tasks 3+4) |
-| `CountryVisit` as storage format: invalid combinations possible | ADR-008 | Retire after Drift migration | **Next (Task 5)** |
+| `CountryVisit` as storage format: invalid combinations possible | ADR-008 | Retire after Drift migration | ✓ Done (Task 5) |
 | `firstSeen` / `lastSeen` not populated | ADR-013 | Extend Swift bridge contract | ✓ Done — populated from `capturedAt` per photo |
 | `geocodeAttempts` == `assetsWithLocation` | ADR-013 | Extend Swift bridge contract | ✓ Done — `geocodeSuccesses` = resolved photo count |

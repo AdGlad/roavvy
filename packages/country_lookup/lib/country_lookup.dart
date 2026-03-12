@@ -13,7 +13,10 @@ library country_lookup;
 
 import 'dart:typed_data';
 
+import 'src/binary_format.dart' show CountryPolygon;
 import 'src/lookup_engine.dart';
+
+export 'src/binary_format.dart' show CountryPolygon;
 
 LookupEngine? _engine;
 
@@ -24,6 +27,22 @@ LookupEngine? _engine;
 /// the caller. Calling this multiple times replaces the previous engine.
 void initCountryLookup(Uint8List geodataBytes) {
   _engine = LookupEngine.fromBytes(geodataBytes);
+}
+
+/// Returns all country polygons parsed from the binary loaded by
+/// [initCountryLookup].
+///
+/// Multi-ring countries (e.g. US, RU, archipelagos) produce multiple entries
+/// sharing the same [CountryPolygon.isoCode]. The returned list is unmodifiable
+/// and in binary file order.
+///
+/// Asserts in debug mode that [initCountryLookup] has been called first.
+List<CountryPolygon> loadPolygons() {
+  assert(
+    _engine != null,
+    'initCountryLookup() must be called before loadPolygons()',
+  );
+  return _engine?.polygons ?? const [];
 }
 
 /// Returns the ISO 3166-1 alpha-2 country code for ([latitude], [longitude]).

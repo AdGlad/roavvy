@@ -21,13 +21,26 @@ packages/shared_models   ──►  (none)
 
 **Language:** Dart (pure — no Flutter, no platform plugins)
 
-**Public API:** one function.
+**Public API:**
 ```dart
+// Initialise once at startup (caller loads the asset bytes):
+void initCountryLookup(Uint8List geodataBytes);
+
+// Resolve a coordinate to a country code (returns null for open water / poles):
 String? resolveCountry(double latitude, double longitude);
+
+// Return all country polygons from the loaded binary (for map rendering).
+// Multiple entries may share the same isoCode (multi-ring countries).
+List<CountryPolygon> loadPolygons();
+
+// Exported type:
+class CountryPolygon { final String isoCode; final List<(double, double)> vertices; }
 ```
 
+See ADR-017 for the rationale for expanding beyond a single public function.
+
 **In scope:**
-- The function above
+- The three functions and one type above
 - Bundled geodata loading at startup
 
 **Never add:**
@@ -45,9 +58,9 @@ String? resolveCountry(double latitude, double longitude);
 **Languages:** Dart (`lib/`) and TypeScript (`ts/`) — both must stay in sync.
 
 **In scope:**
-- Data classes and enums (`CountryVisit`, `TravelProfile`, `Achievement`, `SharingCard`, `VisitSource`)
-- Serialisation: `fromJson`/`toJson` in Dart; Zod schemas + plain interfaces in TypeScript
-- Pure derived computations (e.g. mapping country codes to continents)
+- Data classes and pure transformation functions (see `packages/shared_models/CLAUDE.md` for the current model list)
+- Serialisation: hand-written Dart constructors; TypeScript interfaces planned
+- Pure derived computations (e.g. `effectiveVisitedCountries()`, `TravelSummary.fromVisits()`)
 
 **Never add:**
 - Business rules or validation (these live in the consuming app)

@@ -15,24 +15,31 @@ When a model changes here, both apps must be updated before the change is merged
 
 ## Models
 
-| Model | Description |
-|---|---|
-| `CountryVisit` | A user's record of visiting a country (country code, first seen, last seen, source) |
-| `TravelProfile` | Aggregated stats: total countries, continents, visits |
-| `Achievement` | A single unlocked achievement (id, unlocked at) |
-| `SharingCard` | Snapshot for public sharing (token, country list, generated at) |
-| `VisitSource` | Enum: `auto` (detected from photos) or `manual` (user added) |
+The domain model uses three write-side records and one computed read model. `CountryVisit` and `VisitSource` were retired in Task 5 (ADR-008).
+
+| Model | Kind | Description |
+|---|---|---|
+| `InferredCountryVisit` | Write-side | Country detected from photo GPS metadata by the scan pipeline. One record per country code per scan run. |
+| `UserAddedCountry` | Write-side | Country manually added by the user. Always appears in the effective set unless suppressed by a `UserRemovedCountry`. |
+| `UserRemovedCountry` | Write-side | Tombstone that permanently suppresses a country from the effective set until the user re-adds it. |
+| `EffectiveVisitedCountry` | Read model | Computed on demand by `effectiveVisitedCountries()`. Never stored. One entry per country in the effective set. |
+| `TravelSummary` | Read model | Point-in-time snapshot of aggregate stats (country count, date range). Built from `List<EffectiveVisitedCountry>`. |
+| `ScanSummary` | Value object | Aggregate counters from a completed scan (inspected, with location, countries found). |
+
+## Key functions
+
+| Function | Location | Description |
+|---|---|---|
+| `effectiveVisitedCountries()` | `effective_visit_merge.dart` | Merges the three write-side collections into the effective set. Removals take absolute precedence. |
+| `TravelSummary.fromVisits()` | `travel_summary.dart` | Builds aggregate stats from an already-merged `List<EffectiveVisitedCountry>`. |
 
 ## Serialisation
 
-- Dart: `fromJson` / `toJson` on each model class. Use `freezed` + `json_serializable`.
-- TypeScript: Zod schemas for runtime validation; plain interfaces for type-only use.
-
-## Versioning
-
-Include a `schemaVersion` integer on `TravelProfile`. Increment when breaking changes are unavoidable. Both apps check this field on read.
+- Dart: plain immutable classes with hand-written constructors. No code generation (`freezed` and `json_serializable` are not used).
+- TypeScript: not yet implemented. Planned for the next milestone.
 
 ## Related Docs
 
 - [Data Model](../../docs/architecture/data_model.md)
 - [Package Boundaries](../../docs/engineering/package_boundaries.md)
+- [ADR-008: Typed domain model](../../docs/architecture/decisions.md)

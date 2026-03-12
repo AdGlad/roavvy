@@ -124,6 +124,69 @@ void main() {
     }
   });
 
+  // ── loadPolygons ──────────────────────────────────────────────────────────
+
+  group('loadPolygons', () {
+    test('returns one entry per polygon in the test data', () {
+      // Test data has 4 single-ring polygons: GB, JP, US, FR.
+      expect(loadPolygons(), hasLength(4));
+    });
+
+    test('all returned isoCode values are 2 uppercase ASCII letters', () {
+      for (final p in loadPolygons()) {
+        expect(p.isoCode, matches(RegExp(r'^[A-Z]{2}$')));
+      }
+    });
+
+    test('expected country codes are present', () {
+      final codes = loadPolygons().map((p) => p.isoCode).toSet();
+      expect(codes, containsAll({'GB', 'JP', 'US', 'FR'}));
+    });
+
+    test('every polygon has at least 3 vertices', () {
+      for (final p in loadPolygons()) {
+        expect(
+          p.vertices.length,
+          greaterThanOrEqualTo(3),
+          reason: '${p.isoCode} polygon must have ≥ 3 vertices',
+        );
+      }
+    });
+
+    test('all vertices are within valid coordinate ranges', () {
+      for (final p in loadPolygons()) {
+        for (final (lat, lng) in p.vertices) {
+          expect(
+            lat, inInclusiveRange(-90.0, 90.0),
+            reason: '${p.isoCode} lat $lat out of range',
+          );
+          expect(
+            lng, inInclusiveRange(-180.0, 180.0),
+            reason: '${p.isoCode} lng $lng out of range',
+          );
+        }
+      }
+    });
+
+    test('multi-ring country produces multiple entries sharing the same code', () {
+      final b = TestGeodataBuilder()
+        ..addRect('US', 24.0, 49.0, -125.0, -66.0) // mainland
+        ..addRect('US', 18.0, 23.0, -161.0, -154.0); // Hawaii approx
+      initCountryLookup(b.build());
+
+      final usPolygons =
+          loadPolygons().where((p) => p.isoCode == 'US').toList();
+      expect(usPolygons, hasLength(2));
+    });
+
+    test('returned list is unmodifiable', () {
+      expect(
+        () => loadPolygons().add(loadPolygons().first),
+        throwsUnsupportedError,
+      );
+    });
+  });
+
   // ── Binary format ─────────────────────────────────────────────────────────
 
   group('binary format validation', () {

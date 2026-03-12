@@ -154,6 +154,13 @@ class GeodataIndex {
     );
   }
 
+  /// All polygons in the binary, in file order.
+  ///
+  /// Multi-ring countries (e.g. US, RU) have multiple entries sharing the
+  /// same [CountryPolygon.isoCode]. The caller is responsible for grouping
+  /// by code if needed.
+  List<CountryPolygon> get polygons => List.unmodifiable(_polygons);
+
   /// Returns all polygons whose bounding-box grid cells overlap ([lat], [lng]).
   List<CountryPolygon> candidatesAt(double lat, double lng) {
     final col =

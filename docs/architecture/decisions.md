@@ -298,3 +298,86 @@ Three format options were evaluated for the bundled asset:
 - Per-scan history is not queryable from the DB. If the product later requires "you found France in 3 separate scan sessions", the schema must be migrated to a `(countryCode, scanId)` composite key with a `scan_runs` table. This is an explicit future cost.
 - A full rescan with `sinceDate: null` accumulates `photoCount` on top of prior scans rather than replacing it. The `VisitRepository` must expose a `clearInferred()` method for full-rescan flows to reset the table before writing new results.
 - `isDirty = 1` is set on every upsert, ensuring the sync layer picks up both new and updated records.
+
+---
+
+## ADR-017 — `country_lookup` exposes polygon geometry via `loadPolygons()`
+
+**Status:** Accepted
+
+**Context:** The world map view (Milestone 6) needs country polygon vertices to render country outlines with `flutter_map`. `CountryPolygon` is already defined in `binary_format.dart` and fully populated during `initCountryLookup()`, but the `_polygons` list is package-private and inaccessible to the app layer.
+
+ADR-015 anticipated this need: *"The same bytes are passed to the map rendering layer for polygon extraction. Two separate in-memory representations are built from one asset."* It left the extraction mechanism unresolved. Two options were considered:
+
+1. **App layer re-parses the binary** — requires either exporting `GeodataIndex` (package internals leak) or duplicating the binary format parser in the app.
+2. **`country_lookup` exposes `loadPolygons()`** — the pre-built `_polygons` list is exposed as a public function alongside `resolveCountry()`.
+
+The previous documentation constraint "exactly one public function" was a documentation artefact from before the rendering requirement existed. It was never a hard architectural rule (unlike "no network calls"). The actual hard constraints are: no network, no file I/O, no Flutter/platform deps, no side effects — none of which are violated by exposing pre-built polygon data.
+
+**Decision:** Add `List<CountryPolygon> loadPolygons()` to `country_lookup.dart`. Export `CountryPolygon` as part of the package's public API. The function returns the polygon list built during `initCountryLookup()` and asserts if called before initialisation — matching the contract of `resolveCountry()`.
+
+**Consequences:**
+- The public surface of `country_lookup` grows to three callable symbols: `initCountryLookup`, `resolveCountry`, `loadPolygons`, plus the exported `CountryPolygon` type.
+- No new dependencies are introduced. The polygon list is already built; this is a zero-cost accessor.
+- Multi-ring countries (US, RU, archipelagos) produce multiple `CountryPolygon` entries sharing the same `isoCode`. The app layer is responsible for grouping by `isoCode` for tap detection.
+- `package_boundaries.md` and `country_lookup/CLAUDE.md` must be updated to reflect the expanded API.
+- `CountryPolygon` vertices are `(lat, lng)` pairs in decimal degrees — the app layer converts to flutter_map `LatLng` objects; the package has no `flutter_map` dependency.
+
+---
+
+## ADR-018 — Riverpod as the app-layer state management solution; core provider graph
+
+**Status:** Accepted
+
+**Context:** `apps/mobile_flutter/CLAUDE.md` specifies Riverpod as the state management solution but no provider structure exists. Task 9 (app navigation redesign) is the first use. Three resources need app-wide access without being passed through widget constructors: the Drift database instance, the geodata bytes, and the derived effective-visits list.
+
+**Decision:** Use `flutter_riverpod`. The core provider graph is:
+
+```
+geodataBytesProvider      Provider<Uint8List>
+  — overridden in ProviderScope at startup with the loaded asset bytes
+
+roavvyDatabaseProvider    Provider<RoavvyDatabase>
+  — overridden in ProviderScope at startup with the opened DB instance
+
+visitRepositoryProvider   Provider<VisitRepository>
+  — reads roavvyDatabaseProvider; constructs VisitRepository
+
+polygonsProvider          Provider<List<CountryPolygon>>
+  — reads geodataBytesProvider; calls loadPolygons() once
+
+effectiveVisitsProvider   FutureProvider<List<EffectiveVisitedCountry>>
+  — reads visitRepositoryProvider; loads all three record types then calls effectiveVisitedCountries()
+
+travelSummaryProvider     FutureProvider<TravelSummary>
+  — reads effectiveVisitsProvider; calls TravelSummary.fromVisits()
+```
+
+`main()` initialises the DB and loads the geodata asset before `runApp`, then passes both into `ProviderScope` via `overrides`. This avoids async startup providers and keeps the provider graph synchronous for the two startup resources.
+
+**Consequences:**
+- The `geodataBytes` constructor chain through `RoavvySpike` → `ScanScreen` is removed.
+- After scan completion, `ScanScreen` calls `ref.invalidate(effectiveVisitsProvider)` to trigger a rebuild of `MapScreen` and the stats strip — no manual state passing.
+- Core providers live in `lib/core/providers.dart`. Feature-scoped providers (e.g. scan progress state) live alongside their feature in `lib/features/`.
+- `roavvyDatabaseProvider` and `geodataBytesProvider` have no default value — any test that uses them must provide an override. This is enforced at runtime.
+- `flutter_riverpod` is added to `apps/mobile_flutter/pubspec.yaml` only; not added to any package.
+
+---
+
+## ADR-019 — Country display names from a static lookup map in the app layer
+
+**Status:** Accepted
+
+**Context:** The country tap detail panel (Task 8) needs human-readable display names for ISO 3166-1 alpha-2 codes. Three options were evaluated:
+
+1. **`dart:ui` `Locale`** — does not expose country display names; only language subtags.
+2. **`intl` package** — provides locale-aware display names but requires ICU data overhead, a `initializeDateFormatting()` pattern, and adds a significant dependency for what is effectively a 250-entry static mapping.
+3. **Static `const Map<String, String>` in the app layer** — all ISO 3166-1 entries, English names, zero dependencies.
+
+**Decision:** A `const Map<String, String> kCountryNames` in `lib/core/country_names.dart`. Display name lookup falls back to the ISO code itself when the code is absent (covers any edge cases from the geodata).
+
+**Consequences:**
+- Display names are English-only for this milestone; localisation is deferred.
+- ISO 3166-1 country name changes require an app release (e.g. if a country renames itself). This is acceptable — such changes are rare and app releases are already required for geodata updates (ADR-004).
+- `kCountryNames` must not be placed in `shared_models` — it is a display/presentation concern, not a domain model. It belongs in the app layer.
+- The map is ~250 entries; it is a one-time copy task, not an ongoing maintenance burden.
