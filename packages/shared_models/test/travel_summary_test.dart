@@ -7,17 +7,17 @@ void main() {
   final t2 = DateTime.utc(2024, 12, 25);
   final now = DateTime.utc(2025, 1, 1);
 
-  CountryVisit visit(
+  EffectiveVisitedCountry visit(
     String code, {
     DateTime? firstSeen,
     DateTime? lastSeen,
   }) =>
-      CountryVisit(
+      EffectiveVisitedCountry(
         countryCode: code,
-        source: VisitSource.auto,
-        updatedAt: now,
+        hasPhotoEvidence: firstSeen != null || lastSeen != null,
         firstSeen: firstSeen,
         lastSeen: lastSeen,
+        photoCount: firstSeen != null ? 1 : 0,
       );
 
   group('TravelSummary.fromVisits', () {

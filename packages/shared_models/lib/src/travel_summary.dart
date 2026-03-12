@@ -1,9 +1,10 @@
-import 'country_visit.dart';
+import 'effective_visited_country.dart';
 
 /// A point-in-time snapshot of a user's effective travel history.
 ///
-/// Constructed from the output of [effectiveVisits] — i.e. the already-merged,
-/// non-deleted visit set. The caller is responsible for the merge step.
+/// Constructed from the output of [effectiveVisitedCountries] — i.e. the
+/// already-merged, non-suppressed visit set. The caller is responsible for
+/// the merge step.
 ///
 /// [continentCount] is intentionally absent: continent assignment requires
 /// the country→continent mapping that lives in apps or country_lookup.
@@ -16,14 +17,14 @@ class TravelSummary {
     this.latestVisit,
   });
 
-  /// Build a [TravelSummary] from a list of active (non-deleted) visits.
+  /// Build a [TravelSummary] from a list of effective visited countries.
   ///
-  /// [activeVisits] must already be the effective set (call [effectiveVisits]
-  /// first if starting from raw visit records).
+  /// [activeVisits] must already be the effective set (call
+  /// [effectiveVisitedCountries] first if starting from raw input records).
   ///
   /// [now] overrides the [computedAt] timestamp — useful in tests.
   factory TravelSummary.fromVisits(
-    List<CountryVisit> activeVisits, {
+    List<EffectiveVisitedCountry> activeVisits, {
     DateTime? now,
   }) {
     final codes = activeVisits.map((v) => v.countryCode).toList()..sort();
@@ -43,18 +44,18 @@ class TravelSummary {
     );
   }
 
-  /// ISO 3166-1 alpha-2 codes, sorted alphabetically, non-deleted only.
+  /// ISO 3166-1 alpha-2 codes, sorted alphabetically.
   final List<String> visitedCodes;
 
   /// UTC timestamp of when this summary was computed.
   final DateTime computedAt;
 
-  /// Earliest [CountryVisit.firstSeen] across all active visits.
+  /// Earliest [EffectiveVisitedCountry.firstSeen] across all active visits.
   /// Null when no visit has date metadata (e.g. all visits are manually added
   /// without photo evidence).
   final DateTime? earliestVisit;
 
-  /// Latest [CountryVisit.lastSeen] across all active visits.
+  /// Latest [EffectiveVisitedCountry.lastSeen] across all active visits.
   final DateTime? latestVisit;
 
   int get countryCount => visitedCodes.length;

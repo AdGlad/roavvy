@@ -149,47 +149,6 @@ void main() {
     });
   });
 
-  // ── Legacy ScanResult unit tests (kept until Task 5) ──────────────────────
-
-  group('ScanResult (legacy)', () {
-    test('fromMap parses countries list', () {
-      final result = ScanResult.fromMap({
-        'inspected': 10,
-        'withLocation': 8,
-        'geocodeSuccesses': 7,
-        'countries': [
-          {'code': 'GB', 'name': 'United Kingdom', 'photoCount': 5},
-          {'code': 'JP', 'name': 'Japan', 'photoCount': 3},
-        ],
-      });
-      expect(result.stats.inspected, 10);
-      expect(result.countries.length, 2);
-      expect(result.countries.first.code, 'GB');
-      expect(result.countries.last.photoCount, 3);
-    });
-
-    test('fromMap handles missing countries key', () {
-      final result = ScanResult.fromMap(
-          {'inspected': 5, 'withLocation': 0, 'geocodeSuccesses': 0});
-      expect(result.countries, isEmpty);
-    });
-  });
-
-  group('DetectedCountry (legacy)', () {
-    test('fromMap parses correctly', () {
-      final c =
-          DetectedCountry.fromMap({'code': 'FR', 'name': 'France', 'photoCount': 12});
-      expect(c.code, 'FR');
-      expect(c.name, 'France');
-      expect(c.photoCount, 12);
-    });
-
-    test('fromMap defaults photoCount to 0 when absent', () {
-      final c = DetectedCountry.fromMap({'code': 'DE', 'name': 'Germany'});
-      expect(c.photoCount, 0);
-    });
-  });
-
   // ── resolveBatch unit tests ────────────────────────────────────────────────
 
   group('resolveBatch', () {
