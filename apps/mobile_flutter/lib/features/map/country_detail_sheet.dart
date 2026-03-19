@@ -6,6 +6,7 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../../core/region_names.dart';
 import '../visits/trip_edit_sheet.dart';
+import 'photo_gallery_screen.dart';
 
 /// Bottom sheet shown when the user taps a country on the map.
 ///
@@ -41,6 +42,7 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
   bool _regionsExpanded = false;
   late Future<List<TripRecord>> _tripsFuture;
   late Future<List<RegionVisit>> _regionsFuture;
+  late Future<List<String>> _assetIdsFuture;
 
   @override
   void initState() {
@@ -49,6 +51,8 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
         ref.read(tripRepositoryProvider).loadByCountry(widget.isoCode);
     _regionsFuture =
         ref.read(regionRepositoryProvider).loadByCountry(widget.isoCode);
+    _assetIdsFuture =
+        ref.read(visitRepositoryProvider).loadAssetIds(widget.isoCode);
   }
 
   void _reload() {
@@ -64,130 +68,165 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
     final displayName = kCountryNames[widget.isoCode] ?? widget.isoCode;
     final visit = widget.visit;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-        child: FutureBuilder<List<TripRecord>>(
-          future: _tripsFuture,
-          builder: (context, snapshot) {
-            final trips = snapshot.data ?? [];
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Header row ───────────────────────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        displayName,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
+    return DefaultTabController(
+      length: 2,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ─────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    if (visit != null && !visit.hasPhotoEvidence)
-                      const Chip(label: Text('Added manually')),
-                  ],
-                ),
-
-                // ── Visited country section ───────────────────────────────
-                if (visit != null) ...[
-                  const SizedBox(height: 4),
-                  Text(_tripCountLine(trips, visit)),
-                  const SizedBox(height: 12),
-                  if (trips.isEmpty)
-                    const _EmptyTripsMessage()
-                  else
-                    ...trips.map(
-                      (t) => GestureDetector(
-                        onTap: () => _openEditTrip(t),
-                        onLongPress: () => _confirmDelete(t),
-                        child: _TripCard(trip: t),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  _AddTripButton(onTap: _openAddTrip),
-
-                  // ── Region section ──────────────────────────────────────
-                  FutureBuilder<List<RegionVisit>>(
-                    future: _regionsFuture,
+                  ),
+                  if (visit != null && !visit.hasPhotoEvidence)
+                    const Chip(label: Text('Added manually')),
+                ],
+              ),
+            ),
+            const TabBar(
+              tabs: [Tab(text: 'Details'), Tab(text: 'Photos')],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  // ── Details tab ─────────────────────────────────────────
+                  FutureBuilder<List<TripRecord>>(
+                    future: _tripsFuture,
                     builder: (context, snapshot) {
-                      final regions = snapshot.data ?? [];
-                      if (regions.isEmpty) return const SizedBox.shrink();
-                      final codes = regions
-                          .map((r) => r.regionCode)
-                          .toSet()
-                          .toList()
-                        ..sort((a, b) =>
-                            (kRegionNames[a] ?? a)
-                                .compareTo(kRegionNames[b] ?? b));
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Divider(),
-                          InkWell(
-                            onTap: () => setState(
-                                () => _regionsExpanded = !_regionsExpanded),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${codes.length} '
-                                      'region${codes.length == 1 ? '' : 's'} '
-                                      'visited',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium,
-                                    ),
+                      final trips = snapshot.data ?? [];
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ── Visited country section ─────────────────
+                            if (visit != null) ...[
+                              Text(_tripCountLine(trips, visit)),
+                              const SizedBox(height: 12),
+                              if (trips.isEmpty)
+                                const _EmptyTripsMessage()
+                              else
+                                ...trips.map(
+                                  (t) => GestureDetector(
+                                    onTap: () => _openEditTrip(t),
+                                    onLongPress: () => _confirmDelete(t),
+                                    child: _TripCard(trip: t),
                                   ),
-                                  Icon(
-                                    _regionsExpanded
-                                        ? Icons.expand_less
-                                        : Icons.expand_more,
-                                  ),
-                                ],
+                                ),
+                              const SizedBox(height: 8),
+                              _AddTripButton(onTap: _openAddTrip),
+
+                              // ── Region section ─────────────────────────
+                              FutureBuilder<List<RegionVisit>>(
+                                future: _regionsFuture,
+                                builder: (context, snapshot) {
+                                  final regions = snapshot.data ?? [];
+                                  if (regions.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final codes = regions
+                                      .map((r) => r.regionCode)
+                                      .toSet()
+                                      .toList()
+                                    ..sort((a, b) =>
+                                        (kRegionNames[a] ?? a)
+                                            .compareTo(kRegionNames[b] ?? b));
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Divider(),
+                                      InkWell(
+                                        onTap: () => setState(() =>
+                                            _regionsExpanded =
+                                                !_regionsExpanded),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  '${codes.length} '
+                                                  'region${codes.length == 1 ? '' : 's'} '
+                                                  'visited',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodyMedium,
+                                                ),
+                                              ),
+                                              Icon(
+                                                _regionsExpanded
+                                                    ? Icons.expand_less
+                                                    : Icons.expand_more,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      if (_regionsExpanded)
+                                        ...codes.map(
+                                          (code) => Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 8, bottom: 4),
+                                            child: Text(
+                                              kRegionNames[code] ?? code,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
                               ),
-                            ),
-                          ),
-                          if (_regionsExpanded)
-                            ...codes.map(
-                              (code) => Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 8, bottom: 4),
-                                child: Text(
-                                  kRegionNames[code] ?? code,
-                                  style:
-                                      Theme.of(context).textTheme.bodySmall,
+
+                            // ── Unvisited country section ───────────────
+                            ] else if (widget.onAdd != null) ...[
+                              const SizedBox(height: 4),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: _saving ? null : _handleAdd,
+                                  child: _saving
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        )
+                                      : const Text('Add to my countries'),
                                 ),
                               ),
-                            ),
-                        ],
+                            ],
+                          ],
+                        ),
                       );
                     },
                   ),
 
-                // ── Unvisited country section ─────────────────────────────
-                ] else if (widget.onAdd != null) ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _handleAdd,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Add to my countries'),
-                    ),
+                  // ── Photos tab ──────────────────────────────────────────
+                  FutureBuilder<List<String>>(
+                    future: _assetIdsFuture,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return PhotoGalleryScreen(assetIds: snapshot.data!);
+                    },
                   ),
                 ],
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );

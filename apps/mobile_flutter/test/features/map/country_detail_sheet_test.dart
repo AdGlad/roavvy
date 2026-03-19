@@ -7,6 +7,7 @@ import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
+import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/features/map/country_detail_sheet.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -23,6 +24,7 @@ Widget _wrap(
   final db = _makeDb();
   return ProviderScope(
     overrides: [
+      visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
       tripRepositoryProvider.overrideWithValue(tripRepo ?? TripRepository(db)),
       regionRepositoryProvider
           .overrideWithValue(regionRepo ?? RegionRepository(db)),
@@ -515,8 +517,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            tripRepositoryProvider
-                .overrideWithValue(TripRepository(db)),
+            visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
+            tripRepositoryProvider.overrideWithValue(TripRepository(db)),
             regionRepositoryProvider
                 .overrideWithValue(RegionRepository(db)),
           ],

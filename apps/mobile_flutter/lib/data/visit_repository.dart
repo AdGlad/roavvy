@@ -332,6 +332,18 @@ class VisitRepository {
     });
   }
 
+  /// Returns all non-null PHAsset local identifiers for [countryCode].
+  ///
+  /// Used by the photo gallery to load thumbnails from the on-device photo
+  /// library. Asset IDs are stored locally only — never in Firestore (ADR-060).
+  Future<List<String>> loadAssetIds(String countryCode) async {
+    final rows = await (_db.select(_db.photoDateRecords)
+          ..where((t) =>
+              t.countryCode.equals(countryCode) & t.assetId.isNotNull()))
+        .get();
+    return rows.map((r) => r.assetId!).toList();
+  }
+
   /// Returns all rows in `photo_date_records`.
   Future<List<PhotoDateRecord>> loadPhotoDates() async {
     final rows = await _db.select(_db.photoDateRecords).get();
