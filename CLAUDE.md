@@ -6,28 +6,9 @@ Roavvy is a travel discovery app that scans a user's photo library to detect whi
 
 ---
 
-## Session Initialization
-
-At the start of every new Claude session:
-
-1. Read the core project context:
-
-   - docs/architecture/decisions.md
-   - docs/dev/current_state.md
-   - docs/dev/project_index.md
-   - docs/dev/next_tasks.md
-
-2. Read all persona definitions:
-
-   - docs/personas/*
-
-3. Use these files as the authoritative source of truth for the Roavvy project.
-
-Claude must rely on repository documentation rather than conversation history whenever possible.
-
----
-
 ## Repo Structure
+
+See [docs/dev/project_index.md](docs/dev/project_index.md).
 
 ```
 apps/mobile_flutter/     Flutter app (iOS-first, Swift PhotoKit bridge)
@@ -53,7 +34,7 @@ docs/                    Architecture, engineering, product, UX, prompts, tasks
 
 ## Persona Workflow
 
-All development follows a four-stage workflow. Each stage has a dedicated persona. Do not skip stages or collapse them without explicit instruction.
+All development follows a four-stage workflow. Do not skip stages or collapse them without explicit instruction.
 
 ```
 Planner → (UX Designer) → Architect → Builder → Reviewer
@@ -66,19 +47,9 @@ Planner → (UX Designer) → Architect → Builder → Reviewer
 | 3 | Builder | `docs/personas/builder.md` | Implements the scoped task with tests |
 | 4 | Reviewer | `docs/personas/reviewer.md` | Reviews for correctness, privacy, and boundaries |
 
-**UX Designer** (`docs/personas/ux_designer.md`) — invoked between Planner and Architect for any task with a user-facing component. Designs flows, component states, and copy before implementation begins.
+**UX Designer** (`docs/personas/ux_designer.md`) — invoked between Planner and Architect for any task with a user-facing component.
 
-### How to invoke a persona
-
-Say "Act as the [persona name]" at the start of a request. The persona file defines what that role does, what it does not do, and what it must read before acting.
-
-### Workflow rules
-
-- The Planner produces a task list before the Architect or Builder touch anything.
-- The Architect reads `docs/architecture/decisions.md` before proposing any design.
-- The Builder reads the relevant `CLAUDE.md` before writing code in any directory.
-- The Reviewer's `[BLOCKER]` findings must be resolved before the task is considered done.
-- Any persona can flag "this needs the Architect" or "this needs a Planner task first" — do not proceed past a structural concern without explicit sign-off.
+Say "Act as the [persona name]" to invoke. Each persona file defines what it does, what it does not do, and what it must read before acting.
 
 ---
 
@@ -99,6 +70,10 @@ Say "Act as the [persona name]" at the start of a request. The persona file defi
 - **[docs/architecture/decisions.md](docs/architecture/decisions.md)** — all ADRs; check here before introducing a new pattern or overriding an existing one.
 - **[docs/dev/current_state.md](docs/dev/current_state.md)** — what is actually built; check here before assuming any planned component exists.
 - **[docs/dev/project_index.md](docs/dev/project_index.md)** — annotated directory map; ownership rules per component.
+- **[docs/dev/current_task.md](docs/dev/current_task.md)** — the active task with acceptance criteria and status.
+- **[docs/dev/backlog.md](docs/dev/backlog.md)** — upcoming tasks in priority order.
+- **[docs/product/roadmap.md](docs/product/roadmap.md)** — product roadmap; read before planning new milestones.
+- **[docs/product/vision.md](docs/product/vision.md)** — product vision and north-star goals; check here before changing scope or direction.
 
 ### Incremental development
 
@@ -114,61 +89,6 @@ All country detection and geographic rendering must use ISO 3166-1 alpha-2 codes
 
 ---
 
-## Key Docs
+## Session Compaction
 
-- [Architecture Decisions](docs/architecture/decisions.md)
-- [Current Development State](docs/dev/current_state.md)
-- [Project Index](docs/dev/project_index.md)
-- [Next Tasks](docs/dev/next_tasks.md)
-- [Personas](docs/personas/)
-- [System Overview](docs/architecture/system_overview.md)
-- [Data Model](docs/architecture/data_model.md)
-- [Offline Strategy](docs/architecture/offline_strategy.md)
-- [Privacy Principles](docs/architecture/privacy_principles.md)
-- [Mobile Scan Flow](docs/architecture/mobile_scan_flow.md)
-- [Package Boundaries](docs/engineering/package_boundaries.md)
-
-## Session Compaction Protocol
-
-When the user runs `/compact`, Claude must perform the following steps before compacting the session.
-
-### Step 1 — Persist project state to the repository
-
-Update the following files so they reflect the true current state of the Roavvy project:
-
-docs/dev/current_state.md  
-docs/dev/next_tasks.md  
-
-Include:
-
-- tasks completed in this session
-- components that now exist
-- what currently works
-- the next task to implement
-- any risks or TODOs
-
-If architecture decisions were made in the session, also update:
-
-docs/architecture/decisions.md
-
-### Step 2 — Produce a session summary
-
-Before compacting, output a concise summary including:
-
-- completed tasks
-- current milestone
-- next task
-- important architectural decisions
-- anything still unresolved
-
-### Step 3 — Compact the session
-
-After the repository documentation has been updated and the summary produced, Claude may execute the `/compact` command.
-
-### Step 4 — Verify context after compaction
-
-After compaction, confirm:
-
-- current Roavvy milestone
-- last completed task
-- next command the user should run
+See [docs/engineering/compact_protocol.md](docs/engineering/compact_protocol.md).

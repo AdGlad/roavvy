@@ -15,6 +15,7 @@ class TravelSummary {
     required this.computedAt,
     this.earliestVisit,
     this.latestVisit,
+    this.achievementCount = 0,
   });
 
   /// Build a [TravelSummary] from a list of effective visited countries.
@@ -57,6 +58,10 @@ class TravelSummary {
 
   /// Latest [EffectiveVisitedCountry.lastSeen] across all active visits.
   final DateTime? latestVisit;
+
+  /// Number of achievements unlocked by the user. Defaults to 0.
+  /// Set by [travelSummaryProvider]; [fromVisits] always returns 0.
+  final int achievementCount;
 
   int get countryCount => visitedCodes.length;
 }

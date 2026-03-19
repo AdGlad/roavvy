@@ -2,14 +2,22 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/providers.dart';
+import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
+import 'package:mobile_flutter/data/firestore_sync_service.dart';
+import 'package:mobile_flutter/data/region_repository.dart';
+import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
+import 'package:mobile_flutter/features/scan/scan_screen.dart';
 import 'package:mobile_flutter/photo_scan_channel.dart';
-import 'package:mobile_flutter/scan_screen.dart';
+import 'package:shared_models/shared_models.dart';
 
-VisitRepository _makeRepo() =>
-    VisitRepository(RoavvyDatabase(NativeDatabase.memory()));
+RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
+
+VisitRepository _makeRepo() => VisitRepository(_makeDb());
 
 /// Pumps [ScanScreen] with an in-memory repository and optional mocks.
 ///
@@ -23,7 +31,8 @@ Future<void> pumpApp(
   required Future<Object?> Function(MethodCall) methodHandler,
   List<ScanEvent>? scanEvents,
   VisitRepository? repository,
-  Future<Map<String, CountryAccum>> Function(List<PhotoRecord>)? batchResolver,
+  AchievementRepository? achievementRepository,
+  Future<BatchResult> Function(List<PhotoRecord>)? batchResolver,
 }) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
@@ -34,15 +43,30 @@ Future<void> pumpApp(
   Stream<ScanEvent> Function({int limit})? scanStarter;
   if (scanEvents != null) {
     final events = scanEvents;
-    scanStarter = ({int limit = 500}) => Stream.fromIterable(events);
+    scanStarter = ({int limit = 2000}) => Stream.fromIterable(events);
   }
 
+  final db = _makeDb();
+  final visitRepo = repository ?? VisitRepository(db);
+  final achievementRepo = achievementRepository ?? AchievementRepository(db);
+  final tripRepo = TripRepository(db);
+  final regionRepo = RegionRepository(db);
+
   await tester.pumpWidget(
-    MaterialApp(
-      home: ScanScreen(
-        repository: repository ?? _makeRepo(),
-        batchResolver: batchResolver,
-        scanStarter: scanStarter,
+    ProviderScope(
+      overrides: [
+        visitRepositoryProvider.overrideWithValue(visitRepo),
+        achievementRepositoryProvider.overrideWithValue(achievementRepo),
+        tripRepositoryProvider.overrideWithValue(tripRepo),
+        regionRepositoryProvider.overrideWithValue(regionRepo),
+        currentUidProvider.overrideWithValue(null),
+      ],
+      child: MaterialApp(
+        home: ScanScreen(
+          batchResolver: batchResolver,
+          scanStarter: scanStarter,
+          syncService: const NoOpSyncService(),
+        ),
       ),
     ),
   );
@@ -160,8 +184,8 @@ void main() {
       ];
       // Simple resolver: lat > 45 → GB, else → US
       final result = resolveBatch(photos, (lat, lng) => lat > 45 ? 'GB' : 'US');
-      expect(result['GB']!.photoCount, 2);
-      expect(result['US']!.photoCount, 1);
+      expect(result.accum['GB']!.photoCount, 2);
+      expect(result.accum['US']!.photoCount, 1);
     });
 
     test('firstSeen and lastSeen are set from capturedAt', () {
@@ -172,8 +196,8 @@ void main() {
         PhotoRecord(lat: 51.6, lng: -0.2, capturedAt: t1),
       ];
       final result = resolveBatch(photos, (_, __) => 'GB');
-      expect(result['GB']!.firstSeen, t1);
-      expect(result['GB']!.lastSeen, t2);
+      expect(result.accum['GB']!.firstSeen, t1);
+      expect(result.accum['GB']!.lastSeen, t2);
     });
 
     test('skips photos when resolver returns null', () {
@@ -182,8 +206,31 @@ void main() {
         PhotoRecord(lat: 51.5, lng: -0.1),
       ];
       final result = resolveBatch(photos, (lat, _) => lat > 45 ? 'GB' : null);
-      expect(result.containsKey('GB'), isTrue);
-      expect(result.length, 1);
+      expect(result.accum.containsKey('GB'), isTrue);
+      expect(result.accum.length, 1);
+    });
+
+    test('photoDates contains one entry per resolved photo with capturedAt', () {
+      final t1 = DateTime.utc(2023, 1, 1);
+      final t2 = DateTime.utc(2023, 6, 1);
+      final photos = [
+        PhotoRecord(lat: 51.5, lng: -0.1, capturedAt: t1),
+        PhotoRecord(lat: 51.6, lng: -0.2, capturedAt: t2),
+        PhotoRecord(lat: 40.7, lng: -74.0), // null capturedAt — excluded
+      ];
+      final result = resolveBatch(photos, (lat, _) => lat > 45 ? 'GB' : 'US');
+      expect(result.photoDates, hasLength(2));
+      expect(result.photoDates.every((r) => r.countryCode == 'GB'), isTrue);
+    });
+
+    test('photoDates excludes photos where resolver returns null', () {
+      final photos = [
+        PhotoRecord(lat: 0.0, lng: 0.0, capturedAt: DateTime.utc(2023, 1, 1)),
+        PhotoRecord(lat: 51.5, lng: -0.1, capturedAt: DateTime.utc(2023, 2, 1)),
+      ];
+      final result = resolveBatch(photos, (lat, _) => lat > 45 ? 'GB' : null);
+      expect(result.photoDates, hasLength(1));
+      expect(result.photoDates.first.countryCode, 'GB');
     });
 
     test('deduplicates resolver calls for photos in the same 0.5° bucket', () {
@@ -208,10 +255,10 @@ void main() {
   group('ScanScreen — initial state', () {
     testWidgets('shows permission button and disabled scan button', (tester) async {
       await pumpApp(tester, methodHandler: (_) async => null);
-      expect(find.text('Request Permission'), findsOneWidget);
-      expect(find.text('Scan 500 Most Recent Photos'), findsOneWidget);
+      expect(find.text('Grant Access'), findsOneWidget);
+      expect(find.text('Scan my photo library'), findsOneWidget);
       final scanBtn = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Scan 500 Most Recent Photos'),
+        find.widgetWithText(FilledButton, 'Scan my photo library'),
       );
       expect(scanBtn.onPressed, isNull);
     });
@@ -219,9 +266,6 @@ void main() {
 
   group('ScanScreen — after scan with results', () {
     testWidgets('shows stats card after scan completes', (tester) async {
-      // Use values that produce unique numbers across all six stat rows:
-      // inspected=120, withLocation=90, withoutLocation=30,
-      // geocodeSuccesses=75, geocodeFailures=15, countryCount=2
       await pumpApp(
         tester,
         methodHandler: (call) async {
@@ -235,24 +279,24 @@ void main() {
           ]),
           const ScanDoneEvent(inspected: 120, withLocation: 90),
         ],
-        batchResolver: (_) async => {
-          'GB': CountryAccum(photoCount: 45),
-          'US': CountryAccum(photoCount: 30),
-        },
+        batchResolver: (_) async => BatchResult(
+          accum: {
+            'GB': CountryAccum(photoCount: 45),
+            'US': CountryAccum(photoCount: 30),
+          },
+          photoDates: [],
+        ),
       );
 
-      await tester.tap(find.text('Request Permission'));
+      await tester.tap(find.text('Grant Access'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan 500 Most Recent Photos'));
+      await tester.tap(find.text('Scan my photo library'));
       await tester.pumpAndSettle();
 
       expect(find.text('Last scan'), findsOneWidget);
-      expect(find.text('120'), findsOneWidget); // assets scanned
+      expect(find.text('120'), findsOneWidget); // photos scanned
       expect(find.text('90'), findsOneWidget);  // with location
-      expect(find.text('30'), findsOneWidget);  // without location (120-90)
-      expect(find.text('75'), findsOneWidget);  // geocode successes (45+30)
-      expect(find.text('15'), findsOneWidget);  // geocode failures (90-75)
-      expect(find.text('2'), findsOneWidget);   // unique countries
+      expect(find.text('2'), findsOneWidget);   // countries detected
     });
 
     testWidgets('shows country list with ISO codes', (tester) async {
@@ -269,15 +313,18 @@ void main() {
           ]),
           const ScanDoneEvent(inspected: 100, withLocation: 72),
         ],
-        batchResolver: (_) async => {
-          'US': CountryAccum(photoCount: 50),
-          'GB': CountryAccum(photoCount: 22),
-        },
+        batchResolver: (_) async => BatchResult(
+          accum: {
+            'US': CountryAccum(photoCount: 50),
+            'GB': CountryAccum(photoCount: 22),
+          },
+          photoDates: [],
+        ),
       );
 
-      await tester.tap(find.text('Request Permission'));
+      await tester.tap(find.text('Grant Access'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan 500 Most Recent Photos'));
+      await tester.tap(find.text('Scan my photo library'));
       await tester.pumpAndSettle();
 
       expect(find.text('2 countries visited'), findsOneWidget);
@@ -299,14 +346,15 @@ void main() {
           ScanBatchEvent(photos: [PhotoRecord(lat: 35.7, lng: 139.7)]),
           const ScanDoneEvent(inspected: 10, withLocation: 5),
         ],
-        batchResolver: (_) async => {
-          'JP': CountryAccum(photoCount: 5),
-        },
+        batchResolver: (_) async => BatchResult(
+          accum: {'JP': CountryAccum(photoCount: 5)},
+          photoDates: [],
+        ),
       );
 
-      await tester.tap(find.text('Request Permission'));
+      await tester.tap(find.text('Grant Access'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan 500 Most Recent Photos'));
+      await tester.tap(find.text('Scan my photo library'));
       await tester.pumpAndSettle();
 
       expect(find.text('Review & Edit'), findsOneWidget);
@@ -321,16 +369,170 @@ void main() {
           return null;
         },
         scanEvents: [const ScanDoneEvent(inspected: 50, withLocation: 0)],
-        batchResolver: (_) async => {},
+        batchResolver: (_) async => BatchResult(accum: {}, photoDates: []),
       );
 
-      await tester.tap(find.text('Request Permission'));
+      await tester.tap(find.text('Grant Access'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan 500 Most Recent Photos'));
+      await tester.tap(find.text('Scan my photo library'));
       await tester.pumpAndSettle();
 
       expect(find.text('Last scan'), findsOneWidget);
       expect(find.textContaining('No geotagged photos'), findsOneWidget);
+    });
+  });
+
+  // ── Task 13: Post-scan result summary ─────────────────────────────────────
+
+  group('ScanScreen — post-scan result summary', () {
+    testWidgets('shows "You\'re up to date" when no new countries found',
+        (tester) async {
+      final repo = _makeRepo();
+      // Pre-populate GB so it already exists in the pre-scan snapshot.
+      await repo.clearAndSaveAllInferred([
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2024),
+          photoCount: 10,
+        ),
+      ]);
+
+      await pumpApp(
+        tester,
+        methodHandler: (call) async {
+          if (call.method == 'requestPermission') return 3; // authorized
+          return null;
+        },
+        repository: repo,
+        scanEvents: [
+          ScanBatchEvent(photos: [PhotoRecord(lat: 51.5, lng: -0.12)]),
+          const ScanDoneEvent(inspected: 10, withLocation: 5),
+        ],
+        batchResolver: (_) async => BatchResult(
+          accum: {'GB': CountryAccum(photoCount: 5)},
+          photoDates: [],
+        ),
+      );
+
+      await tester.tap(find.text('Grant Access'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan my photo library'));
+      await tester.pumpAndSettle();
+
+      expect(find.text("You're up to date"), findsOneWidget);
+    });
+
+    testWidgets('shows new country name when a new country is detected',
+        (tester) async {
+      await pumpApp(
+        tester,
+        methodHandler: (call) async {
+          if (call.method == 'requestPermission') return 3;
+          return null;
+        },
+        scanEvents: [
+          ScanBatchEvent(photos: [PhotoRecord(lat: 51.5, lng: -0.12)]),
+          const ScanDoneEvent(inspected: 10, withLocation: 5),
+        ],
+        batchResolver: (_) async => BatchResult(
+          accum: {'GB': CountryAccum(photoCount: 5)},
+          photoDates: [],
+        ),
+      );
+
+      await tester.tap(find.text('Grant Access'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan my photo library'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 new country detected'), findsOneWidget);
+      expect(find.text('United Kingdom'), findsWidgets);
+    });
+
+    testWidgets('preserves empty hint and no result banner when no geotagged photos',
+        (tester) async {
+      await pumpApp(
+        tester,
+        methodHandler: (call) async {
+          if (call.method == 'requestPermission') return 3;
+          return null;
+        },
+        scanEvents: [const ScanDoneEvent(inspected: 20, withLocation: 0)],
+        batchResolver: (_) async => BatchResult(accum: {}, photoDates: []),
+      );
+
+      await tester.tap(find.text('Grant Access'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan my photo library'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('No geotagged photos'), findsOneWidget);
+      expect(find.text("You're up to date"), findsNothing);
+    });
+  });
+
+  // ── Task 25: Achievement SnackBar ──────────────────────────────────────────
+
+  group('ScanScreen — achievement SnackBar', () {
+    testWidgets('shows SnackBar with achievement title on new unlock',
+        (tester) async {
+      await pumpApp(
+        tester,
+        methodHandler: (call) async {
+          if (call.method == 'requestPermission') return 3;
+          return null;
+        },
+        scanEvents: [
+          ScanBatchEvent(photos: [PhotoRecord(lat: 51.5, lng: -0.12)]),
+          const ScanDoneEvent(inspected: 10, withLocation: 5),
+        ],
+        batchResolver: (_) async => BatchResult(
+          accum: {'GB': CountryAccum(photoCount: 5)},
+          photoDates: [],
+        ),
+      );
+
+      await tester.tap(find.text('Grant Access'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan my photo library'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('🏆 First Stamp'), findsOneWidget);
+    });
+
+    testWidgets('no SnackBar when achievement already unlocked', (tester) async {
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      // Pre-unlock countries_1 and mark clean (simulating prior sync).
+      await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025));
+      await achievementRepo.markClean('countries_1', DateTime.utc(2025));
+
+      await pumpApp(
+        tester,
+        methodHandler: (call) async {
+          if (call.method == 'requestPermission') return 3;
+          return null;
+        },
+        repository: visitRepo,
+        achievementRepository: achievementRepo,
+        scanEvents: [
+          ScanBatchEvent(photos: [PhotoRecord(lat: 51.5, lng: -0.12)]),
+          const ScanDoneEvent(inspected: 10, withLocation: 5),
+        ],
+        batchResolver: (_) async => BatchResult(
+          accum: {'GB': CountryAccum(photoCount: 5)},
+          photoDates: [],
+        ),
+      );
+
+      await tester.tap(find.text('Grant Access'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan my photo library'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('🏆 First Stamp'), findsNothing);
     });
   });
 }

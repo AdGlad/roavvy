@@ -45,3 +45,11 @@ Risks / open questions: anything that could block or invalidate the plan.
 - docs/dev/current_state.md
 - docs/dev/next_tasks.md
 - docs/architecture/privacy_principles.md
+- docs/product/roadmap.md — read before scoping any milestone; update the milestone status when work is complete
+- docs/product/vision.md — read to verify planned work serves the north-star goals
+
+## After finalising a plan
+
+- Update `docs/product/roadmap.md` if the plan adds, removes, or changes the scope of a milestone or phase.
+- Update `docs/dev/next_tasks.md` with the full task list (written to file, not printed in chat).
+- Update `docs/dev/current_task.md` with the first task the builder will tackle.

@@ -10,6 +10,10 @@ Future<PhotoPermissionStatus> requestPhotoPermission() async {
   return PhotoPermissionStatus.fromRaw(raw);
 }
 
+Future<void> openAppSettings() async {
+  await _methodChannel.invokeMethod('openSettings');
+}
+
 // ── Scan (event-channel streaming) ───────────────────────────────────────────
 
 /// Starts a photo scan and streams raw GPS records to the caller.
@@ -22,7 +26,7 @@ Future<PhotoPermissionStatus> requestPhotoPermission() async {
 /// coordinates and capture timestamps, with no network calls.
 ///
 /// [sinceDate]: when non-null, only assets created after this date are included.
-Stream<ScanEvent> startPhotoScan({int limit = 500, DateTime? sinceDate}) {
+Stream<ScanEvent> startPhotoScan({int limit = 100000, DateTime? sinceDate}) {
   final args = <String, dynamic>{'limit': limit};
   if (sinceDate != null) args['sinceDate'] = sinceDate.toUtc().toIso8601String();
   return _eventChannel

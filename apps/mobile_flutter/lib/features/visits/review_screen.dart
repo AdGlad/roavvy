@@ -1,6 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
+import '../../data/achievement_repository.dart';
+import '../../data/firestore_sync_service.dart';
+import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
 
 /// Lets the user correct the detected visited-country list before it is saved.
@@ -18,6 +24,10 @@ class ReviewScreen extends StatefulWidget {
     super.key,
     required this.initialVisits,
     required this.repository,
+    this.syncService,
+    this.uid,
+    this.achievementRepo,
+    this.tripRepo,
   });
 
   /// The effective (already-merged) visits to start the review with.
@@ -25,6 +35,21 @@ class ReviewScreen extends StatefulWidget {
 
   /// Repository used to persist the delta on Save.
   final VisitRepository repository;
+
+  /// Sync service used to flush dirty records after saving edits (ADR-030).
+  /// Pass [NoOpSyncService] in widget tests. When null, no sync is triggered.
+  final SyncService? syncService;
+
+  /// Firebase UID of the current user. When null, no sync is triggered.
+  final String? uid;
+
+  /// Achievement repository used to evaluate and persist newly unlocked
+  /// achievements after saves. When null, no achievement evaluation runs.
+  final AchievementRepository? achievementRepo;
+
+  /// Trip repository used to flush dirty trips to Firestore after saves.
+  /// When null, trip sync is skipped.
+  final TripRepository? tripRepo;
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -51,6 +76,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
     setState(() => _items[index].isPendingRemoval = false);
   }
 
+  void _showAchievementSnackBars(Set<String> ids) {
+    if (ids.isEmpty || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final achievementById = {for (final a in kAchievements) a.id: a};
+    for (final id in ids) {
+      final title = achievementById[id]?.title ?? id;
+      messenger.showSnackBar(SnackBar(content: Text('🏆 $title')));
+    }
+  }
+
   Future<void> _addCountry() async {
     final code = await showDialog<String>(
       context: context,
@@ -73,6 +108,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
     setState(() => _saving = true);
     final now = DateTime.now().toUtc();
     try {
+      // Snapshot prior achievement IDs before writing the delta.
+      final achievementRepo = widget.achievementRepo;
+      final priorIds = achievementRepo != null
+          ? (await achievementRepo.loadAll()).toSet()
+          : const <String>{};
+
       for (final item in _items) {
         if (item.isNewlyAdded && !item.isPendingRemoval) {
           // User added a brand-new country during this review session.
@@ -87,6 +128,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
         }
         // isNewlyAdded && isPendingRemoval → cancel out, nothing to persist.
         // !isNewlyAdded && !isPendingRemoval → unchanged, nothing to persist.
+      }
+
+      // Evaluate achievements against the updated effective visit list.
+      if (achievementRepo != null) {
+        final effective = await widget.repository.loadEffective();
+        final unlockedIds = AchievementEngine.evaluate(effective);
+        final newlyUnlockedIds = unlockedIds.difference(priorIds);
+        if (newlyUnlockedIds.isNotEmpty) {
+          await achievementRepo.upsertAll(newlyUnlockedIds, now);
+        }
+        _showAchievementSnackBars(newlyUnlockedIds);
+      }
+
+      // Flush dirty records to Firestore fire-and-forget (ADR-030).
+      final uid = widget.uid;
+      final syncService = widget.syncService;
+      if (uid != null && syncService != null) {
+        unawaited(syncService.flushDirty(uid, widget.repository,
+            achievementRepo: achievementRepo, tripRepo: widget.tripRepo));
       }
       if (mounted) Navigator.of(context).pop();
     } finally {
@@ -210,22 +270,18 @@ class _VisitTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = kCountryNames[item.countryCode] ?? item.countryCode;
     return ListTile(
-      leading: Text(
-        item.countryCode,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      title: Text(name),
+      subtitle: Text(
+        item.isManual ? '${item.countryCode} · Added manually' : item.countryCode,
+        style: const TextStyle(fontSize: 11, color: Colors.grey),
       ),
       trailing: IconButton(
         icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
         tooltip: 'Remove ${item.countryCode}',
         onPressed: onRemove,
       ),
-      subtitle: item.isManual
-          ? const Text(
-              'Added manually',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            )
-          : null,
     );
   }
 }
@@ -237,15 +293,18 @@ class _RemovedTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = kCountryNames[item.countryCode] ?? item.countryCode;
     return ListTile(
-      leading: Text(
-        item.countryCode,
+      title: Text(
+        name,
         style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
           color: Colors.grey.shade400,
           decoration: TextDecoration.lineThrough,
         ),
+      ),
+      subtitle: Text(
+        item.countryCode,
+        style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
       ),
       trailing: TextButton(
         onPressed: onUndo,

@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each user may only read and write their own data.
+    // Subcollections (inferred_visits, user_added, user_removed) are
+    // covered by the wildcard segment {document=**} (ADR-029).
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Public travel share cards (ADR-041, ADR-043).
+    // Anyone may read a share card; only the owning user may create, update,
+    // or delete it. Delete uses resource.data.uid (the existing document) because
+    // request.resource is null on delete operations.
+    match /sharedTravelCards/{token} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+          && request.auth.uid == request.resource.data.uid;
+      allow delete: if request.auth != null
+          && request.auth.uid == resource.data.uid;
+    }
+  }
+}

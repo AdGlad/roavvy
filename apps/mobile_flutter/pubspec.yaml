@@ -34,10 +34,22 @@ dependencies:
   cupertino_icons: ^1.0.8
   drift: ^2.22.0
   drift_flutter: ^0.2.3
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.0
   shared_models:
     path: ../../packages/shared_models
   country_lookup:
     path: ../../packages/country_lookup
+  region_lookup:
+    path: ../../packages/region_lookup
+  flutter_riverpod: ^2.6.1
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.0
+  sign_in_with_apple: ^6.1.4
+  crypto: ^3.0.3
+  cloud_firestore: ^5.4.0
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +63,8 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.22.0
   build_runner: ^2.4.0
+  firebase_auth_mocks: ^0.14.2
+  fake_cloud_firestore: ^3.0.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -65,6 +79,7 @@ flutter:
 
   assets:
     - assets/geodata/ne_countries.bin
+    - assets/geodata/ne_admin1.bin
 
   # To add assets to your application, add an assets section, like this:
   # assets:

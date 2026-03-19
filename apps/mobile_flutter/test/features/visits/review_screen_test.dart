@@ -2,13 +2,15 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/features/visits/review_screen.dart';
 import 'package:shared_models/shared_models.dart';
 
-VisitRepository _makeRepo() =>
-    VisitRepository(RoavvyDatabase(NativeDatabase.memory()));
+RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
+
+VisitRepository _makeRepo() => VisitRepository(_makeDb());
 
 Future<void> pumpReview(
   WidgetTester tester,
@@ -131,7 +133,7 @@ void main() {
       await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
 
-      expect(find.text('DE'), findsOneWidget);
+      expect(find.textContaining('DE'), findsWidgets);
     });
 
     testWidgets('Cancel closes dialog without adding', (tester) async {
@@ -201,6 +203,173 @@ void main() {
 
       expect(find.text('Review countries'), findsNothing);
       expect(find.text('Open'), findsOneWidget);
+    });
+  });
+
+  group('ReviewScreen — achievement SnackBar', () {
+    // Push ReviewScreen onto a route so that when it pops, the parent Scaffold
+    // is still alive and the ScaffoldMessenger can render the SnackBar.
+    Future<void> pumpReviewPushed(
+      WidgetTester tester,
+      List<EffectiveVisitedCountry> visits, {
+      required VisitRepository visitRepo,
+      required AchievementRepository achievementRepo,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => ReviewScreen(
+                      initialVisits: visits,
+                      repository: visitRepo,
+                      achievementRepo: achievementRepo,
+                    ),
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows SnackBar with achievement title on new unlock',
+        (tester) async {
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      await visitRepo.saveInferred(InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2025, 1, 1),
+        photoCount: 3,
+      ));
+
+      await pumpReviewPushed(
+        tester,
+        [autoVisit('GB')],
+        visitRepo: visitRepo,
+        achievementRepo: achievementRepo,
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('🏆 First Stamp'), findsOneWidget);
+    });
+
+    testWidgets('no SnackBar when achievement already unlocked', (tester) async {
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      await visitRepo.saveInferred(InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2025, 1, 1),
+        photoCount: 1,
+      ));
+
+      // Pre-unlock countries_1 and mark clean.
+      await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025));
+      await achievementRepo.markClean('countries_1', DateTime.utc(2025));
+
+      await pumpReviewPushed(
+        tester,
+        [autoVisit('GB')],
+        visitRepo: visitRepo,
+        achievementRepo: achievementRepo,
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('🏆 First Stamp'), findsNothing);
+    });
+  });
+
+  group('ReviewScreen — achievement evaluation at save', () {
+    testWidgets('saving with achievementRepo unlocks countries_1', (tester) async {
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      // Pre-populate an inferred visit so loadEffective returns one country.
+      await visitRepo.saveInferred(InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2025, 1, 1),
+        photoCount: 3,
+      ));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReviewScreen(
+            initialVisits: [autoVisit('GB')],
+            repository: visitRepo,
+            achievementRepo: achievementRepo,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(await achievementRepo.loadAll(), contains('countries_1'));
+    });
+
+    testWidgets('saving without achievementRepo does not throw', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReviewScreen(
+            initialVisits: [autoVisit('GB')],
+            repository: _makeRepo(),
+            // No achievementRepo — achievement evaluation is skipped.
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      // Simply verifies no exception is thrown.
+    });
+
+    testWidgets('already-unlocked achievement is not re-stored as dirty', (tester) async {
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      await visitRepo.saveInferred(InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2025, 1, 1),
+        photoCount: 1,
+      ));
+
+      // Pre-unlock countries_1 and mark it clean.
+      await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025));
+      await achievementRepo.markClean('countries_1', DateTime.utc(2025));
+      expect(await achievementRepo.loadDirty(), isEmpty);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReviewScreen(
+            initialVisits: [autoVisit('GB')],
+            repository: visitRepo,
+            achievementRepo: achievementRepo,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      // No new achievements → dirty list stays empty.
+      expect(await achievementRepo.loadDirty(), isEmpty);
     });
   });
 }

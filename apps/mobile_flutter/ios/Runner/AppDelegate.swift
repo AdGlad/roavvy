@@ -33,6 +33,8 @@ import UIKit
         methodChannel.setMethodCallHandler { [weak self] call, result in
             if call.method == "requestPermission" {
                 self?.requestPermission(result: result)
+            } else if call.method == "openSettings" {
+                self?.openSettings(result: result)
             } else {
                 result(FlutterMethodNotImplemented)
             }
@@ -50,6 +52,17 @@ import UIKit
     }
 
     // MARK: - Permission
+
+    private func openSettings(result: @escaping FlutterResult) {
+        DispatchQueue.main.async {
+            guard let url = URL(string: UIApplication.openSettingsURLString) else {
+                result(nil)
+                return
+            }
+            UIApplication.shared.open(url)
+            result(nil)
+        }
+    }
 
     private func requestPermission(result: @escaping FlutterResult) {
         if #available(iOS 14, *) {
@@ -72,7 +85,7 @@ extension AppDelegate: FlutterStreamHandler {
         eventSink events: @escaping FlutterEventSink
     ) -> FlutterError? {
         let args = arguments as? [String: Any]
-        let limit = args?["limit"] as? Int ?? 500
+        let limit = args?["limit"] as? Int ?? 2000
         // sinceDate: ISO 8601 string. nil = full scan; non-nil = incremental rescan.
         let sinceDate: Date? = (args?["sinceDate"] as? String)
             .flatMap { ISO8601DateFormatter().date(from: $0) }

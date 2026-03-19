@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(ls /Users/adglad/git/roavvy/apps/web_nextjs/jest*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(stdbuf -oL cat)",
+      "Bash(python3 -c \"import shapefile; print\\(''pyshp ok''\\)\")",
+      "Bash(pip3 install:*)",
+      "Bash(curl -L -o ne_10m_admin_1_states_provinces.zip \"https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip\")",
+      "Bash(unzip -q ne_10m_admin_1_states_provinces.zip)",
+      "Bash(ls *.shp)",
+      "Bash(python3 tool/build_geodata.py --input tool/source/ne_10m_admin_1_states_provinces.shp --output assets/geodata/ne_admin1.bin)",
+      "Bash(curl -L -o ne_50m_admin_1_states_provinces.zip \"https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_1_states_provinces.zip\")",
+      "Bash(unzip -q ne_50m_admin_1_states_provinces.zip)",
+      "Bash(python3 -c \":*)"
+    ]
+  }
+}

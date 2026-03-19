@@ -1,432 +1,1563 @@
-# Roavvy — Next Tasks
+# Roavvy — Task History & Active Milestone
 
-Concrete tasks to turn the working photo scanning spike into the first shippable Roavvy feature: offline scanning, reliable persistence, and a clean domain model throughout.
+## Completed tasks
 
-**Scope boundary:** Firebase sync, world map view, achievements, sharing cards, and the Shopify store are explicitly out of scope for this milestone. Each task below is self-contained and unblocked unless a dependency is noted.
+| Task | Name | Milestone | Key ADRs |
+|------|------|-----------|----------|
+| 1 | Build `packages/country_lookup` | 1–5 | ADR-004, ADR-009 |
+| 2 | Replace SharedPreferences with Drift SQLite | 1–5 | ADR-003, ADR-011 |
+| 3+4 | Swift EventChannel streaming + background isolate | 1–5 | ADR-010, ADR-013 |
+| 5 | Migrate to typed domain model; retire `CountryVisit` | 1–5 | ADR-008 |
+| 6 | Expose polygon geometry from `country_lookup` | 6 | ADR-017 |
+| 7 | `MapScreen`: world map polygon rendering | 6 | ADR-014, ADR-015 |
+| 8 | Country tap → detail bottom sheet | 6 | ADR-019, ADR-020 |
+| 9 | Bottom nav shell; Riverpod providers; rename to `RoavvyApp` | 6 | ADR-018, ADR-021 |
+| 10 | Travel stats strip on map screen | 6 | — |
+| 11 | Permission state handling in `ScanScreen` | 7 | — |
+| 12 | Incremental scan via `sinceDate` + Drift metadata table | 7 | ADR-012, ADR-022 |
+| 13 | Post-scan result summary ("nothing new" state) | 7 | ADR-024 |
+| 14 | Delete travel history | 7 | ADR-025 |
+| 15 | Map empty state (first-use overlay) | 7 | — |
+| 16 | Firebase SDK setup (`firebase_core`, `firebase_auth`) | 8 | ADR-026 |
+| 17 | Anonymous auth on first launch + `authStateProvider` | 8 | ADR-027 |
+| 18 | Sign in with Apple (credential upgrade) | 8 | ADR-028 |
+| 19 | Firestore initial sync (push all dirty records on sign-in) | 8 | ADR-029, ADR-030 |
+| 20 | Ongoing Firestore sync (flush dirty after each repository write) | 8 | ADR-030 |
+| 21 | Startup dirty-row flush + explicit offline persistence | 8+ | ADR-031, ADR-032 |
+| 22 | Achievement domain model + rules engine | 9 | ADR-034, ADR-035 |
+| 23 | Achievement Drift persistence + repository | 9 | ADR-036 |
+| 24 | Achievement evaluation at write sites + Firestore sync | 9 | ADR-037, ADR-038 |
+| 25 | Achievement UI: stats strip count + unlock SnackBar | 9 | ADR-038 |
+| 26 | Auth persistence: remove forced sign-out + add sign-out action | 9.5 | ADR-039 |
+| 27 | Travel card widget | 10 | ADR-040 |
+| 28 | Capture card as image + share via iOS share sheet | 10 | ADR-040 |
+| 29 | Share token generation + Firestore write (Flutter) | 11 | ADR-041 |
+| 30 | Web share page: data read + world map rendering | 11 | ADR-041 |
+| 31 | Privacy settings screen + share token revocation | 12 | ADR-042, ADR-043 |
+| 32 | Account deletion | 12 | ADR-042, ADR-043 |
+| 42 | Build `packages/region_lookup` | 16 | ADR-049, ADR-051 |
+| 43 | Schema v7: PhotoDateRecord.regionCode + scan pipeline region resolution | 16 | ADR-051 |
+| 44 | RegionVisit domain model + region_visits Drift table + RegionRepository | 16 | ADR-051 |
+| 45 | Scan pipeline + bootstrap: produce RegionVisit records | 16 | ADR-051 |
+| 46 | Region count + region list in CountryDetailSheet | 16 | ADR-019 |
 
 ---
 
-## ~~Task 1~~ — Build `packages/country_lookup` ✓ COMPLETE
+## Task 21 — Startup dirty-row flush + explicit Firestore offline persistence
 
-**Fixes spike limitation:** CLGeocoder requires a network connection, is rate-limited, and returns locale-dependent country names instead of ISO codes. (ADR-009)
+**Why:** ADR-030's write-site-only `flushDirty` triggers do not cover the case where the app is killed while offline (pending `await set()` is lost). On next launch, `isDirty = 1` rows sit unsynced until the user scans or edits again. ADR-031 closes this by flushing at startup. ADR-032 makes the offline-persistence dependency explicit rather than relying on iOS defaults.
 
-**Why this is the most important task:** It is the structural privacy guarantee in code, not policy. Until this exists, the app cannot fulfil the core claim that scanning works offline.
+**Acceptance criteria:**
+- [ ] `FirebaseFirestore.instance.settings` is set to `persistenceEnabled: true, cacheSizeBytes: CACHE_SIZE_UNLIMITED` in `main()` immediately after `Firebase.initializeApp()`, before any Firestore access
+- [ ] `main()` creates a `VisitRepository(db)` and calls `unawaited(FirestoreSyncService().flushDirty(uid, repo))` after auth is confirmed, if `uid != null`
+- [ ] The startup flush completes before `runApp` can see dirty rows — i.e. it is fire-and-forget, not blocking `runApp`
+- [ ] `dart analyze` reports zero warnings
+- [ ] No existing widget tests broken
 
-### What to build
+**Files to change:**
+- `lib/main.dart` — add Settings call after `Firebase.initializeApp()`; add startup flush after auth
 
-A pure Dart package with a single public function:
+**Dependencies:** Tasks 19 + 20 (complete).
 
+---
+
+## Milestone 9 — Achievements
+
+**Goal:** Award travel achievements based on visited countries and surface them in the app.
+
+**Scope — included:**
+- Achievement domain model and rules engine in `packages/shared_models` (offline, pure computation)
+- Drift persistence for unlocked achievements (`unlocked_achievements` table)
+- Achievement evaluation triggered after each scan, review save, and startup flush
+- Firestore sync for unlocked achievements (same fire-and-forget pattern as visits)
+- UI surface: achievement count in stats strip + unlock notification (SnackBar)
+
+**Scope — excluded:**
+- Achievement sharing or export
+- Continent-level map colouring (deferred)
+- Retroactive achievement backdating
+- Per-achievement detail screens (deferred to M10+)
+
+**Note:** Tasks 25 and 26 have user-facing components — invoke UX Designer before Architect for those tasks.
+
+---
+
+## Task 22 — Achievement domain model + rules engine
+
+**Milestone:** 9
+**ADRs:** ADR-034, ADR-035
+
+**Why:** The achievement engine must be pure offline computation in `packages/shared_models`, consistent with ADR-007 (zero-dependency, dual-language). All unlock logic lives here; app layers only store and display results.
+
+**Deliverable:** `AchievementEngine` class and continent map in `packages/shared_models`.
+
+**Acceptance criteria:**
+- [ ] `Achievement` value type defined: `id` (String), `title`, `description`
+- [ ] `const List<Achievement> kAchievements` catalogue defined (minimum 8 — see ADR-034)
+- [ ] `AchievementEngine.evaluate(List<EffectiveVisitedCountry> visits)` returns `Set<String>` of unlocked achievement IDs; pure static function, no I/O
+- [ ] `const Map<String, String> kCountryContinent` defined (ISO 3166-1 → continent name, 6 inhabited continents, territories mapped to administering country's continent — see ADR-035)
+- [ ] Countries absent from `kCountryContinent` are ignored gracefully (no exception)
+- [ ] All new types exported from `shared_models.dart`
+- [ ] `dart analyze` reports zero issues in `packages/shared_models`
+- [ ] ≥ 20 unit tests: each achievement rule, empty list, exactly-at-threshold, one-below-threshold, missing continent key
+
+**Files to change:** `packages/shared_models/`
+
+**Dependencies:** None. (Task 21 complete.)
+
+---
+
+## Task 23 — Achievement Drift persistence + repository
+
+**Milestone:** 9
+**ADR:** ADR-036
+
+**Why:** Unlocked achievements must survive app restarts (ADR-003) and be dirty-flagged for Firestore sync (ADR-030 pattern).
+
+**Deliverable:** `unlocked_achievements` Drift table, `AchievementRepository`, and provider.
+
+**Acceptance criteria:**
+- [ ] `unlocked_achievements` table added to `RoavvyDatabase` — schema v4; columns: `achievementId` (TEXT PK), `unlockedAt` (INTEGER ms-since-epoch UTC), `isDirty` (INTEGER default 1), `syncedAt` (INTEGER nullable)
+- [ ] `RoavvyDatabase.schemaVersion` incremented to 3 → 4; `onUpgrade` creates table with `CREATE TABLE IF NOT EXISTS`
+- [ ] `AchievementRepository` exposes: `upsertAll(Set<String> ids, DateTime unlockedAt)`, `loadAll()` → `List<String>`, `loadDirty()` → rows, `markClean(String id, DateTime syncedAt)`
+- [ ] `VisitRepository.clearAll()` does **not** purge `unlocked_achievements` (achievements persist across history delete — ADR-036)
+- [ ] `achievementRepositoryProvider` added to `lib/core/providers.dart`
+- [ ] `dart analyze` reports zero issues
+- [ ] Unit tests: upsert idempotency, load, loadDirty, markClean — all via in-memory Drift DB
+
+**Files to change:** `lib/data/db/roavvy_database.dart`, `lib/data/achievement_repository.dart` (new), `lib/core/providers.dart`
+
+**Dependencies:** Task 22.
+
+---
+
+## Task 24 — Achievement evaluation at write sites + Firestore sync
+
+**Milestone:** 9
+**ADRs:** ADR-037, ADR-038 (partial)
+
+**Why:** Achievements must be re-evaluated after visits change. Newly unlocked achievements must be persisted locally and synced to Firestore (ADR-030 pattern).
+
+**Deliverable:** `AchievementEngine.evaluate()` called after scan and review save; `FirestoreSyncService.flushDirty` extended with optional `achievementRepo` parameter; `main.dart` startup flush updated.
+
+**Acceptance criteria:**
+- [ ] After scan completion (in `ScanScreen`) and after review save (in `ReviewScreen`): call `achievementRepo.loadAll()` (before), then `AchievementEngine.evaluate(effectiveVisits)`, then `achievementRepo.upsertAll(newIds, now)`. Capture newly unlocked IDs (set difference) for Task 25 SnackBar.
+- [ ] `AchievementEngine.evaluate()` is **not** called in `main()` startup — startup only flushes already-dirty rows from prior sessions
+- [ ] `SyncService.flushDirty` signature: `Future<void> flushDirty(String uid, VisitRepository repo, {AchievementRepository? achievementRepo})` (optional named parameter — ADR-037)
+- [ ] `FirestoreSyncService.flushDirty` pushes dirty achievement rows to `users/{uid}/unlocked_achievements/{achievementId}` with `{unlockedAt: <ISO string>, syncedAt: <ISO string>}`; marks clean on success; silent failure on exception
+- [ ] `NoOpSyncService.flushDirty` accepts the new named parameter and ignores it
+- [ ] `main.dart` startup flush passes `achievementRepo: AchievementRepository(db)` so achievement dirty rows are flushed on startup
+- [ ] `firestore.rules` — no change required; existing `users/{userId}/{document=**}` wildcard covers the new subcollection (ADR-037)
+- [ ] `dart analyze` reports zero issues
+- [ ] Unit tests: evaluate-and-upsert at scan site; evaluate-and-upsert at review site; `FirestoreSyncService` achievement flush (FakeFirebaseFirestore)
+
+**Files to change:** `lib/data/firestore_sync_service.dart`, `lib/features/scan/scan_screen.dart`, `lib/features/visits/review_screen.dart`, `lib/main.dart`
+
+**Dependencies:** Tasks 22 + 23.
+
+---
+
+## Task 25 — Achievement UI: stats strip count + unlock SnackBar
+
+**Milestone:** 9
+**ADR:** ADR-038
+
+**Why:** Users need to know achievements exist and be notified when they unlock one.
+
+**Deliverable:** Achievement count in `StatsStrip`; `SnackBar` on new unlock.
+
+**Acceptance criteria:**
+- [ ] `TravelSummary` gains `final int achievementCount` (default `0`); `fromVisits()` is unchanged and returns `achievementCount: 0`
+- [ ] `travelSummaryProvider` reads `achievementRepositoryProvider.loadAll()` and sets `achievementCount` (ADR-038)
+- [ ] `StatsStrip` displays achievement count as a fourth stat (e.g. "🏆 3")
+- [ ] After scan completes or review saves, if `newlyUnlockedIds.isNotEmpty`: show one `SnackBar` per newly unlocked achievement with its `Achievement.title`
+- [ ] If no new achievements: no SnackBar shown
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: `StatsStrip` renders `achievementCount`; SnackBar appears on new unlock; no SnackBar when already unlocked; `travelSummaryProvider` override in tests uses non-zero count
+
+**Files to change:** `packages/shared_models/src/travel_summary.dart`, `lib/core/providers.dart`, `lib/features/map/stats_strip.dart`, `lib/features/scan/scan_screen.dart`, `lib/features/visits/review_screen.dart`
+
+**Dependencies:** Tasks 22 + 23 + 24.
+
+---
+
+## Architect sign-off — Milestone 9 + Task 26 corrections
+
+**Plan validated.** One planner error corrected: `AchievementEngine.evaluate()` is NOT called in `main()` startup (Task 24); startup only flushes pre-existing dirty achievement rows. Risks 1–4 from the planner are resolved by ADRs 034–038.
+
+**Build order:** Task 22 → 23 → 24 → 25. No task may start before its dependencies are complete.
+
+---
+
+## Next: Task 26 (auth persistence + sign-out)
+
+---
+
+## Task 26 — Auth persistence: remove forced sign-out + add sign-out action
+
+**Milestone:** 9.5 (auth polish, prerequisite for M10)
+**ADR:** ADR-039
+
+**Why:** `main.dart` contains a `// TEMP: force sign-out` call that defeats Firebase Auth's built-in iOS Keychain session persistence. Every launch shows `SignInScreen`, even for users who previously signed in with Apple. The `SignInScreen` also exposes an email/password form that is not part of the intended user flow and should be removed. A sign-out action is needed so users can deliberately end their session.
+
+**Acceptance criteria:**
+
+- [ ] `FirebaseAuth.instance.signOut()` removed from `main.dart`; the TEMP comment is removed
+- [ ] `SignInScreen` no longer contains email/password fields or `signInWithEmailAndPassword`; it shows only: app name/logo placeholder, "Sign in with Apple" button, and "Continue anonymously" button
+- [ ] Sign in with Apple nonce logic is extracted to `lib/features/auth/apple_sign_in.dart` — a top-level `Future<void> signInWithApple({required VisitRepository repo})` function; both `SignInScreen` and `MapScreen` call this function (no duplication); `MapScreen`'s `signInWithAppleOverride` test hook is preserved
+- [ ] `MapScreen` overflow menu gains a "Sign out" item (always visible); tapping it calls `FirebaseAuth.instance.signOut()`; `authStateProvider` emits `null`; `RoavvyApp` routes to `SignInScreen`
+- [ ] "Sign in with Apple" and "Signed in with Apple ✓" items remain in the overflow menu as before
+- [ ] `dart analyze` reports zero issues
+- [ ] Tests: `map_screen_test.dart` — overflow menu shows "Sign out"; tapping it does not crash (auth state transitions are handled by `authStateProvider` reactivity, not testable in unit widget tests without mock sign-out); `sign_in_screen_test.dart` (new) — "Continue anonymously" button exists, no email field present
+
+**Files to change:**
+- `lib/main.dart` — remove `signOut()` call
+- `lib/features/auth/apple_sign_in.dart` (new) — shared Apple sign-in helper
+- `lib/features/auth/sign_in_screen.dart` — remove email/password; add Sign in with Apple button calling shared helper
+- `lib/features/map/map_screen.dart` — add "Sign out" overflow item; replace inline Apple sign-in with call to shared helper
+- `test/features/map/map_screen_test.dart` — add sign-out menu item test
+- `test/features/auth/sign_in_screen_test.dart` (new) — UI shape tests
+
+**Dependencies:** Milestone 9 complete.
+
+**Risks:**
+- Anonymous users who sign out will start a new anonymous session on next "Continue anonymously"; their Firestore-synced data will not reappear (local SQLite data remains intact on device). No fix needed — this is correct behaviour per ADR-027.
+- Moving Sign in with Apple logic from `MapScreen` to `SignInScreen` means the Apple sign-in flow runs before the user reaches the map. The post-sign-in flush (`FirestoreSyncService.flushDirty`) must still be triggered. This can be done via `authStateProvider` listener in `RoavvyApp` or `MainShell`.
+
+---
+
+## Milestone 10 — Sharing Cards
+
+**Goal:** A user can share a travel card image — showing their country count, year range, and achievement count — via the iOS share sheet.
+
+**Scope — included:**
+- A `TravelCardWidget`: self-contained Flutter widget rendering travel stats as a stylised card
+- Off-screen capture of `TravelCardWidget` as a PNG using `RepaintBoundary`
+- Share via `share_plus` (iOS share sheet — AirDrop, Messages, Photos, etc.)
+- Entry point: "Share my map" button in `MapScreen` overflow menu (or FAB equivalent)
+
+**Scope — excluded:**
+- Photo uploads or map screenshot (ADR-002; only derived stat text is shown)
+- Shareable URLs / web-backed sharing (deferred to M11)
+- Custom card theming or branding beyond basic styling
+- Android (deferred to M12)
+
+---
+
+## Task 27 — Travel card widget
+
+**Milestone:** 10
+**ADR:** ADR-040
+
+**Why:** The card must be renderable both on-screen (preview) and off-screen (capture). A self-contained widget with no external state makes both modes simple.
+
+**Acceptance criteria:**
+
+- [ ] `TravelCardWidget` defined in `lib/features/sharing/travel_card_widget.dart`; accepts a `TravelSummary` positional argument; no Riverpod dependency (pure widget)
+- [ ] Card displays: country count (large, prominent), year range (`{earliest} – {latest}` or `—` if none), achievement count (`🏆 N`), and the text "Roavvy" as a brand label
+- [ ] Card has a fixed aspect ratio (e.g. 3:2 landscape) and a self-contained background colour; renders correctly when wrapped in `RepaintBoundary` at 3× device pixel ratio
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: card renders correct count; year range displays `—` when no dates; achievement count shows 0 when none
+
+**Files to change:**
+- `lib/features/sharing/travel_card_widget.dart` (new)
+- `test/features/sharing/travel_card_widget_test.dart` (new)
+
+**Dependencies:** Task 26.
+
+---
+
+## Task 28 — Capture card as image + share via iOS share sheet
+
+**Milestone:** 10
+**ADR:** ADR-040
+
+**Why:** Captures the `TravelCardWidget` as PNG bytes using `RenderRepaintBoundary.toImage()` and passes them to `share_plus` `ShareXFiles` — the standard Flutter approach for sharing generated images without uploading them.
+
+**Acceptance criteria:**
+
+- [ ] `share_plus` and `path_provider` added to `apps/mobile_flutter/pubspec.yaml` (no `screenshot` package — use `RepaintBoundary` directly per ADR-040)
+- [ ] `MapScreen` places `TravelCardWidget` in an `Offstage(offstage: true, child: RepaintBoundary(key: _cardKey, child: TravelCardWidget(summary)))` inside its build Stack; `_cardKey` is a `GlobalKey` held on `_MapScreenState`
+- [ ] `MapScreen` overflow menu gains a "Share my map" item; visible only when `travelSummaryProvider` has data and `summary.visitedCodes.isNotEmpty`
+- [ ] Tapping "Share my map" calls `captureAndShare(_cardKey, 'My Roavvy travel map')` from `lib/features/sharing/travel_card_share.dart`
+- [ ] `captureAndShare` in `travel_card_share.dart`: calls `boundary.toImage(pixelRatio: 3.0)`, encodes to PNG, writes to `getTemporaryDirectory()`, calls `Share.shareXFiles([XFile(path)])` — plain async function, no Riverpod
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget test: "Share my map" item appears in overflow when visits exist; item is absent when no visits (override `travelSummaryProvider` to cover both states)
+
+**Files to change:**
+- `pubspec.yaml` — add `share_plus`, `path_provider` (if absent)
+- `lib/features/sharing/travel_card_share.dart` (new)
+- `lib/features/map/map_screen.dart` — add overflow item + call share function
+- `test/features/map/map_screen_test.dart` — add overflow item visibility tests
+
+**Dependencies:** Task 27.
+
+---
+
+## Milestone 11 — Web App: Public Shareable Travel Map
+
+**Goal:** A signed-in Flutter user can generate a public URL that anyone can open in a browser to see their visited countries highlighted on a world map.
+
+**Scope — included:**
+- Share token generation in the Flutter app (opaque UUID, stable per user, cached locally)
+- Public `sharedTravelCards/{token}` Firestore collection with denormalized visited country codes
+- "Share my map URL" overflow menu item in `MapScreen` (signed-in non-anonymous users only)
+- Web `/share/[token]` page that reads the token document and renders a Leaflet world map with visited countries highlighted
+- GeoJSON polygon asset (`countries.geojson`) bundled in `apps/web_nextjs/public/data/`
+- Updated Firestore security rules to allow public read of `sharedTravelCards/{token}`
+
+**Scope — excluded:**
+- Authenticated web dashboard or "my map" view (deferred)
+- Achievement or stats display on the share page (deferred)
+- Custom domain configuration or deployment (Vercel etc.)
+- Android support
+- Token revocation ("stop sharing") UI
+
+**Current state of the web app:** `apps/web_nextjs/` is already scaffolded with Next.js 16, TypeScript, Tailwind, Firebase SDK v12, and Leaflet. The route `/share/[token]` exists and reads from `sharedTravelCards/{token}` in Firestore. The `DynamicMap` and `Map` components exist but have an interface bug (`userVisits` prop was removed from `DynamicMapProps`). Several unused spike pages (`/dashboard`, `/auth`, `/map`) exist and may be left in place.
+
+**Risks / open questions:**
+1. **Token guessability:** UUIDs are 128-bit random — not guessable. No revoke mechanism exists for now; flag in ADR.
+2. **GeoJSON resolution:** Use Natural Earth 110m (~400 KB). The `ne_countries.bin` in the Flutter app is derived from Natural Earth data so ISO codes match.
+3. **Firestore rules:** The new `sharedTravelCards` collection requires a separate `allow read: if true` rule. This must not widen access to `users/{uid}/...`.
+4. **Token storage:** Store in a new `app_settings` Drift table (key TEXT PK, value TEXT). Requires schema migration v4 → v5. If the `unlocked_achievements` table was added at v4 in Task 23 but Task 21–25 are complete, confirm current schema version before writing the migration.
+5. **Anonymous users:** "Share my map URL" is only available to non-anonymous signed-in users (anonymous UIDs are ephemeral and Firestore writes would be lost on sign-out).
+
+**Build order:** Task 29 → Task 30. Task 29 (Flutter) and Task 30 (web) may be developed in parallel once ADR-041 defines the shared Firestore document schema.
+
+---
+
+## Task 29 — Share token generation + Firestore write (Flutter)
+
+**Milestone:** 11
+**ADR:** ADR-041
+
+**Why:** The Flutter app must generate a stable, opaque token for each user, write the user's current visited country codes to `sharedTravelCards/{token}`, and expose a "Share my map URL" action. The token is reused across sessions so the user always gets the same URL.
+
+**Acceptance criteria:**
+
+- [ ] `app_settings` table added to `RoavvyDatabase` — schema v5; columns: `key` (TEXT PK), `value` (TEXT NOT NULL); `onUpgrade` handles v4 → v5 with `CREATE TABLE IF NOT EXISTS`
+- [ ] `VisitRepository` gains `getShareToken()` → `String?` and `saveShareToken(String token)` using the `app_settings` table
+- [ ] `ShareTokenService` in `lib/features/sharing/share_token_service.dart`: `Future<String> getOrCreateToken(VisitRepository repo)` — reads stored token; if null, generates a UUID v4 (using `dart:math` + `dart:convert`, no new package), saves it, and returns it
+- [ ] `ShareTokenService.publishVisits(String token, String uid, List<EffectiveVisitedCountry> visits)` — writes `sharedTravelCards/{token}` document: `{uid, visitedCodes: [...], countryCount: N, createdAt: <ISO string>}`; fire-and-forget (logs errors, does not throw)
+- [ ] `MapScreen` overflow menu gains a "Share my map URL" item; visible only when `!isAnonymous && hasVisits`
+- [ ] Tapping "Share my map URL": calls `getOrCreateToken`, then `publishVisits`, then shares the URL `https://roavvy.app/share/{token}` via `Share.shareXFiles` (text-only share) or `Share.share`
+- [ ] Firestore rules updated: `sharedTravelCards/{token}` — `allow read: if true; allow write: if request.auth != null && request.auth.uid == request.resource.data.uid`
+- [ ] `dart analyze` reports zero issues
+- [ ] Unit tests: `VisitRepository` — `getShareToken` returns null initially, `saveShareToken` persists, `getShareToken` returns saved value; `ShareTokenService` — `getOrCreateToken` returns same token on second call; `publishVisits` (mock Firestore or FakeFirebaseFirestore)
+- [ ] Widget test: `MapScreen` — "Share my map URL" visible when signed-in + has visits; hidden when anonymous; hidden when no visits
+
+**Files to change:**
+- `lib/data/db/roavvy_database.dart` — add `app_settings` table, bump schema to v5
+- `lib/data/visit_repository.dart` — add `getShareToken` / `saveShareToken`
+- `lib/features/sharing/share_token_service.dart` (new)
+- `lib/features/map/map_screen.dart` — add overflow item
+- `firestore.rules` — add `sharedTravelCards` match block
+- `test/data/visit_repository_test.dart` — add token tests
+- `test/features/sharing/share_token_service_test.dart` (new)
+- `test/features/map/map_screen_test.dart` — add URL share item tests
+
+**Dependencies:** Task 28 complete. Milestone 10 complete.
+
+---
+
+## Task 30 — Web share page: data read + world map rendering
+
+**Milestone:** 11
+**ADR:** ADR-041
+
+**Why:** The web app already has a `/share/[token]` route and Leaflet map components, but the `DynamicMap` interface has a bug (`userVisits` prop missing), no GeoJSON asset exists, and the page has not been tested against the actual Firestore schema defined in ADR-041.
+
+**Acceptance criteria:**
+
+- [ ] `apps/web_nextjs/public/data/countries.geojson` committed — Natural Earth 110m country polygons; features include `properties.ISO_A2` (ISO 3166-1 alpha-2 code); file size ≤ 600 KB
+- [ ] `DynamicMap.tsx` interface restored: `export interface DynamicMapProps { geoJsonData: any; userVisits: string[] }` — both `DynamicMap` and `Map` accept and pass through `userVisits`
+- [ ] `Map.tsx` styles: visited countries (`userVisits.includes(ISO_A2)`) filled `#2D6A4F`; unvisited `#D1D5DB`; border `#9CA3AF 0.5px` — matching Flutter map colours
+- [ ] `share/[token]/page.tsx` reads the `visitedCodes: string[]` field from the Firestore document (not `userVisits`)
+- [ ] Loading state shown while fetching; error state shown for missing/invalid token
+- [ ] Page title shows "N countries visited · Roavvy" using `countryCount` from the Firestore document
+- [ ] No authentication required to view the share page
+- [ ] `npm run build` completes with zero TypeScript errors and zero ESLint errors
+- [ ] Manual end-to-end test: Flutter generates token → Firestore document written → web URL opens and shows correct countries highlighted
+
+**Files to change:**
+- `apps/web_nextjs/public/data/countries.geojson` (new)
+- `apps/web_nextjs/src/components/DynamicMap.tsx` — restore `userVisits` prop
+- `apps/web_nextjs/src/components/Map.tsx` — fix colours, use correct prop
+- `apps/web_nextjs/src/app/share/[token]/page.tsx` — use `visitedCodes`, fix title, fix error states
+
+**Dependencies:** Task 29 (ADR-041 defines the Firestore document schema).
+
+---
+
+## Milestone 12 — Phase 2/3 Closeout
+
+**Goal:** Close the remaining privacy-required gaps before Phase 4. Account deletion satisfies the GDPR right-to-erasure requirement stated in `docs/architecture/privacy_principles.md`. Token revocation is the matching "stop sharing" control.
+
+**Build order:** Task 31 → Task 32. Account deletion reuses the token revocation logic introduced in Task 31.
+
+**Note:** Both tasks have user-facing components — invoke UX Designer before Architect.
+
+---
+
+## Task 31 — Privacy settings screen + share token revocation
+
+**Milestone:** 12
+**ADRs:** ADR-042, ADR-043
+
+**Why:** `privacy_principles.md` states users must be able to revoke a sharing card at any time. The current `sharedTravelCards` delete rule is broken (ADR-043 Part A). The UX Designer (ADR-042) moved sharing management out of the overflow menu into a new `PrivacyAccountScreen` push screen — destructive and privacy-related actions do not belong in a map action overflow.
+
+**Acceptance criteria:**
+
+- [ ] `firestore.rules`: `allow write` on `sharedTravelCards/{token}` split into `allow create, update` (using `request.resource.data.uid`) and `allow delete` (using `resource.data.uid`); owning user can now delete their document (ADR-043 Part A)
+- [ ] `VisitRepository` gains `Future<void> clearShareToken()` — deletes the row where `id = 1` from `share_tokens`
+- [ ] `ShareTokenService` gains:
+  - `Future<void> revokeToken(String token, String uid)` — deletes Firestore doc AND calls `clearShareToken()` on the repo; fire-and-forget; logs errors; does not throw
+  - `Future<void> revokeFirestoreOnly(String token, String uid)` — deletes Firestore doc only, no local state change (used by Task 32 account deletion, which handles local state via `clearAll()`)
+- [ ] `MapScreen` overflow menu: "Share my map link" item **removed**; new "Privacy & account" item added (`Icons.security`); always visible to signed-in users; navigates (push) to `PrivacyAccountScreen`
+- [ ] `PrivacyAccountScreen` (`lib/features/settings/privacy_account_screen.dart`) — new push `Scaffold` with a `ListView`:
+  - Section header: "Sharing"
+  - Row: shows sharing status — if token exists: "Your map is shared" with a "Remove link" `TextButton` (red); if no token: "Share your map" with a "Create link" `TextButton`
+  - The screen loads the current token via `VisitRepository.getShareToken()` on `initState`; holds token in local state
+- [ ] Tapping "Remove link" shows confirmation `AlertDialog`; copy per `docs/ux/tasks_31_32_privacy_actions.md`; on confirm calls `revokeToken`; screen reverts to no-token state
+- [ ] Tapping "Create link" invokes the same share flow as the removed overflow item (calls `getOrCreateToken` + `publishVisits` + `Share.share`); token is cached in screen state after creation
+- [ ] `dart analyze` reports zero issues
+- [ ] Unit tests: `clearShareToken` deletes the row; `revokeToken` deletes Firestore doc and clears local token; `revokeFirestoreOnly` deletes Firestore doc and does NOT clear local token
+- [ ] Widget tests: `MapScreen` — "Privacy & account" item visible; "Share my map link" absent; `PrivacyAccountScreen` — "Your map is shared" row visible when token exists; "Share your map" row visible when no token; confirmation dialog appears on "Remove link" tap
+
+**Files to change:**
+- `firestore.rules`
+- `lib/data/visit_repository.dart` — add `clearShareToken()`
+- `lib/features/sharing/share_token_service.dart` — add `revokeToken()` and `revokeFirestoreOnly()`
+- `lib/features/map/map_screen.dart` — remove sharing overflow items; add "Privacy & account" item
+- `lib/features/settings/privacy_account_screen.dart` (new)
+- `test/data/visit_repository_test.dart`
+- `test/features/sharing/share_token_service_test.dart`
+- `test/features/map/map_screen_test.dart`
+- `test/features/settings/privacy_account_screen_test.dart` (new)
+
+**Dependencies:** Tasks 29–30 complete.
+
+---
+
+## Task 32 — Account deletion
+
+**Milestone:** 12
+**ADRs:** ADR-042, ADR-043
+
+**Why:** `privacy_principles.md` and GDPR require that users can permanently delete their account and all associated data. Anonymous users can also delete their anonymous account.
+
+**Acceptance criteria:**
+
+- [ ] `PrivacyAccountScreen` gains an Account section (below the Sharing section):
+  - Section header: "Account"
+  - Row: "Delete account" with red label text; `Icons.delete_forever`; visible to all signed-in users including anonymous
+- [ ] `AccountDeletionService` (`lib/features/account/account_deletion_service.dart`) — injectable class with constructor parameters `FirebaseAuth auth`, `FirebaseFirestore firestore`, `VisitRepository repo`, `ShareTokenService shareTokenService`; exposes `Future<void> deleteAccount(String uid, {String? shareToken})`
+- [ ] Deletion sequence inside `deleteAccount` (per ADR-043):
+  1. `await auth.currentUser!.delete()` — on `requires-recent-login`: rethrow; on other error: rethrow
+  2. If `shareToken != null`: `unawaited(shareTokenService.revokeFirestoreOnly(shareToken, uid))`
+  3. `await repo.clearAll()`
+  4. Delete Firestore subcollections via batched `WriteBatch` (max 500 per batch), awaiting each batch:
+     - `users/{uid}/inferred_visits/*`
+     - `users/{uid}/user_added/*`
+     - `users/{uid}/user_removed/*`
+     - `users/{uid}/unlocked_achievements/*`
+     Batch failures are logged and do not abort the sequence
+- [ ] Tapping "Delete account" row in `PrivacyAccountScreen`:
+  - Shows first `AlertDialog` (consequences); on confirm →
+  - Shows second `AlertDialog` ("Are you sure?"); on confirm →
+  - Shows non-dismissable loading `AlertDialog` ("Deleting your account…")
+  - Calls `AccountDeletionService.deleteAccount`
+  - On success: loading dialog auto-dismisses; `authStateProvider` emits `null`; `RoavvyApp` routes to `SignInScreen`
+  - On `requires-recent-login`: loading dialog dismisses; `AlertDialog` shown with re-auth copy (per UX spec); no data deleted
+  - On other error: loading dialog dismisses; `SnackBar` shown; `auth.signOut()` called; user routed to `SignInScreen`
+- [ ] Anonymous users: `auth.delete()` does not throw `requires-recent-login`; deletion proceeds to completion
+- [ ] `dart analyze` reports zero issues
+- [ ] Unit tests (`account_deletion_service_test.dart`): all four Firestore subcollections deleted; `clearAll` called; `revokeFirestoreOnly` called when token provided; not called when token absent; `requires-recent-login` propagated to caller; Firestore batch failure does not prevent other steps
+- [ ] Widget tests (`privacy_account_screen_test.dart`): "Delete account" row visible; two confirmation dialogs appear in sequence; loading dialog appears after second confirm
+
+**Files to change:**
+- `lib/features/account/account_deletion_service.dart` (new)
+- `lib/features/settings/privacy_account_screen.dart` — add Account section + deletion flow
+- `test/features/account/account_deletion_service_test.dart` (new)
+- `test/features/settings/privacy_account_screen_test.dart` — extend with account deletion tests
+
+**Dependencies:** Task 31 (`PrivacyAccountScreen` exists; `revokeFirestoreOnly` exists).
+
+---
+
+## Milestone 13 — Phase 4: Authenticated Web Map
+
+**Goal:** A signed-in user can visit `roavvy.app/map` in a browser, sign in with Google, and see their visited countries highlighted on a world map.
+
+**Background:**
+Spike pages already exist in `apps/web_nextjs/`: `/app/auth/page.tsx`, `/app/map/page.tsx`, `/app/dashboard/page.tsx`, `contexts/AuthContext.tsx`, `lib/firebase/useUserVisits.ts`, `components/ProtectedRoute.tsx`, `components/SignInForm.tsx`, `components/SignUpForm.tsx`. Most must be replaced or substantially rewritten — they use email/password auth (wrong identity provider) and read from `users/{uid}/visits` (a Firestore path that does not exist; the correct paths are `inferred_visits`, `user_added`, `user_removed`).
+
+**Build order:** Task 33 → Task 34 → Task 35. Each task can begin after the previous is complete.
+
+**Risks / open questions:**
+1. **Google-to-Apple account linking:** A user who signed in with Apple on mobile and signs in with Google on web will have two separate Firebase accounts. Their Firestore data lives under the Apple UID. The Google-signed-in web user will see an empty map. This is a known limitation for M13 — document it, do not solve it yet. Phase 4 will only work for users who have signed into the mobile app with an account that supports web sign-in (Google). Flag this in the UI if the map is empty: "No travel data found. Ensure you've scanned photos in the Roavvy app and are signed in with the same account."
+2. **`npm run build` TypeScript strictness:** The spike pages have `any` types and console.log calls. The build must pass with zero TypeScript errors at the end of each task.
+3. **Firestore rules:** The current `users/{userId}` wildcard allows `read, write`. Web should only read. This is acceptable for M13 (no write code paths in the web map page) but should be tightened in a future security review — flag in ADR.
+
+**Architect sign-off:** Validated. ADR-044 (Google OAuth), ADR-045 (AuthContext + ProtectedRoute), ADR-046 (getDocs + effectiveVisits). Four corrections applied to the task specs below. No new packages required.
+
+---
+
+## Task 33 — Web sign-in page (Google OAuth)
+
+**Milestone:** 13
+
+**Why:** The `/map` page requires authentication. The existing spike uses email/password sign-in which is not the identity provider used on mobile. Replace it with Google Sign-In so users can sign in with the same Google-linked Firebase account. (Apple Sign-In on web is a separate OAuth flow with redirect complexity — deferred.)
+
+**Scope — included:**
+- `/sign-in` page (new route) with a single "Sign in with Google" button using `signInWithPopup` + `GoogleAuthProvider` from the Firebase Auth JS SDK
+- On success, redirect to `/map`
+- "View a shared map" link → `/` (home page) for unauthenticated visitors who want to use the share feature only
+- Remove spike pages: `/app/auth/page.tsx`, `components/SignInForm.tsx`, `components/SignUpForm.tsx`
+- `AuthContext.tsx` is retained with two targeted fixes (ADR-045): remove `setPersistence` call; register `onAuthStateChanged` directly (not inside an async function).
+- `ProtectedRoute.tsx` is retained with one fix (ADR-045): redirect target `"/"` → `"/sign-in"`.
+
+**Scope — excluded:**
+- Apple Sign-In on web (deferred — complex redirect flow)
+- Email/password sign-in (removed)
+
+**Acceptance criteria:**
+- [ ] `/sign-in` page renders with a "Sign in with Google" button and no other sign-in options
+- [ ] Tapping the button calls `signInWithPopup(auth, new GoogleAuthProvider())`
+- [ ] On successful sign-in, user is redirected to `/map`
+- [ ] If user is already signed in and visits `/sign-in`, they are redirected to `/map` (no double sign-in)
+- [ ] Spike pages (`/auth`, `SignInForm.tsx`, `SignUpForm.tsx`) are deleted
+- [ ] `AuthContext.tsx`: `setPersistence` call removed; `onAuthStateChanged` registered synchronously in `useEffect` (ADR-044, ADR-045)
+- [ ] `ProtectedRoute.tsx`: `router.push("/")` → `router.push("/sign-in")` only; no other changes (ADR-045)
+- [ ] `npm run build` produces zero TypeScript errors and zero ESLint errors
+
+**Files to change:**
+- `src/app/sign-in/page.tsx` (new)
+- `src/contexts/AuthContext.tsx` — targeted fix only (remove `setPersistence` + async wrapper)
+- `src/components/ProtectedRoute.tsx` — one-line fix only (redirect target)
+- `src/app/auth/page.tsx` — delete
+- `src/components/SignInForm.tsx` — delete
+- `src/components/SignUpForm.tsx` — delete
+
+**Dependencies:** None. Task 30 (web app scaffolded) complete.
+
+---
+
+## Task 34 — Effective visits TypeScript function + `useUserVisits` rewrite
+
+**Milestone:** 13
+
+**Why:** The existing `useUserVisits.ts` hook reads from `users/{uid}/visits` — a Firestore collection that does not exist. The actual schema (ADR-029) is three subcollections: `inferred_visits`, `user_added`, `user_removed`. The effective visited country set requires merging all three using the same logic as `effectiveVisitedCountries()` in `packages/shared_models` (Dart). This TypeScript equivalent must be written before the `/map` page can render real data.
+
+**Acceptance criteria:**
+- [ ] `src/lib/firebase/effectiveVisits.ts` (new) — pure function `effectiveVisits(inferred: string[], added: string[], removed: string[]): string[]` that returns the set of effective visited country codes: `(inferred ∪ added) − removed`. No Firestore or React dependency — pure logic.
+- [ ] Unit tests for `effectiveVisits`: empty inputs return `[]`; inferred alone works; added adds countries not in inferred; removed suppresses both inferred and added entries; duplicates handled correctly; **all three inputs supplied simultaneously returns correct merged result** (ADR-046 requirement). Use Jest (already in the Next.js project).
+- [ ] `src/lib/firebase/useUserVisits.ts` rewritten: reads `users/{uid}/inferred_visits`, `users/{uid}/user_added`, `users/{uid}/user_removed` using `getDocs` (one-shot — **not** `onSnapshot`); doc IDs are the country codes; calls `effectiveVisits()`; returns `{ visitedCodes: string[], loading: boolean, error: string | null }` (ADR-046)
+- [ ] Remove console.log statements from `useUserVisits.ts`
+- [ ] Old `CountryVisit` interface and `visits` field removed (replaced by `visitedCodes: string[]`)
+- [ ] `npm run build` produces zero TypeScript errors and zero ESLint errors
+- [ ] Jest tests pass: `npm test`
+
+**Files to change:**
+- `src/lib/firebase/effectiveVisits.ts` (new)
+- `src/lib/firebase/effectiveVisits.test.ts` (new)
+- `src/lib/firebase/useUserVisits.ts` — rewrite
+
+**Dependencies:** Task 33 complete (AuthContext stable).
+
+---
+
+## Task 35 — Production `/map` page
+
+**Milestone:** 13
+
+**Why:** The existing `/map/page.tsx` spike uses the wrong data hook, has console.logs, no stats header, no sign-out, and minimal error handling. Replace it with a production-quality page.
+
+**Acceptance criteria:**
+- [ ] `/map` page is protected: unauthenticated users are redirected to `/sign-in`
+- [ ] On load, calls the rewritten `useUserVisits` hook to fetch visited country codes
+- [ ] Stats header displays: "N countries visited" (N from `visitedCodes.length`); if 0 countries, shows "No travel data yet. Open the Roavvy app and scan your photos."
+- [ ] Map renders using existing `DynamicMap` + `Map` components; visited countries highlighted green (`#2D6A4F`)
+- [ ] Sign-out button in the header: calls `signOut(auth)`; on success, redirects to `/sign-in`
+- [ ] Loading state: spinner or skeleton shown while `useUserVisits` is fetching
+- [ ] Error state: user-facing message if Firestore fetch fails
+- [ ] Empty-map state: message "No travel data yet. Open the Roavvy app and scan your photos." if `visitedCodes.length === 0`
+- [ ] Spike pages `/app/dashboard/page.tsx` deleted; `/app/map/page.tsx` replaced (not amended)
+- [ ] Remove all `console.log` statements
+- [ ] `npm run build` produces zero TypeScript errors and zero ESLint errors
+
+**Files to change:**
+- `src/app/map/page.tsx` — replace
+- `src/app/dashboard/page.tsx` — delete
+
+**Dependencies:** Tasks 33 + 34 complete.
+
+---
+
+## Milestone 14 — Phase 4: Shop & Merchandise
+
+**Goal:** A user can visit `roavvy.app/shop`, browse travel merchandise, personalise a product with their visited countries, and complete a purchase via Shopify checkout.
+
+**Background:**
+This is the primary revenue milestone. The personalisation flow requires: (1) the user's country set from Firestore (requires sign-in), (2) a map preview generated from those countries, (3) a Shopify cart with the country list as a custom line item attribute for fulfilment.
+
+**Risks / open questions before starting:**
+1. **Shopify store prerequisite:** A Shopify store must exist, a Storefront API access token must be provisioned, and at least one product must be published before Task 36 can complete. This is a business/operations dependency — confirm before the Architect reviews.
+2. **Canvas export feasibility:** The Leaflet map renders using SVG-based GeoJSON layers. `canvas.toDataURL()` only exports canvas elements. Leaflet's GeoJSON layer is SVG by default, not canvas. A spike (part of Task 37) must confirm whether `leaflet-canvas-renderer` or a SVG-to-canvas conversion (`html-to-image` or `dom-to-image`) can produce a clean PNG export at print resolution. This is the highest technical risk in M14.
+3. **Shopify fulfilment:** The mechanism for passing the personalisation data (country codes) to a physical printer is not defined. M14 scopes to storing `visitedCodes` as a Shopify line item custom attribute — how the printer uses it is an operations problem, not a code problem.
+4. **Apple Sign-In gap:** Users who signed in with Apple on mobile cannot sign into the web shop. They will not be able to personalise. This is the same limitation as M13. Consider offering a guest personalisation path (enter countries manually) in a later iteration.
+
+**Build order:** Task 36 → Task 37 → Task 38.
+
+---
+
+## Task 36 — Shop landing page + Shopify Storefront API
+
+**Milestone:** 14
+
+**Why:** Establish the Shopify connection and build the public entry point for the shop. No sign-in required to browse products.
+
+**Acceptance criteria:**
+- [ ] Shopify Storefront API access token stored in `.env.local` as `NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN` and `NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN` (or server-side env vars if using Server Components)
+- [ ] `src/lib/shopify/client.ts` (new) — minimal Shopify Storefront API client using `fetch` and GraphQL; exports `getProducts(): Promise<Product[]>` (no third-party SDK — raw fetch)
+- [ ] `Product` type: `{ id: string, title: string, description: string, priceRange: { minVariantPrice: { amount: string, currencyCode: string } }, images: { nodes: { url: string, altText: string | null }[] } }`
+- [ ] `/shop` page (new): fetches products server-side (Next.js `async` Server Component); renders a product grid; each product card shows image, title, price, and a "Personalise" CTA button linking to `/shop/personalise?productId={id}`
+- [ ] `/shop` is publicly accessible (no auth required)
+- [ ] Loading and error states handled
+- [ ] `npm run build` produces zero TypeScript errors and zero ESLint errors
+
+**Files to change:**
+- `src/lib/shopify/client.ts` (new)
+- `src/lib/shopify/types.ts` (new)
+- `src/app/shop/page.tsx` (new)
+
+**Dependencies:** Milestone 13 complete. Shopify store + Storefront API token available (operations prerequisite).
+
+---
+
+## Task 37 — Personalisation preview + Shopify cart + checkout
+
+**Milestone:** 14
+
+**Why:** The core commercial flow: user sees their map on the product, adds it to a Shopify cart, and checks out.
+
+**Acceptance criteria:**
+- [ ] `/shop/personalise` page (new): requires sign-in (redirect to `/sign-in?next=/shop/personalise` if not authenticated); reads `productId` query param; fetches product details from Shopify; fetches user's visited country codes via `useUserVisits`
+- [ ] Personalisation preview: renders `DynamicMap` with the user's visited countries in a fixed-size container (matching the product's aspect ratio where possible); "Your map" label above the preview
+- [ ] Map-to-image export: implement `captureMapImage(): Promise<Blob>` in `src/lib/mapExport.ts` using `html-to-image` or equivalent; exports the map preview container to a PNG `Blob`; if export fails, personalisation can still proceed without the image (graceful degradation — the `visitedCodes` custom attribute is the source of truth for fulfilment)
+- [ ] "Add to Cart" button: calls Shopify Storefront API `cartCreate` mutation with line item `{ merchandiseId: variantId, quantity: 1, attributes: [{ key: "visitedCodes", value: JSON.stringify(visitedCodes) }] }`; on success, redirects to `cart.checkoutUrl`
+- [ ] Loading state during cart creation; error state if cart creation fails
+- [ ] If user has zero visited countries: show "No travel data yet" message instead of the personalisation UI; no "Add to Cart" button
+- [ ] `npm run build` produces zero TypeScript errors and zero ESLint errors
+
+**Files to change:**
+- `src/app/shop/personalise/page.tsx` (new)
+- `src/lib/mapExport.ts` (new)
+- `src/lib/shopify/client.ts` — add `getProduct(id)` and `cartCreate` mutation
+
+**Dependencies:** Tasks 33 + 34 + 36 complete.
+
+---
+
+## Task 38 — Web share page: referral CTA
+
+**Milestone:** 14
+
+**Why:** The `/share/[token]` page is a natural acquisition touchpoint — someone receives a sharing link, sees the map, and downloads the app. Adding a "Get Roavvy" CTA closes the referral loop. This is low-effort, high-impact, and belongs in M14 (revenue milestone) because it also links to the shop.
+
+**Acceptance criteria:**
+- [ ] Bottom banner added to `/share/[token]/page.tsx`: "Make your own travel map — Download Roavvy" with an App Store badge linking to the Roavvy App Store listing URL (use a placeholder URL until the listing exists; put it in an env var `NEXT_PUBLIC_APP_STORE_URL`)
+- [ ] Banner is visually distinct from the map content; does not obscure the map
+- [ ] Banner also includes a "View in shop" link to `/shop`
+- [ ] `npm run build` produces zero TypeScript errors and zero ESLint errors
+
+**Files to change:**
+- `src/app/share/[token]/page.tsx` — add referral banner
+
+**Dependencies:** Task 36 complete (so the `/shop` link works).
+
+---
+
+## Milestone 15 — Phase 5: Polish & App Store Readiness
+
+**Goal:** The iOS app is ready to submit to the App Store. First-launch experience is complete. The app can be reviewed and approved by Apple.
+
+**Background:**
+Phase 5 is the final milestone before public launch. The core functionality is complete. This milestone focuses on: (1) the first-time user experience (onboarding), (2) App Store compliance requirements (privacy manifest, entitlements), (3) app store assets, and (4) the achievement animation deferred from Phase 2. Push notifications and iPad layout are lower priority and may slip to post-launch.
+
+**Build order:** Task 39 → Task 40 → Task 41 → Task 42. Task 39 (onboarding) is highest priority because it changes the app launch flow and must be stable before screenshots are taken.
+
+**Risks / open questions:**
+1. **Privacy manifest (`PrivacyInfo.xcprivacy`):** Apple has required privacy manifests for all apps since Spring 2024. Any SDK that uses "required reason APIs" (including `UserDefaults`, file timestamps, disk space) must declare its usage. If the current app or any dependency uses these without a manifest, App Store submission will be rejected. The Builder must audit dependencies.
+2. **Photo library permission string:** The `NSPhotoLibraryUsageDescription` in `Info.plist` must clearly state that only location metadata (not images) is accessed. Apple reviewers may scrutinise this given the privacy-sensitive nature of the permission.
+3. **App icon:** A final app icon must exist at all required sizes before screenshots can be taken. This may require design work outside the codebase.
+4. **Achievement animation scope:** Keep simple — a slide-up sheet or overlay with the achievement title and icon. Do not block the build on complex animation work.
+
+---
+
+## Task 39 — Onboarding flow
+
+**Milestone:** 15
+
+**Why:** First-launch users currently see the map empty state ("Scan your photos to see where you've been") with no explanation of what the app does or why it needs photo access. Apple reviewers expect a clear permission rationale before the system prompt appears. Without onboarding, first-time user conversion (permission grant rate) will be low.
+
+**Acceptance criteria:**
+- [ ] `OnboardingScreen` widget (`lib/features/onboarding/onboarding_screen.dart`): shown only on first launch; consists of two pages in a `PageView`:
+  - Page 1: App name + tagline "Your photos already know where you've been." + brief description + [Next] button
+  - Page 2: Permission rationale "Roavvy reads when and where your photos were taken. Your photos never leave your device." + [Scan My Photos] primary button + [Not now] secondary button
+- [ ] First-launch detection: `RoavvyApp` checks `VisitRepository.loadLastScanAt()` AND `VisitRepository.loadEffective()` on startup; if both return empty/null, onboarding is shown before the main shell
+- [ ] [Scan My Photos] on page 2 dismisses onboarding, shows the main shell, and triggers the scan flow (navigates to Scan tab + starts scan)
+- [ ] [Not now] dismisses onboarding and shows the main shell at the map screen (empty state)
+- [ ] Once the user has completed at least one scan, onboarding is never shown again (governed by `loadLastScanAt()` returning non-null)
+- [ ] Onboarding does NOT request photo permissions — it only provides rationale before the user taps [Scan My Photos], after which the existing permission request flow runs
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: onboarding shown when no scan history; onboarding not shown when scan history exists; [Not now] leads to main shell; [Scan My Photos] triggers scan navigation
+
+**Files to change:**
+- `lib/features/onboarding/onboarding_screen.dart` (new)
+- `lib/app.dart` — add first-launch check before routing to `MainShell`
+- `test/features/onboarding/onboarding_screen_test.dart` (new)
+
+**Dependencies:** Task 32 complete. `VisitRepository.loadLastScanAt()` and `loadEffective()` exist.
+
+---
+
+## Task 40 — Achievement unlock animation
+
+**Milestone:** 15
+
+**Why:** The achievement unlock SnackBar (Task 25) is functional but not delightful. An animated overlay when a new achievement is unlocked creates a memorable moment and reinforces the gamification. This was deferred from Phase 2.
+
+**Acceptance criteria:**
+- [ ] `AchievementUnlockOverlay` widget (`lib/features/achievements/achievement_unlock_overlay.dart`): takes an `Achievement` as input; displays a slide-up, auto-dismissing overlay (bottom sheet or stack overlay) showing the achievement icon, title, and "Achievement Unlocked!" heading; duration 3 seconds; dismissable by tap
+- [ ] The existing SnackBar shown on achievement unlock (Task 25) is replaced by `AchievementUnlockOverlay`; if multiple achievements unlock at once, show them in sequence (one at a time, each 3 seconds apart)
+- [ ] Triggered from the same two sites as the SnackBar: after scan completes (`scan_screen.dart`) and after review saves (`review_screen.dart`)
+- [ ] Animation: slide up from bottom (300 ms ease-in), hold, slide down (200 ms ease-out)
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: overlay appears with correct achievement title; overlay dismisses after tap; does not appear when no new achievements
+
+**Files to change:**
+- `lib/features/achievements/achievement_unlock_overlay.dart` (new)
+- `lib/features/scan/scan_screen.dart` — replace SnackBar with overlay
+- `lib/features/visits/review_screen.dart` — replace SnackBar with overlay
+- `test/features/achievements/achievement_unlock_overlay_test.dart` (new)
+
+**Dependencies:** Task 25 complete (achievement evaluation at write sites exists).
+
+---
+
+## Task 41 — Privacy manifest + App Store compliance
+
+**Milestone:** 15
+
+**Why:** Apple requires a `PrivacyInfo.xcprivacy` file for all apps submitted since Spring 2024. Without it, the submission will be rejected. The photo library permission description must also be accurate and specific. This task ensures the app passes App Store review on first submission.
+
+**Acceptance criteria:**
+- [ ] `ios/Runner/PrivacyInfo.xcprivacy` created and added to the Xcode target; declares:
+  - `NSPrivacyAccessedAPITypes`: any required-reason APIs used by the app or its dependencies (audit using `find . -name "*.xcprivacy"` on dependencies; check for `UserDefaults`, file timestamps, disk space APIs)
+  - `NSPrivacyCollectedDataTypes`: `Location` (used for country detection from photo EXIF, not collected), `Photos` (metadata only, not images)
+  - `NSPrivacyTrackingEnabled: false`
+- [ ] `ios/Runner/Info.plist` — `NSPhotoLibraryUsageDescription` updated to: "Roavvy reads the location and date from your photos to build your travel map. Your photos never leave your device."
+- [ ] App icon: all required sizes present in `ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json` (1024×1024 for App Store; 60×60, 87×87, 120×120, 180×180 for device); placeholder icon is acceptable for review if design is not complete
+- [ ] `flutter build ios --release` completes without errors or warnings about missing icons or entitlements
+- [ ] No API keys, credentials, or secrets appear in any committed file (audit `ios/`, `lib/`, `GoogleService-Info.plist` — the plist should be in `.gitignore` if it contains a real Firebase project)
+
+**Files to change:**
+- `ios/Runner/PrivacyInfo.xcprivacy` (new)
+- `ios/Runner/Info.plist` — update permission string
+- `ios/Runner/Assets.xcassets/AppIcon.appiconset/` — add final icon sizes
+- `ios/Runner.xcodeproj/project.pbxproj` — add PrivacyInfo.xcprivacy to build phases
+
+**Dependencies:** Task 39 complete (app flow finalised before release build).
+
+---
+
+## Task 42 — App Store metadata + screenshots
+
+**Milestone:** 15
+
+**Why:** App Store submission requires metadata (title, subtitle, description, keywords, support URL, privacy policy URL) and screenshots. These cannot be skipped. Screenshots must be taken from the final build with real-looking data.
+
+**Acceptance criteria:**
+- [ ] App Store Connect listing prepared with:
+  - Name: "Roavvy"
+  - Subtitle: "Your Travel Map" (or equivalent ≤ 30 chars)
+  - Description: ≥ 3 paragraphs covering core value prop, privacy stance, and sharing feature
+  - Keywords: ≤ 100 chars total; include "travel map", "countries visited", "photo travel", "world map"
+  - Support URL: valid URL (can be the `roavvy.app` domain with a support page or GitHub issues)
+  - Privacy Policy URL: required; a minimal privacy policy page at `roavvy.app/privacy` referencing the privacy principles doc is sufficient
+- [ ] Screenshots: 6.7" iPhone (iPhone 15 Pro Max) — 5 screenshots showing: (1) world map with visited countries, (2) scan in progress, (3) country detail sheet, (4) sharing card, (5) achievement SnackBar or overlay
+- [ ] `docs/marketing/app_store_metadata.md` created with all the above text content committed to the repo (source of truth; copied into App Store Connect manually or via Fastlane)
+
+**Files to change:**
+- `docs/marketing/app_store_metadata.md` (new)
+- No code changes — this task is content and ops
+
+**Dependencies:** Task 40 complete (achievement animation done before screenshots). Task 41 complete (final build working).
+
+---
+
+## Planner sign-off — Milestone 13 (Tasks 33–35)
+
+**Plan complete: 2026-03-17**
+**Note:** Tasks 36–42 originally planned here (old M14 Shopify + M15 App Store) are superseded by the revised roadmap (2026-03-18). See new M15 plan below.
+
+**Task sequence (M13 only):**
+
+| Task | Name | Milestone | Component |
+|------|------|-----------|-----------|
+| 33 | Web sign-in page | 13 | Web |
+| 34 | Effective visits TS function + `useUserVisits` rewrite | 13 | Web |
+| 35 | Production `/map` page | 13 | Web |
+
+---
+
+## Milestone 15 — Trip Intelligence
+
+**Goal:** Every country visit is broken into individual trips with inferred start/end dates. Users can see how many times they've been to each country, browse their trip history per country, and add or edit trips manually.
+
+**Scope — included:**
+- `PhotoDateRecord`: lightweight per-photo country + timestamp storage; populated during scan
+- `TripRecord` domain model: id, countryCode, startedOn, endedOn, photoCount, isManual
+- Trip inference engine: pure Dart function in `shared_models`; clusters photo dates by 30-day gap threshold
+- Drift schema v4: two new tables (`photo_date_records`, `trips`); repositories for both
+- Scan pipeline wiring: save `PhotoDateRecord`s as scan runs; run inference after scan completes
+- Existing-user migration: bootstrap one trip per country from `firstSeen`/`lastSeen` on first launch after upgrade
+- `CountryDetailSheet` extension: trip count + scrollable trip card list
+- Manual trip: add, edit dates, delete
+- `clearAll()` extended to wipe new tables
+- Firestore sync: dirty/clean pattern extended to `trips` table; `users/{uid}/trips/{tripId}`
+
+**Scope — excluded:**
+- Region/city detection (M16)
+- Photo gallery (M17)
+- Journal tab and navigation redesign (M17)
+
+**Architectural constraint — why we need `PhotoDateRecord`:**
+The current scan pipeline aggregates all photos per country into a single `InferredCountryVisit` row (firstSeen, lastSeen, photoCount). Individual photo timestamps are discarded after aggregation. Trip inference requires multiple timestamps per country to detect gaps. The `PhotoDateRecord` table provides this: one lightweight row per geotagged photo (country_code + captured_at). Storage cost: ~50 bytes × 10,000 photos = 500 KB — acceptable for SQLite.
+
+---
+
+### Task 36 — `PhotoDateRecord` + Drift schema v4 + repositories
+
+**Deliverable:**
+- `PhotoDateRecord` class in `shared_models`: `countryCode`, `capturedAt` (non-nullable)
+- `TripRecord` class in `shared_models`: `id` (UUID string), `countryCode`, `startedOn`, `endedOn`, `photoCount`, `isManual` (bool)
+- Drift schema v4: adds `PhotoDateRecords` table (countryCode TEXT PK-free, capturedAt DATETIME) and `Trips` table (id TEXT PK, countryCode TEXT, startedOn DATETIME, endedOn DATETIME, photoCount INT, isManual INT, isDirty INT default 1, syncedAt TEXT nullable)
+- `MigrationStrategy` in `RoavvyDatabase`: `from3to4` creates both new tables
+- `TripRepository`: `upsertAll(List<TripRecord>)`, `loadAll()`, `loadByCountry(String)`, `loadDirty()`, `markClean(String id, DateTime)`, `delete(String id)`, `clearAll()`
+- `VisitRepository` extended: `savePhotoDates(List<PhotoDateRecord>)`, `loadPhotoDates()`, `clearPhotoDates()`
+- Tests: `TripRepository` unit tests (in-memory Drift DB); `VisitRepository` photo-date methods tested
+
+**Acceptance criteria:**
+- [ ] Drift schema migrates cleanly from v3 → v4 without data loss on existing install
+- [ ] `TripRecord` and `PhotoDateRecord` are in `shared_models` with `==` and `hashCode`
+- [ ] `TripRepository.upsertAll` + `loadByCountry` round-trips correctly
+- [ ] `VisitRepository.savePhotoDates` + `loadPhotoDates` round-trips correctly
+- [ ] All new repository methods covered by tests
+- [ ] `dart run build_runner build` in `apps/mobile_flutter` regenerates `.g.dart` without errors
+
+**Files to create/modify:**
+- `packages/shared_models/lib/src/photo_date_record.dart` (new)
+- `packages/shared_models/lib/src/trip_record.dart` (new)
+- `packages/shared_models/lib/shared_models.dart` (export both)
+- `apps/mobile_flutter/lib/data/db/roavvy_database.dart` (add tables + migration)
+- `apps/mobile_flutter/lib/data/db/roavvy_database.g.dart` (regenerated)
+- `apps/mobile_flutter/lib/data/trip_repository.dart` (new)
+- `apps/mobile_flutter/lib/data/visit_repository.dart` (add photo-date methods)
+- `apps/mobile_flutter/test/data/trip_repository_test.dart` (new)
+- `apps/mobile_flutter/test/data/visit_repository_test.dart` (extend)
+
+---
+
+### Task 37 — Trip inference engine
+
+**Deliverable:**
+- `inferTrips(List<PhotoDateRecord> records, {Duration gap = const Duration(days: 30)}) → List<TripRecord>` pure function in `shared_models`
+- Algorithm: group by `countryCode`; sort each group by `capturedAt`; walk the sorted list splitting on gaps ≥ `gap`; each cluster → one `TripRecord` (startedOn = first, endedOn = last, photoCount = count, isManual = false, id = UUID v4 deterministic from `"${countryCode}_${startedOn.toIso8601String()}"`)
+- Test suite: ≥ 10 tests covering: empty input, single photo, two photos same country same day, two photos same country 60 days apart (→ 2 trips), mixed countries, gap exactly 30 days (→ boundary case), gap 29 days (→ same trip), manual trips not overwritten by inference (engine only produces isManual=false), large input (100 records, asserts correct trip count)
+
+**Acceptance criteria:**
+- [ ] `inferTrips([], ...)` returns `[]`
+- [ ] Two photos in the same country 60 days apart → 2 trips
+- [ ] Two photos in the same country 29 days apart → 1 trip
+- [ ] Photos from different countries do not contaminate each other's clusters
+- [ ] `TripRecord.startedOn` equals the earliest `capturedAt` in the cluster
+- [ ] `TripRecord.endedOn` equals the latest `capturedAt` in the cluster
+- [ ] `TripRecord.photoCount` equals the number of photos in the cluster
+- [ ] All tests pass via `cd packages/shared_models && dart test`
+
+**Files to create/modify:**
+- `packages/shared_models/lib/src/trip_inference.dart` (new — pure function)
+- `packages/shared_models/lib/shared_models.dart` (export)
+- `packages/shared_models/test/trip_inference_test.dart` (new)
+
+---
+
+### Task 38 — Wire scan pipeline + existing-user migration
+
+**Deliverable:**
+- During scan: in `ScanScreen`'s batch handler, for each resolved `PhotoRecord` with a non-null `capturedAt` and a resolved `countryCode`, call `visitRepository.savePhotoDates([PhotoDateRecord(...)])` in the same batch write as `saveAllInferred`
+- After scan: call `inferTrips(await visitRepository.loadPhotoDates())` and upsert results to `TripRepository`
+- Existing-user bootstrap: on app startup (in `main()` or a `FutureProvider`), if `visitRepository.loadPhotoDates()` is empty AND `visitRepository.loadInferred()` is non-empty, synthesise one `TripRecord` per country using `firstSeen` as `startedOn`, `lastSeen` as `endedOn`, `photoCount` from the inferred row; upsert these; set a `bootstrapComplete` flag in `ScanMetadata` (or a new preference key) so this runs only once
+- `VisitRepository.clearAll()` extended to also call `clearPhotoDates()` and `TripRepository.clearAll()`
+- `tripRepositoryProvider` added to `lib/core/providers.dart`
+
+**Acceptance criteria:**
+- [ ] After a scan on a clean install, `TripRepository.loadAll()` returns ≥ 1 trip for each country with ≥ 1 geotagged photo
+- [ ] Re-scanning does not duplicate trips (upsert by id is idempotent)
+- [ ] `VisitRepository.clearAll()` wipes all three new table sets (photo_date_records, trips)
+- [ ] On an existing install (v3 data, no photo_date_records), bootstrap runs once and produces one trip per country
+- [ ] Bootstrap does not re-run on subsequent launches (flag persisted)
+- [ ] Widget tests for `ScanScreen` still pass (use `NoOpSyncService`)
+
+**Files to create/modify:**
+- `apps/mobile_flutter/lib/features/scan/scan_screen.dart` (batch handler + post-scan inference)
+- `apps/mobile_flutter/lib/data/visit_repository.dart` (extend `clearAll`)
+- `apps/mobile_flutter/lib/core/providers.dart` (add `tripRepositoryProvider`)
+- `apps/mobile_flutter/lib/main.dart` (bootstrap startup logic)
+
+---
+
+### Task 39 — Country detail: trip count + trip list
+
+**Deliverable:**
+- `CountryDetailSheet` reads from `tripRepositoryProvider` to get trips for the tapped country
+- Sheet header updated: "X trips · First visited [year]" replaces the existing date-range text
+- Below existing visit info: a scrollable list of trip cards; each card shows:
+  - Date range: "14 Jul – 28 Jul 2023"
+  - Duration: "14 days"
+  - Photo count: "📷 43 photos" (from `TripRecord.photoCount`)
+  - Manual badge if `isManual == true`
+- If only 1 trip: show "1 trip" (singular)
+- If 0 trips (manually added country with no photo data): show "No trip data — add a trip manually" with the add button
+- [+ Add trip manually] button at the bottom of the list; taps open the add-trip sheet (implemented in Task 40)
+- `CountryDetailSheet` widget test extended: test "X trips" label renders correctly; test empty-trips state
+
+**Acceptance criteria:**
+- [ ] Sheet renders trip count from repository (not hardcoded)
+- [ ] Each trip card shows correct date range, duration, photo count
+- [ ] Manually added trips show "Added manually" badge
+- [ ] "0 trips" state shows empty-state copy and add button
+- [ ] `CountryDetailSheet` widget tests pass
+
+**Files to create/modify:**
+- `apps/mobile_flutter/lib/features/map/country_detail_sheet.dart`
+- `apps/mobile_flutter/test/features/map/country_detail_sheet_test.dart`
+
+---
+
+### Task 40 — Manual trip: add, edit, delete
+
+**Deliverable:**
+- **Add trip sheet**: modal bottom sheet with two date pickers (start date, end date); validates end ≥ start; on confirm, writes `TripRecord` with `isManual = true` to `TripRepository`; dismisses sheet and refreshes trip list
+- **Edit trip sheet**: same sheet, pre-populated from existing `TripRecord`; on confirm, upserts with same id
+- **Delete trip**: long-press or leading swipe action on trip card; shows confirmation `AlertDialog` ("Delete this trip?"); on confirm, calls `TripRepository.delete(id)`; refreshes list
+- After any mutation: invalidate `travelSummaryProvider` (trip count feeds into stats strip eventually)
+
+**Acceptance criteria:**
+- [ ] Add trip with valid dates → appears in trip list immediately
+- [ ] Add trip with end before start → validation error shown; no write
+- [ ] Edit trip → updated dates shown immediately
+- [ ] Delete trip → removed from list; confirmation required
+- [ ] No crash if user dismisses add/edit sheet without saving
+- [ ] Widget tests: add-trip sheet validation; delete confirmation dialog
+
+**Files to create/modify:**
+- `apps/mobile_flutter/lib/features/map/country_detail_sheet.dart` (add/edit/delete wiring)
+- `apps/mobile_flutter/lib/features/visits/trip_edit_sheet.dart` (new — add/edit sheet)
+- `apps/mobile_flutter/test/features/map/country_detail_sheet_test.dart` (extend)
+- `apps/mobile_flutter/test/features/visits/trip_edit_sheet_test.dart` (new)
+
+---
+
+### Task 41 — Firestore sync for trips
+
+**Deliverable:**
+- `TripRepository.loadDirty()` returns all rows where `isDirty = 1`
+- `TripRepository.markClean(String id, DateTime syncedAt)` sets `isDirty = 0` + `syncedAt`
+- `FirestoreSyncService.flushDirty(uid, repo)` signature extended to accept `TripRepository`; flushes dirty trips to `users/{uid}/trips/{trip.id}` as `{countryCode, startedOn, endedOn, photoCount, isManual}`; marks clean on success
+- `NoOpSyncService` updated to no-op the trip flush
+- Called fire-and-forget at the same sites as existing dirty-flushes (post-scan, post-review-save)
+- Firestore rules: `users/{uid}/trips/{tripId}` — allow read, write if `request.auth.uid == uid`
+
+**Acceptance criteria:**
+- [ ] After a scan with Apple sign-in active, dirty trip rows are flushed to Firestore
+- [ ] Re-running flush on already-clean rows makes no Firestore writes
+- [ ] `NoOpSyncService` satisfies the updated interface (widget tests unaffected)
+- [ ] `FirestoreSyncService` unit tests cover trip flush (happy path + failure leaves row dirty)
+- [ ] `firestore.rules` updated and passes existing security tests
+
+**Files to create/modify:**
+- `apps/mobile_flutter/lib/data/trip_repository.dart` (dirty/clean methods)
+- `apps/mobile_flutter/lib/data/firestore_sync_service.dart` (extend interface + implementation)
+- `apps/mobile_flutter/test/data/firestore_sync_service_test.dart` (extend)
+- `firestore.rules` (add trips subcollection rule)
+
+---
+
+## Planner sign-off — Milestone 15
+
+**Plan complete: 2026-03-18**
+
+**Task sequence:**
+
+| Task | Name | Milestone | Component |
+|------|------|-----------|-----------|
+| 36 | `PhotoDateRecord` + Drift schema v4 + repositories | 15 | Flutter + shared_models |
+| 37 | Trip inference engine | 15 | shared_models |
+| 38 | Wire scan pipeline + existing-user migration | 15 | Flutter |
+| 39 | Country detail: trip count + trip list | 15 | Flutter |
+| 40 | Manual trip: add, edit, delete | 15 | Flutter |
+| 41 | Firestore sync for trips | 15 | Flutter + Firestore |
+
+**Key risks and open questions:**
+
+1. **PhotoDateRecord volume**: power users may have 50,000+ geotagged photos. 50k rows at ~50 bytes = 2.5 MB. Within SQLite limits; confirm with a realistic test device before declaring complete.
+2. **Existing-user bootstrap accuracy**: bootstrap creates one trip per country from `firstSeen`/`lastSeen`. Users with multiple trips to one country will see a single inaccurate trip until they re-scan. Copy in the bootstrap state should be: "Scan your photos to discover all your trips." Must not create false confidence.
+3. **`capturedAt` null rate**: `PhotoRecord.capturedAt` is nullable (photos without creation date). Photos with null `capturedAt` contribute to `InferredCountryVisit.photoCount` but cannot generate `PhotoDateRecord` rows — they are silently excluded from trip inference. This is acceptable; flag in comments.
+4. **Trip id stability**: trip ids are derived from `"${countryCode}_${startedOn.toIso8601String()}"`. If a user edits trip dates, the id changes and the old Firestore document is orphaned. Architect must decide: stable UUID on creation (ignore date changes) vs. re-derive on edit. Recommend stable UUID assigned at creation.
+5. **Drift code generation**: adding new tables requires running `dart run build_runner build` in `apps/mobile_flutter`. Builder must do this as part of Task 36. The `.g.dart` file must be committed.
+
+---
+
+## Architect sign-off — Milestone 15 (Tasks 36–41)
+
+**Plan validated with the following corrections. All corrections are mandatory before the Builder starts.**
+
+---
+
+### Correction 1 — Schema version is v6, not v4 (affects Task 36)
+
+The Planner refers to "Drift schema v4" throughout. **This is wrong.** The current `RoavvyDatabase.schemaVersion` is **5** (v4 added `unlocked_achievements`; v5 added `share_tokens`). M15 must migrate to **v6**.
+
+**Builder must change:**
+- `schemaVersion` → `6`
+- Migration block: `if (from < 6) { ... }` (not `from3to4`)
+- All task descriptions that say "schema v4" should be read as "schema v6"
+
+---
+
+### Correction 2 — Trip IDs: natural key for inferred, prefixed hex for manual (ADR-047)
+
+The Planner's Task 37 says: `id = UUID v4 deterministic from "${countryCode}_${startedOn.toIso8601String()}"`. **Decision: use the natural key string directly, not a UUID derived from it.** (ADR-047)
+
+**Rules:**
+- **Inferred trips:** `id = "${countryCode}_${startedOn.toIso8601String()}"` (e.g. `"FR_2023-07-14T00:00:00.000Z"`). This is the Drift primary key. `upsertAll()` uses `insertOrReplace` — re-inference updates `endedOn` and `photoCount` in place.
+- **Manual trips:** `id = "manual_${8-char random hex}"` (same RNG as share tokens, ADR-041). The `"manual_"` prefix prevents collisions with inferred keys.
+- **Manual edit of `startedOn`:** Task 40 must call `TripRepository.delete(oldId)` then upsert with the new id, and queue the old Firestore document for deletion.
+
+**Why natural key is stable:** Incremental scans only add photos after `sinceDate`. New photos extend `endedOn` and grow `photoCount` — they do not shift `startedOn`. So the key is stable across all normal use. Full re-scan edge case: if an earlier photo is found, `startedOn` shifts and the old Firestore document is orphaned. This is rare and the orphan is harmless.
+
+**`inferTrips()` stays pure.** No DB reads needed before inference. The function derives IDs deterministically from its inputs.
+
+---
+
+### Correction 3 — `photo_date_records` must have a composite primary key (ADR-048)
+
+The Planner's table definition has no primary key. **Without a PK, incremental re-scans create duplicate rows**, causing `photoCount` inflation and duplicate inferred trips.
+
+**Builder must add:**
 ```dart
-// packages/country_lookup/lib/country_lookup.dart
-String? resolveCountry(double latitude, double longitude);
+@override
+Set<Column> get primaryKey => {countryCode, capturedAt};
 ```
-
-Returns an ISO 3166-1 alpha-2 code (e.g. `"GB"`), or `null` if the coordinate is over open water, poles, or otherwise unresolvable.
-
-### Subtasks
-
-1. **Choose and process geodata.** Natural Earth 1:10m land polygons are the baseline. Export as a compact binary format (e.g. flatbuffers or a custom packed format); raw GeoJSON is too large to traverse per lookup. Target: < 15 MB asset, < 5 ms per lookup on iPhone XR equivalent.
-
-2. **Implement point-in-polygon lookup.** Use ray-casting algorithm. Apply coordinate bucketing (same 0.5° grid as the spike) as a first-pass filter before per-polygon checks. Pre-process polygons into a spatial index (grid cells or R-tree) baked into the asset at build time to avoid runtime indexing cost.
-
-3. **Bundle the processed geodata as a Flutter asset.** Loaded once at startup into memory. No runtime download, no CDN, no fallback.
-
-4. **Write the `resolveCountry` function.** Pure function — takes lat/lng, returns ISO code or null. No side effects. Stateless except for the loaded geodata.
-
-5. **Unit tests at 100% coverage.** Mandatory test cases:
-   - Known cities resolve to correct country codes (London → GB, Tokyo → JP, New York → US, Paris → FR)
-   - Coordinate on open ocean returns null
-   - North/South Pole coordinates return null
-   - Coordinate exactly on a land border resolves to one of the two neighbouring countries (no crash, no null)
-   - All ISO codes returned by the function are valid ISO 3166-1 alpha-2
-
-6. **Replace CLGeocoder in `AppDelegate.swift`.** The Swift bridge calls `resolveCountry` through the Flutter asset bundle or a separate Dart isolate invoked from Swift. Simplest integration: move coordinate resolution entirely to the Flutter layer (Swift passes raw `{lat, lng, capturedAt}` per photo; Flutter calls `resolveCountry`). This also unblocks Task 4.
-
-7. **Delete all CLGeocoder code** from `AppDelegate.swift`. Remove `geocoder`, `geocodeQueue`, `geocodeSerially()`, and the adaptive delay. Remove the `CoreLocation` framework import if it is no longer needed.
-
-8. **Update `scan_mapper.dart`** to no longer expect `DetectedCountry.name` (CLGeocoder-only field). The name field on `InferredCountryVisit` is not needed — the app shows ISO codes.
-
-### Acceptance criteria
-
-- [x] `resolveCountry('51.5', '-0.12')` returns `"GB"` in a test with no network access
-- [ ] Scanning 500 photos completes with no CLGeocoder calls, no network permission required  *(deferred to Task 3+4)*
-- [x] `packages/country_lookup` has zero external dependencies (check `pubspec.yaml`)
-- [x] `dart test` passes at 100% coverage for the package
-- [x] All 99 existing tests continue to pass (now 129)
-
-**Deferred from Task 1:** subtasks 6–8 (CLGeocoder removal, Swift bridge update) merged into Task 3+4.  
-**Outstanding (pre-production):** inner-ring handling in `build_geodata.py`; smallest-polygon-first ordering in `resolve()` (enclave fix).
-**`ne_countries.bin` generated** — bundled as Flutter asset; `main.dart` calls `initCountryLookup` at startup.
-
-### Dependencies
-
-None. This task can start immediately and proceed in parallel with Task 2.
+to the `PhotoDateRecords` Drift table class.
 
 ---
 
-## ~~Task 2~~ — Replace `shared_preferences` with Drift SQLite ✓ COMPLETE
+### Correction 4 — Bootstrap flag location: `ScanMetadata.bootstrapCompletedAt` (ADR-048)
 
-**Fixes spike limitation:** The current JSON blob has no querying, no schema migration, and cannot support the sync metadata (`isDirty`, `syncedAt`) needed for future Firestore sync. (ADR-011)
+Task 38 leaves the bootstrap-complete flag location open ("ScanMetadata or a new preference key"). **Decision: add a `bootstrapCompletedAt TEXT nullable` column to `ScanMetadata` in the v6 migration.**
 
-### What to build
+**Builder must add** in `roavvy_database.dart`:
+- New column: `TextColumn get bootstrapCompletedAt => text().nullable()();` to `ScanMetadata`
+- v6 migration: `await m.addColumn(scanMetadata, scanMetadata.bootstrapCompletedAt);`
 
-A Drift database in `apps/mobile_flutter/lib/data/` with three tables matching the typed domain model from `packages/shared_models`. A repository layer wraps the tables and exposes typed methods.
+`VisitRepository` gains:
+- `saveBootstrapCompletedAt(DateTime)` → writes ISO 8601 string to `ScanMetadata` row id=1
+- `loadBootstrapCompletedAt() → Future<DateTime?>` → reads it
 
-### Schema
+Bootstrap check in Task 38: `if (await loadBootstrapCompletedAt() == null && photoDateRecords.isEmpty && inferred.isNotEmpty) { ... save bootstrap trips ... saveBootstrapCompletedAt(DateTime.now()); }`
+
+---
+
+### Correction 5 — `clearAll()` wipes `photo_date_records`, all `trips`, and `bootstrapCompletedAt` (ADR-048)
+
+The Planner says `clearAll()` wipes the new tables. Clarification: **all trips are cleared, including `isManual = true` trips.** "Delete travel history" is a full reset. Manual trips are part of the travel record (same rationale as `UserAddedCountries`).
+
+Additionally, `bootstrapCompletedAt` must be nulled so the bootstrap re-runs after a full reset (the user effectively starts fresh).
+
+---
+
+### Correction 6 — `CountryDetailSheet` must become a `ConsumerWidget`
+
+`CountryDetailSheet` currently reads providers via `Consumer` or is passed data. Task 39 requires it to read `tripRepositoryProvider`. **Builder must convert `CountryDetailSheet` to a `ConsumerWidget`** (if not already) so it can call `ref.watch(tripRepositoryProvider)` directly. Do not pass the repository as a constructor parameter — use Riverpod.
+
+---
+
+### Confirmed unchanged
+
+- Task sequence 36 → 37 → 38 → 39 → 40 → 41 is correct. No circular dependencies.
+- `flushDirty` extension in Task 41 follows the optional-named-parameter pattern from ADR-037: `flushDirty(uid, repo, {achievementRepo, tripRepo})`. Consistent; acceptable.
+- `clearAll()` does NOT clear `unlocked_achievements` (ADR-036) or `share_tokens` (ADR-041). Only travel-history tables.
+- Privacy: `photo_date_records` stores `{countryCode, capturedAt}` — no coordinates. ADR-002 satisfied. ✓
+- Package boundary: `inferTrips()` lives in `shared_models` with no app-layer dependencies. ✓
+
+**Build order:** Task 36 → 37 → 38 → 39 → 40 → 41. Task 37 can begin as soon as `PhotoDateRecord` and `TripRecord` types exist in `shared_models` (first deliverable of Task 36). Tasks 39–41 require Task 38 complete (trips populated in DB).
+
+**ADRs written:** ADR-047 (trip identity), ADR-048 (photo_date_records design, schema v6, bootstrap strategy).
+
+---
+
+## Milestone 16 — Phase 6 Slice 1: Region Detection (Mobile)
 
 ```
-inferred_country_visits
-  countryCode   TEXT PRIMARY KEY
-  inferredAt    TEXT NOT NULL   (ISO 8601 UTC)
-  photoCount    INTEGER NOT NULL
-  firstSeen     TEXT            (nullable)
-  lastSeen      TEXT            (nullable)
-  isDirty       INTEGER NOT NULL DEFAULT 1  (sync flag — 1 = dirty)
-  syncedAt      TEXT            (nullable)
+Goal: After a photo scan, users see which regions (admin1 level: states, provinces, counties) they visited within each country, resolved entirely offline from photo GPS data.
 
-user_added_countries
-  countryCode   TEXT PRIMARY KEY
-  addedAt       TEXT NOT NULL
-  isDirty       INTEGER NOT NULL DEFAULT 1
-  syncedAt      TEXT
+Scope — included:
+- `packages/region_lookup`: offline ISO 3166-2 admin1 polygon lookup (Natural Earth admin1 boundaries; same compact binary architecture as country_lookup)
+- `PhotoDateRecord` gains `regionCode TEXT nullable` column; Drift schema v7 migration
+- Scan pipeline: background isolate calls resolveRegion(lat, lng) alongside resolveCountry; regionCode stored per PhotoDateRecord
+- `RegionVisit(tripId, countryCode, regionCode, firstSeen, lastSeen, photoCount)` domain model in shared_models
+- Drift `region_visits` table (schema v7): composite PK (tripId, regionCode); isDirty/syncedAt columns
+- `RegionRepository`: upsertAll, loadByCountry, loadByTrip, clearAll
+- Scan pipeline produces RegionVisits from PhotoDateRecords grouped by (tripId × regionCode) after trip inference
+- Bootstrap service produces RegionVisits for existing users from existing PhotoDateRecords
+- Region count shown in country detail sheet ("X regions")
+- Region list in country detail (region names from kRegionNames static map)
 
-user_removed_countries
-  countryCode   TEXT PRIMARY KEY
-  removedAt     TEXT NOT NULL
-  isDirty       INTEGER NOT NULL DEFAULT 1
-  syncedAt      TEXT
+Scope — excluded:
+- City detection (different algorithm, different dataset — planned for a future milestone)
+- Continent overlay on world map (planned for M17 navigation redesign)
+- Region-level achievements (planned for a future milestone)
+- Firestore sync for region_visits (planned for a future milestone — same dirty/clean pattern)
+- User-edit override for region assignments (deferred)
+- Mini-map with regions highlighted (Phase 7)
+- Region data on trip detail screen (Phase 7)
 ```
 
-### Subtasks
+**Tasks:**
 
-1. **Add Drift and `drift_flutter` dependencies** to `apps/mobile_flutter/pubspec.yaml`. Add `build_runner` and `drift_dev` to dev dependencies.
-
-2. **Define the three Drift table classes** in `lib/data/db/roavvy_database.dart`. Run `dart run build_runner build` to generate the companion classes.
-
-3. **Write `VisitRepository`** in `lib/data/visit_repository.dart`:
-   - `Future<void> saveInferred(InferredCountryVisit)` — upsert; set `isDirty = 1`
-   - `Future<void> saveAdded(UserAddedCountry)` — upsert; set `isDirty = 1`
-   - `Future<void> saveRemoved(UserRemovedCountry)` — upsert; set `isDirty = 1`
-   - `Future<List<InferredCountryVisit>> loadInferred()`
-   - `Future<List<UserAddedCountry>> loadAdded()`
-   - `Future<List<UserRemovedCountry>> loadRemoved()`
-   - `Future<void> clearAll()` — for testing and full-reset flows
-
-4. **Migrate `scan_screen.dart` and `review_screen.dart`** to use `VisitRepository` instead of `VisitStore`. The `_scan()` method writes `InferredCountryVisit` records; the review save writes `UserAddedCountry` / `UserRemovedCountry` tombstones.
-
-5. **One-time migration from the v1 JSON blob.** On first launch after the upgrade, read `roavvy.visits.v1` from SharedPreferences, parse the `CountryVisit` list, convert to the three typed records, write to Drift, then delete the SharedPreferences key.
-
-6. **Delete `visit_store.dart`** once migration is complete. Remove `shared_preferences` from `pubspec.yaml`.
-
-7. **Update all tests** that currently use `SharedPreferences.setMockInitialValues({})` to use Drift's in-memory database: `NativeDatabase.memory()` in test setup.
-
-### Acceptance criteria
-
-- [x] Scan result persists across cold app restart, retrieved from SQLite not SharedPreferences
-- [x] Manual add and remove persist and survive restart
-- [x] Removing `shared_preferences` from `pubspec.yaml` does not break the build
-- [x] `VisitRepository` has unit tests using in-memory Drift database (18 tests)
-- [x] All existing widget tests pass with the mocked Drift database
-- [ ] `isDirty = 1` is set on every insert/upsert — **deferred:** `isDirty`/`syncedAt` columns not added; deferred until Firestore sync is in scope
-
-### Dependencies
-
-None. Can proceed in parallel with Task 1. Coordinate with Task 5 if refactoring the app layer at the same time.
+| Task | Name | Milestone | Stack |
+|------|------|-----------|-------|
+| 42 | Build `packages/region_lookup` | 16 | Dart package |
+| 43 | Schema v7: `PhotoDateRecord.regionCode` + scan pipeline region resolution | 16 | Flutter + Dart |
+| 44 | `RegionVisit` domain model + `region_visits` Drift table + `RegionRepository` | 16 | Flutter + shared_models |
+| 45 | Scan pipeline + bootstrap: produce `RegionVisit` records | 16 | Flutter |
+| 46 | Region count + region list in country detail sheet | 16 | Flutter (UI) |
 
 ---
 
-## ~~Task 3~~ — Extend the Swift bridge to return per-photo `capturedAt` ✓ COMPLETE
+### Task 42 — Build `packages/region_lookup`
 
-**Fixes spike limitation:** `InferredCountryVisit.firstSeen` and `lastSeen` are always null because the Swift bridge currently returns only country-level aggregates, not per-photo timestamps. (ADR-013)
+**Deliverable:** A standalone Dart package at `packages/region_lookup/` that resolves (lat, lng) coordinates to ISO 3166-2 admin1 region codes offline using a bundled binary dataset. API mirrors `country_lookup`.
 
-### What to build
+**Acceptance criteria:**
+- `packages/region_lookup/` exists with `pubspec.yaml`, `lib/`, `test/`, `assets/`
+- Public API: `initRegionLookup(Uint8List bytes)` + `resolveRegion(double lat, double lng) → String?`
+- Returns null for coordinates with no matching region (coastal, small countries with no admin1 divisions, open water)
+- Binary data file generated from Natural Earth admin1 1:10m boundaries; file ≤ 5 MB; same compact binary format as `ne_countries.bin` (or documented new format)
+- Zero external dependencies (pure Dart)
+- `dart analyze` reports zero issues
+- ≥ 20 unit tests: known capitals resolve to correct region codes; null returns for open water; ISO 3166-2 format verified (e.g. `"FR-IDF"`, `"US-CA"`, `"GB-ENG"`)
+- Package registered in root `pubspec.yaml` workspace
 
-Change the coordinate-accumulation pass in the Swift bridge to track the min/max `creationDate` per country bucket. Return these as `firstSeen` / `lastSeen` in the country payload.
-
-### Subtasks
-
-1. **Update the bucket accumulator in `AppDelegate.swift`** to carry `(CLLocation, count: Int, firstSeen: Date, lastSeen: Date)` instead of `(CLLocation, Int)`. On each enumerated asset, update `firstSeen = min(existing.firstSeen, asset.creationDate)` and `lastSeen = max(existing.lastSeen, asset.creationDate)`.
-
-2. **Update `geocodeSerially()`** to propagate `firstSeen` / `lastSeen` per bucket through the recursion and into `countryMap`.
-
-3. **Update the channel payload** to include `firstSeen` and `lastSeen` as ISO 8601 UTC strings on each country entry:
-   ```json
-   {
-     "code": "GB",
-     "name": "United Kingdom",
-     "photoCount": 42,
-     "firstSeen": "2019-03-14T10:22:00Z",
-     "lastSeen": "2024-08-07T15:30:00Z"
-   }
-   ```
-
-4. **Update `DetectedCountry` in `photo_scan_channel.dart`** to parse `firstSeen` and `lastSeen` as `DateTime?`.
-
-5. **Update `scan_mapper.dart`** to populate `InferredCountryVisit.firstSeen` and `lastSeen` from the parsed values.
-
-6. **Update widget tests** in `widget_test.dart` to include `firstSeen` / `lastSeen` in the mock `scanPhotos` response where the test exercises date-related behaviour.
-
-### Acceptance criteria
-
-- [ ] After a scan, `InferredCountryVisit.firstSeen` and `lastSeen` are non-null for countries with geotagged photos
-- [ ] The dates reflect the actual earliest and latest photo creation dates (verifiable against known photos in the test library)
-- [ ] `capturedAt` is never stored beyond the bridge — it is used to compute date ranges only
-- [ ] All existing tests pass
-
-### Dependencies
-
-Depends on Task 1 if the coordinate resolution is moved fully to the Flutter layer (Task 1 subtask 6). If CLGeocoder is still in place when this task starts, it can proceed independently.
+**Dependencies:** None (standalone package).
 
 ---
 
-## ~~Task 4~~ — Background isolate and per-photo streaming from Swift to Dart ✓ COMPLETE
+### Task 43 — Schema v7: PhotoDateRecord.regionCode + scan pipeline region resolution
 
-**Fixes spike limitation:** The current single `invokeMethod` call blocks Flutter's perspective for the full scan duration. No progress is reported. The approach does not scale to large libraries (10,000+ photos). (ADR-010)
+**Deliverable:** `PhotoDateRecord` gains a nullable `regionCode` column. The background isolate that resolves country codes also resolves region codes in the same pass. Schema migrated to v7.
 
-### What to build
+**Acceptance criteria:**
+- `RoavvyDatabase.schemaVersion` → 7
+- `PhotoDateRecords` table: new column `TextColumn get regionCode => text().nullable()();`
+- v7 migration: `await m.addColumn(photoDateRecords, photoDateRecords.regionCode);`
+- Background isolate: after `resolveCountry(lat, lng)`, also calls `resolveRegion(lat, lng)` from `region_lookup`; sets `regionCode` on the row
+- `initRegionLookup` called once at app startup in `main.dart` (after loading binary asset, before isolate spawned)
+- `resolveRegion` not called if `resolveCountry` returns null (no point resolving region of unknown country)
+- `dart analyze` reports zero issues
+- Unit tests: PhotoDateRecord rows with regionCode populated after scan; null preserved when no region match; existing rows with no regionCode column are unaffected by migration
 
-Replace the single aggregate `scanPhotos` response with a streaming architecture: Swift sends batches of per-photo records; Flutter processes them on a background isolate; the UI receives progress events.
-
-### New channel contract
-
-```
-// Flutter → Swift
-invokeMethod('startScan', {'limit': 500, 'sinceDate': '...'})
-
-// Swift → Flutter (event channel, streamed)
-EventChannel('roavvy/photo_scan/events')
-  // per-batch event:
-  {
-    'type': 'batch',
-    'photos': [
-      {'lat': 51.5, 'lng': -0.12, 'capturedAt': '2023-08-14T10:22:00Z'},
-      ...
-    ]
-  }
-  // terminal event:
-  {
-    'type': 'done',
-    'inspected': 500,
-    'withLocation': 320
-  }
-```
-
-### Subtasks
-
-1. **Add a `FlutterEventChannel`** to `AppDelegate.swift` alongside the existing `FlutterMethodChannel`. Swift streams photo batches (500 records per batch) as it enumerates `PHAsset.fetchAssets`.
-
-2. **Move coordinate-to-country resolution to a Dart background isolate.** The isolate receives `{lat, lng, capturedAt}` records from the event channel, calls `resolveCountry()` (from Task 1) for each unique bucket, and emits `InferredCountryVisit` records to the main isolate.
-
-3. **Emit progress events** from the background isolate to the main isolate: `{processed: int, total: int, latestCountry: String?}`. The UI uses these to update a progress indicator.
-
-4. **Remove `CLGeocoder` entirely** (this is also Task 1 subtask 7 — coordinate the two tasks to avoid doing it twice).
-
-5. **Update `scan_screen.dart`** to listen to progress events and show a progress bar instead of the current indefinite spinner.
-
-6. **Update tests** to mock the `EventChannel` instead of the `MethodChannel` for the scan flow.
-
-### What was built (Tasks 3+4 combined)
-
-- `AppDelegate.swift`: CLGeocoder and `geocodeQueue` fully removed. `FlutterEventChannel('roavvy/photo_scan/events')` streams `{type:'batch', photos:[{lat,lng,capturedAt},...]}` in batches of 50, followed by `{type:'done', inspected:N, withLocation:M}`.
-- `photo_scan_channel.dart`: `startPhotoScan()` returns `Stream<ScanEvent>`; `ScanBatchEvent`, `ScanDoneEvent`, `PhotoRecord` are the typed event types. Legacy `ScanResult`/`DetectedCountry` retained for Task 5 retirement.
-- `scan_screen.dart`: `_scan()` processes the event stream with `await for`; each `ScanBatchEvent` is resolved on `Isolate.run(_resolvePhotos)` with 0.5° coordinate bucketing; `firstSeen`/`lastSeen` populated from `capturedAt`; indeterminate progress bar + processed-photo counter during scan.
-- `widget_test.dart`: EventChannel mock wiring replaced with injectable `ScanScreen.scanStarter` (plain `Stream.fromIterable`) — avoids FakeAsync deadlock. 18 tests pass.
-
-### Acceptance criteria
-
-- [x] Scanning 500 photos shows incremental progress (LinearProgressIndicator + counter)
-- [x] `firstSeen` / `lastSeen` populated from per-photo `capturedAt`
-- [x] No CLGeocoder calls — all resolution offline via `country_lookup`
-- [x] All scan-flow tests pass against the new contract (18 tests)
+**Dependencies:** Task 42 complete (region_lookup package must exist).
 
 ---
 
-## ~~Task 5~~ — Migrate the app layer to the typed domain model; retire `CountryVisit` ✓ COMPLETE
+### Task 44 — `RegionVisit` domain model + `region_visits` Drift table + `RegionRepository`
 
-**Fixes spike limitation:** `CountryVisit` encoded three distinct domain kinds via `source + isDeleted` flags, allowing invalid combinations. Two merge functions existed in parallel. (ADR-008)
+**Deliverable:** `RegionVisit` type in shared_models; `region_visits` Drift table in schema v7; `RegionRepository` with upsert + load + clear operations.
 
-### What was done
+**Acceptance criteria:**
+- `shared_models` exports `RegionVisit(tripId: String, countryCode: String, regionCode: String, firstSeen: DateTime, lastSeen: DateTime, photoCount: int)`
+- `region_visits` Drift table (already added to schema in Task 43 migration or in same migration): columns `tripId TEXT NOT NULL`, `regionCode TEXT NOT NULL`, `countryCode TEXT NOT NULL`, `firstSeen TEXT NOT NULL`, `lastSeen TEXT NOT NULL`, `photoCount INTEGER NOT NULL DEFAULT 0`, `isDirty INTEGER NOT NULL DEFAULT 1`, `syncedAt TEXT NULL`; composite PK `(tripId, regionCode)`
+- `RegionRepository(RoavvyDatabase db)` in `lib/data/region_repository.dart`:
+  - `upsertAll(List<RegionVisit> visits)` — insertOrReplace for each
+  - `loadByCountry(String countryCode) → Future<List<RegionVisit>>`
+  - `loadByTrip(String tripId) → Future<List<RegionVisit>>`
+  - `clearAll()` — deletes all rows
+- `dart run build_runner build` run; `.g.dart` file committed
+- `dart analyze` reports zero issues
+- Unit tests: upsert + load by country; load by trip; clearAll; duplicate upsert replaces existing row
 
-- Deleted `country_visit.dart`, `visit_source.dart`, `visit_merge.dart` from `packages/shared_models/lib/src/`
-- Deleted their test files (`country_visit_test.dart`, `visit_merge_test.dart`)
-- Deleted `scan_mapper.dart` and `scan_mapper_test.dart` — scan_screen.dart already built `InferredCountryVisit` directly from accumulators
-- Removed `ScanResult` and `DetectedCountry` legacy spike types from `photo_scan_channel.dart`
-- Removed legacy test groups for those types from `widget_test.dart`
-- Updated `TravelSummary.fromVisits` to accept `List<EffectiveVisitedCountry>` (removed `CountryVisit` dependency)
-- Updated `travel_summary_test.dart` to use `EffectiveVisitedCountry`
-- Removed legacy exports from `shared_models.dart`
+**Dependencies:** Task 43 (schema v7 migration must already include region_visits table, or this task adds it; clarify with Architect).
 
-### Acceptance criteria
-
-- [x] `grep -r "CountryVisit" apps/ packages/` returns zero results
-- [x] `grep -r "VisitSource" apps/ packages/` returns zero results
-- [x] `grep -r "effectiveVisits(" apps/ packages/` returns zero results
-- [x] All tests pass (77 total across shared_models + app)
-- [x] `dart analyze` reports zero warnings
+**Note for Architect:** Task 43 adds the regionCode column to photo_date_records (schema v7). Task 44 adds region_visits to the same schema version. Architect must confirm whether this is one v7 migration block (preferred — atomicity) or two separate version bumps (v7 and v8). Recommend one atomic v7 migration covering both changes.
 
 ---
 
-## Suggested execution order (Milestone 1–5)
+### Task 45 — Scan pipeline + bootstrap: produce RegionVisit records
 
-```
-Task 1 (country_lookup)  ──────────────────────────────────────────► done
-Task 2 (Drift)           ──────────────────────────────────────────► done
-Task 3 (capturedAt)      ──────────────────────────────────────────► done (combined with Task 4)
-Task 4 (streaming)       ──────────────────────────────────────────► done
-Task 5 (typed model)     ──────────────────────────────────────────► done
+**Deliverable:** After trip inference runs (post-scan and on bootstrap), the scan pipeline groups PhotoDateRecords by (tripId × regionCode) and upserts RegionVisit records.
+
+**Acceptance criteria:**
+- New pure function in `shared_models`: `List<RegionVisit> inferRegionVisits(List<PhotoDateRecord> records, List<TripRecord> trips)` — groups records by matching tripId (using same time-clustering as trip inference: record falls within trip's startedOn..endedOn window) and regionCode; null regionCode records are excluded
+- `ScanScreen` / scan pipeline: after `tripRepo.upsertAll(inferredTrips)`, calls `inferRegionVisits` and `regionRepo.upsertAll(inferredRegions)`
+- `BootstrapService.bootstrapExistingUser` extended: after bootstrapping trips, also infers and upserts region visits from existing PhotoDateRecords
+- `VisitRepository.clearAll()` extended: also calls `RegionRepository.clearAll()` (delete history must wipe region data)
+- `dart analyze` reports zero issues
+- Unit tests: known photo records with region codes produce correct RegionVisit aggregates; photos with null regionCode excluded; PhotoDateRecords spanning multiple trips assigned to correct trips
+
+**Dependencies:** Task 44 complete.
+
+---
+
+### Task 46 — Region count + region list in country detail sheet
+
+**Deliverable:** `CountryDetailSheet` shows how many regions the user has visited in a country. Expanding the count reveals a list of region names.
+
+**Acceptance criteria:**
+- `regionRepositoryProvider` added to `lib/core/providers.dart` (follows same pattern as tripRepositoryProvider)
+- `CountryDetailSheet` (ConsumerWidget) reads `regionRepositoryProvider`; calls `loadByCountry(countryCode)` on open; displays "X regions visited" row (hidden when 0 regions)
+- A static `kRegionNames` map (`lib/core/region_names.dart`): `Map<String, String>` of ISO 3166-2 code → English name; generated from Natural Earth admin1 dataset at build time; fallback to the code if not in map
+- Tapping the region row (or a trailing expand icon) shows an inline list of region names, alphabetically sorted
+- Loading state handled (FutureProvider or manual setState)
+- Graceful empty state: if no regions (e.g. country detected before Task 45 ran), the region row is hidden
+- `dart analyze` reports zero issues
+- Widget tests: region count row visible with correct count; row hidden when 0 regions; region list shown on tap; kRegionNames fallback to code works
+
+**Dependencies:** Task 45 complete.
+
+---
+
+**Dependencies summary:**
+- Task 42 → no dependencies
+- Task 43 → requires Task 42
+- Task 44 → requires Task 43 (same schema version)
+- Task 45 → requires Task 44
+- Task 46 → requires Task 45
+
+**Risks and open questions:**
+
+1. **Binary asset size**: Natural Earth admin1 1:10m has ~3,800 polygons vs 1,580 for country_lookup. Estimated binary 3–5 MB. Check this does not push the app bundle over Apple's cellular download limit (200 MB OTA). Mitigation: use 1:50m admin1 data for a smaller binary (~2 MB, lower precision) if needed.
+
+2. **Countries with no admin1 regions**: Monaco, Vatican, Singapore, and similar micro-states have no ISO 3166-2 admin1 subdivisions. `resolveRegion` must return null for coordinates in these countries; this is correct behaviour and must be tested.
+
+3. **Coastal and border false-nulls**: Points on coastlines, in harbours, or at land borders may fall outside all admin1 polygons. These will get null regionCode and be silently excluded from RegionVisits. This is acceptable; document in code comments.
+
+4. **Schema atomicity**: Tasks 43 and 44 both add to schema v7. Architect must confirm that both `photoDateRecords.regionCode` and `region_visits` table are created in a single `if (from < 7)` migration block. If split across v7 and v8, the builder must document this clearly.
+
+5. **kRegionNames size**: ISO 3166-2 has ~4,400 codes. A static Dart map is ~350 KB of source. This is acceptable. If app size is a concern post-Task 46, consider lazy loading from a binary asset.
+
+6. **Cascade delete for region_visits**: Task 40 (manual trip delete) calls `TripRepository.delete(tripId)`. It does NOT currently call `RegionRepository` (it didn't exist). After M16, `TripRepository.delete(tripId)` must also call `regionRepo.deleteByTrip(tripId)`. The Architect must flag this coupling. Recommendation: pass `RegionRepository?` to `TripRepository.delete()` (optional, for backwards compatibility) or add a `deleteByTrip` call in the scan screen's delete handler.
+
+7. **Trip assignment for region photos**: `inferRegionVisits` assigns photos to trips using the trip's `startedOn`/`endedOn` window. Photos with `capturedAt` outside any trip window are excluded. This is consistent with how trip inference works.
+
+---
+
+## Architect sign-off — Milestone 16 (Tasks 42–46)
+
+**Plan validated with the following corrections. All corrections are mandatory before the Builder starts.**
+
+---
+
+### Correction 1 — Region resolution must use the same bucketed coordinates as country resolution (ADR-051)
+
+The Planner's Task 43 describes the background isolate calling `resolveRegion(lat, lng)` but does not specify whether these are raw or bucketed coordinates. **This must be bucketed (0.5° grid) — the same coordinate that `resolveCountry` uses.**
+
+Reason: if country resolution uses a bucketed point and region resolution uses a raw point, a photo near a border could produce `countryCode = "FR"` but `regionCode = "ES-CT"` — silently wrong data. Consistency requires the same input coordinate.
+
+**Builder must:** In the background isolate, bucket the raw coordinate first (round lat/lng to nearest 0.5°), then call both `resolveCountry` and `resolveRegion` on the bucketed value. This is already how `resolveCountry` works — region resolution is added to the same step with the same input.
+
+Known limitation (documented in ADR-051): photos within 55 km of a region border may be attributed to the wrong region.
+
+---
+
+### Correction 2 — Schema v7 is a single atomic migration block spanning Tasks 43 and 44 (ADR-051)
+
+The Planner left the migration atomicity as an "open question for the Architect." **Decision: one `if (from < 7)` block.**
+
+**Builder must (in Task 43):**
+```dart
+if (from < 7) {
+  await m.addColumn(photoDateRecords, photoDateRecords.regionCode);
+  await m.createTable(regionVisits);
+}
+schemaVersion = 7;
 ```
 
----
-
-## Milestone 6 — World Map View
-
-**Goal:** After scanning, the user sees a world map with all their visited countries highlighted. Tapping a country shows visit details.
-
-**Scope boundary:** Continent count, map zoom-to-country, tile background, and vertex simplification are explicitly out of scope for this milestone.
+Task 44 creates only Dart types and repository code — no additional `schemaVersion` bump.
 
 ---
 
-## ~~Task 6~~ — Expose polygon geometry from `packages/country_lookup` ✓ COMPLETE
+### Correction 3 — RegionRepository must expose `deleteByTrip(String tripId)` (Task 44)
 
-### What was done
+The Planner flagged the cascade-delete gap. **Decision: caller coordinates, repositories stay decoupled.**
 
-- Added `GeodataIndex.polygons` getter returning `List.unmodifiable(_polygons)`
-- Added `LookupEngine.polygons` getter passing through from index
-- Added `loadPolygons()` to `country_lookup.dart` public API
-- Exported `CountryPolygon` from the package
-- 7 new tests: length, code format, expected codes, vertex count ≥ 3, coordinate ranges, multi-ring grouping, unmodifiability
-- `country_lookup/CLAUDE.md` and `package_boundaries.md` updated
+**Builder must (in Task 44):** Add `deleteByTrip(String tripId) → Future<void>` to `RegionRepository`. It deletes all `region_visits` rows where `tripId = tripId`.
 
-### Acceptance criteria
-
-- [x] `loadPolygons()` returns a non-empty list (≥ 200 entries) after `initCountryLookup()` is called
-- [x] Multiple entries exist for the same `isoCode` (multi-ring countries tested)
-- [x] All returned `isoCode` values are valid ISO 3166-1 alpha-2
-- [x] Calling `loadPolygons()` before `initCountryLookup()` asserts
-- [x] All 27 `country_lookup` tests pass (20 existing + 7 new)
-- [x] `country_lookup/CLAUDE.md` updated
+**Builder must (in Task 45 or 46):** Wherever the trip-delete action lives in the UI layer (currently in `CountryDetailSheet` — Task 39/40 of M15), add a call to `regionRepo.deleteByTrip(id)` after `tripRepo.delete(id)`. Do not modify `TripRepository` — the coupling stays in the app layer, not the repository layer.
 
 ---
 
-## Task 7 — `MapScreen`: world map with visited/unvisited polygon rendering
+### Correction 4 — `VisitRepository.clearAll()` must also call `RegionRepository.clearAll()` (Task 45)
 
-**Why:** Core product moment — user can see their countries on a map.
+The Planner says `clearAll()` wipes region data. **Confirmed — both `photo_date_records` (which now has `regionCode`) and `region_visits` must be cleared when the user deletes travel history.**
 
-### Deliverable
+`VisitRepository.clearAll()` already calls `TripRepository.clearAll()` (added in M15). It must also call `RegionRepository.clearAll()`.
 
-A `MapScreen` widget displaying all country polygons on an offline `flutter_map` canvas, with visited countries in a distinct highlight colour.
+**Builder must (in Task 45):** Wire `regionRepo.clearAll()` into `VisitRepository.clearAll()`. Since `VisitRepository` and `RegionRepository` are both app-layer classes, pass `regionRepo` as a parameter (following the same pattern used for `tripRepo` in M15), or wire it in the `VisitRepositoryProvider`'s `clearAll` call-site.
 
-### Acceptance criteria
-
-- [ ] `flutter_map` added to `apps/mobile_flutter/pubspec.yaml` only (not in any package)
-- [ ] All country polygons rendered; no tile layer (vector-only, offline guarantee preserved)
-- [ ] Visited country codes sourced from `VisitRepository` → `effectiveVisitedCountries()`
-- [ ] Antarctica (`AQ`) suppressed from rendering
-- [ ] No crash on multi-ring countries (US, RU, archipelagos render as multiple polygons)
-- [ ] Acceptable scroll/zoom frame rate on a real device (manual validation — document result)
-- [ ] Widget test: `MapScreen` renders with a mocked `VisitRepository` returning 0 countries; no crash
-
-### Dependencies
-
-Task 6 (polygon API).
-
----
-
-## Task 8 — Country tap → detail bottom sheet
-
-**Why:** Turns the map from a display into an interactive record — users can tap any country for visit details.
-
-### Deliverable
-
-Tapping any country polygon opens a `showModalBottomSheet` with visit details.
-
-### Acceptance criteria
-
-- [ ] Tapping a visited country shows: display name, `firstSeen` date, `lastSeen` date, photo count, "manually added" badge when `hasPhotoEvidence == false`
-- [ ] Tapping an unvisited country shows: display name only, with a "manually add" action
-- [ ] Display name derived from ISO code via `Locale` (offline); falls back to ISO code itself if `Locale` returns null
-- [ ] Tapping open water (outside any polygon) does nothing
-- [ ] Widget test: tapping a visited polygon in a mocked map shows the expected country name
-
-### Dependencies
-
-Task 7.
-
----
-
-## Task 9 — App navigation redesign and rename
-
-**Why:** Map is now the primary screen; the app is no longer a spike.
-
-### Deliverable
-
-Bottom navigation bar with Map and Scan tabs. `RoavvySpike` renamed to `RoavvyApp`. Riverpod introduced as the app's state management solution.
-
-### Acceptance criteria
-
-- [ ] Bottom nav: Map tab (default on launch) and Scan tab
-- [ ] `RoavvySpike` → `RoavvyApp` everywhere (`main.dart`, widget tests, app title)
-- [ ] Map screen shows persisted visit data immediately on launch (no scan required)
-- [ ] After scan completes, app navigates to Map tab automatically
-- [ ] `geodataBytes` widget constructor arg replaced with a Riverpod provider (`flutter_riverpod` added to `pubspec.yaml`)
-- [ ] All existing widget tests pass; new navigation tests cover tab switching
-
-### Dependencies
-
-Task 7. Architect sign-off on Riverpod provider structure required before Builder starts.
-
----
-
-## Task 10 — Travel stats strip on the map screen
-
-**Why:** Gives users an at-a-glance summary of their travel history without leaving the map screen.
-
-### Deliverable
-
-A fixed stats strip on the `MapScreen` showing aggregate travel stats from the current effective visit set.
-
-### Acceptance criteria
-
-- [ ] Displays: total countries visited, earliest year, latest year (shows "—" when no date metadata)
-- [ ] Stats computed from `TravelSummary.fromVisits(effectiveVisitedCountries(...))`
-- [ ] Strip updates immediately after a scan completes (no restart required)
-- [ ] Continent count explicitly absent — no country→continent mapping exists yet
-- [ ] Widget test: strip shows correct counts and year range given mocked visits
-
-### Dependencies
-
-Task 9 (for live refresh after scan).
-
----
-
-## Suggested execution order (Milestone 6)
-
-```
-Task 6 (polygon API) ──► Task 7 (map render) ──► Task 8 (tap detail)
-                                             ──► Task 9 (navigation) ──► Task 10 (stats strip)
+**Preferred:** Keep repositories independent. The `clearAll` call-site in `MapScreen` (the "Delete travel history" flow) calls both explicitly:
+```dart
+await visitRepo.clearAll();
+await tripRepo.clearAll();
+await regionRepo.clearAll(); // new in M16
 ```
 
-Tasks 8 and 9 can proceed in parallel once Task 7 is done.
+---
+
+### Confirmed unchanged
+
+- `packages/region_lookup` as a standalone pure Dart package, structurally identical to `country_lookup`. No dependency on `country_lookup`. ✓
+- `RegionVisit` as a plain data class in `shared_models`; no Flutter or Drift dependencies in the model. ✓
+- `inferRegionVisits(List<PhotoDateRecord> records, List<TripRecord> trips) → List<RegionVisit>` as a pure function in `shared_models`. ✓
+- `kRegionNames` static map in `apps/mobile_flutter/lib/core/region_names.dart`, following ADR-019 pattern. ✓
+- Privacy: `regionCode` is derived metadata; GPS coordinates discarded after resolution. ADR-002 satisfied. ADR-050 documents the scope extension. ✓
+- `FirestoreSyncService` is NOT extended in M16; `region_visits.isDirty` column exists but is never flushed until a future milestone. ✓
+- Package DAG remains acyclic: `apps/mobile_flutter → packages/region_lookup`; no package-to-package dependency. ✓
+
+**Build order:** Task 42 → Task 43 → Task 44 → Task 45 → Task 46. Strictly sequential.
+
+**ADRs written:** ADR-049 (region_lookup package), ADR-050 (regionCode as derived metadata), ADR-051 (bucketed coordinates; atomic schema v7 migration).
 
 ---
 
-## Risks / open questions (Milestone 6)
+## Milestone 17 — Phase 7: Navigation Redesign
 
-All risks resolved by Architect (ADR-017, ADR-018, ADR-019):
+**Goal:** Extend the app from a 2-tab shell (Map · Scan) to a 4-tab shell (Map · Journal · Stats · Scan). The new Journal tab lets users browse trip history chronologically; the new Stats tab gives achievements and aggregate statistics a dedicated home.
 
-1. ~~**`country_lookup` API contract**~~ — ✓ Resolved: ADR-017 authorises `loadPolygons()`; docs updated.
-2. **Rendering performance** — `polygonCulling: true` mandated in Task 7; vertex simplification deferred unless device testing reveals it's needed.
-3. ~~**Multi-ring tap detection**~~ — ✓ Resolved: use flutter_map `hitValue: polygon.isoCode` per polygon entry; no pre-grouping needed.
-4. ~~**Riverpod provider structure**~~ — ✓ Resolved: ADR-018 defines the full provider graph; core providers in `lib/core/providers.dart`.
-5. ~~**Country display names**~~ — ✓ Resolved: ADR-019 specifies static `const Map<String, String> kCountryNames` in `lib/core/country_names.dart`; falls back to ISO code.
+**Scope — included:**
+- 4-tab `NavigationBar` shell: Map · Journal · Stats · Scan (tabs in this order)
+- Journal screen: all trips from `TripRepository`, grouped by year (most recent first); each row shows country name, date range, duration; tapping opens existing `CountryDetailSheet`
+- Stats & Achievements screen: stats panel (countries visited, regions visited, year span) + full achievement gallery (all `kAchievements`, locked/unlocked state, unlock date for unlocked ones)
+
+**Scope — excluded:**
+- Country Detail promoted to full-screen page (deferred to M18)
+- Trip Detail full-screen (M18)
+- Journal filtering and search (deferred)
+- Map frequency colouring and continent labels (deferred)
+- Continent breakdown in Stats (deferred)
+- Timeline / year-by-year chart (deferred)
+- Sharing from Journal or Stats (deferred)
+- Photos tab in Country Detail (deferred)
+
+**Note:** All three tasks have user-facing components — invoke UX Designer before Architect.
+
+**Tasks:**
+
+| Task | Name | Milestone | Component |
+|------|------|-----------|-----------|
+| 47 | 4-tab navigation shell | 17 | Flutter |
+| 48 | Journal screen | 17 | Flutter |
+| 49 | Stats & Achievements screen | 17 | Flutter |
 
 ---
 
-## Out of scope for Milestone 6
+### Task 47 — 4-tab navigation shell
 
-- TypeScript counterpart in `packages/shared_models/ts/`
-- Firebase Auth integration
-- Firestore sync (`isDirty` flush)
-- Achievements engine
-- Sharing cards
-- Shopify integration
+**Milestone:** 17
+
+**Why:** The current shell exposes only Map and Scan. Journal and Stats need dedicated tab slots before their screens can be built. This task wires the navigation shell and adds placeholder screens so the app is always in a working state.
+
+**Deliverable:**
+- `NavigationShell` extended from 2 destinations to 4: Map (globe icon), Journal (list icon), Stats (bar chart icon), Scan (camera icon)
+- `JournalScreen` stub: `lib/features/journal/journal_screen.dart` — renders a placeholder message
+- `StatsScreen` stub: `lib/features/stats/stats_screen.dart` — renders a placeholder message
+- `IndexedStack` extended to 4 children; Journal at index 1, Stats at index 2, Scan at index 3
+- Existing Map (index 0) and Scan (now index 3) tabs unaffected; all existing tests still pass
+
+**Acceptance criteria:**
+- [ ] 4 tabs visible in `NavigationBar`: Map, Journal, Stats, Scan (in that order)
+- [ ] Tapping each tab switches to the correct screen without error
+- [ ] Map and Scan tabs function identically to current behaviour
+- [ ] `JournalScreen` and `StatsScreen` stubs render without errors
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget test: all 4 tab labels present in the navigation bar; switching to each tab renders the correct widget
+
+**Files to change:**
+- `apps/mobile_flutter/lib/features/shell/navigation_shell.dart` — extend to 4 tabs
+- `apps/mobile_flutter/lib/features/journal/journal_screen.dart` (new — stub)
+- `apps/mobile_flutter/lib/features/stats/stats_screen.dart` (new — stub)
+- `apps/mobile_flutter/test/features/shell/navigation_shell_test.dart` (new or extend)
+
+**Dependencies:** None (M16 complete).
+
+---
+
+### Task 48 — Journal screen
+
+**Milestone:** 17
+
+**Why:** Gives users a chronological view of their entire trip history without having to locate individual countries on the map. The trip data already exists in `TripRepository` (M15); this task surfaces it in a dedicated screen.
+
+**Deliverable:**
+- `JournalScreen` fully implemented (replaces stub from Task 47)
+- Reads all trips via `tripRepositoryProvider`; groups by `startedOn.year`; most recent year first
+- Each year section has a sticky header ("2023")
+- Each trip row shows: country name (from `kCountryNames`), date range, duration, photo count
+- Tapping a trip opens `CountryDetailSheet` for that country via `showModalBottomSheet`; reads `effectiveVisitsProvider` to obtain the `EffectiveVisitedCountry?` value for the sheet constructor
+- Empty state: "No trips yet — scan your photos to discover your journeys"
+- Loading state: `CircularProgressIndicator` while `FutureBuilder` resolves
+
+**Acceptance criteria:**
+- [ ] Trips grouped by year, most recent year first
+- [ ] Trips within a year sorted by `startedOn` descending
+- [ ] Each trip row shows country name, date range, duration, and photo count
+- [ ] Tapping a trip row opens `CountryDetailSheet` for that country
+- [ ] Empty state shown when `loadAll()` returns `[]`
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: year grouping correct; trip row renders expected fields; empty state shown; tapping a row triggers sheet
+
+**Files to change:**
+- `apps/mobile_flutter/lib/features/journal/journal_screen.dart` — replace stub with full implementation
+- `apps/mobile_flutter/test/features/journal/journal_screen_test.dart` (new)
+
+**Dependencies:** Task 47 complete.
+
+---
+
+### Task 49 — Stats & Achievements screen
+
+**Milestone:** 17
+
+**Why:** Achievement data has been stored since M9 but is only surfaced as a SnackBar on unlock and a count in the stats strip. This screen gives achievements a permanent home and exposes region count as a top-level stat.
+
+**Deliverable:**
+- `StatsScreen` fully implemented (replaces stub from Task 47)
+- Stats panel: "N countries visited", "N regions visited", "Since [year]" (or "—" if no dates)
+  - Countries: `effectiveVisitsProvider` length
+  - Regions: unique region codes via new `RegionRepository.countUnique() → Future<int>` (SQL: `SELECT COUNT(DISTINCT regionCode) FROM region_visits`)
+  - Since year: earliest `firstSeen` from `travelSummaryProvider`
+- Achievement gallery: scrollable grid of all `kAchievements`; unlocked achievements visually distinct (filled icon / colour); locked achievements greyed out; unlocked ones show unlock date
+- Reads `achievementRepositoryProvider` to get the set of unlocked achievement IDs
+
+**Acceptance criteria:**
+- [ ] Stats panel shows correct country count, region count, and earliest year from live data (no hardcoded values)
+- [ ] `RegionRepository` gains `countUnique() → Future<int>`
+- [ ] Achievement gallery shows all `kAchievements` entries
+- [ ] Unlocked achievements are visually distinct from locked ones
+- [ ] Unlocked achievements display the unlock date
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: stats panel displays expected values; unlocked achievement card distinct from locked; locked achievement shown greyed out
+
+**Files to change:**
+- `apps/mobile_flutter/lib/features/stats/stats_screen.dart` — replace stub with full implementation
+- `apps/mobile_flutter/lib/data/region_repository.dart` — add `countUnique()` method
+- `apps/mobile_flutter/test/features/stats/stats_screen_test.dart` (new)
+- `apps/mobile_flutter/test/data/region_repository_test.dart` — extend with `countUnique` test
+
+**Dependencies:** Task 47 complete. (Tasks 48 and 49 can be built in parallel after Task 47.)
+
+---
+
+## Planner sign-off — Milestone 17 (Tasks 47–49)
+
+**Plan complete: 2026-03-19**
+
+**Task sequence:**
+
+| Task | Name | Milestone | Component |
+|------|------|-----------|-----------|
+| 47 | 4-tab navigation shell | 17 | Flutter |
+| 48 | Journal screen | 17 | Flutter |
+| 49 | Stats & Achievements screen | 17 | Flutter |
+
+**Key risks and open questions:**
+
+1. **UX: tab icons and labels** — The UX Designer must confirm the icon set (globe, list, bar-chart, camera) and whether "Journal" and "Stats" are the right tab labels before Builder implements.
+
+2. **Opening CountryDetailSheet from Journal** — The sheet constructor requires `EffectiveVisitedCountry? visit`. The Journal screen has a `TripRecord` (country code only). To get the matching `EffectiveVisitedCountry`, the screen reads `effectiveVisitsProvider` and looks up the country code in the resulting list. The Architect must confirm this is the correct approach (or propose an alternative if `effectiveVisitsProvider` is expensive to watch here).
+
+3. **Achievement gallery UX** — There are 8+ achievements and potentially many locked ones. The UX Designer must decide: grid vs. list, ordering (unlocked first?), whether to show locked achievements with a hint or hide them entirely. Planner defers this decision to the UX Designer.
+
+4. **Scan tab index shift** — Moving Scan from index 1 to index 3 changes the `IndexedStack` child order. Any widget test that references the Scan tab by index (not by label) will break. Builder must audit and fix all such references.
+
+5. **`achievementRepositoryProvider`** — The Stats screen needs the achievement repository. Confirm this provider already exists in `lib/core/providers.dart` (added in M9) before Task 49 begins.
+
+**Next step: UX Designer must review before Architect.** Invoke UX Designer next.
+
+---
+
+## Architect sign-off — Milestone 17 (Tasks 47–49)
+
+**Review complete: 2026-03-19**
+
+**ADR written:** ADR-052 (4-tab shell index contract; Journal data access; achievement unlock dates).
+
+### Provider audit
+
+All providers referenced by M17 are confirmed to exist in `lib/core/providers.dart`:
+
+| Provider | Type | Used by |
+|----------|------|---------|
+| `tripRepositoryProvider` | `Provider<TripRepository>` | Task 48 (Journal) |
+| `effectiveVisitsProvider` | `FutureProvider<List<EffectiveVisitedCountry>>` | Task 48 (Journal → CountryDetailSheet lookup) |
+| `regionRepositoryProvider` | `Provider<RegionRepository>` | Task 49 (Stats — region count) |
+| `travelSummaryProvider` | `FutureProvider<TravelSummary>` | Task 49 (Stats — since year) |
+| `achievementRepositoryProvider` | `Provider<AchievementRepository>` | Task 49 (Stats — achievement gallery) |
+
+### Corrections to Planner task specs
+
+**Task 47 — file naming correction:**
+The Planner names the shell file `lib/features/shell/navigation_shell.dart`. The existing file is `lib/features/shell/main_shell.dart`. The Builder must edit the existing file, not create a new one. Test file: `test/features/shell/main_shell_test.dart` (match existing naming).
+
+**Task 48 — no loading spinner (Design Principle 3):**
+The Planner's acceptance criteria includes "Loading state: `CircularProgressIndicator` while `FutureBuilder` resolves". Remove this. `TripRepository.loadAll()` reads from local SQLite — it resolves in well under one frame. Per Design Principle 3 and the UX Designer's spec, no spinner is shown. If data has not arrived within a single frame, render nothing (blank) rather than a spinner.
+
+**Task 48 — empty state copy:**
+The Planner's empty state copy is "No trips yet — scan your photos to discover your journeys". Replace with the UX Designer's canonical copy:
+- Heading: "Your journal is empty"
+- Body: "Scan your photos to build your travel history."
+- CTA: "Scan Photos" (`FilledButton`, navigates to Scan tab index 3)
+
+**Task 48 — `effectiveVisitsProvider` watch vs. read:**
+`JournalScreen` must `watch` `effectiveVisitsProvider`, not `read` it. This keeps the country list current if a manual visit add/remove occurs while the Journal tab is visible (ADR-052, Decision 2).
+
+**Task 49 — `AchievementRepository.loadAllRows()` is a required file change:**
+`AchievementRepository.loadAll()` returns `List<String>` (IDs only). Displaying unlock dates requires the full row. Add `loadAllRows() → Future<List<UnlockedAchievementRow>>` to `AchievementRepository`. Update the files list:
+
+- `apps/mobile_flutter/lib/data/achievement_repository.dart` — add `loadAllRows()`
+- `apps/mobile_flutter/test/data/achievement_repository_test.dart` — add test for `loadAllRows()`
+
+**Task 49 — Stats screen has no loading spinner:**
+Same Design Principle 3 applies. No `CircularProgressIndicator` for any of the three stats values or the achievement gallery.
+
+**Task 49 — Stats screen watches multiple async providers:**
+`StatsScreen` must handle `AsyncValue` from three async sources: `effectiveVisitsProvider`, `travelSummaryProvider`, and a `FutureProvider` wrapping `regionRepositoryProvider.countUnique()`. Use `ref.watch` on all three. The simplest pattern: show the stat tile with "—" as a fallback while any value is still loading; do not block the entire screen on a single spinner.
+
+A thin `regionCountProvider` (`FutureProvider<int>`) should be defined in `lib/core/providers.dart` to wrap `regionRepositoryProvider.countUnique()`, consistent with how `travelSummaryProvider` wraps repository reads (ADR-018).
+
+### Confirmed structural decisions (ADR-052)
+
+1. **Tab indices locked:** Map=0, Journal=1, Stats=2, Scan=3. No file outside `MainShell` uses a numeric literal for a tab index.
+2. **Journal → CountryDetailSheet:** `ref.watch(effectiveVisitsProvider)` → `firstWhereOrNull((v) => v.countryCode == trip.countryCode)` → passed as `visit:` parameter. Sound — sheet already handles nullable visit.
+3. **`kAchievements`** confirmed in `packages/shared_models/lib/src/achievement.dart` — 8 achievements; `StatsScreen` iterates this list to build the gallery.
+4. **Scan callback:** `ScanScreen(onScanComplete: _goToMap)` — `_goToMap` already navigates to index 0. No change needed to `ScanScreen` itself.
+
+### Build order
+
+Task 47 → (Task 48 ∥ Task 49). Tasks 48 and 49 are independent of each other and may be built in parallel after Task 47 lands.
+
+**Builder may proceed.**

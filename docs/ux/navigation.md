@@ -5,12 +5,17 @@
 ```
 Tab bar (persistent)
 ├── Map          — world map; primary destination
-├── Countries    — list view of all visited countries (accessible alternative to map)
-├── Achievements — achievement grid and progress
-└── Profile      — settings, privacy, account
+├── Journal      — chronological trip history (list alternative to map)
+├── Stats        — aggregate stats + achievement gallery
+└── Scan         — photo scanner
 ```
 
 The tab bar is always visible. No nested tab bars.
+
+Tab order is intentional:
+- **Map** anchors the left — it is the hero experience.
+- **Journal** and **Stats** are the data exploration tabs — they live in the middle.
+- **Scan** sits on the right — it is an action, not a destination. Right-side placement follows iOS conventions for primary actions.
 
 ---
 
@@ -19,40 +24,34 @@ The tab bar is always visible. No nested tab bars.
 ```
 Map (tab root)
 ├── Country detail sheet (modal, bottom sheet)
-│     ├── Edit visit (push)
-│     └── Delete (confirm dialog → dismiss sheet)
-├── Add country (modal, full screen)
+│     ├── Trip edit sheet (modal, bottom sheet)
+│     └── Delete trip (confirm dialog)
 └── Scan in progress (modal, full screen, non-dismissable during scan)
       └── Scan complete summary (replaces scan screen)
 
-Countries (tab root)
-└── Country detail sheet (same as above)
+Journal (tab root)
+└── Country detail sheet (same as Map — reuses existing sheet)
 
-Achievements (tab root)
-└── Achievement detail sheet (modal, bottom sheet)
-      └── Share achievement (iOS share sheet)
+Stats (tab root)
+└── [no sub-screens in M17; achievement detail deferred]
 
-Profile (tab root)
-├── Privacy settings (push)
-│     ├── Delete travel history (confirm dialog)
-│     └── Delete account (confirm dialog × 2)
-├── Sharing cards (push)
-│     └── Sharing card detail (push)
-│           └── Revoke card (confirm dialog)
-└── About / legal (push)
+Scan (tab root)
+└── [self-contained; returns to Map tab on completion]
 ```
+
+M18 will promote Country Detail to a full-screen page and add Trip Detail. The sheet-based approach is preserved for M17.
 
 ---
 
 ## Navigation Principles
 
-**Bottom sheet for contextual detail.** Country and achievement detail sheets are bottom sheets — they keep the map visible behind them. Full-screen modals are reserved for flows that require full attention (scan progress, add country).
+**Bottom sheet for contextual detail.** Country detail sheets are bottom sheets — they keep the previous screen visible behind them.
 
-**Push for linear settings flows.** Settings screens use standard navigation push, not modals, so the user always has a back button.
+**Push for linear settings flows.** Settings screens use standard navigation push, not modals.
 
-**No deep linking into authenticated routes.** The only publicly deep-linkable route is `/share/[token]` on web. App deep links (for share → app install → map) are a Phase 5 concern.
+**Tab state is preserved.** Navigating away from any tab and returning restores its previous scroll position. The map does not reset to a default view.
 
-**Tab state is preserved.** Navigating away from Map and returning restores the previous position. The map does not reset to a default view.
+**Scan returns to Map.** When a scan completes, the app navigates back to the Map tab automatically. This preserves the "discover what you've done" moment.
 
 ---
 
@@ -61,13 +60,8 @@ Profile (tab root)
 ```
 /                    Landing / marketing (unauthenticated)
 /(app)/map           Authenticated travel map
-/(app)/achievements  Achievements (authenticated)
 /share/[token]       Public sharing card (no auth required, SSR)
-/shop                Merchandise (no auth required)
-/shop/[product]      Product detail
 ```
-
-Web navigation is standard top-nav for authenticated views. Sharing and shop pages are standalone with minimal chrome — optimised for sharing, not for app navigation.
 
 ---
 
