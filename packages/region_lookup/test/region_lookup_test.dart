@@ -234,4 +234,34 @@ void main() {
       expect(resolveRegion(41.0, -113.0), isNull);
     });
   });
+
+  // ── Coastal fallback ──────────────────────────────────────────────────────
+
+  group('coastal fallback — point just outside polygon resolves via neighbour',
+      () {
+    // US-CA rect: lat [32, 42], lng [−124, −114].
+    // A point 0.1° south of the southern boundary is outside the rect, but
+    // the coastal fallback should find it by nudging 0.25° north.
+    test('point 0.1° south of US-CA southern edge resolves to US-CA', () {
+      // 31.9 °N is outside [32, 42] N, but nudging +0.25° puts it at 32.15 °N
+      // which is inside the rect.
+      expect(resolveRegion(31.9, -119.0), equals('US-CA'));
+    });
+
+    test('point 0.1° north of US-CA northern edge resolves to US-CA', () {
+      // 42.1 °N is outside [32, 42] N, but nudging −0.25° puts it at 41.85 °N.
+      expect(resolveRegion(42.1, -119.0), equals('US-CA'));
+    });
+
+    test('point 0.1° west of US-CA western edge resolves to US-CA', () {
+      // −124.1 °E is outside [−124, −114] E, nudging +0.25° puts it at −123.85.
+      expect(resolveRegion(37.0, -124.1), equals('US-CA'));
+    });
+
+    test('open gap > 0.25° away from any polygon still returns null', () {
+      // −113 °E is > 0.25° from US-CA (boundary at −114) and from US-NY.
+      // The fallback cannot bridge a 1° gap.
+      expect(resolveRegion(41.0, -113.0), isNull);
+    });
+  });
 }
