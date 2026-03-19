@@ -4,6 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
+import '../scan/achievement_unlock_sheet.dart';
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -220,6 +221,13 @@ class _AchievementGrid extends StatelessWidget {
             child: _AchievementCard(
               achievement: achievement,
               unlockedAt: unlockDate,
+              onTap: unlockDate == null
+                  ? null
+                  : () => AchievementUnlockSheet.show(
+                        context,
+                        achievement: achievement,
+                        unlockedAt: unlockDate,
+                      ),
             ),
           );
         },
@@ -233,10 +241,12 @@ class _AchievementCard extends StatelessWidget {
   const _AchievementCard({
     required this.achievement,
     required this.unlockedAt,
+    this.onTap,
   });
 
   final Achievement achievement;
   final DateTime? unlockedAt;
+  final VoidCallback? onTap;
 
   bool get isUnlocked => unlockedAt != null;
 
@@ -301,9 +311,17 @@ class _AchievementCard extends StatelessWidget {
       ),
     );
 
+    final cardWithOpacity =
+        isUnlocked ? card : Opacity(opacity: 0.55, child: card);
+
     return Semantics(
       label: semanticLabel,
-      child: isUnlocked ? card : Opacity(opacity: 0.55, child: card),
+      child: onTap == null
+          ? cardWithOpacity
+          : GestureDetector(
+              onTap: onTap,
+              child: cardWithOpacity,
+            ),
     );
   }
 }

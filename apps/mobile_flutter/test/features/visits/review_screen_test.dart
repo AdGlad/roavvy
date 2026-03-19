@@ -206,15 +206,21 @@ void main() {
     });
   });
 
-  group('ReviewScreen — achievement SnackBar', () {
-    // Push ReviewScreen onto a route so that when it pops, the parent Scaffold
-    // is still alive and the ScaffoldMessenger can render the SnackBar.
-    Future<void> pumpReviewPushed(
-      WidgetTester tester,
-      List<EffectiveVisitedCountry> visits, {
-      required VisitRepository visitRepo,
-      required AchievementRepository achievementRepo,
-    }) async {
+  group('ReviewScreen — achievement unlock (Task 53: no SnackBar on save)', () {
+    testWidgets('no SnackBar shown on save when onScanComplete is null',
+        (tester) async {
+      // Achievement SnackBar is removed from ReviewScreen save path (ADR-054).
+      // Achievements are shown in ScanSummaryScreen instead.
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      await visitRepo.saveInferred(InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2025, 1, 1),
+        photoCount: 3,
+      ));
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -224,7 +230,7 @@ void main() {
                   context,
                   MaterialPageRoute<void>(
                     builder: (_) => ReviewScreen(
-                      initialVisits: visits,
+                      initialVisits: [autoVisit('GB')],
                       repository: visitRepo,
                       achievementRepo: achievementRepo,
                     ),
@@ -238,31 +244,11 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-    }
-
-    testWidgets('shows SnackBar with achievement title on new unlock',
-        (tester) async {
-      final db = _makeDb();
-      final visitRepo = VisitRepository(db);
-      final achievementRepo = AchievementRepository(db);
-
-      await visitRepo.saveInferred(InferredCountryVisit(
-        countryCode: 'GB',
-        inferredAt: DateTime.utc(2025, 1, 1),
-        photoCount: 3,
-      ));
-
-      await pumpReviewPushed(
-        tester,
-        [autoVisit('GB')],
-        visitRepo: visitRepo,
-        achievementRepo: achievementRepo,
-      );
-
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.text('🏆 First Stamp'), findsOneWidget);
+      // No SnackBar — achievement display is handled by ScanSummaryScreen.
+      expect(find.text('🏆 First Stamp'), findsNothing);
     });
 
     testWidgets('no SnackBar when achievement already unlocked', (tester) async {
@@ -280,12 +266,14 @@ void main() {
       await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025));
       await achievementRepo.markClean('countries_1', DateTime.utc(2025));
 
-      await pumpReviewPushed(
-        tester,
-        [autoVisit('GB')],
-        visitRepo: visitRepo,
-        achievementRepo: achievementRepo,
-      );
+      await tester.pumpWidget(MaterialApp(
+        home: ReviewScreen(
+          initialVisits: [autoVisit('GB')],
+          repository: visitRepo,
+          achievementRepo: achievementRepo,
+        ),
+      ));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();

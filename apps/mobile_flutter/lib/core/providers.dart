@@ -65,6 +65,17 @@ final effectiveVisitsProvider = FutureProvider<List<EffectiveVisitedCountry>>(
   (ref) => ref.watch(visitRepositoryProvider).loadEffective(),
 );
 
+/// Returns `true` when the user should see the main shell instead of onboarding.
+///
+/// True when [hasSeenOnboardingAt] is set in the DB, OR when the user already
+/// has visits (returning user / reinstall with Firestore data). ADR-053.
+final onboardingCompleteProvider = FutureProvider<bool>((ref) async {
+  final db = ref.watch(roavvyDatabaseProvider);
+  if (await db.hasSeenOnboarding()) return true;
+  final visits = await ref.watch(effectiveVisitsProvider.future);
+  return visits.isNotEmpty;
+});
+
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);
   final achievementRepo = ref.watch(achievementRepositoryProvider);

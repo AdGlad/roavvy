@@ -40,8 +40,24 @@ class $ScanMetadataTable extends ScanMetadata
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _hasSeenOnboardingAtMeta =
+      const VerificationMeta('hasSeenOnboardingAt');
   @override
-  List<GeneratedColumn> get $columns => [id, lastScanAt, bootstrapCompletedAt];
+  late final GeneratedColumn<String> hasSeenOnboardingAt =
+      GeneratedColumn<String>(
+        'has_seen_onboarding_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    lastScanAt,
+    bootstrapCompletedAt,
+    hasSeenOnboardingAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -75,6 +91,15 @@ class $ScanMetadataTable extends ScanMetadata
         ),
       );
     }
+    if (data.containsKey('has_seen_onboarding_at')) {
+      context.handle(
+        _hasSeenOnboardingAtMeta,
+        hasSeenOnboardingAt.isAcceptableOrUnknown(
+          data['has_seen_onboarding_at']!,
+          _hasSeenOnboardingAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -97,6 +122,10 @@ class $ScanMetadataTable extends ScanMetadata
         DriftSqlType.string,
         data['${effectivePrefix}bootstrap_completed_at'],
       ),
+      hasSeenOnboardingAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}has_seen_onboarding_at'],
+      ),
     );
   }
 
@@ -110,10 +139,12 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
   final int id;
   final String? lastScanAt;
   final String? bootstrapCompletedAt;
+  final String? hasSeenOnboardingAt;
   const ScanMetadataRow({
     required this.id,
     this.lastScanAt,
     this.bootstrapCompletedAt,
+    this.hasSeenOnboardingAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -124,6 +155,9 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
     }
     if (!nullToAbsent || bootstrapCompletedAt != null) {
       map['bootstrap_completed_at'] = Variable<String>(bootstrapCompletedAt);
+    }
+    if (!nullToAbsent || hasSeenOnboardingAt != null) {
+      map['has_seen_onboarding_at'] = Variable<String>(hasSeenOnboardingAt);
     }
     return map;
   }
@@ -139,6 +173,10 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
           bootstrapCompletedAt == null && nullToAbsent
               ? const Value.absent()
               : Value(bootstrapCompletedAt),
+      hasSeenOnboardingAt:
+          hasSeenOnboardingAt == null && nullToAbsent
+              ? const Value.absent()
+              : Value(hasSeenOnboardingAt),
     );
   }
 
@@ -153,6 +191,9 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
       bootstrapCompletedAt: serializer.fromJson<String?>(
         json['bootstrapCompletedAt'],
       ),
+      hasSeenOnboardingAt: serializer.fromJson<String?>(
+        json['hasSeenOnboardingAt'],
+      ),
     );
   }
   @override
@@ -162,6 +203,7 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
       'id': serializer.toJson<int>(id),
       'lastScanAt': serializer.toJson<String?>(lastScanAt),
       'bootstrapCompletedAt': serializer.toJson<String?>(bootstrapCompletedAt),
+      'hasSeenOnboardingAt': serializer.toJson<String?>(hasSeenOnboardingAt),
     };
   }
 
@@ -169,6 +211,7 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
     int? id,
     Value<String?> lastScanAt = const Value.absent(),
     Value<String?> bootstrapCompletedAt = const Value.absent(),
+    Value<String?> hasSeenOnboardingAt = const Value.absent(),
   }) => ScanMetadataRow(
     id: id ?? this.id,
     lastScanAt: lastScanAt.present ? lastScanAt.value : this.lastScanAt,
@@ -176,6 +219,10 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
         bootstrapCompletedAt.present
             ? bootstrapCompletedAt.value
             : this.bootstrapCompletedAt,
+    hasSeenOnboardingAt:
+        hasSeenOnboardingAt.present
+            ? hasSeenOnboardingAt.value
+            : this.hasSeenOnboardingAt,
   );
   ScanMetadataRow copyWithCompanion(ScanMetadataCompanion data) {
     return ScanMetadataRow(
@@ -186,6 +233,10 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
           data.bootstrapCompletedAt.present
               ? data.bootstrapCompletedAt.value
               : this.bootstrapCompletedAt,
+      hasSeenOnboardingAt:
+          data.hasSeenOnboardingAt.present
+              ? data.hasSeenOnboardingAt.value
+              : this.hasSeenOnboardingAt,
     );
   }
 
@@ -194,46 +245,55 @@ class ScanMetadataRow extends DataClass implements Insertable<ScanMetadataRow> {
     return (StringBuffer('ScanMetadataRow(')
           ..write('id: $id, ')
           ..write('lastScanAt: $lastScanAt, ')
-          ..write('bootstrapCompletedAt: $bootstrapCompletedAt')
+          ..write('bootstrapCompletedAt: $bootstrapCompletedAt, ')
+          ..write('hasSeenOnboardingAt: $hasSeenOnboardingAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, lastScanAt, bootstrapCompletedAt);
+  int get hashCode =>
+      Object.hash(id, lastScanAt, bootstrapCompletedAt, hasSeenOnboardingAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ScanMetadataRow &&
           other.id == this.id &&
           other.lastScanAt == this.lastScanAt &&
-          other.bootstrapCompletedAt == this.bootstrapCompletedAt);
+          other.bootstrapCompletedAt == this.bootstrapCompletedAt &&
+          other.hasSeenOnboardingAt == this.hasSeenOnboardingAt);
 }
 
 class ScanMetadataCompanion extends UpdateCompanion<ScanMetadataRow> {
   final Value<int> id;
   final Value<String?> lastScanAt;
   final Value<String?> bootstrapCompletedAt;
+  final Value<String?> hasSeenOnboardingAt;
   const ScanMetadataCompanion({
     this.id = const Value.absent(),
     this.lastScanAt = const Value.absent(),
     this.bootstrapCompletedAt = const Value.absent(),
+    this.hasSeenOnboardingAt = const Value.absent(),
   });
   ScanMetadataCompanion.insert({
     this.id = const Value.absent(),
     this.lastScanAt = const Value.absent(),
     this.bootstrapCompletedAt = const Value.absent(),
+    this.hasSeenOnboardingAt = const Value.absent(),
   });
   static Insertable<ScanMetadataRow> custom({
     Expression<int>? id,
     Expression<String>? lastScanAt,
     Expression<String>? bootstrapCompletedAt,
+    Expression<String>? hasSeenOnboardingAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (lastScanAt != null) 'last_scan_at': lastScanAt,
       if (bootstrapCompletedAt != null)
         'bootstrap_completed_at': bootstrapCompletedAt,
+      if (hasSeenOnboardingAt != null)
+        'has_seen_onboarding_at': hasSeenOnboardingAt,
     });
   }
 
@@ -241,11 +301,13 @@ class ScanMetadataCompanion extends UpdateCompanion<ScanMetadataRow> {
     Value<int>? id,
     Value<String?>? lastScanAt,
     Value<String?>? bootstrapCompletedAt,
+    Value<String?>? hasSeenOnboardingAt,
   }) {
     return ScanMetadataCompanion(
       id: id ?? this.id,
       lastScanAt: lastScanAt ?? this.lastScanAt,
       bootstrapCompletedAt: bootstrapCompletedAt ?? this.bootstrapCompletedAt,
+      hasSeenOnboardingAt: hasSeenOnboardingAt ?? this.hasSeenOnboardingAt,
     );
   }
 
@@ -263,6 +325,11 @@ class ScanMetadataCompanion extends UpdateCompanion<ScanMetadataRow> {
         bootstrapCompletedAt.value,
       );
     }
+    if (hasSeenOnboardingAt.present) {
+      map['has_seen_onboarding_at'] = Variable<String>(
+        hasSeenOnboardingAt.value,
+      );
+    }
     return map;
   }
 
@@ -271,7 +338,8 @@ class ScanMetadataCompanion extends UpdateCompanion<ScanMetadataRow> {
     return (StringBuffer('ScanMetadataCompanion(')
           ..write('id: $id, ')
           ..write('lastScanAt: $lastScanAt, ')
-          ..write('bootstrapCompletedAt: $bootstrapCompletedAt')
+          ..write('bootstrapCompletedAt: $bootstrapCompletedAt, ')
+          ..write('hasSeenOnboardingAt: $hasSeenOnboardingAt')
           ..write(')'))
         .toString();
   }
@@ -3307,12 +3375,14 @@ typedef $$ScanMetadataTableCreateCompanionBuilder =
       Value<int> id,
       Value<String?> lastScanAt,
       Value<String?> bootstrapCompletedAt,
+      Value<String?> hasSeenOnboardingAt,
     });
 typedef $$ScanMetadataTableUpdateCompanionBuilder =
     ScanMetadataCompanion Function({
       Value<int> id,
       Value<String?> lastScanAt,
       Value<String?> bootstrapCompletedAt,
+      Value<String?> hasSeenOnboardingAt,
     });
 
 class $$ScanMetadataTableFilterComposer
@@ -3336,6 +3406,11 @@ class $$ScanMetadataTableFilterComposer
 
   ColumnFilters<String> get bootstrapCompletedAt => $composableBuilder(
     column: $table.bootstrapCompletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hasSeenOnboardingAt => $composableBuilder(
+    column: $table.hasSeenOnboardingAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3363,6 +3438,11 @@ class $$ScanMetadataTableOrderingComposer
     column: $table.bootstrapCompletedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get hasSeenOnboardingAt => $composableBuilder(
+    column: $table.hasSeenOnboardingAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ScanMetadataTableAnnotationComposer
@@ -3384,6 +3464,11 @@ class $$ScanMetadataTableAnnotationComposer
 
   GeneratedColumn<String> get bootstrapCompletedAt => $composableBuilder(
     column: $table.bootstrapCompletedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get hasSeenOnboardingAt => $composableBuilder(
+    column: $table.hasSeenOnboardingAt,
     builder: (column) => column,
   );
 }
@@ -3427,20 +3512,24 @@ class $$ScanMetadataTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String?> lastScanAt = const Value.absent(),
                 Value<String?> bootstrapCompletedAt = const Value.absent(),
+                Value<String?> hasSeenOnboardingAt = const Value.absent(),
               }) => ScanMetadataCompanion(
                 id: id,
                 lastScanAt: lastScanAt,
                 bootstrapCompletedAt: bootstrapCompletedAt,
+                hasSeenOnboardingAt: hasSeenOnboardingAt,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<String?> lastScanAt = const Value.absent(),
                 Value<String?> bootstrapCompletedAt = const Value.absent(),
+                Value<String?> hasSeenOnboardingAt = const Value.absent(),
               }) => ScanMetadataCompanion.insert(
                 id: id,
                 lastScanAt: lastScanAt,
                 bootstrapCompletedAt: bootstrapCompletedAt,
+                hasSeenOnboardingAt: hasSeenOnboardingAt,
               ),
           withReferenceMapper:
               (p0) =>

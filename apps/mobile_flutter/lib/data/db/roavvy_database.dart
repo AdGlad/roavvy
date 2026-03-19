@@ -9,11 +9,15 @@ part 'roavvy_database.g.dart';
 ///
 /// [bootstrapCompletedAt] is set the first time the existing-user bootstrap
 /// runs (ADR-048). Null means bootstrap has not yet executed.
+///
+/// [hasSeenOnboardingAt] is set when the user completes or skips onboarding
+/// (ADR-053). Null means onboarding has not yet been seen.
 @DataClassName('ScanMetadataRow')
 class ScanMetadata extends Table {
   IntColumn get id => integer()();
   TextColumn get lastScanAt => text().nullable()();
   TextColumn get bootstrapCompletedAt => text().nullable()();
+  TextColumn get hasSeenOnboardingAt => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -189,7 +193,7 @@ class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -220,6 +224,29 @@ class RoavvyDatabase extends _$RoavvyDatabase {
         await m.addColumn(photoDateRecords, photoDateRecords.regionCode);
         await m.createTable(regionVisits);
       }
+      if (from < 8) {
+        await m.addColumn(scanMetadata, scanMetadata.hasSeenOnboardingAt);
+      }
     },
   );
+
+  /// Returns `true` if onboarding has been marked complete (ADR-053).
+  Future<bool> hasSeenOnboarding() async {
+    final row = await (select(scanMetadata)..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
+    return row?.hasSeenOnboardingAt != null;
+  }
+
+  /// Marks onboarding as seen by writing the current UTC timestamp.
+  ///
+  /// Creates the singleton row (id=1) if it does not yet exist (ADR-053).
+  Future<void> markOnboardingComplete() async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    await into(scanMetadata).insertOnConflictUpdate(
+      ScanMetadataCompanion.insert(
+        id: const Value(1),
+        hasSeenOnboardingAt: Value(now),
+      ),
+    );
+  }
 }

@@ -386,6 +386,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           uid: ref.read(currentUidProvider),
           achievementRepo: _achievementRepo,
           tripRepo: _tripRepo,
+          onScanComplete: widget.onScanComplete,
         ),
       ),
     );

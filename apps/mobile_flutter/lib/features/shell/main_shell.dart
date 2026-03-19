@@ -16,15 +16,27 @@ import '../stats/stats_screen.dart';
 /// Uses [IndexedStack] to keep all screens alive, preserving scroll position
 /// and map state on tab switch. After a scan completes, [ScanScreen] calls
 /// [_goToMap] to return to Map (index 0).
+///
+/// [initialTab] sets the selected tab on first render (default 0 = Map).
+/// Used by [_OnboardingGate] to open directly on the Scan tab when the user
+/// taps "Scan my photos" in onboarding.
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  const MainShell({super.key, this.initialTab = 0});
+
+  final int initialTab;
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialTab;
+  }
 
   void _goToMap() => setState(() => _selectedIndex = 0);
   void _goToScan() => setState(() => _selectedIndex = 3);
