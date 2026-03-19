@@ -2005,4 +2005,218 @@ A thin `regionCountProvider` (`FutureProvider<int>`) should be defined in `lib/c
 
 Task 47 → (Task 48 ∥ Task 49). Tasks 48 and 49 are independent of each other and may be built in parallel after Task 47 lands.
 
+---
+
+## Milestone 19A — Quality & Depth
+
+**Goal:** Fix incorrect trip and region detection; restore missing confetti celebration; make every country, achievement, and trip tap-through to a detail screen; and let users view the photos from any trip or country in an on-device gallery.
+
+**Scope — included:**
+- Task 59: Trip inference — geographic sequence model (replace 30-day gap)
+- Task 60: Region detection — diagnose and fix coverage gaps
+- Task 61: Confetti — fix celebration flow so new-country scans reliably show confetti
+- Task 62: Interactive navigation — Stats screen country list + tappable achievements
+- Task 63: Privacy model update + store PHAsset IDs in local DB (prerequisite for gallery)
+- Task 64: Photo gallery — per-country and per-trip photo grid on device
+
+**Scope — excluded:**
+- City detection
+- Map animations or country-reveal animation
+- Android support
+- Firestore sync for region visits (deferred from M16)
+
+**Risks / open questions:**
+1. **Trip re-inference is user-impacting.** Changing the algorithm will alter existing stored trip records after bootstrap re-runs. Users who have manually edited trips will not be affected (manual trips are never re-inferred), but automatically inferred trips will change. This is intentional and correct — the old algorithm was wrong — but should be noted in the ADR.
+2. **Region gaps may be data coverage, not code bugs.** Natural Earth admin1 does not define sub-national regions for every country (e.g., small island nations, city-states). If the gap is data, the fix is to document known limitations and ensure no silent failure.
+3. **Privacy model change for asset IDs.** Storing `PHAsset.localIdentifier` in local SQLite is a deliberate change to the privacy model — currently the doc says identifiers are never written to DB. Asset IDs are on-device UUIDs with no intrinsic PII and never go to Firestore; the Architect must write an ADR and update `docs/architecture/privacy_principles.md`.
+4. **Photo gallery channel vs. `photo_manager` package.** Two implementation options: (a) extend the custom Swift `EventChannel` with a new method to batch-fetch thumbnails, or (b) add the `photo_manager` pub.dev package which handles PHAsset access cross-platform. Architect to decide.
+
+---
+
+## Task 59 — Fix trip inference: geographic sequence model (ADR-058)
+
+**Milestone:** 19A
+**Phase:** Quality fix
+
+**Why:** The current algorithm clusters photos within a single country by a 30-day time gap. This produces wrong results: a user who visits Japan three times in a year with fewer than 30 days between visits gets one trip instead of three. See ADR-058 for full options analysis.
+
+**Algorithm (ADR-058):**
+Sort all `PhotoDateRecord`s globally by `capturedAt`. Walk chronologically; when `countryCode` changes, close the current run and open a new one. Each run = one `TripRecord`. Remove the `gap` parameter entirely.
+
+**Deliverable:** Updated `inferTrips()` in `packages/shared_models/lib/src/trip_inference.dart`. `inferRegionVisits()` is unchanged — it matches photos to trips by timestamp window and works correctly with the new trip boundaries.
+
+**Acceptance criteria:**
+- [ ] `inferTrips()` signature: `List<TripRecord> inferTrips(List<PhotoDateRecord> records)` — no `gap` parameter
+- [ ] Sort all records by `capturedAt` ascending before walking; no grouping by country
+- [ ] A sequence `[JP, JP, US, JP, JP]` produces `TripRecord(JP), TripRecord(US), TripRecord(JP)` — three trips, not one JP + one US
+- [ ] `startedOn` = first record's `capturedAt` in the run; `endedOn` = last record's `capturedAt` in the run; `photoCount` = run length
+- [ ] Empty input → empty output
+- [ ] Single-record input → single trip
+- [ ] All existing `shared_models` tests updated and passing
+- [ ] New tests: alternating countries, non-adjacent same country, single-photo runs
+- [ ] `dart analyze` reports zero issues
+
+**Files to change:**
+- `packages/shared_models/lib/src/trip_inference.dart`
+- `packages/shared_models/test/trip_inference_test.dart`
+
+**Dependencies:** None. Independent.
+
+---
+
+## Task 60 — Fix region detection coverage gaps
+
+**Milestone:** 19A
+**Phase:** Quality fix
+
+**Why:** The user sees regions for Japan (JP) and a few other countries but not for all countries where photos exist. Region detection must either work for every country with GPS photos, or fail explicitly so the user understands why regions are absent.
+
+**Deliverable:** Diagnosed root cause; code fix or documented known limitation; no silent failures.
+
+**Acceptance criteria:**
+- [ ] Investigate whether the gap is: (a) missing geodata in `ne_admin1.bin` for certain countries, (b) point-in-polygon edge cases (antimeridian, coastal photos just outside polygon boundaries), or (c) a bug in `RegionRepository.upsertAll()` or bootstrap
+- [ ] If (a): add a comment/doc entry listing countries known to have no admin1 coverage in Natural Earth data; no code change needed
+- [ ] If (b): fix the point-in-polygon boundary handling (e.g., expand coastal polygon bounds by a small epsilon, or use the nearest-polygon fallback for coastal misses)
+- [ ] If (c): fix the bug; add regression test
+- [ ] After fix: run a scan with photos from ≥ 5 countries including at least one previously missing; confirm region records appear in `CountryDetailSheet` for all countries where geodata exists
+- [ ] `dart analyze` reports zero issues
+
+**Files likely to change (Architect to confirm after diagnosis):**
+- `packages/region_lookup/lib/src/lookup_engine.dart` — if point-in-polygon fix needed
+- `packages/region_lookup/lib/src/point_in_polygon.dart` — if boundary epsilon needed
+- `apps/mobile_flutter/lib/data/region_repository.dart` — if upsert bug found
+- `apps/mobile_flutter/lib/data/bootstrap_service.dart` — if bootstrap ordering bug found
+
+**Dependencies:** None. Independent.
+
+---
+
+## Task 61 — Fix confetti celebration flow (ADR-059)
+
+**Milestone:** 19A
+**Phase:** Quality fix
+
+**Why:** `ScanSummaryScreen` with confetti never fires after a scan. Root cause (ADR-059): `ScanScreen._scan()` calls `widget.onScanComplete()` directly at the end, navigating to the Map tab without pushing `ScanSummaryScreen` at all. The `ReviewScreen` path that was supposed to push `ScanSummaryScreen` is only reachable via the "Review & Edit" button — and by that point `initialVisits` already contains the post-scan countries, so the `newCountries` delta is always empty.
+
+**Deliverable:** `ScanScreen._scan()` pushes `ScanSummaryScreen` directly when new countries are found. ReviewScreen is simplified to a pure editor (no ScanSummaryScreen, no confetti). See ADR-059 for the full flow diagram.
+
+**Acceptance criteria:**
+- [ ] `ScanScreen._scan()` captures `preScanCodes` from `_repo.loadEffective()` **before** calling `clearAndSaveAllInferred()` (this is the true pre-scan baseline)
+- [ ] After scan completes and new countries are found: `ScanScreen` pushes `ScanSummaryScreen(newCountries: ..., newAchievementIds: ..., onDone: widget.onScanComplete)`
+- [ ] `ScanSummaryScreen.onDone` calls the provided callback — `widget.onScanComplete` — which navigates to Map tab
+- [ ] `ScanScreen._openReview()` passes `onScanComplete: null` to `ReviewScreen` (review-and-edit is no longer a scan lifecycle event)
+- [ ] `ReviewScreen._save()` removes the `ScanSummaryScreen` push branch; when `onScanComplete` is null or after save, it pops (no summary screen)
+- [ ] `ReviewScreen._handleSummaryDone()` is deleted
+- [ ] If `reduceMotion` is true: confetti does not fire (accessibility; do not change this)
+- [ ] Widget test for `ScanScreen`: assert `ScanSummaryScreen` is pushed with non-empty `newCountries` when mock scan produces new countries
+- [ ] Widget test for `ReviewScreen`: assert it pops on save without pushing `ScanSummaryScreen`
+- [ ] `dart analyze` reports zero issues
+
+**Files to change:**
+- `apps/mobile_flutter/lib/features/scan/scan_screen.dart` — capture `preScanCodes` before clear; push `ScanSummaryScreen`; pass `onScanComplete: null` to `_openReview`
+- `apps/mobile_flutter/lib/features/visits/review_screen.dart` — remove `ScanSummaryScreen` push branch; remove `_handleSummaryDone()`
+- `apps/mobile_flutter/test/features/scan/scan_screen_incremental_test.dart` — update
+- `apps/mobile_flutter/test/features/visits/review_screen_test.dart` — update
+
+**Dependencies:** None. Independent.
+
+---
+
+## Task 62 — Interactive navigation: countries list + achievement tap-to-detail
+
+**Milestone:** 19A
+**Phase:** Quality fix
+
+**Why:** The Stats screen shows country and achievement counts but nothing is tappable. Users cannot navigate from the stats panel to country details or from an achievement tile to the achievement detail sheet. The Journal already supports tap-through, but Stats is a dead end.
+
+**Deliverable:** Every country and achievement visible in Stats is tappable and navigates to the appropriate detail screen.
+
+**Acceptance criteria:**
+- [ ] Stats screen "X countries" count (or a "See all countries" row below it) navigates to a scrollable countries list. Each country row shows flag emoji + name + visit dates; tapping any row opens `CountryDetailSheet` for that country
+- [ ] Achievement gallery cards on Stats screen are tappable → open `AchievementUnlockSheet` (already built); this applies to both locked and unlocked cards (locked cards open sheet in locked state showing what is required to unlock)
+- [ ] Navigation uses `Navigator.push` (full-screen or bottom sheet as appropriate); back button returns to Stats
+- [ ] No changes to Journal screen (already tappable)
+- [ ] Widget tests: tapping "X countries" navigates to countries list; tapping achievement card opens sheet
+- [ ] `dart analyze` reports zero issues
+
+**Files to change:**
+- `apps/mobile_flutter/lib/features/stats/stats_screen.dart` — add tap handlers + countries list navigation
+- `apps/mobile_flutter/lib/features/stats/countries_list_screen.dart` — new (or modal bottom sheet)
+- `test/features/stats/stats_screen_test.dart` — extend with tap navigation tests
+
+**Dependencies:** None. Independent.
+
+---
+
+## Task 63 — Privacy model update: store PHAsset IDs in local DB (ADR-060)
+
+**Milestone:** 19A
+**Phase:** Quality fix (prerequisite for Task 64)
+
+**Why:** Photo gallery requires `PHAsset.localIdentifier` at display time. These are currently discarded after scan. ADR-060 approves persisting them in local SQLite only — never Firestore. They are opaque on-device UUIDs with no intrinsic PII.
+
+**Deliverable:** Schema v9 with `asset_id` on `photo_date_records`; Swift channel updated to include `localIdentifier`; `PhotoRecord` and `PhotoDateRecord` gain `assetId`; privacy doc updated.
+
+**Acceptance criteria:**
+- [ ] `docs/architecture/privacy_principles.md` updated: PHAsset identifier row → "stored in local SQLite `photo_date_records`; never written to Firestore" (ADR-060 written — ✓ done)
+- [ ] Drift schema v9: nullable `asset_id TEXT` column added to `PhotoDateRecords` table; migration: `ALTER TABLE photo_date_records ADD COLUMN asset_id TEXT` (existing rows get NULL)
+- [ ] `roavvy_database.g.dart` regenerated via `dart run build_runner build`
+- [ ] `PhotoRecord` (in `photo_scan_channel.dart`) gains `final String? assetId`; `fromMap()` reads `m['assetId']`
+- [ ] `PhotoDateRecord` (in `packages/shared_models`) gains `final String? assetId`; equality and hashCode updated
+- [ ] `PhotoScanPlugin.swift` includes `"assetId": asset.localIdentifier` in each photo map entry in the batch stream
+- [ ] `resolveBatch()` in `scan_screen.dart` carries `assetId` from `PhotoRecord` through to `PhotoDateRecord`; the `_repo.savePhotoDates()` write persists it
+- [ ] `FirestoreSyncService` unchanged — `assetId` is NOT in any Firestore payload
+- [ ] Unit tests: `PhotoDateRecord` equality with `assetId`; schema migration test
+
+**Files to change:**
+- `docs/architecture/privacy_principles.md`
+- `apps/mobile_flutter/lib/data/db/roavvy_database.dart` — schema v9, `asset_id` column
+- `apps/mobile_flutter/lib/data/db/roavvy_database.g.dart` — regenerated
+- `packages/shared_models/lib/src/photo_date_record.dart` — add `assetId` field
+- `apps/mobile_flutter/lib/photo_scan_channel.dart` — `PhotoRecord.assetId` field + fromMap
+- `apps/mobile_flutter/lib/features/scan/scan_screen.dart` — carry `assetId` through `resolveBatch`
+- `apps/mobile_flutter/ios/Runner/PhotoScanPlugin/PhotoScanPlugin.swift` — add `"assetId"` to batch map
+
+**Dependencies:** None. Independent of Tasks 59–62.
+
+---
+
+## Task 64 — Photo gallery: per-country photo grid (ADR-061)
+
+**Milestone:** 19A
+**Phase:** Quality fix
+
+**Why:** The product vision: "A user taps a country and relives a trip through the photos from that week." Asset IDs from Task 63 make this entirely on-device. No upload required.
+
+**Deliverable:** `photo_manager` package integration; `PhotoGalleryScreen` widget (3-column thumbnail grid); "Photos" tab in `CountryDetailSheet`.
+
+**Acceptance criteria:**
+- [ ] `photo_manager: ^3.x` added to `pubspec.yaml` (ADR-061: `photo_manager` chosen over extending Swift channel)
+- [ ] `PhotoRepository` (new, or method on existing repo) exposes `loadAssetIds(countryCode) → Future<List<String>>` — queries `photo_date_records` for all non-null `asset_id` values for a given country
+- [ ] `PhotoGalleryScreen` accepts `List<String> assetIds`; fetches `AssetEntity` by id via `photo_manager`; displays 3-column `GridView` of `AssetEntity.thumbnailDataWithSize(ThumbnailSize(150, 150))`
+- [ ] Each thumbnail tap → full-screen `Image` with `InteractiveViewer` (pinch-to-zoom); back button returns to grid
+- [ ] Empty state: "No photos with location data" message when `assetIds` is empty
+- [ ] `CircularProgressIndicator` shown per cell while thumbnail loads (via `FutureBuilder`)
+- [ ] `CountryDetailSheet` adds a "Photos" tab; tab body = `PhotoGalleryScreen` with asset IDs loaded for that country
+- [ ] Widget tests: empty state; grid with mock assets; Photos tab present in `CountryDetailSheet`
+- [ ] `dart analyze` reports zero issues
+- [ ] Privacy: no network call; no Firestore write; thumbnails from local PhotoKit only
+
+**Files to change:**
+- `apps/mobile_flutter/pubspec.yaml` — add `photo_manager`
+- `apps/mobile_flutter/lib/data/photo_repository.dart` — new (or `loadAssetIds` added to visit_repository)
+- `apps/mobile_flutter/lib/features/map/photo_gallery_screen.dart` — new
+- `apps/mobile_flutter/lib/features/map/country_detail_sheet.dart` — add Photos tab
+- `apps/mobile_flutter/ios/Podfile` — updated by `pod install` automatically
+- `apps/mobile_flutter/test/features/map/photo_gallery_screen_test.dart` — new
+
+**Dependencies:** Task 63 must be complete.
+
+---
+
+### M19A build order
+
+Tasks 59, 60, 61, 62, 63 are all independent and may be built in any order or in parallel.
+Task 64 depends on Task 63.
+
 **Builder may proceed.**

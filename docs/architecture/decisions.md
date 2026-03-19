@@ -1699,3 +1699,200 @@ MainShell.initState()
 - `UISupportedInterfaceOrientations~ipad` section removed from `Info.plist`.
 - This decision is reversible: re-enabling iPad support requires setting `TARGETED_DEVICE_FAMILY = "1,2"` and implementing adaptive layouts.
 - Bundle display name "Roavvy" will appear under the home screen icon on test devices immediately after this change is built.
+
+---
+
+## ADR-058 — Trip inference: geographic sequence model replaces 30-day gap clustering
+
+**Status:** Accepted
+
+**Context:** The current `inferTrips()` algorithm groups `PhotoDateRecord`s by country code, then clusters within each country group by a 30-day time gap. This produces wrong trip boundaries: a user who visits Japan three times within 30 days of each visit — which is common for travellers with stopovers — gets a single aggregated Japan trip instead of three. The 30-day heuristic was a simplifying assumption that does not reflect how travel actually works.
+
+The correct model follows the traveller's chronological movement through the photo stream: a trip to country X starts when the first photo from X appears, and ends when the last photo from X appears before the stream transitions to a different country.
+
+**Options evaluated:**
+
+1. **30-day gap (current):** Groups by country first, then splits on gaps ≥ 30 days. Fails when multiple trips to the same country occur close together. Does not use cross-country ordering at all.
+
+2. **Geographic sequence (run-length encoding):** Sort all `PhotoDateRecord`s globally by `capturedAt`. Walk chronologically; when `countryCode` changes, close the current trip and open a new one. Each contiguous run of the same country = one trip.
+
+3. **Hybrid: sequence + minimum gap:** Apply the sequence model but merge adjacent same-country runs separated by fewer than N days into a single trip. Avoids splitting a trip when a traveller makes a brief day-trip to a neighbouring country. Added complexity with unclear benefit — deferred to future work if users report false splits.
+
+**Decision:** Geographic sequence model (Option 2).
+
+**Algorithm:**
+```
+Sort all PhotoDateRecord by capturedAt ascending.
+currentCountry = records[0].countryCode
+runStart = records[0].capturedAt
+runEnd   = records[0].capturedAt
+count    = 1
+
+for each subsequent record r:
+  if r.countryCode == currentCountry:
+    runEnd = r.capturedAt
+    count++
+  else:
+    emit TripRecord(currentCountry, runStart, runEnd, count)
+    currentCountry = r.countryCode
+    runStart = r.capturedAt
+    runEnd   = r.capturedAt
+    count    = 1
+
+emit final TripRecord(currentCountry, runStart, runEnd, count)
+```
+
+**Trip ID scheme:** Unchanged — `"${countryCode}_${startedOn.toUtc().toIso8601String()}"`. IDs will differ from the 30-day model because `startedOn` values change, so all existing inferred trips will be replaced by bootstrap on next launch. Manual trips (`isManual: true`) are never re-inferred and are unaffected.
+
+**Impact on `inferRegionVisits()`:** No change needed. The function matches photos to trips by checking whether `capturedAt` falls within `[t.startedOn, t.endedOn]`. Under the new model, trip windows are tighter (covering only the actual run), so photos that previously fell outside a trip window (e.g. gap photos) are now more accurately placed. The existing logic is correct.
+
+**Files to change:**
+- `packages/shared_models/lib/src/trip_inference.dart` — replace per-country clustering with global sequence walk; remove `gap` parameter
+- `packages/shared_models/test/trip_inference_test.dart` — update tests; add alternating-country, non-adjacent same-country cases
+
+**Consequences:**
+- All inferred trips are re-derived on next bootstrap run; Drift `trips` table is effectively reset for inferred rows.
+- Manual trips are preserved; `BootstrapService` must skip `isManual = true` rows when re-inferring.
+- Users may see more trips than before (good — more accurate); trip count in Stats screen will reflect real visit count.
+
+---
+
+## ADR-059 — Confetti: ScanSummaryScreen push moved from ReviewScreen to ScanScreen
+
+**Status:** Accepted
+
+**Context:** `ScanSummaryScreen` with confetti was intended to fire after every scan that produces new countries. The current wiring is:
+
+1. `ScanScreen._scan()` saves scan results, calls `widget.onScanComplete()` → navigates to Map tab. No ScanSummaryScreen.
+2. "Review & Edit" button opens `ReviewScreen`, which — when `onScanComplete != null` — pushes `ScanSummaryScreen` from `_save()`.
+
+This means confetti only fires if: (a) the user taps "Review & Edit", AND (b) they make a manual change that shifts the effective country set. In practice (b) never happens for new countries because `initialVisits` already contains the post-scan countries — `preSaveCodes` equals the post-scan set, so `newCountries = effective − preSaveCodes = ∅`. Confetti never fires.
+
+**Root cause:** The delta computation in `ReviewScreen._save()` uses `widget.initialVisits` as the pre-scan baseline. But `ScanScreen._openReview()` passes `_effectiveVisits` — the post-scan effective visits — so the baseline already contains the new countries.
+
+**Options evaluated:**
+
+1. **Pass `preScanCodes` into ReviewScreen:** Add a `preScanCodes: Set<String>?` parameter to ReviewScreen. ScanScreen captures codes before calling `clearAndSaveAllInferred()`, passes them in. ReviewScreen uses `preScanCodes ?? preSaveCodes` for the delta. Complex — ReviewScreen now carries two baselines.
+
+2. **Move ScanSummaryScreen push to ScanScreen:** After `_scan()` computes `newCodes` and `effective`, push `ScanSummaryScreen` directly. `ScanSummaryScreen.onDone` calls the provided callback (originally `widget.onScanComplete` → goes to Map). ReviewScreen's `onScanComplete` path is removed — "Review & Edit" becomes a pure editor that pops on save.
+
+**Decision:** Option 2. ScanScreen is the owner of the scan lifecycle. ScanSummaryScreen is a scan lifecycle concern, not a review concern.
+
+**New scan flow:**
+```
+ScanScreen._scan()
+  → saves scan results
+  → computes newCountryCodes (preScanCodes ← loaded before clearAndSaveAllInferred)
+  → computes newCountries (EffectiveVisitedCountry objects for new codes)
+  → pushes ScanSummaryScreen(newCountries, newAchievementIds, onDone: widget.onScanComplete)
+
+ScanSummaryScreen.onDone → widget.onScanComplete() → MainShell navigates to Map
+```
+
+**Review & Edit flow (unchanged from user perspective):**
+```
+ScanScreen "Review & Edit" button
+  → opens ReviewScreen(initialVisits: _effectiveVisits, onScanComplete: null)
+  → ReviewScreen._save() pops (no ScanSummaryScreen, no confetti)
+```
+
+Note: `onScanComplete` is no longer passed to ReviewScreen from `_openReview()`. ReviewScreen uses `onScanComplete` only to decide whether to push ScanSummaryScreen — removing it from the review-edit path is correct.
+
+**Notification permission prompt:** Currently in `ScanSummaryScreen` (ADR-056). This remains correct — it fires when `newCountries.isNotEmpty` after a scan.
+
+**Files to change:**
+- `apps/mobile_flutter/lib/features/scan/scan_screen.dart`
+  - In `_scan()`: capture `preScanCodes` before `clearAndSaveAllInferred`; push `ScanSummaryScreen` instead of calling `widget.onScanComplete()` at end
+  - In `_openReview()`: remove `onScanComplete:` parameter (pass null or omit)
+- `apps/mobile_flutter/lib/features/visits/review_screen.dart`
+  - Remove `ScanSummaryScreen` push from `_save()` (the `if (widget.onScanComplete != null)` branch); replace with direct `Navigator.pop()`
+  - Remove `_handleSummaryDone()` (no longer needed)
+- `apps/mobile_flutter/test/features/scan/scan_screen_incremental_test.dart` — update
+- `apps/mobile_flutter/test/features/visits/review_screen_test.dart` — remove ScanSummaryScreen tests; add pop-on-save test
+
+**Consequences:**
+- Confetti fires reliably after every scan that finds new countries.
+- ReviewScreen is simplified: it is purely an editor, with no awareness of the scan lifecycle.
+- `ScanSummaryScreen` is still imported by ScanScreen only (one call site).
+
+---
+
+## ADR-060 — PHAsset local identifiers stored in local SQLite; never in Firestore
+
+**Status:** Accepted
+
+**Context:** The photo gallery feature (Task 64) requires fetching thumbnails by `PHAsset.localIdentifier` at display time. The current privacy model (`docs/architecture/privacy_principles.md`) states that asset identifiers are "held in memory during scan for deduplication only. Never written to local DB or Firestore." Persisting them is a deliberate change to that model and requires explicit justification.
+
+**Privacy assessment:**
+- A `PHAsset.localIdentifier` is an opaque UUID (`"3B234F7C-..."`). It has no intrinsic meaning — it is not a filename, not a path, not an EXIF tag, and contains no GPS or date metadata.
+- It cannot be used to reconstruct photo content without physical access to the same device with the same Photos library.
+- It is already stored by the iOS OS in the Photos database on the same device. Writing it to a second local SQLite file adds no material privacy risk.
+- It must never be written to Firestore or transmitted over any network. The asset ID is meaningless to any other device.
+
+**Decision:** Store `PHAsset.localIdentifier` in the `photo_date_records` Drift table as a nullable `assetId TEXT` column. It is never synced to Firestore. `docs/architecture/privacy_principles.md` is updated to reflect this.
+
+**Schema change:** Drift schema v9. New nullable column `assetId TEXT` on `PhotoDateRecords`. Migration: `ALTER TABLE photo_date_records ADD COLUMN asset_id TEXT;` — existing rows get NULL (acceptable; gallery simply shows nothing for pre-upgrade records until a fresh scan runs).
+
+**Data flow:**
+```
+Swift PhotoKit bridge
+  → includes localIdentifier in each photo record payload
+  → Dart PhotoRecord.fromMap() parses assetId
+  → resolveBatch() carries assetId through to PhotoDateRecord
+  → ScanScreen._scan() writes PhotoDateRecord including assetId to Drift
+  → PhotoDateRecord.assetId is available for gallery queries
+```
+
+**`PhotoDateRecord` model change:** Add `final String? assetId` field. This model lives in `packages/shared_models`. Because `PhotoDateRecord` is only used in Dart (not TypeScript), no TypeScript counterpart change is required.
+
+**`PhotoRecord` (photo_scan_channel.dart) change:** Add `final String? assetId` field; parse from `m['assetId']` in `fromMap()`.
+
+**Swift change:** `PhotoScanPlugin` must include `localIdentifier` in each photo batch map entry. Field key: `"assetId"`.
+
+**`FirestoreSyncService`:** No change. Asset IDs are not in the sync payload. The Firestore document schema is unchanged.
+
+**Consequences:**
+- `photo_date_records` table grows by one nullable TEXT column — negligible storage impact.
+- Historical records (pre-v9) have NULL assetId; gallery shows empty state for those countries until user rescans.
+- Privacy principles doc is updated; the change is transparent to users (on-device only).
+- `packages/shared_models` CLAUDE.md constraint "backwards-compatible changes only" is satisfied — `assetId` is a new optional field.
+
+---
+
+## ADR-061 — Photo gallery: `photo_manager` package for on-device thumbnail fetch
+
+**Status:** Accepted
+
+**Context:** The photo gallery (Task 64) needs to fetch photo thumbnails by `PHAsset.localIdentifier` and display them in a grid. Two approaches were evaluated:
+
+1. **Extend custom Swift channel:** Add a `fetchThumbnails(assetIds: [String])` MethodChannel method to `PhotoScanPlugin.swift`. Returns `List<Uint8List>` (encoded PNGs). Keeps all PhotoKit interaction in the existing Swift bridge.
+
+2. **`photo_manager` pub.dev package:** Cross-platform Flutter plugin wrapping PHAsset (iOS) and MediaStore (Android). `AssetEntity.id` maps directly to `PHAsset.localIdentifier`. Provides `AssetEntity.thumbnailDataWithSize()` for on-demand thumbnail fetch. Managed, tested, widely adopted.
+
+**Decision:** `photo_manager` (Option 2).
+
+**Rationale:**
+- Extending the custom Swift channel requires significant new Swift code: batch fetching, image resizing, PNG encoding, and returning large binary blobs over a MethodChannel. This is non-trivial and re-implements what `photo_manager` already does correctly.
+- `photo_manager` already holds PHPhoto library permission via its own `PhotoManager.requestPermissionExtend()` call. Since the user has already granted permission during scanning, the gallery will receive `.authorized` or `.limited` without prompting again.
+- `photo_manager`'s `AssetEntity.id` on iOS is exactly `PHAsset.localIdentifier`. The stored `assetId` values from the scan pipeline map directly to `AssetEntity`.
+- Future Android support (post App Store launch) is handled by `photo_manager` for free.
+
+**Permission handling:** `photo_manager` checks permission before fetching. The app already has photo library permission from the scan; `photo_manager` will receive the existing grant. No additional permission prompt is shown to the user.
+
+**Thumbnail API:** `AssetEntity.thumbnailDataWithSize(ThumbnailSize(150, 150))` returns `Uint8List?`. Display via `Image.memory()` in a `GridView`. Loading state per cell via `FutureBuilder`.
+
+**Full-image view:** Tap on thumbnail → `AssetEntity.file` (returns a `File`) → display via `Image.file()` in a full-screen route with `InteractiveViewer` for pinch-to-zoom. This is fully on-device; no network call.
+
+**Files to change:**
+- `apps/mobile_flutter/pubspec.yaml` — add `photo_manager: ^3.x`
+- `apps/mobile_flutter/lib/features/map/photo_gallery_screen.dart` — new widget
+- `apps/mobile_flutter/lib/features/map/country_detail_sheet.dart` — add Photos tab
+- `apps/mobile_flutter/ios/Podfile` — `pod install` will pick up `photo_manager`'s pod
+
+**No Swift changes required.** The existing `PhotoScanPlugin.swift` is unchanged.
+
+**Consequences:**
+- `photo_manager` takes over PHAsset access for gallery display. The scan pipeline continues using the custom Swift `EventChannel` for streaming GPS records (different use case — not replaced).
+- App binary size increases by the `photo_manager` framework (~200 KB compiled).
+- Gallery is fully offline; no network call is ever made to fetch photos.
+- Thumbnails are decoded lazily per visible cell — no upfront memory spike.

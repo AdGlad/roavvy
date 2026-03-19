@@ -15,6 +15,7 @@
 | Phase 7 — Rich Mobile Experience | 4-tab shell, Journal, Stats + achievement gallery | ✅ **Complete (M17)** |
 | Phase 8 — Celebrations & Delight | Onboarding, new-country celebration, achievement animation, scan summary | ✅ **Complete (M18)** |
 | Phase 9 — App Store Readiness | Icon, screenshots, push notifications, iPad layout, referral CTA | 🔄 **M19 complete** — icon assets + App Store URL pending external deliverables |
+| Phase 9.5 — Quality & Depth | Trip inference fix, region detection fix, confetti fix, interactive navigation, photo gallery | 🔄 **M19A in progress** |
 | Phase 10 — Commerce | Shopify Storefront API, travel poster, shop landing page | 🔲 Not started |
 
 See [docs/product/roadmap.md](../product/roadmap.md) for full phase definitions.
@@ -184,6 +185,21 @@ All sharing features are complete as of M12.
 - App Store screenshots and metadata
 
 333 flutter tests passing.
+
+---
+
+## Milestone 19A — Phase 9.5: Quality & Depth
+
+**Goal:** Fix incorrect trip and region detection; restore confetti celebration; make every country, achievement, and trip tappable to a detail screen; add on-device photo gallery per country and trip.
+
+**Delivered:** *(in progress)*
+
+- Task 59: Trip inference — geographic sequence model
+- Task 60: Region detection — diagnose and fix coverage gaps
+- Task 61: Confetti — fix post-scan celebration flow
+- Task 62: Interactive navigation — Stats screen tap-through to country list + achievement detail
+- Task 63: Privacy model update + PHAsset IDs in local DB
+- Task 64: Photo gallery — per-country and per-trip thumbnail grid
 
 ---
 

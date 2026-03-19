@@ -15,7 +15,7 @@ This is a stronger claim than "we won't do it." It means the capability does not
 | Photo pixels / image data | Never read. PhotoKit bridge extracts only location and date metadata. |
 | GPS coordinates | Passed to `resolveCountry()`, then discarded. Never written to DB or sent over network. |
 | Capture date | Retained as `firstSeen` / `lastSeen` on `CountryVisit`. |
-| PHAsset identifier | Held in memory during scan for deduplication only. Never written to local DB or Firestore. |
+| PHAsset identifier | Stored in local SQLite `photo_date_records` table (`asset_id` column). Never written to Firestore. Used only for on-device photo gallery display (ADR-060). |
 | Photo filename | Never read. |
 | Country code | Written to local DB; synced to Firestore with user consent. |
 
@@ -29,7 +29,7 @@ Photo asset (PHAsset)
     │  Swift PhotoKit bridge reads:
     │    CLLocation (lat, lng)  ← extracted
     │    creationDate           ← extracted
-    │    PHAsset.localIdentifier ← held in memory for deduplication only
+    │    PHAsset.localIdentifier ← written to local SQLite only (ADR-060)
     │    image data             ← never accessed
     ▼
 country_lookup.resolveCountry(lat, lng)
