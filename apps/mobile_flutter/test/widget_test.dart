@@ -266,8 +266,17 @@ void main() {
 
   group('ScanScreen — after scan with results', () {
     testWidgets('shows stats card after scan completes', (tester) async {
+      // Pre-populate GB + US so the scan finds no new countries and
+      // ScanSummaryScreen is not pushed (ADR-059).
+      final repo = _makeRepo();
+      await repo.saveInferred(InferredCountryVisit(
+          countryCode: 'GB', inferredAt: DateTime.utc(2025), photoCount: 45));
+      await repo.saveInferred(InferredCountryVisit(
+          countryCode: 'US', inferredAt: DateTime.utc(2025), photoCount: 30));
+
       await pumpApp(
         tester,
+        repository: repo,
         methodHandler: (call) async {
           if (call.method == 'requestPermission') return 3; // authorized
           return null;
@@ -300,8 +309,16 @@ void main() {
     });
 
     testWidgets('shows country list with ISO codes', (tester) async {
+      // Pre-populate US + GB so the scan finds no new countries.
+      final repo = _makeRepo();
+      await repo.saveInferred(InferredCountryVisit(
+          countryCode: 'US', inferredAt: DateTime.utc(2025), photoCount: 50));
+      await repo.saveInferred(InferredCountryVisit(
+          countryCode: 'GB', inferredAt: DateTime.utc(2025), photoCount: 22));
+
       await pumpApp(
         tester,
+        repository: repo,
         methodHandler: (call) async {
           if (call.method == 'requestPermission') return 3;
           return null;
@@ -336,8 +353,14 @@ void main() {
 
     testWidgets('shows Review & Edit button after scan returns countries',
         (tester) async {
+      // Pre-populate JP so the scan finds no new countries.
+      final repo = _makeRepo();
+      await repo.saveInferred(InferredCountryVisit(
+          countryCode: 'JP', inferredAt: DateTime.utc(2025), photoCount: 5));
+
       await pumpApp(
         tester,
+        repository: repo,
         methodHandler: (call) async {
           if (call.method == 'requestPermission') return 3;
           return null;
@@ -422,7 +445,7 @@ void main() {
       expect(find.text("You're up to date"), findsOneWidget);
     });
 
-    testWidgets('shows new country name when a new country is detected',
+    testWidgets('pushes ScanSummaryScreen when a new country is detected',
         (tester) async {
       await pumpApp(
         tester,
@@ -445,7 +468,8 @@ void main() {
       await tester.tap(find.text('Scan my photo library'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1 new country detected'), findsOneWidget);
+      // ScanSummaryScreen is pushed (ADR-059); shows new-country summary.
+      expect(find.textContaining('new country discovered'), findsOneWidget);
       expect(find.text('United Kingdom'), findsWidgets);
     });
 
@@ -473,8 +497,8 @@ void main() {
 
   // ── Task 25: Achievement SnackBar ──────────────────────────────────────────
 
-  group('ScanScreen — achievement SnackBar', () {
-    testWidgets('shows SnackBar with achievement title on new unlock',
+  group('ScanScreen — post-scan navigation', () {
+    testWidgets('ScanSummaryScreen is pushed when new country found (ADR-059)',
         (tester) async {
       await pumpApp(
         tester,
@@ -497,7 +521,9 @@ void main() {
       await tester.tap(find.text('Scan my photo library'));
       await tester.pumpAndSettle();
 
-      expect(find.text('🏆 First Stamp'), findsOneWidget);
+      // ScanSummaryScreen is pushed with the new country (ADR-059).
+      // SnackBars are no longer shown — achievements appear in ScanSummaryScreen.
+      expect(find.textContaining('new country discovered'), findsOneWidget);
     });
 
     testWidgets('no SnackBar when achievement already unlocked', (tester) async {

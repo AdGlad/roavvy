@@ -17,6 +17,7 @@ import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
 import '../../photo_scan_channel.dart';
 import '../visits/review_screen.dart';
+import 'scan_summary_screen.dart';
 
 // ── Background isolate helpers ─────────────────────────────────────────────────
 
@@ -351,8 +352,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _scanResult = scanResult;
         });
         ref.invalidate(effectiveVisitsProvider);
-        _showAchievementSnackBars(newlyUnlockedIds);
-        widget.onScanComplete?.call();
+
+        if (scanResult is _NewCountriesFound) {
+          // Push ScanSummaryScreen — confetti fires here (ADR-059).
+          final newCodes = scanResult.newCodes.toSet();
+          final newCountries =
+              effective.where((v) => newCodes.contains(v.countryCode)).toList();
+          final nav = Navigator.of(context);
+          await nav.push(
+            MaterialPageRoute<void>(
+              builder: (_) => ScanSummaryScreen(
+                newCountries: newCountries,
+                newAchievementIds: newlyUnlockedIds.toList(),
+                onDone: () {
+                  nav.pop();
+                  widget.onScanComplete?.call();
+                },
+              ),
+            ),
+          );
+        } else {
+          widget.onScanComplete?.call();
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -366,16 +387,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     }
   }
 
-  void _showAchievementSnackBars(Set<String> ids) {
-    if (ids.isEmpty || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final achievementById = {for (final a in kAchievements) a.id: a};
-    for (final id in ids) {
-      final title = achievementById[id]?.title ?? id;
-      messenger.showSnackBar(SnackBar(content: Text('🏆 $title')));
-    }
-  }
-
   Future<void> _openReview() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -386,7 +397,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           uid: ref.read(currentUidProvider),
           achievementRepo: _achievementRepo,
           tripRepo: _tripRepo,
-          onScanComplete: widget.onScanComplete,
         ),
       ),
     );

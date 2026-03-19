@@ -8,7 +8,6 @@ import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
 import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
-import '../scan/scan_summary_screen.dart';
 
 /// Lets the user correct the detected visited-country list before it is saved.
 ///
@@ -29,7 +28,6 @@ class ReviewScreen extends StatefulWidget {
     this.uid,
     this.achievementRepo,
     this.tripRepo,
-    this.onScanComplete,
   });
 
   /// The effective (already-merged) visits to start the review with.
@@ -52,11 +50,6 @@ class ReviewScreen extends StatefulWidget {
   /// Trip repository used to flush dirty trips to Firestore after saves.
   /// When null, trip sync is skipped.
   final TripRepository? tripRepo;
-
-  /// When set, the review was opened after a scan. On save, [ScanSummaryScreen]
-  /// is pushed. The callback is invoked after the user dismisses the summary —
-  /// typically to navigate the shell to the Map tab (ADR-054).
-  final VoidCallback? onScanComplete;
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -104,9 +97,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     final now = DateTime.now().toUtc();
-    // Pre-save snapshot for delta computation (ADR-054).
-    final preSaveCodes =
-        widget.initialVisits.map((v) => v.countryCode).toSet();
 
     try {
       // Snapshot prior achievement IDs before writing the delta.
@@ -147,41 +137,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
 
       if (!mounted) return;
-
-      if (widget.onScanComplete != null) {
-        // Post-scan flow: push ScanSummaryScreen instead of popping (ADR-054).
-        final newCountries = effective
-            .where((v) => !preSaveCodes.contains(v.countryCode))
-            .toList();
-        final lastScanAt = await widget.repository.loadLastScanAt();
-        if (!mounted) return;
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ScanSummaryScreen(
-              newCountries: newCountries,
-              newAchievementIds: newlyUnlockedIds.toList(),
-              onDone: _handleSummaryDone,
-              lastScanAt: lastScanAt,
-            ),
-          ),
-        );
-      } else {
-        Navigator.of(context).pop();
-      }
+      Navigator.of(context).pop();
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  /// Called by [ScanSummaryScreen] when the user dismisses it.
-  ///
-  /// Pops [ScanSummaryScreen] (top of stack), then pops [ReviewScreen],
-  /// then hands off to [onScanComplete] to navigate to the Map tab (ADR-054).
-  void _handleSummaryDone() {
-    final nav = Navigator.of(context);
-    nav.pop(); // pop ScanSummaryScreen
-    nav.pop(); // pop ReviewScreen
-    widget.onScanComplete?.call();
   }
 
   @override
