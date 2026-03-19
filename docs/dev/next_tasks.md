@@ -35,11 +35,174 @@
 | 30 | Web share page: data read + world map rendering | 11 | ADR-041 |
 | 31 | Privacy settings screen + share token revocation | 12 | ADR-042, ADR-043 |
 | 32 | Account deletion | 12 | ADR-042, ADR-043 |
+| 33 | Firebase Auth JS SDK + `/sign-in` page (Google + Apple) | 13 | — |
+| 34 | Authenticated `/map` route + Firestore effective-visits read | 13 | — |
+| 35 | `effectiveVisits.ts` TypeScript merge logic | 13 | — |
+| 36 | Firestore rules tightened to user-scoped reads | 13 | — |
+| 37 | `TripRecord` + `TripInference` in `shared_models` | 15 | — |
+| 38 | `trips` Drift table (schema v5) + `TripRepository` | 15 | — |
+| 39 | Scan pipeline + `BootstrapService` produce `TripRecord`s | 15 | — |
+| 40 | `TripEditSheet` — manual trip date editing | 15 | — |
+| 41 | Trip count + trip list in `CountryDetailSheet` | 15 | — |
 | 42 | Build `packages/region_lookup` | 16 | ADR-049, ADR-051 |
 | 43 | Schema v7: PhotoDateRecord.regionCode + scan pipeline region resolution | 16 | ADR-051 |
 | 44 | RegionVisit domain model + region_visits Drift table + RegionRepository | 16 | ADR-051 |
 | 45 | Scan pipeline + bootstrap: produce RegionVisit records | 16 | ADR-051 |
 | 46 | Region count + region list in CountryDetailSheet | 16 | ADR-019 |
+| 47 | 4-tab `MainShell` (Map · Journal · Stats · Scan) | 17 | ADR-052 |
+| 48 | `JournalScreen` — trip list grouped by year | 17 | ADR-052 |
+| 49 | `StatsScreen` — stats panel + achievement gallery; `AchievementRepository.loadAllRows()`; `regionCountProvider` | 17 | ADR-052 |
+
+---
+
+## Milestone 18 — Phase 8: Celebrations & Delight (Mobile)
+
+**Goal:** A first-time user experiences a guided onboarding; after every scan, a celebratory summary screen shows what was discovered.
+
+**Scope — included:**
+- Onboarding flow (3 screens, shown on first launch only)
+- Scan summary screen: post-save hero showing new countries, new trips, achievements unlocked
+- Country/continent celebration: confetti animation + sequential fade-in of new countries within scan summary
+- Achievement unlock sheet: slide-up detail sheet replacing the current SnackBar; tappable from scan summary and Stats screen
+- All animations respect `MediaQuery.disableAnimations` / `reduceMotion`
+
+**Scope — excluded:**
+- Map reveal animation (countries highlight one-by-one) — complex, deferred
+- Animated globe for continent celebration — deferred
+- Push notifications — Phase 9
+- Onboarding illustrations / Lottie animations — Phase 9 polish
+
+---
+
+## Task 50 — Onboarding flow
+
+**Milestone:** 18
+**Phase:** 8 — Celebrations & Delight
+
+**Why:** First-time users open the app to an empty map with no guidance. Without onboarding, the scan permission prompt appears with no context, and new users may deny it. Onboarding establishes the value proposition before asking for photo access.
+
+**Deliverable:** `OnboardingFlow` widget (3 screens) shown once on first launch; `hasSeenOnboarding` flag persisted locally.
+
+**Acceptance criteria:**
+- [ ] Three screens in sequence: Welcome ("Your travels, automatically discovered"), How It Works ("Roavvy reads GPS from your existing photos — nothing is uploaded"), Scan CTA ("Ready? Scan your photos")
+- [ ] Each screen has a title, body copy, a coloured illustration placeholder (`Container` with `colorScheme.primaryContainer`), and a primary `FilledButton` CTA
+- [ ] "Skip" `TextButton` on all three screens; tapping it immediately sets `hasSeenOnboarding = true` and navigates to the Scan tab
+- [ ] Final screen CTA sets `hasSeenOnboarding = true` and navigates to the Scan tab
+- [ ] `hasSeenOnboarding` persisted via Drift `app_meta` table (single-row key/value, or a new `onboarding_complete` boolean column in `scan_metadata` — Architect to confirm)
+- [ ] Onboarding is not shown on subsequent launches
+- [ ] Onboarding is not shown if the user already has visits (returning user with data, edge case of reinstall)
+- [ ] `dart analyze` reports zero issues
+- [ ] 4+ widget tests: shown on first launch; not shown on subsequent launches; skip works; CTA navigates correctly
+
+**Files to change:**
+- `lib/features/onboarding/onboarding_flow.dart` — new
+- `lib/data/db/roavvy_database.dart` — add `hasSeenOnboarding` persistence (Architect to specify schema change)
+- `lib/app.dart` — route to `OnboardingFlow` on first launch instead of `MainShell`
+- `test/features/onboarding/onboarding_flow_test.dart` — new
+
+**Dependencies:** None. Independent — build first.
+
+---
+
+## Task 51 — Scan summary screen
+
+**Milestone:** 18
+**Phase:** 8 — Celebrations & Delight
+
+**Why:** After a scan + review save, the app currently navigates directly to the Map with no acknowledgement of what was found. A dedicated scan summary screen makes the discovery moment explicit and celebratory — it is the core delight moment of the product.
+
+**Deliverable:** `ScanSummaryScreen` shown after `ReviewScreen` save completes; replaces the direct navigate-to-Map.
+
+**Acceptance criteria:**
+- [ ] `ScanSummaryScreen` receives two parameters: `List<EffectiveVisitedCountry> newCountries`, `List<String> newAchievementIds` (IDs of achievements unlocked this scan)
+- [ ] **New countries found variant**: hero stat "X countries discovered" (bold, large); list of new countries (flag emoji + name, one row each); achievements section (see Task 53 for sheet; here just show achievement titles as chips); "Explore your map" `FilledButton` → pop to Map tab (index 0)
+- [ ] **Nothing new variant** (empty `newCountries`): copy "Nothing new this scan"; subtext showing last scan date; "Back to map" button
+- [ ] If any new country is the user's first on a continent: continent callout banner "First country in [Continent]!" shown inline
+- [ ] `ReviewScreen` computes the delta: countries in `newCountries` = countries added this scan that were not in `effectiveVisitsProvider` before this save. Architect to specify how to capture the pre-save snapshot.
+- [ ] `dart analyze` reports zero issues
+- [ ] 5+ widget tests: new-countries variant renders correctly; nothing-new variant renders correctly; continent callout shown when applicable; CTA navigates to map; achievement chips shown
+
+**Files to change:**
+- `lib/features/scan/scan_summary_screen.dart` — new
+- `lib/features/visits/review_screen.dart` — capture pre-save country snapshot; navigate to `ScanSummaryScreen` instead of Map after save
+- `test/features/scan/scan_summary_screen_test.dart` — new
+
+**Dependencies:** Task 50 (onboarding must land first so the post-scan flow is consistent).
+
+---
+
+## Task 52 — Country celebration animation
+
+**Milestone:** 18
+**Phase:** 8 — Celebrations & Delight
+
+**Why:** The scan summary screen needs a visual delight moment to make the discovery of new countries feel rewarding. A confetti burst on screen entry + sequential fade-in of country rows achieves this without requiring a third-party animation library.
+
+**Deliverable:** Confetti animation on `ScanSummaryScreen` entry (new-countries variant only); sequential staggered fade-in for country list rows.
+
+**Acceptance criteria:**
+- [ ] Confetti uses the `confetti` pub.dev package (`ConfettiWidget`); fires once on screen entry when `newCountries.isNotEmpty`
+- [ ] Confetti colours use `colorScheme.primary` and `colorScheme.tertiary` palette; duration ≤ 3 seconds
+- [ ] Country list rows animate in sequentially: each row fades in with 80 ms stagger using `AnimationController` + `FadeTransition` (no third-party dependency for this part)
+- [ ] When `MediaQuery.disableAnimations` is true: confetti does not fire; rows appear instantly (no animation)
+- [ ] `dart analyze` reports zero issues
+- [ ] Widget tests: animation absent when `disableAnimations = true`; confetti widget present in tree when new countries exist; confetti widget absent in nothing-new variant
+
+**Files to change:**
+- `apps/mobile_flutter/pubspec.yaml` — add `confetti` dependency (Architect to confirm version)
+- `lib/features/scan/scan_summary_screen.dart` — add animation logic (from Task 51)
+- `test/features/scan/scan_summary_screen_test.dart` — add animation tests
+
+**Dependencies:** Task 51 (lives within scan summary screen).
+
+---
+
+## Task 53 — Achievement unlock sheet
+
+**Milestone:** 18
+**Phase:** 8 — Celebrations & Delight
+
+**Why:** The current achievement unlock notification is a SnackBar — easy to miss and impossible to share. A dedicated bottom sheet gives the moment appropriate weight and exposes the share action that users need to show off a new achievement.
+
+**Deliverable:** `AchievementUnlockSheet` bottom sheet; replaces SnackBar at unlock sites; also tappable from `StatsScreen` achievement gallery for already-unlocked achievements.
+
+**Acceptance criteria:**
+- [ ] `AchievementUnlockSheet` takes `Achievement achievement` and `DateTime unlockedAt`
+- [ ] Sheet contents: large icon (`emoji_events_outlined`, amber, 48px); achievement `title` (headline); achievement `description` (body); unlock date ("Unlocked 14 Jan 2024"); "Share" `FilledButton`; "Done" `TextButton` (dismisses)
+- [ ] "Share" button invokes the existing iOS share sheet with a plain-text message: "[Title] — [Description]. Unlocked on [date]. Discovered with Roavvy." (no image required; Architect may optionally extend to image share in a later task)
+- [ ] Sheet is shown via `showModalBottomSheet` with `isScrollControlled: false`
+- [ ] `ScanSummaryScreen`: tapping an achievement chip (Task 51) opens `AchievementUnlockSheet`
+- [ ] `StatsScreen`: tapping an unlocked achievement card opens `AchievementUnlockSheet` (locked cards do nothing)
+- [ ] SnackBar unlock notification in `ReviewScreen` / write sites is removed; replaced by this sheet triggered from `ScanSummaryScreen`
+- [ ] `dart analyze` reports zero issues
+- [ ] 5+ widget tests: sheet renders correct title/description/date; share button present; done dismisses; tapping locked card does not open sheet; tapping unlocked card opens sheet
+
+**Files to change:**
+- `lib/features/scan/achievement_unlock_sheet.dart` — new
+- `lib/features/scan/scan_summary_screen.dart` — wire achievement chips → sheet
+- `lib/features/stats/stats_screen.dart` — wire unlocked card tap → sheet
+- `lib/features/visits/review_screen.dart` — remove SnackBar unlock notification
+- `test/features/scan/achievement_unlock_sheet_test.dart` — new
+
+**Dependencies:** Task 51 (sheet is opened from scan summary). Can be built in parallel with Task 52.
+
+---
+
+## Key risks and open questions
+
+1. **Pre-save country snapshot for delta computation (Task 51)** — `ReviewScreen` must know which countries existed *before* the save to compute `newCountries`. Options: (a) read `effectiveVisitsProvider` before calling save, capture the set, diff after; (b) pass the pre-scan country set into `ReviewScreen` from `ScanScreen`. Architect must specify.
+
+2. **`hasSeenOnboarding` persistence (Task 50)** — Drift preferred (consistent with offline-first ADR-003), but requires a schema bump. SharedPreferences is simpler but introduces a second persistence mechanism. Architect must decide.
+
+3. **`confetti` package binary size (Task 52)** — Check package size impact before committing. If too large, implement a simple custom `CustomPainter`-based confetti instead.
+
+4. **Achievement share format (Task 53)** — Plain text is simplest. If image share is wanted, it requires a `RepaintBoundary` screenshot of the sheet — defer to a follow-up task rather than blocking M18.
+
+5. **Onboarding skip for returning users (Task 50)** — If `effectiveVisitsProvider` returns a non-empty list on launch, skip onboarding regardless of the `hasSeenOnboarding` flag. Prevents re-showing onboarding after a reinstall with Firestore data present.
+
+**Build order:** Task 50 → Task 51 → (Task 52 ∥ Task 53). Tasks 52 and 53 are independent of each other and may be built in parallel after Task 51 lands.
+
+**Next step: UX Designer must review before Architect.** Invoke UX Designer next.
 
 ---
 

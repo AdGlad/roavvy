@@ -1,30 +1,33 @@
-# Current Task — Task 46: Region count + region list in country detail sheet
+# Current Task — Task 50: Onboarding flow
 
-**Milestone:** 16
-**Phase:** 6 — Geographic Depth (Mobile)
+**Milestone:** 18
+**Phase:** 8 — Celebrations & Delight
 
 ## Why
 
-With `RegionVisit` records now being persisted after each scan (Task 45), this task surfaces that data in the UI: `CountryDetailSheet` shows how many sub-national regions the user has visited in a country, with a tap-to-expand list of region names.
+First-time users open the app to an empty map with no guidance. Without onboarding, the scan permission prompt appears with no context and new users may deny it. Onboarding establishes the value proposition before asking for photo access.
 
 ## Acceptance criteria
 
-- [x] `kRegionNames` map in `lib/core/region_names.dart`: ISO 3166-2 → English name; fallback to code if absent
-- [x] `CountryDetailSheet` reads `regionRepositoryProvider`; loads regions on open; shows "X region(s) visited" row (hidden when 0)
-- [x] Tapping the row expands an inline alphabetically-sorted list of region names
-- [x] Unknown ISO codes fall back to displaying the raw code
-- [x] Duplicate regions across trips counted once (unique region codes)
-- [x] `dart analyze` reports zero issues
-- [x] 5 new widget tests in `country_detail_sheet_test.dart`
+- [ ] Three screens in sequence: Welcome, How It Works, Scan CTA
+- [ ] Each screen has a title, body copy, illustration placeholder, and a primary `FilledButton` CTA
+- [ ] "Skip" `TextButton` on all three screens; tapping immediately sets `hasSeenOnboarding = true` and navigates to Scan tab
+- [ ] Final screen CTA sets `hasSeenOnboarding = true` and navigates to Scan tab
+- [ ] `hasSeenOnboarding` persisted locally (Architect to specify mechanism — Drift or SharedPreferences)
+- [ ] Onboarding is not shown on subsequent launches
+- [ ] Onboarding is not shown if the user already has visits (returning user / reinstall)
+- [ ] `dart analyze` reports zero issues
+- [ ] 4+ widget tests: shown on first launch; not shown on subsequent; skip works; CTA navigates correctly
 
-## Status: COMPLETE
+## Status: AWAITING UX DESIGNER → ARCHITECT → BUILDER
 
-## Files changed
+## Files to change
 
-- `apps/mobile_flutter/lib/core/region_names.dart` — new; `kRegionNames` map (~400 entries)
-- `apps/mobile_flutter/lib/features/map/country_detail_sheet.dart` — region section added; `_regionsFuture` + `_regionsExpanded` state
-- `apps/mobile_flutter/test/features/map/country_detail_sheet_test.dart` — `_wrap` updated; `_regionRepoWith` + `_region` helpers; 5 new region tests; inline `ProviderScope` updated
+- `lib/features/onboarding/onboarding_flow.dart` — new
+- `lib/data/db/roavvy_database.dart` — `hasSeenOnboarding` persistence (schema TBD by Architect)
+- `lib/app.dart` — route to `OnboardingFlow` on first launch
+- `test/features/onboarding/onboarding_flow_test.dart` — new
 
 ## Dependencies
 
-Task 45 (RegionRepository, inferRegionVisits, regionRepositoryProvider).
+None. Independent — build first in M18.
