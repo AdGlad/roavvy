@@ -2,67 +2,51 @@ import 'photo_date_record.dart';
 import 'region_visit.dart';
 import 'trip_record.dart';
 
-/// Groups [records] into trips by clustering per-country photo timestamps.
+/// Groups [records] into trips using a geographic sequence model.
 ///
 /// Algorithm:
-/// 1. Group records by [PhotoDateRecord.countryCode].
-/// 2. Sort each group ascending by [PhotoDateRecord.capturedAt].
-/// 3. Walk the sorted list: whenever the gap between consecutive photos
-///    exceeds [gap] (default 30 days), start a new cluster.
-/// 4. Each cluster becomes one [TripRecord] with:
-///    - `startedOn` = earliest photo in the cluster
-///    - `endedOn`   = latest photo in the cluster
-///    - `photoCount` = number of photos in the cluster
-///    - `isManual`   = false
-///    - `id`         = `"${countryCode}_${startedOn.toIso8601String()}"` (ADR-047)
+/// 1. Sort all [PhotoDateRecord]s by [PhotoDateRecord.capturedAt] across all
+///    countries.
+/// 2. Walk the sorted list: whenever the country code changes, close the
+///    current trip and open a new one.
+/// 3. Trip `startedOn` = first photo's `capturedAt` in the run;
+///    `endedOn` = last photo's `capturedAt` in the run.
+/// 4. `id` = `"${countryCode}_${startedOn.toIso8601String()}"` (ADR-047).
 ///
-/// Photos with null `capturedAt` must have been filtered out before calling
-/// this function — only non-null [PhotoDateRecord] values are accepted here.
-///
-/// Returns an empty list for empty input.
+/// A sequence JP → US → JP produces **two** separate JP trips and one US trip.
+/// Photos with the same timestamp may appear in any order within that instant.
 ///
 /// This function is **pure**: no I/O, no side effects, deterministic output.
 /// Callers should not pass manual trips into this function; it only produces
 /// `isManual = false` records.
-List<TripRecord> inferTrips(
-  List<PhotoDateRecord> records, {
-  Duration gap = const Duration(days: 30),
-}) {
+List<TripRecord> inferTrips(List<PhotoDateRecord> records) {
   if (records.isEmpty) return [];
 
-  // Group by country code.
-  final byCountry = <String, List<DateTime>>{};
-  for (final r in records) {
-    byCountry.putIfAbsent(r.countryCode, () => []).add(r.capturedAt);
-  }
+  // Sort all records by capturedAt ascending.
+  final sorted = [...records]
+    ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
 
   final result = <TripRecord>[];
 
-  for (final entry in byCountry.entries) {
-    final countryCode = entry.key;
-    final dates = entry.value..sort();
+  var currentCountry = sorted.first.countryCode;
+  var runStart = sorted.first.capturedAt;
+  var runEnd = sorted.first.capturedAt;
+  var count = 1;
 
-    // Walk the sorted dates, splitting on gaps >= [gap].
-    var clusterStart = dates.first;
-    var clusterEnd = dates.first;
-    var count = 1;
-
-    for (var i = 1; i < dates.length; i++) {
-      final diff = dates[i].difference(clusterEnd);
-      if (diff >= gap) {
-        // Flush the current cluster.
-        result.add(_makeTrip(countryCode, clusterStart, clusterEnd, count));
-        clusterStart = dates[i];
-        clusterEnd = dates[i];
-        count = 1;
-      } else {
-        clusterEnd = dates[i];
-        count++;
-      }
+  for (var i = 1; i < sorted.length; i++) {
+    final r = sorted[i];
+    if (r.countryCode == currentCountry) {
+      runEnd = r.capturedAt;
+      count++;
+    } else {
+      result.add(_makeTrip(currentCountry, runStart, runEnd, count));
+      currentCountry = r.countryCode;
+      runStart = r.capturedAt;
+      runEnd = r.capturedAt;
+      count = 1;
     }
-    // Flush the final cluster.
-    result.add(_makeTrip(countryCode, clusterStart, clusterEnd, count));
   }
+  result.add(_makeTrip(currentCountry, runStart, runEnd, count));
 
   return result;
 }
