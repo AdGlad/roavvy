@@ -202,7 +202,48 @@
 
 **Build order:** Task 50 → Task 51 → (Task 52 ∥ Task 53). Tasks 52 and 53 are independent of each other and may be built in parallel after Task 51 lands.
 
-**Next step: UX Designer must review before Architect.** Invoke UX Designer next.
+---
+
+## Architect sign-off — Milestone 18 (Tasks 50–53)
+
+**Review complete: 2026-03-19**
+
+**ADRs written:** ADR-053 (onboarding persistence), ADR-054 (scan summary delta + navigation), ADR-055 (confetti library + stagger animation).
+
+### Corrections to Planner task specs
+
+**Task 50 — onboarding persistence and routing:**
+- `hasSeenOnboarding` is stored as a nullable `TextColumn hasSeenOnboardingAt` on the existing `ScanMetadata` Drift table (schema v8 migration). SharedPreferences is not used (ADR-053).
+- A new `onboardingCompleteProvider` (`FutureProvider<bool>`) is added to `lib/core/providers.dart`. It returns `true` if `hasSeenOnboardingAt != null` OR if `effectiveVisitsProvider` is non-empty.
+- `RoavvyApp` (`lib/app.dart`) becomes a `ConsumerWidget`, watching `onboardingCompleteProvider`. It routes to `OnboardingFlow` when the provider returns `false`, else `MainShell`.
+- `onboardingCompleteProvider` must be overridden in all widget tests that pump `RoavvyApp` or `MainShell`.
+- Files list update: add `lib/core/providers.dart` (new provider); `lib/app.dart` (consumer routing); no `VisitRepository` changes — write `hasSeenOnboardingAt` via a new `MetaRepository.markOnboardingComplete()` method or directly through the `ScanMetadata` table accessor. Architect recommends a thin `markOnboardingComplete()` method on the existing DB class rather than a new repository class.
+
+**Task 51 — delta computation and navigation:**
+- Pre-save snapshot: `ref.read(effectiveVisitsProvider).valueOrNull?.map((v) => v.countryCode).toSet() ?? {}` captured immediately before the save call (ADR-054).
+- Post-save re-read: `await ref.refresh(effectiveVisitsProvider).future` — required because the provider is invalidated by the repository write.
+- `newAchievementIds` computed identically from `achievementRepositoryProvider.loadAll()` before and after save.
+- Navigation: `ScanSummaryScreen` is a full-screen `MaterialPageRoute` pushed from `ReviewScreen`. It takes `VoidCallback onDone`; `ReviewScreen` passes its own `onScanComplete` callback through as `onDone`.
+- `ScanSummaryScreen` has **no Riverpod providers** — it receives all data as constructor parameters. This makes widget tests trivial.
+- Achievement SnackBar removed from `ReviewScreen` save path only. Other write sites (manual add, startup flush) are unaffected and remain SnackBar-free already.
+
+**Task 52 — animation:**
+- `confetti` package accepted (ADR-055), subject to binary size gate (< 200 KB compiled delta). Builder runs `flutter build ipa --analyze-size` before PR.
+- `kContinentEmoji` lives in `lib/core/continent_emoji.dart` — not in `shared_models`.
+- `ConfettiController` disposed in `dispose()`. Animation controllers for row stagger also disposed.
+
+**Task 53 — achievement sheet:**
+- Share format: plain text only (ADR-054). Image share deferred.
+- Opening from `StatsScreen`: `_achievementsFuture` data is already loaded in `initState` — the tap handler reads from the resolved future data already in the widget state. No new provider watch needed.
+
+### Confirmed structural decisions
+
+1. Drift schema v8 adds `hasSeenOnboardingAt TEXT` (nullable) to `ScanMetadata`. Migration is additive; no existing data is affected.
+2. `ScanSummaryScreen` is NOT part of the `IndexedStack`. It lives above `MainShell` in the Navigator stack and is popped on completion.
+3. The `onDone` callback on `ScanSummaryScreen` is the only navigation hook — no direct `Navigator` calls inside the screen.
+4. `confetti` size gate is a hard blocker for Task 52 PR approval.
+
+**Builder may proceed. Start with Task 50.**
 
 ---
 

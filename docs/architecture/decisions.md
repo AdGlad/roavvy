@@ -1535,3 +1535,92 @@ This is a minimal, non-breaking addition. `loadAll()` is kept for existing calle
 - `effectiveVisitsProvider` is watched (not `ref.read`) in `JournalScreen` so that the country list stays current if a manual add/remove occurs while the Journal tab is open.
 - `AchievementRepository.loadAllRows()` must be added in Task 49. Its test is added in `achievement_repository_test.dart`.
 - `RegionRepository.countUnique()` must be added in Task 49 (already in the Planner's acceptance criteria).
+
+---
+
+## ADR-053 — Onboarding persistence: `hasSeenOnboarding` on `ScanMetadata`; schema v8
+
+**Status:** Accepted
+
+**Context:** M18 requires tracking whether the user has completed or skipped the onboarding flow so that it is shown only on first launch. Two options:
+
+1. **SharedPreferences** — simple boolean flag; available in the Flutter layer without a schema migration.
+2. **Drift `ScanMetadata` column** — consistent with ADR-003 (Drift is the single local persistence mechanism on mobile); no new dependency; covered by the existing migration infrastructure.
+
+**Decision:** Add a nullable `TextColumn hasSeenOnboardingAt` to `ScanMetadata` (null = not seen; non-null = ISO 8601 timestamp of when onboarding was dismissed). Schema becomes v8. SharedPreferences is not introduced.
+
+The onboarding is suppressed (bypassed without writing the flag) when `effectiveVisitsProvider` returns a non-empty list — this covers reinstall scenarios where the user already has data on the device or Firestore. `hasSeenOnboardingAt` is only written when the user completes or explicitly skips onboarding with no pre-existing visits.
+
+A new `onboardingCompleteProvider` (`FutureProvider<bool>`) reads from the DB and is watched by `RoavvyApp` (`lib/app.dart`) to decide whether to route to `OnboardingFlow` or `MainShell`. The provider returns `true` if `hasSeenOnboardingAt != null` OR if `effectiveVisitsProvider` is non-empty.
+
+**Consequences:**
+- Schema migration from v7 → v8 required; column is nullable so the migration is additive and safe.
+- `RoavvyApp` becomes a `ConsumerWidget` (or `ConsumerStatefulWidget`) to watch `onboardingCompleteProvider`.
+- The `ScanMetadata` upsert that writes `hasSeenOnboardingAt` must go through `VisitRepository` or a dedicated `MetadataRepository` — Builder must not write raw Drift calls from the UI layer.
+- `onboardingCompleteProvider` must be overridden with a constant in all widget tests that pump `RoavvyApp` or `MainShell`.
+
+---
+
+## ADR-054 — Scan summary: delta computation pattern and navigation contract
+
+**Status:** Accepted
+
+**Context:** `ScanSummaryScreen` (Task 51) must display which countries are *new this scan* — i.e. not present before the save. Two sub-questions:
+
+**A) How to compute the delta:**
+
+The `ReviewScreen` already watches `effectiveVisitsProvider`. Before calling save, the current value is available synchronously via `ref.read(effectiveVisitsProvider).valueOrNull`. The delta is computed as:
+
+```
+preSaveCodes = ref.read(effectiveVisitsProvider).valueOrNull
+               ?.map((v) => v.countryCode).toSet() ?? {}
+
+// ... perform save ...
+
+newCountries = effectiveVisitsAfterSave
+               .where((v) => !preSaveCodes.contains(v.countryCode))
+               .toList()
+```
+
+After save, `effectiveVisitsProvider` is invalidated by the repository write. `ReviewScreen` must `await` the re-read of `effectiveVisitsProvider` before navigating — use `ref.refresh(effectiveVisitsProvider).future` to get the post-save list.
+
+`newAchievementIds` is computed the same way from `achievementRepositoryProvider.loadAll()` before and after save.
+
+**B) Navigation contract:**
+
+`ScanSummaryScreen` is pushed as a full-screen `MaterialPageRoute` from `ReviewScreen` after save completes. It is not part of the `IndexedStack` — it lives above the shell in the navigation stack.
+
+`ScanSummaryScreen` receives a `VoidCallback onDone` parameter. When the user taps "Explore your map" or "Back to map", `onDone` is called. `ReviewScreen` passes through its own `onScanComplete` callback (already wired from `MainShell`) as `onDone`. This pops the entire navigation stack back to `MainShell` and switches to the Map tab — identical to the existing post-scan flow.
+
+**Decision:** Pre-save snapshot via `ref.read(...).valueOrNull`, post-save re-read via `ref.refresh(...).future`, delta by set difference. Navigation via `VoidCallback onDone` passed through from `MainShell`.
+
+**Consequences:**
+- `ReviewScreen` gains a `VoidCallback onScanComplete` parameter (it may already have this — Builder to verify and thread through to `ScanSummaryScreen`).
+- The `await ref.refresh(...).future` call adds one async step after save. This is acceptable — local SQLite read, sub-millisecond.
+- Widget tests for `ScanSummaryScreen` pass `newCountries` and `newAchievementIds` directly as constructor parameters — no provider dependency in the screen itself.
+- Achievement SnackBar notifications are removed from `ReviewScreen` only. Achievement evaluation at other write sites (manual add, startup flush) is unchanged — those sites do not currently show a notification and remain that way.
+
+---
+
+## ADR-055 — Celebration animation: `confetti` package with size gate; stagger via `AnimationController`
+
+**Status:** Accepted
+
+**Context:** M18 requires a confetti animation on `ScanSummaryScreen`. Options:
+
+1. **`confetti` pub.dev package** — maintained, well-tested, zero setup. Binary size impact unknown until measured.
+2. **Custom `CustomPainter`** — 30–50 coloured circles with basic gravity simulation; ~60 lines of Dart; zero new dependency.
+
+**Decision:** Use the `confetti` package, subject to a binary size gate: if `flutter build ipa --analyze-size` shows the package contributing > 200 KB to the compiled app, replace with a custom `CustomPainter` implementation before the task is marked complete. Builder must run the size check before opening the PR for Task 52.
+
+Stagger animation for country list rows uses `AnimationController` + `FadeTransition` + `SlideTransition` within `ScanSummaryScreen`'s own `StatefulWidget` — no third-party dependency. Stagger delay: 80 ms × row index, capped after row 7 (560 ms max total).
+
+`MediaQuery.disableAnimations`: when true, `ConfettiWidget` is omitted from the widget tree entirely (not just paused); row animations are skipped (render at full opacity, zero offset from the start).
+
+`kContinentEmoji` (`Map<String, String>`) lives in `lib/core/continent_emoji.dart` in the app layer — it is purely presentational and has no place in `shared_models`.
+
+**Consequences:**
+- `pubspec.yaml` gains `confetti: ^0.7.0` (or latest stable) — Builder to verify current version.
+- `ConfettiController` must be disposed in `dispose()`.
+- If the size gate triggers, the custom `CustomPainter` implementation is the fallback; no further Architect approval needed.
+- `kContinentEmoji` is not exported from `shared_models`; it imports from `lib/core/` only.
