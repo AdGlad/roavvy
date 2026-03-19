@@ -2,17 +2,17 @@
 
 ---
 
-## Phase Completion Status (as of 2026-03-18)
+## Phase Completion Status (as of 2026-03-19)
 
 | Phase | Description | Status |
 |---|---|---|
 | Phase 1 — Core Scan & Map | PhotoKit bridge, country_lookup, Drift DB, map, scan, manual edits | ✅ **Complete** |
 | Phase 2 — Sync & Achievements | Firebase Auth (anon + Apple), Firestore sync, achievement engine + UI, account deletion | ✅ **Complete** |
 | Phase 3 — Sharing | Travel card image, web share page `/share/[token]`, share sheet, token revocation | ✅ **Complete** |
-| Phase 4 — Web Map | Authenticated web map (`/sign-in`, `/map`) | 🔄 M13 done; sign-up pending |
-| Phase 5 — Trip Intelligence | Trip inference, trip storage, trip count on map, trip editing | 🔲 Not started |
-| Phase 6 — Geographic Depth | Region detection (ISO 3166-2), city detection, continent layer | 🔲 Not started |
-| Phase 7 — Rich Mobile Experience | Navigation redesign (4 tabs), Country Detail, Trip Detail, Journal, Stats | 🔲 Not started |
+| Phase 4 — Web Map | Authenticated web map (`/sign-in`, `/map`) | ✅ **M13 complete** — sign-up (M14) deferred |
+| Phase 5 — Trip Intelligence | Trip inference, trip storage, trip editing | ✅ **Complete (M15)** |
+| Phase 6 — Geographic Depth | Region detection (ISO 3166-2) | 🔄 **Slice 1 complete (M16)** — city detection + continent overlay deferred |
+| Phase 7 — Rich Mobile Experience | 4-tab shell, Journal, Stats + achievement gallery | ✅ **Complete (M17)** |
 | Phase 8 — Celebrations & Delight | Onboarding, new-country celebration, achievement animation, scan summary | 🔲 Not started |
 | Phase 9 — App Store Readiness | Icon, screenshots, push notifications, iPad layout, referral CTA | 🔲 Not started |
 | Phase 10 — Commerce | Shopify Storefront API, travel poster, shop landing page | 🔲 Not started |
@@ -38,7 +38,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 13 — Phase 4: Authenticated Web Map
+## Milestone 13 — Phase 4: Authenticated Web Map ✅ COMPLETE (2026-03-19)
 
 **Goal:** Signed-in users can open `roavvy.app/map` in a browser, sign in with the same Firebase account used on their phone, and see their live travel map.
 
@@ -62,7 +62,7 @@ All sharing features are complete as of M12.
 - Google Sign-In is easier to implement on web than Apple (no nonce/callback complexity). Start with Google; add Apple if needed.
 - Firestore rules for `users/{uid}` subcollections currently have no explicit read rule — the wildcard `allow read, write` is too broad; this milestone tightens them.
 
-**Not started. No tasks written yet.**
+**Delivered:** `/sign-in` (Google + Apple), `/map` authenticated route, effective-visits merge in TypeScript, Firestore rules tightened, loading + error states.
 
 ---
 
@@ -85,7 +85,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 15 — Phase 5: Trip Intelligence (Mobile)
+## Milestone 15 — Phase 5: Trip Intelligence (Mobile) ✅ COMPLETE (2026-03-19)
 
 **Goal:** Every country visit becomes a set of named trips with inferred dates. Users see trip counts on the map and a chronological trip list per country.
 
@@ -104,11 +104,11 @@ All sharing features are complete as of M12.
 - Region/city detection (Milestone 16)
 - Journal tab (Milestone 17)
 
-**Not started. No tasks written yet.**
+**Delivered:** `TripRecord` + `TripInference` in `shared_models`; `trips` Drift table (schema v5); `TripRepository`; `TripEditSheet`; `BootstrapService` back-fills trips from existing scan data.
 
 ---
 
-## Milestone 16 — Phase 6 Slice 1: Region Detection (Mobile)
+## Milestone 16 — Phase 6 Slice 1: Region Detection (Mobile) ✅ COMPLETE (2026-03-19)
 
 **Goal:** After a photo scan, users see which regions (admin1) they visited within each country — resolved entirely offline.
 
@@ -128,13 +128,13 @@ All sharing features are complete as of M12.
 
 **Offline constraint:** All geodata bundled. Zero network calls.
 
-**Tasks:** 42–46. Written to `docs/dev/next_tasks.md`.
+**Delivered:** `packages/region_lookup` (offline admin1 binary, 3.5 MB); `RegionVisit` + `region_visits` Drift table (schema v7); `RegionRepository`; scan pipeline resolves region codes; `BootstrapService` back-fills region visits; region count + expandable list in `CountryDetailSheet`. Tasks 42–46.
 
 ---
 
-## Milestone 17 — Phase 7: Navigation Redesign & Rich Screens (Mobile)
+## Milestone 17 — Phase 7: Navigation Redesign & Rich Screens (Mobile) ✅ COMPLETE (2026-03-19)
 
-**Goal:** 4-tab navigation. Country detail becomes a full screen. Journal tab lists all trips. Stats tab shows comprehensive stats + achievement gallery.
+**Goal:** 4-tab navigation. Journal tab lists all trips. Stats tab shows comprehensive stats + achievement gallery.
 
 **Scope — included:**
 - Navigation: 4-tab bottom bar (Map · Journal · Stats · Scan) replacing current 2-tab
@@ -147,7 +147,7 @@ All sharing features are complete as of M12.
 - Country share card (flag + trip count + top regions)
 - Achievement share card (badge + title + unlock date)
 
-**Not started. No tasks written yet.**
+**Delivered:** 4-tab `NavigationBar` + `IndexedStack` in `MainShell` (ADR-052); `JournalScreen` (trip list grouped by year, country flags, taps open CountryDetailSheet); `StatsScreen` (stats panel + achievement gallery grid, unlocked-first sort, amber trophy / grey lock icons); `AchievementRepository.loadAllRows()`; `regionCountProvider`. Tasks 47–49. 291 flutter tests passing.
 
 ---
 
