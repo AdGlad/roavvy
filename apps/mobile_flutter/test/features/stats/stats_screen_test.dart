@@ -9,6 +9,7 @@ import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
+import 'package:mobile_flutter/features/stats/countries_list_screen.dart';
 import 'package:mobile_flutter/features/stats/stats_screen.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -104,6 +105,31 @@ void main() {
     });
   });
 
+  group('StatsScreen — countries navigation', () {
+    testWidgets('tapping Countries tile pushes CountriesListScreen',
+        (tester) async {
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      await visitRepo.saveAdded(
+        UserAddedCountry(countryCode: 'JP', addedAt: DateTime.utc(2024)),
+      );
+
+      await tester.pumpWidget(_pumpStats(
+        visitRepo: visitRepo,
+        achievementRepo: AchievementRepository(db),
+        regionRepo: RegionRepository(db),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Countries'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CountriesListScreen), findsOneWidget);
+      expect(find.text('1 country visited'), findsOneWidget);
+      expect(find.text('Japan'), findsOneWidget);
+    });
+  });
+
   group('StatsScreen — achievement gallery', () {
     testWidgets('shows Achievements section and visible grid cards',
         (tester) async {
@@ -182,6 +208,47 @@ void main() {
 
       // At least one lock icon is visible in the initial viewport.
       expect(find.byIcon(Icons.lock_outline), findsWidgets);
+    });
+
+    testWidgets('tapping locked achievement card opens sheet with locked state',
+        (tester) async {
+      final db = _makeDb();
+      // No achievements unlocked — first card is locked.
+
+      await tester.pumpWidget(_pumpStats(
+        visitRepo: VisitRepository(db),
+        achievementRepo: AchievementRepository(db),
+        regionRepo: RegionRepository(db),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(kAchievements.first.title).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not yet unlocked'), findsOneWidget);
+    });
+
+    testWidgets('tapping unlocked achievement card opens sheet with unlock date',
+        (tester) async {
+      final db = _makeDb();
+      final achievementRepo = AchievementRepository(db);
+      await achievementRepo.upsertAll(
+        {'countries_1'},
+        DateTime.utc(2024, 3, 15),
+      );
+
+      await tester.pumpWidget(_pumpStats(
+        visitRepo: VisitRepository(db),
+        achievementRepo: achievementRepo,
+        regionRepo: RegionRepository(db),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(kAchievements.first.title).first);
+      await tester.pumpAndSettle();
+
+      // Sheet opens — "Share achievement" button confirms it's the unlock sheet.
+      expect(find.text('Share achievement'), findsOneWidget);
     });
   });
 }

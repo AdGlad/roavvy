@@ -10,29 +10,38 @@ const _months = [
 String _fmtDate(DateTime dt) =>
     '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
 
-/// Shows detail for an unlocked achievement and offers a share action.
+/// Shows detail for an achievement — unlocked or locked.
 ///
 /// Opened from [ScanSummaryScreen] achievement chips (first-unlock context)
-/// or from [StatsScreen] gallery (review context).
-/// Locked achievements on [StatsScreen] must not open this sheet.
+/// or from [StatsScreen] gallery (review context, unlocked or locked).
 ///
-/// All data is passed as constructor parameters — no loading state needed
-/// (sheet only opens with valid unlocked data). ADR-054.
+/// When [unlockedAt] is null the sheet shows the locked state: lock icon,
+/// description (requirements), and "Not yet unlocked". When non-null it shows
+/// the unlocked state with trophy icon, unlock date, and a share button.
+///
+/// All data is passed as constructor parameters — no loading state needed.
+/// ADR-054.
 class AchievementUnlockSheet extends StatelessWidget {
   const AchievementUnlockSheet({
     super.key,
     required this.achievement,
-    required this.unlockedAt,
+    this.unlockedAt,
   });
 
   final Achievement achievement;
-  final DateTime unlockedAt;
+
+  /// Null when showing a locked achievement.
+  final DateTime? unlockedAt;
+
+  bool get _isUnlocked => unlockedAt != null;
 
   /// Convenience method — shows this sheet via [showModalBottomSheet].
+  ///
+  /// Pass null for [unlockedAt] to show the locked state.
   static Future<void> show(
     BuildContext context, {
     required Achievement achievement,
-    required DateTime unlockedAt,
+    DateTime? unlockedAt,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -47,7 +56,8 @@ class AchievementUnlockSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateStr = _fmtDate(unlockedAt);
+    final secondary = theme.colorScheme.onSurfaceVariant;
+    final dateStr = unlockedAt != null ? _fmtDate(unlockedAt!) : null;
 
     return Semantics(
       label: '${achievement.title} achievement',
@@ -61,17 +71,17 @@ class AchievementUnlockSheet extends StatelessWidget {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                color: secondary.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
-            // Trophy icon (decorative)
+            // Trophy or lock icon (decorative)
             ExcludeSemantics(
               child: Icon(
-                Icons.emoji_events_outlined,
+                _isUnlocked ? Icons.emoji_events_outlined : Icons.lock_outline,
                 size: 56,
-                color: Colors.amber[700],
+                color: _isUnlocked ? Colors.amber[700] : secondary,
               ),
             ),
             const SizedBox(height: 8),
@@ -84,31 +94,31 @@ class AchievementUnlockSheet extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               achievement.description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: secondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Unlocked $dateStr',
+              _isUnlocked ? 'Unlocked $dateStr' : 'Not yet unlocked',
               style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
+                color: _isUnlocked ? theme.colorScheme.primary : secondary,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Semantics(
-              label: 'Share ${achievement.title} achievement',
-              child: FilledButton(
-                onPressed: () => _share(dateStr),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
+            if (_isUnlocked) ...[
+              Semantics(
+                label: 'Share ${achievement.title} achievement',
+                child: FilledButton(
+                  onPressed: () => _share(dateStr!),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                  child: const Text('Share achievement'),
                 ),
-                child: const Text('Share achievement'),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(

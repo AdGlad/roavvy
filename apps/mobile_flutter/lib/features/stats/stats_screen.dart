@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
 import '../scan/achievement_unlock_sheet.dart';
+import 'countries_list_screen.dart';
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -46,6 +47,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final summaryAsync = ref.watch(travelSummaryProvider);
     final regionCountAsync = ref.watch(regionCountProvider);
 
+    final visits = visitsAsync.valueOrNull;
     final countryCount =
         visitsAsync.whenOrNull(data: (v) => v.length.toString()) ?? '—';
     final regionCount =
@@ -77,6 +79,14 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                   countryCount: countryCount,
                   regionCount: regionCount,
                   sinceYear: sinceYear,
+                  onCountriesTap: visits == null || visits.isEmpty
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  CountriesListScreen(visits: visits),
+                            ),
+                          ),
                 ),
               ),
             ),
@@ -105,21 +115,26 @@ class _StatsPanel extends StatelessWidget {
     required this.countryCount,
     required this.regionCount,
     required this.sinceYear,
+    this.onCountriesTap,
   });
 
   final String countryCount;
   final String regionCount;
   final String sinceYear;
+  final VoidCallback? onCountriesTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: Semantics(
-            label: '$countryCount countries visited',
-            excludeSemantics: true,
-            child: _StatTile(value: countryCount, label: 'Countries'),
+          child: GestureDetector(
+            onTap: onCountriesTap,
+            child: Semantics(
+              label: '$countryCount countries visited',
+              excludeSemantics: true,
+              child: _StatTile(value: countryCount, label: 'Countries'),
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -221,13 +236,11 @@ class _AchievementGrid extends StatelessWidget {
             child: _AchievementCard(
               achievement: achievement,
               unlockedAt: unlockDate,
-              onTap: unlockDate == null
-                  ? null
-                  : () => AchievementUnlockSheet.show(
-                        context,
-                        achievement: achievement,
-                        unlockedAt: unlockDate,
-                      ),
+              onTap: () => AchievementUnlockSheet.show(
+                context,
+                achievement: achievement,
+                unlockedAt: unlockDate,
+              ),
             ),
           );
         },
