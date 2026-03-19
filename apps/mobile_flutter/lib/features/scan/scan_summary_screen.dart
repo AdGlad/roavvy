@@ -4,6 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/continent_emoji.dart';
 import '../../core/country_names.dart';
+import '../../core/notification_service.dart';
 import 'achievement_unlock_sheet.dart';
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
@@ -97,6 +98,29 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
     // Defer animation setup until after the first frame so that
     // MediaQuery is available (ADR-055).
     WidgetsBinding.instance.addPostFrameCallback((_) => _initAnimations());
+    _scheduleNotifications();
+  }
+
+  Future<void> _scheduleNotifications() async {
+    final service = NotificationService.instance;
+
+    // Request permission once, on the first scan that finds new countries.
+    final alreadyRequested = await service.hasRequestedPermission();
+    if (!alreadyRequested) await service.requestPermission();
+
+    // Fire an immediate notification for each newly unlocked achievement.
+    final achievementById = {for (final a in kAchievements) a.id: a};
+    for (final id in widget.newAchievementIds) {
+      final achievement = achievementById[id];
+      if (achievement == null) continue;
+      await service.scheduleAchievementUnlock(
+        title: achievement.title,
+        body: achievement.description,
+      );
+    }
+
+    // Schedule the 30-day scan nudge (cancels any previous one).
+    await service.scheduleNudge();
   }
 
   void _initAnimations() {
@@ -353,11 +377,23 @@ class _AchievementsSection extends StatelessWidget {
 
 // ── State B — nothing new ─────────────────────────────────────────────────────
 
-class _NothingNewState extends StatelessWidget {
+class _NothingNewState extends StatefulWidget {
   const _NothingNewState({required this.onDone, this.lastScanAt});
 
   final VoidCallback onDone;
   final DateTime? lastScanAt;
+
+  @override
+  State<_NothingNewState> createState() => _NothingNewStateState();
+}
+
+class _NothingNewStateState extends State<_NothingNewState> {
+  @override
+  void initState() {
+    super.initState();
+    // Schedule nudge even when nothing new found — scan still completed.
+    NotificationService.instance.scheduleNudge();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -388,10 +424,10 @@ class _NothingNewState extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          if (lastScanAt != null) ...[
+          if (widget.lastScanAt != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Last scanned ${_fmtDate(lastScanAt!)}',
+              'Last scanned ${_fmtDate(widget.lastScanAt!)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -400,7 +436,7 @@ class _NothingNewState extends StatelessWidget {
           ],
           const Spacer(),
           FilledButton(
-            onPressed: onDone,
+            onPressed: widget.onDone,
             child: const Text('Back to map'),
           ),
         ],

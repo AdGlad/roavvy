@@ -1,11 +1,15 @@
 // apps/web_nextjs/src/app/share/[token]/page.tsx
 "use client";
 
+// TODO: Replace with the final App Store URL once the listing is live in App Store Connect.
+const APP_STORE_URL = "https://apps.apple.com/app/id0000000000";
+
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/init";
 import DynamicMap from "@/components/DynamicMap";
+import Image from "next/image";
 
 interface SharedTravelData {
   uid: string;
@@ -92,6 +96,23 @@ export default function SharePage() {
             geoJsonData={geoJsonData}
             userVisits={sharedData.visitedCodes}
           />
+        </div>
+        <div className="flex flex-col items-center gap-3 px-6 py-8 border-t bg-gray-50">
+          <p className="text-base font-medium text-gray-800">
+            Discover your own travels with Roavvy
+          </p>
+          <p className="text-sm text-gray-500 text-center max-w-xs">
+            Roavvy scans your photos to build your personal world travel map —
+            no uploads, no accounts required to get started.
+          </p>
+          <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <Image
+              src="/app-store-badge.svg"
+              alt="Download on the App Store"
+              width={120}
+              height={40}
+            />
+          </a>
         </div>
       </div>
     </>

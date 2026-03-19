@@ -9,8 +9,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
+import 'core/notification_service.dart';
 import 'core/providers.dart';
 import 'data/achievement_repository.dart';
 import 'data/bootstrap_service.dart';
@@ -22,6 +24,8 @@ import 'data/visit_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  tz.initializeTimeZones();
+  await NotificationService.instance.init();
   final (countryData, regionData, _) = await (
     rootBundle.load('assets/geodata/ne_countries.bin'),
     rootBundle.load('assets/geodata/ne_admin1.bin'),

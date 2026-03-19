@@ -13,8 +13,8 @@
 | Phase 5 — Trip Intelligence | Trip inference, trip storage, trip editing | ✅ **Complete (M15)** |
 | Phase 6 — Geographic Depth | Region detection (ISO 3166-2) | 🔄 **Slice 1 complete (M16)** — city detection + continent overlay deferred |
 | Phase 7 — Rich Mobile Experience | 4-tab shell, Journal, Stats + achievement gallery | ✅ **Complete (M17)** |
-| Phase 8 — Celebrations & Delight | Onboarding, new-country celebration, achievement animation, scan summary | 🔲 Not started |
-| Phase 9 — App Store Readiness | Icon, screenshots, push notifications, iPad layout, referral CTA | 🔲 Not started |
+| Phase 8 — Celebrations & Delight | Onboarding, new-country celebration, achievement animation, scan summary | ✅ **Complete (M18)** |
+| Phase 9 — App Store Readiness | Icon, screenshots, push notifications, iPad layout, referral CTA | 🔄 **M19 complete** — icon assets + App Store URL pending external deliverables |
 | Phase 10 — Commerce | Shopify Storefront API, travel poster, shop landing page | 🔲 Not started |
 
 See [docs/product/roadmap.md](../product/roadmap.md) for full phase definitions.
@@ -151,37 +151,39 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 18 — Phase 8: Celebrations & Delight (Mobile)
+## Milestone 18 — Phase 8: Celebrations & Delight (Mobile) ✅ COMPLETE (2026-03-19)
 
 **Goal:** The app celebrates milestones. First use is magical.
 
-**Scope — included:**
-- Onboarding flow (4 screens): Welcome · Permission rationale · Scanning · Map reveal (animated)
-- New country celebration: full-screen confetti + flag animation
-- New continent celebration: globe-spin animation
-- Achievement unlock sheet: slide-up with badge animation; share button
-- Scan summary screen: replaces inline state; shows new countries, new trips, achievements unlocked; animated map reveal
-- "Nothing new" state: compact, friendly, shows last-scan date
-- All animations respect `reduceMotion` accessibility setting
+**Delivered:**
+- Task 50: `OnboardingFlow` (3-screen PageView: Welcome · Privacy · Ready); `_OnboardingGate` in `app.dart`; schema v8 `hasSeenOnboardingAt`; `onboardingCompleteProvider` with returning-user bypass (ADR-053)
+- Task 51: `ScanSummaryScreen` (State A: new discoveries with country list + achievement chips; State B: nothing-new); `ReviewScreen` computes pre/post-save delta and pushes summary; double-pop `_handleSummaryDone` (ADR-054)
+- Task 52: confetti animation via `confetti ^0.7.0`; row stagger animations (80ms, capped at row 7); all animations gated on `MediaQuery.disableAnimationsOf` (ADR-055)
+- Task 53: `AchievementUnlockSheet` modal bottom sheet; share via `share_plus`; wired from scan summary chips and stats gallery; SnackBar removed from review-save path
 
-**Not started. No tasks written yet.**
+327 flutter tests passing.
 
 ---
 
-## Milestone 19 — Phase 9: App Store Readiness
+## Milestone 19 — Phase 9: App Store Readiness ✅ COMPLETE (2026-03-19)
 
 **Goal:** App is ready for public App Store submission.
 
-**Scope — included:**
-- Final app icon (all required sizes)
-- App Store screenshots (6.9" iPhone; 12.9" iPad optional)
-- App preview video (30 seconds)
-- App Store metadata: title, subtitle, description, keywords, privacy policy URL
-- Push notifications (opt-in): achievement unlocked · 30-day scan nudge; APNs + FCM setup
-- iPad layout: side-by-side map + detail panel; split scan + review
-- "Get Roavvy" CTA on `/share/[token]` web share page
+**Delivered:**
+- Task 58: `TARGETED_DEVICE_FAMILY = "1"` in all 3 Xcode build configs; `CFBundleDisplayName`/`CFBundleName` → "Roavvy"; iPad orientation block removed (ADR-057)
+- Task 55: Static `/privacy` page in Next.js app; "Legal" section in `PrivacyAccountScreen` links to it via `url_launcher`
+- Task 57: `NotificationService` singleton (`lib/core/notification_service.dart`); `scheduleAchievementUnlock` + `scheduleNudge` (30-day `zonedSchedule`); `pendingTabIndex` `ValueNotifier`; permission prompt after first new-country scan; `MainShell` cold-start + in-session tap routing (ADR-056); `timezone` + `flutter_local_notifications` added to pubspec
+- Task 56: "Get Roavvy" CTA on `/share/[token]` with App Store badge; `APP_STORE_URL` constant with TODO placeholder
+- Task 54: `REPLACE_WITH_FINAL_ICON.md` placeholder in `AppIcon.appiconset` with icon generation instructions
 
-**Not started. No tasks written yet.**
+**Pending external deliverables (not code):**
+- 1024×1024 PNG icon from designer → replace placeholder PNGs
+- App Store Connect listing → replace `id0000000000` in `APP_STORE_URL`
+- Official Apple App Store badge SVG from developer.apple.com/app-store/marketing/guidelines/
+- APNs key setup in Firebase Console (for production push delivery)
+- App Store screenshots and metadata
+
+333 flutter tests passing.
 
 ---
 

@@ -52,6 +52,10 @@
 | 47 | 4-tab `MainShell` (Map · Journal · Stats · Scan) | 17 | ADR-052 |
 | 48 | `JournalScreen` — trip list grouped by year | 17 | ADR-052 |
 | 49 | `StatsScreen` — stats panel + achievement gallery; `AchievementRepository.loadAllRows()`; `regionCountProvider` | 17 | ADR-052 |
+| 50 | `OnboardingFlow` — 3-screen first-launch flow | 18 | ADR-053 |
+| 51 | `ScanSummaryScreen` — post-scan discovery hero | 18 | ADR-054 |
+| 52 | Confetti + row-stagger animation on scan summary | 18 | ADR-055 |
+| 53 | `AchievementUnlockSheet` — replaces unlock SnackBar | 18 | ADR-054, ADR-055 |
 
 ---
 
@@ -244,6 +248,243 @@
 4. `confetti` size gate is a hard blocker for Task 52 PR approval.
 
 **Builder may proceed. Start with Task 50.**
+
+---
+
+## Milestone 19 — Phase 9: App Store Readiness
+
+**Goal:** The app passes App Store Review and is publicly available on the iOS App Store.
+
+**Scope — included:**
+- App icon integrated into iOS project (all required sizes)
+- Privacy policy web page at `/privacy` (required URL in App Store metadata)
+- "Get Roavvy" App Store CTA on `/share/[token]` web page
+- Local push notifications: opt-in prompt, achievement unlock, 30-day scan nudge
+- iPad layout decision: declare iPhone-only OR implement basic adaptive layout
+
+**Scope — excluded (operational, not code):**
+- App Store Connect listing setup (metadata, title, subtitle, description, keywords, category)
+- Marketing screenshots — captured from device/simulator after icon and layout are finalised
+- App preview video — captured from device
+- APNs certificate setup in Apple Developer account (prerequisite for push)
+- Privacy policy copy wording — must be approved by owner before publishing
+
+**Prerequisites (must be complete before submission, not code tasks):**
+- Active Apple Developer Program membership
+- 1024×1024 PNG app icon file provided (design deliverable)
+- Privacy policy copy finalised and approved
+- APNs key/certificate configured in Firebase Console (for push notifications)
+- App Store Connect app listing created with metadata filled in
+
+---
+
+## Task 54 — App icon integration
+
+**Milestone:** 19
+**Phase:** 9 — App Store Readiness
+
+**Why:** The app currently uses a Flutter default placeholder icon. App Store submission requires a custom icon at all required sizes; without it, the app cannot be submitted.
+
+**Deliverable:** Final app icon at all required iOS sizes integrated into `Runner/Assets.xcassets/AppIcon.appiconset/`; `Contents.json` updated to reference all sizes.
+
+**Acceptance criteria:**
+- [ ] `AppIcon.appiconset/` contains the icon PNG at all sizes required by App Store Connect (1024×1024 for App Store; standard device sizes for home screen)
+- [ ] `Runner.xcodeproj` references the icon set correctly — confirmed by running the app on simulator and seeing the icon on the home screen
+- [ ] No default Flutter blue placeholder icons remain in the asset set
+- [ ] `flutter build ios --no-codesign` completes without icon-related warnings
+- [ ] Icon complies with Apple Human Interface Guidelines: no transparency, no rounded corners (iOS applies rounding automatically), no text smaller than 12pt equivalent
+
+**Files to change:**
+- `apps/mobile_flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/` — replace placeholder assets
+- `apps/mobile_flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json` — update references
+
+**Dependencies:** Requires 1024×1024 icon PNG from designer (external deliverable). This task cannot start until the design file is provided.
+
+---
+
+## Task 55 — Privacy policy web page
+
+**Milestone:** 19
+**Phase:** 9 — App Store Readiness
+
+**Why:** App Store submission requires a privacy policy URL. The URL must point to a live page that explains what data Roavvy collects, how it is used, and user rights. The web app is the natural host.
+
+**Deliverable:** Static `/privacy` route in the Next.js app; the page renders the Roavvy privacy policy in readable HTML.
+
+**Acceptance criteria:**
+- [ ] `apps/web_nextjs/src/app/privacy/page.tsx` exists and renders the privacy policy
+- [ ] Page is accessible without authentication (no auth guard)
+- [ ] Policy covers at minimum: data collected (GPS metadata, country codes), data not collected (photos, images, precise location), data storage (Firestore, device-local), user rights (deletion via in-app account deletion), contact information
+- [ ] Page links back to `roavvy.app` home
+- [ ] Page is responsive (readable on mobile)
+- [ ] `npm run build` in `apps/web_nextjs/` completes without errors
+
+**Files to change:**
+- `apps/web_nextjs/src/app/privacy/page.tsx` — new
+
+**Dependencies:** Privacy policy copy must be provided by the owner before this task can be written. Planner can scaffold the page structure; copy is a prerequisite.
+
+**Open question:** Should the privacy policy page be linked from the app's Settings screen (`PrivacyAccountScreen`)? Flag for Architect — likely yes, via `url_launcher`.
+
+---
+
+## Task 56 — "Get Roavvy" CTA on share page
+
+**Milestone:** 19
+**Phase:** 9 — App Store Readiness
+
+**Why:** When a user shares their travel card, the recipient sees the web share page. Adding an App Store CTA converts share viewers into app installs — this is the primary organic growth mechanism.
+
+**Deliverable:** "Get Roavvy on the App Store" banner/button added to `/share/[token]` page; tapping opens the App Store listing.
+
+**Acceptance criteria:**
+- [ ] A prominent call-to-action is visible on `/share/[token]` below the travel map; it reads "Get Roavvy — discover your travels" (or similar approved copy)
+- [ ] Tapping the CTA opens the App Store listing URL in a new tab (`target="_blank"`)
+- [ ] CTA includes the App Store badge image (Apple-provided SVG/PNG) or styled button — must comply with Apple badge usage guidelines
+- [ ] CTA is visible on mobile viewport (375px+) without scrolling past the map
+- [ ] Existing share page functionality (map rendering, country list) is unchanged
+- [ ] `npm run build` completes without errors
+
+**Files to change:**
+- `apps/web_nextjs/src/app/share/[token]/page.tsx` — add CTA section
+
+**Dependencies:** App Store listing must be created in App Store Connect to obtain the App Store URL. Task 54 (icon) should be complete first so the listing looks finished when linked.
+
+**Open question:** App Store URL is not known until the listing is created. Builder should use a placeholder URL initially and update once the listing is live.
+
+---
+
+## Task 57 — Local push notifications
+
+**Milestone:** 19
+**Phase:** 9 — App Store Readiness
+
+**Why:** Push notifications for achievement unlocks and scan nudges increase retention. Implemented as local notifications (scheduled on-device) to avoid the need for a Cloud Functions backend.
+
+**Deliverable:** `flutter_local_notifications` integrated; opt-in permission prompt shown after first scan; achievement unlock schedules an immediate local notification; 30-day scan nudge scheduled after each scan (reset on next scan).
+
+**Acceptance criteria:**
+- [ ] `flutter_local_notifications` added to `pubspec.yaml`; `dart analyze` passes
+- [ ] iOS `Info.plist` includes required notification usage description key
+- [ ] Permission prompt is shown once, after the first successful scan completes (not at launch)
+- [ ] If permission is denied, the app continues normally — no re-prompting
+- [ ] After an achievement unlock (detected in `ScanSummaryScreen`), a local notification is scheduled immediately: title = achievement title, body = achievement description
+- [ ] After every scan completion, a 30-day nudge notification is scheduled: "Time to discover new travels — scan your recent photos." Previous nudge is cancelled before scheduling the new one.
+- [ ] Tapping the achievement notification opens the app and navigates to the Stats tab
+- [ ] Tapping the scan nudge notification opens the app and navigates to the Scan tab
+- [ ] All notification logic is isolated in a `NotificationService` class in `lib/core/notification_service.dart`
+- [ ] `dart analyze` reports zero issues
+- [ ] 3+ unit tests on `NotificationService`: scheduling, cancellation, permission guard (using a mock plugin)
+
+**Files to change:**
+- `apps/mobile_flutter/pubspec.yaml` — add `flutter_local_notifications`
+- `apps/mobile_flutter/ios/Runner/Info.plist` — add notification usage description
+- `apps/mobile_flutter/lib/core/notification_service.dart` — new
+- `apps/mobile_flutter/lib/features/scan/scan_summary_screen.dart` — call service after achievement unlock
+- `apps/mobile_flutter/lib/features/shell/main_shell.dart` — handle notification tap navigation
+- `apps/mobile_flutter/test/core/notification_service_test.dart` — new
+
+**Dependencies:** Task 51 (ScanSummaryScreen must exist). APNs key must be configured in Apple Developer account and Firebase Console before testing on a real device.
+
+**Note:** This task uses local notifications only. Remote push (FCM Cloud Functions) is deferred. Local notifications cover both use cases without backend infrastructure.
+
+---
+
+## Task 58 — iPhone-only declaration (or basic iPad layout)
+
+**Milestone:** 19
+**Phase:** 9 — App Store Readiness
+
+**Why:** If the app targets iPad (the default), App Store Review tests it on iPad. Without an adaptive layout, the app renders in iPhone letterbox mode on iPad, which Apple may reject or which looks unprofessional. The minimum viable option is to declare iPhone-only.
+
+**Deliverable:** Either (A) declare the app as iPhone-only in `Info.plist` and `project.pbxproj`, OR (B) implement a basic adaptive layout for iPad that passes App Store Review.
+
+**Acceptance criteria (Option A — iPhone-only, recommended for M19):**
+- [ ] `UIRequiredDeviceCapabilities` in `Info.plist` includes `iphone-performance` or the equivalent declaration that restricts the app to iPhone
+- [ ] `TARGETED_DEVICE_FAMILY` in `project.pbxproj` is set to `1` (iPhone only; `1,2` includes iPad)
+- [ ] App Store Connect listing confirms iPhone-only targeting
+- [ ] `flutter build ios --no-codesign` completes without errors
+
+**Acceptance criteria (Option B — basic iPad layout, deferred to M20+):**
+- Full adaptive layout as specified in `docs/ux/mobile_ux_spec.md` — out of scope for M19.
+
+**Files to change (Option A):**
+- `apps/mobile_flutter/ios/Runner/Info.plist`
+- `apps/mobile_flutter/ios/Runner.xcodeproj/project.pbxproj`
+
+**Dependencies:** None.
+
+**Decision needed:** Owner must confirm whether to target iPhone-only (faster, simpler) or invest in iPad layout now. Planner recommends iPhone-only for M19 and iPad as a separate milestone after App Store launch.
+
+---
+
+## Risks and open questions — Milestone 19
+
+1. **Icon design** — The 1024×1024 icon PNG must be delivered externally before Task 54 can start. This is the most likely blocker for M19.
+
+2. **Privacy policy copy** — The exact wording of the privacy policy requires owner approval. The scaffolded page can go live without copy, but App Store submission requires the final text.
+
+3. **APNs certificate for push** — Requires Apple Developer account access. If the certificate is not set up, push notifications cannot be tested on a real device. Task 57 can be implemented and tested on simulator first.
+
+4. **App Store URL** — The App Store URL for Task 56's CTA is not known until the app listing is created in App Store Connect. Use a placeholder during development.
+
+5. **App Store Review** — Apple may raise issues not anticipated in this plan (e.g., missing permission strings, UI issues, metadata policy). Budget time for a review iteration.
+
+6. **Screenshots and app preview video** — These are operational (not code) tasks. Screenshots must be captured on a real device or Simulator at 6.9" (iPhone 16 Pro Max) resolution. App preview video is optional but recommended for conversion. These block submission and must be completed before Task 56's App Store URL is finalised.
+
+**Build order:** Tasks 54, 55, 56, 57, 58 are all independent and may be built in any order. Task 56 depends on knowing the App Store URL (operational prerequisite). Task 54 depends on receiving the icon design file.
+
+**Recommended sequence:** 58 (iPhone-only declaration — 30 mins) → 55 (privacy policy page) → 57 (push notifications) → 56 (CTA, once App Store URL is known) → 54 (icon, once design is delivered).
+
+---
+
+## Architect sign-off — Milestone 19 (Tasks 54–58)
+
+**Review complete: 2026-03-19**
+
+**ADRs written:** ADR-056 (local push notifications: package, prompt timing, tap-routing), ADR-057 (iPhone-only targeting + bundle identity fix).
+
+### Corrections to Planner task specs
+
+**Task 54 — App icon + bundle identity:**
+- `CFBundleDisplayName` is currently `"Mobile Flutter"` and `CFBundleName` is `"mobile_flutter"` — both must be updated to `"Roavvy"` in `Info.plist` as part of this task. This fix is independent of the icon design file and can be committed immediately.
+- `CFBundleIdentifier` must match the registered App ID in Apple Developer. The current value is `$(PRODUCT_BUNDLE_IDENTIFIER)` (a build variable). Builder must confirm the correct reverse-domain identifier (e.g. `com.roavvy.app`) is set in Xcode build settings — this is an operational check, not a code change.
+- Icon asset integration blocked on 1024×1024 PNG from designer. Bundle name fix is not blocked. Builder should do the bundle name fix in a first commit and leave a TODO comment where the icon assets will land.
+
+**Task 55 — Privacy policy page:**
+- Add a link to the privacy policy from `PrivacyAccountScreen` (Flutter). This requires `url_launcher` — check `pubspec.yaml` first; if not present, add it (app layer only). One `TextButton` or `ListTile` labelled "Privacy Policy" calling `launchUrl(Uri.parse('https://roavvy.app/privacy'))`.
+- The Next.js privacy page must NOT be behind an auth guard — it must be publicly accessible.
+- No new route in the Flutter app; the link opens in the system browser via `url_launcher`.
+
+**Task 56 — "Get Roavvy" CTA:**
+- App Store URL format: `https://apps.apple.com/app/id{NUMERIC_APP_ID}`. The numeric App ID is only known after the App Store Connect listing is created. Builder must use `const _kAppStoreUrl = 'https://apps.apple.com/app/id0000000000'; // TODO: replace with final App Store ID` and document this as a known placeholder.
+- Apple badge: Use the official "Download on the App Store" SVG from Apple's marketing resources (`https://developer.apple.com/app-store/marketing/guidelines/`). Do not improvise a badge. Place the SVG in `apps/web_nextjs/public/app-store-badge.svg`.
+
+**Task 57 — Local push notifications:**
+- `AppDelegate.swift` requires **no changes**. `FlutterAppDelegate` satisfies the `UNUserNotificationCenterDelegate` requirements that `flutter_local_notifications` needs.
+- `Runner.entitlements` requires **no changes**. The `aps-environment` entitlement is not needed for local notifications.
+- `Info.plist` requires **no new keys** for notifications on iOS.
+- `NotificationService` is a **singleton** (not a Riverpod provider) — the plugin uses static callback registration outside the Riverpod graph. Initialize it in `main()` after `Firebase.initializeApp()`.
+- Payload schema: `"tab:2"` for Stats tab, `"tab:3"` for Scan tab. Parse in `NotificationService._onNotificationTap`.
+- Tab index values: Stats = 2, Scan = 3 (per ADR-052 `MainShell` contract — Map=0, Journal=1, Stats=2, Scan=3).
+- Foreground notifications: iOS suppresses local notifications while the app is in the foreground by default. This is correct behaviour — the achievement sheet is already visible. No `UNNotificationPresentationOptions` override needed.
+- Permission prompt site: `ScanSummaryScreen._requestNotificationPermissionIfNeeded()` — called in `initState` if `newCountries.isNotEmpty`. Guard with a `NotificationService.hasRequestedPermission()` check (stored in `ScanMetadata` or via the plugin's own permission API response). Architect recommends reading the system permission status via `flutter_local_notifications`'s `checkPermissions()` — if status is `notDetermined`, request; otherwise skip.
+
+**Task 58 — iPhone-only + bundle fix:**
+- Architect has resolved the Planner's "Decision needed" open question: **use Option A (iPhone-only)**. iPad layout is deferred. No owner confirmation required — this is consistent with the M19 minimum-viable-submission goal.
+- `TARGETED_DEVICE_FAMILY` must be updated in **all three** build configuration sections of `project.pbxproj` (Debug, Release, Profile) — grep confirms three occurrences at lines 465, 597, 651.
+- Remove `UISupportedInterfaceOrientations~ipad` from `Info.plist` (dead config).
+- Do NOT use `UIRequiredDeviceCapabilities` to restrict to iPhone — the correct mechanism is `TARGETED_DEVICE_FAMILY`. The Planner's reference to `iphone-performance` in `UIRequiredDeviceCapabilities` is incorrect; omit it.
+
+### Confirmed structural decisions
+
+1. Push notifications are local-only for M19. FCM Cloud Functions deferred.
+2. `NotificationService` is a singleton with a `ValueNotifier<int?> pendingTabIndex` field. `MainShell` subscribes in `initState`.
+3. Cold-start tab routing: `MainShell.initState()` calls `NotificationService.getLaunchTab()` (wraps `getNotificationAppLaunchDetails()`).
+4. Privacy policy page at `/privacy` in Next.js — no auth guard, publicly accessible.
+5. iPhone-only declaration is confirmed for M19. `TARGETED_DEVICE_FAMILY = "1"` in all three build configurations.
+
+**Builder may proceed. Start with Task 58.**
 
 ---
 

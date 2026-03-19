@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/notification_service.dart';
 import '../journal/journal_screen.dart';
 import '../map/map_screen.dart';
 import '../scan/scan_screen.dart';
@@ -36,6 +37,29 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialTab;
+    _handleLaunchNotification();
+    NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
+  }
+
+  @override
+  void dispose() {
+    NotificationService.instance.pendingTabIndex.removeListener(_onPendingTab);
+    super.dispose();
+  }
+
+  /// Handles the cold-start case: app launched by tapping a notification.
+  Future<void> _handleLaunchNotification() async {
+    final tab = await NotificationService.instance.getLaunchTab();
+    if (tab != null && mounted) setState(() => _selectedIndex = tab);
+  }
+
+  /// Handles foreground / background notification taps.
+  void _onPendingTab() {
+    final tab = NotificationService.instance.pendingTabIndex.value;
+    if (tab != null && mounted) {
+      setState(() => _selectedIndex = tab);
+      NotificationService.instance.pendingTabIndex.value = null;
+    }
   }
 
   void _goToMap() => setState(() => _selectedIndex = 0);

@@ -1624,3 +1624,78 @@ Stagger animation for country list rows uses `AnimationController` + `FadeTransi
 - `ConfettiController` must be disposed in `dispose()`.
 - If the size gate triggers, the custom `CustomPainter` implementation is the fallback; no further Architect approval needed.
 - `kContinentEmoji` is not exported from `shared_models`; it imports from `lib/core/` only.
+
+---
+
+## ADR-056 — Local push notifications: `flutter_local_notifications`, prompt timing, and tap-routing
+
+**Status:** Accepted
+
+**Context:** M19 requires push notifications for achievement unlocks and a 30-day scan nudge. Two delivery strategies evaluated:
+
+1. **Remote push (FCM + Cloud Functions)** — Requires a Cloud Functions backend to trigger notifications server-side. Adds infrastructure dependency, Firebase billing surface, and deploy complexity. The triggering events (achievement unlock, scan completion) are already detected on-device.
+2. **Local notifications (on-device scheduling)** — `flutter_local_notifications` schedules and fires notifications from the device. No backend required. Both triggering events are on-device lifecycle events, so local notifications cover the use case completely.
+
+**Decision:** Local notifications via `flutter_local_notifications`. Remote push (FCM Cloud Functions) is deferred to a future milestone.
+
+**Package:** `flutter_local_notifications` (the de-facto standard; BSD licence; maintained by the community under MaikuB). No alternatives evaluated — the package choice is clear.
+
+**Entitlements:** Local notifications on iOS do NOT require the `aps-environment` entitlement. `Runner.entitlements` is unchanged.
+
+**Info.plist:** No new usage description key required for notifications on iOS. (Unlike photo library access, notification permission is granted via an API call at runtime, not declared in the plist.)
+
+**`AppDelegate.swift`:** No changes needed. `FlutterAppDelegate` already satisfies `UNUserNotificationCenterDelegate` requirements that `flutter_local_notifications` relies on.
+
+**Prompt timing:** Permission is requested exactly once, after the first successful scan completes — specifically, in `ScanSummaryScreen` after the new-countries-found state is confirmed (i.e. `newCountries.isNotEmpty`). Not at app launch. If the user denies, the denial is recorded via `flutter_local_notifications`'s iOS permission API return value; the app does not re-prompt.
+
+**Tap routing pattern:** When a notification is tapped, the app must navigate to the appropriate tab (Stats for achievement; Scan for nudge). Pattern:
+
+```
+NotificationService (singleton)
+  ├── pendingTabIndex: ValueNotifier<int?> — set by onDidReceiveNotificationResponse
+  └── getLaunchTab() → int? — reads getNotificationAppLaunchDetails() for cold starts
+
+MainShell.initState()
+  ├── reads NotificationService.getLaunchTab() for cold-start notification tap
+  └── subscribes to NotificationService.pendingTabIndex for foreground/background taps
+```
+
+`NotificationService` is a singleton (not a Riverpod provider) because `FlutterLocalNotificationsPlugin` uses static/global callback registration that lives outside the Riverpod graph. It is initialized in `main()` after `Firebase.initializeApp()`.
+
+**Payload schema:** Each notification carries a plain-string `payload` with a tab index: `"tab:2"` for Stats, `"tab:3"` for Scan. The `NotificationService` parses this and updates `pendingTabIndex`.
+
+**Consequences:**
+- `flutter_local_notifications` added to `pubspec.yaml` (app layer only — not in any package).
+- `lib/core/notification_service.dart` is the single point of interaction with the plugin.
+- Achievement unlock notification is scheduled from `ScanSummaryScreen` (where the unlock list is already known).
+- 30-day nudge is scheduled from `ScanSummaryScreen` via `NotificationService.scheduleNudge()`; the previous nudge is cancelled with `cancelAll()` before scheduling the new one.
+- No notification is shown when the app is in the foreground (iOS default behaviour for local notifications, which is correct — the achievement sheet is already visible).
+- Remote push (FCM) deferred; if added later, it runs alongside local notifications without conflict.
+
+---
+
+## ADR-057 — iPhone-only targeting for M19 App Store submission; bundle identity fix
+
+**Status:** Accepted
+
+**Context:** The Flutter scaffold created with `TARGETED_DEVICE_FAMILY = "1,2"` (iPhone + iPad) and `CFBundleDisplayName = "Mobile Flutter"`. For App Store submission:
+
+1. iPad targeting requires an adaptive layout that passes App Store Review on iPad. The current UI is designed for compact-width iPhone.
+2. Bundle display name "Mobile Flutter" is a placeholder that would appear under the app icon and in App Store search.
+
+**Decisions:**
+
+**Device targeting:** Set `TARGETED_DEVICE_FAMILY = "1"` in all three build configuration blocks in `project.pbxproj` (Debug, Release, Profile). Remove `UISupportedInterfaceOrientations~ipad` from `Info.plist` (dead config once iPad is excluded). iPad support is deferred to a post-launch milestone.
+
+**Bundle identity:** Update in `Info.plist`:
+- `CFBundleDisplayName` → `"Roavvy"` (shown under the app icon)
+- `CFBundleName` → `"Roavvy"` (internal bundle name)
+
+`CFBundleIdentifier` remains `$(PRODUCT_BUNDLE_IDENTIFIER)` (set in Xcode build settings to the registered App ID, e.g. `com.roavvy.app`). `CFBundleShortVersionString` and `CFBundleVersion` remain as Flutter build variable references — correct.
+
+**Consequences:**
+- App cannot be installed on iPad after this change.
+- App Store Connect listing will show "iPhone" only.
+- `UISupportedInterfaceOrientations~ipad` section removed from `Info.plist`.
+- This decision is reversible: re-enabling iPad support requires setting `TARGETED_DEVICE_FAMILY = "1,2"` and implementing adaptive layouts.
+- Bundle display name "Roavvy" will appear under the home screen icon on test devices immediately after this change is built.

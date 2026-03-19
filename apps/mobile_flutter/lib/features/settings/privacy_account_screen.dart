@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers.dart';
 import '../account/account_deletion_service.dart';
@@ -238,6 +239,8 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
                 _shareToken != null ? _activeShareTile() : _inactiveShareTile(),
                 _SectionHeader('Account'),
                 _deleteAccountTile(),
+                _SectionHeader('Legal'),
+                _privacyPolicyTile(),
               ],
             ),
     );
@@ -267,6 +270,17 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       trailing: TextButton(
         onPressed: _onCreateLink,
         child: const Text('Create link'),
+      ),
+    );
+  }
+
+  Widget _privacyPolicyTile() {
+    return ListTile(
+      leading: const Icon(Icons.policy_outlined),
+      title: const Text('Privacy Policy'),
+      onTap: () => launchUrl(
+        Uri.parse('https://roavvy.app/privacy'),
+        mode: LaunchMode.externalApplication,
       ),
     );
   }
