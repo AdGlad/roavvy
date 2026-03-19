@@ -101,7 +101,12 @@ class ScanDoneEvent extends ScanEvent {
 /// Raw GPS record for a single photo. Country resolution is the Dart layer's
 /// responsibility — Swift sends coordinates, not country codes.
 class PhotoRecord {
-  const PhotoRecord({required this.lat, required this.lng, this.capturedAt});
+  const PhotoRecord({
+    required this.lat,
+    required this.lng,
+    this.capturedAt,
+    this.assetId,
+  });
 
   factory PhotoRecord.fromMap(Map<String, dynamic> m) {
     final capturedAtStr = m['capturedAt'] as String?;
@@ -110,6 +115,7 @@ class PhotoRecord {
       lng: (m['lng'] as num).toDouble(),
       capturedAt:
           capturedAtStr != null ? DateTime.tryParse(capturedAtStr)?.toUtc() : null,
+      assetId: m['assetId'] as String?,
     );
   }
 
@@ -118,6 +124,10 @@ class PhotoRecord {
 
   /// UTC capture time. Null when the asset has no creation date.
   final DateTime? capturedAt;
+
+  /// PHAsset.localIdentifier — opaque on-device UUID.
+  /// Stored locally for photo gallery access; never sent to Firestore (ADR-060).
+  final String? assetId;
 }
 
 // ── Scan stats (displayed in the UI after a scan completes) ───────────────────

@@ -110,7 +110,8 @@ BatchResult resolveBatch(
       photoDates.add(PhotoDateRecord(
           countryCode: code,
           capturedAt: photo.capturedAt!,
-          regionCode: regionCode));
+          regionCode: regionCode,
+          assetId: photo.assetId));
     }
   }
 

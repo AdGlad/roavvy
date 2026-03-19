@@ -2568,8 +2568,24 @@ class $PhotoDateRecordsTable extends PhotoDateRecords
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _assetIdMeta = const VerificationMeta(
+    'assetId',
+  );
   @override
-  List<GeneratedColumn> get $columns => [countryCode, capturedAt, regionCode];
+  late final GeneratedColumn<String> assetId = GeneratedColumn<String>(
+    'asset_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    countryCode,
+    capturedAt,
+    regionCode,
+    assetId,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2607,6 +2623,12 @@ class $PhotoDateRecordsTable extends PhotoDateRecords
         regionCode.isAcceptableOrUnknown(data['region_code']!, _regionCodeMeta),
       );
     }
+    if (data.containsKey('asset_id')) {
+      context.handle(
+        _assetIdMeta,
+        assetId.isAcceptableOrUnknown(data['asset_id']!, _assetIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2630,6 +2652,10 @@ class $PhotoDateRecordsTable extends PhotoDateRecords
         DriftSqlType.string,
         data['${effectivePrefix}region_code'],
       ),
+      assetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}asset_id'],
+      ),
     );
   }
 
@@ -2647,10 +2673,16 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
   /// falls in open water, a micro-state with no admin1 divisions, or for rows
   /// created before schema v7.
   final String? regionCode;
+
+  /// PHAsset.localIdentifier — opaque on-device UUID (ADR-060).
+  /// Stored locally for photo gallery access; never written to Firestore.
+  /// Null for rows created before schema v9.
+  final String? assetId;
   const PhotoDateRow({
     required this.countryCode,
     required this.capturedAt,
     this.regionCode,
+    this.assetId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2659,6 +2691,9 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
     map['captured_at'] = Variable<DateTime>(capturedAt);
     if (!nullToAbsent || regionCode != null) {
       map['region_code'] = Variable<String>(regionCode);
+    }
+    if (!nullToAbsent || assetId != null) {
+      map['asset_id'] = Variable<String>(assetId);
     }
     return map;
   }
@@ -2671,6 +2706,10 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
           regionCode == null && nullToAbsent
               ? const Value.absent()
               : Value(regionCode),
+      assetId:
+          assetId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(assetId),
     );
   }
 
@@ -2683,6 +2722,7 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
       countryCode: serializer.fromJson<String>(json['countryCode']),
       capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
       regionCode: serializer.fromJson<String?>(json['regionCode']),
+      assetId: serializer.fromJson<String?>(json['assetId']),
     );
   }
   @override
@@ -2692,6 +2732,7 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
       'countryCode': serializer.toJson<String>(countryCode),
       'capturedAt': serializer.toJson<DateTime>(capturedAt),
       'regionCode': serializer.toJson<String?>(regionCode),
+      'assetId': serializer.toJson<String?>(assetId),
     };
   }
 
@@ -2699,10 +2740,12 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
     String? countryCode,
     DateTime? capturedAt,
     Value<String?> regionCode = const Value.absent(),
+    Value<String?> assetId = const Value.absent(),
   }) => PhotoDateRow(
     countryCode: countryCode ?? this.countryCode,
     capturedAt: capturedAt ?? this.capturedAt,
     regionCode: regionCode.present ? regionCode.value : this.regionCode,
+    assetId: assetId.present ? assetId.value : this.assetId,
   );
   PhotoDateRow copyWithCompanion(PhotoDateRecordsCompanion data) {
     return PhotoDateRow(
@@ -2712,6 +2755,7 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
           data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
       regionCode:
           data.regionCode.present ? data.regionCode.value : this.regionCode,
+      assetId: data.assetId.present ? data.assetId.value : this.assetId,
     );
   }
 
@@ -2720,37 +2764,42 @@ class PhotoDateRow extends DataClass implements Insertable<PhotoDateRow> {
     return (StringBuffer('PhotoDateRow(')
           ..write('countryCode: $countryCode, ')
           ..write('capturedAt: $capturedAt, ')
-          ..write('regionCode: $regionCode')
+          ..write('regionCode: $regionCode, ')
+          ..write('assetId: $assetId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(countryCode, capturedAt, regionCode);
+  int get hashCode => Object.hash(countryCode, capturedAt, regionCode, assetId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PhotoDateRow &&
           other.countryCode == this.countryCode &&
           other.capturedAt == this.capturedAt &&
-          other.regionCode == this.regionCode);
+          other.regionCode == this.regionCode &&
+          other.assetId == this.assetId);
 }
 
 class PhotoDateRecordsCompanion extends UpdateCompanion<PhotoDateRow> {
   final Value<String> countryCode;
   final Value<DateTime> capturedAt;
   final Value<String?> regionCode;
+  final Value<String?> assetId;
   final Value<int> rowid;
   const PhotoDateRecordsCompanion({
     this.countryCode = const Value.absent(),
     this.capturedAt = const Value.absent(),
     this.regionCode = const Value.absent(),
+    this.assetId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PhotoDateRecordsCompanion.insert({
     required String countryCode,
     required DateTime capturedAt,
     this.regionCode = const Value.absent(),
+    this.assetId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : countryCode = Value(countryCode),
        capturedAt = Value(capturedAt);
@@ -2758,12 +2807,14 @@ class PhotoDateRecordsCompanion extends UpdateCompanion<PhotoDateRow> {
     Expression<String>? countryCode,
     Expression<DateTime>? capturedAt,
     Expression<String>? regionCode,
+    Expression<String>? assetId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (countryCode != null) 'country_code': countryCode,
       if (capturedAt != null) 'captured_at': capturedAt,
       if (regionCode != null) 'region_code': regionCode,
+      if (assetId != null) 'asset_id': assetId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2772,12 +2823,14 @@ class PhotoDateRecordsCompanion extends UpdateCompanion<PhotoDateRow> {
     Value<String>? countryCode,
     Value<DateTime>? capturedAt,
     Value<String?>? regionCode,
+    Value<String?>? assetId,
     Value<int>? rowid,
   }) {
     return PhotoDateRecordsCompanion(
       countryCode: countryCode ?? this.countryCode,
       capturedAt: capturedAt ?? this.capturedAt,
       regionCode: regionCode ?? this.regionCode,
+      assetId: assetId ?? this.assetId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2794,6 +2847,9 @@ class PhotoDateRecordsCompanion extends UpdateCompanion<PhotoDateRow> {
     if (regionCode.present) {
       map['region_code'] = Variable<String>(regionCode.value);
     }
+    if (assetId.present) {
+      map['asset_id'] = Variable<String>(assetId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2806,6 +2862,7 @@ class PhotoDateRecordsCompanion extends UpdateCompanion<PhotoDateRow> {
           ..write('countryCode: $countryCode, ')
           ..write('capturedAt: $capturedAt, ')
           ..write('regionCode: $regionCode, ')
+          ..write('assetId: $assetId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4873,6 +4930,7 @@ typedef $$PhotoDateRecordsTableCreateCompanionBuilder =
       required String countryCode,
       required DateTime capturedAt,
       Value<String?> regionCode,
+      Value<String?> assetId,
       Value<int> rowid,
     });
 typedef $$PhotoDateRecordsTableUpdateCompanionBuilder =
@@ -4880,6 +4938,7 @@ typedef $$PhotoDateRecordsTableUpdateCompanionBuilder =
       Value<String> countryCode,
       Value<DateTime> capturedAt,
       Value<String?> regionCode,
+      Value<String?> assetId,
       Value<int> rowid,
     });
 
@@ -4904,6 +4963,11 @@ class $$PhotoDateRecordsTableFilterComposer
 
   ColumnFilters<String> get regionCode => $composableBuilder(
     column: $table.regionCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assetId => $composableBuilder(
+    column: $table.assetId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4931,6 +4995,11 @@ class $$PhotoDateRecordsTableOrderingComposer
     column: $table.regionCode,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PhotoDateRecordsTableAnnotationComposer
@@ -4956,6 +5025,9 @@ class $$PhotoDateRecordsTableAnnotationComposer
     column: $table.regionCode,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get assetId =>
+      $composableBuilder(column: $table.assetId, builder: (column) => column);
 }
 
 class $$PhotoDateRecordsTableTableManager
@@ -5005,11 +5077,13 @@ class $$PhotoDateRecordsTableTableManager
                 Value<String> countryCode = const Value.absent(),
                 Value<DateTime> capturedAt = const Value.absent(),
                 Value<String?> regionCode = const Value.absent(),
+                Value<String?> assetId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PhotoDateRecordsCompanion(
                 countryCode: countryCode,
                 capturedAt: capturedAt,
                 regionCode: regionCode,
+                assetId: assetId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5017,11 +5091,13 @@ class $$PhotoDateRecordsTableTableManager
                 required String countryCode,
                 required DateTime capturedAt,
                 Value<String?> regionCode = const Value.absent(),
+                Value<String?> assetId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PhotoDateRecordsCompanion.insert(
                 countryCode: countryCode,
                 capturedAt: capturedAt,
                 regionCode: regionCode,
+                assetId: assetId,
                 rowid: rowid,
               ),
           withReferenceMapper:

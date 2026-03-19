@@ -158,6 +158,7 @@ private extension AppDelegate {
                 var record: [String: Any] = [
                     "lat": location.coordinate.latitude,
                     "lng": location.coordinate.longitude,
+                    "assetId": asset.localIdentifier,
                 ]
                 if let capturedAt = asset.creationDate {
                     record["capturedAt"] = isoFormatter.string(from: capturedAt)

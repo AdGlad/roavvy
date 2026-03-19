@@ -137,8 +137,8 @@ class RegionVisits extends Table {
 /// Composite primary key `{countryCode, capturedAt}` prevents duplicate rows
 /// on incremental re-scans.
 ///
-/// Stores [countryCode], [capturedAt], and optional [regionCode] —
-/// no GPS coordinates (ADR-002).
+/// Stores [countryCode], [capturedAt], optional [regionCode], and optional
+/// [assetId] — no GPS coordinates (ADR-002).
 /// Used by the trip inference engine to cluster photos into trips.
 @DataClassName('PhotoDateRow')
 class PhotoDateRecords extends Table {
@@ -149,6 +149,11 @@ class PhotoDateRecords extends Table {
   /// falls in open water, a micro-state with no admin1 divisions, or for rows
   /// created before schema v7.
   TextColumn get regionCode => text().nullable()();
+
+  /// PHAsset.localIdentifier — opaque on-device UUID (ADR-060).
+  /// Stored locally for photo gallery access; never written to Firestore.
+  /// Null for rows created before schema v9.
+  TextColumn get assetId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {countryCode, capturedAt};
@@ -193,7 +198,7 @@ class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -226,6 +231,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 8) {
         await m.addColumn(scanMetadata, scanMetadata.hasSeenOnboardingAt);
+      }
+      if (from < 9) {
+        await m.addColumn(photoDateRecords, photoDateRecords.assetId);
       }
     },
   );

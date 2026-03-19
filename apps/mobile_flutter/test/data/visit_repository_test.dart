@@ -386,6 +386,29 @@ void main() {
       expect(loaded.first.regionCode, isNull);
     });
 
+    test('round-trips assetId when present (schema v9, ADR-060)', () async {
+      final repo = _makeRepo();
+      const id = 'A1B2C3D4-0000-0000-0000-000000000001/L0/001';
+      await repo.savePhotoDates([
+        PhotoDateRecord(
+          countryCode: 'GB',
+          capturedAt: DateTime.utc(2024, 5, 1),
+          assetId: id,
+        ),
+      ]);
+      final loaded = await repo.loadPhotoDates();
+      expect(loaded.first.assetId, id);
+    });
+
+    test('assetId is null when not provided', () async {
+      final repo = _makeRepo();
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'JP', capturedAt: DateTime.utc(2024, 1, 1)),
+      ]);
+      final loaded = await repo.loadPhotoDates();
+      expect(loaded.first.assetId, isNull);
+    });
+
     test('records with and without regionCode coexist', () async {
       final repo = _makeRepo();
       await repo.savePhotoDates([

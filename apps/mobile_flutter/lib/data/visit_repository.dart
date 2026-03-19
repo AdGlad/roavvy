@@ -326,6 +326,7 @@ class VisitRepository {
           countryCode: Value(r.countryCode),
           capturedAt: Value(r.capturedAt.toUtc()),
           regionCode: Value(r.regionCode),
+          assetId: Value(r.assetId),
         ));
       }
     });
@@ -339,6 +340,7 @@ class VisitRepository {
               countryCode: r.countryCode,
               capturedAt: r.capturedAt.toUtc(),
               regionCode: r.regionCode,
+              assetId: r.assetId,
             ))
         .toList();
   }
