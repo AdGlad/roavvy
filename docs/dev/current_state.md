@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-22, through Task 96 / M25)
+# Roavvy — Development State (as of 2026-03-22, through Task 99 / M26)
 
 ## What Works
 
@@ -72,7 +72,15 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `MilestoneRepository` — SharedPreferences-backed (`shown_milestones_v1` JSON list); `getShownThresholds()` / `markShown(int)`; `kMilestoneThresholds = [5, 10, 25, 50, 100]`; `milestoneRepositoryProvider` in `providers.dart`
   - `MilestoneCardSheet` — modal bottom sheet; badge emoji per threshold (🌍 🗺️ ✈️ 🌐 🏆); headline + subtext + Share + Continue; `showMilestoneCardSheet(context, threshold)` top-level helper; `pendingMilestoneThreshold(count, shown)` pure function
   - `_checkAndShowMilestone` helper in `ScanSummaryScreen` — checks effective count vs. shown thresholds; marks shown before displaying; shows at end of both `_handleDone` (new countries) and `_handleCaughtUp` (nothing-new) paths
-- 436 flutter tests passing; ~93 package tests passing
+- **Gamified map (M26 — Phase 11 Slice 4: Timeline Scrubber + Scan Reveal)**:
+  - `yearFilterProvider` — global `StateProvider<int?>` (null = show all); `earliestVisitYearProvider` — `FutureProvider<int?>` returning min trip `startedOn` year across all trips (ADR-076)
+  - `filteredEffectiveVisitsProvider` — `FutureProvider<List<EffectiveVisitedCountry>>`; when filter null returns same as `effectiveVisitsProvider`; when set to year Y keeps countries with at least one trip `startedOn.year <= Y`; manually-added countries with no trips and no `firstSeen` are conservatively excluded
+  - `countryVisualStatesProvider` updated to watch `yearFilterProvider`; derives states from `filteredEffectiveVisitsProvider` when filter active; `recentDiscoveriesProvider` (newlyDiscovered) always overlaid regardless of filter (ADR-076)
+  - `TimelineScrubberBar` — `ConsumerWidget`; hidden when filter null; amber-tinted `Card`; `Slider` with discrete year steps; label "Showing countries visited by [year]"; Clear button sets filter to null; `SafeArea` bottom; wired into `MapScreen` Stack as `Column` above `StatsStrip`
+  - `MapScreen` "Filter by year" `PopupMenuItem` — shown only when `earliestVisitYearProvider` returns a year < current year; tapping activates filter at current year; `filterByYear` added to `_MapMenuAction` enum
+  - `ScanRevealMiniMap` — `ConsumerStatefulWidget` with `newCodes: List<String>`; fixed 180px `FlutterMap` (no interaction, `flags: 0`); two `PolygonLayer`s (grey unvisited, amber revealed); `Timer.periodic(400ms)` pops one code at a time into `_revealed` set; immediately reveals all when `MediaQuery.disableAnimationsOf` is true; timer cleaned up in `dispose` (ADR-077)
+  - `ScanRevealMiniMap` shown in `ScanSummaryScreen` State A when `newCodes.length >= 2`; first item in ListView, padded 16px below
+- 447 flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup

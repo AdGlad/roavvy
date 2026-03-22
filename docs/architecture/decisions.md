@@ -2449,3 +2449,42 @@ M24 adds order history. `MerchConfig` documents live in Firestore under `users/{
 **Consequences:**
 - Tests use `fake_cloud_firestore` to stub Firestore.
 - `MerchOrderSummary` stays in `features/merch/` — no `shared_models` coordination needed.
+
+---
+
+## ADR-076 — `yearFilterProvider` is a global `StateProvider<int?>` in `providers.dart` (M26)
+
+**Status:** Accepted
+
+**Context:**
+The timeline scrubber requires a shared year filter that affects three separate providers: `filteredEffectiveVisitsProvider`, `countryVisualStatesProvider`, and `countryTripCountsProvider`. Options: (1) local `StatefulWidget` state in `MapScreen` passed down via constructor arguments; (2) global `StateProvider<int?>` in `providers.dart`.
+
+Option 1 breaks `CountryPolygonLayer` (a self-contained `ConsumerWidget` with no constructor parameters) and would require threading the filter through every layer widget. Option 2 is the idiomatic Riverpod approach — any provider that depends on the filter simply watches `yearFilterProvider`.
+
+**Decision:** `yearFilterProvider = StateProvider<int?>(_ => null)` is defined in `lib/core/providers.dart`. Null means "no filter, show all time". Any integer value means "show countries confirmed visited on or before that year".
+
+**Consequences:**
+- The filter persists across tab switches while the app is running (intentional — scrubbing mid-session stays active when user returns to map).
+- The filter resets to null on cold start (SharedPreferences persistence intentionally not added — the scrubber is a per-session exploratory tool).
+- `clearAll()` (delete travel history) should also reset `yearFilterProvider` to null to avoid a dangling filter state.
+
+---
+
+## ADR-077 — `ScanRevealMiniMap` uses `Timer.periodic` + `Set<String>` to sequence polygon pop-in (M26)
+
+**Status:** Accepted
+
+**Context:**
+`ScanRevealMiniMap` must animate newly-discovered country polygons appearing one-by-one. Options: (1) `AnimationController` with `Interval` curves per polygon (opacity fade per country); (2) `Timer.periodic` growing a `Set<String> _revealed`, triggering a `setState` that adds one polygon per tick.
+
+Option 1 requires per-polygon opacity which `flutter_map`'s `PolygonLayer` does not support — each polygon in a `PolygonLayer` has a single static colour. Achieving per-polygon opacity would require one `PolygonLayer` per country or a `CustomPainter`, both expensive for a mini-map with 200+ polygons.
+
+Option 2 side-steps per-polygon opacity entirely. The transition is instant per country ("pop-in"), not a fade. The sequence effect is clearly legible and the simplicity avoids custom rendering. The widget rebuilds once per tick (400ms interval) with a slightly larger `_revealed` set — each rebuild is cheap (only the revealed polygons layer changes).
+
+**Decision:** `ScanRevealMiniMap` uses `Timer.periodic(Duration(milliseconds: 400), callback)` to pop one ISO code at a time from a queue into `_revealedCodes: Set<String>`. Two `PolygonLayer` instances: (1) all countries grey (static), (2) revealed countries amber (rebuilt each tick, culled by `polygonCulling: true`). Timer is cancelled in `dispose`. With `MediaQuery.disableAnimations`, all codes are added immediately (no timer started).
+
+**Consequences:**
+- No `AnimationController` or `Ticker` needed — `Timer` is sufficient for a 400ms UI update.
+- The "pop-in" effect (instant per-country appearance) is visually distinct from smooth opacity fades but is acceptable for a celebratory reveal.
+- The widget must be a `ConsumerStatefulWidget` to access `polygonsProvider` and `ref`.
+- Test environments should override `disableAnimations` to avoid waiting for timers in widget tests.

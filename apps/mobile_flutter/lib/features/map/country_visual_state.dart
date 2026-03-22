@@ -122,12 +122,24 @@ final recentDiscoveriesProvider =
 /// Derived map of isoCode → [CountryVisualState] for all visited countries.
 ///
 /// Unvisited countries are absent from the map (default [CountryVisualState.unvisited]).
-/// Recomputed whenever [effectiveVisitsProvider] or [recentDiscoveriesProvider] changes.
+/// When [yearFilterProvider] is active, derives states from [filteredEffectiveVisitsProvider]
+/// instead of [effectiveVisitsProvider]. [recentDiscoveriesProvider] (newlyDiscovered state)
+/// is always overlaid on top regardless of the year filter. (ADR-076)
 final countryVisualStatesProvider = Provider<Map<String, CountryVisualState>>((ref) {
-  final visitsAsync = ref.watch(effectiveVisitsProvider);
+  final yearFilter = ref.watch(yearFilterProvider);
   final recentCodes = ref.watch(recentDiscoveriesProvider);
 
-  final visits = visitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
+  // Always watch both async providers to maintain dependency tracking.
+  final allVisitsAsync = ref.watch(effectiveVisitsProvider);
+  final filteredVisitsAsync = ref.watch(filteredEffectiveVisitsProvider);
+
+  final List<EffectiveVisitedCountry> visits;
+  if (yearFilter == null) {
+    visits = allVisitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
+  } else {
+    visits = filteredVisitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
+  }
+
   final result = <String, CountryVisualState>{};
 
   for (final visit in visits) {
