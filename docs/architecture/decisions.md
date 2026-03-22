@@ -2488,3 +2488,30 @@ Option 2 side-steps per-polygon opacity entirely. The transition is instant per 
 - The "pop-in" effect (instant per-country appearance) is visually distinct from smooth opacity fades but is acceptable for a celebratory reveal.
 - The widget must be a `ConsumerStatefulWidget` to access `polygonsProvider` and `ref`.
 - Test environments should override `disableAnimations` to avoid waiting for timers in widget tests.
+
+---
+
+## ADR-078 — `/sign-in` redirect-after-login uses `?next` query param; sanitised to relative paths only (M27)
+
+**Status:** Accepted
+
+**Context:**
+M27 requires that navigating to `/sign-in?next=/shop` redirects to `/shop` after a successful sign-in, rather than always going to `/map`. This pattern (redirect-after-login) is standard but introduces an open-redirect risk: a malicious link such as `/sign-in?next=https://evil.com` could redirect users to an attacker-controlled site after they authenticate.
+
+**Decision:**
+The `next` parameter is read from `useSearchParams()` in the sign-in page. Before use it is validated with a single guard: the value must (a) start with `/` and (b) not start with `//` or contain a protocol string (`://`). Values failing validation are silently discarded and the default redirect (`/map`) is used.
+
+```ts
+function sanitiseNext(next: string | null): string {
+  if (!next) return "/map";
+  if (!next.startsWith("/") || next.startsWith("//") || next.includes("://")) return "/map";
+  return next;
+}
+```
+
+This is a denylist-of-patterns approach rather than an allowlist. It is sufficient because all legitimate `next` values in this app are internal Next.js routes (short strings starting with `/`).
+
+**Consequences:**
+- Open redirect is prevented: `https://evil.com` fails check (b); `//evil.com` fails check (b); `/evil` passes and is safe (relative path, Next.js router will navigate within the same origin).
+- The sign-in page must use `useSearchParams()` which requires a `<Suspense>` boundary in Next.js App Router. Wrap the page body in `<Suspense fallback={<p>Loading...</p>}` or extract the params-reading logic into a child component.
+- No allowlist maintenance needed — any new internal route works automatically.

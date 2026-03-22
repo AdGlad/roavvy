@@ -349,7 +349,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 27 — Web Shop: Public `/shop` Landing Page + Entry Points
+## Milestone 27 — Web Shop: Public `/shop` Landing Page + Entry Points ✅ COMPLETE (2026-03-22)
 
 **Goal:** Web visitors can discover and browse the shop; sign-in entry points direct them into the personalisation flow.
 
@@ -364,7 +364,7 @@ All sharing features are complete as of M12.
 - Live Printful/Printify mockup generation (static placeholder images)
 - Mobile changes
 
-**Not started. No tasks written yet.**
+**Delivered:** Task 101: `/shop` public page (product cards, amber hero, auth-aware CTA). Task 102: "Shop" nav link on `/map`; "Turn your travels into a poster" CTA on `/share/[token]`; `/sign-in` `?next` redirect-after-login with open-redirect sanitisation (ADR-078).
 
 ---
 

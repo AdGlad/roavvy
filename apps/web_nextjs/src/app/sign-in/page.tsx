@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase/init";
 
-export default function SignInPage() {
+function sanitiseNext(next: string | null): string {
+  if (!next) return "/map";
+  if (!next.startsWith("/") || next.startsWith("//") || next.includes("://"))
+    return "/map";
+  return next;
+}
+
+function SignInForm() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = sanitiseNext(searchParams.get("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,9 +27,9 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/map");
+      router.push(redirectTo);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +37,7 @@ export default function SignInPage() {
     setSubmitting(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/map");
+      router.push(redirectTo);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (
@@ -92,5 +101,19 @@ export default function SignInPage() {
         Don&apos;t have an account? Sign up
       </Link>
     </main>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen flex-col items-center justify-center">
+          <p>Loading...</p>
+        </main>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }
