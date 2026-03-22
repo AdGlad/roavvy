@@ -159,6 +159,26 @@ class PhotoDateRecords extends Table {
   Set<Column> get primaryKey => {countryCode, capturedAt};
 }
 
+/// XP award events (M22 / ADR-068).
+///
+/// One row per award. Used by [XpNotifier] to compute total XP and level.
+/// Never deleted by [VisitRepository.clearAll] — XP is not part of travel
+/// history and should survive a history reset.
+@DataClassName('XpEventRow')
+class XpEvents extends Table {
+  /// UUID v4 identifier.
+  TextColumn get id => text()();
+
+  /// XpReason enum value stored as its name string.
+  TextColumn get reason => text()();
+
+  IntColumn get amount => integer()();
+  DateTimeColumn get awardedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Stores one row per trip (inferred or manual).
 ///
 /// **Identity (ADR-047):**
@@ -193,12 +213,13 @@ class Trips extends Table {
   RegionVisits,
   PhotoDateRecords,
   Trips,
+  XpEvents,
 ])
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -234,6 +255,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 9) {
         await m.addColumn(photoDateRecords, photoDateRecords.assetId);
+      }
+      if (from < 10) {
+        await m.createTable(xpEvents);
       }
     },
   );

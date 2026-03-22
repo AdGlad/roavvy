@@ -194,10 +194,37 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
+## Phase 11 — Gamified Map & Progression System
+
+**Goal:** Transform the map from a static travel record into an emotionally engaging progression system. Users feel rewarded for every country discovered, motivated to complete regions, and proud of their travel identity.
+
+**UX spec:** [docs/ux/gamified_map.md](../ux/gamified_map.md)
+
+**Design target:** Premium + playful. Apple Maps craft meets Duolingo progression. The map remains the hero — gamification serves the map, not the other way around.
+
+| Feature | Notes |
+|---|---|
+| Country visual states | 5 states: unvisited / visited / reviewed / newly-discovered / target. Polygon fill, border, and animation differ per state. |
+| XP + level system | XP awarded for country discovery, region completion, scan completion, sharing. Level indicator + progress bar in map top strip. 8 levels: Wanderer → Legend. |
+| Discovery overlay | Full-screen moment when a new country is detected. Country name, flag emoji, XP earned, "Add to map" CTA. Haptic feedback. |
+| Region progress chips | Floating chips on map at region centroids (e.g. "4/5 Nordic"). Tap → region detail sheet with country list and missing countries highlighted. |
+| Milestone cards | Slide-up celebration at 5, 10, 25, 50, 100 countries. Badge + share button. |
+| Rovy mascot | Contextual quokka speech bubble. Used sparingly: celebration, encouragement, one-more-to-go nudge. Never interrupts flow. |
+| Soft social ranking | "You've explored more than 72% of Roavvy travellers." Shown subtly in Stats screen and achievements. No leaderboard. |
+| Progressive scan reveal | During first scan: countries appear one-by-one as detected. Not a loading screen — a discovery moment. |
+| Timeline scrubber | Filter map to show countries visited before a given year. Scrubber at bottom of map screen. Uses existing trip date data. |
+| Country depth colouring | Countries coloured by trip frequency: 1 visit = light amber, 5+ = deep gold. No new data required. |
+
+**Not in this phase:** city-level colouring, social feed, real-time comparison with friends.
+
+**Dependencies:** Phase 10 commerce must be stable first. XP system must not conflict with existing achievement engine — coordinate in ADR.
+
+---
+
 ## Deferred / Not Planned
 
 - Android support (revisit after iOS App Store launch)
-- Social feed or user discovery
+- Social feed or user discovery — soft social ranking (aggregate percentile comparison) is partially addressed in Phase 11; a full social feed with user-to-user interaction remains deferred
 - Real-time location tracking
 - Multi-device conflict resolution (pull from Firestore)
 - City or region-level granularity on the web map

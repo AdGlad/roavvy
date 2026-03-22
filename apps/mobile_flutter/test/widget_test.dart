@@ -11,6 +11,7 @@ import 'package:mobile_flutter/data/firestore_sync_service.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
+import 'package:mobile_flutter/data/xp_repository.dart';
 import 'package:mobile_flutter/features/scan/scan_screen.dart';
 import 'package:mobile_flutter/photo_scan_channel.dart';
 import 'package:shared_models/shared_models.dart';
@@ -59,6 +60,7 @@ Future<void> pumpApp(
         achievementRepositoryProvider.overrideWithValue(achievementRepo),
         tripRepositoryProvider.overrideWithValue(tripRepo),
         regionRepositoryProvider.overrideWithValue(regionRepo),
+        xpRepositoryProvider.overrideWithValue(XpRepository(db)),
         currentUidProvider.overrideWithValue(null),
       ],
       child: MaterialApp(

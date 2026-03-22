@@ -1,10 +1,13 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/continent_emoji.dart';
 import '../../core/country_names.dart';
 import '../../core/notification_service.dart';
+import '../map/country_visual_state.dart';
+import '../map/discovery_overlay.dart';
 import 'achievement_unlock_sheet.dart';
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
@@ -28,13 +31,15 @@ String _fmtDate(DateTime dt) =>
 /// confetti animation, and staggered row fade-in (ADR-055).
 /// **State B** — nothing new: "All up to date" with last scan date.
 ///
-/// Receives all data as constructor parameters — no Riverpod providers.
-/// Navigation out is exclusively via [onDone].
-class ScanSummaryScreen extends StatelessWidget {
+/// On the primary CTA, [_handleDone] registers all [newCodes] with
+/// [recentDiscoveriesProvider] then pushes [DiscoveryOverlay] for the first
+/// country (ADR-068). When [newCodes] is empty, [onDone] is called directly.
+class ScanSummaryScreen extends ConsumerStatefulWidget {
   const ScanSummaryScreen({
     super.key,
     required this.newCountries,
     required this.newAchievementIds,
+    required this.newCodes,
     required this.onDone,
     this.lastScanAt,
   });
@@ -45,24 +50,58 @@ class ScanSummaryScreen extends StatelessWidget {
   /// Achievement IDs unlocked in this save operation.
   final List<String> newAchievementIds;
 
-  /// Called when the user taps the primary CTA. The caller is responsible
-  /// for dismissing both [ScanSummaryScreen] and [ReviewScreen] and returning
-  /// the user to the Map tab (ADR-054).
+  /// ISO codes of newly discovered countries (sorted alphabetically).
+  /// Used to populate [recentDiscoveriesProvider] and push [DiscoveryOverlay].
+  final List<String> newCodes;
+
+  /// Called when the user taps the primary CTA and [newCodes] is empty.
+  /// The caller is responsible for dismissing [ScanSummaryScreen] and
+  /// returning the user to the Map tab (ADR-054).
   final VoidCallback onDone;
 
   /// Last scan timestamp — shown in State B only.
   final DateTime? lastScanAt;
 
   @override
+  ConsumerState<ScanSummaryScreen> createState() => _ScanSummaryScreenState();
+}
+
+class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
+  Future<void> _handleDone() async {
+    // Register all new codes so CountryPolygonLayer shows amber pulse.
+    if (widget.newCodes.isNotEmpty) {
+      await ref
+          .read(recentDiscoveriesProvider.notifier)
+          .addAll(widget.newCodes);
+    }
+
+    if (!mounted) return;
+
+    if (widget.newCodes.isNotEmpty) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: DiscoveryOverlay.routeName),
+          builder: (_) => DiscoveryOverlay(
+            isoCode: widget.newCodes.first,
+            xpEarned: 50,
+          ),
+        ),
+      );
+    } else {
+      widget.onDone();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: newCountries.isEmpty
-            ? _NothingNewState(onDone: onDone, lastScanAt: lastScanAt)
+        child: widget.newCountries.isEmpty
+            ? _NothingNewState(onDone: widget.onDone, lastScanAt: widget.lastScanAt)
             : _NewDiscoveriesState(
-                newCountries: newCountries,
-                newAchievementIds: newAchievementIds,
-                onDone: onDone,
+                newCountries: widget.newCountries,
+                newAchievementIds: widget.newAchievementIds,
+                onDone: _handleDone,
               ),
       ),
     );
@@ -80,7 +119,7 @@ class _NewDiscoveriesState extends StatefulWidget {
 
   final List<EffectiveVisitedCountry> newCountries;
   final List<String> newAchievementIds;
-  final VoidCallback onDone;
+  final Future<void> Function() onDone;
 
   @override
   State<_NewDiscoveriesState> createState() => _NewDiscoveriesStateState();

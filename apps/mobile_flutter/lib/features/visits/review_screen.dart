@@ -8,6 +8,8 @@ import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
 import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
+import '../xp/xp_event.dart';
+import '../xp/xp_notifier.dart';
 
 /// Lets the user correct the detected visited-country list before it is saved.
 ///
@@ -28,6 +30,7 @@ class ReviewScreen extends StatefulWidget {
     this.uid,
     this.achievementRepo,
     this.tripRepo,
+    this.xpNotifier,
   });
 
   /// The effective (already-merged) visits to start the review with.
@@ -50,6 +53,10 @@ class ReviewScreen extends StatefulWidget {
   /// Trip repository used to flush dirty trips to Firestore after saves.
   /// When null, trip sync is skipped.
   final TripRepository? tripRepo;
+
+  /// XP notifier used to award XP when countries are manually added.
+  /// When null, no XP is awarded.
+  final XpNotifier? xpNotifier;
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -105,15 +112,30 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ? (await achievementRepo.loadAll()).toSet()
           : const <String>{};
 
+      var newlyAddedCount = 0;
       for (final item in _items) {
         if (item.isNewlyAdded && !item.isPendingRemoval) {
           await widget.repository.saveAdded(
             UserAddedCountry(countryCode: item.countryCode, addedAt: now),
           );
+          newlyAddedCount++;
         } else if (!item.isNewlyAdded && item.isPendingRemoval) {
           await widget.repository.saveRemoved(
             UserRemovedCountry(countryCode: item.countryCode, removedAt: now),
           );
+        }
+      }
+
+      // Award XP for manually added countries (fire-and-forget).
+      final xpNotifier = widget.xpNotifier;
+      if (xpNotifier != null && newlyAddedCount > 0) {
+        for (var i = 0; i < newlyAddedCount; i++) {
+          unawaited(xpNotifier.award(XpEvent(
+            id: '${now.microsecondsSinceEpoch}-review-$i',
+            reason: XpReason.newCountry,
+            amount: 50,
+            awardedAt: now,
+          )));
         }
       }
 

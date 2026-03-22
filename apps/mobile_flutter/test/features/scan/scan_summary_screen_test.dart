@@ -1,8 +1,10 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/scan/scan_summary_screen.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 EffectiveVisitedCountry _country(String code) => EffectiveVisitedCountry(
       countryCode: code,
@@ -14,22 +16,27 @@ Future<void> pumpSummary(
   WidgetTester tester, {
   List<EffectiveVisitedCountry> newCountries = const [],
   List<String> newAchievementIds = const [],
+  List<String> newCodes = const [],
   VoidCallback? onDone,
   DateTime? lastScanAt,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      home: ScanSummaryScreen(
-        newCountries: newCountries,
-        newAchievementIds: newAchievementIds,
-        onDone: onDone ?? () {},
-        lastScanAt: lastScanAt,
+    ProviderScope(
+      child: MaterialApp(
+        home: ScanSummaryScreen(
+          newCountries: newCountries,
+          newAchievementIds: newAchievementIds,
+          newCodes: newCodes,
+          onDone: onDone ?? () {},
+          lastScanAt: lastScanAt,
+        ),
       ),
     ),
   );
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   group('ScanSummaryScreen — State A (new discoveries)', () {
     testWidgets('shows hero count for one new country', (tester) async {
       await pumpSummary(tester, newCountries: [_country('GB')]);
@@ -72,14 +79,16 @@ void main() {
       expect(find.text('Explore your map'), findsOneWidget);
     });
 
-    testWidgets('CTA calls onDone', (tester) async {
+    testWidgets('CTA calls onDone when newCodes is empty', (tester) async {
       bool called = false;
       await pumpSummary(
         tester,
         newCountries: [_country('GB')],
+        newCodes: const [],
         onDone: () => called = true,
       );
       await tester.tap(find.text('Explore your map'));
+      await tester.pump();
       expect(called, isTrue);
     });
 
@@ -121,13 +130,16 @@ void main() {
     testWidgets('confetti widget absent when disableAnimations is true',
         (tester) async {
       await tester.pumpWidget(
-        MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: MaterialApp(
-            home: ScanSummaryScreen(
-              newCountries: [_country('GB')],
-              newAchievementIds: const [],
-              onDone: () {},
+        ProviderScope(
+          child: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: MaterialApp(
+              home: ScanSummaryScreen(
+                newCountries: [_country('GB')],
+                newAchievementIds: const [],
+                newCodes: const [],
+                onDone: () {},
+              ),
             ),
           ),
         ),
@@ -139,11 +151,14 @@ void main() {
 
     testWidgets('confetti widget present when new countries exist', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: ScanSummaryScreen(
-            newCountries: [_country('GB')],
-            newAchievementIds: const [],
-            onDone: () {},
+        ProviderScope(
+          child: MaterialApp(
+            home: ScanSummaryScreen(
+              newCountries: [_country('GB')],
+              newAchievementIds: const [],
+              newCodes: const [],
+              onDone: () {},
+            ),
           ),
         ),
       );

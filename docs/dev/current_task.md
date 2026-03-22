@@ -1,38 +1,34 @@
-# M21 — Personalised Flag Print Pipeline
+# M22 — Phase 11 Slice 1: Visual States + XP Foundation
 
-**Milestone:** 21
-**Phase:** 10 — Commerce
-**Status:** ✅ Complete — 2026-03-21
+**Milestone:** 22
+**Phase:** 11 — Gamified Map & Progression System
+**Status:** ✅ Complete — 2026-03-22
 
 ## Goal
 
-Every merch order carries a unique auto-generated flag grid image. Mobile shows a live preview. Firebase Functions generate preview + print file at `createMerchCart` time (before payment). Webhook only validates and submits to Printful via direct API.
+The map visually encodes travel progress with 5 country visual states. XP is tracked. New country discovery has a full-screen emotional moment.
 
 ## Tasks
 
 | Task | Description | Status |
 |---|---|---|
-| 76 | `FlagGridPreview` Flutter widget — live flag grid in `MerchVariantScreen` | ✅ Done |
-| 77 | `MerchConfig` M21 type extension + Shopify GID → Printful variant ID mapping table | ✅ Done |
-| 78 | `imageGen.ts` — `generateFlagGrid()` helper (`flag-icons` + `@resvg/resvg-js` + `sharp`) | ✅ Done |
-| 79 | `createMerchCart` updated — generates preview + print PNG, uploads to Firebase Storage | ✅ Done |
-| 80 | `shopifyOrderCreated` updated — validates file, creates Printful order via API with print file | ✅ Done |
+| 81 | `CountryVisualState` enum + `countryVisualStateProvider` + `recentDiscoveriesProvider` | ✅ Done |
+| 82 | `CountryPolygonLayer` — replaces polygon rendering; 5 visual states with fill/border/animation | ✅ Done |
+| 83 | `XpEvent` + `xp_events` Drift table (schema v10) + `XpRepository` + `XpNotifier` | ✅ Done |
+| 84 | `XpLevelBar` widget (top strip on MapScreen) + XP award wired into write sites | ✅ Done |
+| 85 | `DiscoveryOverlay` full-screen route — new country moment with haptic + XP display | ✅ Done |
 
-## Key ADRs
+## Key files to touch
 
-- ADR-062 — Commerce backend architecture
-- ADR-063 — Printful as POD partner (revised M21: pure API, Shopify app out of critical path)
-- ADR-064 — Firebase Functions v2 structure
-- ADR-065 — Two-stage flag image pipeline (generate at cart time; webhook validates + submits)
-
-## Pending before production
-
-1. **Printful variant IDs** — replace placeholder `0` values in `printDimensions.ts` with verified numeric IDs from the Printful dashboard.
-2. **Firebase Storage rules** — configure bucket to allow public read on `previews/*`; print files remain private.
-3. **`PRINTFUL_API_KEY`** — add to Firebase Functions environment config.
-4. **Cloud Run smoke test** — deploy and verify `@resvg/resvg-js` + `sharp` linux/amd64 binaries load correctly.
-5. **Printful Shopify app auto-import** — disable in Printful dashboard for generated-merch variants (ADR-063).
-
-## Next step
-
-Update `docs/dev/current_state.md` and plan next milestone.
+- `lib/features/map/country_visual_state.dart` (NEW)
+- `lib/features/map/country_polygon_layer.dart` (NEW)
+- `lib/features/map/xp_level_bar.dart` (NEW)
+- `lib/features/map/discovery_overlay.dart` (NEW)
+- `lib/features/xp/xp_event.dart` (NEW)
+- `lib/features/xp/xp_notifier.dart` (NEW)
+- `lib/data/xp_repository.dart` (NEW)
+- `lib/data/db/roavvy_database.dart` (schema v10, add `xp_events` table)
+- `lib/core/providers.dart` (add `recentDiscoveriesProvider`, `xpRepositoryProvider`, `xpNotifierProvider`)
+- `lib/features/map/map_screen.dart` (add `XpLevelBar`, replace `PolygonLayer` with `CountryPolygonLayer`)
+- `lib/features/visits/review_screen.dart` (XP award at save)
+- `lib/features/merch/travel_card_widget.dart` (XP award on share)

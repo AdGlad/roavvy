@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-21, through Task 75 / M20)
+# Roavvy — Development State (as of 2026-03-22, through Task 85 / M22)
 
 ## What Works
 
@@ -48,7 +48,17 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **App icon placeholder marker**: `REPLACE_WITH_FINAL_ICON.md` in `AppIcon.appiconset`; instructions for generating final sizes from 1024×1024 PNG
 - **PHAsset IDs in local DB**: `asset_id` TEXT column on `photo_date_records` Drift table (schema v9); `VisitRepository.loadAssetIds(countryCode)` returns non-null asset IDs for a country
 - **Photo gallery**: `PhotoGalleryScreen` — 3-column `GridView` of PHAsset thumbnails (150×150); empty state; loading indicator per cell; broken-image icon on fetch failure; tapping a cell pushes full-screen `InteractiveViewer`; `photo_manager ^3.0.0`; `ThumbnailFetcher` typedef injectable in tests (ADR-061); `CountryDetailSheet` restructured to 2-tab layout (Details / Photos)
-- 311+ flutter tests passing; ~93 package tests passing
+- **Gamified map (M22 — Phase 11 Slice 1)**:
+  - `CountryVisualState` enum (5 states: `unvisited`, `visited`, `reviewed`, `newlyDiscovered`, `target`); `countryVisualStateProvider` family + `countryVisualStatesProvider` map provider
+  - `recentDiscoveriesProvider` — SharedPreferences-backed `StateNotifier<Set<String>>`; 24h expiry; async init via `Completer` ready gate (ADR-067)
+  - `CountryPolygonLayer` — replaces imperative polygon building; splits into static + animated `PolygonLayer` groups; amber pulse animation (0.55–0.85 opacity, 1200ms); animation only starts when `newlyDiscovered` polygons exist and animations are enabled (ADR-066, ADR-055)
+  - `XpEvent` domain model + `xp_events` Drift table (schema v10); `XpRepository`; `XpNotifier` (`StateNotifier<XpState>`) with 8 level thresholds and `Stream<int> xpEarned` for flash animation
+  - `XpLevelBar` — 44pt amber top strip on `MapScreen`; circular level badge, level label, `LinearProgressIndicator`, "+N XP" flash via `AnimatedSwitcher` (1500ms)
+  - XP awarded at 4 sites: scan completed (+25 XP), new country (+50 XP, wired in ScanScreen + ReviewScreen), share (+30 XP)
+  - `DiscoveryOverlay` — full-screen amber gradient route; flag emoji (64pt), country name, "+50 XP", `HeavyImpact` haptic; pushed from `ScanSummaryScreen._handleDone()` for first new country; "Explore your map" CTA uses `popUntil('/')` (ADR-068)
+  - `ScanSummaryScreen` converted to `ConsumerStatefulWidget`; `_handleDone()` registers all new codes with `recentDiscoveriesProvider` then pushes `DiscoveryOverlay`
+  - `MapScreen` converted from `ConsumerStatefulWidget` to `ConsumerWidget`; reactive `effectiveVisitsProvider` in `build()`
+- 380+ flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
