@@ -312,19 +312,21 @@ All sharing features are complete as of M12.
 
 **Goal:** The map shows region completion progress at a glance. Rovy provides contextual encouragement. The "one more country" nudge drives re-engagement.
 
+**Region model decision (product):** 6 standard global continents derived from `kCountryContinent` in `packages/shared_models`. Custom sub-continental regions (Scandinavia, Benelux, etc.) are deferred to a later milestone as optional overlays.
+
 **Scope — included:**
-- `RegionProgressNotifier` — computes per-region completion ratio from `RegionRepository` + a static region→countries map; provides `List<RegionProgressData>` (region name, centroid lat/lng, visited count, total count)
-- Static `regionCountries` map in `lib/features/map/region_countries.dart` — maps region code to `List<String>` of ISO-2 country codes for all supported regions (Europe, SE Asia, Scandinavia, Benelux, Caribbean, Southern Africa, etc.)
-- Static `regionCentroids` map in `lib/features/map/region_centroids.dart` — maps region code to `LatLng` centroid position for chip placement
+- `Region` enum (6 values): `europe`, `asia`, `africa`, `northAmerica`, `southAmerica`, `oceania`
+- `RegionProgressNotifier` — computes per-region completion ratio by reading `kCountryContinent` directly; provides `List<RegionProgressData>` (region, centroid LatLng, visited count, total count); no static `regionCountries` file needed
+- Fixed centroid `LatLng` per region (hardcoded constants): Europe (54, 15), Asia (34, 100), Africa (2, 21), North America (40, −100), South America (−15, −60), Oceania (−25, 134)
 - `RegionChipsMarkerLayer` — `MarkerLayer` on `FlutterMap` showing progress chips at region centroids; only visible at zoom ≥ 4; chips show "N/M [Region]" with arc progress ring; arc animates to full-ring checkmark on completion
-- `TargetCountryLayer` — `PolygonLayer` for countries that are 1-away from completing a partially-done region; dashed amber border via `CustomPainter`; breathing opacity animation (0.40 → 0.65 → 0.40, 2400ms)
-- `RegionDetailSheet` — bottom sheet showing region name, countries list (visited / unvisited), "You need X more" callout; tapping an unvisited country → `UnvisitedCountrySheet`
+- `TargetCountryLayer` — `PolygonLayer` for countries that are 1-away from completing a partially-done region; solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) + breathing fill opacity (0.10 → 0.25 → 0.10, 2400ms); uses same `AnimationController` pattern as M22 `CountryPolygonLayer` — no `CustomPainter` required
+- `RegionDetailSheet` — bottom sheet showing region name, countries list (visited / unvisited), "You need X more" callout
 - `RovyMessage` model: `{ text: String, trigger: RovyTrigger, emoji: String? }` where `RovyTrigger` is an enum: `newCountry | regionOneAway | milestone | postShare | caughtUp`
 - `RovyBubble` widget — `ConsumerStatefulWidget`; positioned `bottom: 120, right: 16`; quokka avatar (48px, circular, amber border) + speech bubble extending left (max 180px width); `rovyMessageProvider` (StateProvider<RovyMessage?>); auto-dismiss after 4s via `Timer`; tap-to-dismiss; `AnimatedSwitcher` for scale-in entrance; one bubble visible at a time
 - Rovy message triggers wired to events: new country (+encouragement), region 1-away (nudge), 10th country (milestone), post-share (thanks), zero-new-countries scan (caught up)
-- All new features behind a `featureFlags.regionChips` and `featureFlags.rovyBubble` compile-time flag until Slice 1 visual states are stable in production
 
 **Scope — excluded:**
+- Custom sub-continental region overlays (Scandinavia, Benelux, etc.) — deferred, to be added as optional overlays on top of the continent base system
 - Milestone cards (separate task in a later slice)
 - Social ranking (Slice 3)
 - Timeline scrubber (Later)
@@ -334,16 +336,15 @@ All sharing features are complete as of M12.
 
 | Task | Description |
 |---|---|
-| 86 | `RegionProgressNotifier` + `regionCountries` static map + `regionCentroids` static map |
+| 86 | `Region` enum + `RegionProgressNotifier` (reads `kCountryContinent`; hardcoded centroids) |
 | 87 | `RegionChipsMarkerLayer` — progress chips on map at centroids, zoom-gated at zoom ≥ 4 |
 | 88 | `TargetCountryLayer` + `RegionDetailSheet` — dashed 1-away border + region drill-down sheet |
 | 89 | `RovyBubble` + `rovyMessageProvider` + trigger wiring at all event sites |
 
 **Technical risks:**
 
-1. **Region→country completeness** — the static `regionCountries` map must be comprehensive enough to be meaningful without being so granular it never triggers. Define regions at the sub-continental level (e.g. Scandinavia = DK, FI, IS, NO, SE; not "Northern Europe" which spans 15 countries and feels unachievable). Review region definitions with product before Task 86.
-2. **Dashed border via `CustomPainter`** — `flutter_map` `PolygonLayer` does not natively support dashed borders. `TargetCountryLayer` must convert `LatLng` polygon points to screen coordinates using `MapCamera.latLngToScreenPoint` and draw dashes via `Canvas.drawLine`. This must handle map pan/zoom correctly — the painter must be invalidated when the map moves. Use `MapController.mapEventStream` to trigger repaint. Test on a country with many polygon points (Russia, Canada) to verify performance.
-3. **Rovy asset dependency** — `RovyBubble` should work with a simple placeholder circle + "R" text label initially. Do not block Task 89 on the final SVG asset. The asset can be swapped in without code changes once available.
+1. **`TargetCountryLayer` visual treatment** — Dashed borders are not supported natively in `flutter_map` and require `CustomPainter` with manual screen-coordinate projection and repaint wiring — too risky for this slice. Use a solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) with a breathing fill opacity animation (0.10 → 0.25 → 0.10, 2400ms) using the same `AnimationController` pattern as `CountryPolygonLayer`. The solid amber border is visually distinct from teal (visited) and grey (unvisited) states without any `CustomPainter` complexity. **Do not implement dashed borders in M23.**
+2. **Rovy asset dependency** — `RovyBubble` should work with a simple placeholder circle + "R" text label initially. Do not block Task 89 on the final SVG asset. The asset can be swapped in without code changes once available.
 
 ---
 
