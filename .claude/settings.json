@@ -1,6 +1,17 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
+      "Write(docs/dev/next_tasks.md)",
+      "Write(docs/dev/current_task.md)",
+      "Write(docs/dev/current_state.md)",
+      "Write(docs/dev/backlog.md)",
+      "Write(docs/architecture/decisions.md)",
+      "Edit(docs/dev/next_tasks.md)",
+      "Edit(docs/dev/current_task.md)",
+      "Edit(docs/dev/current_state.md)",
+      "Edit(docs/dev/backlog.md)",
+      "Edit(docs/architecture/decisions.md)",
       "Bash(npm run:*)",
       "Bash(ls /Users/adglad/git/roavvy/apps/web_nextjs/jest*)",
       "Bash(npm install:*)",

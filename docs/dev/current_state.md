@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-19, through Task 58)
+# Roavvy — Development State (as of 2026-03-21, through Task 75 / M20)
 
 ## What Works
 
@@ -27,7 +27,7 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **Firebase Auth**: `firebase_core` + `firebase_auth` initialised in `main()` (parallel with geodata + DB init); anonymous sign-in on first launch; `authStateProvider` (`StreamProvider<User?>`) in `lib/core/providers.dart`
 - **Sign in with Apple**: `sign_in_with_apple` + `crypto` packages; SHA-256 nonce flow; anonymous credential upgrade via `linkWithCredential`; "Sign in with Apple" / "Signed in with Apple ✓" in `MapScreen` overflow menu; handles `credential-already-in-use` by signing in directly (ADR-028)
 - **Firestore sync**: `cloud_firestore ^5.4.0`; `isDirty`/`syncedAt` columns on all three Drift tables (schema v3); `FirestoreSyncService.flushDirty(uid, repo)` pushes dirty rows to `users/{uid}/inferred_visits`, `users/{uid}/user_added`, `users/{uid}/user_removed`; called fire-and-forget after Apple sign-in (Task 19) and after each scan/review-save (Task 20); `NoOpSyncService` stub used in widget tests; `firestore.rules` scaffold at repo root (ADR-029, ADR-030)
-- **Trip intelligence**: `TripRecord` domain model; `TripInference.inferTrips()` clusters photo records by country + 30-day gap; `TripRepository` persists inferred trips; `TripEditSheet` for manual trip date edits; schema v5 `trips` table
+- **Trip intelligence**: `TripRecord` domain model; `TripInference.inferTrips()` uses geographic sequence model (sort all records by date, run-length encode by country code — each contiguous run = one trip); `TripRepository` persists inferred trips; `TripEditSheet` for manual trip date edits; schema v5 `trips` table
 - **Region detection**: `packages/region_lookup` — offline ISO 3166-2 admin1 polygon lookup; custom compact binary (`ne_admin1.bin`, 3.5 MB); `RegionVisit` domain model; `RegionRepository`; region count + expandable region list in `CountryDetailSheet`; schema v7 `region_visits` table
 - **Bootstrap service**: `BootstrapService` re-derives trips and region visits from existing photo scan records on app launch (catches up users who scanned before these features existed)
 - **Journal screen**: `JournalScreen` (tab 1); chronological trip list grouped by year; country flag emoji; taps open `CountryDetailSheet`; empty state with "Scan Photos" CTA
@@ -46,7 +46,9 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **Notification permission prompt**: requested after first scan that finds new countries (`_NewDiscoveriesState._scheduleNotifications()`); not prompted on nothing-new path
 - **"Get Roavvy" CTA on share page**: `/share/[token]` now shows descriptive copy + App Store badge below the map; `APP_STORE_URL` constant (placeholder `id0000000000`, TODO to replace); placeholder `app-store-badge.svg` (TODO to replace with official Apple badge)
 - **App icon placeholder marker**: `REPLACE_WITH_FINAL_ICON.md` in `AppIcon.appiconset`; instructions for generating final sizes from 1024×1024 PNG
-- 333 flutter tests passing; 83 package tests passing; 416 total
+- **PHAsset IDs in local DB**: `asset_id` TEXT column on `photo_date_records` Drift table (schema v9); `VisitRepository.loadAssetIds(countryCode)` returns non-null asset IDs for a country
+- **Photo gallery**: `PhotoGalleryScreen` — 3-column `GridView` of PHAsset thumbnails (150×150); empty state; loading indicator per cell; broken-image icon on fetch failure; tapping a cell pushes full-screen `InteractiveViewer`; `photo_manager ^3.0.0`; `ThumbnailFetcher` typedef injectable in tests (ADR-061); `CountryDetailSheet` restructured to 2-tab layout (Details / Photos)
+- 311+ flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
@@ -68,7 +70,7 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 | `TravelSummary` | Aggregate stats: countryCount, earliestVisit, latestVisit |
 | `TripRecord` | Inferred or manually-edited trip: id, countryCode, startedOn, endedOn, photoCount |
 | `RegionVisit` | Sub-national region visit: tripId, countryCode, regionCode, firstSeen, lastSeen, photoCount |
-| `PhotoDateRecord` | Per-photo record from scan pipeline: lat, lng, capturedAt, regionCode |
+| `PhotoDateRecord` | Per-photo record from scan pipeline: lat, lng, capturedAt, regionCode, assetId |
 | `Achievement` | Achievement definition: id, title, description |
 | `AchievementEngine` | Pure static `evaluate()` → Set of unlocked achievement IDs |
 
@@ -96,7 +98,8 @@ apps/mobile_flutter/
   lib/core/notification_service.dart      NotificationService singleton; scheduleNudge / scheduleAchievementUnlock / requestPermission; pendingTabIndex ValueNotifier
   lib/photo_scan_channel.dart             startPhotoScan() / ScanBatchEvent / ScanDoneEvent / PhotoRecord
   lib/data/db/roavvy_database.dart        Drift table definitions (schema v8: visits + trips + regions + achievements + scan_meta)
-  lib/data/visit_repository.dart          VisitRepository — typed upsert/load/clear + dirty-load + mark-clean
+  lib/features/map/photo_gallery_screen.dart  3-column thumbnail grid; full-screen viewer; ThumbnailFetcher typedef (ADR-061)
+  lib/data/visit_repository.dart          VisitRepository — typed upsert/load/clear + dirty-load + mark-clean + loadAssetIds
   lib/data/trip_repository.dart           TripRepository — upsert, loadAll, loadByCountry, clear
   lib/data/region_repository.dart         RegionRepository — upsert, loadByCountry, loadByTrip, countUnique, clearAll
   lib/data/achievement_repository.dart    AchievementRepository — upsertAll, loadAll, loadAllRows, loadDirty, markClean
@@ -111,7 +114,8 @@ apps/mobile_flutter/
   test/data/firestore_sync_service_test.dart  FirestoreSyncService unit tests (FakeFirebaseFirestore)
   test/features/map/map_screen_test.dart  MapScreen widget tests (ProviderScope)
   test/features/map/stats_strip_test.dart StatsStrip widget tests (4 tests)
-  test/features/map/country_detail_sheet_test.dart  CountryDetailSheet widget tests (9 tests)
+  test/features/map/country_detail_sheet_test.dart  CountryDetailSheet widget tests
+  test/features/map/photo_gallery_screen_test.dart  PhotoGalleryScreen + CountryDetailSheet Photos-tab tests (4 tests)
   test/features/shell/main_shell_test.dart  Navigation tab switching tests (6 tests)
   test/features/journal/journal_screen_test.dart  JournalScreen widget tests (11 tests)
   test/features/stats/stats_screen_test.dart      StatsScreen widget tests (8 tests)
@@ -188,6 +192,7 @@ apps/web_nextjs/
 | 055 | Celebration animations respect `MediaQuery.disableAnimationsOf`; confetti gated; row stagger capped at row 7 | Accepted — implemented |
 | 056 | Local push notifications: `NotificationService` singleton; `scheduleAchievementUnlock` (immediate) + `scheduleNudge` (30-day `zonedSchedule`); `pendingTabIndex` ValueNotifier for tap routing; permission prompt after first new-country scan | Accepted — implemented |
 | 057 | iPhone-only: `TARGETED_DEVICE_FAMILY = "1"`; `CFBundleDisplayName`/`CFBundleName` → "Roavvy" | Accepted — implemented |
+| 061 | `ThumbnailFetcher` typedef injected in `PhotoGalleryScreen`; tests stub it to avoid `photo_manager` platform channel | Accepted — implemented |
 
 ## Test Coverage
 
@@ -224,7 +229,10 @@ cd apps/mobile_flutter && flutter test
 | M17 (Tasks 47–49) | Phase 7 — 4-tab shell, JournalScreen, StatsScreen + achievement gallery | ✅ Complete |
 | M18 (Tasks 50–53) | Phase 8 — Celebrations & Delight (onboarding, scan summary, confetti, achievement sheet) | ✅ Complete |
 | M19 (Tasks 54–58) | Phase 9 — App Store Readiness (iPhone-only, bundle identity, notifications, privacy policy, share CTA) | ✅ Complete (icon + App Store URL pending external deliverables) |
+| M19A (Tasks 59–64) | Phase 9.5 — Quality & Depth (trip inference fix, region fix, confetti fix, interactive nav, PHAsset IDs, photo gallery) | ✅ Complete |
+| M20A (Tasks 65–69) | Phase 10 — Commerce setup (Shopify store, API credentials, 40 product variants, Printful sync, API contracts doc) | ✅ Complete |
+| M20 (Tasks 70–75) | Phase 10 — Commerce PoC (Firebase Functions scaffold + deploy, `createMerchCart` onCall, `shopifyOrderCreated` webhook, mobile commerce flow: country selection → product browser → variant picker → Shopify checkout) | ✅ Complete |
 
-**Phases 1–9 are complete (core implementation).** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection.
+**Phases 1–10 (PoC) are complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection, Phase 10 live mockup generation (post-PoC).
 
-**Next milestone:** M20 — Phase 10: Shop & Merchandise. See `docs/dev/backlog.md`.
+**Commerce PoC is live.** `createMerchCart` and `shopifyOrderCreated` deployed to `roavvy-prod`. Mobile commerce flow accessible from Stats screen → Shop button. Shopify `orders/create` webhook registered (ID: 1483692638395) pointing at the deployed function.

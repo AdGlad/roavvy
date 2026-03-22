@@ -1,3 +1,6 @@
+# Secrets — never commit
+apps/functions/.env
+
 # macOS
 .DS_Store
 

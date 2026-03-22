@@ -1,36 +1,38 @@
-# Current Task — Task 59: Fix trip inference: geographic sequence model
+# M21 — Personalised Flag Print Pipeline
 
-**Milestone:** 19A
-**Phase:** Quality fix
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Status:** ✅ Complete — 2026-03-21
 
-## Why
+## Goal
 
-The current trip inference algorithm clusters photos within a single country by a 30-day time gap. This is wrong: a user who visits Japan three times with less than 30 days between visits gets a single trip. The correct model follows the traveller's actual movement through the chronological photo stream. A trip starts at the first photo for a country and ends at the last photo before the next photo from a *different* country appears.
+Every merch order carries a unique auto-generated flag grid image. Mobile shows a live preview. Firebase Functions generate preview + print file at `createMerchCart` time (before payment). Webhook only validates and submits to Printful via direct API.
 
-## Algorithm
+## Tasks
 
-1. Sort all `PhotoDateRecord`s by `capturedAt` across all countries.
-2. Walk the sorted list; when the country code changes, close the current trip and open a new one.
-3. Trip `startedOn` = first photo's `capturedAt` in the run; `endedOn` = last photo's `capturedAt` in the run.
-4. Manual trips (`isManual: true`) are never touched by re-inference.
+| Task | Description | Status |
+|---|---|---|
+| 76 | `FlagGridPreview` Flutter widget — live flag grid in `MerchVariantScreen` | ✅ Done |
+| 77 | `MerchConfig` M21 type extension + Shopify GID → Printful variant ID mapping table | ✅ Done |
+| 78 | `imageGen.ts` — `generateFlagGrid()` helper (`flag-icons` + `@resvg/resvg-js` + `sharp`) | ✅ Done |
+| 79 | `createMerchCart` updated — generates preview + print PNG, uploads to Firebase Storage | ✅ Done |
+| 80 | `shopifyOrderCreated` updated — validates file, creates Printful order via API with print file | ✅ Done |
 
-## Acceptance criteria
+## Key ADRs
 
-- [ ] `TripInference.inferTrips()` uses geographic sequence model: sort all records by date, run-length encode by country code, each run = one `TripRecord`
-- [ ] `startedOn` = first photo's `capturedAt` in the run; `endedOn` = last photo's `capturedAt` in the run
-- [ ] A sequence JP → US → JP produces two separate JP trips and one US trip (not one JP trip)
-- [ ] Existing manual trips (`isManual: true`) are not touched by re-inference
-- [ ] Unit tests cover: single country, two countries alternating, same country non-adjacent, manual trip preservation
-- [ ] `dart analyze` reports zero issues
-- [ ] All existing `shared_models` tests continue to pass
+- ADR-062 — Commerce backend architecture
+- ADR-063 — Printful as POD partner (revised M21: pure API, Shopify app out of critical path)
+- ADR-064 — Firebase Functions v2 structure
+- ADR-065 — Two-stage flag image pipeline (generate at cart time; webhook validates + submits)
 
-## Files to change
+## Pending before production
 
-- `packages/shared_models/lib/src/trip_inference.dart` — replace 30-day gap algorithm with geographic sequence model
-- `packages/shared_models/test/trip_inference_test.dart` — update and extend tests
+1. **Printful variant IDs** — replace placeholder `0` values in `printDimensions.ts` with verified numeric IDs from the Printful dashboard.
+2. **Firebase Storage rules** — configure bucket to allow public read on `previews/*`; print files remain private.
+3. **`PRINTFUL_API_KEY`** — add to Firebase Functions environment config.
+4. **Cloud Run smoke test** — deploy and verify `@resvg/resvg-js` + `sharp` linux/amd64 binaries load correctly.
+5. **Printful Shopify app auto-import** — disable in Printful dashboard for generated-merch variants (ADR-063).
 
-## Dependencies
+## Next step
 
-None.
-
-## Status: AWAITING ARCHITECT
+Update `docs/dev/current_state.md` and plan next milestone.

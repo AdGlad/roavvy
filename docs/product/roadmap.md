@@ -157,17 +157,40 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
-## Phase 10 — Commerce & Web Shop
+## Phase 10 — Commerce & Personalised Merchandise
 
-**Goal:** Users can buy personalised travel merchandise (a travel poster with their visited countries highlighted).
+**Goal:** Users can buy personalised travel merchandise — t-shirts and posters — with their visited countries rendered as a design. Print-on-demand via Shopify + Printful/Printify. Available on mobile (iOS app) and web.
+
+**UX spec:** [docs/ux/commerce_flow.md](../ux/commerce_flow.md)
+
+**Architecture:** See ADR-062. Commerce uses a backend-mediated four-layer architecture: mobile app → Firebase Functions → Shopify Storefront API → POD Shopify app. The mobile app never calls Shopify directly; all cart creation happens server-side.
 
 | Feature | Notes |
 |---|---|
-| Shop landing page (`/shop`) | Accessible without sign-in; featured products |
-| Product personalisation | User signs in; visited countries rendered as SVG/PNG map preview |
-| Shopify Storefront API | Product catalogue, add to cart, redirect to Shopify checkout |
-| Travel poster asset generation | Canvas export of Leaflet map; attached to Shopify line item as custom property |
-| In-app shop entry point | "Buy a travel poster" CTA on Stats screen and travel card share flow |
+| Country selection | Default: all visited countries pre-selected; user can deselect |
+| Product browser | T-shirt (primary) + Travel poster; live mockup per product using user's selection |
+| Design studio — styles | World Map · Flags · Passport Stamps |
+| Design studio — options | Placement (Front / Back / Both) · shirt colour · size |
+| Live mockup | Mockup image fetched from Printful/Printify mockup API (called from Firebase Functions); skeleton shimmer while loading |
+| `MerchConfig` persistence | Design payload saved to Firestore (`users/{uid}/merch_configs/{configId}`) by Firebase Functions before cart creation |
+| Cart creation (server-side) | Firebase Functions calls Shopify Storefront API `cartCreate`; attaches `merchConfigId` as cart attribute; returns `checkoutUrl` to app |
+| Shopify checkout | `checkoutUrl` opened in `SFSafariViewController` (mobile) / redirect (web); Shopify-hosted checkout for PCI compliance |
+| Post-purchase screen | Native celebration screen (mobile); Shopify confirmation page (web) |
+| Order webhook | Shopify `orders/create` webhook received by Firebase Functions; links `orderId` to `MerchConfig` in Firestore |
+| POD fulfilment | POD provider connects to Shopify as a Shopify app — receives and fulfils orders automatically through Shopify; no direct Roavvy→POD API in PoC |
+| `/shop` public landing page | Accessible without sign-in; sample mockups; prompts sign-in to personalise |
+| In-app entry points | Stats screen "Shop" button (primary); travel card share flow; scan summary |
+| Web entry points | Nav bar link on `/map`; CTA on `/share/[token]`; direct `/shop` URL |
+
+**Not in PoC:** Custom per-order print file generation (generating unique artwork from the user's country list at order time). For the PoC, the store owner manually supplies or selects the print file per order. Post-PoC, Firebase Functions will generate and submit the print file to the POD provider's API via the order webhook.
+
+**Prerequisites (external):**
+- Firebase project with Cloud Functions enabled (Blaze/pay-as-you-go plan)
+- Shopify store created with product variants (colour × size) configured; one product per merch template
+- Shopify Admin API token — stored in Firebase Functions environment only, never in client
+- Shopify Storefront API token — used by Firebase Functions for cart creation
+- Printful or Printify app connected to Shopify store as a Shopify app
+- Fulfilment partner mockup API access confirmed (called from Firebase Functions, not from client)
 
 ---
 

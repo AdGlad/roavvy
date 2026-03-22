@@ -1,0 +1,1 @@
+{"version":3,"file":"resvgjs.js","sourceRoot":"","sources":["../../src/__mocks__/resvgjs.ts"],"names":[],"mappings":";AAAA;;;;;;;;;GASG;;;AAEH,mCAAmC;AACnC,MAAM,OAAO,GAAG,MAAM,CAAC,IAAI,CACzB,gEAAgE;IAC9D,+EAA+E,EACjF,KAAK,CACN,CAAC;AAEF,MAAa,KAAK;IAChB,YAAY,IAAyB,EAAE,KAAc,IAAG,CAAC;IAEzD,MAAM;QACJ,OAAO;YACL,KAAK,EAAE,GAAG,EAAE,CAAC,OAAO;SACrB,CAAC;IACJ,CAAC;CACF;AARD,sBAQC"}

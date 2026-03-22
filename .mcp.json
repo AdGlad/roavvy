@@ -11,6 +11,14 @@
         "firestore,auth,storage"
       ]
     },
+    "shopify": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@shopify/dev-mcp@latest"
+      ]
+    },
     "google-search": {
       "type": "stdio",
       "command": "npx",

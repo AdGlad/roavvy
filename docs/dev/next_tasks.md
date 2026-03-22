@@ -2220,3 +2220,707 @@ Tasks 59, 60, 61, 62, 63 are all independent and may be built in any order or in
 Task 64 depends on Task 63.
 
 **Builder may proceed.**
+
+---
+
+## Milestone 20A — Commerce Prerequisites
+
+**Goal:** All external infrastructure is confirmed and documented so the builder can begin M20 implementation without hitting an unknown blocker mid-way.
+
+**Why a separate milestone:** M20 cannot be partially built. The mockup system, Shopify checkout, and fulfilment integration are tightly coupled. If the critical question (can the fulfilment partner render a unique design per order from a country code list?) has the wrong answer, the architecture changes entirely. Every hour of M20 code written before this is confirmed is at risk.
+
+**Scope — included:**
+- Decision: which print-on-demand partner to use (Printful vs. Printify)
+- Shopify store created with Storefront API access enabled
+- Product catalogue configured: t-shirt variants (colour × size) + poster variants (stock × size)
+- Fulfilment partner connected to Shopify store
+- Critical validation: confirm the fulfilment partner can accept a per-order country list and generate a custom print file from it
+- Storefront API access token documented and securely recorded (not committed to repo)
+
+**Scope — excluded:**
+- Any Flutter or Next.js code
+- Mockup API integration (M20)
+- Shopify checkout flow (M20)
+
+**Who does this:** The store owner / product owner. These are external actions in Shopify and Printful/Printify admin panels, not tasks for the builder. The exception is Task 68 (API validation spike), which may require a developer to test API endpoints.
+
+---
+
+**Architecture amendment (2026-03-20):** The commerce architecture is now backend-mediated. See ADR-062. Key changes to M20A:
+- Task 66 now requires TWO Shopify API tokens: a public Storefront API token (used by Firebase Functions to create carts) and a private Admin API token (used by Firebase Functions for order management). Neither token should be in the mobile app or web client.
+- Task 68 validation question simplified: the POD provider connects to Shopify as a Shopify app and receives orders automatically. We do NOT need the POD to support dynamic country-list rendering in the PoC — the store owner manually provides the print file. Post-PoC, Firebase Functions will generate and submit a custom print file per order via the POD's API.
+- New prerequisite: Firebase project must have Cloud Functions enabled (Blaze/pay-as-you-go plan required). This is a one-line Firebase Console change.
+- "Option C" risk (POD cannot accept custom files) is eliminated for the PoC — the POD only needs to receive and ship a Shopify order.
+
+---
+
+## Task 65 — Choose print-on-demand partner
+
+**Milestone:** 20A
+**Phase:** 10 — Commerce Prerequisites
+**Owner:** Product owner (decision) + developer (API research)
+
+**Why:** Printful and Printify are the two leading print-on-demand platforms with Shopify integration. They differ on price, product range, API quality, and — critically — whether they support per-order custom artwork generation from a dynamic input (our country code list). The wrong choice creates a re-platform mid-build.
+
+**Deliverable:** A written decision (added to `docs/architecture/decisions.md` as an ADR note) stating which platform was chosen and why.
+
+**Acceptance criteria:**
+- [ ] Both Printful and Printify API docs reviewed for: mockup generation API, per-order print file submission, line item custom property support
+- [ ] Key question answered for each: "Can we pass a list of country codes per order and have the platform generate a unique print-ready file from it, or must we upload the print file ourselves?"
+- [ ] T-shirt and poster product availability confirmed on chosen platform (correct colours, sizes, paper stocks)
+- [ ] Pricing confirmed: base cost per t-shirt, per poster; acceptable margin at planned retail price
+- [ ] Decision documented in `docs/architecture/decisions.md`
+
+**Key question to answer:**
+
+> Does [Platform] support per-order dynamic print file generation from a parameter set (e.g. country code list), or must the merchant upload a static print file per SKU?
+
+If neither platform supports dynamic generation, document what the workaround is (e.g., generate and upload a print file via webhook when an order is placed — this is feasible but requires a server-side component Roavvy does not currently have).
+
+**Dependencies:** None. Do this first.
+
+---
+
+## Task 66 — Create Shopify store and configure Storefront API access
+
+**Milestone:** 20A
+**Phase:** 10 — Commerce Prerequisites
+**Owner:** Product owner
+
+**Why:** The Shopify Storefront API is the interface between Roavvy (mobile app + web) and the Shopify cart/checkout. Without a store and a Storefront API access token, no integration code can be tested.
+
+**Deliverable:** Live Shopify store; Storefront API access token generated and recorded securely.
+
+**Acceptance criteria:**
+- [ ] Shopify store created at a suitable domain (e.g. `shop.roavvy.app` or `roavvy.myshopify.com`)
+- [ ] Store currency, tax settings, and shipping zones configured
+- [ ] A custom app (or Headless channel) created in the Shopify admin with Storefront API access enabled
+- [ ] Storefront API access token generated with at minimum these scopes: `unauthenticated_read_product_listings`, `unauthenticated_write_checkouts`, `unauthenticated_read_checkouts`
+- [ ] Token recorded in a secure location (password manager / environment secrets) — **not committed to the repo**
+- [ ] Token confirmed working: a simple `curl` against the Storefront API GraphQL endpoint returns a valid response
+
+**Steps (Shopify admin):**
+1. Create store → Settings → Plan → choose Starter or Basic
+2. Settings → Apps and sales channels → Develop apps → Create an app
+3. In the app, enable Storefront API and select the required scopes
+4. Install the app → copy the Storefront API access token
+
+**Dependencies:** None. Can be done in parallel with Task 65.
+
+---
+
+## Task 67 — Configure product catalogue in Shopify
+
+**Milestone:** 20A
+**Phase:** 10 — Commerce Prerequisites
+**Owner:** Product owner
+
+**Why:** The Shopify Storefront API serves products from the Shopify catalogue. The mobile and web apps query product variants (colour, size, price) at runtime. Without products configured, the design studio cannot display real options or prices.
+
+**Deliverable:** T-shirt product and Poster product live in the Shopify catalogue with all variants configured.
+
+**Acceptance criteria:**
+
+**T-Shirt product:**
+- [ ] Product created: "Roavvy Travel T-Shirt" (or equivalent title)
+- [ ] Variants configured: 5 colours (White, Black, Navy, Forest Green, Stone Grey) × 5 sizes (S, M, L, XL, 2XL) = 25 variants
+- [ ] Each variant has a SKU, price, and is linked to the corresponding fulfilment partner product (after Task 68)
+- [ ] Product published to the Storefront API channel
+
+**Poster product:**
+- [ ] Product created: "Roavvy Travel Poster"
+- [ ] Variants configured: 3 paper stocks (White Matte, White Gloss, Recycled Cream) × 5 sizes (A3, A2, A1, 18×24", 24×36") = 15 variants
+- [ ] Each variant has a SKU, price, and is linked to the fulfilment partner product (after Task 68)
+- [ ] Product published to the Storefront API channel
+
+**Validation:**
+- [ ] Querying the Storefront API `products` endpoint returns both products with all variants and prices
+
+**Dependencies:** Task 66 (store must exist). Task 68 (fulfilment mapping) can follow after.
+
+---
+
+## Task 68 — Connect fulfilment partner and validate dynamic country-list rendering
+
+**Milestone:** 20A
+**Phase:** 10 — Commerce Prerequisites
+**Owner:** Developer (API validation spike) + product owner (account setup)
+
+**Why:** This is the highest-risk unknown in the entire commerce system. The Roavvy merchandise concept depends on generating a unique product design per customer based on their country visit list. If this cannot be done via the chosen print-on-demand platform's standard flow, a custom server-side file-generation step is required — which significantly changes the M20 architecture and timeline.
+
+**Deliverable:** Written validation report (added inline to `docs/architecture/decisions.md`) answering the critical question. Fulfilment partner connected to Shopify store.
+
+**Acceptance criteria:**
+
+**Setup:**
+- [ ] Account created on chosen platform (Printful or Printify)
+- [ ] Platform app installed in Shopify store
+- [ ] T-shirt and poster products in Shopify linked to corresponding SKUs on the platform
+- [ ] A test order can be placed and a fulfilment job created (even if cancelled immediately)
+
+**Critical validation — answer this question:**
+
+> When a Shopify order arrives with a line item custom property `visitedCodes: "GB,FR,JP,US"`, can the fulfilment platform automatically generate a unique print file with those countries highlighted, or must the merchant supply a static print file?
+
+**PoC validation question:** Can the POD Shopify app receive a Shopify order and allow the store owner to attach or select a print file for fulfillment? Yes/No. If yes, the PoC is unblocked. Custom per-order file generation is a post-PoC enhancement.
+
+**Dependencies:** Task 65 (platform chosen), Task 67 (products created in Shopify).
+
+---
+
+## Task 69 — Document API contracts and store credentials
+
+**Milestone:** 20A
+**Phase:** 10 — Commerce Prerequisites
+**Owner:** Developer
+
+**Why:** Before the builder starts M20, they need a clear reference for the API surface they will code against. This task consolidates all the API details discovered in Tasks 65–68 into a single reference document. It also ensures credentials are accessible to the build process without being committed to the repo.
+
+**Deliverable:** `docs/engineering/commerce_api_contracts.md` documenting all API endpoints, parameters, and credential management approach.
+
+**Acceptance criteria:**
+- [ ] Storefront API GraphQL endpoint and access token management documented (token lives in Firebase Functions environment; not in client)
+- [ ] Admin API token management documented (Firebase Functions environment variables only; never in mobile app or web client)
+- [ ] Product GIDs for t-shirt and poster variants recorded (needed for `cartCreate` mutations in Firebase Functions)
+- [ ] Mockup API endpoint documented: URL, required parameters, response format, expected latency
+- [ ] Line item custom property format confirmed and documented: `{ "merchConfigId": "<id>" }` — full design config in Firestore, not in Shopify cart attributes
+- [ ] `POST /createMerchCart` Firebase Function request/response contract documented: request body shape, Firebase Auth header requirement, response shape `{ checkoutUrl, cartId, merchConfigId }`
+- [ ] Shopify `orders/create` webhook payload format documented: payload structure, HMAC authentication header, expected response, and how the Function links `orderId` to `MerchConfig`
+- [ ] Credentials checklist: Storefront access token, Admin API token, mockup API key (if separate), webhook signing secret — all stored in password manager and Firebase Functions config; none in repo
+
+**Dependencies:** Tasks 65–68 all complete.
+
+---
+
+## M20A — Risks and open questions
+
+1. **Dynamic rendering support (Task 68)** — This is the only real unknown. Options A, B, and C have significantly different implementation costs. Option A is ideal; Option B adds a Cloud Functions dependency; Option C may require re-evaluating the product concept.
+
+2. **Mockup API rate limits** — The design studio makes a mockup API call every time the user changes design style, placement, or colour. Check rate limits before building — may need client-side debouncing or caching by parameter hash.
+
+3. **Shopify plan selection** — The Basic Shopify plan is sufficient for Storefront API access. Confirm the chosen plan includes API access before paying.
+
+4. **Country code list size** — A user with 100+ visited countries produces a large `visitedCodes` string as a line item property. Confirm Shopify's custom attribute character limit (currently 255 chars per value). ISO alpha-2 codes are 2 chars + comma separator; 100 countries = ~300 chars. May need to encode as a compressed format or use a Firestore lookup reference instead.
+
+---
+
+## M20A — Build order and handoff
+
+All tasks are sequential due to dependencies:
+
+```
+Task 65 (choose platform)
+    ↓
+Task 66 (create store)  ← can start in parallel with 65
+    ↓
+Task 67 (configure products)
+    ↓
+Task 68 (connect fulfilment + validate rendering)
+    ↓
+Task 69 (document API contracts)
+    ↓
+M20 builder may begin
+```
+
+**M20 cannot start until Task 68 is complete and Option A, B, or C is confirmed.** The Architect will adjust the M20 implementation plan based on the Task 68 outcome before the builder starts.
+
+---
+
+---
+
+## Milestone 20 — Phase 10: Shop & Merchandise (PoC)
+
+**Goal:** A user can tap "Shop" in the app, select their visited countries, choose a product and variant, and complete a Shopify checkout. The order links to a Firestore `MerchConfig` document so the store owner can identify which countries to feature in the print file. Store owner manually attaches a print file per order in the Printful dashboard (PoC fulfilment model per ADR-062).
+
+**Phase:** 10 — Commerce
+**ADRs:** ADR-062 (backend-mediated architecture), ADR-063 (Printful)
+
+**Scope boundary (PoC — what is explicitly OUT):**
+- No live mockup generation — static placeholder product images only
+- No Printful API calls from Firebase Functions (post-PoC)
+- No design studio (style / placement / colour selection for the print) — variant selection only
+- No map-to-image rendering in this milestone
+
+**Build order:**
+
+```
+Task 70 (Functions setup)
+    ↓
+Task 71 (createMerchCart function)
+    ↓
+Task 72 (webhook handler)          ← parallel with 71 once Functions deploy works
+    ↓
+Task 73 (mobile: Shop entry + Country Selection)
+    ↓
+Task 74 (mobile: Product Browser)
+    ↓
+Task 75 (mobile: Variant Selection + Checkout handoff)
+```
+
+---
+
+## Task 70 — Firebase Functions project setup
+
+**Milestone:** 20
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** Firebase Functions is the only layer that calls Shopify and Printful (ADR-062). Before any commerce logic can be built, the Functions project must be initialised, buildable, and deployable. Firebase requires the Blaze (pay-as-you-go) plan for Cloud Functions.
+
+**Deliverable:** `apps/functions/` initialised as a TypeScript Firebase Functions project (v2). A stub `helloRoavvy` HTTPS callable function deployed to Firebase and returning `{ status: "ok" }`.
+
+**Acceptance criteria:**
+- [ ] `apps/functions/src/index.ts` compiles with `tsc` and exports at least one HTTPS callable function
+- [ ] `firebase deploy --only functions` succeeds against the Roavvy Firebase project
+- [ ] Firebase Blaze plan active on the Firebase project (prerequisite; builder confirms before starting)
+- [ ] `apps/functions/.env` loaded via `dotenv` in local dev; `apps/functions/.env.example` committed with placeholder values
+- [ ] `apps/functions/.env` confirmed git-ignored
+- [ ] No secrets committed to the repo
+
+**Dependencies:** M20A complete (Tasks 65–69). Blaze plan must be enabled by the user before the builder starts.
+
+---
+
+## Task 71 — `createMerchCart` Firebase Function
+
+**Milestone:** 20
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** This is the core commerce function. The mobile app calls it to create a Shopify cart and receive a checkout URL. The function must persist the user's design configuration to Firestore before creating the cart, so the store owner can reference it when fulfilling the order.
+
+**Deliverable:** `POST /createMerchCart` Firebase HTTPS callable function deployed to Firebase. Firestore security rules for `users/{uid}/merch_configs` deployed.
+
+**`MerchConfig` Firestore schema (`users/{uid}/merch_configs/{configId}`):**
+
+```
+userId: string
+variantId: string            // Shopify GID e.g. "gid://shopify/ProductVariant/47577103466683"
+selectedCountryCodes: string[] // ISO 3166-1 alpha-2
+quantity: number             // always 1 for PoC
+shopifyCartId: string | null // populated after cartCreate
+shopifyOrderId: string | null // populated after orders/create webhook
+createdAt: timestamp
+```
+
+**Function contract (matches `docs/engineering/commerce_api_contracts.md` §4):**
+
+Request (mobile → function):
+```json
+{
+  "userId": "firebase-uid",
+  "variantId": "gid://shopify/ProductVariant/47577103466683",
+  "selectedCountryCodes": ["GB", "FR", "JP"],
+  "quantity": 1
+}
+```
+
+Response (function → mobile):
+```json
+{
+  "checkoutUrl": "https://roavvy.myshopify.com/cart/c/...",
+  "cartId": "gid://shopify/Cart/...",
+  "merchConfigId": "<firestore-doc-id>"
+}
+```
+
+**Acceptance criteria:**
+- [ ] Function callable via Firebase SDK from the mobile app (Firebase Auth ID token required; `onCall` handles verification automatically — ADR-064)
+- [ ] Invalid / missing auth returns a Firebase Functions `unauthenticated` error
+- [ ] Malformed body (missing variantId, empty countryCodes) returns `invalid-argument` error
+- [ ] `MerchConfig` document written to Firestore with correct fields before Shopify cart is created
+- [ ] `SHOPIFY_STOREFRONT_TOKEN` read from `process.env`; used directly as `X-Shopify-Storefront-Access-Token` header — no token exchange or refresh logic (ADR-064 §3)
+- [ ] `cartCreate` mutation attaches `{ key: "merchConfigId", value: "<configId>" }` as a cart attribute
+- [ ] Returned `checkoutUrl` is a valid `roavvy.myshopify.com` URL
+- [ ] No Firestore security rule changes needed — existing `users/{userId}/{document=**}` wildcard rule already covers `merch_configs` (ADR-064 §5)
+
+**Dependencies:** Task 70 (Functions project setup).
+
+---
+
+## Task 72 — `shopifyOrderCreated` webhook handler
+
+**Milestone:** 20
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** When a customer completes Shopify checkout, Roavvy needs to link the Shopify order to the `MerchConfig` document so the store owner can look up which countries to print. HMAC verification is required to reject spoofed webhook calls.
+
+**Deliverable:** `POST /shopifyOrderCreated` Firebase HTTPS function (non-callable, raw HTTP) that verifies the Shopify HMAC signature, reads `note_attributes` for `merchConfigId`, and writes `shopifyOrderId` to the Firestore `MerchConfig` document.
+
+**Acceptance criteria:**
+- [ ] Requests where `X-Shopify-Hmac-Sha256` header does not match computed HMAC are rejected with HTTP 401
+- [ ] Valid webhook payload with `note_attributes: [{ name: "merchConfigId", value: "<id>" }]` updates `MerchConfig.shopifyOrderId` and sets `status: "ordered"`
+- [ ] Function returns HTTP 200 within 5 seconds (Shopify retry requirement)
+- [ ] Webhook registered in Shopify Admin for the `orders/create` topic pointing at the deployed function URL
+- [ ] `SHOPIFY_CLIENT_SECRET` used for HMAC verification loaded from Firebase Functions environment config; not hard-coded
+
+**Dependencies:** Task 70 (Functions setup), Task 71 (MerchConfig Firestore schema established).
+
+---
+
+## Task 73 — Mobile: Shop entry point + Country Selection screen
+
+**Milestone:** 20
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** This is the first screen in the commerce flow. The UX spec (`docs/ux/commerce_flow.md`) states that countries should be pre-selected from the user's visit history — zero friction. The user can deselect countries they don't want on the product before proceeding.
+
+**Deliverable:** "Shop" button on the Stats screen navigates to `MerchCountrySelectionScreen`. The screen shows all of the user's effective visited countries as toggleable rows (flag + name + checkbox). A "Next →" button navigates to the Product Browser when at least one country is selected.
+
+**Acceptance criteria:**
+- [ ] "Shop" button visible on the Stats screen (position: consistent with existing Stats layout)
+- [ ] `MerchCountrySelectionScreen` lists every effective visited country (ISO alpha-2 → display name + flag)
+- [ ] All countries pre-selected on first open
+- [ ] "Select all" and "Clear all" controls present
+- [ ] "Next →" button enabled only when ≥ 1 country is selected; disabled (greyed) otherwise
+- [ ] Selected country codes are passed to the next screen
+- [ ] Screen accessible via the Stats tab only (not from the tab bar directly)
+- [ ] No network calls on this screen — reads from local Riverpod provider
+
+**Dependencies:** None beyond existing app structure (effective visited countries already available via Riverpod).
+
+---
+
+## Task 74 — Mobile: Product Browser screen
+
+**Milestone:** 20
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** The user needs to choose between the two available products (T-shirt and Poster). For the PoC, static placeholder images are sufficient — live mockup generation is post-PoC.
+
+**Deliverable:** `MerchProductBrowserScreen` shows two product cards (Roavvy Test Tee, Roavvy Travel Poster). Each card shows a placeholder product image, product name, and price range. Tapping a card navigates to `MerchVariantScreen` for that product.
+
+**Products (from `commerce_api_contracts.md`):**
+- Roavvy Test Tee — from £29.99 — Product GID `gid://shopify/Product/8357194694843`
+- Roavvy Travel Poster — from £24.99 — Product GID `gid://shopify/Product/8357218353339`
+
+**Acceptance criteria:**
+- [ ] Both product cards shown with placeholder image asset, name, and "from £XX.XX" price
+- [ ] Tapping a card navigates to `MerchVariantScreen` passing the product type and selected country codes
+- [ ] Screen scrollable; renders correctly on iPhone SE (375pt width) and iPhone Pro Max
+- [ ] No network calls on this screen
+
+**Dependencies:** Task 73 (country codes passed from previous screen).
+
+---
+
+## Task 75 — Mobile: Variant Selection + Checkout handoff
+
+**Milestone:** 20
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** This is where the user commits to a specific product variant and triggers cart creation. The Firebase Function call and Shopify checkout URL handoff happen here. This is the last screen before the user leaves the app to complete payment.
+
+**Deliverable:** `MerchVariantScreen` with pickers appropriate to the selected product, a "Buy Now" button that calls `createMerchCart`, and opens the returned `checkoutUrl` in `SFSafariViewController`.
+
+**Variant options:**
+
+T-shirt:
+- Colour: Black / White / Navy / Heather Grey / Red
+- Size: S / M / L / XL / 2XL
+- 25 variant GIDs (from `commerce_api_contracts.md`)
+
+Poster:
+- Paper: Enhanced Matte / Luster / Fine Art
+- Size: 12x18in / 18x24in / 24x36in / A3 / A4
+- 15 variant GIDs (from `commerce_api_contracts.md`)
+
+**Acceptance criteria:**
+- [ ] Correct pickers shown for T-shirt (colour + size) vs Poster (paper + size)
+- [ ] Correct variant GID resolved from picker state (all 40 GIDs present in code, sourced from `commerce_api_contracts.md`)
+- [ ] "Buy Now" shows a loading indicator while the Firebase Function call is in flight
+- [ ] On success: `checkoutUrl` opened in `SFSafariViewController` (iOS) — not `webview`, not external Safari
+- [ ] On Firebase Function error: user-facing error message shown with a "Try again" option
+- [ ] Selected country codes and quantity (1) passed correctly to the function
+- [ ] Order summary row shown above "Buy Now": selected product, variant, and number of countries
+
+**Dependencies:** Task 71 (`createMerchCart` function deployed and callable), Task 74 (product + country codes passed from previous screen).
+
+---
+
+## M20 — Risks and open questions
+
+1. **Firebase Blaze plan** — Cloud Functions require the Blaze plan. Must be enabled before Task 70 starts. The user must confirm this before the builder begins.
+
+2. **Shopify Storefront token vs client credentials token** — The `commerce_api_contracts.md` documents a Storefront API access token (`SHOPIFY_STOREFRONT_TOKEN`). The `createMerchCart` function uses this token (not the Admin token) to call the Storefront API `cartCreate` mutation. Confirm the token in `.env` has the correct public Storefront API access token (not the Admin token).
+
+3. **Checkout URL domain** — `checkoutUrl` returned by `cartCreate` must use `roavvy.myshopify.com`. Confirm Shopify has not configured a custom domain that would change the checkout host.
+
+4. **`SFSafariViewController` session** — The Shopify checkout runs in `SFSafariViewController`. After the user completes payment, Shopify redirects to its own confirmation page. The app has no programmatic signal that checkout succeeded — the `orders/create` webhook is the only confirmation. This is acceptable for the PoC.
+
+5. **Firestore rules deployment** — New security rules for `users/{uid}/merch_configs` must be deployed alongside Task 71. Builder must not leave the collection open.
+
+6. **Printful API key** — The `PRINTFUL_API_KEY` is not required for the PoC (store owner manually attaches print files). It can be left blank in `.env` for now.
+
+---
+
+
+---
+
+# M21 — Personalised Flag Print Pipeline (Mobile + Functions)
+
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Status:** Planned — 2026-03-21
+
+## Goal
+
+Every Roavvy merch order carries a unique auto-generated image of the buyer's visited country flags. The mobile app shows a live flag grid preview before purchase. Firebase Functions generate both a web preview and a print-quality PNG at `createMerchCart` time — before the user pays. The `shopifyOrderCreated` webhook only validates the file exists, creates the Printful order via API, and attaches the generated print file.
+
+## Why
+
+The M20 PoC proved the end-to-end flow but deferred the core product differentiator: a personalised flag print unique to each buyer. Without it the product is not shippable. The two-stage model (generate before checkout, validate on webhook) keeps webhook handlers fast and idempotent, and means the print file is ready the moment the order is paid.
+
+## Architecture
+
+See ADR-065 (decisions.md) and ADR-063 revision. Summary:
+- Mobile renders a `FlagGridPreview` widget (display-only, no upload).
+- `createMerchCart` generates preview PNG + print PNG, uploads to Firebase Storage, writes paths to `MerchConfig`.
+- `shopifyOrderCreated` validates the print file, then creates the Printful order via direct API call with the print file attached.
+- Printful Shopify app auto-import is disabled for generated-merch variants.
+
+## Scope — included
+
+- `FlagGridPreview` Flutter widget in `MerchVariantScreen`
+- `templateId: 'flag_grid_v1'` and M21 `MerchConfig` fields end-to-end
+- `imageGen.ts` — flag grid PNG generator (`flag-icons` + `@resvg/resvg-js` + `sharp`)
+- `printDimensions.ts` — static Shopify variant GID → print canvas dimensions map
+- `createMerchCart` updated: generates preview + print file, uploads to Firebase Storage
+- `shopifyOrderCreated` updated: validates file, creates Printful order via API with file attached
+- Shopify variant GID → Printful variant ID mapping table
+
+## Scope — excluded
+
+- Scheduled cleanup of abandoned design records (30-day manual cleanup acceptable for MVP)
+- Templates other than `flag_grid_v1`
+- Mockup generation for product browser
+- Web shop landing page (`/shop`)
+- Android support
+
+---
+
+## Task 76 — Mobile: `FlagGridPreview` widget
+
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** The current `MerchVariantScreen` has no visual preview of what the user is buying. A live flag grid makes the personalisation tangible before purchase.
+
+**Deliverable:** `FlagGridPreview` — a Flutter widget that renders a responsive grid of country flag images for a `List<String> selectedCodes`. Shown in `MerchVariantScreen` between the "Designing for N countries" header and the first picker row.
+
+**Implementation notes:**
+- Evaluate `country_flags` (pub.dev) for bundled flag assets. If the package adds unacceptable size, fall back to flag emoji rendered in a `Text` widget (simple, zero-size overhead, acceptable for preview).
+- Grid: 5 columns on screens ≤390pt wide, 6 columns wider. Each cell is square, flag centred with padding.
+- Maximum 24 cells shown. If `selectedCodes.length > 24`, the last cell shows "+N more" instead of a flag.
+- Zero height when `selectedCodes` is empty.
+- No async work, no network calls.
+
+**Acceptance criteria:**
+- [ ] Renders correctly for 1, 5, 24, and 50+ codes
+- [ ] "+N more" chip shown when codes > 24
+- [ ] All flag assets are bundled (no network calls)
+- [ ] Visible in `MerchVariantScreen` for both T-shirt and Poster products
+- [ ] Renders without overflow on iPhone SE (375pt)
+- [ ] `flutter analyze` zero issues
+
+**Dependencies:** Task 75 (`MerchVariantScreen` exists and receives `selectedCodes`).
+
+---
+
+## Task 77 — Functions: `MerchConfig` type extension + variant mapping tables
+
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** The updated `MerchConfig` type (ADR-065) must be in place before Tasks 78–80 can write or read the new fields. The Shopify GID → Printful variant ID mapping is required for Task 80 to create Printful orders correctly.
+
+**Deliverables:**
+
+1. `apps/functions/src/types.ts` — `MerchConfig` extended with M21 fields:
+   ```typescript
+   templateId: 'flag_grid_v1';
+   designStatus: 'pending' | 'files_ready' | 'generation_error' | 'print_file_submitted' | 'print_file_error';
+   previewStoragePath: string | null;
+   printFileStoragePath: string | null;
+   printFileSignedUrl: string | null;
+   printFileExpiresAt: admin.firestore.Timestamp | null;
+   printfulOrderId: string | null;
+   ```
+
+2. `apps/functions/src/printDimensions.ts` — new file:
+   - `PRINT_DIMENSIONS: Record<string, { widthPx: number; heightPx: number; dpi: number; backgroundColor: 'white' | 'transparent' }>` keyed by Shopify variant GID.
+   - `PRINTFUL_VARIANT_IDS: Record<string, number>` keyed by Shopify variant GID → Printful numeric variant ID.
+   - Source the Printful variant IDs from the Printful dashboard (product catalogue → variant IDs). Verify against `commerce_api_contracts.md`.
+
+**Acceptance criteria:**
+- [ ] `MerchConfig` TypeScript interface compiles with all M21 fields
+- [ ] `PRINT_DIMENSIONS` covers all 40 Shopify variant GIDs (25 t-shirt + 15 poster)
+- [ ] `PRINTFUL_VARIANT_IDS` covers all 40 GIDs with verified Printful IDs
+- [ ] `npm run build` in `apps/functions/` passes with zero errors
+
+**Dependencies:** Task 75 (existing `createMerchCart`), ADR-065.
+
+---
+
+## Task 78 — Functions: `imageGen.ts` — flag grid PNG generator
+
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** The core generation logic. Both `createMerchCart` (preview + print) and `shopifyOrderCreated` (optional regeneration) call this helper.
+
+**Deliverable:** `apps/functions/src/imageGen.ts` exporting:
+
+```typescript
+export async function generateFlagGrid(input: {
+  templateId: 'flag_grid_v1';
+  selectedCountryCodes: string[];
+  widthPx: number;
+  heightPx: number;
+  dpi: number;
+  backgroundColor: 'white' | 'transparent';
+}): Promise<Buffer>
+```
+
+Implementation:
+- Load flag SVG from `node_modules/flag-icons/flags/4x3/{lowerCode}.svg`. Skip unknown codes silently.
+- Compute grid: columns = `Math.ceil(Math.sqrt(N * (4/3)))` or a fixed column count tuned for print aspect ratio. Cell dimensions = `widthPx / columns`.
+- If `cellWidth < 100`: reduce flag count to fit minimum cell size; append a text strip listing remaining country names at the bottom of the canvas (using `sharp`'s text overlay).
+- Rasterise each flag SVG to PNG buffer using `@resvg/resvg-js` at `cellWidth × cellHeight`.
+- Composite all flag buffers into a white/transparent canvas using `sharp.composite()`.
+- Return the final PNG buffer.
+
+`apps/functions/package.json` additions: `flag-icons`, `@resvg/resvg-js`, `sharp`.
+
+**Acceptance criteria:**
+- [ ] Returns a valid PNG buffer for 1 country code
+- [ ] Returns a valid PNG buffer for 50 country codes
+- [ ] Unknown codes are silently skipped (no crash)
+- [ ] Output image dimensions match `widthPx × heightPx`
+- [ ] Minimum cell size enforced; overflow countries listed in text strip
+- [ ] `npm run build` succeeds
+- [ ] Jest unit test covers: 1 code, 50 codes, unknown code only, empty array
+- [ ] `@resvg/resvg-js` and `sharp` binaries load correctly in Cloud Run linux/amd64 environment (verify via `firebase deploy --only functions` smoke test)
+
+**Dependencies:** Task 77 (package.json and types).
+
+---
+
+## Task 79 — Functions: `createMerchCart` — two-stage generation
+
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** This is where the design record is created and both PNG files are generated before the user reaches checkout. By the time the order webhook fires, the print file already exists.
+
+**Deliverable:** Updated `createMerchCart` onCall handler in `apps/functions/src/index.ts`:
+
+After writing the initial `MerchConfig` document (existing logic), and after calling Shopify `cartCreate` (existing logic):
+
+1. Call `generateFlagGrid` twice:
+   - **Preview:** `widthPx: 800`, `heightPx: 600`, `dpi: 96`, `backgroundColor: 'white'`. Output: JPEG (use `sharp().toFormat('jpeg', { quality: 80 })`).
+   - **Print:** dimensions from `PRINT_DIMENSIONS[variantId]`.
+2. Upload both buffers to Firebase Storage (Admin SDK):
+   - Preview: `previews/{configId}.jpg` — public read (for display in mobile/web).
+   - Print file: `print_files/{configId}.png` — private; generate a signed URL (7-day expiry).
+3. Update `MerchConfig`:
+   ```typescript
+   designStatus: 'files_ready',
+   previewStoragePath: `previews/${configId}.jpg`,
+   printFileStoragePath: `print_files/${configId}.png`,
+   printFileSignedUrl: <signed URL>,
+   printFileExpiresAt: <now + 7 days>,
+   ```
+4. Return `{ checkoutUrl, cartId, configId, previewUrl: <public preview URL> }` to the mobile caller.
+
+If generation fails at any point: set `designStatus: 'generation_error'`, throw `HttpsError('internal', 'Design generation failed. Please try again.')`. Cart is not returned to the user.
+
+**Acceptance criteria:**
+- [ ] After a successful call, Firebase Storage contains `previews/{configId}.jpg` and `print_files/{configId}.png`
+- [ ] `MerchConfig.designStatus` is `'files_ready'`
+- [ ] `MerchConfig.printFileSignedUrl` is a valid signed URL accessible from a browser
+- [ ] `previewUrl` returned to the mobile app resolves to a valid image
+- [ ] Generation failure results in `HttpsError('internal', ...)` — no cart URL returned
+- [ ] `MerchConfig.designStatus` is `'generation_error'` on failure
+- [ ] `flutter analyze` zero issues (mobile side unchanged beyond receiving `previewUrl`)
+
+**Dependencies:** Task 78 (`generateFlagGrid`), Task 77 (types + dimensions).
+
+---
+
+## Task 80 — Functions: `shopifyOrderCreated` — validate + Printful order creation
+
+**Milestone:** 21
+**Phase:** 10 — Commerce
+**Owner:** Builder
+
+**Why:** Closes the fulfilment loop. When an order is paid, the function validates the print file and creates the Printful order via direct API call — no manual dashboard work.
+
+**Deliverable:** Updated `shopifyOrderCreated` onRequest handler:
+
+After updating `MerchConfig.shopifyOrderId` and `status: 'ordered'` (existing logic):
+
+1. Check `MerchConfig.designStatus`:
+   - If `'files_ready'` and `printFileExpiresAt > now + 1h`: use existing `printFileSignedUrl`.
+   - If signed URL close to expiry: regenerate signed URL from `printFileStoragePath` (7-day renewal).
+   - If `'generation_error'` or file missing: call `generateFlagGrid` once. On success update MerchConfig to `'files_ready'`; on failure set `'print_file_error'`, log, return 200.
+2. Look up Printful variant ID: `PRINTFUL_VARIANT_IDS[MerchConfig.variantId]`.
+3. Create Printful order:
+   ```
+   POST https://api.printful.com/v2/orders
+   Authorization: Bearer {PRINTFUL_API_KEY}
+   {
+     "external_id": "<shopifyOrderId>",
+     "recipient": { <from Shopify order payload> },
+     "items": [{
+       "variant_id": <printfulVariantId>,
+       "quantity": 1,
+       "files": [{ "url": "<printFileSignedUrl>", "type": "default" }]
+     }]
+   }
+   ```
+4. Update `MerchConfig`:
+   ```typescript
+   printfulOrderId: response.id,
+   designStatus: 'print_file_submitted',
+   ```
+5. Return 200.
+
+Error handling: any Printful API error → set `designStatus: 'print_file_error'`, log full response, return 200 (Shopify does not retry).
+
+**Acceptance criteria:**
+- [ ] End-to-end: placing a test order via the mobile app results in a Printful order visible in the Printful dashboard (sandbox)
+- [ ] The Printful order's line item has the correct print file attached
+- [ ] `MerchConfig.designStatus` is `'print_file_submitted'` after success
+- [ ] `MerchConfig.printfulOrderId` is set
+- [ ] Signed URL refresh works when `printFileExpiresAt` is within 1 hour
+- [ ] Regeneration fallback works when `designStatus` is `'generation_error'`
+- [ ] Printful API errors set `designStatus: 'print_file_error'` and return 200
+- [ ] `PRINTFUL_API_KEY` is never logged
+
+**Dependencies:** Task 78 (generator), Task 77 (mapping tables), Task 79 (`createMerchCart` writes files_ready state).
+
+---
+
+## M21 — Risks and open questions
+
+1. **`@resvg/resvg-js` + `sharp` native binaries on Cloud Run** — Both ship prebuilt `.node` binaries. Cloud Run uses `linux/amd64`. Verify both load correctly with a `firebase deploy --only functions` smoke test in Task 78 before proceeding to Tasks 79–80. If either binary is missing, use `npm install --platform=linux --arch=x64` in the functions build step.
+
+2. **Firebase Storage public access for preview** — The preview image (`previews/{configId}.jpg`) needs to be publicly readable so the mobile app can display it. Configure Firebase Storage rules to allow public read on `previews/*`. Print files (`print_files/*`) remain private (signed URL only).
+
+3. **Printful sandbox** — All Tasks 79–80 acceptance tests must pass against the Printful sandbox API before any production Printful API key is used. Use a sandbox Printful API key in `.env` for development.
+
+4. **Printful variant ID verification** — Printful variant IDs (numeric) must be verified in the Printful dashboard before Task 77. They differ from Shopify variant GIDs. A mismatch creates the wrong product at Printful.
+
+5. **Shopify order shipping address** — `shopifyOrderCreated` must parse the shipping address from the Shopify webhook payload to populate the Printful order `recipient` field. Verify the Shopify webhook payload includes a full shipping address (it does for `orders/paid` topic; confirm the webhook topic registered in M20 is `orders/paid` not `orders/create`).
+
+6. **Printful Shopify app auto-import** — Must be disabled for the product variants in the generated-merch pipeline (see ADR-063). Verify in the Printful dashboard after Task 80 that the test order is not duplicated (once by the app, once by the function).
+

@@ -1896,3 +1896,323 @@ Swift PhotoKit bridge
 - App binary size increases by the `photo_manager` framework (~200 KB compiled).
 - Gallery is fully offline; no network call is ever made to fetch photos.
 - Thumbnails are decoded lazily per visible cell — no upfront memory spike.
+
+---
+
+## ADR-062 — Commerce architecture: backend-mediated Shopify integration
+
+**Status:** Accepted
+
+**Context:** Roavvy Phase 10 requires a Shopify checkout flow where the user's visited country list and design configuration are attached to a cart before handoff. An initial architecture considered calling the Shopify Storefront API directly from the mobile app or web browser (client-side). This is rejected for the following reasons:
+
+- The Shopify Admin API (required for order management and webhook verification) uses a private access token that must never be embedded in a client binary or web bundle — it would be trivially extractable.
+- The `MerchConfig` document (the full design specification for a user's order) must be persisted in Firestore before the cart is created, so that a Shopify order webhook can later link back to it. This server-side write cannot happen from the mobile client without bypassing security rules.
+- Cart custom attributes in Shopify are limited in size (~255 chars per value). A user with 100+ countries produces a `visitedCodes` string that exceeds this limit. The solution is to store the full config in Firestore and pass only a `merchConfigId` reference as the Shopify cart attribute.
+- Centralising Shopify interaction in Firebase Functions makes it easier to add rate limiting, retry logic, and audit logging in one place.
+
+**Decision:** Commerce uses a four-layer architecture:
+
+```
+Mobile app (Flutter / Next.js)
+    │  POST /createMerchCart  {designPayload}
+    ▼
+Firebase Functions (backend orchestration layer)
+    │  cartCreate mutation (Storefront API)
+    ▼
+Shopify (hosted checkout, order management)
+    │  order fulfillment (Shopify app connection)
+    ▼
+Print-on-demand provider (Printful / Printify)
+```
+
+**Mobile app responsibilities (only):**
+- Display product templates and design options
+- Let the user configure their design (country selection, style, placement, colour, size)
+- Send the design payload to the Firebase Functions `POST /createMerchCart` endpoint
+- Open the returned `checkoutUrl` in `SFSafariViewController` (iOS) or redirect (web)
+
+**Firebase Functions responsibilities:**
+- Validate the user via Firebase Auth
+- Save a `MerchConfig` document to Firestore (`users/{uid}/merch_configs/{configId}`)
+- Create a Shopify cart via the Storefront API `cartCreate` GraphQL mutation
+- Attach `merchConfigId` as a cart custom attribute
+- Return `{ checkoutUrl, cartId, merchConfigId }` to the app
+- Handle the Shopify `orders/create` webhook: link `orderId` to the `MerchConfig` document in Firestore
+
+**`MerchConfig` document structure (Firestore):**
+
+```
+users/{uid}/merch_configs/{configId}
+  userId: string
+  templateId: string            // e.g. "flag-tee", "travel-poster"
+  selectedCountryCodes: string[] // ISO 3166-1 alpha-2
+  designStyle: string           // "world_map" | "flags" | "passport_stamps"
+  placement: string             // "front_only" | "back_only" | "front_and_back"
+  colour: string                // e.g. "black", "white", "navy"
+  size: string                  // e.g. "M", "L", "XL"
+  previewImageUrl: string?      // URL of the mockup image shown in the design studio
+  shopifyCartId: string?        // populated after cart creation
+  shopifyOrderId: string?       // populated after order webhook
+  createdAt: timestamp
+```
+
+**Cart attribute strategy:**
+- Shopify cart carries only: `{ "merchConfigId": "<Firestore doc ID>" }`
+- Full design configuration stays in Firestore — no SKU explosion, no Shopify attribute size limit issues
+- POD provider reads the order from Shopify; for the PoC the store owner manually attaches the print file
+
+**Shopify API choice — Option A (Storefront API + cart + checkoutUrl):**
+- Firebase Functions calls Shopify Storefront API using a public Storefront access token
+- `cartCreate` mutation returns a `Cart` object with a `checkoutUrl`
+- `checkoutUrl` is returned to the app and opened in `SFSafariViewController`
+- Chosen over Draft Orders (Option B) because Draft Orders require Admin API and add complexity; the Storefront API cart flow is the standard Shopify headless checkout path
+
+**Print-on-demand — Shopify app connection (not direct API):**
+- The POD provider (Printful / Printify) connects to the Shopify store as a Shopify app
+- POD receives orders automatically through Shopify's fulfilment app mechanism — no direct Roavvy→POD API call is needed for the PoC
+- For the PoC, custom per-order print file generation (generating unique artwork from the country code list) is deferred. The store owner manually supplies or selects the print file per order.
+- Post-PoC: Firebase Functions will generate the print file and submit it to the POD provider's API when an order arrives via the `orders/create` webhook
+
+**Credentials:**
+- Shopify Admin API token: Firebase Functions environment variables only — never in mobile app or web client
+- Shopify Storefront API token (public): used by Firebase Functions for cart creation; could also be used client-side but is kept server-side for consistency and to avoid exposing the token in client bundles
+- POD API key (if needed post-PoC): Firebase Functions environment variables
+
+**Consequences:**
+- A new Firebase Functions package is required (`functions/` directory or equivalent); Cloud Functions must be enabled on the Firebase project (Blaze/pay-as-you-go plan)
+- The Firestore `users/{uid}/merch_configs` subcollection is a new collection; security rules must restrict reads/writes to the authenticated owner
+- Admin API token never leaves Firebase Functions; reduces the attack surface for credential leakage
+- The PoC defers custom per-order print file generation — POD fulfils from Shopify order data with a manually supplied print file
+- `MerchConfig` in Firestore enables future features: order history screen, reorder, sharing a design link
+
+---
+
+## ADR-063 — Print-on-demand partner: Printful
+
+**Status:** Accepted (Task 65 — 2026-03-20); fulfilment model revised (M21 — 2026-03-21, see below)
+
+**Context:** Roavvy Phase 10 requires a print-on-demand provider that integrates with Shopify as a Shopify app, supports t-shirt and travel poster products, and allows a per-order workflow where the store owner can supply or attach a print file for the PoC. Two platforms were evaluated: Printful and Printify.
+
+**Decision:** Printful.
+
+**Rationale:**
+- Printful integrates with Shopify as a native Shopify app — orders flow from Shopify to Printful automatically, matching the ADR-062 architecture.
+- Printful supports the required product types: Gildan / Bella+Canvas t-shirts (multiple colours and sizes) and wall art / poster products.
+- Printful provides a mockup generation API callable from Firebase Functions — required for the design studio live preview.
+- Printful's per-order workflow allows the store owner to supply a custom print file per order in the PoC, with a path to automated file submission post-PoC via their API.
+- Printful has clear API documentation, a sandbox/test environment, and is widely used in production Shopify integrations.
+
+**PoC fulfilment model (M20 — superseded):**
+- Printful connects to the Shopify store as a Shopify app.
+- When a Shopify order is placed, Printful receives it automatically.
+- For the PoC, the store owner manually supplies or selects the print file in the Printful dashboard per order.
+
+**M21 revision — Printful Shopify app removed from critical path:**
+From M21 onwards the Printful Shopify app is **not** the primary fulfilment mechanism for generated merch. The Printful API is used directly by Firebase Functions to create and submit orders. Reason: the Shopify app is designed for static synced-product workflows; it provides no control point at which to attach a dynamically generated per-order print file before the order is sent to production. Pure API orchestration gives full deterministic control over file attachment.
+
+- **Primary path (M21+):** `shopifyOrderCreated` Firebase Function calls `POST /v2/orders` on the Printful API with the generated print file already attached to the line item. The Printful Shopify app integration is bypassed for custom-generated orders.
+- **Fallback:** The Printful Shopify app may remain installed on the store for operational familiarity and manual fallback, but it must not be in the automated critical path for generated merch. Ensure the app does not auto-import the same orders that the Firebase Function is already fulfilling (disable auto-import in Printful app settings if needed).
+
+**Consequences:**
+- Task 68: Create a Printful account, install the Printful Shopify app, and link Shopify product variants to Printful SKUs.
+- Mockup API: Printful's mockup generator endpoint is called from Firebase Functions. The Printful API key is stored in Firebase Functions environment variables only.
+- If Printful pricing or product range is later found to be unacceptable, migration to Printify is feasible — only the product SKU mapping and API calls change.
+- **M21:** Printful Shopify app auto-import must be disabled for the product variants handled by the generated-merch pipeline. Manual dashboard file attachment is fully retired.
+
+---
+
+## ADR-064 — Firebase Functions v2: project structure, function types, and Storefront token strategy
+
+**Status:** Accepted (Task 70 — 2026-03-21)
+
+**Context:** M20 requires two Firebase Functions for the commerce layer (ADR-062): `createMerchCart` (called by the mobile app) and `shopifyOrderCreated` (called by Shopify as a webhook). Before implementation begins, three structural choices must be settled: which Firebase Functions SDK generation to use, which function invocation model to use for each endpoint, and how to supply the Shopify Storefront API token at runtime.
+
+**Decision 1 — Firebase Functions v2 (2nd generation)**
+
+Use `firebase-functions/v2` (Cloud Run-backed). v2 is the current recommended generation; v1 is in maintenance mode. v2 provides better cold-start behaviour, configurable concurrency, and a cleaner SDK surface. The `apps/functions/` project uses `firebase-functions` v6+, which ships v2 as the primary API.
+
+**Decision 2 — `onCall` for `createMerchCart`, `onRequest` for `shopifyOrderCreated`**
+
+`createMerchCart` uses `onCall` (Firebase Callable Functions):
+- `onCall` automatically verifies the Firebase Auth ID token in the request; the `context.auth` object is populated or the call is rejected before any application code runs
+- `onCall` handles CORS automatically — no manual header management needed
+- The mobile Firebase SDK sends the ID token transparently; no custom auth header logic in Dart
+
+`shopifyOrderCreated` uses `onRequest` (raw HTTP):
+- Shopify webhooks are plain HTTPS POST requests — they cannot use the Firebase callable protocol
+- `onRequest` exposes a raw `(req, res)` handler, giving full access to the raw request body needed for HMAC-SHA256 verification
+- HMAC verification must be performed before reading `req.body` as parsed JSON; the raw buffer must be captured using a `Buffer` middleware or `express.raw()` before any JSON parsing
+
+**Decision 3 — `SHOPIFY_STOREFRONT_TOKEN` is a long-lived public token; no refresh logic in PoC**
+
+The Shopify Storefront API access token (`SHOPIFY_STOREFRONT_TOKEN`) is a public app credential created in the Shopify Partner Dashboard. It does not expire on a time basis — it is revoked only by regenerating it in the dashboard. This is distinct from the Admin API short-lived tokens obtained via client credentials grant.
+
+Consequence: `createMerchCart` reads `SHOPIFY_STOREFRONT_TOKEN` from `process.env` and uses it directly as the `X-Shopify-Storefront-Access-Token` header. No token exchange or refresh loop is required for the PoC.
+
+The client credentials grant (documented in `commerce_api_contracts.md` §2) is the Admin API token flow and is deferred to post-PoC (needed only when Firebase Functions must call Admin API endpoints, e.g. order management or fulfilment).
+
+**Decision 4 — `MerchConfig` TypeScript type defined in `apps/functions/src/types.ts`**
+
+The `MerchConfig` document structure (ADR-062) is a Firestore document written and read exclusively by Firebase Functions in the PoC. The mobile app does not read `MerchConfig` documents directly — it only receives `{ checkoutUrl, cartId, merchConfigId }` from the callable function.
+
+Defining `MerchConfig` in `packages/shared_models` would require a Dart mirror class and a TypeScript export — both unused in the PoC. Defining it in `apps/functions/src/types.ts` keeps it co-located with the only consumer and avoids premature cross-package coupling. If the mobile app later needs to render order history from `MerchConfig` documents, the type is promoted to `packages/shared_models` at that point.
+
+**Decision 5 — Firestore security rules: no new rules required for `merch_configs`**
+
+The existing rule `match /users/{userId}/{document=**}` with a wildcard `{document=**}` segment (ADR-029) already covers all subcollections under `users/{uid}/`, including `merch_configs/{configId}`. Adding a new explicit rule for `merch_configs` is unnecessary and would be dead code. The Task 71 acceptance criterion that mentioned "deploy new Firestore security rules" is removed.
+
+**Decision 6 — Firebase project wiring**
+
+- `.firebaserc` (repo root): maps default alias to project `roavvy-prod`
+- `firebase.json` (repo root): adds a `functions` block pointing `source` at `apps/functions/` and `runtime` at `nodejs22`
+
+Both files must be created/updated in Task 70 before any function can be deployed.
+
+**Consequences:**
+- `createMerchCart`: `onCall` — Firebase SDK in Dart handles auth token automatically; no custom header required in the Flutter caller
+- `shopifyOrderCreated`: `onRequest` — must capture raw body before JSON parsing for HMAC verification; use `express.raw({ type: 'application/json' })` as the first middleware
+- No Admin API token exchange logic in M20 PoC — the `client_id`/`client_secret` in `.env` are not used by the PoC functions (they were needed only for the variant setup scripts in M20A)
+- Firestore rules remain unchanged from their current state
+
+---
+
+## ADR-065 — Per-order custom flag image generation pipeline
+
+**Status:** Accepted (M21 planning — 2026-03-21)
+
+**Context:** Every Roavvy merch order is personalised to the buyer's exact visited country set. The print file submitted to Printful must be unique per order — a composition of the customer's country flags, not a generic catalog product. The M20 PoC deferred this to manual Printful dashboard file attachment. M21 must automate the full pipeline.
+
+**Core constraint:** Shopify webhooks must not perform heavy work. Webhook handlers are event notifications; a long image render inside `shopifyOrderCreated` is a reliability risk (timeout, retry storms, slow fulfilment). The generation must happen before the webhook fires.
+
+---
+
+### Decision: Two-stage model — generate at `createMerchCart` time; webhook only validates and submits.
+
+**Stage 1 — `createMerchCart` (onCall, before checkout):**
+1. Write `MerchConfig` to Firestore with `designStatus: 'pending'`.
+2. Generate a **preview PNG** (web-optimised, ~800px wide, JPEG quality 80): returned to the mobile app for display if needed; uploaded to Firebase Storage at `previews/{configId}.jpg`.
+3. Generate the **print PNG** (300 DPI at the product's full print dimensions): uploaded to Firebase Storage at `print_files/{configId}.png`. A signed URL (7-day expiry) is written to `MerchConfig.printFileSignedUrl`.
+4. Update `MerchConfig`:
+   ```typescript
+   designStatus: 'files_ready';
+   previewStoragePath: `previews/${configId}.jpg`;
+   printFileStoragePath: `print_files/${configId}.png`;
+   printFileSignedUrl: '<signed URL>';
+   printFileExpiresAt: Timestamp; // now + 7 days
+   ```
+5. Return `{ checkoutUrl, cartId, configId, previewUrl }` to the mobile app.
+
+If generation fails, `designStatus` is set to `'generation_error'`; the callable returns a typed error and the mobile app shows a "Try again" message. Cart is not created.
+
+**Cart abandonment handling:** Design records with `designStatus !== 'ordered'` and `createdAt` older than 30 days are deleted by a scheduled cleanup function (Cloud Scheduler). Firebase Storage objects at `previews/` and `print_files/` are deleted in the same job. This bounds waste from abandoned carts.
+
+**Stage 2 — `shopifyOrderCreated` (onRequest, webhook):**
+1. Verify HMAC; look up `MerchConfig` by `configId` (existing logic).
+2. Check `designStatus`:
+   - `'files_ready'`: proceed.
+   - `'generation_error'` or any other state: attempt regeneration once (same generator call). If it fails again, set `designStatus: 'print_file_error'`, log, return 200.
+3. Create a Printful order via **direct API call** (`POST https://api.printful.com/v2/orders`):
+   - Map `MerchConfig.variantId` (Shopify GID) to a Printful variant ID using the static mapping table.
+   - Attach the print file to the line item using the Firebase Storage signed URL (or re-generate a fresh signed URL if `printFileExpiresAt` is within 1 hour).
+4. Store `printfulOrderId` in `MerchConfig`; update `status: 'ordered'`, `designStatus: 'print_file_submitted'`.
+5. Return 200. Shopify does not retry.
+
+---
+
+### Template: `flag_grid` (v1 only)
+
+**v1** ships a single template: `flag_grid`. Flags are composited in a rectangular grid, left-to-right, top-to-bottom, sorted by country name. Each flag is 4:3 aspect ratio. Background is white (poster) or transparent (t-shirt DTG).
+
+Layout algorithm input:
+```typescript
+{
+  templateId: 'flag_grid_v1';
+  selectedCountryCodes: string[];       // ISO 3166-1 alpha-2
+  productType: 'poster' | 'tshirt';
+  widthPx: number;
+  heightPx: number;
+  dpi: 300;
+  backgroundColor: 'white' | 'transparent';
+}
+```
+
+Flag source: `flag-icons` npm package — 4:3 SVG, MIT-licensed, bundled in `apps/functions/`. No network calls at render time.
+
+Renderer: `@resvg/resvg-js` rasterises each flag SVG to PNG at the computed cell size; `sharp` composites the grid onto the canvas and outputs the final PNG buffer.
+
+Minimum flag cell size: 100×67px. If the print canvas is too small to fit all flags at minimum size, the grid uses as many flags as fit and appends a legend strip listing overflow country names in small text.
+
+---
+
+### `MerchConfig` additions (full updated type)
+
+```typescript
+interface MerchConfig {
+  // existing M20 fields
+  configId: string;
+  userId: string;
+  variantId: string;
+  selectedCountryCodes: string[];
+  quantity: number;
+  shopifyCartId: string | null;
+  shopifyOrderId: string | null;
+  status: 'pending' | 'cart_created' | 'ordered';
+
+  // M21 additions
+  templateId: 'flag_grid_v1';
+  designStatus: 'pending' | 'files_ready' | 'generation_error' | 'print_file_submitted' | 'print_file_error';
+  previewStoragePath: string | null;
+  printFileStoragePath: string | null;
+  printFileSignedUrl: string | null;
+  printFileExpiresAt: Timestamp | null;
+  printfulOrderId: string | null;
+}
+```
+
+---
+
+### Static print dimension map (in `apps/functions/src/printDimensions.ts`)
+
+| Shopify variant GID suffix | Product | Printful SKU area | widthPx | heightPx | dpi |
+|---|---|---|---|---|---|
+| T-shirt (all sizes/colours) | DTG front | 4500 × 5400 | 4500 | 5400 | 150 |
+| Poster 12×18in | Wall art | 3600 × 5400 | 3600 | 5400 | 300 |
+| Poster 18×24in | Wall art | 5400 × 7200 | 5400 | 7200 | 300 |
+| Poster 24×36in | Wall art | 7200 × 10800 | 7200 | 10800 | 300 |
+| Poster A3 | Wall art | 3508 × 4961 | 3508 | 4961 | 300 |
+| Poster A4 | Wall art | 2480 × 3508 | 2480 | 3508 | 300 |
+
+---
+
+### Printful order creation (pure API — see ADR-063 revision)
+
+```
+POST https://api.printful.com/v2/orders
+Authorization: Bearer {PRINTFUL_API_KEY}
+{
+  "recipient": { /* from Shopify order shipping address */ },
+  "items": [{
+    "variant_id": <printful_variant_id>,
+    "quantity": 1,
+    "files": [{ "url": "<printFileSignedUrl>", "type": "default" }]
+  }],
+  "external_id": "<shopifyOrderId>"
+}
+```
+
+The `external_id` links the Printful order to the Shopify order for tracking and support lookup.
+
+---
+
+### Consequences
+
+- `apps/functions/package.json` gains: `flag-icons`, `@resvg/resvg-js`, `sharp`.
+- `apps/functions/src/types.ts` gains M21 fields on `MerchConfig` (above).
+- `apps/functions/src/printDimensions.ts` — new static map.
+- `apps/functions/src/imageGen.ts` — new `generateFlagGrid(input)` helper.
+- Firebase Storage bucket must be configured; `print_files/` and `previews/` paths are private (signed URL access only).
+- `PRINTFUL_API_KEY` env var required from M21 onwards.
+- Shopify variant GID → Printful variant ID mapping table required (Task 77).
+- A Cloud Scheduler job for design record cleanup is deferred to post-M21 (30-day retention is acceptable as manual cleanup for MVP).
+- Future templates (`heart_frame`, `map_silhouette`, etc.) add entries to the template dispatcher in `imageGen.ts` without changing the pipeline.
+
