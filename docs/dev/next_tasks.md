@@ -1,109 +1,136 @@
-# M24 — Phase 10 Commerce Polish: Preview, Post-Purchase & Order History
+# M26 — Phase 11 Slice 4: Timeline Scrubber + Scan Reveal
 
 **Planner:** 2026-03-22
-**Branch:** `milestone/m24-commerce-polish`
+**Branch:** `milestone/m26-timeline-scan-reveal`
 
-**Goal:** A user can see a generated preview of their personalised product before paying, receives a celebration screen when they return from Shopify checkout, and can view their order history in-app.
+---
+
+## Goal
+
+The map becomes a time machine. Users can drag a scrubber to any year and see exactly which countries they had visited by then. The first scan becomes a discovery moment: new countries animate onto a mini-map one-by-one before the country list appears.
 
 ---
 
 ## Scope
 
 **Included:**
-- Two-stage checkout UX in `MerchVariantScreen`: "Preview my design" → show generated flag grid image → "Complete checkout" → Shopify
-- `MerchPostPurchaseScreen`: celebration screen shown after SFSafariViewController dismisses
-- `MerchOrdersScreen`: list of past merch orders read from Firestore `merch_configs`
-- Entry point for order history from `PrivacyAccountScreen`
+
+- `yearFilterProvider` (`StateProvider<int?>`) — shared filter state; null = no filter (all time).
+- `filteredEffectiveVisitsProvider` — `FutureProvider` that applies the year filter against trip `startedOn` dates (fallback to `firstSeen` year for countries with no trip records).
+- `countryVisualStatesProvider` updated to honour `yearFilterProvider` — when active, derives visual states from the filtered visit set instead of the full set.
+- `earliestVisitYearProvider` — `FutureProvider<int?>` returning the minimum trip `startedOn` year across all trips (for computing the scrubber range).
+- `TimelineScrubberBar` widget — shown at the bottom of `MapScreen` above `StatsStrip`; appears when filter is active; `Slider` (discrete year steps), year label, clear button; toggled from the `PopupMenuButton` overflow menu.
+- `ScanRevealMiniMap` widget — embedded in `ScanSummaryScreen` State A (new countries found); fixed height 180px flutter_map; shows all countries grey; discovered countries pop in one-by-one via a repeating `Timer` (400ms interval); respects `MediaQuery.disableAnimations`.
 
 **Excluded:**
-- Web commerce (no website work in this milestone)
-- Live mockup API integration (Printful mockup API) — flag grid preview from Firebase Function is sufficient
-- Additional design styles (World Map, Passport Stamps) — flag grid (Flags style) only
-- "Add another product" multi-cart flow — deferred
-- Cart review screen (Screen 4 from UX spec) — simplified into post-preview "Complete checkout" CTA
+
+- Opacity-animated polygon reveal (smooth fade per country) — too complex for flutter_map's batch PolygonLayer; instant pop-in is acceptable.
+- Trip count depth colouring respecting the year filter — `countryTripCountsProvider` continues to use all trips regardless of filter (historical trip count is displayed accurately).
+- City-level detection (separate milestone).
+- Social ranking (deferred indefinitely).
+- Timeline scrubber on web map (mobile-only for this milestone).
 
 ---
 
 ## Tasks
 
-### Task 91 — Preview-first checkout in `MerchVariantScreen`
+### Task 97 — `yearFilterProvider` + `filteredEffectiveVisitsProvider` + `earliestVisitYearProvider`
 
-**Deliverable:** Refactor `MerchVariantScreen` so that tapping the primary CTA first calls `createMerchCart`, displays the returned `previewUrl` image in the product slot (replacing the placeholder icon), then reveals a "Complete checkout →" button that opens the `checkoutUrl`. No second function call on checkout open.
+**Deliverable:**
+
+In `lib/core/providers.dart`:
+
+1. `yearFilterProvider = StateProvider<int?>(_ => null)` — null means "show all".
+2. `earliestVisitYearProvider = FutureProvider<int?>` — loads all trips via `tripRepositoryProvider`; returns `trips.map((t) => t.startedOn.year).reduce(min)`, or null if no trips.
+3. `filteredEffectiveVisitsProvider = FutureProvider<List<EffectiveVisitedCountry>>` — when `yearFilterProvider` is null, returns same as `effectiveVisitsProvider`; when set to year Y, filters by: keep country if it has at least one trip with `startedOn.year <= Y`, OR (no trips and `firstSeen != null` and `firstSeen!.year <= Y`).
+
+In `lib/features/map/country_visual_state.dart`:
+
+4. `countryVisualStatesProvider` updated to watch `yearFilterProvider`; when active, derives its visit map from `filteredEffectiveVisitsProvider` instead of `effectiveVisitsProvider`. `recentDiscoveriesProvider` continues to be overlaid on top (newly-discovered state is always shown regardless of year filter).
 
 **Acceptance criteria:**
-- [ ] Button label is "Preview my design" on initial screen load (not "Buy Now")
-- [ ] Tapping "Preview my design" calls `createMerchCart` and shows a `CircularProgressIndicator` in the product image slot during the call
-- [ ] On success, the product image slot shows the generated flag grid image (loaded from `previewUrl` via `Image.network` with shimmer loading builder)
-- [ ] Below the image, a "Complete checkout →" filled button appears; "Preview my design" button is gone
-- [ ] Tapping "Complete checkout →" opens `checkoutUrl` in `LaunchMode.inAppBrowserView`; no second function call
-- [ ] If the function call fails, error message is shown and "Preview my design" button is re-enabled
-- [ ] Changing any variant option after preview resets to pre-preview state (clears `_previewUrl` and `_checkoutUrl`, re-enables "Preview my design")
-- [ ] Loading state disables the CTA button
 
-**Files to modify:**
-- `apps/mobile_flutter/lib/features/merch/merch_variant_screen.dart`
+- `filteredEffectiveVisitsProvider` with year=2015 and a user with trips to FR (2015), JP (2020), DE (2010) returns FR and DE only.
+- `filteredEffectiveVisitsProvider` with null returns identical results to `effectiveVisitsProvider`.
+- `countryVisualStatesProvider` with year filter active shows `unvisited` for countries with all trips after the filter year.
+- `earliestVisitYearProvider` returns null when no trips exist.
+- Unit tests cover all filter scenarios above.
+- `flutter analyze` zero issues.
 
 ---
 
-### Task 92 — Post-purchase celebration screen
+### Task 98 — `TimelineScrubberBar` widget + `MapScreen` wiring
 
-**Deliverable:** A new `MerchPostPurchaseScreen` shown after the SFSafariViewController dismisses. Pushed immediately after `launchUrl` returns in `MerchVariantScreen._completeCheckout()`. Optimistic — assumes purchase completed (user receives Shopify email as ground truth).
+**Deliverable:**
+
+1. `TimelineScrubberBar` widget (`lib/features/map/timeline_scrubber_bar.dart`):
+   - `ConsumerWidget`; shows only when `yearFilterProvider != null`.
+   - `Slider` with `min = earliestYear.toDouble()`, `max = DateTime.now().year.toDouble()`, `divisions = max - min`, `value = yearFilter.toDouble()`.
+   - Label above slider: "Showing countries visited by [year]".
+   - Clear `TextButton` (or "✕" icon) that sets `yearFilterProvider` to null.
+   - Wraps in a semi-transparent amber-tinted `Card` (consistent with amber theme).
+   - Respects `SafeArea` at bottom.
+
+2. `MapScreen` changes:
+   - Add `TimelineScrubberBar` to the `Stack` above `StatsStrip` (positioned at `Alignment.bottomCenter` inside a `Column` with `StatsStrip`).
+   - Add "Filter by year" `PopupMenuItem` to `_MapMenuAction` enum and `PopupMenuButton`; tapping it sets `yearFilterProvider` to `DateTime.now().year` (activates the scrubber at "all years").
+   - Show "Filter by year" menu item only when `earliestVisitYearProvider` resolves to a year < `DateTime.now().year` (i.e. user has historical trip data spanning more than one year).
 
 **Acceptance criteria:**
-- [ ] `MerchPostPurchaseScreen` is a `StatelessWidget` accepting `product` (`MerchProduct`) and `countryCount` (`int`)
-- [ ] Shows: large 🎉 icon/emoji, "Your order is on its way!" heading, body "You'll receive a confirmation email shortly. Your [product.name] is being made with your [N] countries."
-- [ ] "Back to my map" filled button pops to root via `Navigator.popUntil`
-- [ ] "Share" outline button shares pre-composed message: `"Just ordered a [product name] with all [N] countries I've visited — made with Roavvy 🌍"` via `share_plus`
-- [ ] Confetti animation plays on entry (respects `MediaQuery.disableAnimationsOf`)
-- [ ] No back navigation (no back button in AppBar; block swipe-back)
-- [ ] Pushed from `MerchVariantScreen` after `launchUrl` returns
-- [ ] Unit test: widget renders correct product name and country count
 
-**New files:**
-- `apps/mobile_flutter/lib/features/merch/merch_post_purchase_screen.dart`
-
-**Modified files:**
-- `apps/mobile_flutter/lib/features/merch/merch_variant_screen.dart`
+- Dragging the scrubber to 2018 causes `yearFilterProvider` to hold 2018; countries with all trips after 2018 show as grey on the map.
+- Tapping "Clear" resets the map to all countries visited.
+- Scrubber is not shown when no visits exist or when `earliestVisitYearProvider` is null.
+- Widget test: `TimelineScrubberBar` renders label with current year; tapping clear calls `ref.read(yearFilterProvider.notifier).state = null`.
+- `flutter analyze` zero issues.
 
 ---
 
-### Task 93 — Merch order history
+### Task 99 — `ScanRevealMiniMap` widget
 
-**Deliverable:** `MerchOrdersScreen` reads `users/{uid}/merch_configs` from Firestore and displays past orders with status. Entry point from `PrivacyAccountScreen`.
+**Deliverable:**
+
+`lib/features/scan/scan_reveal_mini_map.dart`:
+
+- `ScanRevealMiniMap` (`ConsumerStatefulWidget`): takes `newCodes: List<String>`.
+- Layout: `SizedBox(height: 180)` containing a `FlutterMap` with `interactionOptions: InteractionOptions(flags: InteractiveFlag.none)` (no user interaction), `initialCenter: LatLng(20, 0)`, `initialZoom: 1.8`.
+- Layers: one `PolygonLayer` for all unvisited countries (grey, `_kUnvisitedFill`, same constants as `CountryPolygonLayer`), one `PolygonLayer` for revealed countries (amber, `_kVisitedFill`).
+- On `initState`: if `MediaQuery.disableAnimationsOf(context)` — add all `newCodes` to `_revealed` immediately; else start a `Timer.periodic(400ms)` that pops one code from a queue into `_revealed` and calls `setState`. Stop timer when queue is empty.
+- Clean up timer in `dispose`.
+
+Integrated into `ScanSummaryScreen._NewDiscoveriesState`:
+- Add `ScanRevealMiniMap(newCodes: widget.newCodes)` as the first item in the `ListView` (before the hero count block), wrapped in `Padding(EdgeInsets.only(bottom: 16))`.
+- Only added when `widget.newCodes.length >= 2` (single new country is already celebrated via `DiscoveryOverlay`).
 
 **Acceptance criteria:**
-- [ ] `MerchOrdersScreen` is a `ConsumerWidget`; uses `merchOrdersProvider` (`FutureProvider<List<MerchOrderSummary>>`)
-- [ ] `MerchOrderSummary` data class: `configId`, `productName`, `countryCount`, `createdAt`, `status`
-- [ ] Reads `users/{uid}/merch_configs` ordered by `createdAt` descending, limit 20
-- [ ] Unauthenticated: shows "Sign in to view your orders"
-- [ ] Empty: shows "No orders yet. Head to the Shop to order your first personalised item."
-- [ ] Each order row: product name, country count, date, status badge
-- [ ] Status badge: `pending`/`cart_created` → grey "In progress"; `ordered`/`print_file_submitted` → amber "Processing"; `*_error` → red "Error"
-- [ ] `PrivacyAccountScreen` has a "My orders" `ListTile` navigating to `MerchOrdersScreen`
-- [ ] Loading state shows `CircularProgressIndicator`
-- [ ] Unit test: provider maps Firestore documents to `MerchOrderSummary` correctly; status badge colour test
 
-**New files:**
-- `apps/mobile_flutter/lib/features/merch/merch_orders_screen.dart`
-
-**Modified files:**
-- `apps/mobile_flutter/lib/features/settings/privacy_account_screen.dart`
+- Mini-map is visible in State A when 2+ new countries discovered.
+- Countries appear one-by-one in order; all revealed after `newCodes.length × 400ms`.
+- With `MediaQuery.disableAnimations = true`, all countries appear immediately (no timer).
+- Map is non-interactive (no pan/zoom).
+- `flutter analyze` zero issues.
+- Widget test: with `disableAnimations = true`, all `newCodes` countries are rendered as amber polygons without tapping anything.
 
 ---
 
 ## Dependencies
 
-- Task 91: no dependencies (standalone refactor)
-- Task 92: depends on Task 91 (pushed from variant screen)
-- Task 93: independent; build after Task 92
+| Task | Depends on |
+|---|---|
+| 97 | `tripRepositoryProvider` (existing), `effectiveVisitsProvider` (existing) |
+| 98 | Task 97 (`yearFilterProvider`, `filteredEffectiveVisitsProvider`, `earliestVisitYearProvider`) |
+| 99 | `polygonsProvider` (existing), `newCodes` list passed from `ScanSummaryScreen` |
 
-Build order: Task 91 → Task 92 → Task 93
+Tasks 97 and 99 can be implemented in parallel. Task 98 requires Task 97.
 
 ---
 
 ## Risks / Open Questions
 
-1. **`launchUrl` return timing**: On iOS, `launchUrl` with `inAppBrowserView` returns when SFSafariViewController is dismissed. Verify this is `await`-able before Task 92.
-2. **Preview image shimmer**: `Image.network` `loadingBuilder` provides a frame-by-frame callback — use a simple grey container shimmer for loading, not a third-party package.
-3. **Variant change reset**: After variant change, `_previewUrl` and `_checkoutUrl` must both be cleared to avoid stale preview / wrong cart.
-4. **Firestore anonymous orders**: Anonymous users can technically create orders (Firebase auth required for `createMerchCart`). `MerchOrdersScreen` should show orders for any Firebase user (anonymous or signed in).
+1. **`countryVisualStatesProvider` dual-source complexity** — The provider currently watches `effectiveVisitsProvider` directly. Switching to `filteredEffectiveVisitsProvider` requires care: both providers must be watched (for dependency tracking) but only the filtered one should be used when the filter is active. The Architect must confirm the watch pattern before Task 97 is coded.
+
+2. **`ScanRevealMiniMap` embedded `FlutterMap` performance** — Embedding a flutter_map inside a `ListView` (inside `ScanSummaryScreen`) may cause layout issues. The mini-map must have a fixed height (not `Expanded`). Use `NeverScrollableScrollPhysics` on the inner map if needed. Test on device.
+
+3. **Year filter and `countryTripCountsProvider`** — Depth colouring deliberately ignores the year filter (shows lifetime trip count). This is a design decision: depth colouring reflects lifetime engagement, not historical state. Document clearly in UI (consider showing a note "Colour shows lifetime visits" when filter is active).
+
+4. **Manually-added countries with no trip records** — These have `firstSeen = null` and no `TripRecord`. The year filter will exclude them (no evidence to date them). This is the correct conservative behaviour — we cannot confirm when they were visited.

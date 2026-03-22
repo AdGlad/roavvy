@@ -12,6 +12,7 @@ import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import 'achievement_unlock_sheet.dart';
 import 'milestone_card_sheet.dart';
+import 'scan_reveal_mini_map.dart';
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
 String _flagEmoji(String code) {
@@ -167,6 +168,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
             : _NewDiscoveriesState(
                 newCountries: widget.newCountries,
                 newAchievementIds: widget.newAchievementIds,
+                newCodes: widget.newCodes,
                 onDone: _handleDone,
               ),
       ),
@@ -180,11 +182,13 @@ class _NewDiscoveriesState extends StatefulWidget {
   const _NewDiscoveriesState({
     required this.newCountries,
     required this.newAchievementIds,
+    required this.newCodes,
     required this.onDone,
   });
 
   final List<EffectiveVisitedCountry> newCountries;
   final List<String> newAchievementIds;
+  final List<String> newCodes;
   final Future<void> Function() onDone;
 
   @override
@@ -314,6 +318,11 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
+                  if (widget.newCodes.length >= 2)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ScanRevealMiniMap(newCodes: widget.newCodes),
+                    ),
                   _CountryList(
                     newCountries: widget.newCountries,
                     rowOpacities: _rowOpacities,

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:country_lookup/country_lookup.dart';
@@ -101,6 +102,48 @@ final countryTripCountsProvider = FutureProvider<Map<String, int>>((ref) async {
     counts[trip.countryCode] = (counts[trip.countryCode] ?? 0) + 1;
   }
   return counts;
+});
+
+/// Year filter for the timeline scrubber. null = show all time. (ADR-076)
+final yearFilterProvider = StateProvider<int?>((ref) => null);
+
+/// The earliest trip `startedOn` year across all trips; null if no trips exist.
+/// Used to compute the scrubber range in [TimelineScrubberBar]. (ADR-076)
+final earliestVisitYearProvider = FutureProvider<int?>((ref) async {
+  final trips = await ref.watch(tripRepositoryProvider).loadAll();
+  if (trips.isEmpty) return null;
+  return trips.map((t) => t.startedOn.year).reduce(min);
+});
+
+/// Effective visits filtered by [yearFilterProvider].
+///
+/// When the filter is null, returns the same list as [effectiveVisitsProvider].
+/// When set to year Y, retains only countries that have at least one trip with
+/// `startedOn.year <= Y`, or (for manually-added countries with no trips)
+/// `firstSeen != null && firstSeen.year <= Y`. (ADR-076)
+final filteredEffectiveVisitsProvider =
+    FutureProvider<List<EffectiveVisitedCountry>>((ref) async {
+  final year = ref.watch(yearFilterProvider);
+  final allVisits = await ref.watch(effectiveVisitsProvider.future);
+
+  if (year == null) return allVisits;
+
+  final trips = await ref.watch(tripRepositoryProvider).loadAll();
+
+  // Build a set of country codes that have at least one trip on or before year.
+  final codesWithQualifyingTrip = <String>{};
+  for (final trip in trips) {
+    if (trip.startedOn.year <= year) {
+      codesWithQualifyingTrip.add(trip.countryCode);
+    }
+  }
+
+  return allVisits.where((visit) {
+    if (codesWithQualifyingTrip.contains(visit.countryCode)) return true;
+    // No trips for this country — fall back to firstSeen (manually added).
+    final firstSeen = visit.firstSeen;
+    return firstSeen != null && firstSeen.year <= year;
+  }).toList();
 });
 
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {

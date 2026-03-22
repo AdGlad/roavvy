@@ -22,6 +22,7 @@ import 'region_progress_notifier.dart';
 import 'rovy_bubble.dart';
 import 'stats_strip.dart';
 import 'target_country_layer.dart';
+import 'timeline_scrubber_bar.dart';
 import 'xp_level_bar.dart';
 
 /// Displays all country polygons on an offline flutter_map canvas.
@@ -149,6 +150,12 @@ class MapScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).valueOrNull;
     final isAnonymous = user == null || user.isAnonymous;
 
+    // Derive earliestVisitYear for the "Filter by year" menu item.
+    final earliestYear =
+        ref.watch(earliestVisitYearProvider).valueOrNull;
+    final showFilterByYear =
+        earliestYear != null && earliestYear < DateTime.now().year;
+
     // Derive visitedByCode reactively — used for tap resolution and empty-state.
     final visitsAsync = ref.watch(effectiveVisitsProvider);
     final visitedByCode = {
@@ -209,7 +216,13 @@ class MapScreen extends ConsumerWidget {
           ),
           const Align(
             alignment: Alignment.bottomCenter,
-            child: StatsStrip(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TimelineScrubberBar(),
+                StatsStrip(),
+              ],
+            ),
           ),
           if (!hasVisits)
             _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
@@ -256,6 +269,9 @@ class MapScreen extends ConsumerWidget {
                     ));
                   } else if (action == _MapMenuAction.signOut) {
                     FirebaseAuth.instance.signOut();
+                  } else if (action == _MapMenuAction.filterByYear) {
+                    ref.read(yearFilterProvider.notifier).state =
+                        DateTime.now().year;
                   }
                 },
                 itemBuilder: (_) => [
@@ -308,6 +324,14 @@ class MapScreen extends ConsumerWidget {
                       title: Text('Sign out'),
                     ),
                   ),
+                  if (showFilterByYear)
+                    const PopupMenuItem(
+                      value: _MapMenuAction.filterByYear,
+                      child: ListTile(
+                        leading: Icon(Icons.timeline),
+                        title: Text('Filter by year'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -320,7 +344,14 @@ class MapScreen extends ConsumerWidget {
 
 // ── Menu actions ───────────────────────────────────────────────────────────────
 
-enum _MapMenuAction { signInWithApple, deleteHistory, shareMyMap, privacyAccount, signOut }
+enum _MapMenuAction {
+  signInWithApple,
+  deleteHistory,
+  shareMyMap,
+  privacyAccount,
+  signOut,
+  filterByYear,
+}
 
 // ── Empty state ────────────────────────────────────────────────────────────────
 
