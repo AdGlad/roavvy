@@ -10,6 +10,9 @@ import '../data/db/roavvy_database.dart';
 import '../data/region_repository.dart';
 import '../data/trip_repository.dart';
 import '../data/visit_repository.dart';
+import '../data/xp_repository.dart';
+import '../features/xp/xp_event.dart';
+import '../features/xp/xp_notifier.dart';
 
 final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),
@@ -75,6 +78,14 @@ final onboardingCompleteProvider = FutureProvider<bool>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);
   return visits.isNotEmpty;
 });
+
+final xpRepositoryProvider = Provider<XpRepository>(
+  (ref) => XpRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+final xpNotifierProvider = StateNotifierProvider<XpNotifier, XpState>(
+  (ref) => XpNotifier(ref.watch(xpRepositoryProvider)),
+);
 
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);

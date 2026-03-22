@@ -263,6 +263,91 @@ All sharing features are complete as of M12.
 
 ---
 
+---
+
+## Milestone 22 — Phase 11 Slice 1: Visual States + XP Foundation
+
+**Goal:** The map visually encodes progress. Every visited country looks different from unvisited. XP is tracked. New country discovery has a proper emotional moment.
+
+**Why this slice first:** Maximum emotional impact with minimum new infrastructure. The visual state system and XP engine are the foundation everything else in Phase 11 builds on.
+
+**Scope — included:**
+- `CountryVisualState` enum + `countryVisualStateProvider` (derives state from effective visits + recency)
+- `CountryPolygonLayer` widget — replaces current `PolygonLayer` call; applies fill/border/opacity per state
+- `recentDiscoveriesProvider` — tracks ISO codes discovered in last 24h (persisted to SharedPreferences)
+- `XpEvent` domain model + Drift `xp_events` table + `XpRepository`
+- `XpNotifier` (StateNotifier) — computes total XP, current level (8 thresholds), progress to next level
+- `XpLevelBar` widget — map top strip: level badge, label, progress bar; "+N XP" animation on earn
+- `DiscoveryOverlay` — full-screen route shown when a new country is added post-scan; country name, flag, XP earned, "Explore your map" CTA; haptic feedback (HeavyImpact)
+- XP award rules wired into existing write sites: new country (+50 XP), region completed (+150 XP), scan completed (+25 XP), share (+30 XP)
+- 5 country visual states rendered correctly on real device with ≥ 50 country dataset
+- `flutter analyze` zero issues
+- Unit tests: `XpNotifier` level computation; `countryVisualStateProvider` state derivation; `XpRepository` insert + query
+
+**Scope — excluded:**
+- Region progress chips (Slice 2)
+- Rovy mascot (Slice 2)
+- Social ranking (Slice 3)
+- Discovery overlay animation refinement (basic first, polish later)
+
+**Tasks:**
+
+| Task | Description |
+|---|---|
+| 81 | `CountryVisualState` enum + `countryVisualStateProvider` + `recentDiscoveriesProvider` |
+| 82 | `CountryPolygonLayer` — replaces polygon rendering; 5 visual states with correct fill/border/animation |
+| 83 | `XpEvent` + `xp_events` Drift table + `XpRepository` + `XpNotifier` (levels + progress) |
+| 84 | `XpLevelBar` widget (top strip on MapScreen) + XP award wired into write sites |
+| 85 | `DiscoveryOverlay` full-screen route — new country moment with haptic + XP display |
+
+**Technical risks:**
+
+1. **Polygon re-rendering performance with 5 visual states** — profile on a 50+ country dataset. Split into separate `PolygonLayer` instances per state group (static vs. animated) to avoid forcing a full rebuild on each animation tick. Newly-discovered polygons (animated) are in their own `PolygonLayer`; unvisited/visited/reviewed (static) are in another. Profile on device before shipping Task 82.
+2. **`recentDiscoveriesProvider` persistence** — use SharedPreferences (not Drift) for this lightweight 24h window metadata. Key: `recent_discoveries_v1`, value: JSON list of `{ isoCode, discoveredAt }`. Filter expired entries on load. Decision must be made before Task 81.
+3. **XP write sites** — existing scan/review/share paths need to call `XpRepository.award()` without blocking or breaking existing logic. Use `unawaited()` pattern (same as Firestore sync). If `XpRepository.award()` throws, log and swallow — XP loss is recoverable; scan failure is not.
+
+---
+
+## Milestone 23 — Phase 11 Slice 2: Region Progress + Rovy
+
+**Goal:** The map shows region completion progress at a glance. Rovy provides contextual encouragement. The "one more country" nudge drives re-engagement.
+
+**Region model decision (product):** 6 standard global continents derived from `kCountryContinent` in `packages/shared_models`. Custom sub-continental regions (Scandinavia, Benelux, etc.) are deferred to a later milestone as optional overlays.
+
+**Scope — included:**
+- `Region` enum (6 values): `europe`, `asia`, `africa`, `northAmerica`, `southAmerica`, `oceania`
+- `RegionProgressNotifier` — computes per-region completion ratio by reading `kCountryContinent` directly; provides `List<RegionProgressData>` (region, centroid LatLng, visited count, total count); no static `regionCountries` file needed
+- Fixed centroid `LatLng` per region (hardcoded constants): Europe (54, 15), Asia (34, 100), Africa (2, 21), North America (40, −100), South America (−15, −60), Oceania (−25, 134)
+- `RegionChipsMarkerLayer` — `MarkerLayer` on `FlutterMap` showing progress chips at region centroids; only visible at zoom ≥ 4; chips show "N/M [Region]" with arc progress ring; arc animates to full-ring checkmark on completion
+- `TargetCountryLayer` — `PolygonLayer` for countries that are 1-away from completing a partially-done region; solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) + breathing fill opacity (0.10 → 0.25 → 0.10, 2400ms); uses same `AnimationController` pattern as M22 `CountryPolygonLayer` — no `CustomPainter` required
+- `RegionDetailSheet` — bottom sheet showing region name, countries list (visited / unvisited), "You need X more" callout
+- `RovyMessage` model: `{ text: String, trigger: RovyTrigger, emoji: String? }` where `RovyTrigger` is an enum: `newCountry | regionOneAway | milestone | postShare | caughtUp`
+- `RovyBubble` widget — `ConsumerStatefulWidget`; positioned `bottom: 120, right: 16`; quokka avatar (48px, circular, amber border) + speech bubble extending left (max 180px width); `rovyMessageProvider` (StateProvider<RovyMessage?>); auto-dismiss after 4s via `Timer`; tap-to-dismiss; `AnimatedSwitcher` for scale-in entrance; one bubble visible at a time
+- Rovy message triggers wired to events: new country (+encouragement), region 1-away (nudge), 10th country (milestone), post-share (thanks), zero-new-countries scan (caught up)
+
+**Scope — excluded:**
+- Custom sub-continental region overlays (Scandinavia, Benelux, etc.) — deferred, to be added as optional overlays on top of the continent base system
+- Milestone cards (separate task in a later slice)
+- Social ranking (Slice 3)
+- Timeline scrubber (Later)
+- Rovy SVG/PNG asset production (placeholder asset used during development; final asset is a design deliverable)
+
+**Tasks:**
+
+| Task | Description |
+|---|---|
+| 86 | `Region` enum + `RegionProgressNotifier` (reads `kCountryContinent`; hardcoded centroids) |
+| 87 | `RegionChipsMarkerLayer` — progress chips on map at centroids, zoom-gated at zoom ≥ 4 |
+| 88 | `TargetCountryLayer` + `RegionDetailSheet` — dashed 1-away border + region drill-down sheet |
+| 89 | `RovyBubble` + `rovyMessageProvider` + trigger wiring at all event sites |
+
+**Technical risks:**
+
+1. **`TargetCountryLayer` visual treatment** — Dashed borders are not supported natively in `flutter_map` and require `CustomPainter` with manual screen-coordinate projection and repaint wiring — too risky for this slice. Use a solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) with a breathing fill opacity animation (0.10 → 0.25 → 0.10, 2400ms) using the same `AnimationController` pattern as `CountryPolygonLayer`. The solid amber border is visually distinct from teal (visited) and grey (unvisited) states without any `CustomPainter` complexity. **Do not implement dashed borders in M23.**
+2. **Rovy asset dependency** — `RovyBubble` should work with a simple placeholder circle + "R" text label initially. Do not block Task 89 on the final SVG asset. The asset can be swapped in without code changes once available.
+
+---
+
 ## Deferred items (no milestone assigned)
 
 - Firestore pull / multi-device conflict resolution
@@ -276,3 +361,4 @@ All sharing features are complete as of M12.
 - Password reset flow for web accounts
 - Social sign-in on web (Google / Apple) — deferred; email/password is sufficient for M13/14
 - "Scan for new photos" button when > 30 days since last scan (currently the user must go to Scan tab manually)
+- Social feed or user discovery — soft social ranking (aggregate percentile comparison, "you've explored more than 72% of Roavvy travellers") is partially addressed in M23 (Slice 3 of Phase 11); a full social feed with user-to-user interaction remains deferred indefinitely

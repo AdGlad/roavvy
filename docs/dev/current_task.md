@@ -1,38 +1,24 @@
-# M21 — Personalised Flag Print Pipeline
+# M23 — Tasks 86–89: Gamified Map Phase 11 Slice 2
 
-**Milestone:** 21
-**Phase:** 10 — Commerce
-**Status:** ✅ Complete — 2026-03-21
-
-## Goal
-
-Every merch order carries a unique auto-generated flag grid image. Mobile shows a live preview. Firebase Functions generate preview + print file at `createMerchCart` time (before payment). Webhook only validates and submits to Printful via direct API.
+**Milestone:** 23
+**Phase:** 11 — Gamified Map & Progression System
+**Status:** ✅ Complete
 
 ## Tasks
 
 | Task | Description | Status |
 |---|---|---|
-| 76 | `FlagGridPreview` Flutter widget — live flag grid in `MerchVariantScreen` | ✅ Done |
-| 77 | `MerchConfig` M21 type extension + Shopify GID → Printful variant ID mapping table | ✅ Done |
-| 78 | `imageGen.ts` — `generateFlagGrid()` helper (`flag-icons` + `@resvg/resvg-js` + `sharp`) | ✅ Done |
-| 79 | `createMerchCart` updated — generates preview + print PNG, uploads to Firebase Storage | ✅ Done |
-| 80 | `shopifyOrderCreated` updated — validates file, creates Printful order via API with print file | ✅ Done |
+| 86 | `Region` enum + `RegionProgressNotifier` | ✅ Done |
+| 87 | `RegionChipsMarkerLayer` — progress chips on map at centroids, zoom-gated | ✅ Done |
+| 88 | `TargetCountryLayer` + `RegionDetailSheet` | ✅ Done |
+| 89 | `RovyBubble` + `rovyMessageProvider` + trigger wiring | ✅ Done |
 
-## Key ADRs
+## Delivered
 
-- ADR-062 — Commerce backend architecture
-- ADR-063 — Printful as POD partner (revised M21: pure API, Shopify app out of critical path)
-- ADR-064 — Firebase Functions v2 structure
-- ADR-065 — Two-stage flag image pipeline (generate at cart time; webhook validates + submits)
-
-## Pending before production
-
-1. **Printful variant IDs** — replace placeholder `0` values in `printDimensions.ts` with verified numeric IDs from the Printful dashboard.
-2. **Firebase Storage rules** — configure bucket to allow public read on `previews/*`; print files remain private.
-3. **`PRINTFUL_API_KEY`** — add to Firebase Functions environment config.
-4. **Cloud Run smoke test** — deploy and verify `@resvg/resvg-js` + `sharp` linux/amd64 binaries load correctly.
-5. **Printful Shopify app auto-import** — disable in Printful dashboard for generated-merch variants (ADR-063).
-
-## Next step
-
-Update `docs/dev/current_state.md` and plan next milestone.
+- `RegionChipsMarkerLayer`: zoom-gated MarkerLayer; chips with arc progress ring; tap → `RegionDetailSheet`
+- `TargetCountryLayer`: solid amber border + breathing fill (0.10–0.25 opacity, 2400ms); no CustomPainter
+- `RegionDetailSheet`: `showRegionDetailSheet` top-level function; visited/unvisited country lists
+- `RovyBubble`: 48px amber circle avatar + speech bubble; `AnimatedSwitcher` entrance; tap-to-dismiss; 4s auto-dismiss
+- `rovyMessageProvider`: `StateProvider<RovyMessage?>` with `RovyTrigger` enum (5 triggers)
+- Trigger wiring: regionOneAway (MapScreen), postShare (MapScreen), newCountry + milestone (ScanSummaryScreen), caughtUp (ScanSummaryScreen)
+- All wired into `MapScreen` — 404 tests passing

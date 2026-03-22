@@ -10,6 +10,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import '../xp/xp_event.dart';
 import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
 import '../../data/region_repository.dart';
@@ -354,17 +355,38 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         });
         ref.invalidate(effectiveVisitsProvider);
 
+        // Award XP: scan completion + any new countries (fire-and-forget).
+        final xpNotifier = ref.read(xpNotifierProvider.notifier);
+        unawaited(xpNotifier.award(XpEvent(
+          id: '${now.microsecondsSinceEpoch}-scan',
+          reason: XpReason.scanCompleted,
+          amount: 25,
+          awardedAt: now,
+        )));
+        if (scanResult is _NewCountriesFound) {
+          for (var i = 0; i < scanResult.newCodes.length; i++) {
+            unawaited(xpNotifier.award(XpEvent(
+              id: '${now.microsecondsSinceEpoch}-country-$i',
+              reason: XpReason.newCountry,
+              amount: 50,
+              awardedAt: now,
+            )));
+          }
+        }
+
         if (scanResult is _NewCountriesFound) {
           // Push ScanSummaryScreen — confetti fires here (ADR-059).
-          final newCodes = scanResult.newCodes.toSet();
+          final newCodesList = scanResult.newCodes; // sorted List<String>
+          final newCodesSet = newCodesList.toSet();
           final newCountries =
-              effective.where((v) => newCodes.contains(v.countryCode)).toList();
+              effective.where((v) => newCodesSet.contains(v.countryCode)).toList();
           final nav = Navigator.of(context);
           await nav.push(
             MaterialPageRoute<void>(
               builder: (_) => ScanSummaryScreen(
                 newCountries: newCountries,
                 newAchievementIds: newlyUnlockedIds.toList(),
+                newCodes: newCodesList,
                 onDone: () {
                   nav.pop();
                   widget.onScanComplete?.call();
@@ -398,6 +420,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           uid: ref.read(currentUidProvider),
           achievementRepo: _achievementRepo,
           tripRepo: _tripRepo,
+          xpNotifier: ref.read(xpNotifierProvider.notifier),
         ),
       ),
     );

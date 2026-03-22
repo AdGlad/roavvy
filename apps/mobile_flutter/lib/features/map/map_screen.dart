@@ -11,25 +11,25 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/providers.dart';
 import '../../data/firestore_sync_service.dart';
+import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import 'country_detail_sheet.dart';
+import 'country_polygon_layer.dart';
+import 'region_chips_marker_layer.dart';
+import 'region_progress_notifier.dart';
+import 'rovy_bubble.dart';
 import 'stats_strip.dart';
-
-/// ISO codes suppressed from the world map.
-const _kSuppressedCodes = {'AQ'};
-
-const _kVisitedColor = Color(0xFF2D6A4F);
-const _kUnvisitedColor = Color(0xFFD1D5DB);
-const _kBorderColor = Color(0xFF9CA3AF);
+import 'target_country_layer.dart';
+import 'xp_level_bar.dart';
 
 /// Displays all country polygons on an offline flutter_map canvas.
 ///
-/// Visited countries are highlighted in [_kVisitedColor]. Tapping a country
-/// opens [CountryDetailSheet]. Antarctica (AQ) is suppressed.
+/// Polygon rendering is delegated to [CountryPolygonLayer] which applies
+/// per-visual-state colours and animations (ADR-066). [MapScreen] retains
+/// [_visitedByCode] solely for tap resolution.
 ///
-/// Polygon data and visit state come from Riverpod providers.
 /// [tapResolverOverride] is a test hook that bypasses [resolveCountry()].
 /// [onNavigateToScan] is called when the user taps "Scan Photos" in the empty
 /// state overlay — used by [MainShell] to switch to the Scan tab.
@@ -37,7 +37,7 @@ const _kBorderColor = Color(0xFF9CA3AF);
 /// sign-in flow (avoids platform channel in widget tests).
 /// [syncService] overrides the default [FirestoreSyncService]; pass
 /// [NoOpSyncService] in widget tests to prevent real Firestore calls (ADR-030).
-class MapScreen extends ConsumerStatefulWidget {
+class MapScreen extends ConsumerWidget {
   const MapScreen({
     super.key,
     this.tapResolverOverride,
@@ -56,55 +56,11 @@ class MapScreen extends ConsumerStatefulWidget {
   final Future<void> Function()? signInWithAppleOverride;
 
   /// Sync service used to flush dirty records after Apple sign-in.
-  /// Defaults to [FirestoreSyncService] when null.
   final SyncService? syncService;
 
-  @override
-  ConsumerState<MapScreen> createState() => _MapScreenState();
-}
+  SyncService _syncService() => syncService ?? FirestoreSyncService();
 
-class _MapScreenState extends ConsumerState<MapScreen> {
-  Map<String, EffectiveVisitedCountry> _visitedByCode = {};
-  List<Polygon> _mapPolygons = const [];
-  bool _loading = true;
-
-  SyncService get _syncService => widget.syncService ?? FirestoreSyncService();
-
-  @override
-  void initState() {
-    super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    final polygonData = ref.read(polygonsProvider);
-    final effective = await ref.read(effectiveVisitsProvider.future);
-    final visitedByCode = {for (final v in effective) v.countryCode: v};
-
-    final polygons = <Polygon>[];
-    for (final p in polygonData) {
-      if (_kSuppressedCodes.contains(p.isoCode)) continue;
-      polygons.add(
-        Polygon(
-          points: [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
-          color: visitedByCode.containsKey(p.isoCode)
-              ? _kVisitedColor
-              : _kUnvisitedColor,
-          borderColor: _kBorderColor,
-          borderStrokeWidth: 0.5,
-        ),
-      );
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _visitedByCode = visitedByCode;
-      _mapPolygons = polygons;
-      _loading = false;
-    });
-  }
-
-  Future<void> _onDeleteHistory() async {
+  Future<void> _onDeleteHistory(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -124,45 +80,48 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true) return;
     await ref.read(visitRepositoryProvider).clearAll();
     ref.invalidate(effectiveVisitsProvider);
     ref.invalidate(travelSummaryProvider);
-    _init();
   }
 
-  Future<void> _onSignInWithApple() async {
-    // Test hook: bypass platform channel in widget tests.
-    if (widget.signInWithAppleOverride != null) {
-      await widget.signInWithAppleOverride!();
+  Future<void> _onSignInWithApple(BuildContext context, WidgetRef ref) async {
+    if (signInWithAppleOverride != null) {
+      await signInWithAppleOverride!();
       return;
     }
-
     try {
       await apple.signInWithApple(
         repo: ref.read(visitRepositoryProvider),
-        syncService: _syncService,
+        syncService: _syncService(),
       );
     } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code == AuthorizationErrorCode.canceled) return; // user cancelled — no UI
-      if (!mounted) return;
+      if (e.code == AuthorizationErrorCode.canceled) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sign in failed. Try again.')),
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sign in failed. Try again.')),
       );
     }
   }
 
-  void _onMapTap(TapPosition _, LatLng point) {
-    final resolver = widget.tapResolverOverride ?? resolveCountry;
+  void _onMapTap(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, EffectiveVisitedCountry> visitedByCode,
+    TapPosition _,
+    LatLng point,
+  ) {
+    final resolver = tapResolverOverride ?? resolveCountry;
     final code = resolver(point.latitude, point.longitude);
     if (code == null) return;
 
-    final visit = _visitedByCode[code];
+    final visit = visitedByCode[code];
 
     showModalBottomSheet<bool>(
       context: context,
@@ -179,24 +138,54 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             : null,
       ),
     ).then((added) {
-      if (added == true && mounted) {
+      if (added == true) {
         ref.invalidate(effectiveVisitsProvider);
-        _init();
       }
     });
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).valueOrNull;
     final isAnonymous = user == null || user.isAnonymous;
-    final hasVisits = _visitedByCode.isNotEmpty;
 
-    if (_loading) {
+    // Derive visitedByCode reactively — used for tap resolution and empty-state.
+    final visitsAsync = ref.watch(effectiveVisitsProvider);
+    final visitedByCode = {
+      for (final v in visitsAsync.valueOrNull ?? <EffectiveVisitedCountry>[])
+        v.countryCode: v,
+    };
+    final hasVisits = visitedByCode.isNotEmpty;
+
+    // Show loading indicator until effective visits first resolve.
+    if (visitsAsync.isLoading && visitedByCode.isEmpty) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
+    // Fire region-1-away Rovy nudge whenever a region transitions to exactly
+    // 1 country remaining and the user has at least one visit in that region.
+    ref.listen<List<RegionProgressData>>(regionProgressProvider,
+        (previous, next) {
+      final prevOneAway = (previous ?? const <RegionProgressData>[])
+          .where((r) => r.remaining == 1 && r.visitedCount > 0)
+          .map((r) => r.region)
+          .toSet();
+      for (final data in next) {
+        if (data.remaining == 1 &&
+            data.visitedCount > 0 &&
+            !prevOneAway.contains(data.region)) {
+          ref.read(rovyMessageProvider.notifier).state = RovyMessage(
+            text:
+                'Just 1 more country to complete ${data.region.displayName}!',
+            trigger: RovyTrigger.regionOneAway,
+            emoji: '🎯',
+          );
+          break; // one message at a time
+        }
+      }
+    });
 
     return Scaffold(
       body: Stack(
@@ -205,21 +194,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             options: MapOptions(
               initialCenter: const LatLng(20, 0),
               initialZoom: 2,
-              onTap: _onMapTap,
+              onTap: (pos, latlng) =>
+                  _onMapTap(context, ref, visitedByCode, pos, latlng),
             ),
-            children: [
-              PolygonLayer(
-                polygonCulling: true,
-                polygons: _mapPolygons,
-              ),
+            children: const [
+              CountryPolygonLayer(),
+              TargetCountryLayer(),
+              RegionChipsMarkerLayer(),
             ],
+          ),
+          const Align(
+            alignment: Alignment.topCenter,
+            child: XpLevelBar(),
           ),
           const Align(
             alignment: Alignment.bottomCenter,
             child: StatsStrip(),
           ),
-          if (_visitedByCode.isEmpty)
-            _EmptyStateOverlay(onNavigateToScan: widget.onNavigateToScan),
+          if (!hasVisits)
+            _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
+          const Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 80),
+              child: RovyBubble(),
+            ),
+          ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 8,
@@ -230,13 +230,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 icon: const Icon(Icons.more_vert, color: Colors.white),
                 onSelected: (action) {
                   if (action == _MapMenuAction.signInWithApple) {
-                    _onSignInWithApple();
+                    _onSignInWithApple(context, ref);
                   } else if (action == _MapMenuAction.deleteHistory) {
-                    _onDeleteHistory();
+                    _onDeleteHistory(context, ref);
                   } else if (action == _MapMenuAction.shareMyMap) {
                     final s = ref.read(travelSummaryProvider).valueOrNull ??
-                        TravelSummary.fromVisits(_visitedByCode.values.toList());
+                        TravelSummary.fromVisits(visitedByCode.values.toList());
                     captureAndShare(context, s, 'My Roavvy travel map');
+                    ref.read(rovyMessageProvider.notifier).state =
+                        const RovyMessage(
+                      text: 'Love it! Thanks for sharing your adventures!',
+                      trigger: RovyTrigger.postShare,
+                      emoji: '🙌',
+                    );
+                    final now = DateTime.now().toUtc();
+                    unawaited(ref.read(xpNotifierProvider.notifier).award(XpEvent(
+                      id: '${now.microsecondsSinceEpoch}-share',
+                      reason: XpReason.share,
+                      amount: 30,
+                      awardedAt: now,
+                    )));
                   } else if (action == _MapMenuAction.privacyAccount) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const PrivacyAccountScreen(),

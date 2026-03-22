@@ -3392,6 +3392,319 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   }
 }
 
+class $XpEventsTable extends XpEvents
+    with TableInfo<$XpEventsTable, XpEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $XpEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _awardedAtMeta = const VerificationMeta(
+    'awardedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> awardedAt = GeneratedColumn<DateTime>(
+    'awarded_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, reason, amount, awardedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'xp_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<XpEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('awarded_at')) {
+      context.handle(
+        _awardedAtMeta,
+        awardedAt.isAcceptableOrUnknown(data['awarded_at']!, _awardedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_awardedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  XpEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return XpEventRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      reason:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}reason'],
+          )!,
+      amount:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}amount'],
+          )!,
+      awardedAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}awarded_at'],
+          )!,
+    );
+  }
+
+  @override
+  $XpEventsTable createAlias(String alias) {
+    return $XpEventsTable(attachedDatabase, alias);
+  }
+}
+
+class XpEventRow extends DataClass implements Insertable<XpEventRow> {
+  /// UUID v4 identifier.
+  final String id;
+
+  /// XpReason enum value stored as its name string.
+  final String reason;
+  final int amount;
+  final DateTime awardedAt;
+  const XpEventRow({
+    required this.id,
+    required this.reason,
+    required this.amount,
+    required this.awardedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['reason'] = Variable<String>(reason);
+    map['amount'] = Variable<int>(amount);
+    map['awarded_at'] = Variable<DateTime>(awardedAt);
+    return map;
+  }
+
+  XpEventsCompanion toCompanion(bool nullToAbsent) {
+    return XpEventsCompanion(
+      id: Value(id),
+      reason: Value(reason),
+      amount: Value(amount),
+      awardedAt: Value(awardedAt),
+    );
+  }
+
+  factory XpEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return XpEventRow(
+      id: serializer.fromJson<String>(json['id']),
+      reason: serializer.fromJson<String>(json['reason']),
+      amount: serializer.fromJson<int>(json['amount']),
+      awardedAt: serializer.fromJson<DateTime>(json['awardedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'reason': serializer.toJson<String>(reason),
+      'amount': serializer.toJson<int>(amount),
+      'awardedAt': serializer.toJson<DateTime>(awardedAt),
+    };
+  }
+
+  XpEventRow copyWith({
+    String? id,
+    String? reason,
+    int? amount,
+    DateTime? awardedAt,
+  }) => XpEventRow(
+    id: id ?? this.id,
+    reason: reason ?? this.reason,
+    amount: amount ?? this.amount,
+    awardedAt: awardedAt ?? this.awardedAt,
+  );
+  XpEventRow copyWithCompanion(XpEventsCompanion data) {
+    return XpEventRow(
+      id: data.id.present ? data.id.value : this.id,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      awardedAt: data.awardedAt.present ? data.awardedAt.value : this.awardedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('XpEventRow(')
+          ..write('id: $id, ')
+          ..write('reason: $reason, ')
+          ..write('amount: $amount, ')
+          ..write('awardedAt: $awardedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, reason, amount, awardedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is XpEventRow &&
+          other.id == this.id &&
+          other.reason == this.reason &&
+          other.amount == this.amount &&
+          other.awardedAt == this.awardedAt);
+}
+
+class XpEventsCompanion extends UpdateCompanion<XpEventRow> {
+  final Value<String> id;
+  final Value<String> reason;
+  final Value<int> amount;
+  final Value<DateTime> awardedAt;
+  final Value<int> rowid;
+  const XpEventsCompanion({
+    this.id = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.awardedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  XpEventsCompanion.insert({
+    required String id,
+    required String reason,
+    required int amount,
+    required DateTime awardedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       reason = Value(reason),
+       amount = Value(amount),
+       awardedAt = Value(awardedAt);
+  static Insertable<XpEventRow> custom({
+    Expression<String>? id,
+    Expression<String>? reason,
+    Expression<int>? amount,
+    Expression<DateTime>? awardedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (reason != null) 'reason': reason,
+      if (amount != null) 'amount': amount,
+      if (awardedAt != null) 'awarded_at': awardedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  XpEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? reason,
+    Value<int>? amount,
+    Value<DateTime>? awardedAt,
+    Value<int>? rowid,
+  }) {
+    return XpEventsCompanion(
+      id: id ?? this.id,
+      reason: reason ?? this.reason,
+      amount: amount ?? this.amount,
+      awardedAt: awardedAt ?? this.awardedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (awardedAt.present) {
+      map['awarded_at'] = Variable<DateTime>(awardedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('XpEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('reason: $reason, ')
+          ..write('amount: $amount, ')
+          ..write('awardedAt: $awardedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RoavvyDatabase extends GeneratedDatabase {
   _$RoavvyDatabase(QueryExecutor e) : super(e);
   $RoavvyDatabaseManager get managers => $RoavvyDatabaseManager(this);
@@ -3410,6 +3723,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
     this,
   );
   late final $TripsTable trips = $TripsTable(this);
+  late final $XpEventsTable xpEvents = $XpEventsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3424,6 +3738,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
     regionVisits,
     photoDateRecords,
     trips,
+    xpEvents,
   ];
 }
 
@@ -5394,6 +5709,194 @@ typedef $$TripsTableProcessedTableManager =
       TripRow,
       PrefetchHooks Function()
     >;
+typedef $$XpEventsTableCreateCompanionBuilder =
+    XpEventsCompanion Function({
+      required String id,
+      required String reason,
+      required int amount,
+      required DateTime awardedAt,
+      Value<int> rowid,
+    });
+typedef $$XpEventsTableUpdateCompanionBuilder =
+    XpEventsCompanion Function({
+      Value<String> id,
+      Value<String> reason,
+      Value<int> amount,
+      Value<DateTime> awardedAt,
+      Value<int> rowid,
+    });
+
+class $$XpEventsTableFilterComposer
+    extends Composer<_$RoavvyDatabase, $XpEventsTable> {
+  $$XpEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get awardedAt => $composableBuilder(
+    column: $table.awardedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$XpEventsTableOrderingComposer
+    extends Composer<_$RoavvyDatabase, $XpEventsTable> {
+  $$XpEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get awardedAt => $composableBuilder(
+    column: $table.awardedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$XpEventsTableAnnotationComposer
+    extends Composer<_$RoavvyDatabase, $XpEventsTable> {
+  $$XpEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get awardedAt =>
+      $composableBuilder(column: $table.awardedAt, builder: (column) => column);
+}
+
+class $$XpEventsTableTableManager
+    extends
+        RootTableManager<
+          _$RoavvyDatabase,
+          $XpEventsTable,
+          XpEventRow,
+          $$XpEventsTableFilterComposer,
+          $$XpEventsTableOrderingComposer,
+          $$XpEventsTableAnnotationComposer,
+          $$XpEventsTableCreateCompanionBuilder,
+          $$XpEventsTableUpdateCompanionBuilder,
+          (
+            XpEventRow,
+            BaseReferences<_$RoavvyDatabase, $XpEventsTable, XpEventRow>,
+          ),
+          XpEventRow,
+          PrefetchHooks Function()
+        > {
+  $$XpEventsTableTableManager(_$RoavvyDatabase db, $XpEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$XpEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$XpEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$XpEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<DateTime> awardedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => XpEventsCompanion(
+                id: id,
+                reason: reason,
+                amount: amount,
+                awardedAt: awardedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String reason,
+                required int amount,
+                required DateTime awardedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => XpEventsCompanion.insert(
+                id: id,
+                reason: reason,
+                amount: amount,
+                awardedAt: awardedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$XpEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RoavvyDatabase,
+      $XpEventsTable,
+      XpEventRow,
+      $$XpEventsTableFilterComposer,
+      $$XpEventsTableOrderingComposer,
+      $$XpEventsTableAnnotationComposer,
+      $$XpEventsTableCreateCompanionBuilder,
+      $$XpEventsTableUpdateCompanionBuilder,
+      (
+        XpEventRow,
+        BaseReferences<_$RoavvyDatabase, $XpEventsTable, XpEventRow>,
+      ),
+      XpEventRow,
+      PrefetchHooks Function()
+    >;
 
 class $RoavvyDatabaseManager {
   final _$RoavvyDatabase _db;
@@ -5416,4 +5919,6 @@ class $RoavvyDatabaseManager {
       $$PhotoDateRecordsTableTableManager(_db, _db.photoDateRecords);
   $$TripsTableTableManager get trips =>
       $$TripsTableTableManager(_db, _db.trips);
+  $$XpEventsTableTableManager get xpEvents =>
+      $$XpEventsTableTableManager(_db, _db.xpEvents);
 }

@@ -9,8 +9,10 @@ import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/firestore_sync_service.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
+import 'package:mobile_flutter/data/xp_repository.dart';
 import 'package:mobile_flutter/features/map/map_screen.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 
@@ -34,6 +36,7 @@ Widget _pumpMapScreen(
       achievementRepositoryProvider.overrideWithValue(
         AchievementRepository(_makeDb()),
       ),
+      xpRepositoryProvider.overrideWithValue(XpRepository(_makeDb())),
       polygonsProvider.overrideWithValue(const []),
       authStateProvider.overrideWith((_) => mockAuth.authStateChanges()),
     ],
@@ -48,6 +51,8 @@ Widget _pumpMapScreen(
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('MapScreen renders with empty repository; no crash', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));

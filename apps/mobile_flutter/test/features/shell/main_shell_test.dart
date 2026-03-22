@@ -9,6 +9,7 @@ import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
+import 'package:mobile_flutter/data/xp_repository.dart';
 import 'package:mobile_flutter/features/shell/main_shell.dart';
 
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
@@ -25,6 +26,7 @@ Widget _pumpShell() {
       achievementRepositoryProvider.overrideWithValue(AchievementRepository(db)),
       tripRepositoryProvider.overrideWithValue(TripRepository(db)),
       regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
+      xpRepositoryProvider.overrideWithValue(XpRepository(db)),
       polygonsProvider.overrideWithValue(const []),
     ],
     child: const MaterialApp(home: MainShell()),

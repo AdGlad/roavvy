@@ -2216,3 +2216,176 @@ The `external_id` links the Printful order to the Shopify order for tracking and
 - A Cloud Scheduler job for design record cleanup is deferred to post-M21 (30-day retention is acceptable as manual cleanup for MVP).
 - Future templates (`heart_frame`, `map_silhouette`, etc.) add entries to the template dispatcher in `imageGen.ts` without changing the pipeline.
 
+---
+
+## ADR-066 — `CountryPolygonLayer` replaces imperative polygon building in `MapScreen` (M22)
+
+**Status:** Accepted
+
+**Context:**
+`MapScreen` currently builds its polygon list imperatively in `_init()` — an async function called in `initState` that reads `polygonsProvider` and `effectiveVisitsProvider` once and stores `_mapPolygons` as local `State`. This worked while polygons had a single visual state (visited/unvisited). M22 adds 5 visual states, two of which (`newlyDiscovered`) require continuous animation. A single flat list of `Polygon` objects cannot express animated per-state fill changes without forcing a full rebuild of the entire polygon set on every animation tick — prohibitively expensive on a 200-country dataset.
+
+**Decision:**
+Introduce `CountryPolygonLayer` as a `ConsumerStatefulWidget` that owns all polygon rendering and replaces the `PolygonLayer` call in `MapScreen`.
+
+- `CountryPolygonLayer` watches `polygonsProvider`, `effectiveVisitsProvider`, and `recentDiscoveriesProvider` reactively via `ref.watch`.
+- It creates **two separate `PolygonLayer` instances**:
+  1. **Static group** — `unvisited`, `visited`, `reviewed`, `target` polygons; rebuilt only when provider values change (no animation tick involvement).
+  2. **Animated group** — `newlyDiscovered` polygons only; driven by a single `AnimationController` owned by `CountryPolygonLayer`; only this layer rebuilds on each tick via `AnimatedBuilder`.
+- `MapScreen._init()` and `_mapPolygons` state are removed. `MapScreen` retains `_visitedByCode` (for tap resolution) but derives it from `effectiveVisitsProvider` via `ref.watch` in `build()` instead of imperative load.
+- `MapScreen` passes no polygon data to `CountryPolygonLayer`; the widget is self-contained.
+
+**Consequences:**
+- Animated countries re-render at the animation frame rate; all static countries re-render only on data changes — correct performance profile.
+- `MapScreen` becomes significantly simpler: no `_init()` async imperative load, no `_mapPolygons` state, no `_loading` flag driven by polygon init (loading state may remain for overall app init).
+- Existing `MapScreen` widget tests that stub `polygonsProvider` and `effectiveVisitsProvider` continue to work; `CountryPolygonLayer` tests are added separately.
+- `_visitedByCode` must remain in `MapScreen` for tap resolution; it is computed from `ref.watch(effectiveVisitsProvider)` synchronously in `build()` (no await needed after M22).
+
+---
+
+## ADR-067 — `recentDiscoveriesProvider` uses SharedPreferences with lazy async init (M22)
+
+**Status:** Accepted
+
+**Context:**
+`recentDiscoveriesProvider` tracks ISO codes discovered in the last 24 hours, persisted across app restarts so newly-discovered polygons keep their amber pulse if the user force-quits and re-opens the app. Drift (the existing SQLite layer) is heavier than needed for a small JSON list with a 24h TTL. SharedPreferences is already in `pubspec.yaml` (used by `flutter_local_notifications`).
+
+SharedPreferences is not currently in the Riverpod provider graph. Adding it requires an async initialisation step.
+
+**Decision:**
+`recentDiscoveriesProvider` is a `StateNotifierProvider<RecentDiscoveriesNotifier, Set<String>>`.
+
+- `RecentDiscoveriesNotifier` starts with state `<String>{}` (empty set) synchronously.
+- In its constructor it fires `_loadFromPrefs()` — an async private method that calls `SharedPreferences.getInstance()`, reads the `recent_discoveries_v1` key, deserialises the JSON list, filters out entries where `discoveredAt < now - 24h`, and updates state.
+- `add(String isoCode)` appends to state immediately and serialises the full list to SharedPreferences via `unawaited(prefs.setString(...))`.
+- `clear()` resets state to `<String>{}` and removes the SharedPreferences key.
+- SharedPreferences instance is cached as a local field after the first `getInstance()` call; subsequent `add()` calls do not call `getInstance()` again.
+- No change to `main.dart` or `ProviderScope` overrides is needed.
+
+**Why not a `FutureProvider`?**
+A `FutureProvider<Set<String>>` would make the consumer need to handle `AsyncValue` — adding `when(loading/error/data)` branches throughout `CountryPolygonLayer`. Since the 24h window means a brief cold-start race (polygons start as `unvisited`, then flip to `newlyDiscovered` ~one frame later once prefs load) is acceptable, the simpler `StateNotifier` with async background init is preferred.
+
+**Consequences:**
+- There is a one-frame window at cold start where `recentDiscoveriesProvider` is empty; any `newlyDiscovered` countries will flash from `visited` to `newlyDiscovered` amber pulse. This is imperceptible in practice.
+- No SharedPreferences provider is added to `lib/core/providers.dart` — the notifier owns its own prefs instance. This keeps the provider graph simple.
+- `add()` is safe to call from `unawaited()` contexts (it does not throw).
+
+---
+
+## ADR-068 — `DiscoveryOverlay` is pushed from `ScanSummaryScreen` on dismissal (M22)
+
+**Status:** Accepted
+
+**Context:**
+ADR-054 defines the scan navigation stack: `ReviewScreen._save()` computes the pre/post-save delta, pushes `ScanSummaryScreen`, and `ScanSummaryScreen._handleDone()` double-pops to land back on `MapScreen`. M22 adds `DiscoveryOverlay` — a full-screen celebration for newly discovered countries. Where to insert it without breaking the ADR-054 stack was an open question.
+
+**Options considered:**
+1. Push `DiscoveryOverlay` from `ReviewScreen._save()` *before* `ScanSummaryScreen` — results in `MapScreen → ReviewScreen → DiscoveryOverlay → ScanSummaryScreen`; complex double-pop becomes triple-pop.
+2. Push `DiscoveryOverlay` from `ReviewScreen._save()` *instead of* `ScanSummaryScreen` — removes the summary screen for new-country scans; loses confetti + achievement chips.
+3. Push `DiscoveryOverlay` from `ScanSummaryScreen._handleDone()` before the double-pop — the summary screen shows first (confetti, achievements), then the overlay for the primary new country. Stack: `MapScreen → ReviewScreen → ScanSummaryScreen → DiscoveryOverlay`. Tapping "Explore your map" on the overlay pops it, landing back on `ScanSummaryScreen`; ADR-054 double-pop then clears `ReviewScreen` and `ScanSummaryScreen`, landing on `MapScreen`.
+
+**Decision:** Option 3 — `DiscoveryOverlay` is pushed from `ScanSummaryScreen._handleDone()` for the first newly discovered country only.
+
+- `ScanSummaryScreen` receives the list of newly discovered country codes (already known as part of the pre/post delta).
+- If the list is non-empty, `_handleDone()` pushes `DiscoveryOverlay` for `newCodes.first` instead of immediately double-popping.
+- `DiscoveryOverlay`'s "Explore your map" CTA calls `Navigator.of(context).popUntil(ModalRoute.withName('/'))` to clear the full scan stack in one operation — more robust than a counted pop.
+- `recentDiscoveriesProvider.add(isoCode)` is called for *all* new country codes from `ScanSummaryScreen._handleDone()`, not just the one shown in the overlay, so all new countries get the amber pulse.
+
+**Consequences:**
+- ADR-054 double-pop is replaced by `popUntil('/')` from the overlay CTA; simpler and stack-count-independent.
+- `ScanSummaryScreen` must accept a `List<String> newCodes` parameter (or derive it from its existing `delta` parameter).
+- The overlay appears after the summary screen — users see confetti + achievement chips first, then the country celebration. This ordering feels correct: celebrate the set, then spotlight the headline country.
+- Multiple new countries in one scan: only the first country gets the overlay (alphabetically first by ISO code for determinism). All countries get the amber pulse on the map.
+
+---
+
+## ADR-069 — `RegionChipsMarkerLayer` uses `MarkerLayer` with zoom gating via `MapCamera` (M23)
+
+**Status:** Accepted
+
+**Context:**
+M23 adds floating progress chips at region centroids on the world map. Options for implementation:
+1. Custom layer (`FlutterMapLayerOptions` subclass) — requires significant boilerplate and internal flutter_map API knowledge.
+2. `MarkerLayer` with `ConsumerStatefulWidget` listening to map camera changes — standard API, well-tested, and idiomatic in flutter_map 6.x+.
+3. Overlay widget positioned via `Stack` + coordinate-to-screen projection — brittle when map pans or zooms.
+
+Zoom gating is needed because at low zoom levels (< 4) the chip markers overlap and clutter the map.
+
+**Decision:** Use `MarkerLayer` (standard flutter_map layer). The widget listens to `MapController` camera change events and checks `camera.zoom`. When zoom < 4.0, return an empty `MarkerLayer(markers: [])`. Otherwise render one `Marker` per region at its centroid.
+
+Each marker widget is a `GestureDetector` wrapping a chip painted with `CustomPainter` for the arc progress ring. The chip is 80×40 logical pixels; the arc is 24px diameter.
+
+**Consequences:**
+- Zero new packages required — `flutter_map` already provides `MarkerLayer` and `MapCamera`.
+- Chip tap calls `showRegionDetailSheet()` — opens `RegionDetailSheet` as a bottom sheet.
+- `MarkerLayer` markers do not scale with map zoom — chips remain the same logical pixel size regardless of zoom level, which is the desired behaviour.
+
+---
+
+## ADR-070 — `TargetCountryLayer` uses native `PolygonLayer` with solid amber border and breathing opacity (M23)
+
+**Status:** Accepted
+
+**Context:**
+M23 requires a visual treatment for "target" countries (countries in regions that are exactly 1-away from completion and have at least one visit). Dashed borders were considered for distinction from regular visited countries.
+
+Options:
+1. Dashed border via `CustomPainter` — requires screen-space coordinate projection, repainting wired to map transforms, and manual geometry calculations. High implementation risk.
+2. Solid amber border + breathing fill opacity — uses native `flutter_map` `PolygonLayer` with an `AnimationController`. The amber colour is visually distinct from regular visited countries without any `CustomPainter` complexity.
+3. Hatched fill pattern — requires `CustomPainter` with a tiling shader; similar complexity to option 1.
+
+**Decision:** Option 2 — solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) with breathing fill opacity (0.10 → 0.25 → 0.10, 2400ms `AnimationController`, repeat-reverse). Uses the same `AnimationController` + `AnimatedBuilder` pattern as `CountryPolygonLayer` (ADR-066). No `CustomPainter` involved.
+
+The `TargetCountryLayer` is a `ConsumerStatefulWidget` that:
+1. Watches `regionProgressProvider` to derive which regions are 1-away.
+2. Derives target ISO codes from `kCountryContinent` filtered to those regions.
+3. Builds a `PolygonLayer` from those codes' polygons.
+4. Animates fill opacity via `AnimatedBuilder`.
+
+In reduced-motion mode (`MediaQuery.disableAnimationsOf`): static opacity 0.175 (midpoint of the range).
+
+**Consequences:**
+- Visual treatment is solid amber border + breathing fill — clearly visible but not distracting.
+- No `CustomPainter` means no screen-space projection and no repaint coupling to map transforms.
+- The `TargetCountryLayer` adds a second `PolygonLayer` to the FlutterMap children list (after `CountryPolygonLayer`); ordering matters — target layer renders on top of visited-country fills.
+
+---
+
+## ADR-071 — `rovyMessageProvider` is a `StateProvider<RovyMessage?>` (M23)
+
+**Status:** Accepted
+
+**Context:**
+`RovyBubble` needs a simple single-message store. Options:
+1. `StateNotifier<List<RovyMessage>>` — queue of messages; complex dismissal logic.
+2. `StateProvider<RovyMessage?>` — holds at most one message; null = no bubble shown.
+3. `ChangeNotifier` — does not compose well with Riverpod provider graph.
+
+The design requirement states "only one bubble visible at a time" and messages auto-dismiss after 4 seconds. A queue is not needed — if a new message arrives while one is displayed, it replaces the current one.
+
+**Decision:** `StateProvider<RovyMessage?>((_) => null)`. Setting state to a new `RovyMessage` replaces any current message. Setting to null dismisses the bubble. `RovyBubble` watches the provider and starts/cancels a `Timer` on state changes.
+
+**Consequences:**
+- If two triggers fire close together (e.g. new country + region 1-away), the second message replaces the first rather than queuing. This is acceptable — the most recent message is most contextually relevant.
+- The provider lives co-located in `rovy_bubble.dart` to keep `providers.dart` from becoming a catch-all.
+- `RovyBubble` must cancel its `Timer` in `dispose()` to avoid calling `setState` after unmount.
+
+---
+
+## ADR-072 — `RegionDetailSheet` is a top-level function calling `showModalBottomSheet` (M23)
+
+**Status:** Accepted
+
+**Context:**
+`RegionDetailSheet` shows regional progress detail when a chip is tapped. Options:
+1. Named route — requires passing `RegionProgressData` as route arguments; adds navigation overhead for what is a contextual overlay.
+2. `StatefulWidget` + manual `show` static method — similar to `AchievementUnlockSheet` pattern.
+3. Top-level function `showRegionDetailSheet(context, data, visits)` — simplest; sheet content is pure from its inputs.
+
+**Decision:** Top-level function `showRegionDetailSheet(BuildContext context, RegionProgressData data, List<EffectiveVisitedCountry> visits)` that calls `showModalBottomSheet`. The sheet content is a `StatelessWidget` that derives visited/unvisited country lists from `kCountryContinent` and `kCountryNames` at build time. No providers needed inside the sheet.
+
+**Consequences:**
+- `RegionDetailSheet` has no dependency on Riverpod or any provider — purely driven by its parameters.
+- `showRegionDetailSheet` can be called from `RegionChipsMarkerLayer` chip taps; the caller passes the `RegionProgressData` (already known from `regionProgressProvider`) and the current `effectiveVisitsProvider` list.
+- Tests can call `showRegionDetailSheet` directly with canned data — no provider setup needed for the sheet itself.
+
