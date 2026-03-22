@@ -261,7 +261,8 @@ cd apps/mobile_flutter && flutter test
 | M20 (Tasks 70–75) | Phase 10 — Commerce PoC (Firebase Functions scaffold + deploy, `createMerchCart` onCall, `shopifyOrderCreated` webhook, mobile commerce flow: country selection → product browser → variant picker → Shopify checkout) | ✅ Complete |
 
 | M23 (Tasks 86–89) | Phase 11 Slice 2 — Region Progress + Rovy (RegionChipsMarkerLayer, TargetCountryLayer, RegionDetailSheet, RovyBubble + triggers) | ✅ Complete |
+| M24 (Tasks 91–93) | Phase 10 Commerce Polish — preview-first checkout, post-purchase celebration screen, merch order history | ✅ Complete |
 
-**Phases 1–10 (PoC) are complete. M23 (Phase 11 Slice 2) is complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection, Phase 10 live mockup generation (post-PoC).
+**Phases 1–10 (PoC + polish) are complete. M23 (Phase 11 Slice 2) is complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection.
 
-**Commerce PoC is live.** `createMerchCart` and `shopifyOrderCreated` deployed to `roavvy-prod`. Mobile commerce flow accessible from Stats screen → Shop button. Shopify `orders/create` webhook registered (ID: 1483692638395) pointing at the deployed function.
+**Commerce is live with end-to-end polish.** `createMerchCart` and `shopifyOrderCreated` deployed to `roavvy-prod`. Mobile flow: country selection → product browser → variant picker → "Preview my design" (generates flag grid image) → "Complete checkout →" (SFSafariViewController) → post-purchase celebration screen. Order history accessible via Privacy & account → My orders.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'flag_grid_preview.dart';
+import 'merch_post_purchase_screen.dart';
 import 'merch_product_browser_screen.dart';
 
 // ── Variant lookup tables (sourced from docs/engineering/commerce_api_contracts.md) ──
@@ -60,12 +61,16 @@ const Map<(String, String), String> _posterGids = {
   ('Fine Art', 'A4'): 'gid://shopify/ProductVariant/47577104777403',
 };
 
-/// Screen 3 of the commerce flow: variant selection + checkout handoff.
+/// Internal preview state for the two-stage checkout flow (ADR-073).
+enum _PreviewState { initial, loading, ready }
+
+/// Screen 3 of the commerce flow: variant selection + preview + checkout handoff.
 ///
-/// Shows pickers appropriate to the selected product, an order summary row,
-/// and a "Buy Now" button that calls the `createMerchCart` Firebase Function.
-/// On success, opens the returned checkoutUrl in an in-app browser
-/// (SFSafariViewController on iOS via url_launcher inAppBrowserView).
+/// Two-stage flow (ADR-073):
+/// 1. User selects variant options → taps "Preview my design"
+/// 2. [createMerchCart] Firebase Function is called; generated flag grid image shown
+/// 3. "Complete checkout →" opens the cached [checkoutUrl] in SFSafariViewController
+/// 4. On app resume after browser dismissal, pushes [MerchPostPurchaseScreen] (ADR-074)
 class MerchVariantScreen extends StatefulWidget {
   const MerchVariantScreen({
     super.key,
@@ -80,7 +85,8 @@ class MerchVariantScreen extends StatefulWidget {
   State<MerchVariantScreen> createState() => _MerchVariantScreenState();
 }
 
-class _MerchVariantScreenState extends State<MerchVariantScreen> {
+class _MerchVariantScreenState extends State<MerchVariantScreen>
+    with WidgetsBindingObserver {
   // T-shirt state
   String _tshirtColor = _tshirtColors.first;
   String _tshirtSize = _tshirtSizes[2]; // default: L
@@ -89,8 +95,13 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
   String _posterPaper = _posterPapers.first;
   String _posterSize = _posterSizes.first;
 
-  bool _loading = false;
+  _PreviewState _previewState = _PreviewState.initial;
+  String? _previewUrl;
+  String? _checkoutUrl;
   String? _error;
+
+  /// Set to true after [launchUrl] succeeds; triggers post-purchase screen on resume.
+  bool _checkoutLaunched = false;
 
   bool get _isTshirt => widget.product == MerchProduct.tshirt;
 
@@ -108,9 +119,47 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
       ? '$_tshirtColor · $_tshirtSize'
       : '$_posterPaper · $_posterSize';
 
-  Future<void> _buyNow() async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _checkoutLaunched) {
+      _checkoutLaunched = false;
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MerchPostPurchaseScreen(
+            product: widget.product,
+            countryCount: widget.selectedCodes.length,
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Clears cached preview/checkout when the user changes variant options.
+  void _resetPreview() {
+    if (_previewState != _PreviewState.initial) {
+      _previewState = _PreviewState.initial;
+      _previewUrl = null;
+      _checkoutUrl = null;
+      _error = null;
+    }
+  }
+
+  Future<void> _generatePreview() async {
     setState(() {
-      _loading = true;
+      _previewState = _PreviewState.loading;
       _error = null;
     });
 
@@ -124,34 +173,80 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
+      final previewUrl = result.data['previewUrl'] as String?;
+
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('No checkout URL returned.');
       }
 
-      final uri = Uri.parse(checkoutUrl);
-      if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
-        throw Exception('Could not open checkout.');
-      }
+      if (!mounted) return;
+      setState(() {
+        _previewState = _PreviewState.ready;
+        _previewUrl = previewUrl;
+        _checkoutUrl = checkoutUrl;
+      });
     } on FirebaseFunctionsException catch (e) {
-      setState(() => _error = e.message ?? 'An error occurred.');
+      if (!mounted) return;
+      setState(() {
+        _previewState = _PreviewState.initial;
+        _error = e.message ?? 'An error occurred.';
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() {
+        _previewState = _PreviewState.initial;
+        _error = e.toString();
+      });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Future<void> _completeCheckout() async {
+    final url = _checkoutUrl;
+    if (url == null) return;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.product.name)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Placeholder product image
-          Container(
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
+      if (!mounted) return;
+      setState(() => _error = 'Could not open checkout.');
+      return;
+    }
+    // launchUrl returns after SFSafariViewController is presented (not dismissed).
+    // didChangeAppLifecycleState(resumed) fires when the user closes the browser.
+    _checkoutLaunched = true;
+  }
+
+  Widget _buildProductImageSlot(ThemeData theme) {
+    switch (_previewState) {
+      case _PreviewState.initial:
+        return Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Icon(
+              _isTshirt
+                  ? Icons.checkroom_outlined
+                  : Icons.image_outlined,
+              size: 80,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        );
+      case _PreviewState.loading:
+        return Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        );
+      case _PreviewState.ready:
+        final url = _previewUrl;
+        if (url == null) {
+          return Container(
             height: 200,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
@@ -166,7 +261,76 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            url,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                height: 200,
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            },
+            errorBuilder: (context, error, stack) => Container(
+              height: 200,
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 60,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           ),
+        );
+    }
+  }
+
+  Widget _buildCTA() {
+    switch (_previewState) {
+      case _PreviewState.initial:
+        return FilledButton(
+          onPressed: _generatePreview,
+          child: const Text('Preview my design'),
+        );
+      case _PreviewState.loading:
+        return FilledButton(
+          onPressed: null,
+          child: const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          ),
+        );
+      case _PreviewState.ready:
+        return FilledButton(
+          onPressed: _completeCheckout,
+          child: const Text('Complete checkout →'),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.product.name)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildProductImageSlot(theme),
           const SizedBox(height: 16),
 
           // Flag grid preview
@@ -186,28 +350,40 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
             _SegmentedPicker(
               options: _tshirtColors,
               selected: _tshirtColor,
-              onChanged: (v) => setState(() => _tshirtColor = v),
+              onChanged: (v) => setState(() {
+                _tshirtColor = v;
+                _resetPreview();
+              }),
             ),
             const SizedBox(height: 16),
             _SectionLabel('Size'),
             _SegmentedPicker(
               options: _tshirtSizes,
               selected: _tshirtSize,
-              onChanged: (v) => setState(() => _tshirtSize = v),
+              onChanged: (v) => setState(() {
+                _tshirtSize = v;
+                _resetPreview();
+              }),
             ),
           ] else ...[
             _SectionLabel('Paper'),
             _SegmentedPicker(
               options: _posterPapers,
               selected: _posterPaper,
-              onChanged: (v) => setState(() => _posterPaper = v),
+              onChanged: (v) => setState(() {
+                _posterPaper = v;
+                _resetPreview();
+              }),
             ),
             const SizedBox(height: 16),
             _SectionLabel('Size'),
             _SegmentedPicker(
               options: _posterSizes,
               selected: _posterSize,
-              onChanged: (v) => setState(() => _posterSize = v),
+              onChanged: (v) => setState(() {
+                _posterSize = v;
+                _resetPreview();
+              }),
             ),
           ],
 
@@ -233,8 +409,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
                 Text(widget.product.name,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.bold)),
-                Text(_variantSummary,
-                    style: theme.textTheme.bodyMedium),
+                Text(_variantSummary, style: theme.textTheme.bodyMedium),
                 Text(
                   '${widget.selectedCodes.length} countries',
                   style: theme.textTheme.bodyMedium,
@@ -265,19 +440,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: FilledButton(
-            onPressed: _loading ? null : _buyNow,
-            child: _loading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Buy Now'),
-          ),
+          child: _buildCTA(),
         ),
       ),
     );
