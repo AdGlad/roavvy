@@ -272,4 +272,107 @@ void main() {
 
     expect(find.text('Share my map link'), findsNothing);
   });
+
+  // ── M29: Commerce entry points ─────────────────────────────────────────────
+
+  testWidgets('overflow menu shows Get a poster when visits exist',
+      (tester) async {
+    final repo = _makeRepo();
+    await repo.clearAndSaveAllInferred([
+      InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2024),
+        photoCount: 1,
+      ),
+    ]);
+
+    await tester.pumpWidget(_pumpMapScreen(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Get a poster'), findsOneWidget);
+  });
+
+  testWidgets('overflow menu hides Get a poster when no visits',
+      (tester) async {
+    await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Get a poster'), findsNothing);
+  });
+
+  // ── M29: 30-day scan nudge banner ──────────────────────────────────────────
+
+  testWidgets('nudge banner shown when lastScanAt > 30 days ago and has visits',
+      (tester) async {
+    final repo = _makeRepo();
+    await repo.clearAndSaveAllInferred([
+      InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2024),
+        photoCount: 1,
+      ),
+    ]);
+    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
+
+    await tester.pumpWidget(_pumpMapScreen(repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text("It's been a while — time for a new scan"), findsOneWidget);
+    expect(find.text('Scan now'), findsOneWidget);
+  });
+
+  testWidgets('nudge banner not shown when lastScanAt is recent', (tester) async {
+    final repo = _makeRepo();
+    await repo.clearAndSaveAllInferred([
+      InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2024),
+        photoCount: 1,
+      ),
+    ]);
+    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 5)));
+
+    await tester.pumpWidget(_pumpMapScreen(repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text("It's been a while — time for a new scan"), findsNothing);
+  });
+
+  testWidgets('nudge banner not shown when no visits', (tester) async {
+    final repo = _makeRepo();
+    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
+
+    await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
+    await tester.pumpAndSettle();
+
+    expect(find.text("It's been a while — time for a new scan"), findsNothing);
+  });
+
+  testWidgets('tapping X on nudge banner dismisses it', (tester) async {
+    final repo = _makeRepo();
+    await repo.clearAndSaveAllInferred([
+      InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2024),
+        photoCount: 1,
+      ),
+    ]);
+    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
+
+    await tester.pumpWidget(_pumpMapScreen(repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text("It's been a while — time for a new scan"), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    expect(find.text("It's been a while — time for a new scan"), findsNothing);
+  });
 }

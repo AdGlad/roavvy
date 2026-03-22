@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-22, through Task 110 / M32)
+# Roavvy — Development State (as of 2026-03-23, through Task 113 / M29)
 
 ## What Works
 
@@ -87,7 +87,12 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - **Trip photo date filtering (Task 108, ADR-083)**: `VisitRepository.loadAssetIdsByDateRange(countryCode, start, end)` added using Drift `isBetweenValues` on existing `capturedAt` column (no schema change); `CountryDetailSheet` accepts optional `tripFilter: TripRecord?`; when set, Photos tab loads only assets captured within the trip date range; `JournalScreen` `_TripTile` passes `tripFilter: trip`
   - **Real-time scan discovery feed (Task 109)**: `ScanScreen` maintains `_liveNewCodes` list diffed per batch against pre-scan known codes; `_ScanningView` renders animated `_LiveCountryRow` widgets (newest first) with `FadeTransition` + `SlideTransition`; `_flagEmoji` helper added; `_liveNewCodes` reset on new scan
   - **Sequential DiscoveryOverlay for all new countries (Task 110, ADR-084)**: `DiscoveryOverlay` extended with `currentIndex`, `totalCount`, `onDone`, `onSkipAll` params; "Country N of M" indicator for multi sequences; primary CTA is "Next →" or "Done"/"Explore your map"; "Skip all" TextButton shown in multi-country sequences; `ScanSummaryScreen._pushDiscoveryOverlays()` iterates `newCodes.take(5)` with `await Navigator.push()` loop and `skipped` flag; `PopScope` approach rejected (fires on programmatic pops — ADR-084)
-- 448 flutter tests passing; ~93 package tests passing
+- **Mobile commerce entry points (M29 — Tasks 111–113, ADR-085)**:
+  - **Scan summary "Get a poster" CTA (Task 111)**: `MerchCountrySelectionScreen` gains optional `preSelectedCodes: List<String>?`; lazy first-build init of `_deselected` from pre-selection param; `_NewDiscoveriesState` shows `TextButton` "Get a poster with your new discoveries →" above the primary CTA; opens `MerchCountrySelectionScreen(preSelectedCodes: widget.newCodes)` pre-filtered to new codes
+  - **Map "Get a poster" menu item (Task 112)**: `_MapMenuAction.shop` added; `PopupMenuItem` "Get a poster" shown when `hasVisits`; positioned after "Share travel card"; pushes `MerchCountrySelectionScreen()` (all countries)
+  - **30-day scan nudge banner (Task 113)**: `lastScanAtProvider = FutureProvider<DateTime?>` + `scanNudgeDismissedProvider = StateProvider<bool>` added to `providers.dart`; amber `_ScanNudgeBanner` shown in MapScreen Stack Column above `StatsStrip` when `hasVisits && lastScanAt > 30 days ago && !dismissed`; "Scan now" calls `onNavigateToScan`; X dismiss sets `scanNudgeDismissedProvider` true (per-session, not persisted)
+  - Also fixed pre-existing parse error in `discovery_overlay.dart` (extra `)` left from PopScope removal in M32)
+- 456 flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup

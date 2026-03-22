@@ -170,7 +170,6 @@ class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
             ),
           ),
         ),
-      ),
     );
   }
 }

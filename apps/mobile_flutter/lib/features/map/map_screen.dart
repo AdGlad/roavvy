@@ -13,6 +13,7 @@ import '../../core/providers.dart';
 import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
+import '../merch/merch_country_selection_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import 'country_detail_sheet.dart';
@@ -168,6 +169,14 @@ class MapScreen extends ConsumerWidget {
     };
     final hasVisits = visitedByCode.isNotEmpty;
 
+    // 30-day scan nudge banner (ADR-085).
+    final lastScanAt = ref.watch(lastScanAtProvider).valueOrNull;
+    final nudgeDismissed = ref.watch(scanNudgeDismissedProvider);
+    final showNudge = hasVisits &&
+        !nudgeDismissed &&
+        lastScanAt != null &&
+        DateTime.now().difference(lastScanAt) >= const Duration(days: 30);
+
     // Show loading indicator until effective visits first resolve.
     if (visitsAsync.isLoading && visitedByCode.isEmpty) {
       return const Scaffold(
@@ -220,13 +229,20 @@ class MapScreen extends ConsumerWidget {
             alignment: Alignment.topCenter,
             child: XpLevelBar(),
           ),
-          const Align(
+          Align(
             alignment: Alignment.bottomCenter,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TimelineScrubberBar(),
-                StatsStrip(),
+                if (showNudge)
+                  _ScanNudgeBanner(
+                    onScan: onNavigateToScan,
+                    onDismiss: () =>
+                        ref.read(scanNudgeDismissedProvider.notifier).state =
+                            true,
+                  ),
+                const TimelineScrubberBar(),
+                const StatsStrip(),
               ],
             ),
           ),
@@ -269,6 +285,10 @@ class MapScreen extends ConsumerWidget {
                       amount: 30,
                       awardedAt: now,
                     )));
+                  } else if (action == _MapMenuAction.shop) {
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const MerchCountrySelectionScreen(),
+                    ));
                   } else if (action == _MapMenuAction.privacyAccount) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const PrivacyAccountScreen(),
@@ -304,6 +324,14 @@ class MapScreen extends ConsumerWidget {
                       child: ListTile(
                         leading: Icon(Icons.share),
                         title: Text('Share travel card'),
+                      ),
+                    ),
+                  if (hasVisits)
+                    const PopupMenuItem(
+                      value: _MapMenuAction.shop,
+                      child: ListTile(
+                        leading: Icon(Icons.shopping_bag_outlined),
+                        title: Text('Get a poster'),
                       ),
                     ),
                   PopupMenuItem(
@@ -348,12 +376,62 @@ class MapScreen extends ConsumerWidget {
   }
 }
 
+// ── Scan nudge banner ──────────────────────────────────────────────────────────
+
+/// Dismissible amber banner shown when the user hasn't scanned in 30+ days.
+/// Dismissed per-session via [scanNudgeDismissedProvider]. (ADR-085)
+class _ScanNudgeBanner extends StatelessWidget {
+  const _ScanNudgeBanner({this.onScan, required this.onDismiss});
+
+  final VoidCallback? onScan;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFB300),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              "It's been a while — time for a new scan",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onScan,
+            child: const Text(
+              'Scan now',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 18),
+            onPressed: onDismiss,
+            tooltip: 'Dismiss',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Menu actions ───────────────────────────────────────────────────────────────
 
 enum _MapMenuAction {
   signInWithApple,
   deleteHistory,
   shareMyMap,
+  shop,
   privacyAccount,
   signOut,
   filterByYear,

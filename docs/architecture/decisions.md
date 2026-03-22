@@ -2616,6 +2616,35 @@ In `ScanScreen._scan()`, after assigning `preScanCodes` (which already exists), 
 
 ---
 
+## ADR-085 — M29 commerce entry point decisions
+
+**Status:** Accepted
+
+**Context:**
+M29 adds three commerce/nudge touchpoints to the mobile app:
+1. `MerchCountrySelectionScreen` is opened from scan summary pre-filtered to newly discovered codes only.
+2. `MapScreen` needs a "Get a poster" overflow menu item.
+3. `MapScreen` needs a per-session dismissible nudge banner when `lastScanAt > 30 days ago`.
+
+Three non-obvious decisions arise:
+
+**Decision A — `MerchCountrySelectionScreen.preSelectedCodes` initialisation**
+`MerchCountrySelectionScreen` derives its country list from `effectiveVisitsProvider`, which is async. The pre-selection state (`_deselected`) cannot be seeded in the constructor because the full country list isn't available yet. The chosen pattern: add a `preSelectedCodes: List<String>?` constructor param and an `_initialized` bool flag. On the first `_buildScreen()` call after data loads, if `preSelectedCodes` is non-null, compute `_deselected = { all effective codes } - { preSelectedCodes }`, then set `_initialized = true` so subsequent rebuilds don't reset the selection. Filter `preSelectedCodes` against the loaded visits to guard against stale codes.
+
+**Decision B — Nudge banner dismissal via `StateProvider<bool>`**
+`MapScreen` is a `ConsumerWidget`. Per-session dismissed state cannot be stored in a local variable in a `ConsumerWidget.build()` method. Converting `MapScreen` to `ConsumerStatefulWidget` solely to hold a bool is unnecessary complexity. The chosen pattern: `scanNudgeDismissedProvider = StateProvider<bool>((ref) => false)` in `providers.dart`. It starts false on app launch and is set to true when the user dismisses. Since `StateProvider` is in-memory and not persisted, it resets to false on app restart — which is exactly the per-session behaviour required.
+
+**Decision C — Nudge banner placement in MapScreen Stack**
+The MapScreen Stack already contains `XpLevelBar` (top), `StatsStrip` (bottom), `TimelineScrubberBar` (above StatsStrip, shown when filter active), and `RovyBubble` (bottom-right). The nudge banner is placed above `StatsStrip` using a `Positioned` widget anchored from the bottom with enough offset to clear the StatsStrip height (approx 56 dp). The banner does not stack with `TimelineScrubberBar` — both can be shown simultaneously since the scrubber appears above the nudge banner.
+
+**Consequences:**
+- No schema changes. No new tables. No Firestore writes.
+- `MerchCountrySelectionScreen` remains a single widget; callers control initial selection via the `preSelectedCodes` param — no need for two separate screen variants.
+- Nudge banner dismissal does not survive app restart, which is intentional — it prevents the banner from being permanently silenced by an accidental tap.
+- `lastScanAtProvider` is a new `FutureProvider<DateTime?>` that wraps `visitRepositoryProvider.loadLastScanAt()`; it is invalidated implicitly on app restart (provider graph reset).
+
+---
+
 ## ADR-084 — Sequential `DiscoveryOverlay` for multiple new countries; cap at 5 (M32)
 
 **Status:** Accepted

@@ -154,6 +154,15 @@ final filteredEffectiveVisitsProvider =
   }).toList();
 });
 
+/// Last scan timestamp; null if the user has never scanned. (ADR-085)
+final lastScanAtProvider = FutureProvider<DateTime?>(
+  (ref) => ref.watch(visitRepositoryProvider).loadLastScanAt(),
+);
+
+/// Whether the user has dismissed the 30-day scan nudge banner this session.
+/// Not persisted — resets to false on every app launch. (ADR-085)
+final scanNudgeDismissedProvider = StateProvider<bool>((ref) => false);
+
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);
   final achievementRepo = ref.watch(achievementRepositoryProvider);

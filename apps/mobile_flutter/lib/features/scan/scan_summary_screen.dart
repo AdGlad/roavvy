@@ -10,6 +10,7 @@ import '../../core/providers.dart';
 import '../map/country_visual_state.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
+import '../merch/merch_country_selection_screen.dart';
 import 'achievement_unlock_sheet.dart';
 import 'milestone_card_sheet.dart';
 import 'scan_reveal_mini_map.dart';
@@ -364,9 +365,23 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
                 ],
               ),
             ),
-            // Sticky CTA
+            // Secondary CTA — commerce entry point (ADR-085)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MerchCountrySelectionScreen(
+                      preSelectedCodes: widget.newCodes,
+                    ),
+                  ),
+                ),
+                child: const Text('Get a poster with your new discoveries →'),
+              ),
+            ),
+            // Primary CTA
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               child: FilledButton(
                 onPressed: widget.onDone,
                 child: const Text('Explore your map'),
