@@ -11,6 +11,7 @@ import '../map/country_visual_state.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import 'achievement_unlock_sheet.dart';
+import 'milestone_card_sheet.dart';
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
 String _flagEmoji(String code) {
@@ -75,6 +76,26 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     ref.read(rovyMessageProvider.notifier).state = msg;
   }
 
+  /// Shows the milestone card if a new threshold has been crossed, then
+  /// proceeds with [next]. Returns without calling [next] if unmounted.
+  Future<void> _checkAndShowMilestone(VoidCallback next) async {
+    final allVisits =
+        ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+    final milestoneRepo = ref.read(milestoneRepositoryProvider);
+    final shown = await milestoneRepo.getShownThresholds();
+    final threshold =
+        pendingMilestoneThreshold(allVisits.length, shown);
+
+    if (threshold != null) {
+      await milestoneRepo.markShown(threshold);
+      if (!mounted) return;
+      await showMilestoneCardSheet(context, threshold);
+    }
+
+    if (!mounted) return;
+    next();
+  }
+
   Future<void> _handleDone() async {
     // Register all new codes so CountryPolygonLayer shows amber pulse.
     if (widget.newCodes.isNotEmpty) {
@@ -99,7 +120,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
         emoji: '🗺️',
       ));
 
-      // Check 10th-country milestone.
+      // Check 10th-country milestone for Rovy.
       final allVisits =
           ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
       if (allVisits.length == 10) {
@@ -110,27 +131,31 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
         ));
       }
 
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          settings: const RouteSettings(name: DiscoveryOverlay.routeName),
-          builder: (_) => DiscoveryOverlay(
-            isoCode: widget.newCodes.first,
-            xpEarned: 50,
+      // Show milestone card if a threshold was crossed, then push discovery.
+      await _checkAndShowMilestone(() async {
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: DiscoveryOverlay.routeName),
+            builder: (_) => DiscoveryOverlay(
+              isoCode: widget.newCodes.first,
+              xpEarned: 50,
+            ),
           ),
-        ),
-      );
+        );
+      });
     } else {
       widget.onDone();
     }
   }
 
-  void _handleCaughtUp() {
+  Future<void> _handleCaughtUp() async {
     _postRovyMessage(const RovyMessage(
       text: 'All caught up — your map is up to date.',
       trigger: RovyTrigger.caughtUp,
       emoji: '✅',
     ));
-    widget.onDone();
+    await _checkAndShowMilestone(widget.onDone);
   }
 
   @override
@@ -138,7 +163,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     return Scaffold(
       body: SafeArea(
         child: widget.newCountries.isEmpty
-            ? _NothingNewState(onDone: _handleCaughtUp, lastScanAt: widget.lastScanAt)
+            ? _NothingNewState(onDone: () => _handleCaughtUp(), lastScanAt: widget.lastScanAt)
             : _NewDiscoveriesState(
                 newCountries: widget.newCountries,
                 newAchievementIds: widget.newAchievementIds,

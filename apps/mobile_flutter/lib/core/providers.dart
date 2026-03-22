@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../data/achievement_repository.dart';
+import '../data/milestone_repository.dart';
 import '../data/db/roavvy_database.dart';
 import '../data/region_repository.dart';
 import '../data/trip_repository.dart';
@@ -86,6 +87,21 @@ final xpRepositoryProvider = Provider<XpRepository>(
 final xpNotifierProvider = StateNotifierProvider<XpNotifier, XpState>(
   (ref) => XpNotifier(ref.watch(xpRepositoryProvider)),
 );
+
+final milestoneRepositoryProvider = Provider<MilestoneRepository>(
+  (_) => MilestoneRepository(),
+);
+
+/// ISO code → trip count, derived in-memory from [TripRepository.loadAll].
+/// Used by [CountryPolygonLayer] for depth colouring (ADR-066).
+final countryTripCountsProvider = FutureProvider<Map<String, int>>((ref) async {
+  final trips = await ref.watch(tripRepositoryProvider).loadAll();
+  final counts = <String, int>{};
+  for (final trip in trips) {
+    counts[trip.countryCode] = (counts[trip.countryCode] ?? 0) + 1;
+  }
+  return counts;
+});
 
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);

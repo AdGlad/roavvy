@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-22, through Task 85 / M22)
+# Roavvy — Development State (as of 2026-03-22, through Task 96 / M25)
 
 ## What Works
 
@@ -67,7 +67,12 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `RovyBubble` — `ConsumerStatefulWidget`; 48px amber circle "R" placeholder avatar; speech bubble (max 180px) extends left; `AnimatedSwitcher` scale-in; tap-to-dismiss; 4s auto-dismiss `Timer`; `AnimatedSwitcher` hides cleanly when null (ADR-071)
   - Rovy trigger wiring: region-1-away via `ref.listen(regionProgressProvider)` in `MapScreen.build()`; post-share in share action; new-country + milestone (10th country) in `ScanSummaryScreen._handleDone()`; caught-up in `ScanSummaryScreen._handleCaughtUp()`
   - `RegionChipsMarkerLayer`, `TargetCountryLayer`, `RovyBubble` wired into `MapScreen` Stack + FlutterMap children
-- 404 flutter tests passing; ~93 package tests passing
+- **Gamified map (M25 — Phase 11 Slice 3: Milestone Cards + Country Depth Colouring)**:
+  - `depthFillColor(tripCount)` — 4-tier amber gradient for `visited` countries (1 trip → amber-200 lightest, 2-3 → amber-400, 4-5 → amber-600, 6+ → amber-800 deepest); `countryTripCountsProvider` (`FutureProvider<Map<String, int>>`) derives counts from `TripRepository.loadAll()`; `target` and `reviewed` visual states unchanged
+  - `MilestoneRepository` — SharedPreferences-backed (`shown_milestones_v1` JSON list); `getShownThresholds()` / `markShown(int)`; `kMilestoneThresholds = [5, 10, 25, 50, 100]`; `milestoneRepositoryProvider` in `providers.dart`
+  - `MilestoneCardSheet` — modal bottom sheet; badge emoji per threshold (🌍 🗺️ ✈️ 🌐 🏆); headline + subtext + Share + Continue; `showMilestoneCardSheet(context, threshold)` top-level helper; `pendingMilestoneThreshold(count, shown)` pure function
+  - `_checkAndShowMilestone` helper in `ScanSummaryScreen` — checks effective count vs. shown thresholds; marks shown before displaying; shows at end of both `_handleDone` (new countries) and `_handleCaughtUp` (nothing-new) paths
+- 436 flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
