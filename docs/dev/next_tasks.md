@@ -1,158 +1,109 @@
-# M23 — Phase 11 Slice 2: Region Progress + Rovy
+# M24 — Phase 10 Commerce Polish: Preview, Post-Purchase & Order History
 
 **Planner:** 2026-03-22
-**Branch:** `milestone/m23-region-progress-rovy`
+**Branch:** `milestone/m24-commerce-polish`
 
----
-
-## Goal
-
-Users see region completion progress on the map at a glance. Rovy provides contextual encouragement. The "one more country" nudge drives re-engagement.
+**Goal:** A user can see a generated preview of their personalised product before paying, receives a celebration screen when they return from Shopify checkout, and can view their order history in-app.
 
 ---
 
 ## Scope
 
 **Included:**
-- `RegionChipsMarkerLayer` — floating progress chips on map at region centroids (zoom-gated ≥ 4)
-- `TargetCountryLayer` — solid amber border + breathing fill on "1-away" countries
-- `RegionDetailSheet` — bottom sheet with visited/unvisited country list per region
-- `RovyBubble` + `rovyMessageProvider` + trigger wiring at 5 event sites
+- Two-stage checkout UX in `MerchVariantScreen`: "Preview my design" → show generated flag grid image → "Complete checkout" → Shopify
+- `MerchPostPurchaseScreen`: celebration screen shown after SFSafariViewController dismisses
+- `MerchOrdersScreen`: list of past merch orders read from Firestore `merch_configs`
+- Entry point for order history from `PrivacyAccountScreen`
 
 **Excluded:**
-- Custom sub-continental overlays (Scandinavia, Benelux, etc.)
-- Milestone cards
-- Social ranking
-- Rovy SVG/PNG asset (placeholder circle used)
-- Firestore sync for region progress data
+- Web commerce (no website work in this milestone)
+- Live mockup API integration (Printful mockup API) — flag grid preview from Firebase Function is sufficient
+- Additional design styles (World Map, Passport Stamps) — flag grid (Flags style) only
+- "Add another product" multi-cart flow — deferred
+- Cart review screen (Screen 4 from UX spec) — simplified into post-preview "Complete checkout" CTA
 
 ---
 
 ## Tasks
 
-### Task 86 — `Region` enum + `RegionProgressNotifier` ✅ Done
+### Task 91 — Preview-first checkout in `MerchVariantScreen`
 
-**Status:** Already implemented and committed on main.
-
-**Deliverable:**
-- `Region` enum (6 values) in `packages/shared_models/lib/src/region.dart`
-- `RegionProgressData` data class + `computeRegionProgress()` + `kRegionCentroids` + `regionProgressProvider` in `apps/mobile_flutter/lib/features/map/region_progress_notifier.dart`
-
-**Acceptance criteria:** ✅ All met. Task 86 is complete.
-
----
-
-### Task 87 — `RegionChipsMarkerLayer` 🔄 In Progress
-
-**Deliverable:**
-- `apps/mobile_flutter/lib/features/map/region_chips_marker_layer.dart`
-- Wired into `apps/mobile_flutter/lib/features/map/map_screen.dart`
+**Deliverable:** Refactor `MerchVariantScreen` so that tapping the primary CTA first calls `createMerchCart`, displays the returned `previewUrl` image in the product slot (replacing the placeholder icon), then reveals a "Complete checkout →" button that opens the `checkoutUrl`. No second function call on checkout open.
 
 **Acceptance criteria:**
-- `ConsumerStatefulWidget` that returns a `MarkerLayer`
-- Chips only visible when map zoom ≥ 4.0 (watch `MapCamera` from `FlutterMapState`)
-- Each marker: 80×40 chip showing "N/M [Region]" with arc progress ring via `CustomPainter`
-- Arc fraction = `visitedCount / totalCount`; full ring shows an amber checkmark when complete
-- Chip style: white background, amber border (2px), small text (11sp), `BorderRadius.circular(20)`
-- Tapping a chip opens `RegionDetailSheet` for that region (requires Task 88 sheet)
-- Wired into `FlutterMap.children` in `map_screen.dart`
-- Widget tests in `test/features/map/region_chips_marker_layer_test.dart`:
-  - Renders empty `MarkerLayer` (no chips) when zoom < 4
-  - Renders one chip per region when zoom ≥ 4
-  - Chip text reflects visitedCount / totalCount
+- [ ] Button label is "Preview my design" on initial screen load (not "Buy Now")
+- [ ] Tapping "Preview my design" calls `createMerchCart` and shows a `CircularProgressIndicator` in the product image slot during the call
+- [ ] On success, the product image slot shows the generated flag grid image (loaded from `previewUrl` via `Image.network` with shimmer loading builder)
+- [ ] Below the image, a "Complete checkout →" filled button appears; "Preview my design" button is gone
+- [ ] Tapping "Complete checkout →" opens `checkoutUrl` in `LaunchMode.inAppBrowserView`; no second function call
+- [ ] If the function call fails, error message is shown and "Preview my design" button is re-enabled
+- [ ] Changing any variant option after preview resets to pre-preview state (clears `_previewUrl` and `_checkoutUrl`, re-enables "Preview my design")
+- [ ] Loading state disables the CTA button
 
-**Dependencies:** Task 86 (complete).
-
-**Risks:** `MapCamera` / `FlutterMapState` access pattern — use `MapCamera.of(context)` or listen to `MapController` stream; verify API with existing flutter_map version.
+**Files to modify:**
+- `apps/mobile_flutter/lib/features/merch/merch_variant_screen.dart`
 
 ---
 
-### Task 88 — `TargetCountryLayer` + `RegionDetailSheet`
+### Task 92 — Post-purchase celebration screen
 
-**Deliverable:**
-- `apps/mobile_flutter/lib/features/map/target_country_layer.dart`
-- `apps/mobile_flutter/lib/features/map/region_detail_sheet.dart`
-- Both wired into `map_screen.dart`
+**Deliverable:** A new `MerchPostPurchaseScreen` shown after the SFSafariViewController dismisses. Pushed immediately after `launchUrl` returns in `MerchVariantScreen._completeCheckout()`. Optimistic — assumes purchase completed (user receives Shopify email as ground truth).
 
 **Acceptance criteria:**
+- [ ] `MerchPostPurchaseScreen` is a `StatelessWidget` accepting `product` (`MerchProduct`) and `countryCount` (`int`)
+- [ ] Shows: large 🎉 icon/emoji, "Your order is on its way!" heading, body "You'll receive a confirmation email shortly. Your [product.name] is being made with your [N] countries."
+- [ ] "Back to my map" filled button pops to root via `Navigator.popUntil`
+- [ ] "Share" outline button shares pre-composed message: `"Just ordered a [product name] with all [N] countries I've visited — made with Roavvy 🌍"` via `share_plus`
+- [ ] Confetti animation plays on entry (respects `MediaQuery.disableAnimationsOf`)
+- [ ] No back navigation (no back button in AppBar; block swipe-back)
+- [ ] Pushed from `MerchVariantScreen` after `launchUrl` returns
+- [ ] Unit test: widget renders correct product name and country count
 
-`TargetCountryLayer`:
-- `ConsumerStatefulWidget` with `AnimationController` (2400ms, repeat reverse)
-- Tween: opacity 0.10 → 0.25 (breathing amber fill)
-- Watches `regionProgressProvider` + `polygonsProvider`
-- Target countries = ISO codes in regions where `remaining == 1 && visitedCount > 0` (derived from `kCountryContinent`)
-- Renders as `PolygonLayer`: `borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`, fill = amber with animated opacity
-- In reduced-motion mode: static opacity 0.175 (midpoint)
-- **No** `CustomPainter`; **no** dashed borders
-- Wired into `FlutterMap.children` in `map_screen.dart`
+**New files:**
+- `apps/mobile_flutter/lib/features/merch/merch_post_purchase_screen.dart`
 
-`RegionDetailSheet`:
-- Top-level function `showRegionDetailSheet(BuildContext context, RegionProgressData data, List<EffectiveVisitedCountry> visits)`
-- Uses `showModalBottomSheet`
-- Header: region display name + "N of M countries"
-- Callout: "You need X more to complete [Region]" (hidden when `isComplete`)
-- Body: visited section (country names with ✓) + unvisited section (country names with ○)
-- Country names from `kCountryNames` map (ISO code fallback)
-- Countries scoped to region via `kCountryContinent`
-
-Tests in `test/features/map/target_country_layer_test.dart`:
-- Renders empty `PolygonLayer` when no regions are 1-away
-- Renders polygon layer when a region has `remaining == 1 && visitedCount > 0`
-
-**Dependencies:** Task 86 (complete). Task 87 wires chip-tap to call `showRegionDetailSheet`.
+**Modified files:**
+- `apps/mobile_flutter/lib/features/merch/merch_variant_screen.dart`
 
 ---
 
-### Task 89 — `RovyBubble` + `rovyMessageProvider` + trigger wiring
+### Task 93 — Merch order history
 
-**Deliverable:**
-- `apps/mobile_flutter/lib/features/map/rovy_bubble.dart`
-- Trigger wiring in `apps/mobile_flutter/lib/features/scan/scan_summary_screen.dart`
-- `RovyBubble()` added as `Positioned` child in `map_screen.dart`
+**Deliverable:** `MerchOrdersScreen` reads `users/{uid}/merch_configs` from Firestore and displays past orders with status. Entry point from `PrivacyAccountScreen`.
 
 **Acceptance criteria:**
+- [ ] `MerchOrdersScreen` is a `ConsumerWidget`; uses `merchOrdersProvider` (`FutureProvider<List<MerchOrderSummary>>`)
+- [ ] `MerchOrderSummary` data class: `configId`, `productName`, `countryCount`, `createdAt`, `status`
+- [ ] Reads `users/{uid}/merch_configs` ordered by `createdAt` descending, limit 20
+- [ ] Unauthenticated: shows "Sign in to view your orders"
+- [ ] Empty: shows "No orders yet. Head to the Shop to order your first personalised item."
+- [ ] Each order row: product name, country count, date, status badge
+- [ ] Status badge: `pending`/`cart_created` → grey "In progress"; `ordered`/`print_file_submitted` → amber "Processing"; `*_error` → red "Error"
+- [ ] `PrivacyAccountScreen` has a "My orders" `ListTile` navigating to `MerchOrdersScreen`
+- [ ] Loading state shows `CircularProgressIndicator`
+- [ ] Unit test: provider maps Firestore documents to `MerchOrderSummary` correctly; status badge colour test
 
-`rovy_bubble.dart` contains:
-- `RovyTrigger` enum: `newCountry, regionOneAway, milestone, postShare, caughtUp`
-- `RovyMessage` class: `{ final String text; final RovyTrigger trigger; final String? emoji; }`
-- `rovyMessageProvider`: `StateProvider<RovyMessage?>((_) => null)`
-- `RovyBubble` widget: `ConsumerStatefulWidget`, `Positioned(bottom: 120, right: 16)`
-  - Avatar: 48px circle, amber border (2px), white background, "R" text centred (placeholder)
-  - Speech bubble: extends left from avatar, max 180px wide, white bg, `BorderRadius.circular(12)`, drop shadow, amber right-pointing triangle pointer
-  - Auto-dismiss: `Timer(Duration(seconds: 4), ...)` started when message non-null
-  - Tap-to-dismiss clears provider state to null
-  - `AnimatedSwitcher` wrapping bubble+avatar; child uses `ScaleTransition` (0.0 → 1.0, 200ms)
-  - Only one bubble visible at a time
+**New files:**
+- `apps/mobile_flutter/lib/features/merch/merch_orders_screen.dart`
 
-Trigger wiring:
-- In `ScanSummaryScreen._handleDone()` / `_NothingNewState`: set Rovy message via `ref.read(rovyMessageProvider.notifier)`
-  - New country found: `RovyMessage(text: 'New country unlocked!', trigger: RovyTrigger.newCountry, emoji: '🌍')`
-  - Zero-new-country scan: `RovyMessage(text: 'All caught up!', trigger: RovyTrigger.caughtUp, emoji: '✅')`
-  - Region 1-away detected (check `regionProgressProvider` after scan): `RovyMessage(text: 'So close! One more country in [Region]', trigger: RovyTrigger.regionOneAway)`
-  - 10th country milestone (visited count crosses 10): `RovyMessage(text: '10 countries explored!', trigger: RovyTrigger.milestone, emoji: '🏆')`
-
-Tests in `test/features/map/rovy_bubble_test.dart`:
-- Bubble not visible when `rovyMessageProvider` is null
-- Bubble visible with correct text when message set
-- Tap dismisses bubble (provider reset to null)
-
-**Dependencies:** Task 88 (for `regionProgressProvider` region-1-away check wiring).
+**Modified files:**
+- `apps/mobile_flutter/lib/features/settings/privacy_account_screen.dart`
 
 ---
 
-## Build Order
+## Dependencies
 
-```
-Task 86 ✅  ──►  Task 87  ──►  Task 88  ──►  Task 89
-```
+- Task 91: no dependencies (standalone refactor)
+- Task 92: depends on Task 91 (pushed from variant screen)
+- Task 93: independent; build after Task 92
 
-Implement in order: 87 → 88 → 89.
+Build order: Task 91 → Task 92 → Task 93
 
 ---
 
-## Risks
+## Risks / Open Questions
 
-1. **`MapCamera` zoom access** — use `MapCamera.of(context)` from `flutter_map`; wrap `RegionChipsMarkerLayer` content in a `LayoutBuilder` or `Builder` within the FlutterMap children. Verify API before implementing Task 87.
-2. **`TargetCountryLayer` visual treatment** — solid amber border + breathing fill only. No `CustomPainter`, no dashed borders. Confirmed in ADR.
-3. **Rovy asset dependency** — placeholder circle + "R" text only. No SVG dependency.
-4. **`rovyMessageProvider` timing** — Rovy trigger must be set after navigation pops back to map screen so the bubble is visible on the map.
+1. **`launchUrl` return timing**: On iOS, `launchUrl` with `inAppBrowserView` returns when SFSafariViewController is dismissed. Verify this is `await`-able before Task 92.
+2. **Preview image shimmer**: `Image.network` `loadingBuilder` provides a frame-by-frame callback — use a simple grey container shimmer for loading, not a third-party package.
+3. **Variant change reset**: After variant change, `_previewUrl` and `_checkoutUrl` must both be cleared to avoid stale preview / wrong cart.
+4. **Firestore anonymous orders**: Anonymous users can technically create orders (Firebase auth required for `createMerchCart`). `MerchOrdersScreen` should show orders for any Firebase user (anonymous or signed in).

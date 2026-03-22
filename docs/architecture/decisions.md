@@ -2389,3 +2389,63 @@ The design requirement states "only one bubble visible at a time" and messages a
 - `showRegionDetailSheet` can be called from `RegionChipsMarkerLayer` chip taps; the caller passes the `RegionProgressData` (already known from `regionProgressProvider`) and the current `effectiveVisitsProvider` list.
 - Tests can call `showRegionDetailSheet` directly with canned data — no provider setup needed for the sheet itself.
 
+
+---
+
+## ADR-073 — Two-stage checkout: `createMerchCart` called at preview time, `checkoutUrl` cached in state (M24)
+
+**Status:** Accepted
+
+**Context:**
+M20 calls `createMerchCart` immediately when the user taps "Buy Now", then opens the returned `checkoutUrl` in-app. The user never sees the generated flag grid image before being sent to Shopify checkout. The UX spec requires a preview step so the user can see what they are buying before committing.
+
+**Options considered:**
+1. Add a separate `generatePreview` Firebase Function — returns only `previewUrl` without creating the Shopify cart. Two function calls total (preview + checkout).
+2. Call `createMerchCart` at "Preview my design" time — cart is created, `previewUrl` and `checkoutUrl` returned in one call. Cache both in widget state. "Complete checkout" button opens cached `checkoutUrl` with no second call.
+3. On-device emoji flag grid (existing `FlagGridPreview`) — user sees emoji flags but not the actual generated image.
+
+**Decision:** Option 2. Call `createMerchCart` at "Preview my design" time. Cache `previewUrl` and `checkoutUrl` in `_MerchVariantScreenState`. Display `previewUrl` via `Image.network`. "Complete checkout →" opens the cached `checkoutUrl` — no second function call. If any variant option changes after preview, both cached values are cleared and the screen reverts to "Preview my design" state.
+
+**Consequences:**
+- A Shopify cart is created before the user opens checkout. Users who preview but do not proceed create abandoned carts. Shopify's cart abandonment email flow may fire; this can be disabled in Shopify settings if needed.
+- One function call per "Preview" tap. Variant changes after preview trigger a new cart on re-tap; old carts are abandoned (consistent with web e-commerce norms).
+- `previewUrl` is a Firebase Storage signed URL (7-day expiry); displayed immediately, not persisted.
+
+---
+
+## ADR-074 — Post-purchase screen triggered by `AppLifecycleState.resumed` after checkout launch (M24)
+
+**Status:** Accepted
+
+**Context:**
+`url_launcher.launchUrl` with `LaunchMode.inAppBrowserView` presents `SFSafariViewController` on iOS and returns immediately. There is no callback for when the user closes the browser.
+
+**Options considered:**
+1. Shopify redirect URL / Universal Links — configure Shopify's "Return to store" URL to deep-link back. Requires Universal Links / custom URL scheme setup and Shopify store configuration. Complex.
+2. `AppLifecycleState.resumed` — `MerchVariantScreen` mixes in `WidgetsBindingObserver`. After `launchUrl` succeeds, set `_checkoutLaunched = true`. On `didChangeAppLifecycleState(resumed)`, if `_checkoutLaunched`, push `MerchPostPurchaseScreen` and clear the flag.
+
+**Decision:** Option 2. `MerchVariantScreen` registers as a `WidgetsBindingObserver`. After successful `launchUrl`, sets `_checkoutLaunched = true`. On app resume with flag set, pushes `MerchPostPurchaseScreen(product, countryCount)` and clears the flag.
+
+`MerchPostPurchaseScreen` is optimistic — it does not verify whether a purchase completed. Shopify sends the real confirmation email; the app screen is a celebration prompt. Users who abandoned simply see an aspirational screen they can dismiss.
+
+**Consequences:**
+- Any app resume while `_checkoutLaunched` is true triggers the post-purchase screen (edge case: user switches away mid-checkout for an unrelated reason). Low-harm — screen is easy to dismiss.
+- `MerchPostPurchaseScreen` is push-navigated; "Back to my map" uses `Navigator.popUntil('/')`.
+- `MerchVariantScreen` must be a `StatefulWidget` (already is) mixing in `WidgetsBindingObserver`.
+
+---
+
+## ADR-075 — `MerchOrdersScreen` reads Firestore directly via `FutureProvider`, no repository layer (M24)
+
+**Status:** Accepted
+
+**Context:**
+M24 adds order history. `MerchConfig` documents live in Firestore under `users/{uid}/merch_configs`. Options: (1) new `MerchRepository` class with `loadAll()`, consistent with existing repository pattern; (2) `FutureProvider` reading Firestore directly, no new class.
+
+**Decision:** Option 2. `merchOrdersProvider` is a `FutureProvider<List<MerchOrderSummary>>` co-located in `merch_orders_screen.dart`. `MerchOrderSummary` is a simple local data class (not in `shared_models`). Commerce is app-layer only; no package boundary violation.
+
+**Reasoning:** Commerce is app-layer only — no cross-package sharing of merch types needed. A repository for a single `loadAll()` query adds boilerplate without benefit. If a second merch screen needs order data in the future, promote to a repository at that point.
+
+**Consequences:**
+- Tests use `fake_cloud_firestore` to stub Firestore.
+- `MerchOrderSummary` stays in `features/merch/` — no `shared_models` coordination needed.

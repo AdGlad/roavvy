@@ -157,9 +157,11 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
-## Phase 10 — Commerce & Personalised Merchandise
+## Phase 10 — Commerce & Personalised Merchandise ✅ PoC Complete — M24 In Progress
 
 **Goal:** Users can buy personalised travel merchandise — t-shirts and posters — with their visited countries rendered as a design. Print-on-demand via Shopify + Printful/Printify. Available on mobile (iOS app) and web.
+
+**M24 (In Progress):** Preview-first checkout, post-purchase celebration screen, order history. Mobile only.
 
 **UX spec:** [docs/ux/commerce_flow.md](../ux/commerce_flow.md)
 

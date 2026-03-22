@@ -1,24 +1,21 @@
-# M23 — Tasks 86–89: Gamified Map Phase 11 Slice 2
+# M24 — Task 91: Preview-first checkout in MerchVariantScreen
 
-**Milestone:** 23
-**Phase:** 11 — Gamified Map & Progression System
-**Status:** ✅ Complete
+**Milestone:** 24
+**Phase:** 10 — Commerce Polish
+**Status:** ✅ Complete (2026-03-22)
 
-## Tasks
+## Current Task
 
 | Task | Description | Status |
 |---|---|---|
-| 86 | `Region` enum + `RegionProgressNotifier` | ✅ Done |
-| 87 | `RegionChipsMarkerLayer` — progress chips on map at centroids, zoom-gated | ✅ Done |
-| 88 | `TargetCountryLayer` + `RegionDetailSheet` | ✅ Done |
-| 89 | `RovyBubble` + `rovyMessageProvider` + trigger wiring | ✅ Done |
+| 91 | Preview-first checkout in `MerchVariantScreen` | ✅ Done |
+| 92 | `MerchPostPurchaseScreen` — post-purchase celebration | ✅ Done |
+| 93 | `MerchOrdersScreen` + order history entry point | ✅ Done |
 
-## Delivered
+## Task 91 Detail
 
-- `RegionChipsMarkerLayer`: zoom-gated MarkerLayer; chips with arc progress ring; tap → `RegionDetailSheet`
-- `TargetCountryLayer`: solid amber border + breathing fill (0.10–0.25 opacity, 2400ms); no CustomPainter
-- `RegionDetailSheet`: `showRegionDetailSheet` top-level function; visited/unvisited country lists
-- `RovyBubble`: 48px amber circle avatar + speech bubble; `AnimatedSwitcher` entrance; tap-to-dismiss; 4s auto-dismiss
-- `rovyMessageProvider`: `StateProvider<RovyMessage?>` with `RovyTrigger` enum (5 triggers)
-- Trigger wiring: regionOneAway (MapScreen), postShare (MapScreen), newCountry + milestone (ScanSummaryScreen), caughtUp (ScanSummaryScreen)
-- All wired into `MapScreen` — 404 tests passing
+Refactor `MerchVariantScreen` to a two-stage flow:
+1. "Preview my design" → calls `createMerchCart`, shows loading in product image slot
+2. On success: shows generated `previewUrl` image; reveals "Complete checkout →" button
+3. "Complete checkout →" opens `checkoutUrl` (no second function call)
+4. Variant change resets to pre-preview state
