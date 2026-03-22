@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../data/firestore_sync_service.dart';
+import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
 
 /// Signs in with Apple, linking to the current anonymous user if one exists,
@@ -18,6 +19,7 @@ import '../../data/visit_repository.dart';
 Future<void> signInWithApple({
   required VisitRepository repo,
   SyncService? syncService,
+  TripRepository? tripRepo,
 }) async {
   final rawNonce = _generateNonce();
   final nonce = _sha256ofString(rawNonce);
@@ -56,7 +58,11 @@ Future<void> signInWithApple({
   // persistent UID (ADR-030). Fire-and-forget: failures are silent.
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid != null) {
-    unawaited((syncService ?? FirestoreSyncService()).flushDirty(uid, repo));
+    unawaited((syncService ?? FirestoreSyncService()).flushDirty(
+      uid,
+      repo,
+      tripRepo: tripRepo,
+    ));
   }
 }
 

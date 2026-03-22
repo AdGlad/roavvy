@@ -1,6 +1,6 @@
-# M29 — Tasks 111–113 — ✅ Complete (2026-03-23)
+# M30 — Task 114 — ✅ Complete (2026-03-23)
 
-**Milestone:** 29
+**Milestone:** 30
 **Phase:** 12 — Commerce & Mobile Completion
 **Status:** ✅ Complete
 
@@ -8,6 +8,17 @@
 
 | Task | Description | Status |
 |---|---|---|
-| 111 | Scan summary "Get a poster" CTA (State A) — pre-filtered MerchCountrySelectionScreen | ✅ Done |
-| 112 | Map overflow menu "Get a poster" entry | ✅ Done |
-| 113 | Map 30-day scan nudge banner | ✅ Done |
+| 114 | Wire `tripRepo` through Apple sign-in flush | ✅ Done |
+
+## Notes
+
+Trip sync was substantially pre-built during earlier milestones:
+- `FirestoreSyncService.flushDirty()` with trip support — ✅ pre-built
+- `TripRepository.loadDirty()` + `markClean()` — ✅ pre-built
+- Sync wired at scan save, review save, app startup — ✅ pre-built
+- 5 trip-flush tests in `firestore_sync_service_test.dart` — ✅ pre-built
+- Firestore rules cover `users/{uid}/trips` — ✅ pre-built
+
+M30 task 114 completed the only remaining gap: `apple_sign_in.dart` now passes `tripRepo` so trips are flushed immediately after sign-in.
+
+Web `/map` trip count deferred (mobile-first).

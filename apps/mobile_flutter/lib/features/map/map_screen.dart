@@ -101,6 +101,7 @@ class MapScreen extends ConsumerWidget {
       await apple.signInWithApple(
         repo: ref.read(visitRepositoryProvider),
         syncService: _syncService(),
+        tripRepo: ref.read(tripRepositoryProvider),
       );
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) return;

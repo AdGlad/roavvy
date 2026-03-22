@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-23, through Task 113 / M29)
+# Roavvy — Development State (as of 2026-03-23, through Task 114 / M30)
 
 ## What Works
 
@@ -92,6 +92,7 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - **Map "Get a poster" menu item (Task 112)**: `_MapMenuAction.shop` added; `PopupMenuItem` "Get a poster" shown when `hasVisits`; positioned after "Share travel card"; pushes `MerchCountrySelectionScreen()` (all countries)
   - **30-day scan nudge banner (Task 113)**: `lastScanAtProvider = FutureProvider<DateTime?>` + `scanNudgeDismissedProvider = StateProvider<bool>` added to `providers.dart`; amber `_ScanNudgeBanner` shown in MapScreen Stack Column above `StatsStrip` when `hasVisits && lastScanAt > 30 days ago && !dismissed`; "Scan now" calls `onNavigateToScan`; X dismiss sets `scanNudgeDismissedProvider` true (per-session, not persisted)
   - Also fixed pre-existing parse error in `discovery_overlay.dart` (extra `)` left from PopScope removal in M32)
+- **Firestore Trip Sync (M30 — Task 114)**: Trip sync infrastructure was pre-built during earlier milestones (`FirestoreSyncService.flushDirty()` trips path, `TripRepository.loadDirty/markClean`, wired at scan save / review save / app startup, 5 trip-flush tests, Firestore wildcard rules). M30 closed the only remaining gap: `apple_sign_in.dart` now accepts optional `tripRepo: TripRepository?` and forwards it to `flushDirty` so trips are flushed immediately post-Apple-sign-in. Web `/map` trip count deferred (mobile-first).
 - 456 flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
