@@ -1,13 +1,11 @@
-# M26 — ✅ Complete
+# M14 — ✅ Complete
 
-**Milestone:** 26
-**Phase:** 11 — Gamified Map, Slice 4
+**Milestone:** 14
+**Phase:** 4 — Web Map
 **Status:** ✅ Complete — 2026-03-22
 
 ## Task List
 
 | Task | Description | Status |
 |---|---|---|
-| 97 | `yearFilterProvider` + `filteredEffectiveVisitsProvider` + `earliestVisitYearProvider` + update `countryVisualStatesProvider` | ✅ Done |
-| 98 | `TimelineScrubberBar` widget + `MapScreen` wiring | ✅ Done |
-| 99 | `ScanRevealMiniMap` widget in `ScanSummaryScreen` | ✅ Done |
+| 100 | `/sign-up` page + `/sign-in` link update | ✅ Done |

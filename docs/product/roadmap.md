@@ -16,7 +16,7 @@ Phases are sequenced by dependency and risk. Each phase must be shippable and in
 
 ---
 
-## Phase 4 — Web Map (In Progress)
+## Phase 4 — Web Map ✅ Complete (M13 + M14)
 
 **Goal:** Signed-in users can view their travel map on the web.
 
@@ -24,7 +24,7 @@ Phases are sequenced by dependency and risk. Each phase must be shippable and in
 |---|---|---|
 | `/sign-in` page | Email/password Firebase Auth | M13 — done |
 | `/map` route | Authenticated guard; reads Firestore; renders DynamicMap | M13 — done |
-| `/sign-up` page | Create account | M13 — pending |
+| `/sign-up` page | Create account | M14 — done |
 | Sign-out | On `/map` page | M13 — done |
 
 ---
