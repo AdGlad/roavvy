@@ -10,19 +10,25 @@ String _flagEmoji(String code) {
       String.fromCharCode(base + code.codeUnitAt(1));
 }
 
-/// Full-screen discovery moment shown after a scan finds a new country.
+/// Full-screen discovery moment shown after a scan finds new countries.
 ///
-/// Fired from [ScanSummaryScreen._handleDone()] (ADR-068) for the first
-/// (alphabetically sorted) newly discovered country. Fires [HeavyImpact]
-/// haptic on first frame.
+/// When [totalCount] > 1, shows "Country N of M" below the flag and the
+/// primary CTA reads "Next →" (all but the last) or "Done" (last).
+/// A "Skip all" button is shown on every overlay when [totalCount] > 1.
 ///
-/// The "Explore your map" CTA calls [Navigator.popUntil] with route name `'/'`
-/// so the full scan stack is cleared and the user lands on [MapScreen].
+/// The [onDone] callback is invoked when the user taps the primary CTA on
+/// the last overlay or taps "Done". [onSkipAll] is invoked when the user
+/// taps "Skip all" or navigates back. Callers use these callbacks to control
+/// navigation rather than relying on [popUntil] (ADR-084).
 class DiscoveryOverlay extends StatefulWidget {
   const DiscoveryOverlay({
     super.key,
     required this.isoCode,
     required this.xpEarned,
+    required this.onDone,
+    this.currentIndex = 0,
+    this.totalCount = 1,
+    this.onSkipAll,
   });
 
   static const routeName = '/discovery';
@@ -32,6 +38,21 @@ class DiscoveryOverlay extends StatefulWidget {
 
   /// XP awarded for this discovery — displayed as "+N XP".
   final int xpEarned;
+
+  /// 0-based index of this overlay in the sequence.
+  final int currentIndex;
+
+  /// Total number of overlays in the sequence.
+  final int totalCount;
+
+  /// Called when the user taps the primary CTA on the final overlay.
+  final VoidCallback onDone;
+
+  /// Called when the user taps "Skip all" or the back button.
+  /// Null when [totalCount] == 1.
+  final VoidCallback? onSkipAll;
+
+  bool get _isLast => currentIndex == totalCount - 1;
 
   @override
   State<DiscoveryOverlay> createState() => _DiscoveryOverlayState();
@@ -46,64 +67,107 @@ class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
     });
   }
 
+  void _handlePrimary() {
+    if (widget._isLast) {
+      widget.onDone();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _handleSkipAll() {
+    widget.onSkipAll?.call();
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final countryName = kCountryNames[widget.isoCode] ?? widget.isoCode;
     final flag = _flagEmoji(widget.isoCode);
+    final isMulti = widget.totalCount > 1;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFB300), Color(0xFFFF6F00)],
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFFB300), Color(0xFFFF6F00)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              Text(
-                flag,
-                style: const TextStyle(fontSize: 64),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'You discovered $countryName!',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '+${widget.xpEarned} XP',
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.of(context).popUntil(ModalRoute.withName('/')),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFFFF6F00),
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Skip all — top right, only in multi-country sequences.
+                if (isMulti && widget.onSkipAll != null)
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: TextButton(
+                      onPressed: _handleSkipAll,
+                      child: const Text(
+                        'Skip all',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 44), // maintain consistent top spacing
+                const Spacer(),
+                // Sequence indicator
+                if (isMulti)
+                  Text(
+                    'Country ${widget.currentIndex + 1} of ${widget.totalCount}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  child: const Text('Explore your map'),
+                if (isMulti) const SizedBox(height: 12),
+                Text(
+                  flag,
+                  style: const TextStyle(fontSize: 64),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Text(
+                  'You discovered $countryName!',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '+${widget.xpEarned} XP',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: FilledButton(
+                    onPressed: _handlePrimary,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFFF6F00),
+                    ),
+                    child: Text(
+                      widget._isLast
+                          ? (widget.totalCount == 1 ? 'Explore your map' : 'Done')
+                          : 'Next →',
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -2515,3 +2515,120 @@ This is a denylist-of-patterns approach rather than an allowlist. It is sufficie
 - Open redirect is prevented: `https://evil.com` fails check (b); `//evil.com` fails check (b); `/evil` passes and is safe (relative path, Next.js router will navigate within the same origin).
 - The sign-in page must use `useSearchParams()` which requires a `<Suspense>` boundary in Next.js App Router. Wrap the page body in `<Suspense fallback={<p>Loading...</p>}` or extract the params-reading logic into a child component.
 - No allowlist maintenance needed — any new internal route works automatically.
+
+---
+
+## ADR-079 — Web `/shop/design` calls `createMerchCart` via Firebase Functions JS SDK; `checkoutUrl` opened via `window.location.href` (M28)
+
+**Status:** Accepted
+
+**Context:**
+M28 introduces a web checkout flow: the user selects countries on `/shop/design`, the page calls the existing `createMerchCart` Firebase callable function, and the user is redirected to Shopify's hosted checkout. Three decisions were needed: (1) how to initialise Firebase Functions on the web side, (2) how to perform the redirect, and (3) how to display country names without a server round-trip.
+
+**Decision:**
+
+**Functions init:** `getFunctions(app)` is added to `apps/web_nextjs/src/lib/firebase/init.ts` and exported alongside `auth` and `db`. This mirrors the existing pattern for `auth` and `db`. The `firebase/functions` module is already bundled as part of the `firebase` package in `package.json`.
+
+**Checkout redirect:** After `createMerchCart` returns `{ checkoutUrl }`, the web page does `window.location.href = checkoutUrl`. This is a full-page navigation away from the Next.js app into Shopify's domain — `router.push` cannot be used as it only works for same-origin Next.js routes.
+
+**Country names:** A `const` map `COUNTRY_NAMES: Record<string, string>` is added in `apps/web_nextjs/src/lib/countryNames.ts`. It mirrors the Dart `kCountryNames` in `apps/mobile_flutter/lib/core/country_names.dart`. If a code is absent from the map, the ISO code itself is shown. This avoids a network dependency and matches ADR-019.
+
+**Consequences:**
+- `getFunctions` is exported from `init.ts`; every file that needs callable functions imports it from there.
+- The `/shop/design` page calls `httpsCallable(functions, "createMerchCart")` with payload `{ countryCodes: string[], product: "poster" }`. The response type is `{ checkoutUrl: string }`.
+- After Shopify checkout, Shopify redirects the browser to the shop's configured "thank you" URL. We set that to `/shop?ordered=true` in the Shopify store settings. The `/shop` page detects `?ordered=true` and shows a confirmation banner. This requires `useSearchParams` — same Suspense wrapping pattern as ADR-078.
+- Function errors (network failure, Shopify misconfiguration) are caught and shown as an inline retry message. The user is not redirected on error.
+- No order tracking on the web side in this milestone — that is a mobile-only feature (M24).
+
+---
+
+## ADR-080 — Map dark-ocean colour scheme (M32)
+
+**Status:** Accepted
+
+**Context:**
+The map uses white/grey tones for ocean and muted amber for countries. User feedback indicates the map looks "boring". A premium travel-app aesthetic requires high contrast between visited (gold) countries, unvisited land, and the ocean.
+
+**Decision:**
+Set `FlutterMap`'s background `Scaffold` colour to `Color(0xFF0D2137)` (dark navy). Unvisited countries become `Color(0xFF1E3A5F)` with a `Color(0xFF2A4F7A)` border at 0.4 stroke. Visited depth colours shift from amber to richer gold: tier 1 (1 trip) → `Color(0xFFD4A017)`, tier 2 (2–3) → `Color(0xFFC8860A)`, tier 3 (4–5) → `Color(0xFFB86A00)`, tier 4 (6+) → `Color(0xFF8B4500)`. Newly-discovered pulse uses `Color(0xFFFFD700)` (bright gold). Target (1-away) border shifts to `Color(0xFFFF8C00)`. No new packages required.
+
+`XpLevelBar` and `StatsStrip` switch from `Colors.black54` to a `Color(0xFF0D2137).withValues(alpha: 0.85)` background to blend with the new ocean colour. The level badge becomes `Color(0xFFFFD700)` and the progress bar track uses `Color(0xFF1E3A5F)`.
+
+**Consequences:**
+- Colour constants in `country_polygon_layer.dart` are updated; all tests that snapshot exact fill colours must be updated to match.
+- No new dependencies or provider changes needed.
+- The map background matches the overlay bars, producing a unified dark theme without requiring a full dark-mode MaterialTheme switch.
+
+---
+
+## ADR-081 — `tripListProvider` FutureProvider replaces `late final` future in JournalScreen (M32)
+
+**Status:** Accepted
+
+**Context:**
+`JournalScreen` stores trip data in a `late final Future<List<TripRecord>> _tripsFuture` assigned in `initState`. This future is never re-executed: after `clearAll()` or a rescan, the journal continues showing stale (or empty) data from the initial load. A sign-out/sign-in forces a widget rebuild, which is why that workaround works.
+
+**Decision:**
+Add `tripListProvider` as a `FutureProvider<List<TripRecord>>` in `providers.dart`, backed by `TripRepository.loadAll()`. `JournalScreen` watches `tripListProvider` via `ref.watch` instead of a `late final` future. The `FutureBuilder` is removed; the journal builds directly from the provider's `AsyncValue`.
+
+After `clearAll()` in `map_screen.dart`, add `ref.invalidate(tripListProvider)`. After scan save in `scan_screen.dart`, add `ref.invalidate(tripListProvider)`. Both call sites must also invalidate `regionCountProvider` (which was already missing from the scan-save path).
+
+**Consequences:**
+- `JournalScreen` no longer needs `ConsumerStatefulWidget`; it becomes a `ConsumerWidget`.
+- The journal updates reactively whenever `tripListProvider` is invalidated.
+- `countryTripCountsProvider` and `earliestVisitYearProvider` both call `TripRepository.loadAll()` internally — they are also FutureProviders and are already re-evaluated after `ref.invalidate(effectiveVisitsProvider)` triggers their dependency chain. No change needed for those.
+
+---
+
+## ADR-082 — Trip photo date filtering via optional `tripFilter` on `CountryDetailSheet` (M32)
+
+**Status:** Accepted
+
+**Context:**
+`CountryDetailSheet` loads all photo asset IDs for a country via `VisitRepository.loadAssetIds(isoCode)`, with no date filter. When the sheet is opened from a trip row in the Journal, users expect to see only the photos from that trip's date range — not all photos ever taken in that country.
+
+**Decision:**
+Add `loadAssetIdsByDateRange(String countryCode, DateTime start, DateTime end)` to `VisitRepository`. The query adds a `capturedAt >= start AND capturedAt <= end` filter using Drift's `isBetweenValues` on the existing `capturedAt` column. No schema migration needed.
+
+Add an optional `TripRecord? tripFilter` parameter to `CountryDetailSheet`. When non-null, `_assetIdsFuture` calls `loadAssetIdsByDateRange` instead of `loadAssetIds`, using start-of-day for `startedOn` and end-of-day (23:59:59.999) for `endedOn`. `JournalScreen._TripTile._openSheet()` passes the trip record to `CountryDetailSheet`.
+
+**Consequences:**
+- Photos opened from a country polygon (map tap) still show all country photos — `tripFilter` is null in that path.
+- The photo count badge on the trip tile ("N photos") will now match the gallery count.
+- `loadAssetIdsByDateRange` requires a unit test for boundary edge cases.
+
+---
+
+## ADR-083 — Real-time scan discovery feed: `_newlyFoundCodes` list in `ScanScreen` (M32)
+
+**Status:** Accepted
+
+**Context:**
+The scan screen shows only a processed-photo count during scanning. New country discoveries are invisible until `ScanSummaryScreen` appears post-scan. This makes the scanning process feel unrewarding.
+
+**Decision:**
+In `ScanScreen._scan()`, after assigning `preScanCodes` (which already exists), initialise an empty `_newlyFoundCodes` list in state. In the batch loop, after merging into `accum`, compare `accum.keys` against `preScanCodes` ∪ `_newlyFoundCodes`. Any new code is appended to `_newlyFoundCodes` and triggers `setState`. The scan UI renders a "Countries found" `Column` below the photo counter; each entry animates in using `AnimatedList` or a growing `Column` with `FadeTransition` (respects `reduceMotion`). The section only appears when `_newlyFoundCodes.isNotEmpty`.
+
+**Consequences:**
+- `_ScanProgress` is extended with an optional `newCodes` field, or `_newlyFoundCodes` is held as a separate state field (preferred — avoids changing `_ScanProgress`).
+- One additional `setState` per new country — negligible cost during a scan of thousands of photos.
+- Previously-visited countries that appear again in the scan batch are not added (diff against `preScanCodes`).
+
+---
+
+## ADR-084 — Sequential `DiscoveryOverlay` for multiple new countries; cap at 5 (M32)
+
+**Status:** Accepted
+
+**Context:**
+`ScanSummaryScreen._handleDone()` pushes `DiscoveryOverlay` once, only for `widget.newCodes.first`. Users who discover multiple countries on a scan see only one celebration screen, which feels incomplete.
+
+**Decision:**
+Add `currentIndex` (int, 0-based) and `totalCount` (int) to `DiscoveryOverlay`. When `totalCount > 1`, a "Country N of M" subtitle appears below the country name. The primary CTA reads "Next →" for all indices except the last, and "Done" for the last. A "Skip all" `TextButton` appears on every overlay screen.
+
+`ScanSummaryScreen._handleDone()` iterates over `widget.newCodes` up to a cap of 5. It pushes each overlay sequentially, `await`-ing the pop before pushing the next. The "Skip all" CTA pops to the route just below the first overlay (using a counter to pop N times). After all overlays (or after skip), execution continues to register `recentDiscoveriesProvider` and call `onDone()` — these must happen regardless of the skip path.
+
+**Consequences:**
+- First-time users discovering 50 countries are shown 5 overlays max, then proceed to the summary — avoids an overwhelming sequence.
+- "Skip all" on overlay 1 of 5 pops 1 route; "Skip all" on overlay 3 of 5 pops 3 routes. The overlay must receive a `onSkipAll` callback (or a `skipAll` return value) to signal the caller to pop all remaining overlays.
+- `DiscoveryOverlay.routeName` is kept as `'/discovery'`; `popUntil(ModalRoute.withName('/'))` is replaced with calling the provided `onDone` callback so the caller controls navigation.

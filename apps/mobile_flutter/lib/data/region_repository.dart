@@ -58,6 +58,14 @@ class RegionRepository {
     return rows.map(_rowToRecord).toList();
   }
 
+  /// Returns all region visits across every country and trip.
+  ///
+  /// Used by [RegionBreakdownSheet] to display the full region breakdown.
+  Future<List<RegionVisit>> loadAll() async {
+    final rows = await _db.select(_db.regionVisits).get();
+    return rows.map(_rowToRecord).toList();
+  }
+
   /// Returns all region visits belonging to [tripId].
   Future<List<RegionVisit>> loadByTrip(String tripId) async {
     final rows = await (_db.select(_db.regionVisits)

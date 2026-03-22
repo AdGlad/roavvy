@@ -390,6 +390,26 @@ All sharing features are complete as of M12.
 
 ---
 
+## Milestone 32 — Mobile Quality & Scan Reward Pass ⬅ NEXT MOBILE MILESTONE
+
+**Goal:** Fix six user-reported UX and correctness issues across map, journal, stats, and scan flows.
+
+**Priority:** Ahead of M29/M30 — these are bugs and UX gaps in already-shipped features.
+
+**Scope — included:**
+- Map visual refresh: dark navy ocean, richer gold polygon colour scheme, glass-morphic XpLevelBar and StatsStrip
+- Stats screen: country count, regions count, and achievement count tappable with drill-down destinations (`CountryListScreen`, `RegionBreakdownSheet`, achievement gallery scroll)
+- Journal stale state: full provider invalidation after `clearAll()` and after scan save — no sign-out required
+- Trip photo filtering: `PhotoGalleryScreen` opened from a trip card shows only photos taken during that trip's date range
+- Real-time scan discovery feed: `ScanScreen` shows a live "Countries found" list growing as new countries are first detected
+- Discovery overlay for all new countries: `DiscoveryOverlay` shown sequentially per new country, capped at 5, with "Skip all" CTA
+
+**Tasks:** 105–110 (see `next_tasks.md`)
+
+**Not started.**
+
+---
+
 ## Milestone 29 — Mobile Commerce: Remaining Entry Points + Scan Nudge
 
 **Goal:** Users encounter the shop at peak motivation moments; the app proactively nudges users who haven't scanned in 30+ days.

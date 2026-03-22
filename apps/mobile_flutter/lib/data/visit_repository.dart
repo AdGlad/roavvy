@@ -344,6 +344,27 @@ class VisitRepository {
     return rows.map((r) => r.assetId!).toList();
   }
 
+  /// Returns PHAsset local identifiers for photos taken in [countryCode]
+  /// between [start] (inclusive) and [end] (inclusive). (ADR-082)
+  ///
+  /// Used by [CountryDetailSheet] when a [TripRecord] filter is supplied —
+  /// shows only photos from that trip's date range.
+  Future<List<String>> loadAssetIdsByDateRange(
+    String countryCode,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final startUtc = DateTime(start.year, start.month, start.day).toUtc();
+    final endUtc = DateTime(end.year, end.month, end.day, 23, 59, 59, 999).toUtc();
+    final rows = await (_db.select(_db.photoDateRecords)
+          ..where((t) =>
+              t.countryCode.equals(countryCode) &
+              t.assetId.isNotNull() &
+              t.capturedAt.isBetweenValues(startUtc, endUtc)))
+        .get();
+    return rows.map((r) => r.assetId!).toList();
+  }
+
   /// Returns all rows in `photo_date_records`.
   Future<List<PhotoDateRecord>> loadPhotoDates() async {
     final rows = await _db.select(_db.photoDateRecords).get();

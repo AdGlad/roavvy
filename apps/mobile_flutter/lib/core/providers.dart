@@ -93,6 +93,14 @@ final milestoneRepositoryProvider = Provider<MilestoneRepository>(
   (_) => MilestoneRepository(),
 );
 
+/// All trips from local SQLite, for [JournalScreen]. (ADR-081)
+///
+/// Invalidated after [VisitRepository.clearAll] and after scan save so the
+/// journal updates without requiring a sign-out.
+final tripListProvider = FutureProvider<List<TripRecord>>(
+  (ref) => ref.watch(tripRepositoryProvider).loadAll(),
+);
+
 /// ISO code → trip count, derived in-memory from [TripRepository.loadAll].
 /// Used by [CountryPolygonLayer] for depth colouring (ADR-066).
 final countryTripCountsProvider = FutureProvider<Map<String, int>>((ref) async {

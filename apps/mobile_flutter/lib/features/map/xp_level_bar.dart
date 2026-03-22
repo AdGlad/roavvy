@@ -53,7 +53,7 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
       child: SizedBox(
         height: 44,
         child: Material(
-          color: Colors.black54,
+          color: const Color(0xFF0D2137).withValues(alpha: 0.88), // ADR-080
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -63,7 +63,7 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                   width: 28,
                   height: 28,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFFB300),
+                    color: Color(0xFFFFD700), // bright gold (ADR-080)
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
@@ -93,8 +93,8 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: xp.progressFraction,
-                      backgroundColor: Colors.white24,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFCA28)),
+                      backgroundColor: const Color(0xFF1E3A5F), // dark track (ADR-080)
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
                       minHeight: 6,
                     ),
                   ),

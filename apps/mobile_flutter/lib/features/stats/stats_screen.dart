@@ -7,6 +7,7 @@ import '../../data/db/roavvy_database.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../scan/achievement_unlock_sheet.dart';
 import 'countries_list_screen.dart';
+import 'region_breakdown_sheet.dart';
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -98,6 +99,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                                   CountriesListScreen(visits: visits),
                             ),
                           ),
+                  onRegionsTap: regionCount == '—' || regionCount == '0'
+                      ? null
+                      : () => RegionBreakdownSheet.show(context),
                 ),
               ),
             ),
@@ -127,12 +131,14 @@ class _StatsPanel extends StatelessWidget {
     required this.regionCount,
     required this.sinceYear,
     this.onCountriesTap,
+    this.onRegionsTap,
   });
 
   final String countryCount;
   final String regionCount;
   final String sinceYear;
   final VoidCallback? onCountriesTap;
+  final VoidCallback? onRegionsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -142,18 +148,29 @@ class _StatsPanel extends StatelessWidget {
           child: GestureDetector(
             onTap: onCountriesTap,
             child: Semantics(
-              label: '$countryCount countries visited',
+              label: '$countryCount countries visited. Tap to view list.',
               excludeSemantics: true,
-              child: _StatTile(value: countryCount, label: 'Countries'),
+              child: _StatTile(
+                value: countryCount,
+                label: 'Countries',
+                tappable: onCountriesTap != null,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Semantics(
-            label: '$regionCount regions visited',
-            excludeSemantics: true,
-            child: _StatTile(value: regionCount, label: 'Regions'),
+          child: GestureDetector(
+            onTap: onRegionsTap,
+            child: Semantics(
+              label: '$regionCount regions visited. Tap to view breakdown.',
+              excludeSemantics: true,
+              child: _StatTile(
+                value: regionCount,
+                label: 'Regions',
+                tappable: onRegionsTap != null,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -172,10 +189,11 @@ class _StatsPanel extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.value, required this.label});
+  const _StatTile({required this.value, required this.label, this.tappable = false});
 
   final String value;
   final String label;
+  final bool tappable;
 
   @override
   Widget build(BuildContext context) {
@@ -195,11 +213,25 @@ class _StatTile extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (tappable) ...[
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ],
           ),
         ],
       ),

@@ -35,32 +35,20 @@ int _tripDays(DateTime start, DateTime end) =>
 
 /// Chronological trip history, grouped by year with sticky section headers.
 ///
-/// Entry point: Journal tab (index 1). Reads trips from local SQLite
-/// via [tripRepositoryProvider]; no loading spinner (Design Principle 3).
-/// Watches [effectiveVisitsProvider] to obtain [EffectiveVisitedCountry?]
-/// for each trip row's [CountryDetailSheet] (ADR-052, Decision 2).
-class JournalScreen extends ConsumerStatefulWidget {
+/// Entry point: Journal tab (index 1). Reads trips from [tripListProvider]
+/// (a [FutureProvider] that is invalidated after clearAll and scan save —
+/// ADR-081). Watches [effectiveVisitsProvider] for [CountryDetailSheet] data.
+class JournalScreen extends ConsumerWidget {
   const JournalScreen({super.key, required this.onNavigateToScan});
 
   /// Called when the user taps "Scan Photos" in the empty state.
   final VoidCallback onNavigateToScan;
 
   @override
-  ConsumerState<JournalScreen> createState() => _JournalScreenState();
-}
-
-class _JournalScreenState extends ConsumerState<JournalScreen> {
-  late final Future<List<TripRecord>> _tripsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _tripsFuture = ref.read(tripRepositoryProvider).loadAll();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tripsAsync = ref.watch(tripListProvider);
     final visitsAsync = ref.watch(effectiveVisitsProvider);
+
     final visitsByCode = <String, EffectiveVisitedCountry>{};
     visitsAsync.whenData((visits) {
       for (final v in visits) {
@@ -68,19 +56,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       }
     });
 
-    return FutureBuilder<List<TripRecord>>(
-      future: _tripsFuture,
-      builder: (context, snapshot) {
-        final trips = snapshot.data;
-        if (trips == null) return const SizedBox.shrink(); // Design Principle 3
+    // Design Principle 3: no spinner — render nothing while loading.
+    final trips = tripsAsync.valueOrNull;
+    if (trips == null) return const SizedBox.shrink();
 
-        if (trips.isEmpty) {
-          return _EmptyState(onScanTap: widget.onNavigateToScan);
-        }
+    if (trips.isEmpty) {
+      return _EmptyState(onScanTap: onNavigateToScan);
+    }
 
-        return _JournalList(trips: trips, visitsByCode: visitsByCode);
-      },
-    );
+    return _JournalList(trips: trips, visitsByCode: visitsByCode);
   }
 }
 
@@ -318,9 +302,11 @@ class _TripTile extends StatelessWidget {
   void _openSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (_) => CountryDetailSheet(
         isoCode: trip.countryCode,
         visit: visit,
+        tripFilter: trip, // ADR-082: filter Photos tab to this trip's dates
       ),
     );
   }

@@ -26,7 +26,7 @@ class StatsStrip extends ConsumerWidget {
 
         final bottomInset = MediaQuery.paddingOf(context).bottom;
         return Container(
-          color: Colors.black54,
+          color: const Color(0xFF0D2137).withValues(alpha: 0.88), // ADR-080
           padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + bottomInset),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

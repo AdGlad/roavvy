@@ -197,6 +197,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   _ScanProgress? _scanProgress;
   _ScanResult? _scanResult;
 
+  /// ISO codes of countries found for the first time during the current scan.
+  /// Updated live during the scan loop. (ADR-083)
+  final List<String> _liveNewCodes = [];
+
   @override
   void initState() {
     super.initState();
@@ -262,6 +266,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _error = null;
       _scanProgress = const _ScanProgress(processed: 0);
       _scanResult = null;
+      _liveNewCodes.clear();
     });
 
     try {
@@ -287,8 +292,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           }
           allPhotoDates.addAll(batchResult.photoDates);
           totalProcessed += event.photos.length;
+
+          // Detect countries found for the first time this scan (ADR-083).
+          for (final code in batchResult.accum.keys) {
+            if (!preScanCodes.contains(code) && !_liveNewCodes.contains(code)) {
+              _liveNewCodes.add(code);
+            }
+          }
+
           if (mounted) {
-            setState(() => _scanProgress = _ScanProgress(processed: totalProcessed));
+            setState(() {
+              _scanProgress = _ScanProgress(processed: totalProcessed);
+              // _liveNewCodes is updated in-place; setState triggers rebuild.
+            });
           }
         } else if (event is ScanDoneEvent) {
           doneEvent = event;
@@ -354,6 +370,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _scanResult = scanResult;
         });
         ref.invalidate(effectiveVisitsProvider);
+        ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
+        ref.invalidate(regionCountProvider);    // refresh Stats regions count
+        ref.invalidate(countryTripCountsProvider);
+        ref.invalidate(earliestVisitYearProvider);
 
         // Award XP: scan completion + any new countries (fire-and-forget).
         final xpNotifier = ref.read(xpNotifierProvider.notifier);
@@ -464,7 +484,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   ),
                   const SizedBox(height: 24),
                   if (_error != null) _ErrorView(message: _error!),
-                  if (_scanning) _ScanningView(progress: _scanProgress),
+                  if (_scanning)
+                    _ScanningView(
+                      progress: _scanProgress,
+                      liveNewCodes: List.unmodifiable(_liveNewCodes),
+                    ),
                   if (!_scanning) ...[
                     if (_lastScanStats != null)
                       _StatsCard(
@@ -636,15 +660,24 @@ class _RestrictedPanel extends StatelessWidget {
 }
 
 class _ScanningView extends StatelessWidget {
-  const _ScanningView({this.progress});
+  const _ScanningView({this.progress, this.liveNewCodes = const []});
+
   final _ScanProgress? progress;
+
+  /// ISO codes of countries found for the first time during this scan.
+  /// Updated in real time as each batch is processed. (ADR-083)
+  final List<String> liveNewCodes;
 
   @override
   Widget build(BuildContext context) {
     final processed = progress?.processed ?? 0;
+    final theme = Theme.of(context);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LinearProgressIndicator(value: null),
+        const LinearProgressIndicator(value: null),
         const SizedBox(height: 8),
         Text(
           processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
@@ -652,9 +685,91 @@ class _ScanningView extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text('Detecting visited countries'),
+        if (liveNewCodes.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            'Countries found',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          // Newest first.
+          for (final code in liveNewCodes.reversed)
+            _LiveCountryRow(isoCode: code, reduceMotion: reduceMotion),
+        ],
       ],
     );
   }
+}
+
+class _LiveCountryRow extends StatefulWidget {
+  const _LiveCountryRow({required this.isoCode, required this.reduceMotion});
+
+  final String isoCode;
+  final bool reduceMotion;
+
+  @override
+  State<_LiveCountryRow> createState() => _LiveCountryRowState();
+}
+
+class _LiveCountryRowState extends State<_LiveCountryRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: widget.reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 300),
+    );
+    _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final flag = _flagEmoji(widget.isoCode);
+    final name = kCountryNames[widget.isoCode] ?? widget.isoCode;
+
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(
+        position: _slide,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Text(flag, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Text(name, style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Returns the Unicode flag emoji for a 2-letter ISO country code.
+String _flagEmoji(String code) {
+  const base = 0x1F1E6 - 0x41;
+  return String.fromCharCode(base + code.codeUnitAt(0)) +
+      String.fromCharCode(base + code.codeUnitAt(1));
 }
 
 class _ErrorView extends StatelessWidget {

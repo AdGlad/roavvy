@@ -85,6 +85,10 @@ class MapScreen extends ConsumerWidget {
     await ref.read(visitRepositoryProvider).clearAll();
     ref.invalidate(effectiveVisitsProvider);
     ref.invalidate(travelSummaryProvider);
+    ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
+    ref.invalidate(regionCountProvider);    // ADR-082: refresh Stats regions count
+    ref.invalidate(countryTripCountsProvider);
+    ref.invalidate(earliestVisitYearProvider);
   }
 
   Future<void> _onSignInWithApple(BuildContext context, WidgetRef ref) async {
@@ -195,12 +199,14 @@ class MapScreen extends ConsumerWidget {
     });
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0D2137), // dark navy ocean (ADR-080)
       body: Stack(
         children: [
           FlutterMap(
             options: MapOptions(
               initialCenter: const LatLng(20, 0),
               initialZoom: 2,
+              backgroundColor: const Color(0xFF0D2137),
               onTap: (pos, latlng) =>
                   _onMapTap(context, ref, visitedByCode, pos, latlng),
             ),

@@ -9,30 +9,31 @@ import 'country_visual_state.dart';
 /// ISO codes suppressed from the map (mirrors [MapScreen]).
 const _kSuppressedCodes = {'AQ'};
 
-// ── Colour definitions (ADR-066) ──────────────────────────────────────────────
+// ── Colour definitions (ADR-066, updated ADR-080) ─────────────────────────────
 
-const _kUnvisitedFill = Color(0xFFE5E7EB);     // grey-200
-const _kUnvisitedBorder = Color(0xFF9CA3AF);   // grey-400
+// Dark navy ocean theme (ADR-080).
+const _kUnvisitedFill = Color(0xFF1E3A5F);     // dark blue-grey land
+const _kUnvisitedBorder = Color(0xFF2A4F7A);   // slightly lighter border, 0.4 stroke
 
-const _kVisitedFill = Color(0xFFFFB300);       // amber-700
-const _kVisitedBorder = Color(0xFFFF8F00);     // amber-900
+const _kVisitedFill = Color(0xFFD4A017);       // rich gold tier-0 fallback
+const _kVisitedBorder = Color(0xFFFFD700);     // bright gold border
 
-const _kReviewedFill = Color(0xFFFFCA28);      // amber-400
-const _kReviewedBorder = Color(0xFFFFB300);    // amber-700
+const _kReviewedFill = Color(0xFFC8860A);      // reviewed — gold tier-2
+const _kReviewedBorder = Color(0xFFFFD700);    // bright gold border
 
-const _kNewFill = Color(0xFFFFD54F);           // amber-300
-const _kNewBorder = Color(0xFFFFCA28);         // amber-400
+const _kNewFill = Color(0xFFFFD700);           // newly discovered — bright gold
+const _kNewBorder = Color(0xFFFFFFFF);         // white border for pop
 
-// Depth colouring tiers — more trips → richer amber (ADR-066).
-const _kDepth1Fill = Color(0xFFFFE082); // 1 trip:  amber-200 (lightest)
-const _kDepth2Fill = Color(0xFFFFCA28); // 2-3:     amber-400 (mid)
-const _kDepth3Fill = Color(0xFFFFB300); // 4-5:     amber-600 (dark)
-const _kDepth4Fill = Color(0xFFFF8F00); // 6+:      amber-800 (deepest)
+// Depth colouring tiers — more trips → richer/darker gold (ADR-066, ADR-080).
+const _kDepth1Fill = Color(0xFFD4A017); // 1 trip:  gold (light)
+const _kDepth2Fill = Color(0xFFC8860A); // 2-3:     deeper gold
+const _kDepth3Fill = Color(0xFFB86A00); // 4-5:     amber-brown
+const _kDepth4Fill = Color(0xFF8B4500); // 6+:      deep burnt amber
 
 /// Returns the fill [Color] for a visited country based on [tripCount].
 ///
-/// Tier boundaries:  0 → fallback visited colour, 1 → lightest,
-/// 2-3 → mid, 4-5 → dark, 6+ → deepest.
+/// Tier boundaries:  0 → fallback visited colour, 1 → lightest gold,
+/// 2-3 → deeper gold, 4-5 → amber-brown, 6+ → deep burnt amber. (ADR-080)
 // ignore: public_member_api_docs — exposed for unit testing
 Color depthFillColor(int tripCount) {
   if (tripCount <= 0) return _kVisitedFill;
@@ -104,7 +105,7 @@ class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
         newlyDiscoveredPolygons.add(_PolygonSpec(points: points));
       } else {
         final tripCount = tripCounts[p.isoCode] ?? 0;
-        staticPolygons.add(_staticPolygon(points, state, tripCount));
+        staticPolygons.add(_buildStaticPolygon(points, state, tripCount));
       }
     }
 
@@ -137,9 +138,9 @@ class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
                     for (final spec in newlyDiscoveredPolygons)
                       Polygon(
                         points: spec.points,
-                        color: _kNewFill.withValues(alpha: 0.7),
+                        color: _kNewFill.withValues(alpha: 0.75),
                         borderColor: _kNewBorder,
-                        borderStrokeWidth: 0.8,
+                        borderStrokeWidth: 1.5,
                       ),
                   ],
                 )
@@ -154,7 +155,7 @@ class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
                             points: spec.points,
                             color: _kNewFill.withValues(alpha: _pulseOpacity.value),
                             borderColor: _kNewBorder,
-                            borderStrokeWidth: 0.8,
+                            borderStrokeWidth: 1.5,
                           ),
                       ],
                     );
@@ -164,32 +165,32 @@ class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
     );
   }
 
-  Polygon _staticPolygon(
+  Polygon _buildStaticPolygon(
       List<LatLng> points, CountryVisualState state, int tripCount) {
     return switch (state) {
       CountryVisualState.visited => Polygon(
           points: points,
-          color: depthFillColor(tripCount).withValues(alpha: 0.75),
+          color: depthFillColor(tripCount).withValues(alpha: 0.85),
           borderColor: _kVisitedBorder,
-          borderStrokeWidth: 0.5,
+          borderStrokeWidth: 0.8,
         ),
       CountryVisualState.target => Polygon(
           points: points,
-          color: _kVisitedFill.withValues(alpha: 0.75),
-          borderColor: _kVisitedBorder,
-          borderStrokeWidth: 0.5,
+          color: _kVisitedFill.withValues(alpha: 0.6),
+          borderColor: const Color(0xFFFF8C00),
+          borderStrokeWidth: 1.2,
         ),
       CountryVisualState.reviewed => Polygon(
           points: points,
-          color: _kReviewedFill.withValues(alpha: 0.75),
+          color: _kReviewedFill.withValues(alpha: 0.85),
           borderColor: _kReviewedBorder,
-          borderStrokeWidth: 0.5,
+          borderStrokeWidth: 0.8,
         ),
       _ => Polygon(
           points: points,
-          color: _kUnvisitedFill.withValues(alpha: 0.6),
+          color: _kUnvisitedFill.withValues(alpha: 0.9),
           borderColor: _kUnvisitedBorder,
-          borderStrokeWidth: 0.5,
+          borderStrokeWidth: 0.4,
         ),
     };
   }
