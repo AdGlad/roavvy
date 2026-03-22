@@ -157,7 +157,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
-## Phase 10 — Commerce & Personalised Merchandise ✅ PoC Complete — M24 In Progress
+## Phase 10 — Commerce & Personalised Merchandise ✅ Mobile Complete (M20A + M20 + M24)
 
 **Goal:** Users can buy personalised travel merchandise — t-shirts and posters — with their visited countries rendered as a design. Print-on-demand via Shopify + Printful/Printify. Available on mobile (iOS app) and web.
 
@@ -220,6 +220,22 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 **Not in this phase:** city-level colouring, social feed, real-time comparison with friends.
 
 **Dependencies:** Phase 10 commerce must be stable first. XP system must not conflict with existing achievement engine — coordinate in ADR.
+
+---
+
+---
+
+## Phase 12 — Commerce & Mobile Completion
+
+**Goal:** Complete the shopping experience on web; ensure mobile app is fully polished for launch.
+
+| Milestone | Goal |
+|---|---|
+| M27 — Web Shop landing page | Public `/shop` page + nav/share entry points |
+| M28 — Web Commerce checkout | Authenticated country selection → `createMerchCart` → Shopify redirect |
+| M29 — Mobile entry points + scan nudge | Scan summary + share CTAs + 30-day in-app nudge |
+| M30 — Firestore Trip Sync | Trip records synced to Firestore; trip count on web map |
+| M31 — Web password reset | `/forgot-password` page; link from `/sign-in` |
 
 ---
 

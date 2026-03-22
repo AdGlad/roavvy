@@ -347,6 +347,100 @@ All sharing features are complete as of M12.
 
 ---
 
+---
+
+## Milestone 27 — Web Shop: Public `/shop` Landing Page + Entry Points
+
+**Goal:** Web visitors can discover and browse the shop; sign-in entry points direct them into the personalisation flow.
+
+**Scope — included:**
+- `/shop` Next.js route (public, no auth required): two featured product cards (t-shirt + travel poster) with static sample mockup images; tagline copy; "Sign in to personalise your design" CTA → `/sign-in?next=/shop`
+- Nav link "Shop" added to `/map` page header
+- "Get a personalised poster of your map" CTA block added to `/share/[token]` page
+- Redirect-after-login: if `/sign-in` receives `?next=/shop`, redirect to `/shop` on success
+
+**Scope — excluded:**
+- Country selection or checkout (M28)
+- Live Printful/Printify mockup generation (static placeholder images)
+- Mobile changes
+
+**Not started. No tasks written yet.**
+
+---
+
+## Milestone 28 — Web Commerce: Authenticated Checkout
+
+**Goal:** A signed-in web user can select their visited countries, call `createMerchCart`, and complete a Shopify checkout.
+
+**Scope — included:**
+- `/shop` updated: when signed in, shows country count + "Create my poster" CTA
+- Country selection step: checkbox grid of visited countries (reads Firestore effective visits, all pre-selected)
+- Cart creation: calls `createMerchCart` Firebase callable from web JS SDK; redirects to `checkoutUrl`
+- Post-checkout: `/shop?ordered=true` confirmation state
+- Error state: function failure → retry message
+
+**Scope — excluded:**
+- Variant picker (colour, size) on web — poster only
+- Mockup image generation on web
+- Order history on web
+
+**Depends on:** M27
+
+**Not started. No tasks written yet.**
+
+---
+
+## Milestone 29 — Mobile Commerce: Remaining Entry Points + Scan Nudge
+
+**Goal:** Users encounter the shop at peak motivation moments; the app proactively nudges users who haven't scanned in 30+ days.
+
+**Scope — included:**
+- `ScanSummaryScreen` State A: "Get a poster with your new discoveries" `TextButton` → `MerchCountrySelectionScreen` pre-filtered to new codes
+- Travel card share flow: "Turn this into a poster →" link below share button → `MerchCountrySelectionScreen`
+- `MapScreen` dismissible scan nudge banner when `lastScanAt > 30 days ago`; taps to Scan tab; dismissed per-session
+
+**Scope — excluded:**
+- Changes to `scheduleNudge` push notification (already exists)
+
+**Not started. No tasks written yet.**
+
+---
+
+## Milestone 30 — Firestore Trip Sync
+
+**Goal:** Trip records are synced to Firestore for multi-device access and web trip display.
+
+**Scope — included:**
+- `FirestoreSyncService` extended to sync dirty `TripRecord` rows to `users/{uid}/trips/{tripId}` — fire-and-forget pattern
+- Trip sync wired at same sites as visit sync (post-scan/review-save, sign-in, startup flush)
+- Firestore rules: `users/{uid}/trips/{tripId}` — read/write matching `request.auth.uid` only
+- Web `/map`: trip count shown on country panel (reads `users/{uid}/trips` filtered by `countryCode`)
+
+**Scope — excluded:**
+- Region visit sync (no web consumer yet)
+- Trip editing from web
+
+**Not started. No tasks written yet.**
+
+---
+
+## Milestone 31 — Web Auth: Password Reset
+
+**Goal:** Users who forget their password can recover their account from the web.
+
+**Scope — included:**
+- `/forgot-password` Next.js route: email field; `sendPasswordResetEmail`; generic success message; error state
+- "Forgot your password?" link on `/sign-in`
+- "Back to sign in" link on `/forgot-password`
+
+**Scope — excluded:**
+- Custom email template (Firebase default)
+- Password reset on mobile
+
+**Not started. No tasks written yet.**
+
+---
+
 ## Deferred items (no milestone assigned)
 
 - Firestore pull / multi-device conflict resolution
