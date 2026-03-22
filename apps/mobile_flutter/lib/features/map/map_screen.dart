@@ -17,7 +17,11 @@ import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import 'country_detail_sheet.dart';
 import 'country_polygon_layer.dart';
+import 'region_chips_marker_layer.dart';
+import 'region_progress_notifier.dart';
+import 'rovy_bubble.dart';
 import 'stats_strip.dart';
+import 'target_country_layer.dart';
 import 'xp_level_bar.dart';
 
 /// Displays all country polygons on an offline flutter_map canvas.
@@ -160,6 +164,29 @@ class MapScreen extends ConsumerWidget {
       );
     }
 
+    // Fire region-1-away Rovy nudge whenever a region transitions to exactly
+    // 1 country remaining and the user has at least one visit in that region.
+    ref.listen<List<RegionProgressData>>(regionProgressProvider,
+        (previous, next) {
+      final prevOneAway = (previous ?? const <RegionProgressData>[])
+          .where((r) => r.remaining == 1 && r.visitedCount > 0)
+          .map((r) => r.region)
+          .toSet();
+      for (final data in next) {
+        if (data.remaining == 1 &&
+            data.visitedCount > 0 &&
+            !prevOneAway.contains(data.region)) {
+          ref.read(rovyMessageProvider.notifier).state = RovyMessage(
+            text:
+                'Just 1 more country to complete ${data.region.displayName}!',
+            trigger: RovyTrigger.regionOneAway,
+            emoji: '🎯',
+          );
+          break; // one message at a time
+        }
+      }
+    });
+
     return Scaffold(
       body: Stack(
         children: [
@@ -172,6 +199,8 @@ class MapScreen extends ConsumerWidget {
             ),
             children: const [
               CountryPolygonLayer(),
+              TargetCountryLayer(),
+              RegionChipsMarkerLayer(),
             ],
           ),
           const Align(
@@ -184,6 +213,13 @@ class MapScreen extends ConsumerWidget {
           ),
           if (!hasVisits)
             _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
+          const Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 80),
+              child: RovyBubble(),
+            ),
+          ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 8,
@@ -201,6 +237,12 @@ class MapScreen extends ConsumerWidget {
                     final s = ref.read(travelSummaryProvider).valueOrNull ??
                         TravelSummary.fromVisits(visitedByCode.values.toList());
                     captureAndShare(context, s, 'My Roavvy travel map');
+                    ref.read(rovyMessageProvider.notifier).state =
+                        const RovyMessage(
+                      text: 'Love it! Thanks for sharing your adventures!',
+                      trigger: RovyTrigger.postShare,
+                      emoji: '🙌',
+                    );
                     final now = DateTime.now().toUtc();
                     unawaited(ref.read(xpNotifierProvider.notifier).award(XpEvent(
                       id: '${now.microsecondsSinceEpoch}-share',

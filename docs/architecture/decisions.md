@@ -2297,3 +2297,95 @@ ADR-054 defines the scan navigation stack: `ReviewScreen._save()` computes the p
 - The overlay appears after the summary screen — users see confetti + achievement chips first, then the country celebration. This ordering feels correct: celebrate the set, then spotlight the headline country.
 - Multiple new countries in one scan: only the first country gets the overlay (alphabetically first by ISO code for determinism). All countries get the amber pulse on the map.
 
+---
+
+## ADR-069 — `RegionChipsMarkerLayer` uses `MarkerLayer` with zoom gating via `MapCamera` (M23)
+
+**Status:** Accepted
+
+**Context:**
+M23 adds floating progress chips at region centroids on the world map. Options for implementation:
+1. Custom layer (`FlutterMapLayerOptions` subclass) — requires significant boilerplate and internal flutter_map API knowledge.
+2. `MarkerLayer` with `ConsumerStatefulWidget` listening to map camera changes — standard API, well-tested, and idiomatic in flutter_map 6.x+.
+3. Overlay widget positioned via `Stack` + coordinate-to-screen projection — brittle when map pans or zooms.
+
+Zoom gating is needed because at low zoom levels (< 4) the chip markers overlap and clutter the map.
+
+**Decision:** Use `MarkerLayer` (standard flutter_map layer). The widget listens to `MapController` camera change events and checks `camera.zoom`. When zoom < 4.0, return an empty `MarkerLayer(markers: [])`. Otherwise render one `Marker` per region at its centroid.
+
+Each marker widget is a `GestureDetector` wrapping a chip painted with `CustomPainter` for the arc progress ring. The chip is 80×40 logical pixels; the arc is 24px diameter.
+
+**Consequences:**
+- Zero new packages required — `flutter_map` already provides `MarkerLayer` and `MapCamera`.
+- Chip tap calls `showRegionDetailSheet()` — opens `RegionDetailSheet` as a bottom sheet.
+- `MarkerLayer` markers do not scale with map zoom — chips remain the same logical pixel size regardless of zoom level, which is the desired behaviour.
+
+---
+
+## ADR-070 — `TargetCountryLayer` uses native `PolygonLayer` with solid amber border and breathing opacity (M23)
+
+**Status:** Accepted
+
+**Context:**
+M23 requires a visual treatment for "target" countries (countries in regions that are exactly 1-away from completion and have at least one visit). Dashed borders were considered for distinction from regular visited countries.
+
+Options:
+1. Dashed border via `CustomPainter` — requires screen-space coordinate projection, repainting wired to map transforms, and manual geometry calculations. High implementation risk.
+2. Solid amber border + breathing fill opacity — uses native `flutter_map` `PolygonLayer` with an `AnimationController`. The amber colour is visually distinct from regular visited countries without any `CustomPainter` complexity.
+3. Hatched fill pattern — requires `CustomPainter` with a tiling shader; similar complexity to option 1.
+
+**Decision:** Option 2 — solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) with breathing fill opacity (0.10 → 0.25 → 0.10, 2400ms `AnimationController`, repeat-reverse). Uses the same `AnimationController` + `AnimatedBuilder` pattern as `CountryPolygonLayer` (ADR-066). No `CustomPainter` involved.
+
+The `TargetCountryLayer` is a `ConsumerStatefulWidget` that:
+1. Watches `regionProgressProvider` to derive which regions are 1-away.
+2. Derives target ISO codes from `kCountryContinent` filtered to those regions.
+3. Builds a `PolygonLayer` from those codes' polygons.
+4. Animates fill opacity via `AnimatedBuilder`.
+
+In reduced-motion mode (`MediaQuery.disableAnimationsOf`): static opacity 0.175 (midpoint of the range).
+
+**Consequences:**
+- Visual treatment is solid amber border + breathing fill — clearly visible but not distracting.
+- No `CustomPainter` means no screen-space projection and no repaint coupling to map transforms.
+- The `TargetCountryLayer` adds a second `PolygonLayer` to the FlutterMap children list (after `CountryPolygonLayer`); ordering matters — target layer renders on top of visited-country fills.
+
+---
+
+## ADR-071 — `rovyMessageProvider` is a `StateProvider<RovyMessage?>` (M23)
+
+**Status:** Accepted
+
+**Context:**
+`RovyBubble` needs a simple single-message store. Options:
+1. `StateNotifier<List<RovyMessage>>` — queue of messages; complex dismissal logic.
+2. `StateProvider<RovyMessage?>` — holds at most one message; null = no bubble shown.
+3. `ChangeNotifier` — does not compose well with Riverpod provider graph.
+
+The design requirement states "only one bubble visible at a time" and messages auto-dismiss after 4 seconds. A queue is not needed — if a new message arrives while one is displayed, it replaces the current one.
+
+**Decision:** `StateProvider<RovyMessage?>((_) => null)`. Setting state to a new `RovyMessage` replaces any current message. Setting to null dismisses the bubble. `RovyBubble` watches the provider and starts/cancels a `Timer` on state changes.
+
+**Consequences:**
+- If two triggers fire close together (e.g. new country + region 1-away), the second message replaces the first rather than queuing. This is acceptable — the most recent message is most contextually relevant.
+- The provider lives co-located in `rovy_bubble.dart` to keep `providers.dart` from becoming a catch-all.
+- `RovyBubble` must cancel its `Timer` in `dispose()` to avoid calling `setState` after unmount.
+
+---
+
+## ADR-072 — `RegionDetailSheet` is a top-level function calling `showModalBottomSheet` (M23)
+
+**Status:** Accepted
+
+**Context:**
+`RegionDetailSheet` shows regional progress detail when a chip is tapped. Options:
+1. Named route — requires passing `RegionProgressData` as route arguments; adds navigation overhead for what is a contextual overlay.
+2. `StatefulWidget` + manual `show` static method — similar to `AchievementUnlockSheet` pattern.
+3. Top-level function `showRegionDetailSheet(context, data, visits)` — simplest; sheet content is pure from its inputs.
+
+**Decision:** Top-level function `showRegionDetailSheet(BuildContext context, RegionProgressData data, List<EffectiveVisitedCountry> visits)` that calls `showModalBottomSheet`. The sheet content is a `StatelessWidget` that derives visited/unvisited country lists from `kCountryContinent` and `kCountryNames` at build time. No providers needed inside the sheet.
+
+**Consequences:**
+- `RegionDetailSheet` has no dependency on Riverpod or any provider — purely driven by its parameters.
+- `showRegionDetailSheet` can be called from `RegionChipsMarkerLayer` chip taps; the caller passes the `RegionProgressData` (already known from `regionProgressProvider`) and the current `effectiveVisitsProvider` list.
+- Tests can call `showRegionDetailSheet` directly with canned data — no provider setup needed for the sheet itself.
+

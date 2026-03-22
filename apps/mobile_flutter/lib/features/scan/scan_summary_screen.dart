@@ -6,8 +6,10 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/continent_emoji.dart';
 import '../../core/country_names.dart';
 import '../../core/notification_service.dart';
+import '../../core/providers.dart';
 import '../map/country_visual_state.dart';
 import '../map/discovery_overlay.dart';
+import '../map/rovy_bubble.dart';
 import 'achievement_unlock_sheet.dart';
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
@@ -67,6 +69,12 @@ class ScanSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
+  /// Posts a [RovyMessage] via [rovyMessageProvider] if the ref is still live.
+  void _postRovyMessage(RovyMessage msg) {
+    if (!mounted) return;
+    ref.read(rovyMessageProvider.notifier).state = msg;
+  }
+
   Future<void> _handleDone() async {
     // Register all new codes so CountryPolygonLayer shows amber pulse.
     if (widget.newCodes.isNotEmpty) {
@@ -78,6 +86,30 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     if (!mounted) return;
 
     if (widget.newCodes.isNotEmpty) {
+      // Fire newCountry Rovy trigger before the discovery overlay.
+      final firstName = widget.newCountries.isNotEmpty
+          ? (kCountryNames[widget.newCountries.first.countryCode] ??
+              widget.newCountries.first.countryCode)
+          : null;
+      _postRovyMessage(RovyMessage(
+        text: firstName != null
+            ? 'Nice! You added $firstName to your map!'
+            : 'New country added to your map!',
+        trigger: RovyTrigger.newCountry,
+        emoji: '🗺️',
+      ));
+
+      // Check 10th-country milestone.
+      final allVisits =
+          ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+      if (allVisits.length == 10) {
+        _postRovyMessage(const RovyMessage(
+          text: '10 countries explored — you\'re a real traveller!',
+          trigger: RovyTrigger.milestone,
+          emoji: '🏆',
+        ));
+      }
+
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           settings: const RouteSettings(name: DiscoveryOverlay.routeName),
@@ -92,12 +124,21 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     }
   }
 
+  void _handleCaughtUp() {
+    _postRovyMessage(const RovyMessage(
+      text: 'All caught up — your map is up to date.',
+      trigger: RovyTrigger.caughtUp,
+      emoji: '✅',
+    ));
+    widget.onDone();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: widget.newCountries.isEmpty
-            ? _NothingNewState(onDone: widget.onDone, lastScanAt: widget.lastScanAt)
+            ? _NothingNewState(onDone: _handleCaughtUp, lastScanAt: widget.lastScanAt)
             : _NewDiscoveriesState(
                 newCountries: widget.newCountries,
                 newAchievementIds: widget.newAchievementIds,

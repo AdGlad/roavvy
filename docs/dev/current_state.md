@@ -58,7 +58,16 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `DiscoveryOverlay` — full-screen amber gradient route; flag emoji (64pt), country name, "+50 XP", `HeavyImpact` haptic; pushed from `ScanSummaryScreen._handleDone()` for first new country; "Explore your map" CTA uses `popUntil('/')` (ADR-068)
   - `ScanSummaryScreen` converted to `ConsumerStatefulWidget`; `_handleDone()` registers all new codes with `recentDiscoveriesProvider` then pushes `DiscoveryOverlay`
   - `MapScreen` converted from `ConsumerStatefulWidget` to `ConsumerWidget`; reactive `effectiveVisitsProvider` in `build()`
-- 380+ flutter tests passing; ~93 package tests passing
+- **Gamified map (M23 — Phase 11 Slice 2: Region Progress + Rovy)**:
+  - `Region` enum (6 values) + `RegionProgressData` model + `computeRegionProgress()` + `regionProgressProvider` — derived from `kCountryContinent`; hardcoded centroids per region (ADR-069)
+  - `RegionChipsMarkerLayer` — `MarkerLayer` on `FlutterMap`; zoom-gated (zoom < 4 returns empty layer); chips show "N/M" with arc progress ring (`_ArcPainter` using `ui.Path`); complete regions show checkmark; tap opens `RegionDetailSheet` (ADR-069)
+  - `TargetCountryLayer` — `ConsumerStatefulWidget`; solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) + breathing fill opacity (0.10 → 0.25, 2400ms); no `CustomPainter`; reduced-motion static 0.175 opacity; renders countries in regions exactly 1-away from completion (ADR-070)
+  - `RegionDetailSheet` — `showRegionDetailSheet(context, data, visits)` top-level function; `DraggableScrollableSheet`; visited/unvisited country lists; "X more to complete" callout; no providers in sheet (ADR-072)
+  - `RovyMessage` model + `RovyTrigger` enum (5 triggers: `newCountry`, `regionOneAway`, `milestone`, `postShare`, `caughtUp`) + `rovyMessageProvider` (`StateProvider<RovyMessage?>`) co-located in `rovy_bubble.dart` (ADR-071)
+  - `RovyBubble` — `ConsumerStatefulWidget`; 48px amber circle "R" placeholder avatar; speech bubble (max 180px) extends left; `AnimatedSwitcher` scale-in; tap-to-dismiss; 4s auto-dismiss `Timer`; `AnimatedSwitcher` hides cleanly when null (ADR-071)
+  - Rovy trigger wiring: region-1-away via `ref.listen(regionProgressProvider)` in `MapScreen.build()`; post-share in share action; new-country + milestone (10th country) in `ScanSummaryScreen._handleDone()`; caught-up in `ScanSummaryScreen._handleCaughtUp()`
+  - `RegionChipsMarkerLayer`, `TargetCountryLayer`, `RovyBubble` wired into `MapScreen` Stack + FlutterMap children
+- 404 flutter tests passing; ~93 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
@@ -109,6 +118,11 @@ apps/mobile_flutter/
   lib/photo_scan_channel.dart             startPhotoScan() / ScanBatchEvent / ScanDoneEvent / PhotoRecord
   lib/data/db/roavvy_database.dart        Drift table definitions (schema v8: visits + trips + regions + achievements + scan_meta)
   lib/features/map/photo_gallery_screen.dart  3-column thumbnail grid; full-screen viewer; ThumbnailFetcher typedef (ADR-061)
+  lib/features/map/region_chips_marker_layer.dart  RegionChipsMarkerLayer + _RegionChip + _ArcPainter (ADR-069)
+  lib/features/map/region_progress_notifier.dart   RegionProgressData, computeRegionProgress, regionProgressProvider, kRegionCentroids
+  lib/features/map/region_detail_sheet.dart        showRegionDetailSheet — DraggableScrollableSheet with visited/unvisited lists (ADR-072)
+  lib/features/map/target_country_layer.dart       TargetCountryLayer — breathing amber PolygonLayer for 1-away countries (ADR-070)
+  lib/features/map/rovy_bubble.dart                RovyMessage, RovyTrigger, rovyMessageProvider, RovyBubble (ADR-071)
   lib/data/visit_repository.dart          VisitRepository — typed upsert/load/clear + dirty-load + mark-clean + loadAssetIds
   lib/data/trip_repository.dart           TripRepository — upsert, loadAll, loadByCountry, clear
   lib/data/region_repository.dart         RegionRepository — upsert, loadByCountry, loadByTrip, countUnique, clearAll
@@ -126,6 +140,9 @@ apps/mobile_flutter/
   test/features/map/stats_strip_test.dart StatsStrip widget tests (4 tests)
   test/features/map/country_detail_sheet_test.dart  CountryDetailSheet widget tests
   test/features/map/photo_gallery_screen_test.dart  PhotoGalleryScreen + CountryDetailSheet Photos-tab tests (4 tests)
+  test/features/map/region_chips_marker_layer_test.dart  RegionChipsMarkerLayer widget tests (4 tests)
+  test/features/map/target_country_layer_test.dart        TargetCountryLayer widget tests (3 tests)
+  test/features/map/rovy_bubble_test.dart                 RovyBubble widget tests (5 tests)
   test/features/shell/main_shell_test.dart  Navigation tab switching tests (6 tests)
   test/features/journal/journal_screen_test.dart  JournalScreen widget tests (11 tests)
   test/features/stats/stats_screen_test.dart      StatsScreen widget tests (8 tests)
@@ -211,8 +228,8 @@ apps/web_nextjs/
 | `packages/shared_models` — merge, TravelSummary, AchievementEngine, TripInference | 56 | `dart test` |
 | `packages/country_lookup` — lookup + loadPolygons | 27 | `dart test` |
 | `packages/region_lookup` — region lookup | ~10 | `dart test` |
-| `apps/mobile_flutter` — all flutter tests | 333 | `flutter test` |
-| **Total** | **~416** | |
+| `apps/mobile_flutter` — all flutter tests | 404 | `flutter test` |
+| **Total** | **~487** | |
 
 `flutter test` covers: channel unit tests, VisitRepository, ReviewScreen, ScanScreen, FirestoreSyncService, MapScreen, StatsStrip, CountryDetailSheet, MainShell (6), JournalScreen (11), StatsScreen (8), TripRepository, RegionRepository, AchievementRepository, BootstrapService, TripEditSheet, SignInScreen, AccountDeletionService, ShareTokenService, TravelCardWidget, providers, and achievement evaluation.
 
@@ -243,6 +260,8 @@ cd apps/mobile_flutter && flutter test
 | M20A (Tasks 65–69) | Phase 10 — Commerce setup (Shopify store, API credentials, 40 product variants, Printful sync, API contracts doc) | ✅ Complete |
 | M20 (Tasks 70–75) | Phase 10 — Commerce PoC (Firebase Functions scaffold + deploy, `createMerchCart` onCall, `shopifyOrderCreated` webhook, mobile commerce flow: country selection → product browser → variant picker → Shopify checkout) | ✅ Complete |
 
-**Phases 1–10 (PoC) are complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection, Phase 10 live mockup generation (post-PoC).
+| M23 (Tasks 86–89) | Phase 11 Slice 2 — Region Progress + Rovy (RegionChipsMarkerLayer, TargetCountryLayer, RegionDetailSheet, RovyBubble + triggers) | ✅ Complete |
+
+**Phases 1–10 (PoC) are complete. M23 (Phase 11 Slice 2) is complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection, Phase 10 live mockup generation (post-PoC).
 
 **Commerce PoC is live.** `createMerchCart` and `shopifyOrderCreated` deployed to `roavvy-prod`. Mobile commerce flow accessible from Stats screen → Shop button. Shopify `orders/create` webhook registered (ID: 1483692638395) pointing at the deployed function.
