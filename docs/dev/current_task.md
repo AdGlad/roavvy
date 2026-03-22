@@ -1,21 +1,15 @@
-# M24 — Task 91: Preview-first checkout in MerchVariantScreen
+# M25 — Complete
 
-**Milestone:** 24
-**Phase:** 10 — Commerce Polish
+**Milestone:** 25
+**Phase:** 11 — Gamified Map, Slice 3
 **Status:** ✅ Complete (2026-03-22)
 
-## Current Task
+## Task List
 
 | Task | Description | Status |
 |---|---|---|
-| 91 | Preview-first checkout in `MerchVariantScreen` | ✅ Done |
-| 92 | `MerchPostPurchaseScreen` — post-purchase celebration | ✅ Done |
-| 93 | `MerchOrdersScreen` + order history entry point | ✅ Done |
+| 94 | Country depth colouring — trip-count gradient for `visited` countries in `CountryPolygonLayer` | ✅ Done |
+| 95 | `MilestoneRepository` + `shown_milestones_v1` SharedPreferences persistence | ✅ Done |
+| 96 | `MilestoneCardSheet` widget + trigger wiring in `ScanSummaryScreen` | ✅ Done |
 
-## Task 91 Detail
-
-Refactor `MerchVariantScreen` to a two-stage flow:
-1. "Preview my design" → calls `createMerchCart`, shows loading in product image slot
-2. On success: shows generated `previewUrl` image; reveals "Complete checkout →" button
-3. "Complete checkout →" opens `checkoutUrl` (no second function call)
-4. Variant change resets to pre-preview state
+436 flutter tests passing.
