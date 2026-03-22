@@ -196,7 +196,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
-## Phase 11 — Gamified Map & Progression System (M26 In Progress)
+## Phase 11 — Gamified Map & Progression System ✅ Complete (M22–M26, excl. soft social ranking — deferred)
 
 **Goal:** Transform the map from a static travel record into an emotionally engaging progression system. Users feel rewarded for every country discovered, motivated to complete regions, and proud of their travel identity.
 

@@ -2,7 +2,7 @@
 
 ---
 
-## Phase Completion Status (as of 2026-03-19)
+## Phase Completion Status (as of 2026-03-22)
 
 | Phase | Description | Status |
 |---|---|---|
@@ -15,8 +15,9 @@
 | Phase 7 — Rich Mobile Experience | 4-tab shell, Journal, Stats + achievement gallery | ✅ **Complete (M17)** |
 | Phase 8 — Celebrations & Delight | Onboarding, new-country celebration, achievement animation, scan summary | ✅ **Complete (M18)** |
 | Phase 9 — App Store Readiness | Icon, screenshots, push notifications, iPad layout, referral CTA | 🔄 **M19 complete** — icon assets + App Store URL pending external deliverables |
-| Phase 9.5 — Quality & Depth | Trip inference fix, region detection fix, confetti fix, interactive navigation, photo gallery | ✅ **M19A complete** |
-| Phase 10 — Commerce | Shopify Storefront API, travel poster, shop landing page | 🔲 Not started |
+| Phase 9.5 — Quality & Depth | Trip inference fix, region detection fix, confetti fix, interactive navigation, photo gallery | ✅ **Complete (M19A)** |
+| Phase 10 — Commerce | Shopify setup, Firebase Functions, mobile commerce flow, post-purchase, order history | ✅ **Complete (M20A + M20 + M24)** |
+| Phase 11 — Gamified Map | Visual states, XP, Discovery Overlay, Region chips, Rovy, Milestone cards, depth colouring, timeline scrubber, scan reveal | ✅ **Complete (M22–M26)** |
 
 See [docs/product/roadmap.md](../product/roadmap.md) for full phase definitions.
 See [docs/ux/mobile_ux_spec.md](../ux/mobile_ux_spec.md) for the mobile UX specification.
@@ -193,30 +194,15 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 20 — Phase 10: Shop & Merchandise
+## Milestone 20 — Phase 10: Shop & Merchandise ✅ COMPLETE (M20A + M20 + M24)
 
-**Goal:** Users can buy personalised travel merchandise (a travel poster with their visited countries highlighted) via a Shopify-hosted checkout.
+**Goal:** Users can buy personalised travel merchandise via a Shopify-hosted checkout.
 
-**Why:** This is the primary revenue stream. The product is differentiated: a physical travel poster that reflects the user's actual travel history, not a generic map.
+**Delivered (M20A, Tasks 65–69):** Shopify store setup, API credentials, 40 product variants, Printful sync, API contracts doc.
 
-**Scope — included:**
-- Shop landing page (`/shop`): accessible without sign-in; shows featured products
-- Product personalisation flow: user signs in (or is already signed in from `/map`), their visited country codes are loaded, the map is rendered as an SVG/PNG preview
-- Shopify Storefront API integration: product catalogue, add to cart, redirect to Shopify checkout
-- Travel poster asset generation: render the Leaflet map to an image (canvas export); attach to the Shopify line item as a custom property (`visitedCodes` array) for fulfilment
-- In-app [Buy a travel poster] CTA on Stats screen and travel card share flow
+**Delivered (M20, Tasks 70–75):** Firebase Functions scaffold + deploy; `createMerchCart` onCall function; `shopifyOrderCreated` webhook; mobile commerce flow (country selection → product browser → variant picker → SFSafariViewController checkout).
 
-**Scope — excluded:**
-- Shopify admin / product management (done manually by the business)
-- Custom fulfilment automation (deferred — initially handled manually)
-- Physical print quality rendering (the web map is the preview; actual print files are separate)
-
-**Technical risks:**
-1. **Shopify Storefront API**: requires a Shopify store and a private app token. Setup is a prerequisite.
-2. **Map-to-image export**: Leaflet renders to a `<canvas>` — `canvas.toDataURL()` gives a PNG. Custom layers (polygons) must be on canvas, not SVG. May need to switch from the current SVG-based GeoJSON layer to a canvas layer. Needs a spike.
-3. **Passing the country set to Shopify**: Storefront API allows line item custom attributes. The `visitedCodes` array goes in there. Fulfilment system reads it to generate the custom print file.
-
-**Not started. No tasks written yet.**
+**Delivered (M24, Tasks 91–93):** Preview-first checkout (flag grid image generated before checkout launch); post-purchase celebration screen (`AppLifecycleState.resumed`); merch order history (`MerchOrdersScreen` via Firestore).
 
 ---
 
@@ -255,7 +241,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 22 — Phase 11 Slice 1: Visual States + XP Foundation
+## Milestone 22 — Phase 11 Slice 1: Visual States + XP Foundation ✅ COMPLETE (2026-03-22)
 
 **Goal:** The map visually encodes progress. Every visited country looks different from unvisited. XP is tracked. New country discovery has a proper emotional moment.
 
@@ -298,7 +284,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 23 — Phase 11 Slice 2: Region Progress + Rovy
+## Milestone 23 — Phase 11 Slice 2: Region Progress + Rovy ✅ COMPLETE (2026-03-22)
 
 **Goal:** The map shows region completion progress at a glance. Rovy provides contextual encouragement. The "one more country" nudge drives re-engagement.
 
@@ -335,6 +321,29 @@ All sharing features are complete as of M12.
 
 1. **`TargetCountryLayer` visual treatment** — Dashed borders are not supported natively in `flutter_map` and require `CustomPainter` with manual screen-coordinate projection and repaint wiring — too risky for this slice. Use a solid amber border (`borderColor: Color(0xFFFFB300)`, `borderStrokeWidth: 2.5`) with a breathing fill opacity animation (0.10 → 0.25 → 0.10, 2400ms) using the same `AnimationController` pattern as `CountryPolygonLayer`. The solid amber border is visually distinct from teal (visited) and grey (unvisited) states without any `CustomPainter` complexity. **Do not implement dashed borders in M23.**
 2. **Rovy asset dependency** — `RovyBubble` should work with a simple placeholder circle + "R" text label initially. Do not block Task 89 on the final SVG asset. The asset can be swapped in without code changes once available.
+
+---
+
+## Milestone 25 — Phase 11 Slice 3: Milestone Cards + Country Depth Colouring ✅ COMPLETE (2026-03-22)
+
+**Goal:** Users are celebrated at country count milestones. The map shows visit depth per country via amber colour gradient.
+
+**Delivered:**
+- `depthFillColor(tripCount)` — 4-tier amber gradient for visited countries (1 trip → amber-200, 2–3 → amber-400, 4–5 → amber-600, 6+ → amber-800); `countryTripCountsProvider`
+- `MilestoneRepository` — SharedPreferences-backed; `kMilestoneThresholds = [5, 10, 25, 50, 100]`
+- `MilestoneCardSheet` — modal bottom sheet; badge emoji per threshold; headline + subtext + Share + Continue; `showMilestoneCardSheet(context, threshold)` helper
+- `_checkAndShowMilestone` in `ScanSummaryScreen` — wired into both `_handleDone` and `_handleCaughtUp` paths
+
+---
+
+## Milestone 26 — Phase 11 Slice 4: Timeline Scrubber + Scan Reveal ✅ COMPLETE (2026-03-22)
+
+**Goal:** The map becomes a time machine. New discoveries animate onto a mini-map during scan summary.
+
+**Delivered:**
+- `yearFilterProvider` + `filteredEffectiveVisitsProvider` + `earliestVisitYearProvider` + `countryVisualStatesProvider` updated to honour year filter (ADR-076)
+- `TimelineScrubberBar` — amber Card with discrete Slider, label, Clear button; wired into MapScreen overflow menu
+- `ScanRevealMiniMap` — Timer.periodic(400ms) pop-in of new country polygons; shown in ScanSummaryScreen State A when ≥2 new countries (ADR-077)
 
 ---
 

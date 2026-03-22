@@ -274,10 +274,13 @@ cd apps/mobile_flutter && flutter test
 | M20A (Tasks 65–69) | Phase 10 — Commerce setup (Shopify store, API credentials, 40 product variants, Printful sync, API contracts doc) | ✅ Complete |
 | M20 (Tasks 70–75) | Phase 10 — Commerce PoC (Firebase Functions scaffold + deploy, `createMerchCart` onCall, `shopifyOrderCreated` webhook, mobile commerce flow: country selection → product browser → variant picker → Shopify checkout) | ✅ Complete |
 
+| M22 (Tasks 81–85) | Phase 11 Slice 1 — Visual States + XP (CountryVisualState, CountryPolygonLayer, XpRepository, XpNotifier, XpLevelBar, DiscoveryOverlay) | ✅ Complete |
 | M23 (Tasks 86–89) | Phase 11 Slice 2 — Region Progress + Rovy (RegionChipsMarkerLayer, TargetCountryLayer, RegionDetailSheet, RovyBubble + triggers) | ✅ Complete |
 | M24 (Tasks 91–93) | Phase 10 Commerce Polish — preview-first checkout, post-purchase celebration screen, merch order history | ✅ Complete |
+| M25 (Tasks 94–96) | Phase 11 Slice 3 — Milestone Cards + Country Depth Colouring (depthFillColor, countryTripCountsProvider, MilestoneRepository, MilestoneCardSheet) | ✅ Complete |
+| M26 (Tasks 97–99) | Phase 11 Slice 4 — Timeline Scrubber + Scan Reveal (yearFilterProvider, filteredEffectiveVisitsProvider, TimelineScrubberBar, ScanRevealMiniMap) | ✅ Complete |
 | M14 (Task 100) | Phase 4 — Web Sign-Up (`/sign-up` page, email/password account creation, cross-links with `/sign-in`) | ✅ Complete |
 
-**Phases 1–10 (PoC + polish) are complete. M23 (Phase 11 Slice 2) and M14 (Phase 4 web sign-up) are complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 6 continent overlay and city detection.
+**All phases 1–11 are complete (M14 + M22–M26).** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred: Phase 6 continent overlay and city detection; Phase 11 soft social ranking; Phase 12 not yet defined.
 
 **Commerce is live with end-to-end polish.** `createMerchCart` and `shopifyOrderCreated` deployed to `roavvy-prod`. Mobile flow: country selection → product browser → variant picker → "Preview my design" (generates flag grid image) → "Complete checkout →" (SFSafariViewController) → post-purchase celebration screen. Order history accessible via Privacy & account → My orders.
