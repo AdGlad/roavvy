@@ -1,29 +1,28 @@
-# M14 — Phase 4: Web Sign-Up
+# M27 — Web Shop: Public Landing Page + Entry Points
 
-**Milestone:** 14
-**Phase:** 4 — Web Map
-**Goal:** Users can create a Roavvy account on the web with email/password at a dedicated `/sign-up` route.
+**Milestone:** 27
+**Phase:** 12 — Commerce & Mobile Completion
+**Goal:** Web visitors can discover the shop and be directed into the personalisation flow.
 
 ---
 
 ## Planner Output
 
-**Goal:** A visitor can navigate to `/sign-up`, create an account with email + password, and land on their travel map.
+**Goal:** A web visitor can navigate to `/shop`, see the products, and sign in to personalise their design; authenticated users on `/map` and visitors on any shared travel card can reach the shop in one tap.
 
 **Scope — included:**
-- `/sign-up` page as a standalone Next.js route
-- Email + password fields; `createUserWithEmailAndPassword`; client-side validation (password ≥ 8 chars)
-- Error states: "email already in use", "weak password" (corrected to 8 chars), "network error"
-- "Already have an account? Sign in" link → `/sign-in`
-- Update `/sign-in`: replace mode toggle with "Don't have an account? Sign up" link → `/sign-up`
-- Redirect to `/map` on successful sign-up
+- `/shop` Next.js page (public, no auth required): two featured product cards (t-shirt + travel poster), tagline, "Sign in to personalise your design" CTA when signed out, "Create my design →" CTA when signed in
+- "Shop" nav link added to `/map` header
+- "Turn your travels into a poster" CTA block added to `/share/[token]` page, above the App Store section
+- Redirect-after-login: `/sign-in` reads `?next` query parameter; on success redirects to `next` instead of `/map`
 
 **Scope — excluded:**
-- Email verification
-- Password reset
-- Social sign-in on web
+- Country selection, product customisation, or checkout (M28)
+- Live Printful/Printify mockup images (static placeholder product images)
+- Any mobile changes
 
-**Context:** `/sign-in/page.tsx` already implements a combined sign-in/sign-up toggle. Task 100 extracts sign-up into its own route and cleans up the toggle.
+**Risks:**
+- Redirect-after-login must sanitise `next` to prevent open redirect: only allow relative paths starting with `/`.
 
 ---
 
@@ -31,28 +30,36 @@
 
 | Task | Description | Status |
 |---|---|---|
-| 100 | Create `/sign-up` page + update `/sign-in` links | 🔄 In Progress |
+| 101 | `/shop` public landing page | 🔄 In Progress |
+| 102 | Entry point wiring: `/map` nav link + `/share/[token]` CTA + `/sign-in` redirect-after-login | 🔲 Not started |
 
 ---
 
-### Task 100 — `/sign-up` page + `/sign-in` link update
+### Task 101 — `/shop` public landing page
 
-**Deliverable:**
-- `apps/web_nextjs/src/app/sign-up/page.tsx` — standalone sign-up page
-- `apps/web_nextjs/src/app/sign-in/page.tsx` — mode toggle removed; "Don't have an account? Sign up" link navigates to `/sign-up`
+**Deliverable:** `apps/web_nextjs/src/app/shop/page.tsx`
 
 **Acceptance criteria:**
-1. `GET /sign-up` renders a form with email and password fields and a "Create account" submit button.
-2. Submitting valid credentials calls `createUserWithEmailAndPassword` and redirects to `/map`.
-3. Submitting a password shorter than 8 characters shows "Password must be at least 8 characters." (client-side, before API call).
-4. Firebase error `auth/email-already-in-use` shows "An account with this email already exists."
-5. Firebase error `auth/weak-password` shows "Password must be at least 8 characters."
-6. Any other Firebase error shows "Something went wrong. Please try again."
-7. An "Already have an account? Sign in" link navigates to `/sign-in`.
-8. Authenticated users visiting `/sign-up` are redirected to `/map`.
-9. `/sign-in` page no longer has a mode toggle — it has a "Don't have an account? Sign up" link to `/sign-up`.
-10. `npm run build` in `apps/web_nextjs` succeeds with no TypeScript errors.
+1. `GET /shop` renders without requiring authentication.
+2. Page shows a headline, tagline, and two product cards: "Travel T-Shirt" and "Travel Poster".
+3. Each product card has a name, brief description, and placeholder image area (can be a styled `div` or `next/image` with a static placeholder).
+4. When user is **not** signed in: a single "Sign in to personalise your design" button links to `/sign-in?next=/shop`.
+5. When user **is** signed in: the CTA changes to "Create my design →" (a link to `/shop/design` — which does not exist yet; render as a disabled button or placeholder for now with text "Country selection coming soon").
+6. Page has a "Back to map" link for signed-in users.
+7. `npm run build` passes with no TypeScript errors.
 
-**Dependencies:** None — `/sign-in` and Firebase auth SDK already exist.
+---
 
-**Risks:** None. This is a straightforward extraction of existing code.
+### Task 102 — Entry point wiring
+
+**Deliverables:**
+- `apps/web_nextjs/src/app/map/page.tsx` — "Shop" link in header
+- `apps/web_nextjs/src/app/share/[token]/page.tsx` — poster CTA block
+- `apps/web_nextjs/src/app/sign-in/page.tsx` — redirect-after-login via `?next` param
+
+**Acceptance criteria:**
+1. `/map` header contains a "Shop" link that navigates to `/shop`.
+2. `/share/[token]` page shows a "Turn your travels into a poster →" block above the App Store CTA section; clicking links to `/shop`.
+3. Navigating to `/sign-in?next=/shop` and signing in successfully redirects to `/shop` instead of `/map`.
+4. `next` parameter is sanitised: only values starting with `/` and not containing `//` or a protocol (`http`, `https`) are honoured; all others fall back to `/map`.
+5. `npm run build` passes with no TypeScript errors.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserVisits } from "@/lib/firebase/useUserVisits";
@@ -74,12 +75,17 @@ export default function MapPage() {
             <p className="font-medium">{visitedCodes.length} countries visited</p>
           )}
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-sm text-gray-600 hover:underline"
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-4">
+          <Link href="/shop" className="text-sm text-amber-600 font-medium hover:underline">
+            Shop
+          </Link>
+          <button
+            onClick={handleSignOut}
+            className="text-sm text-gray-600 hover:underline"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
       <div className="flex-1">
         <DynamicMap geoJsonData={geoJsonData} userVisits={visitedCodes} />

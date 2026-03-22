@@ -32,7 +32,7 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **Bootstrap service**: `BootstrapService` re-derives trips and region visits from existing photo scan records on app launch (catches up users who scanned before these features existed)
 - **Journal screen**: `JournalScreen` (tab 1); chronological trip list grouped by year; country flag emoji; taps open `CountryDetailSheet`; empty state with "Scan Photos" CTA
 - **Stats screen**: `StatsScreen` (tab 2); stats panel (countries, regions, since year) with "—" fallback; achievement gallery grid (unlocked first, sorted by unlock date; then locked); amber trophy icon for unlocked, grey lock for locked; unlock date shown on unlocked cards
-- **Web map** (`apps/web_nextjs`): Next.js 15 app; `/sign-in` (email/password sign-in, links to `/sign-up`); `/sign-up` (email/password account creation, client-side ≥8 char validation, error states, links to `/sign-in`); `/map` authenticated route (guard → redirect); reads `users/{uid}/inferred_visits`, `user_added`, `user_removed` from Firestore; computes effective visits client-side; renders world map via Leaflet; `/share/[token]` share page
+- **Web map** (`apps/web_nextjs`): Next.js 15 app; `/sign-in` (email/password, `?next` redirect-after-login with open-redirect sanitisation, ADR-078); `/sign-up`; `/map` authenticated route (header has "Shop" link); `/shop` public landing page (product showcase, sign-in CTA for unauthenticated, "coming soon" placeholder for authenticated); `/share/[token]` share page (+ "Turn your travels into a poster" CTA above App Store section); `/privacy`
 - **Onboarding flow**: `_OnboardingGate` in `app.dart` routes new users to `OnboardingFlow` (3-screen PageView: Welcome · Privacy · Ready); returning users (existing visits) bypass onboarding; schema v8 `hasSeenOnboardingAt` column; `onboardingCompleteProvider` FutureProvider
 - **Scan summary**: `ScanSummaryScreen` shown after review-save; State A (new discoveries) shows new country list + achievement chips with confetti animation; State B (nothing new) shows friendly compact summary with last-scan date; animations respect `reduceMotion`
 - **Achievement unlock sheet**: `AchievementUnlockSheet` modal bottom sheet shown from scan summary chips and stats gallery; share action via `share_plus`
@@ -174,8 +174,9 @@ packages/region_lookup/
   test/region_lookup_test.dart            Region lookup unit tests
 
 apps/web_nextjs/
-  src/app/sign-in/page.tsx               Firebase Auth sign-in (email/password; links to /sign-up)
+  src/app/sign-in/page.tsx               Firebase Auth sign-in (email/password; ?next redirect-after-login; Suspense wrapper for useSearchParams)
   src/app/sign-up/page.tsx               Firebase Auth sign-up (createUserWithEmailAndPassword; client-side ≥8 char validation)
+  src/app/shop/page.tsx                  Public /shop landing page (product cards; auth-aware CTA)
   src/app/map/page.tsx                   Authenticated world map (Leaflet + Firestore)
   src/app/share/[token]/page.tsx         Public share page (+ "Get Roavvy" CTA)
   src/app/privacy/page.tsx               Static privacy policy page
@@ -280,6 +281,7 @@ cd apps/mobile_flutter && flutter test
 | M25 (Tasks 94–96) | Phase 11 Slice 3 — Milestone Cards + Country Depth Colouring (depthFillColor, countryTripCountsProvider, MilestoneRepository, MilestoneCardSheet) | ✅ Complete |
 | M26 (Tasks 97–99) | Phase 11 Slice 4 — Timeline Scrubber + Scan Reveal (yearFilterProvider, filteredEffectiveVisitsProvider, TimelineScrubberBar, ScanRevealMiniMap) | ✅ Complete |
 | M14 (Task 100) | Phase 4 — Web Sign-Up (`/sign-up` page, email/password account creation, cross-links with `/sign-in`) | ✅ Complete |
+| M27 (Tasks 101–102) | Phase 12 — Web Shop landing page (`/shop` public page, product cards, auth-aware CTA, `/map` Shop nav link, `/share/[token]` poster CTA, `/sign-in` redirect-after-login with open-redirect sanitisation) | ✅ Complete |
 
 **All phases 1–11 are complete (M14 + M22–M26).** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred: Phase 6 continent overlay and city detection; Phase 11 soft social ranking; Phase 12 not yet defined.
 

@@ -97,6 +97,21 @@ export default function SharePage() {
             userVisits={sharedData.visitedCodes}
           />
         </div>
+        <div className="flex flex-col items-center gap-3 px-6 py-8 border-t bg-amber-50">
+          <p className="text-base font-semibold text-gray-800">
+            Turn your travels into a poster
+          </p>
+          <p className="text-sm text-gray-500 text-center max-w-xs">
+            Get a personalised world map poster or t-shirt with every country
+            you&apos;ve visited highlighted in gold.
+          </p>
+          <a
+            href="/shop"
+            className="px-5 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600"
+          >
+            See the shop →
+          </a>
+        </div>
         <div className="flex flex-col items-center gap-3 px-6 py-8 border-t bg-gray-50">
           <p className="text-base font-medium text-gray-800">
             Discover your own travels with Roavvy
