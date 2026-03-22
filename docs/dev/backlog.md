@@ -9,7 +9,7 @@
 | Phase 1 — Core Scan & Map | PhotoKit bridge, country_lookup, Drift DB, map, scan, manual edits | ✅ **Complete** |
 | Phase 2 — Sync & Achievements | Firebase Auth (anon + Apple), Firestore sync, achievement engine + UI, account deletion | ✅ **Complete** |
 | Phase 3 — Sharing | Travel card image, web share page `/share/[token]`, share sheet, token revocation | ✅ **Complete** |
-| Phase 4 — Web Map | Authenticated web map (`/sign-in`, `/map`) | ✅ **M13 complete** — sign-up (M14) deferred |
+| Phase 4 — Web Map | Authenticated web map (`/sign-in`, `/map`, `/sign-up`) | ✅ **Complete (M13 + M14)** |
 | Phase 5 — Trip Intelligence | Trip inference, trip storage, trip editing | ✅ **Complete (M15)** |
 | Phase 6 — Geographic Depth | Region detection (ISO 3166-2) | 🔄 **Slice 1 complete (M16)** — city detection + continent overlay deferred |
 | Phase 7 — Rich Mobile Experience | 4-tab shell, Journal, Stats + achievement gallery | ✅ **Complete (M17)** |
@@ -67,22 +67,12 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 14 — Phase 4: Web Sign-Up
+## Milestone 14 — Phase 4: Web Sign-Up ✅ COMPLETE (2026-03-22)
 
 **Goal:** Users can create a Roavvy account on the web with email/password, completing the web auth flow.
 
-**Scope — included:**
-- `/sign-up` page: email + password fields; Firebase `createUserWithEmailAndPassword`; validation (email format, password min 8 chars); on success → redirect to `/map`
-- Error states: "email already in use", "weak password", "network error"
-- Link from `/sign-in` → "Don't have an account? Sign up"
-- Link from `/sign-up` → "Already have an account? Sign in"
-
-**Scope — excluded:**
-- Email verification (deferred)
-- Password reset (deferred)
-- Social sign-in on web
-
-**Not started. No tasks written yet.**
+**Delivered:**
+- Task 100: `/sign-up` standalone route — `createUserWithEmailAndPassword`, client-side ≥8 char password validation, all three error states, link to `/sign-in`; `/sign-in` updated to remove mode toggle and link to `/sign-up`
 
 ---
 

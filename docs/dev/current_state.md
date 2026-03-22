@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-22, through Task 99 / M26)
+# Roavvy — Development State (as of 2026-03-22, through Task 100 / M14)
 
 ## What Works
 
@@ -32,7 +32,7 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **Bootstrap service**: `BootstrapService` re-derives trips and region visits from existing photo scan records on app launch (catches up users who scanned before these features existed)
 - **Journal screen**: `JournalScreen` (tab 1); chronological trip list grouped by year; country flag emoji; taps open `CountryDetailSheet`; empty state with "Scan Photos" CTA
 - **Stats screen**: `StatsScreen` (tab 2); stats panel (countries, regions, since year) with "—" fallback; achievement gallery grid (unlocked first, sorted by unlock date; then locked); amber trophy icon for unlocked, grey lock for locked; unlock date shown on unlocked cards
-- **Web map** (`apps/web_nextjs`): Next.js 15 app; `/sign-in` (Sign in with Google + Apple via Firebase Auth JS SDK); `/map` authenticated route (guard → redirect); reads `users/{uid}/inferred_visits`, `user_added`, `user_removed` from Firestore; computes effective visits client-side; renders world map via Leaflet; `/share/[token]` share page
+- **Web map** (`apps/web_nextjs`): Next.js 15 app; `/sign-in` (email/password sign-in, links to `/sign-up`); `/sign-up` (email/password account creation, client-side ≥8 char validation, error states, links to `/sign-in`); `/map` authenticated route (guard → redirect); reads `users/{uid}/inferred_visits`, `user_added`, `user_removed` from Firestore; computes effective visits client-side; renders world map via Leaflet; `/share/[token]` share page
 - **Onboarding flow**: `_OnboardingGate` in `app.dart` routes new users to `OnboardingFlow` (3-screen PageView: Welcome · Privacy · Ready); returning users (existing visits) bypass onboarding; schema v8 `hasSeenOnboardingAt` column; `onboardingCompleteProvider` FutureProvider
 - **Scan summary**: `ScanSummaryScreen` shown after review-save; State A (new discoveries) shows new country list + achievement chips with confetti animation; State B (nothing new) shows friendly compact summary with last-scan date; animations respect `reduceMotion`
 - **Achievement unlock sheet**: `AchievementUnlockSheet` modal bottom sheet shown from scan summary chips and stats gallery; share action via `share_plus`
@@ -174,7 +174,8 @@ packages/region_lookup/
   test/region_lookup_test.dart            Region lookup unit tests
 
 apps/web_nextjs/
-  src/app/sign-in/page.tsx               Firebase Auth sign-in (Google + Apple)
+  src/app/sign-in/page.tsx               Firebase Auth sign-in (email/password; links to /sign-up)
+  src/app/sign-up/page.tsx               Firebase Auth sign-up (createUserWithEmailAndPassword; client-side ≥8 char validation)
   src/app/map/page.tsx                   Authenticated world map (Leaflet + Firestore)
   src/app/share/[token]/page.tsx         Public share page (+ "Get Roavvy" CTA)
   src/app/privacy/page.tsx               Static privacy policy page
@@ -275,7 +276,8 @@ cd apps/mobile_flutter && flutter test
 
 | M23 (Tasks 86–89) | Phase 11 Slice 2 — Region Progress + Rovy (RegionChipsMarkerLayer, TargetCountryLayer, RegionDetailSheet, RovyBubble + triggers) | ✅ Complete |
 | M24 (Tasks 91–93) | Phase 10 Commerce Polish — preview-first checkout, post-purchase celebration screen, merch order history | ✅ Complete |
+| M14 (Task 100) | Phase 4 — Web Sign-Up (`/sign-up` page, email/password account creation, cross-links with `/sign-in`) | ✅ Complete |
 
-**Phases 1–10 (PoC + polish) are complete. M23 (Phase 11 Slice 2) is complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 4 web sign-up (M14), Phase 6 continent overlay and city detection.
+**Phases 1–10 (PoC + polish) are complete. M23 (Phase 11 Slice 2) and M14 (Phase 4 web sign-up) are complete.** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred items: Phase 6 continent overlay and city detection.
 
 **Commerce is live with end-to-end polish.** `createMerchCart` and `shopifyOrderCreated` deployed to `roavvy-prod`. Mobile flow: country selection → product browser → variant picker → "Preview my design" (generates flag grid image) → "Complete checkout →" (SFSafariViewController) → post-purchase celebration screen. Order history accessible via Privacy & account → My orders.
