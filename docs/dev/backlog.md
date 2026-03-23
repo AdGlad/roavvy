@@ -426,21 +426,13 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 30 — Firestore Trip Sync
+## Milestone 30 — Firestore Trip Sync ✅ COMPLETE (2026-03-23)
 
-**Goal:** Trip records are synced to Firestore for multi-device access and web trip display.
+**Goal:** Trip records are synced to Firestore for multi-device access.
 
-**Scope — included:**
-- `FirestoreSyncService` extended to sync dirty `TripRecord` rows to `users/{uid}/trips/{tripId}` — fire-and-forget pattern
-- Trip sync wired at same sites as visit sync (post-scan/review-save, sign-in, startup flush)
-- Firestore rules: `users/{uid}/trips/{tripId}` — read/write matching `request.auth.uid` only
-- Web `/map`: trip count shown on country panel (reads `users/{uid}/trips` filtered by `countryCode`)
+**Delivered (Task 114):** Trip sync infrastructure was substantially pre-built in earlier milestones (`FirestoreSyncService.flushDirty()` trips path, `TripRepository.loadDirty/markClean`, wired at scan save / review save / app startup, 5 trip-flush tests, Firestore wildcard rules). M30 closed the only remaining gap: `apple_sign_in.dart` now accepts optional `tripRepo: TripRepository?` and forwards it to `flushDirty` so trips are flushed immediately post-Apple-sign-in.
 
-**Scope — excluded:**
-- Region visit sync (no web consumer yet)
-- Trip editing from web
-
-**Not started. No tasks written yet.**
+**Deferred:** Web `/map` trip count (mobile-first priority).
 
 ---
 

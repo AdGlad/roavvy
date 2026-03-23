@@ -234,7 +234,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | M27 — Web Shop landing page | Public `/shop` page + nav/share entry points |
 | M28 — Web Commerce checkout | Authenticated country selection → `createMerchCart` → Shopify redirect |
 | M29 — Mobile entry points + scan nudge | Scan summary + share CTAs + 30-day in-app nudge |
-| M30 — Firestore Trip Sync | Trip records synced to Firestore; trip count on web map |
+| M30 — Firestore Trip Sync | Trip records synced to Firestore; trip count on web map | ✅ **Complete** |
 | M31 — Web password reset | `/forgot-password` page; link from `/sign-in` |
 
 ---
