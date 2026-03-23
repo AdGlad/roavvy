@@ -2661,3 +2661,64 @@ Add `currentIndex` (int, 0-based) and `totalCount` (int) to `DiscoveryOverlay`. 
 - First-time users discovering 50 countries are shown 5 overlays max, then proceed to the summary — avoids an overwhelming sequence.
 - "Skip all" on overlay 1 of 5 pops 1 route; "Skip all" on overlay 3 of 5 pops 3 routes. The overlay must receive a `onSkipAll` callback (or a `skipAll` return value) to signal the caller to pop all remaining overlays.
 - `DiscoveryOverlay.routeName` is kept as `'/discovery'`; `popUntil(ModalRoute.withName('/'))` is replaced with calling the provided `onDone` callback so the caller controls navigation.
+
+---
+
+## ADR-086 — Shopify credential model: OAuth Client Credentials for admin token; permanent Storefront token
+
+**Status:** Accepted
+
+**Context:**
+The `createMerchCart` Cloud Function calls the Shopify Storefront API (`cartCreate` mutation) server-side. Initial setup stored a `shpat_`-prefixed token directly in `.env` as `SHOPIFY_STOREFRONT_TOKEN`. This token was invalid: it had been revoked by repeated app reinstalls, and was being used against the wrong API (it is an Admin API token, not a Storefront API token). The Shopify admin UI no longer surfaces static Admin API tokens for OAuth-based custom apps — credentials are now issued via the Client Credentials OAuth grant.
+
+Two distinct Shopify credentials are required:
+1. **Admin API access token** — short-lived (24h), obtained via `POST /admin/oauth/access_token` using Client ID + Client Secret. Used only to provision Storefront tokens via the Admin REST API.
+2. **Storefront API access token** — permanent (until explicitly deleted), a 32-char hex string. Used in `X-Shopify-Storefront-Access-Token` on every Storefront API call.
+
+**Decision:**
+- Store `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET` (OAuth credentials) in `apps/functions/.env`.
+- To provision or rotate a Storefront token:
+  1. Exchange credentials for a short-lived admin token: `POST https://{shop}.myshopify.com/admin/oauth/access_token` with `client_id`, `client_secret`, `grant_type: client_credentials`.
+  2. Use that admin token to create a permanent Storefront token: `POST /admin/api/{version}/storefront_access_tokens.json`.
+  3. Store the resulting hex token as `SHOPIFY_STOREFRONT_TOKEN` in `.env` and redeploy.
+- The `createMerchCart` function reads only `SHOPIFY_STOREFRONT_TOKEN` at runtime — it never holds the Client Secret or performs OAuth itself.
+- The required Storefront API scopes are: `unauthenticated_read_product_listings`, `unauthenticated_write_checkouts`, `unauthenticated_read_checkouts`.
+
+**Consequences:**
+- The Storefront token is permanent and survives app reinstalls. It must be manually rotated if compromised.
+- The admin token is never stored — it is obtained on demand during provisioning only.
+- If the Storefront token is lost or the Shopify app is reinstalled, re-run the two-step provisioning process above to generate a new one.
+- Firebase Storage uploads from the Admin SDK must include `metadata: { firebaseStorageDownloadTokens: crypto.randomUUID() }` in custom metadata, or files will not appear in the Firebase console (GCS stores the object; the console requires the token to list it).
+
+---
+
+## ADR-087 — Post-purchase payment confirmation via Firestore poll (M33)
+
+**Status:** Accepted
+
+**Context:**
+`MerchVariantScreen` uses `WidgetsBindingObserver.didChangeAppLifecycleState` to detect when the app resumes after the in-app browser (SFSafariViewController via `url_launcher`) is dismissed. It then unconditionally pushes `MerchPostPurchaseScreen` — regardless of whether the user actually completed payment. A user who closes the browser mid-checkout (abandoned cart, wrong card, etc.) will see the celebration screen and read "Your order is on its way!" even though no order was placed. This is a confirmed UX/correctness gap (Task 118, M33 risks table).
+
+Shopify's `return_url` deep-link mechanism would provide a payment-completion signal but requires a registered custom URL scheme and app handling for universal links — not yet implemented.
+
+**Decision:**
+Replace the optimistic post-purchase flow with a Firestore poll:
+
+1. After `didChangeAppLifecycleState(resumed)` fires (browser dismissed), push a "Checking order..." loading screen instead of the celebration screen immediately.
+2. From that screen, poll `users/{uid}/merch_configs/{configId}` every 3 seconds, up to 10 attempts (30 seconds total), using `docRef.get()` in a loop with `Future.delayed`.
+3. If `status == 'ordered'` is observed: transition to celebration (`MerchPostPurchaseScreen`).
+4. If 10 attempts elapse without `status == 'ordered'`: show a neutral fallback ("We're processing your order...") with a "Back to map" button. This handles cancelled payments, network lag, or webhook delays.
+
+The poll is implemented as a `_pollForOrderConfirmation()` method on `_MerchVariantScreenState` (the widget that owns the checkout launch and the `WidgetsBindingObserver`). The `merchConfigId` returned by `createMerchCart` is stored in `_MerchVariantScreenState` alongside `_checkoutUrl` and `_previewUrl`.
+
+The authenticated user's UID is obtained from `FirebaseAuth.instance.currentUser?.uid`. If null (unauthenticated — should not happen since `createMerchCart` requires auth), the fallback is shown immediately.
+
+**Why poll Firestore rather than a Cloud Function endpoint?**
+The `shopifyOrderCreated` webhook fires asynchronously after Shopify processes the payment (typically within 5–30 seconds). Firestore is already the source of truth for `MerchConfig.status`. Polling Firestore directly is simpler than introducing a new endpoint, avoids cold-start latency on Cloud Functions, and requires no additional backend code.
+
+**Consequences:**
+- The celebration screen is only shown when payment is confirmed (via webhook updating `status: 'ordered'`). False positives are eliminated.
+- If the Shopify webhook is delayed beyond 30 seconds (rare), the user sees a neutral fallback. They will still receive the Shopify confirmation email and the Printful order will proceed normally once the webhook fires.
+- The 3s / 30s parameters are constants in `_MerchVariantScreenState`; they can be tuned without an ADR update.
+- `MerchPostPurchaseScreen` requires `product`, `countryCount`, AND `merchConfigId` (added in M33) so the celebration screen can display the correct product without re-fetching.
+- `FirebaseAuth` import is already in the project (`firebase_auth` package); `cloud_firestore` is already imported in `providers.dart`. No new packages required.

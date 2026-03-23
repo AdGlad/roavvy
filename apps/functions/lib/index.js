@@ -291,6 +291,8 @@ exports.shopifyOrderCreated = (0, https_1.onRequest)({ invoker: 'public' }, asyn
         return;
     }
     const noteAttrs = payload.note_attributes ?? [];
+    // Log note_attributes so the first test order makes the payload visible in Cloud Logging.
+    console.error(`[shopifyOrderCreated] order ${shopifyOrderId} note_attributes:`, JSON.stringify(noteAttrs));
     const configAttr = noteAttrs.find((a) => a.name === 'merchConfigId');
     if (!configAttr?.value) {
         // Non-Roavvy order — acknowledge and ignore
@@ -381,6 +383,8 @@ exports.shopifyOrderCreated = (0, https_1.onRequest)({ invoker: 'public' }, asyn
             }),
         });
         const printfulData = (await printfulRes.json());
+        // Log Printful response status and body for sandbox debugging (Task 117).
+        console.error(`[shopifyOrderCreated] Printful API response for order ${shopifyOrderId}:`, `status=${printfulRes.status}`, JSON.stringify(printfulData));
         if (!printfulRes.ok || printfulData.error) {
             console.error(`[shopifyOrderCreated] Printful API error for order ${shopifyOrderId}:`, printfulData);
             await docRef.update({ designStatus: 'print_file_error' });

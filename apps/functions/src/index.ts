@@ -339,6 +339,11 @@ export const shopifyOrderCreated = onRequest(
     }
 
     const noteAttrs = payload.note_attributes ?? [];
+    // Log note_attributes so the first test order makes the payload visible in Cloud Logging.
+    console.error(
+      `[shopifyOrderCreated] order ${shopifyOrderId} note_attributes:`,
+      JSON.stringify(noteAttrs)
+    );
     const configAttr = noteAttrs.find((a) => a.name === 'merchConfigId');
     if (!configAttr?.value) {
       // Non-Roavvy order — acknowledge and ignore
@@ -454,6 +459,13 @@ export const shopifyOrderCreated = onRequest(
         id?: string | number;
         error?: string;
       };
+
+      // Log Printful response status and body for sandbox debugging (Task 117).
+      console.error(
+        `[shopifyOrderCreated] Printful API response for order ${shopifyOrderId}:`,
+        `status=${printfulRes.status}`,
+        JSON.stringify(printfulData)
+      );
 
       if (!printfulRes.ok || printfulData.error) {
         console.error(

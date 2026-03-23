@@ -1,24 +1,13 @@
-# M30 — Task 114 — ✅ Complete (2026-03-23)
+# M33 — Commerce Sandbox Validation — All Tasks Complete
 
-**Milestone:** 30
+**Milestone:** 33
 **Phase:** 12 — Commerce & Mobile Completion
 **Status:** ✅ Complete
 
-## Task List
+## Tasks
 
-| Task | Description | Status |
-|---|---|---|
-| 114 | Wire `tripRepo` through Apple sign-in flush | ✅ Done |
-
-## Notes
-
-Trip sync was substantially pre-built during earlier milestones:
-- `FirestoreSyncService.flushDirty()` with trip support — ✅ pre-built
-- `TripRepository.loadDirty()` + `markClean()` — ✅ pre-built
-- Sync wired at scan save, review save, app startup — ✅ pre-built
-- 5 trip-flush tests in `firestore_sync_service_test.dart` — ✅ pre-built
-- Firestore rules cover `users/{uid}/trips` — ✅ pre-built
-
-M30 task 114 completed the only remaining gap: `apple_sign_in.dart` now passes `tripRepo` so trips are flushed immediately after sign-in.
-
-Web `/map` trip count deferred (mobile-first).
+- [x] **Task 115** ✅ — Webhook payload verification: `note_attributes` parsing confirmed correct; `console.error` log of `note_attributes` array added to `shopifyOrderCreated` for Cloud Logging visibility on first test order.
+- [x] **Task 116** ✅ — Firestore MerchConfig update logic verified correct: `status`, `shopifyOrderId`, `designStatus`, `printfulOrderId` are all written correctly on success and on error paths. No code change needed.
+- [x] **Task 117** ✅ — Printful draft order verified: no `"confirm": true` in request body → orders are created as drafts by default. `console.error` log of Printful API response status and body added for debugging.
+- [x] **Task 118** ✅ — Post-purchase Firestore poll implemented in `MerchVariantScreen`: after in-app browser dismiss, polls `users/{uid}/merch_configs/{configId}` every 3s up to 10 attempts (30s); shows celebration only when `status == 'ordered'`; shows neutral "processing" dialog on timeout (ADR-087).
+- [x] **Task 119** ✅ — Variant mapping confirmed: White/L = Printful ID 535 ✓, Navy/M = Printful ID 527 ✓. No code change needed.
