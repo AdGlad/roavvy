@@ -45,6 +45,73 @@ const imageGen_1 = require("./imageGen");
 const printDimensions_1 = require("./printDimensions");
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();
+// ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
+/**
+ * Calls the Printful v2 Mockup API and polls until a front-placement mockup
+ * is ready. Returns the mockup image URL or null on timeout / error.
+ *
+ * Non-blocking: the caller catches errors and proceeds with null.
+ * Max wait: 10 attempts × 2s = 20 s.
+ */
+async function generatePrintfulMockup(printfulVariantId, printFileUrl) {
+    const apiKey = process.env['PRINTFUL_API_KEY'];
+    if (!apiKey) {
+        console.error('[mockup] PRINTFUL_API_KEY not set — skipping mockup');
+        return null;
+    }
+    // Submit task
+    const createRes = await fetch('https://api.printful.com/v2/mockup-tasks', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            variant_ids: [printfulVariantId],
+            files: [{ placement: 'front', url: printFileUrl }],
+            format: 'jpg',
+        }),
+    });
+    if (!createRes.ok) {
+        const body = await createRes.text();
+        console.error(`[mockup] Create task failed ${createRes.status}: ${body}`);
+        return null;
+    }
+    const createData = (await createRes.json());
+    const taskKey = createData.data?.task_key;
+    if (!taskKey) {
+        console.error('[mockup] No task_key in create response');
+        return null;
+    }
+    // Poll for result
+    const maxAttempts = 10;
+    const intervalMs = 2000;
+    for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        const pollRes = await fetch(`https://api.printful.com/v2/mockup-tasks/${taskKey}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+        if (!pollRes.ok) {
+            console.error(`[mockup] Poll failed ${pollRes.status}`);
+            return null;
+        }
+        const pollData = (await pollRes.json());
+        const status = pollData.data?.status;
+        if (status === 'completed') {
+            const mockup = pollData.data?.mockups?.find((m) => m.placement === 'front');
+            if (!mockup) {
+                console.error('[mockup] Completed but no front placement in result');
+                return null;
+            }
+            return mockup.mockup_url;
+        }
+        if (status === 'error') {
+            console.error('[mockup] Printful reported error status for task', taskKey);
+            return null;
+        }
+        // status === 'waiting' — continue polling
+    }
+    console.error('[mockup] Timeout waiting for Printful mockup task', taskKey);
+    return null;
+}
 // ── createMerchCart ───────────────────────────────────────────────────────────
 const CART_CREATE_MUTATION = `
   mutation CreateCart($lines: [CartLineInput!]!, $attributes: [AttributeInput!]!) {
@@ -126,6 +193,8 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
         printFileSignedUrl: null,
         printFileExpiresAt: null,
         printfulOrderId: null,
+        // M34 field
+        mockupUrl: null,
     };
     await configRef.set(configData);
     // ── Step 2 & 3: Generate preview + print PNGs ──────────────────────────
@@ -230,11 +299,28 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
     }
     // Update MerchConfig with cart ID
     await configRef.update({ shopifyCartId: cart.id, status: 'cart_created' });
+    // ── Step 5: Generate Printful mockup (non-blocking) ────────────────────
+    // Skip for poster variants (printfulVariantId === 0 = not configured).
+    let mockupUrl = null;
+    const printfulVariantId = printDimensions_1.PRINTFUL_VARIANT_IDS[variantId] ?? 0;
+    if (printfulVariantId !== 0) {
+        try {
+            mockupUrl = await generatePrintfulMockup(printfulVariantId, printFileSignedUrl);
+        }
+        catch (err) {
+            // Mockup failure must never block checkout.
+            console.error(`[createMerchCart] Mockup generation threw for ${configId}:`, err);
+        }
+    }
+    if (mockupUrl) {
+        await configRef.update({ mockupUrl });
+    }
     return {
         checkoutUrl: cart.checkoutUrl,
         cartId: cart.id,
         merchConfigId: configId,
         previewUrl,
+        mockupUrl,
     };
 });
 // ── shopifyOrderCreated ───────────────────────────────────────────────────────

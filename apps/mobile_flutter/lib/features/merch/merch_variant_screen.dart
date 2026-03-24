@@ -99,6 +99,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
 
   _PreviewState _previewState = _PreviewState.initial;
   String? _previewUrl;
+  String? _mockupUrl;
   String? _checkoutUrl;
   String? _merchConfigId;
   String? _error;
@@ -235,6 +236,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     if (_previewState != _PreviewState.initial) {
       _previewState = _PreviewState.initial;
       _previewUrl = null;
+      _mockupUrl = null;
       _checkoutUrl = null;
       _merchConfigId = null;
       _error = null;
@@ -258,6 +260,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
       final previewUrl = result.data['previewUrl'] as String?;
+      final mockupUrl = result.data['mockupUrl'] as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
@@ -268,6 +271,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
       setState(() {
         _previewState = _PreviewState.ready;
         _previewUrl = previewUrl;
+        _mockupUrl = mockupUrl;
         _checkoutUrl = checkoutUrl;
         _merchConfigId = merchConfigId;
       });
@@ -330,7 +334,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           child: const Center(child: CircularProgressIndicator()),
         );
       case _PreviewState.ready:
-        final url = _previewUrl;
+        // Prefer the photorealistic mockup (full t-shirt); fall back to the
+        // flag grid preview if mockup generation timed out or is unavailable.
+        final url = _mockupUrl ?? _previewUrl;
         if (url == null) {
           return Container(
             height: 200,
@@ -355,7 +361,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
             url,
             height: 200,
             width: double.infinity,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return Container(

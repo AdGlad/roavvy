@@ -2773,3 +2773,65 @@ A manual payment method allows an order to be placed and the `orders/create` web
 - Shopify Payments KYC can take 1–3 business days; plan accordingly before public launch.
 - The mobile and web checkout flows (`MerchVariantScreen`, `/shop/design`) require no code changes for this transition — they use the `checkoutUrl` returned by `createMerchCart`, which works identically with any active Shopify payment provider.
 
+
+---
+
+## ADR-089 — Printful Mockup API: v2 async generation within `createMerchCart` (M34)
+
+**Status:** Accepted
+
+**Context:**
+
+Users currently see only the flag grid print file (the design itself) before completing checkout. A photorealistic t-shirt mockup — the actual shirt with the design placed on it — significantly improves purchase confidence.
+
+Printful provides a mockup generation API. Two integration points were considered:
+1. Call it within `createMerchCart` (synchronous from the app's perspective — one function call returns everything)
+2. Separate endpoint polled by the mobile app after `createMerchCart` returns
+
+**Decision:**
+
+Use **Printful v2 Mockup API** (`POST /v2/mockup-tasks`, `GET /v2/mockup-tasks/{task_key}`) called synchronously within `createMerchCart`, after the Shopify cart is created.
+
+- **v2 not v1**: Consistent with the existing `POST /v2/orders` usage. v2 accepts `variant_ids` directly — no separate catalog product ID lookup required.
+- **Within `createMerchCart`**: The function already has a 300s timeout and the app already shows a loading state. Adding ≤20s of mockup polling is acceptable. No separate function, no second callable, no mobile-side polling.
+- **Non-blocking fallback**: If mockup generation times out (10 × 2s) or errors, `mockupUrl` is `null` in the response. The function does not throw. The flag grid preview is shown instead. Checkout proceeds normally.
+- **Return in response**: `mockupUrl` is added to `CreateMerchCartResponse` so the mobile app receives it immediately — no Firestore poll needed for the image URL.
+- **Also persist in Firestore**: `MerchConfig.mockupUrl` is written when available, for completeness and future web use.
+- **No Dart model class**: The mobile app reads the callable response as a raw `Map<String, dynamic>` — no Dart `MerchConfig` class exists. Task 120 only changes TypeScript types.
+- **T-shirt only**: Poster variants have `PRINTFUL_VARIANT_IDS` value `0` — used as the skip signal. When `printfulVariantId === 0`, skip mockup generation and return `mockupUrl: null`.
+- **Colour matters; size does not**: The mockup appearance differs by shirt colour. Size has no visible effect on the rendered mockup. The `catalog_variant_id` already encodes colour × size, so passing it to the mockup API gives the correct shirt colour without extra logic.
+
+**Printful Mockup API shape (v2):**
+
+```
+POST https://api.printful.com/v2/mockup-tasks
+Authorization: Bearer {PRINTFUL_API_KEY}
+{
+  "variant_ids": [536],
+  "files": [{ "placement": "front", "url": "https://storage.googleapis.com/..." }],
+  "format": "jpg"
+}
+
+→ { "data": { "task_key": "abc123" } }
+
+GET https://api.printful.com/v2/mockup-tasks/abc123
+→ { "data": { "status": "completed", "mockups": [{ "placement": "front", "mockup_url": "https://..." }] } }
+   OR  { "data": { "status": "waiting" } }
+   OR  { "data": { "status": "error" } }
+```
+
+**`createMerchCart` step sequence (updated):**
+1. Write MerchConfig (status=pending)
+2. Generate preview + print PNGs (existing)
+3. Upload preview (public) + print file (private); generate signed URL (existing)
+4. Create Shopify cart (existing)
+5. **NEW**: Call Printful Mockup API; poll up to 20s; store result in `MerchConfig.mockupUrl`
+6. Update MerchConfig (shopifyCartId, status=cart_created)
+7. Return `{ checkoutUrl, cartId, merchConfigId, previewUrl, mockupUrl }`
+
+**Consequences:**
+- `createMerchCart` may take up to 20s longer on the happy path (mockup generation).
+- The existing loading state on `MerchVariantScreen` covers this — no UX change needed.
+- `mockupUrl` is a Printful CDN URL (not Firebase Storage). No storage cost. It is not a signed URL and does not expire on a fixed schedule.
+- If Printful changes the mockup URL CDN, cached URLs may break. Acceptable for PoC.
+- Poster mockups are not supported until Printful poster sync variants are configured (tracked separately).

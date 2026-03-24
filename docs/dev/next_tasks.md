@@ -1,149 +1,98 @@
-# M33 — End-to-End Commerce: Sandbox Validation
+# M34 — Mobile Commerce: Full T-shirt Mockup Preview
 
-**Milestone:** 33
+**Milestone:** 34
 **Phase:** 12 — Commerce & Mobile Completion
-**Goal:** A test purchase flows completely from the mobile app through Shopify checkout (test payment, no real card charged), fires the `orders/create` webhook, and creates a draft Printful order with the correct custom print file — with Firestore `MerchConfig` updated at every step.
+**Status:** Not started
+
+**Goal:** Before completing checkout, the user sees a photorealistic mockup of the full t-shirt with their flag grid design applied — not just the print file image.
 
 ---
 
-## Manual Prerequisites (complete before Task 115)
+## Scope
 
-| # | Action | Where | Done? |
-|---|---|---|---|
-| A | Enable Shopify Bogus Gateway (test payments) | Shopify admin → Settings → Payments → Manage → "Use Bogus Gateway for testing" | ☐ |
-| B | Confirm Printful orders appear in Drafts after API submission | Printful dashboard → Orders → Drafts | ☐ |
-| C | After placing the test order, confirm `createMerchCart` logs show no signed URL error and the `MerchConfig.printFileSignedUrl` in Firestore starts with `https://storage.googleapis.com/` (GCS V4 signed URL, self-authenticating, 7-day expiry) | Firebase console → Firestore | ☐ |
+**Included:**
+- Printful Mockup Generator API called server-side in `createMerchCart`, after print file is uploaded
+- `mockupUrl` field added to `MerchConfig` (Firestore document + Dart model)
+- `MerchVariantScreen` updated to display the mockup image (shimmer skeleton while `mockupUrl` is null; flag grid preview as fallback if generation times out or errors)
 
----
-
-## Context
-
-As of M30 the following is in place and verified:
-- `createMerchCart` generates a flag-grid PNG, uploads to Firebase Storage, creates a Shopify cart, returns `checkoutUrl` ✅
-- `shopifyOrderCreated` webhook is registered at the correct Cloud Run URL, HMAC-verified ✅
-- All 25 T-shirt Printful variant IDs are populated and verified ✅
-- `PRINTFUL_API_KEY` is set and deployed ✅
-- Storefront API token is valid ✅
-
-What has NOT been verified end-to-end:
-- Shopify cart `attributes` → order `note_attributes` propagation (used to find `MerchConfig` in webhook)
-- Printful actually receiving the order draft with the correct print file URL
-- Firestore `MerchConfig` reaching `status: ordered` + `designStatus: print_file_submitted`
-- Mobile post-purchase screen confirming payment rather than just celebrating on SFSafariViewController dismiss
+**Excluded:**
+- Multiple mockup angles (back / lifestyle shots) — front face only
+- Poster product mockups — poster Printful sync variants are not configured; t-shirt only
+- Web mockup generation — deferred to M28
+- Pre-generation on colour change — mockup is generated once per cart creation
 
 ---
 
 ## Tasks
 
-### Task 115 — Place a test order end-to-end and inspect the webhook payload
+### Task 120 — Add `mockupUrl` to TypeScript types
 
 **Deliverable:**
-- A test purchase is completed using the Shopify Bogus Gateway
-- The raw webhook payload received by `shopifyOrderCreated` is captured in Cloud Logging
-- The payload is inspected to confirm `note_attributes` contains `{ name: "merchConfigId", value: "<id>" }`
+- `MerchConfig` TypeScript interface (`apps/functions/src/types.ts`) gains a `mockupUrl: string | null` field
+- `CreateMerchCartResponse` TypeScript interface gains a `mockupUrl: string | null` field
 
 **Acceptance criteria:**
-- Cloud Logging shows the webhook was received (HTTP 200 returned)
-- `note_attributes` array contains the expected `merchConfigId`
-- If `note_attributes` is absent or empty: identify why (Shopify may require cart attributes to be explicitly allowlisted in the checkout — fix and re-test)
+- `MerchConfig.mockupUrl` is `null` on creation; set by Firebase Function after mockup generation
+- `CreateMerchCartResponse.mockupUrl` is present (nullable) — allows the mobile app to read it directly from the callable response without a Firestore poll
+- No Dart model changes needed — the mobile reads the callable response as a raw map
+- No other fields changed
+
+---
+
+### Task 121 — Call Printful Mockup API in `createMerchCart`
+
+**Deliverable:**
+- After the print file is uploaded and the Shopify cart is created, `createMerchCart` calls the Printful Mockup Generator API
+- The mockup task is submitted, polled until complete (max 20 s), and the first returned mockup URL stored in the Firestore `MerchConfig` document as `mockupUrl`
+- If the API times out or errors, `mockupUrl` remains `null` — the function does not throw; checkout proceeds normally
+
+**Acceptance criteria:**
+- `POST https://api.printful.com/v2/mockup-tasks` is called with the correct catalog variant ID (from `PRINTFUL_VARIANT_IDS`) and the print file URL
+- Polling interval: 2 s; max attempts: 10 (20 s total)
+- On success: Firestore `MerchConfig.mockupUrl` is set to the returned image URL before the function returns
+- On timeout/error: `mockupUrl` is `null`; function returns `checkoutUrl` as normal; error is logged via `console.error`
+- `PRINTFUL_API_KEY` is used for auth (already present in environment)
+- Only the t-shirt product is targeted — poster variants (`mockupUrl` always `null` for poster) are skipped silently
 
 **Notes:**
-- Use the Bogus Gateway test card (card number: `1`, any expiry/CVV)
-- Check logs at: GCP Console → Cloud Run → `shopifyordercreated` → Logs
+- Printful Mockup API: `POST /v2/mockup-tasks` with `{ variant_ids: [printfulVariantId], files: [{ placement: "front", url: printFileSignedUrl }], format: "jpg" }` — v2, consistent with existing order creation (ADR-089)
+- Poll with `GET /v2/mockup-tasks/{task_key}` — check `data.status`: `"waiting"` → retry, `"completed"` → extract `data.mockups[0].mockup_url`, `"error"` → log + return null
+- Skip mockup entirely when `printfulVariantId === 0` (poster variants, not configured in Printful)
+- Mockup call goes AFTER cart creation (step 5 of 6) — cart must succeed before spending time on mockup
+- This adds up to 20 s to `createMerchCart`. The function already has `timeoutSeconds: 300` and the app shows a loading spinner — no UX change needed
 
 ---
 
-### Task 116 — Verify MerchConfig is updated correctly in Firestore
+### Task 122 — Display mockup image in `MerchVariantScreen`
 
 **Deliverable:**
-- After the test order, the Firestore document `users/{uid}/merch_configs/{configId}` is inspected
-- Fields verified: `status`, `shopifyOrderId`, `designStatus`, `printfulOrderId`
+- `MerchVariantScreen` shows the full t-shirt mockup image where the flag grid preview currently appears
+- While `mockupUrl` is null (loading or fallback), the existing flag grid preview image is shown with a shimmer overlay
+- Once `mockupUrl` is set, the mockup image replaces the flag grid
 
 **Acceptance criteria:**
-- `status` = `ordered`
-- `shopifyOrderId` is set to the Shopify order ID
-- `designStatus` = `print_file_submitted` (if Printful accepted) or `print_file_error` (if Printful rejected — investigate)
-- `printfulOrderId` is set to the Printful draft order ID
-
-**Notes:**
-- Check via Firebase console → Firestore → users → {uid} → merch_configs
-- If `designStatus` = `print_file_error`, check Cloud Logging for the Printful API response body
-
----
-
-### Task 117 — Verify Printful receives a draft order with the correct print file
-
-**Deliverable:**
-- A draft order appears in Printful dashboard → Orders → Drafts
-- The draft order contains the correct variant, quantity, recipient address, and print file
-
-**Acceptance criteria:**
-- Draft order visible in Printful dashboard
-- Print file preview in Printful matches the flag-grid PNG generated by the function
-- Recipient matches the shipping address entered at Shopify checkout
-- Variant matches the colour/size ordered (e.g. Black / M → Printful variant ID 505)
-- If draft is missing: inspect Cloud Logging for Printful API error response and fix
-
----
-
-### Task 118 — Verify post-purchase screen reflects confirmed payment, not just dismiss
-
-**Deliverable:**
-- The mobile app post-purchase celebration screen is validated to show only after Shopify checkout is completed — not just when the user dismisses `SFSafariViewController` without paying
-
-**Acceptance criteria:**
-- Close `SFSafariViewController` mid-checkout (before payment) → celebration screen does NOT appear (or shows a neutral fallback)
-- Complete a full test payment → celebration screen DOES appear
-- If the app currently celebrates on any dismiss: add a Firestore poll on `MerchConfig.status` after dismiss; show celebration only when `status == 'ordered'`; show a neutral "checking order…" state with a timeout fallback
-
-**Notes:**
-- This is the most likely gap. Shopify checkout has a `return_url` mechanism but it requires a deep link / URL scheme to be registered in the app. If a deep link is not configured, the app cannot distinguish a completed payment from a cancelled one via the Safari view alone.
-- If deep link handling is not yet implemented, the minimum fix is a Firestore status poll (3s interval, 30s timeout) after the Safari view closes.
-
----
-
-### Task 119 — Smoke test two additional T-shirt variants
-
-**Deliverable:**
-- Two additional orders placed with different colour/size combinations to confirm the variant ID mapping is correct
-
-**Acceptance criteria:**
-- Each order produces a distinct draft in Printful with the expected variant
-- Suggested variants: White/L (ID 535) and Navy/M (ID 527) — different enough to catch mapping bugs
+- If `createMerchCart` returns a `mockupUrl`: display it via `Image.network`; flag grid preview is not shown
+- If `mockupUrl` is null (timeout / poster product): display the flag grid preview as before — no regression
+- Shimmer skeleton shown during `createMerchCart` call (already exists; ensure it covers the mockup image area correctly)
+- No layout changes to the rest of the screen (variant picker, size selector, checkout button)
 
 ---
 
 ## Dependencies
 
 ```
-Prereqs A, B, C
-    └─ Task 115 (place test order + inspect webhook)
-        └─ Task 116 (verify Firestore MerchConfig)
-            └─ Task 117 (verify Printful draft)
-Task 115
-    └─ Task 118 (post-purchase screen validation) — can run in parallel with 116/117
-Task 117
-    └─ Task 119 (smoke test variants) — requires Printful integration confirmed working
+Task 120 (MerchConfig field)
+    └─ Task 121 (Firebase Function mockup call)
+        └─ Task 122 (mobile display)
 ```
 
 ---
 
 ## Risks / Open Questions
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| Shopify cart `attributes` do not appear in order `note_attributes` | Medium | High — webhook cannot find MerchConfig | Shopify does pass cart attributes as note_attributes; if not: add explicit order note via Admin API in webhook handler |
-| Printful rejects print file URL | Low | High — no draft created | Print file uses a GCS V4 signed URL (self-authenticating, no auth header needed). Printful can fetch it directly. Check file size limits (Printful max ~200MB). If fetch fails, check Printful order error details in Cloud Logging. |
-| Mobile app celebrates on any SFSafariViewController dismiss | High | Medium — false positive UX | Task 118 — add Firestore poll |
-| Black / 2XL variant ID 598 is incorrect (was inferred) | Low | Low — only affects that SKU | Verified in Printful API after your fix; Task 119 covers other colours |
-| Printful API v2 `/v2/orders` auto-confirms orders | Low | High — real production order created | Verify in Printful dashboard after Task 115; if confirmed, add `"confirm": false` to the request body |
-
----
-
-## Explicitly Out of Scope
-
-- Poster variants (Printful sync not configured — separate effort)
-- Web checkout flow
-- Real production orders / real money
-- Order history screen
-- Printful webhook back to Roavvy (fulfilment status updates)
+| Risk | Likelihood | Mitigation |
+|---|---|---|
+| Printful Mockup API request shape differs from expected (product ID vs sync product ID) | Medium | Read Printful API docs before starting Task 121; verify against a live API call in Cloud Shell |
+| Mockup generation takes > 20 s for a complex flag grid | Low | Flag grid fallback is always available; timeout path is tested |
+| Printful API returns a low-resolution or watermarked mockup on free tier | Low | Verify in Printful dashboard after first successful generation |
+| Poster variants silently skip mockup — user sees flag grid; acceptable for PoC | Accepted | Poster Printful sync not configured; document in code comment |

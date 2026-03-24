@@ -237,6 +237,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | M30 — Firestore Trip Sync | Trip records synced to Firestore; trip count on web map | ✅ **Complete** |
 | M31 — Web password reset | `/forgot-password` page; link from `/sign-in` |
 | M33 — Commerce sandbox validation | End-to-end test purchase → Shopify webhook → Printful draft order; no real card charged | ✅ **Complete** |
+| M34 — Mobile mockup preview | Photorealistic t-shirt mockup shown before checkout (Printful Mockup API) | In Progress |
 
 ---
 

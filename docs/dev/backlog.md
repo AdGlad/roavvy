@@ -390,7 +390,15 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 32 — Mobile Quality & Scan Reward Pass ⬅ NEXT MOBILE MILESTONE
+## Milestone 34 — Mobile Commerce: Full T-shirt Mockup Preview ⬅ CURRENT MILESTONE
+
+**Goal:** Before completing checkout, the user sees a photorealistic mockup of the full t-shirt with their flag grid design applied — not just the print file image.
+
+**Tasks:** 120–122 (see `next_tasks.md`)
+
+---
+
+## Milestone 32 — Mobile Quality & Scan Reward Pass
 
 **Goal:** Fix six user-reported UX and correctness issues across map, journal, stats, and scan flows.
 

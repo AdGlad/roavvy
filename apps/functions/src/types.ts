@@ -52,6 +52,12 @@ export interface MerchConfig {
   printFileExpiresAt: Timestamp | null;
   /** Printful order ID set after shopifyOrderCreated successfully creates the order */
   printfulOrderId: string | null;
+  /**
+   * Photorealistic t-shirt mockup URL returned by Printful Mockup API (ADR-089).
+   * Null for poster products (not configured) or if mockup generation timed out.
+   * Set by createMerchCart after the Shopify cart is created.
+   */
+  mockupUrl: string | null;
 }
 
 /** Request payload for createMerchCart onCall function */
@@ -68,6 +74,11 @@ export interface CreateMerchCartResponse {
   merchConfigId: string;
   /** Public URL of the generated preview image (Firebase Storage) */
   previewUrl: string;
+  /**
+   * Photorealistic t-shirt mockup URL from Printful Mockup API (ADR-089).
+   * Null for poster products or if mockup generation timed out / errored.
+   */
+  mockupUrl: string | null;
 }
 
 /** Shopify Storefront cartCreate mutation response shape */
