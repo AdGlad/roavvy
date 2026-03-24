@@ -59,7 +59,10 @@ async function generatePrintfulMockup(printfulVariantId, printFileUrl) {
         console.error('[mockup] PRINTFUL_API_KEY not set — skipping mockup');
         return null;
     }
-    // Submit task
+    // Submit task.
+    // Verified v2 request shape 2026-03-24:
+    // products[].source = "catalog", catalog_product_id = 12 (Gildan 64000),
+    // placements[].technique = "dtg"
     const createRes = await fetch('https://api.printful.com/v2/mockup-tasks', {
         method: 'POST',
         headers: {
@@ -67,9 +70,20 @@ async function generatePrintfulMockup(printfulVariantId, printFileUrl) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            variant_ids: [printfulVariantId],
-            files: [{ placement: 'front', url: printFileUrl }],
-            format: 'jpg',
+            products: [
+                {
+                    source: 'catalog',
+                    catalog_product_id: 12, // Gildan 64000 Unisex Softstyle T-Shirt
+                    catalog_variant_id: printfulVariantId,
+                    placements: [
+                        {
+                            placement: 'front',
+                            technique: 'dtg',
+                            layers: [{ type: 'file', url: printFileUrl }],
+                        },
+                    ],
+                },
+            ],
         }),
     });
     if (!createRes.ok) {
@@ -78,38 +92,41 @@ async function generatePrintfulMockup(printfulVariantId, printFileUrl) {
         return null;
     }
     const createData = (await createRes.json());
-    const taskKey = createData.data?.task_key;
-    if (!taskKey) {
-        console.error('[mockup] No task_key in create response');
+    const taskId = createData.data?.[0]?.id;
+    if (!taskId) {
+        console.error('[mockup] No task id in create response', JSON.stringify(createData));
         return null;
     }
-    // Poll for result
+    // Poll for result. Poll URL: GET /v2/mockup-tasks?id={taskId}
     const maxAttempts = 10;
     const intervalMs = 2000;
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
-        const pollRes = await fetch(`https://api.printful.com/v2/mockup-tasks/${taskKey}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+        const pollRes = await fetch(`https://api.printful.com/v2/mockup-tasks?id=${taskId}`, { headers: { Authorization: `Bearer ${apiKey}` } });
         if (!pollRes.ok) {
             console.error(`[mockup] Poll failed ${pollRes.status}`);
             return null;
         }
         const pollData = (await pollRes.json());
-        const status = pollData.data?.status;
+        const task = pollData.data?.[0];
+        const status = task?.status;
         if (status === 'completed') {
-            const mockup = pollData.data?.mockups?.find((m) => m.placement === 'front');
-            if (!mockup) {
-                console.error('[mockup] Completed but no front placement in result');
-                return null;
+            // Find the front mockup across all returned variant mockups
+            for (const variantMockup of task?.catalog_variant_mockups ?? []) {
+                const mockup = variantMockup.mockups.find((m) => m.placement === 'front');
+                if (mockup)
+                    return mockup.mockup_url;
             }
-            return mockup.mockup_url;
-        }
-        if (status === 'error') {
-            console.error('[mockup] Printful reported error status for task', taskKey);
+            console.error('[mockup] Completed but no front placement found', JSON.stringify(task));
             return null;
         }
-        // status === 'waiting' — continue polling
+        if (status === 'failed') {
+            console.error('[mockup] Printful reported failed status for task', taskId);
+            return null;
+        }
+        // status === 'pending' — continue polling
     }
-    console.error('[mockup] Timeout waiting for Printful mockup task', taskKey);
+    console.error('[mockup] Timeout waiting for Printful mockup task', taskId);
     return null;
 }
 // ── createMerchCart ───────────────────────────────────────────────────────────
