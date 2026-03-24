@@ -238,7 +238,40 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | M31 — Web password reset | `/forgot-password` page; link from `/sign-in` |
 | M33 — Commerce sandbox validation | End-to-end test purchase → Shopify webhook → Printful draft order; no real card charged | ✅ **Complete** |
 | M34 — Mobile mockup preview | Photorealistic t-shirt mockup shown before checkout (Printful Mockup API) | ✅ **Complete** |
-| M35 — Trip Region Map | Journal trip tap → country map with visited regions highlighted | In Progress |
+| M35 — Trip Region Map | Journal trip tap → country map with visited regions highlighted | ✅ **Complete** |
+| M36 — Country Region Map | Stats Regions breakdown → country map with all visited regions highlighted; tap region → name label | ✅ **Complete** |
+
+---
+
+## Phase 13 — Identity Commerce (Achievement-Driven)
+
+**Goal:** Transform commerce from store-driven browsing to an identity-driven system anchored to Travel Cards. Users create personalised travel cards from their detection data, share them, and flow naturally from card creation into printing merchandise.
+
+**Strategy:** Design-first. The Travel Card is the primary entity. Physical products are output formats for a card. Commerce CTAs appear only after positive emotional events (scan, achievement unlock, level-up) — never as a browse-first store experience.
+
+**XP level labels updated (pre-Phase 13):** Traveller → Explorer → Navigator → Globetrotter → Pathfinder → Voyager → Pioneer → Legend (XP thresholds unchanged).
+
+**Migration phases:**
+1. **Phase 13a** — Add Cards concept alongside existing Shop (M37–M38)
+2. **Phase 13b** — Print flow from card; achievement-triggered commerce (M39–M40)
+3. **Phase 13c** — Reduce Shop tab emphasis; move Shop under Cards (M41)
+4. **Phase 13d** — Full nav restructure: World · Achievements · Cards · Profile (M42+)
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M37 — Travel Card Generator | TravelCard data model + card generator screen (3 templates: grid, heart, passport stamps) + entry points from Stats and Map | Not started |
+| M38 — Print from Card | "Print" CTA on card preview → product selection → `createMerchCart` with card design; replaces direct product browsing as primary commerce path | Not started |
+| M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | Not started |
+| M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | Not started |
+| M41 — Shop De-emphasis | Move Shop tab content inside Cards tab; Stats-screen "Shop" button replaced by "Cards" | Not started |
+
+**New data entities:**
+- `TravelCard` (Firestore `travel_cards/{cardId}`): cardId, userId, templateType (grid|heart|passport), countryCodes, countryCount, previewImageUrl, createdAt, updatedAt, schemaVersion
+- `MerchOrder` refactor: link to `cardId` instead of ad-hoc design payload
+
+**Commerce copy rules:** "Turn your travels into a shirt" not "Buy this shirt". "Print your travel map" not "View products". CTAs feel optional and celebratory.
+
+**Not in this phase:** additional product categories beyond tee/poster, social commerce features, web Cards UI.
 
 ---
 

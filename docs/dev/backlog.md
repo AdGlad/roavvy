@@ -390,11 +390,19 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 35 — Trip Region Map ⬅ CURRENT MILESTONE
+## Milestone 35 — Trip Region Map ✅ COMPLETE (2026-03-24)
 
 **Goal:** Tapping a trip in the Journal opens a full-screen country map styled like the main map, with the regions visited on that trip highlighted in amber.
 
-**Tasks:** 123–126 (see `next_tasks.md`)
+**Tasks:** 123–126
+
+---
+
+## Milestone 36 — Country Region Map (Stats → Regions) ⬅ CURRENT MILESTONE
+
+**Goal:** From the Stats screen Regions breakdown, tapping a country opens a full-screen map of that country with all visited regions highlighted; tapping a region shows a floating name label.
+
+**Tasks:** 127–129 (see `next_tasks.md`)
 
 ---
 
@@ -482,4 +490,5 @@ All sharing features are complete as of M12.
 - Password reset flow for web accounts
 - Social sign-in on web (Google / Apple) — deferred; email/password is sufficient for M13/14
 - "Scan for new photos" button when > 30 days since last scan (currently the user must go to Scan tab manually)
+- `createMerchCart` Cloud Function deployed with 256 MB memory but source specifies `memory: '2GiB'` — function needs redeployment with correct config; large flag grids may OOM under the current deployed spec (discovered 2026-03-24)
 - Social feed or user discovery — soft social ranking (aggregate percentile comparison, "you've explored more than 72% of Roavvy travellers") is partially addressed in M23 (Slice 3 of Phase 11); a full social feed with user-to-user interaction remains deferred indefinitely

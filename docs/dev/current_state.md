@@ -110,7 +110,11 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `TripMapScreen` (`lib/features/map/trip_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean background `Color(0xFF0D2137)`; two `PolygonLayer`s: amber visited (`Color(0xFFD4A017)`, 0.85α) + dark navy unvisited (`Color(0xFF1E3A5F)`, 0.9α); `FutureBuilder` for async region codes (shows `CircularProgressIndicator` while loading); `onMapReady: _fitBounds` calls `mapController.fitCamera(CameraFit.bounds(...))` from polygon vertex min/max; `AppBar` shows flag emoji + country name (title) + month range (subtitle)
   - `JournalScreen` trip card tap now pushes `TripMapScreen` via `Navigator.push(MaterialPageRoute)` (replaces `showModalBottomSheet` to `CountryDetailSheet`)
   - 28 region_repository tests; 48 region_lookup package tests; journal test updated to initialize region_lookup with minimal valid binary
-- 456+ flutter tests passing; ~98 package tests passing
+- **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
+  - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
+  - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)
+  - `RegionBreakdownSheet` updated: each country `ExpansionTile` gains `trailing: IconButton(Icons.map_outlined)` that pops the sheet and pushes `CountryRegionMapScreen` via `Navigator.of(context)..pop()..push(...)`; expand-by-header-tap preserved
+  - 7 new widget tests in `country_region_map_screen_test.dart`; 469 flutter tests passing (no regressions)
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup

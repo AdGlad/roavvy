@@ -1,126 +1,134 @@
-# M35 — Trip Region Map
+# M37 — Travel Card Generator
 
-**Milestone:** 35
-**Phase:** Mobile Experience Depth
+**Milestone:** 37
+**Phase:** Phase 13 — Identity Commerce
 **Status:** Not started
 
-**Goal:** Tapping a trip in the Journal opens a full-screen country map — styled identically to the main map — with the regions visited on that trip highlighted in amber. Unvisited regions of that country are shown in the dark navy style.
+**Goal:** A user can open a card generator screen, pick a template (Grid · Heart · Passport), preview a travel card built from their visited countries, share it, and have the card saved to Firestore as a `TravelCard` entity ready for a future print flow.
 
 ---
 
 ## Scope
 
 **Included:**
-- `packages/region_lookup`: expose `regionPolygonsForCountry(countryCode)` public API returning all `RegionPolygon`s for a country; export `RegionPolygon` from the package barrel
-- `RegionRepository`: add `loadRegionCodesForTrip(TripRecord)` — queries `photo_date_records` by `countryCode` + `capturedAt` date range → distinct `regionCode` values
-- `TripMapScreen`: full-screen `FlutterMap` showing the country with region polygons; visited regions amber (matching main map depth-colour style); unvisited regions dark navy; map auto-fits to the country bounding box; app bar with country flag emoji + country name + trip date range
-- `JournalScreen`: trip card tap navigates to `TripMapScreen` (replaces current `CountryDetailSheet` modal)
+- `TravelCard` Dart domain model in `shared_models` (templateType, countryCodes, countryCount, createdAt)
+- Firestore `travel_cards/{cardId}` collection + security rules
+- `CardGeneratorScreen` — template selector + live preview + Share CTA
+- 3 preview template widgets: Grid Flags · Heart Flags · Passport Stamps
+- Save `TravelCard` to Firestore on share (or on explicit "Save" action)
+- 2 entry points: Stats screen "Create card" action + Map "⋮" menu "Create card"
 
 **Excluded:**
-- Tapping a region polygon for drill-down detail
-- Editing the trip from `TripMapScreen`
-- World-level map or multi-country view
-- Web version
-- CountryDetailSheet changes (the sheet is still accessible from the map screen if needed in future)
+- "Print" CTA from card (M38)
+- `previewImageUrl` upload to Firebase Storage (card is previewed on-device; URL storage deferred to M38 when needed for print)
+- Cards tab / nav restructure (M41+)
+- Country picker within the generator (always uses all visited countries in M37; selection in M38)
+- Web card generator
 
 ---
 
 ## Tasks
 
-### Task 123 — Expose region polygon API in `packages/region_lookup`
+### Task 130 — `TravelCard` domain model + Firestore schema
 
 **Deliverable:**
-- `RegionPolygon` class exported from `region_lookup.dart` (currently internal to `src/binary_format.dart`)
-- New public function `regionPolygonsForCountry(String countryCode)` added to `region_lookup.dart`
-- Returns all `RegionPolygon`s where `regionCode.startsWith('$countryCode-')` (e.g. `'GB'` returns all `'GB-*'` polygons)
-- `initRegionLookup` must have been called first (same guard as `resolveRegion`)
+- `packages/shared_models/lib/src/travel_card.dart` — `TravelCard` class + `CardTemplateType` enum
+- `TravelCard` exported from `shared_models` barrel
+- Firestore document shape documented in `TravelCard`'s doc comment
+- `TravelCardService` (`lib/features/cards/travel_card_service.dart`) — `create(TravelCard)` writes to `users/{uid}/travel_cards/{cardId}` (subcollection under user, not top-level collection, matching existing data model)
+- Firestore security rule: `allow read, write: if request.auth.uid == userId` on `users/{uid}/travel_cards/{cardId}`
 
 **Acceptance criteria:**
-- `regionPolygonsForCountry('GB')` returns a non-empty list of `RegionPolygon`s
-- `regionPolygonsForCountry('XX')` returns an empty list (unknown country)
-- `RegionPolygon` is importable from `package:region_lookup/region_lookup.dart`
-- `flutter analyze` zero issues on the package
-- Existing `resolveRegion` tests still pass
-
----
-
-### Task 124 — Add `RegionRepository.loadRegionCodesForTrip`
-
-**Deliverable:**
-- New method `Future<List<String>> loadRegionCodesForTrip(TripRecord trip)` on `RegionRepository`
-- Queries `photo_date_records` where `countryCode == trip.countryCode` and `capturedAt BETWEEN trip.startedOn AND trip.endedOn`
-- Returns distinct non-null `regionCode` values
-
-**Acceptance criteria:**
-- Returns only region codes whose photos fall within the trip date range for the correct country
-- Returns empty list when no region-tagged photos exist for the trip
-- Unit test: insert photo records with known dates; verify correct region codes returned for a trip spanning those dates
+- [ ] `TravelCard` compiles in `shared_models`; exported from barrel
+- [ ] `TravelCardService.create()` writes to Firestore without error (tested manually; unit test of create is covered by existing Firestore mock pattern)
+- [ ] `flutter analyze` zero issues
 
 **Notes:**
-- Pattern mirrors `VisitRepository.loadAssetIdsByDateRange` (Task 108, ADR-083) — same Drift query approach with `isBetweenValues` on `capturedAt`
-- `photo_date_records` already has `regionCode` column (schema v7)
+- Use `users/{uid}/travel_cards/{cardId}` (subcollection) not `travel_cards/{cardId}` (top-level) — consistent with `users/{uid}/inferred_visits` etc. (ADR-029)
+- `cardId`: UUID generated client-side (`package:uuid` already in pubspec)
+- No `previewImageUrl` field in M37 — add in M38 when Firebase Storage upload is needed
+- `CardTemplateType` enum values: `grid`, `heart`, `passport`
 
 ---
 
-### Task 125 — `TripMapScreen`
+### Task 131 — 3 template preview widgets
 
-**Deliverable:**
-- New screen `lib/features/map/trip_map_screen.dart`
-- Full-screen `FlutterMap` (same `MapOptions` as `MapScreen`: dark navy `Color(0xFF0D2137)` background, `interactionOptions` with pan/zoom enabled)
-- Two `PolygonLayer`s:
-  - Visited regions: amber fill using `depthFillColor(1)` (single-visit tier `Color(0xFFD4A017)`) + no border
-  - Unvisited regions: fill `Color(0xFF1E3A5F)` (main map unvisited style) + no border
-- Map auto-fits to the country bounding box on init (derived from min/max of all region polygon vertices for the country)
-- `AppBar` shows `'${flagEmoji(trip.countryCode)}  ${countryName(trip.countryCode)}'` as title; subtitle shows trip date range formatted as "Mar 2023 – Apr 2023"
-- Loading state: `CircularProgressIndicator` while region polygons and visited codes are being fetched
+**Deliverable:** `lib/features/cards/card_templates.dart` — three `StatelessWidget`s:
+
+1. **`GridFlagsCard`** — Dark navy background; flag emojis for each visited country in a flowing `Wrap`; country count + "countries" label at bottom. Reuses the app's dark navy (`Color(0xFF0D2137)`) and amber accent.
+
+2. **`HeartFlagsCard`** — Same flag emojis as Grid but tinted background with a warm amber/rose gradient; emojis arranged in the same `Wrap` layout but with a heart-shaped container mask overlay (simple `ClipPath` with a heart `Path`). If the heart mask proves too complex, ship as a rounded card with a heart emoji watermark — document the simplification.
+
+3. **`PassportStampsCard`** — Dark leather-brown background (`Color(0xFF3E2010)`); each country rendered as a `_StampWidget` (rounded rectangle with country flag + ISO code + name, slightly rotated 0–5° per stamp deterministically from the country code). Up to 12 stamps visible; overflow shows "+N more".
+
+All three accept `List<String> countryCodes` as a constructor parameter. All are `AspectRatio(aspectRatio: 3/2)` matching the existing `TravelCardWidget`.
 
 **Acceptance criteria:**
-- Screen renders without error for any `TripRecord`
-- Visited region polygons are amber; unvisited are dark navy
-- Map is centred on the country when the screen opens (no manual pan required)
-- Countries with zero detected regions show only a blank dark navy map area (no crash)
-- `flutter analyze` zero issues
-
-**Notes:**
-- `depthFillColor` is already defined in `CountryPolygonLayer` — extract to a shared location or duplicate for now (extract preferred)
-- `flagEmoji` and `countryName` helpers already exist in the app; locate and reuse
-- Bounding box: `LatLngBounds.fromPoints(allVertices)` → `mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: EdgeInsets.all(24)))`
+- [ ] All three widgets render without overflow or error for 1–50+ country codes
+- [ ] `flutter analyze` zero issues
+- [ ] Widget tests for each: renders with 0 countries, renders with 5 countries, no overflow with 50+ countries
 
 ---
 
-### Task 126 — Wire `TripMapScreen` from `JournalScreen`
+### Task 132 — `CardGeneratorScreen`
 
-**Deliverable:**
-- `JournalScreen` trip card `onTap` pushes `TripMapScreen` as a full-screen route (replaces the `showModalBottomSheet` call to `CountryDetailSheet`)
+**Deliverable:** `lib/features/cards/card_generator_screen.dart`
+
+Full-screen `ConsumerWidget`. Layout:
+
+1. **Template picker row** — 3 tappable tiles (Grid · Heart · Passport) at top; selected tile has amber border; tapping switches the live preview below.
+
+2. **Live preview area** — `RepaintBoundary` wrapping the selected template widget (same `GlobalKey` approach as existing `travel_card_share.dart`). Updates immediately when template changes.
+
+3. **Action bar** (bottom):
+   - "Share" button — captures preview to PNG using existing `captureCard()` helper pattern from `travel_card_share.dart`; calls `TravelCardService.create()` to persist the card; then opens system share sheet via `share_plus`.
+   - Future "Print" button stub — `OutlinedButton` labelled "Print your card" shown disabled with tooltip "Coming soon" (wires up in M38).
+
+Country codes come from `effectiveVisitsProvider` (all visited countries, sorted alphabetically by ISO code).
 
 **Acceptance criteria:**
-- Tapping a trip card in the Journal navigates to `TripMapScreen` for that trip
-- Back button returns to the Journal
-- `flutter analyze` zero issues; existing Journal tests pass
+- [ ] Template switching updates the preview with no flicker
+- [ ] "Share" button captures the visible preview and opens the share sheet
+- [ ] `TravelCardService.create()` is called before sharing (card persisted)
+- [ ] Empty state: if 0 countries visited, show "Scan your photos to generate a card" message instead of preview
+- [ ] `flutter analyze` zero issues
+
+---
+
+### Task 133 — Entry points
+
+**Deliverable:** Two entry points to `CardGeneratorScreen`:
+
+1. **Stats screen** — Add a "Create card" `TextButton` or `OutlinedButton` below the stats panel (above the continent breakdown tiles), visible when `countryCount > 0`. Pushes `CardGeneratorScreen` via `Navigator.push(MaterialPageRoute(...))`.
+
+2. **Map "⋮" menu** — Add "Create card" `PopupMenuItem` between "Share travel card" and "Get a poster"; visible when `hasVisits`. Pushes `CardGeneratorScreen`.
+
+**Acceptance criteria:**
+- [ ] "Create card" entry point appears in Stats screen when visits > 0
+- [ ] "Create card" entry point appears in Map menu when visits > 0
+- [ ] Both navigate to `CardGeneratorScreen` and return correctly on back
+- [ ] `flutter analyze` zero issues
 
 ---
 
 ## Dependencies
 
 ```
-Task 123 (region_lookup polygon API)
-    └─ Task 125 (TripMapScreen — needs polygon data)
-
-Task 124 (loadRegionCodesForTrip)
-    └─ Task 125 (TripMapScreen — needs visited region codes)
-
-Tasks 123 + 124 + 125 complete
-    └─ Task 126 (wire navigation)
+Task 130 (TravelCard model + service)
+    └─ Task 131 (template widgets — no model dependency, but logically first)
+        └─ Task 132 (CardGeneratorScreen — uses all three)
+            └─ Task 133 (entry points — needs screen to exist)
 ```
+
+Tasks 130 and 131 are independent and can be built in parallel within a session.
 
 ---
 
 ## Risks / Open Questions
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| `RegionPolygon.vertices` is `List<(double, double)>` — `flutter_map` `Polygon` expects `List<LatLng>` | Certain | Convert in `TripMapScreen`: `vertices.map((v) => LatLng(v.$1, v.$2)).toList()` |
-| Some countries have many regions (US: 50, RU: 80+) — polygon count may be high | Medium | `flutter_map` handles 50–100 polygons efficiently; no optimisation needed for PoC |
-| Countries with no region data (micro-states) show blank map | Accepted | Empty list from `regionPolygonsForCountry` → empty layers; no crash, acceptable UX |
-| `depthFillColor` is currently private in `CountryPolygonLayer` | Low | Move to a shared `map_colors.dart` file in the same feature directory |
-| Trip date range spans midnight boundaries — photo `capturedAt` is UTC | Low | Same issue as Task 108 (trip photo filtering); consistent with existing approach |
+| Risk | Mitigation |
+|---|---|
+| Heart `ClipPath` mask complex on small screen | Ship rounded card + heart emoji watermark if mask takes > 30 min; document simplification |
+| `uuid` package: confirm already in pubspec | Check before Task 130; add if missing |
+| `TravelCardService` calls Firestore — needs user to be signed in | Guard with `authStateProvider` check; show snack if auth fails; anonymous users can generate but not persist (acceptable) |
+| Stamp rotation in PassportStampsCard may cause `Overflow` | Use `OverflowBox` or `ClipRect` around each stamp |

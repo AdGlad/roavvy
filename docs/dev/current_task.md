@@ -1,12 +1,12 @@
-# M35 — Trip Region Map — Task 123 In Progress
+# M37 — Travel Card Generator — Task 130
 
-**Milestone:** 35
-**Phase:** Mobile Experience Depth
-**Status:** ✅ Complete (2026-03-24)
+**Milestone:** 37
+**Phase:** Phase 13 — Identity Commerce
+**Status:** Not started
 
 ## Tasks
 
-- [x] **Task 123** ✅ — Expose `regionPolygonsForCountry` + `RegionPolygon` from `packages/region_lookup`
-- [x] **Task 124** ✅ — `RegionRepository.loadRegionCodesForTrip(TripRecord)` — distinct region codes from photo dates within trip range
-- [x] **Task 125** ✅ — `TripMapScreen` — full-screen country + region polygon map, amber visited / navy unvisited, auto-fit bounds
-- [x] **Task 126** ✅ — Wire `JournalScreen` trip card tap → `TripMapScreen`
+- [ ] **Task 130** — `TravelCard` domain model in `shared_models` + `TravelCardService` Firestore write + security rule
+- [ ] **Task 131** — 3 template preview widgets: `GridFlagsCard` · `HeartFlagsCard` · `PassportStampsCard`
+- [ ] **Task 132** — `CardGeneratorScreen` — template picker + live preview + Share CTA
+- [ ] **Task 133** — Entry points: Stats screen "Create card" button + Map "⋮" menu item
