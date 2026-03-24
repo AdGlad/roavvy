@@ -45,10 +45,15 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
     super.dispose();
   }
 
-  void _shareOrder() {
+  void _shareOrder(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromLTWH(0, 0, 1, 1);
     Share.share(
       'Just ordered a ${widget.product.name} with all ${widget.countryCount} '
       "countries I've visited — made with Roavvy 🌍",
+      sharePositionOrigin: origin,
     );
   }
 
@@ -124,9 +129,11 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: _shareOrder,
-                        child: const Text('Share my order'),
+                      child: Builder(
+                        builder: (btnCtx) => OutlinedButton(
+                          onPressed: () => _shareOrder(btnCtx),
+                          child: const Text('Share my order'),
+                        ),
                       ),
                     ),
                   ],

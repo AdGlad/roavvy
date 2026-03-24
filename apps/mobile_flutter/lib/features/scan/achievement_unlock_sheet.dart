@@ -110,7 +110,7 @@ class AchievementUnlockSheet extends StatelessWidget {
               Semantics(
                 label: 'Share ${achievement.title} achievement',
                 child: FilledButton(
-                  onPressed: () => _share(dateStr!),
+                  onPressed: () => _share(context, dateStr!),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(44),
                   ),
@@ -132,10 +132,14 @@ class AchievementUnlockSheet extends StatelessWidget {
     );
   }
 
-  void _share(String dateStr) {
+  void _share(BuildContext context, String dateStr) {
     final text =
         '${achievement.title} — ${achievement.description}. '
         'Unlocked on $dateStr. Discovered with Roavvy.';
-    Share.share(text);
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromLTWH(0, 0, 1, 1);
+    Share.share(text, sharePositionOrigin: origin);
   }
 }
