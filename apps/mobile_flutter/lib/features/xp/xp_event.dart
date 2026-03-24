@@ -49,7 +49,7 @@ class XpState {
   static const zero = XpState(
     totalXp: 0,
     level: 1,
-    levelLabel: 'Explorer',
+    levelLabel: 'Traveller',
     progressFraction: 0.0,
     xpToNextLevel: 100,
   );
@@ -61,11 +61,16 @@ class XpState {
 const kXpThresholds = [0, 100, 250, 500, 1000, 2000, 4000, 8000];
 
 /// Label for each level (index = level - 1).
+///
+/// Names align with the identity-driven commerce tier system (ADR-091):
+/// Traveller → Explorer → Navigator → Globetrotter → Pathfinder → (Voyager →
+/// Pioneer) → Legend. Voyager and Pioneer bridge Pathfinder and Legend within
+/// the 8-level XP progression.
 const kLevelLabels = [
+  'Traveller',
   'Explorer',
-  'Adventurer',
+  'Navigator',
   'Globetrotter',
-  'Wanderer',
   'Pathfinder',
   'Voyager',
   'Pioneer',

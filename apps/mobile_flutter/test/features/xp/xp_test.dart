@@ -23,7 +23,7 @@ void main() {
     test('level 1 at 0 XP', () {
       final s = xpStateFromTotal(0);
       expect(s.level, 1);
-      expect(s.levelLabel, 'Explorer');
+      expect(s.levelLabel, 'Traveller');
       expect(s.progressFraction, 0.0);
       expect(s.xpToNextLevel, 100);
     });
@@ -37,7 +37,7 @@ void main() {
     test('level 2 at exactly 100 XP', () {
       final s = xpStateFromTotal(100);
       expect(s.level, 2);
-      expect(s.levelLabel, 'Adventurer');
+      expect(s.levelLabel, 'Explorer');
       expect(s.progressFraction, 0.0);
       expect(s.xpToNextLevel, 150);
     });
@@ -45,7 +45,7 @@ void main() {
     test('level 3 at exactly 250 XP', () {
       final s = xpStateFromTotal(250);
       expect(s.level, 3);
-      expect(s.levelLabel, 'Globetrotter');
+      expect(s.levelLabel, 'Navigator');
     });
 
     test('level 4 at exactly 500 XP', () => expect(xpStateFromTotal(500).level, 4));
