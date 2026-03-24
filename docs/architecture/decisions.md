@@ -2838,6 +2838,52 @@ GET https://api.printful.com/v2/mockup-tasks/abc123
 
 ---
 
+## ADR-091 — Country Region Map: hit-notifier tap detection + tap-point label anchor (M36)
+
+**Status:** Accepted
+
+**Context:**
+
+M36 adds `CountryRegionMapScreen` — a full-screen map of all visited regions for a country (across all trips, not per-trip). It extends the M35 `TripMapScreen` pattern with two new requirements:
+1. Region tap interaction — tapping a visited region shows a floating name label.
+2. Entry from `RegionBreakdownSheet` — a map icon on each country tile navigates to the screen.
+
+**Decisions:**
+
+**Polygon hit detection — `LayerHitNotifier<String>` (flutter_map v7 API):**
+flutter_map v7 does not expose `onTap` directly on `Polygon`. Instead, hit detection uses:
+- `Polygon<String>` with `hitValue: regionCode` on each visited polygon.
+- `PolygonLayer<String>(hitNotifier: _hitNotifier, ...)` for the visited layer only.
+- A `GestureDetector` wrapping the `PolygonLayer<String>` (not the whole map).
+
+In `GestureDetector.onTap`, `_hitNotifier.value` is read:
+- Non-null → polygon was hit; set `_selectedCode` + `_selectedLatLng` from `hit.coordinate`.
+- Null → background/unvisited tap; clear selection.
+
+`MapOptions.onTap` is not used for dismissal (it fires for all taps, including polygon taps, causing conflicts). The `GestureDetector` approach is the canonical flutter_map v7 pattern.
+
+**Label anchor — tap coordinate (not centroid):**
+The label `Marker` is placed at `_hitNotifier.value!.coordinate` (the exact tap point) rather than a computed polygon centroid. Reasons:
+- Tap point is immediately available with zero computation.
+- For large polygons (e.g. US states, Russian oblasts), the centroid may fall outside the polygon boundary; the tap point is guaranteed to be within the visible polygon area.
+- The tap-point anchor provides direct visual feedback at the touch site.
+
+**AppBar region count — `_visitedCount` state field:**
+The AppBar subtitle shows "N regions visited". Since the count is async (from `RegionRepository.loadByCountry`), it is stored in a `_visitedCount` int state field (default 0) updated via `.then()` on the same future used for the body `FutureBuilder`. This avoids a nested `FutureBuilder` in the `AppBar` and keeps subtitle update reactive via `setState`.
+
+**Navigation from `RegionBreakdownSheet` — pop-then-push cascade:**
+`Navigator.of(context)..pop()..push(...)` closes the bottom sheet and pushes `CountryRegionMapScreen` in a single expression. This prevents the sheet from lingering visually behind the new screen. The `trailing` of each `ExpansionTile` is set to an `IconButton(Icons.map_outlined)` — the default expand chevron is replaced; expand/collapse via header tap is preserved (tile body still expands).
+
+**`_flagEmoji` and colour constants — local file, not extracted:**
+Follows the pattern established in ADR-090 (each screen defines its own local helpers). Three screens now have local `_flagEmoji` functions; extraction to a shared utility is deferred until a fourth consumer appears.
+
+**Consequences:**
+- `GestureDetector` wrapping only the visited `PolygonLayer<String>` means unvisited polygon taps correctly produce a null hit → label is dismissed. No separate handling needed.
+- `ExpansionTile.trailing` override removes the default animated chevron. The tile is still expandable via header tap, but there is no rotate animation. Acceptable: the region list is the secondary action; the map icon is the primary new feature.
+- `LayerHitNotifier` is a `ValueNotifier` — it must be disposed in the screen's `dispose()` to avoid leaks.
+
+---
+
 ## ADR-090 — Trip Region Map: synchronous polygon access + FutureBuilder for visited codes (M35)
 
 **Status:** Accepted
