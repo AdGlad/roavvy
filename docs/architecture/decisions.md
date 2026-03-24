@@ -2722,3 +2722,54 @@ The `shopifyOrderCreated` webhook fires asynchronously after Shopify processes t
 - The 3s / 30s parameters are constants in `_MerchVariantScreenState`; they can be tuned without an ADR update.
 - `MerchPostPurchaseScreen` requires `product`, `countryCount`, AND `merchConfigId` (added in M33) so the celebration screen can display the correct product without re-fetching.
 - `FirebaseAuth` import is already in the project (`firebase_auth` package); `cloud_firestore` is already imported in `providers.dart`. No new packages required.
+
+---
+
+## ADR-088 — Payment provider strategy: manual method for sandbox testing; Shopify Payments for production
+
+**Status:** Accepted (sandbox); Production path defined
+
+**Context:**
+The Bogus Gateway (Shopify's built-in test payment provider) is only available on Shopify Partner development stores. It is not available on paid merchant stores (`roavvy.myshopify.com` on the Basic plan). During M33 sandbox validation, a **Manual payment method** named "Test Payment" was added to the store as the mechanism for placing test orders without a real card.
+
+A manual payment method allows an order to be placed and the `orders/create` webhook to fire — which is sufficient to validate the full backend flow (webhook receipt → Firestore update → Printful draft order creation). It is not suitable for production because:
+- No card details are collected — any visitor can "pay" without submitting payment credentials.
+- No funds are captured.
+- Fulfilment would ship without payment received.
+
+**Decision:**
+
+**Sandbox (current):** Manual payment method "Test Payment" remains active on the store for developer testing only. The store is not publicly marketed during this phase.
+
+**Production (required before public launch):** Replace the manual method with a real payment provider:
+
+1. **Activate Shopify Payments** — the preferred provider (lowest fees, native Shopify checkout experience, Shop Pay support). Requires:
+   - A business bank account in a [supported country](https://help.shopify.com/en/manual/payments/shopify-payments/supported-countries)
+   - Business or personal identity verification (Shopify KYC)
+   - A valid business address and tax information
+   - Remove the "Test Payment" manual method after activation
+
+2. **Enable test mode on Shopify Payments** — for pre-launch validation after activating Shopify Payments. Allows use of Stripe-standard test cards (e.g. `4242 4242 4242 4242`) without real charges. This is the proper sandbox path once Shopify Payments is active.
+
+3. **Disable test mode** before the store goes live.
+
+**What else must be completed before public launch:**
+
+| Item | Detail |
+|---|---|
+| Remove manual "Test Payment" method | Prevents orders without captured payment |
+| Activate Shopify Payments (or Stripe) | Real card capture required |
+| Set up Printful production shipping | Confirm rates, origin address, and fulfilment SLA |
+| Configure Shopify shipping zones and rates | Currently unset — checkout may show $0 or block on shipping |
+| Review Shopify store policies | Privacy policy, refund policy, terms of service — required by Shopify |
+| Configure order confirmation emails | Shopify sends these automatically; customise branding |
+| Remove test product variants (if any) | Ensure only live SKUs are purchasable |
+| Validate Printful auto-confirm | Currently orders are created as drafts (`"confirm": false` default). Before launch, decide whether to enable auto-confirm on production orders or add a manual review step. |
+| Register Apple Pay domain | Optional but recommended — increases checkout conversion on iOS |
+
+**Consequences:**
+- Until Shopify Payments is activated and verified, the commerce flow cannot accept real payments.
+- The manual method must be explicitly removed — it is not automatically deactivated when Shopify Payments is enabled.
+- Shopify Payments KYC can take 1–3 business days; plan accordingly before public launch.
+- The mobile and web checkout flows (`MerchVariantScreen`, `/shop/design`) require no code changes for this transition — they use the `checkoutUrl` returned by `createMerchCart`, which works identically with any active Shopify payment provider.
+
