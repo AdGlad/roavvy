@@ -81,41 +81,41 @@ exports.PRINT_DIMENSIONS = {
 };
 // ── Printful variant ID mapping keyed by Shopify variant GID ─────────────────
 //
-// TODO: Replace all placeholder values (0) with the verified Printful numeric
-// variant IDs from the Printful dashboard:
-//   Dashboard → Catalogue → [product] → Variants → hover to see variant ID
-//   OR: GET https://api.printful.com/products/{product_id} → variants[].id
+// Verified 2026-03-24 via GET /v2/sync-products/{id}/sync-variants.
+// catalog_variant_id is the Printful numeric variant ID passed in order items.
 //
-// Mismatch here will create the wrong product in Printful. Verify before
-// enabling Task 80 in production.
+// ⚠️  All poster variants: Printful returned catalog_variant_id=1 for 14 of 15
+//     variants — poster sync variants are not configured. Poster orders will
+//     fail until these are mapped in Printful. IDs set to 0 (safe failure).
 exports.PRINTFUL_VARIANT_IDS = {
-    // T-Shirt variants — TODO: replace with verified Printful IDs
-    'gid://shopify/ProductVariant/47577103466683': 0, // Black / S
-    'gid://shopify/ProductVariant/47577103499451': 0, // Black / M
-    'gid://shopify/ProductVariant/47577103532219': 0, // Black / L
-    'gid://shopify/ProductVariant/47577103564987': 0, // Black / XL
-    'gid://shopify/ProductVariant/47577103597755': 0, // Black / 2XL
-    'gid://shopify/ProductVariant/47577103630523': 0, // White / S
-    'gid://shopify/ProductVariant/47577103663291': 0, // White / M
-    'gid://shopify/ProductVariant/47577103696059': 0, // White / L
-    'gid://shopify/ProductVariant/47577103728827': 0, // White / XL
-    'gid://shopify/ProductVariant/47577103761595': 0, // White / 2XL
-    'gid://shopify/ProductVariant/47577103794363': 0, // Navy / S
-    'gid://shopify/ProductVariant/47577103827131': 0, // Navy / M
-    'gid://shopify/ProductVariant/47577103859899': 0, // Navy / L
-    'gid://shopify/ProductVariant/47577103892667': 0, // Navy / XL
-    'gid://shopify/ProductVariant/47577103925435': 0, // Navy / 2XL
-    'gid://shopify/ProductVariant/47577103958203': 0, // Heather Grey / S
-    'gid://shopify/ProductVariant/47577103990971': 0, // Heather Grey / M
-    'gid://shopify/ProductVariant/47577104023739': 0, // Heather Grey / L
-    'gid://shopify/ProductVariant/47577104056507': 0, // Heather Grey / XL
-    'gid://shopify/ProductVariant/47577104089275': 0, // Heather Grey / 2XL
-    'gid://shopify/ProductVariant/47577104122043': 0, // Red / S
-    'gid://shopify/ProductVariant/47577104154811': 0, // Red / M
-    'gid://shopify/ProductVariant/47577104187579': 0, // Red / L
-    'gid://shopify/ProductVariant/47577104220347': 0, // Red / XL
-    'gid://shopify/ProductVariant/47577104253115': 0, // Red / 2XL
-    // Poster variants — TODO: replace with verified Printful IDs
+    // ── T-Shirt: Roavvy Test Tee — verified 2026-03-24 ──
+    'gid://shopify/ProductVariant/47577103466683': 474, // Black / S
+    'gid://shopify/ProductVariant/47577103499451': 505, // Black / M
+    'gid://shopify/ProductVariant/47577103532219': 536, // Black / L
+    'gid://shopify/ProductVariant/47577103564987': 567, // Black / XL
+    'gid://shopify/ProductVariant/47577103597755': 598, // Black / 2XL
+    'gid://shopify/ProductVariant/47577103630523': 473, // White / S
+    'gid://shopify/ProductVariant/47577103663291': 504, // White / M
+    'gid://shopify/ProductVariant/47577103696059': 535, // White / L
+    'gid://shopify/ProductVariant/47577103728827': 566, // White / XL
+    'gid://shopify/ProductVariant/47577103761595': 597, // White / 2XL
+    'gid://shopify/ProductVariant/47577103794363': 496, // Navy / S
+    'gid://shopify/ProductVariant/47577103827131': 527, // Navy / M
+    'gid://shopify/ProductVariant/47577103859899': 558, // Navy / L
+    'gid://shopify/ProductVariant/47577103892667': 589, // Navy / XL
+    'gid://shopify/ProductVariant/47577103925435': 620, // Navy / 2XL
+    'gid://shopify/ProductVariant/47577103958203': 22352, // Heather Grey / S
+    'gid://shopify/ProductVariant/47577103990971': 22353, // Heather Grey / M
+    'gid://shopify/ProductVariant/47577104023739': 22354, // Heather Grey / L
+    'gid://shopify/ProductVariant/47577104056507': 22355, // Heather Grey / XL
+    'gid://shopify/ProductVariant/47577104089275': 22356, // Heather Grey / 2XL
+    'gid://shopify/ProductVariant/47577104122043': 499, // Red / S
+    'gid://shopify/ProductVariant/47577104154811': 530, // Red / M
+    'gid://shopify/ProductVariant/47577104187579': 561, // Red / L
+    'gid://shopify/ProductVariant/47577104220347': 592, // Red / XL
+    'gid://shopify/ProductVariant/47577104253115': 623, // Red / 2XL
+    // ── Poster: Roavvy Travel Poster — ⚠️ NOT configured in Printful (returns id=1)
+    // Re-sync poster variants in Printful dashboard before enabling poster orders.
     'gid://shopify/ProductVariant/47577104318651': 0, // Enhanced Matte / 12x18in
     'gid://shopify/ProductVariant/47577104351419': 0, // Enhanced Matte / 18x24in
     'gid://shopify/ProductVariant/47577104384187': 0, // Enhanced Matte / 24x36in

@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-22, through Task 100 / M14)
+# Roavvy — Development State (as of 2026-03-24, through Task 126 / M35)
 
 ## What Works
 
@@ -80,7 +80,41 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `MapScreen` "Filter by year" `PopupMenuItem` — shown only when `earliestVisitYearProvider` returns a year < current year; tapping activates filter at current year; `filterByYear` added to `_MapMenuAction` enum
   - `ScanRevealMiniMap` — `ConsumerStatefulWidget` with `newCodes: List<String>`; fixed 180px `FlutterMap` (no interaction, `flags: 0`); two `PolygonLayer`s (grey unvisited, amber revealed); `Timer.periodic(400ms)` pops one code at a time into `_revealed` set; immediately reveals all when `MediaQuery.disableAnimationsOf` is true; timer cleaned up in `dispose` (ADR-077)
   - `ScanRevealMiniMap` shown in `ScanSummaryScreen` State A when `newCodes.length >= 2`; first item in ListView, padded 16px below
-- 447 flutter tests passing; ~93 package tests passing
+- **Mobile quality (M32 — Tasks 105–110)**:
+  - **Map dark navy/gold visual refresh (Task 105, ADR-080)**: `MapScreen` + `MapOptions` background `Color(0xFF0D2137)`; `CountryPolygonLayer` unvisited fill `Color(0xFF1E3A5F)`; `depthFillColor` tiers updated to gold (1 trip `0xFFD4A017`, 2–3 `0xFFC8860A`, 4–5 `0xFFB86A00`, 6+ `0xFF8B4500`); newly-discovered fill `Color(0xFFFFD700)` + white border; `XpLevelBar` + `StatsStrip` background `Color(0xFF0D2137).withValues(alpha: 0.88)`; level badge `Color(0xFFFFD700)`; XP bar track `Color(0xFF1E3A5F)`
+  - **Tappable regions stat (Task 106, ADR-081)**: `RegionBreakdownSheet` — `DraggableScrollableSheet` (NEW `lib/features/stats/region_breakdown_sheet.dart`); `FutureBuilder` over `RegionRepository.loadAll()`; grouped by country, alphabetical, `ExpansionTile` per country; `RegionRepository.loadAll()` added (returns all region visits); `StatsScreen` `_StatTile` gains `tappable` bool + chevron; `onRegionsTap` wired to `RegionBreakdownSheet.show(context)` when count > 0
+  - **Journal stale state fix (Task 107, ADR-082)**: `tripListProvider = FutureProvider<List<TripRecord>>` added to `providers.dart`; `JournalScreen` converted from `ConsumerStatefulWidget` (with `late final Future`) to `ConsumerWidget` watching `tripListProvider`; after `clearAll()` and scan save, `tripListProvider`, `regionCountProvider`, `countryTripCountsProvider`, `earliestVisitYearProvider` are all invalidated
+  - **Trip photo date filtering (Task 108, ADR-083)**: `VisitRepository.loadAssetIdsByDateRange(countryCode, start, end)` added using Drift `isBetweenValues` on existing `capturedAt` column (no schema change); `CountryDetailSheet` accepts optional `tripFilter: TripRecord?`; when set, Photos tab loads only assets captured within the trip date range; `JournalScreen` `_TripTile` passes `tripFilter: trip`
+  - **Real-time scan discovery feed (Task 109)**: `ScanScreen` maintains `_liveNewCodes` list diffed per batch against pre-scan known codes; `_ScanningView` renders animated `_LiveCountryRow` widgets (newest first) with `FadeTransition` + `SlideTransition`; `_flagEmoji` helper added; `_liveNewCodes` reset on new scan
+  - **Sequential DiscoveryOverlay for all new countries (Task 110, ADR-084)**: `DiscoveryOverlay` extended with `currentIndex`, `totalCount`, `onDone`, `onSkipAll` params; "Country N of M" indicator for multi sequences; primary CTA is "Next →" or "Done"/"Explore your map"; "Skip all" TextButton shown in multi-country sequences; `ScanSummaryScreen._pushDiscoveryOverlays()` iterates `newCodes.take(5)` with `await Navigator.push()` loop and `skipped` flag; `PopScope` approach rejected (fires on programmatic pops — ADR-084)
+- **Mobile commerce entry points (M29 — Tasks 111–113, ADR-085)**:
+  - **Scan summary "Get a poster" CTA (Task 111)**: `MerchCountrySelectionScreen` gains optional `preSelectedCodes: List<String>?`; lazy first-build init of `_deselected` from pre-selection param; `_NewDiscoveriesState` shows `TextButton` "Get a poster with your new discoveries →" above the primary CTA; opens `MerchCountrySelectionScreen(preSelectedCodes: widget.newCodes)` pre-filtered to new codes
+  - **Map "Get a poster" menu item (Task 112)**: `_MapMenuAction.shop` added; `PopupMenuItem` "Get a poster" shown when `hasVisits`; positioned after "Share travel card"; pushes `MerchCountrySelectionScreen()` (all countries)
+  - **30-day scan nudge banner (Task 113)**: `lastScanAtProvider = FutureProvider<DateTime?>` + `scanNudgeDismissedProvider = StateProvider<bool>` added to `providers.dart`; amber `_ScanNudgeBanner` shown in MapScreen Stack Column above `StatsStrip` when `hasVisits && lastScanAt > 30 days ago && !dismissed`; "Scan now" calls `onNavigateToScan`; X dismiss sets `scanNudgeDismissedProvider` true (per-session, not persisted)
+  - Also fixed pre-existing parse error in `discovery_overlay.dart` (extra `)` left from PopScope removal in M32)
+- **Firestore Trip Sync (M30 — Task 114)**: Trip sync infrastructure was pre-built during earlier milestones (`FirestoreSyncService.flushDirty()` trips path, `TripRepository.loadDirty/markClean`, wired at scan save / review save / app startup, 5 trip-flush tests, Firestore wildcard rules). M30 closed the only remaining gap: `apple_sign_in.dart` now accepts optional `tripRepo: TripRepository?` and forwards it to `flushDirty` so trips are flushed immediately post-Apple-sign-in. Web `/map` trip count deferred (mobile-first).
+- **T-shirt mockup preview (M34 — Tasks 120–122, ADR-089)**:
+  - `generatePrintfulMockup()` helper in `apps/functions/src/index.ts` — calls Printful v2 Mockup API (`POST /v2/mockup-tasks`), polls up to 20 s (10 × 2s), returns front-placement mockup URL or null on timeout/error; skips for poster variants (`printfulVariantId === 0`)
+  - `createMerchCart` step 5: calls `generatePrintfulMockup` after Shopify cart is created; stores result in `MerchConfig.mockupUrl` (Firestore) and returns it in `CreateMerchCartResponse`; non-blocking — checkout always proceeds regardless of mockup outcome
+  - `MerchConfig` TypeScript interface + `CreateMerchCartResponse` gain `mockupUrl: string | null`
+  - `MerchVariantScreen`: `_mockupUrl` field stored from callable response; `_buildProductImageSlot` uses `_mockupUrl ?? _previewUrl` (mockup preferred; flag grid fallback); `BoxFit.contain` (was `cover`) for portrait shirt images; `_mockupUrl` cleared in `_resetPreview()`
+- **Commerce sandbox validation (M33 — Tasks 115–119)**:
+  - **Task 115 — Webhook `note_attributes` log**: `shopifyOrderCreated` webhook handler confirmed correct — parses `note_attributes` array and finds `{ name: "merchConfigId" }` attribute. Added `console.error` log of full `note_attributes` array at start of processing for Cloud Logging visibility during first test order.
+  - **Task 116 — Firestore MerchConfig updates**: Verified correct — `status`, `shopifyOrderId`, `designStatus`, and `printfulOrderId` are all written at the correct points in `shopifyOrderCreated`. No code change needed.
+  - **Task 117 — Printful draft order**: Confirmed no `"confirm": true` in Printful API v2 request body — orders are created as drafts by default (safe for sandbox testing). Added `console.error` log of Printful API response status and body for debugging.
+  - **Task 118 — Post-purchase Firestore poll (ADR-087)**: `MerchVariantScreen` now stores `_merchConfigId` from `createMerchCart` response. `didChangeAppLifecycleState` no longer unconditionally pushes celebration; instead calls `_pollForOrderConfirmation()`, which polls `users/{uid}/merch_configs/{configId}` every 3s for up to 30s. Pushes `MerchPostPurchaseScreen` only when `status == 'ordered'`; shows neutral "We're processing your order..." dialog on timeout. `cloud_firestore` and `firebase_auth` imported in `merch_variant_screen.dart` (both packages already in `pubspec.yaml`).
+  - **Task 119 — Variant mapping smoke test**: White/L → Printful ID 535 and Navy/M → Printful ID 527 confirmed correct in `printDimensions.ts`. No code change needed.
+- **Trip Region Map (M35 — Tasks 123–126, ADR-090)**:
+  - `regionPolygonsForCountry(String countryCode)` public function added to `packages/region_lookup` barrel; `RegionPolygon` exported from same barrel; `RegionLookupEngine.polygonsForCountry()` filters `_index.polygons` by `regionCode.startsWith('$countryCode-')` — synchronous, no I/O
+  - `RegionRepository.loadRegionCodesForTrip(TripRecord trip)` — queries `photo_date_records` where `countryCode == trip.countryCode AND regionCode IS NOT NULL AND capturedAt BETWEEN startedOn AND endedOn`; returns distinct region codes via `.toSet().toList()` (Drift `isBetweenValues` pattern, mirrors `loadAssetIdsByDateRange`)
+  - `TripMapScreen` (`lib/features/map/trip_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean background `Color(0xFF0D2137)`; two `PolygonLayer`s: amber visited (`Color(0xFFD4A017)`, 0.85α) + dark navy unvisited (`Color(0xFF1E3A5F)`, 0.9α); `FutureBuilder` for async region codes (shows `CircularProgressIndicator` while loading); `onMapReady: _fitBounds` calls `mapController.fitCamera(CameraFit.bounds(...))` from polygon vertex min/max; `AppBar` shows flag emoji + country name (title) + month range (subtitle)
+  - `JournalScreen` trip card tap now pushes `TripMapScreen` via `Navigator.push(MaterialPageRoute)` (replaces `showModalBottomSheet` to `CountryDetailSheet`)
+  - 28 region_repository tests; 48 region_lookup package tests; journal test updated to initialize region_lookup with minimal valid binary
+- **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
+  - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
+  - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)
+  - `RegionBreakdownSheet` updated: each country `ExpansionTile` gains `trailing: IconButton(Icons.map_outlined)` that pops the sheet and pushes `CountryRegionMapScreen` via `Navigator.of(context)..pop()..push(...)`; expand-by-header-tap preserved
+  - 7 new widget tests in `country_region_map_screen_test.dart`; 469 flutter tests passing (no regressions)
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
@@ -136,15 +170,18 @@ apps/mobile_flutter/
   lib/features/map/region_detail_sheet.dart        showRegionDetailSheet — DraggableScrollableSheet with visited/unvisited lists (ADR-072)
   lib/features/map/target_country_layer.dart       TargetCountryLayer — breathing amber PolygonLayer for 1-away countries (ADR-070)
   lib/features/map/rovy_bubble.dart                RovyMessage, RovyTrigger, rovyMessageProvider, RovyBubble (ADR-071)
-  lib/data/visit_repository.dart          VisitRepository — typed upsert/load/clear + dirty-load + mark-clean + loadAssetIds
+  lib/data/visit_repository.dart          VisitRepository — typed upsert/load/clear + dirty-load + mark-clean + loadAssetIds + loadAssetIdsByDateRange
   lib/data/trip_repository.dart           TripRepository — upsert, loadAll, loadByCountry, clear
-  lib/data/region_repository.dart         RegionRepository — upsert, loadByCountry, loadByTrip, countUnique, clearAll
+  lib/data/region_repository.dart         RegionRepository — upsert, loadByCountry, loadByTrip, countUnique, clearAll, loadAll
   lib/data/achievement_repository.dart    AchievementRepository — upsertAll, loadAll, loadAllRows, loadDirty, markClean
   lib/data/bootstrap_service.dart         BootstrapService — re-derives trips + region visits from existing scan data
   lib/data/firestore_sync_service.dart    SyncService interface + FirestoreSyncService + NoOpSyncService
   lib/core/region_names.dart              kRegionNames — ISO 3166-2 → English name (~400 entries)
   ios/Runner/AppDelegate.swift            Swift PhotoKit bridge — EventChannel streaming, no CLGeocoder
   assets/geodata/ne_countries.bin         Offline country lookup binary (1.2 MB)
+
+  lib/features/stats/region_breakdown_sheet.dart  RegionBreakdownSheet — DraggableScrollableSheet; grouped region visits by country; ExpansionTile per country (ADR-081)
+  lib/features/map/discovery_overlay.dart  DiscoveryOverlay — full-screen amber gradient; currentIndex/totalCount/onDone/onSkipAll; sequential multi-country support (ADR-084)
 
   test/widget_test.dart                   ScanScreen widget + channel unit tests (ProviderScope)
   test/data/visit_repository_test.dart    VisitRepository unit tests (in-memory Drift DB)

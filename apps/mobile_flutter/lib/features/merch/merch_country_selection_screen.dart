@@ -11,8 +11,15 @@ import 'merch_product_browser_screen.dart';
 /// Shows all of the user's effective visited countries as toggleable rows.
 /// All countries are pre-selected on first open.
 /// "Next →" is enabled only when ≥ 1 country is selected.
+///
+/// When [preSelectedCodes] is provided, only those codes start selected;
+/// all other effective visits start deselected. (ADR-085)
 class MerchCountrySelectionScreen extends ConsumerStatefulWidget {
-  const MerchCountrySelectionScreen({super.key});
+  const MerchCountrySelectionScreen({super.key, this.preSelectedCodes});
+
+  /// When non-null, only these ISO codes are initially selected.
+  /// Codes not present in [effectiveVisitsProvider] are silently ignored.
+  final List<String>? preSelectedCodes;
 
   @override
   ConsumerState<MerchCountrySelectionScreen> createState() =>
@@ -24,6 +31,9 @@ class _MerchCountrySelectionScreenState
   /// Codes that have been explicitly deselected by the user.
   /// Starts empty — all countries are selected by default.
   final Set<String> _deselected = {};
+
+  /// True after [_deselected] has been seeded from [widget.preSelectedCodes].
+  bool _initialized = false;
 
   static String _flagEmoji(String code) {
     final a = 0x1F1E6 + code.codeUnitAt(0) - 0x41;
@@ -65,6 +75,20 @@ class _MerchCountrySelectionScreenState
     }
 
     final sorted = _sorted(visits);
+
+    // Seed _deselected from preSelectedCodes on first build after data loads.
+    // (ADR-085: lazy init because visits are not available at construction time.)
+    if (!_initialized && widget.preSelectedCodes != null) {
+      final preSelected = widget.preSelectedCodes!.toSet();
+      _deselected
+        ..clear()
+        ..addAll(sorted
+            .map((v) => v.countryCode)
+            .where((c) => !preSelected.contains(c)));
+      _initialized = true;
+    } else if (!_initialized) {
+      _initialized = true;
+    }
     final selectedCount = sorted.length - _deselected.length;
 
     return Scaffold(

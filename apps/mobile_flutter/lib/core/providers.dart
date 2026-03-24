@@ -93,6 +93,14 @@ final milestoneRepositoryProvider = Provider<MilestoneRepository>(
   (_) => MilestoneRepository(),
 );
 
+/// All trips from local SQLite, for [JournalScreen]. (ADR-081)
+///
+/// Invalidated after [VisitRepository.clearAll] and after scan save so the
+/// journal updates without requiring a sign-out.
+final tripListProvider = FutureProvider<List<TripRecord>>(
+  (ref) => ref.watch(tripRepositoryProvider).loadAll(),
+);
+
 /// ISO code → trip count, derived in-memory from [TripRepository.loadAll].
 /// Used by [CountryPolygonLayer] for depth colouring (ADR-066).
 final countryTripCountsProvider = FutureProvider<Map<String, int>>((ref) async {
@@ -145,6 +153,15 @@ final filteredEffectiveVisitsProvider =
     return firstSeen != null && firstSeen.year <= year;
   }).toList();
 });
+
+/// Last scan timestamp; null if the user has never scanned. (ADR-085)
+final lastScanAtProvider = FutureProvider<DateTime?>(
+  (ref) => ref.watch(visitRepositoryProvider).loadLastScanAt(),
+);
+
+/// Whether the user has dismissed the 30-day scan nudge banner this session.
+/// Not persisted — resets to false on every app launch. (ADR-085)
+final scanNudgeDismissedProvider = StateProvider<bool>((ref) => false);
 
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);

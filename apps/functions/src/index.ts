@@ -18,6 +18,120 @@ import { PRINT_DIMENSIONS, PRINTFUL_VARIANT_IDS } from './printDimensions';
 initializeApp();
 const db = getFirestore();
 
+// ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
+
+/**
+ * Calls the Printful v2 Mockup API and polls until a front-placement mockup
+ * is ready. Returns the mockup image URL or null on timeout / error.
+ *
+ * Non-blocking: the caller catches errors and proceeds with null.
+ * Max wait: 10 attempts × 2s = 20 s.
+ */
+async function generatePrintfulMockup(
+  printfulVariantId: number,
+  printFileUrl: string
+): Promise<string | null> {
+  const apiKey = process.env['PRINTFUL_API_KEY'];
+  if (!apiKey) {
+    console.error('[mockup] PRINTFUL_API_KEY not set — skipping mockup');
+    return null;
+  }
+
+  // Submit task.
+  // Verified v2 request shape 2026-03-24:
+  // products[].source = "catalog", catalog_product_id = 12 (Gildan 64000),
+  // placements[].technique = "dtg"
+  const createRes = await fetch('https://api.printful.com/v2/mockup-tasks', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      products: [
+        {
+          source: 'catalog',
+          catalog_product_id: 12, // Gildan 64000 Unisex Softstyle T-Shirt
+          catalog_variant_id: printfulVariantId,
+          placements: [
+            {
+              placement: 'front',
+              technique: 'dtg',
+              layers: [{ type: 'file', url: printFileUrl }],
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!createRes.ok) {
+    const body = await createRes.text();
+    console.error(`[mockup] Create task failed ${createRes.status}: ${body}`);
+    return null;
+  }
+
+  const createData = (await createRes.json()) as {
+    data?: Array<{ id?: number; status?: string }>;
+  };
+  const taskId = createData.data?.[0]?.id;
+  if (!taskId) {
+    console.error('[mockup] No task id in create response', JSON.stringify(createData));
+    return null;
+  }
+
+  // Poll for result. Poll URL: GET /v2/mockup-tasks?id={taskId}
+  const maxAttempts = 10;
+  const intervalMs = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+
+    const pollRes = await fetch(
+      `https://api.printful.com/v2/mockup-tasks?id=${taskId}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+
+    if (!pollRes.ok) {
+      console.error(`[mockup] Poll failed ${pollRes.status}`);
+      return null;
+    }
+
+    const pollData = (await pollRes.json()) as {
+      data?: Array<{
+        status?: string;
+        catalog_variant_mockups?: Array<{
+          catalog_variant_id: number;
+          mockups: Array<{ placement: string; mockup_url: string }>;
+        }>;
+      }>;
+    };
+
+    const task = pollData.data?.[0];
+    const status = task?.status;
+
+    if (status === 'completed') {
+      // Find the front mockup across all returned variant mockups
+      for (const variantMockup of task?.catalog_variant_mockups ?? []) {
+        const mockup = variantMockup.mockups.find((m) => m.placement === 'front');
+        if (mockup) return mockup.mockup_url;
+      }
+      console.error('[mockup] Completed but no front placement found', JSON.stringify(task));
+      return null;
+    }
+
+    if (status === 'failed') {
+      console.error('[mockup] Printful reported failed status for task', taskId);
+      return null;
+    }
+
+    // status === 'pending' — continue polling
+  }
+
+  console.error('[mockup] Timeout waiting for Printful mockup task', taskId);
+  return null;
+}
+
 // ── createMerchCart ───────────────────────────────────────────────────────────
 
 const CART_CREATE_MUTATION = `
@@ -118,6 +232,8 @@ export const createMerchCart = onCall<
       printFileSignedUrl: null,
       printFileExpiresAt: null,
       printfulOrderId: null,
+      // M34 field
+      mockupUrl: null,
     };
     await configRef.set(configData);
 
@@ -248,11 +364,36 @@ export const createMerchCart = onCall<
     // Update MerchConfig with cart ID
     await configRef.update({ shopifyCartId: cart.id, status: 'cart_created' });
 
+    // ── Step 5: Generate Printful mockup (non-blocking) ────────────────────
+    // Skip for poster variants (printfulVariantId === 0 = not configured).
+    let mockupUrl: string | null = null;
+    const printfulVariantId = PRINTFUL_VARIANT_IDS[variantId] ?? 0;
+
+    if (printfulVariantId !== 0) {
+      try {
+        mockupUrl = await generatePrintfulMockup(
+          printfulVariantId,
+          printFileSignedUrl
+        );
+      } catch (err) {
+        // Mockup failure must never block checkout.
+        console.error(
+          `[createMerchCart] Mockup generation threw for ${configId}:`,
+          err
+        );
+      }
+    }
+
+    if (mockupUrl) {
+      await configRef.update({ mockupUrl });
+    }
+
     return {
       checkoutUrl: cart.checkoutUrl,
       cartId: cart.id,
       merchConfigId: configId,
       previewUrl,
+      mockupUrl,
     };
   }
 );
@@ -339,6 +480,11 @@ export const shopifyOrderCreated = onRequest(
     }
 
     const noteAttrs = payload.note_attributes ?? [];
+    // Log note_attributes so the first test order makes the payload visible in Cloud Logging.
+    console.error(
+      `[shopifyOrderCreated] order ${shopifyOrderId} note_attributes:`,
+      JSON.stringify(noteAttrs)
+    );
     const configAttr = noteAttrs.find((a) => a.name === 'merchConfigId');
     if (!configAttr?.value) {
       // Non-Roavvy order — acknowledge and ignore
@@ -454,6 +600,13 @@ export const shopifyOrderCreated = onRequest(
         id?: string | number;
         error?: string;
       };
+
+      // Log Printful response status and body for sandbox debugging (Task 117).
+      console.error(
+        `[shopifyOrderCreated] Printful API response for order ${shopifyOrderId}:`,
+        `status=${printfulRes.status}`,
+        JSON.stringify(printfulData)
+      );
 
       if (!printfulRes.ok || printfulData.error) {
         console.error(

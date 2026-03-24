@@ -200,4 +200,26 @@ void main() {
       expect(called, isTrue);
     });
   });
+
+  group('ScanSummaryScreen — commerce entry point (M29)', () {
+    testWidgets('shows Get a poster CTA in State A', (tester) async {
+      await pumpSummary(
+        tester,
+        newCountries: [_country('GB')],
+        newCodes: ['GB'],
+      );
+      expect(
+        find.textContaining('Get a poster with your new discoveries'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Get a poster CTA not shown in State B', (tester) async {
+      await pumpSummary(tester); // no new countries
+      expect(
+        find.textContaining('Get a poster with your new discoveries'),
+        findsNothing,
+      );
+    });
+  });
 }

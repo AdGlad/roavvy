@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -97,11 +99,17 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
 
   _PreviewState _previewState = _PreviewState.initial;
   String? _previewUrl;
+  String? _mockupUrl;
   String? _checkoutUrl;
+  String? _merchConfigId;
   String? _error;
 
-  /// Set to true after [launchUrl] succeeds; triggers post-purchase screen on resume.
+  /// Set to true after [launchUrl] succeeds; triggers post-purchase poll on resume.
   bool _checkoutLaunched = false;
+
+  // Poll parameters (ADR-087)
+  static const int _pollIntervalSeconds = 3;
+  static const int _pollMaxAttempts = 10;
 
   bool get _isTshirt => widget.product == MerchProduct.tshirt;
 
@@ -136,15 +144,91 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     if (state == AppLifecycleState.resumed && _checkoutLaunched) {
       _checkoutLaunched = false;
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => MerchPostPurchaseScreen(
-            product: widget.product,
-            countryCount: widget.selectedCodes.length,
-          ),
-        ),
-      );
+      _pollForOrderConfirmation();
     }
+  }
+
+  /// Polls Firestore for MerchConfig.status == 'ordered' after the in-app
+  /// browser is dismissed (ADR-087).
+  ///
+  /// Shows a loading overlay on this screen while polling, then either:
+  /// - Pushes [MerchPostPurchaseScreen] on confirmed payment, or
+  /// - Shows a neutral "processing" dialog on timeout.
+  Future<void> _pollForOrderConfirmation() async {
+    final configId = _merchConfigId;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    // If we somehow lack the config ID or uid, fall back to neutral screen.
+    if (configId == null || uid == null) {
+      if (!mounted) return;
+      _showOrderProcessingFallback();
+      return;
+    }
+
+    // Show a non-blocking loading indicator on this screen while polling.
+    if (!mounted) return;
+    setState(() => _error = null);
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('merch_configs')
+        .doc(configId);
+
+    for (int attempt = 0; attempt < _pollMaxAttempts; attempt++) {
+      await Future<void>.delayed(
+        const Duration(seconds: _pollIntervalSeconds),
+      );
+      if (!mounted) return;
+
+      try {
+        final snap = await docRef.get();
+        final status = snap.data()?['status'] as String?;
+        if (status == 'ordered') {
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => MerchPostPurchaseScreen(
+                product: widget.product,
+                countryCount: widget.selectedCodes.length,
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (_) {
+        // Network error mid-poll — continue trying until max attempts.
+      }
+    }
+
+    // Timeout — show neutral fallback.
+    if (!mounted) return;
+    _showOrderProcessingFallback();
+  }
+
+  /// Shows a neutral bottom sheet when the Firestore poll times out.
+  /// Allows the user to return to the map without a false-positive celebration.
+  void _showOrderProcessingFallback() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text("We're processing your order"),
+        content: const Text(
+          "If you completed payment, you'll receive a confirmation email "
+          'shortly. Your order will appear in your order history once confirmed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            child: const Text('Back to map'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Clears cached preview/checkout when the user changes variant options.
@@ -152,7 +236,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     if (_previewState != _PreviewState.initial) {
       _previewState = _PreviewState.initial;
       _previewUrl = null;
+      _mockupUrl = null;
       _checkoutUrl = null;
+      _merchConfigId = null;
       _error = null;
     }
   }
@@ -174,6 +260,8 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
       final previewUrl = result.data['previewUrl'] as String?;
+      final mockupUrl = result.data['mockupUrl'] as String?;
+      final merchConfigId = result.data['merchConfigId'] as String?;
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('No checkout URL returned.');
@@ -183,7 +271,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
       setState(() {
         _previewState = _PreviewState.ready;
         _previewUrl = previewUrl;
+        _mockupUrl = mockupUrl;
         _checkoutUrl = checkoutUrl;
+        _merchConfigId = merchConfigId;
       });
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
@@ -244,7 +334,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           child: const Center(child: CircularProgressIndicator()),
         );
       case _PreviewState.ready:
-        final url = _previewUrl;
+        // Prefer the photorealistic mockup (full t-shirt); fall back to the
+        // flag grid preview if mockup generation timed out or is unavailable.
+        final url = _mockupUrl ?? _previewUrl;
         if (url == null) {
           return Container(
             height: 200,
@@ -269,7 +361,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
             url,
             height: 200,
             width: double.infinity,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return Container(

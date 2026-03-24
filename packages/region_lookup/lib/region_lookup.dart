@@ -16,7 +16,10 @@ library region_lookup;
 
 import 'dart:typed_data';
 
+import 'src/binary_format.dart';
 import 'src/lookup_engine.dart';
+
+export 'src/binary_format.dart' show RegionPolygon;
 
 RegionLookupEngine? _engine;
 
@@ -46,4 +49,22 @@ String? resolveRegion(double latitude, double longitude) {
     'initRegionLookup() must be called before resolveRegion()',
   );
   return _engine?.resolve(latitude, longitude);
+}
+
+/// Returns all admin1 region polygons for the given ISO 3166-1 alpha-2
+/// [countryCode] (e.g. `'GB'`, `'US'`).
+///
+/// Each [RegionPolygon] carries its ISO 3166-2 [RegionPolygon.regionCode]
+/// (e.g. `'GB-ENG'`) and polygon [RegionPolygon.vertices] as (lat, lng) pairs.
+///
+/// Returns an empty list when the country has no admin1 divisions in the
+/// bundled dataset (micro-states, small island nations).
+///
+/// Asserts in debug mode that [initRegionLookup] has been called first.
+List<RegionPolygon> regionPolygonsForCountry(String countryCode) {
+  assert(
+    _engine != null,
+    'initRegionLookup() must be called before regionPolygonsForCountry()',
+  );
+  return _engine?.polygonsForCountry(countryCode) ?? const [];
 }

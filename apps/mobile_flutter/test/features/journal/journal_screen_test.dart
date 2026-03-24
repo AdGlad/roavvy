@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +12,26 @@ import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/features/journal/journal_screen.dart';
+import 'package:region_lookup/region_lookup.dart';
+
+/// Minimal valid ne_admin1.bin with 0 polygons (2-cell grid, 180°/cell).
+/// Used to satisfy [initRegionLookup] in tests without loading the real asset.
+Uint8List _emptyRegionBin() {
+  // Header (16 bytes) + 2-cell grid index (12 bytes) = 28 bytes total.
+  const bytes = [
+    0x52, 0x4C, 0x52, 0x47, // magic "RLRG"
+    0x01,                    // version = 1
+    0xB4,                    // grid_cell_size = 180°
+    0x02, 0x00,             // grid_cols = 2 (LE uint16)
+    0x01, 0x00,             // grid_rows = 1 (LE uint16)
+    0x00, 0x00,             // polygon_count = 0 (LE uint16)
+    0x00, 0x00, 0x00, 0x00, // poly_refs_size = 0 (LE uint32)
+    // Grid index: 2 cells × 6 bytes, all zeros.
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  ];
+  return Uint8List.fromList(bytes);
+}
 
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 
@@ -70,7 +92,10 @@ TripsCompanion _trip({
     );
 
 void main() {
-  setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    initRegionLookup(_emptyRegionBin());
+  });
 
   group('JournalScreen — empty state', () {
     testWidgets('shows empty state when no trips', (tester) async {
@@ -295,7 +320,7 @@ void main() {
       expect(find.text('Added manually'), findsNothing);
     });
 
-    testWidgets('tapping a trip row opens CountryDetailSheet', (tester) async {
+    testWidgets('tapping a trip row navigates to TripMapScreen', (tester) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -315,8 +340,8 @@ void main() {
       await tester.tap(find.text('Japan'));
       await tester.pumpAndSettle();
 
-      // CountryDetailSheet renders the country name in a header
-      expect(find.text('Japan'), findsWidgets);
+      // TripMapScreen renders country name in its AppBar title (with flag emoji).
+      expect(find.textContaining('Japan'), findsWidgets);
     });
   });
 }

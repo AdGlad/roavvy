@@ -10,6 +10,7 @@ import '../../core/providers.dart';
 import '../map/country_visual_state.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
+import '../merch/merch_country_selection_screen.dart';
 import 'achievement_unlock_sheet.dart';
 import 'milestone_card_sheet.dart';
 import 'scan_reveal_mini_map.dart';
@@ -98,7 +99,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
   }
 
   Future<void> _handleDone() async {
-    // Register all new codes so CountryPolygonLayer shows amber pulse.
+    // Register all new codes so CountryPolygonLayer shows gold pulse.
     if (widget.newCodes.isNotEmpty) {
       await ref
           .read(recentDiscoveriesProvider.notifier)
@@ -108,7 +109,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     if (!mounted) return;
 
     if (widget.newCodes.isNotEmpty) {
-      // Fire newCountry Rovy trigger before the discovery overlay.
+      // Fire newCountry Rovy trigger.
       final firstName = widget.newCountries.isNotEmpty
           ? (kCountryNames[widget.newCountries.first.countryCode] ??
               widget.newCountries.first.countryCode)
@@ -132,22 +133,50 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
         ));
       }
 
-      // Show milestone card if a threshold was crossed, then push discovery.
+      // Show milestone card then push discovery overlays
+      // sequentially — up to 5, one per new country. (ADR-084)
       await _checkAndShowMilestone(() async {
         if (!mounted) return;
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            settings: const RouteSettings(name: DiscoveryOverlay.routeName),
-            builder: (_) => DiscoveryOverlay(
-              isoCode: widget.newCodes.first,
-              xpEarned: 50,
-            ),
-          ),
-        );
+        await _pushDiscoveryOverlays();
       });
     } else {
       widget.onDone();
     }
+  }
+
+  /// Pushes [DiscoveryOverlay] for each new country, up to 5. (ADR-084)
+  static const int _kMaxOverlays = 5;
+
+  Future<void> _pushDiscoveryOverlays() async {
+    final codes = widget.newCodes.take(_kMaxOverlays).toList();
+    final total = codes.length;
+    bool skipped = false;
+
+    for (var i = 0; i < total; i++) {
+      if (!mounted || skipped) break;
+
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: DiscoveryOverlay.routeName),
+          builder: (_) => DiscoveryOverlay(
+            isoCode: codes[i],
+            xpEarned: 50,
+            currentIndex: i,
+            totalCount: total,
+            onDone: () => Navigator.of(context).pop(),
+            onSkipAll: i == total - 1
+                ? null
+                : () {
+                    skipped = true;
+                    Navigator.of(context).pop();
+                  },
+          ),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+    widget.onDone();
   }
 
   Future<void> _handleCaughtUp() async {
@@ -336,9 +365,23 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
                 ],
               ),
             ),
-            // Sticky CTA
+            // Secondary CTA — commerce entry point (ADR-085)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MerchCountrySelectionScreen(
+                      preSelectedCodes: widget.newCodes,
+                    ),
+                  ),
+                ),
+                child: const Text('Get a poster with your new discoveries →'),
+              ),
+            ),
+            // Primary CTA
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               child: FilledButton(
                 onPressed: widget.onDone,
                 child: const Text('Explore your map'),

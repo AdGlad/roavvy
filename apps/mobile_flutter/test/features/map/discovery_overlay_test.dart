@@ -7,8 +7,12 @@ void main() {
   group('DiscoveryOverlay', () {
     testWidgets('renders country name and XP amount', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: DiscoveryOverlay(isoCode: 'GB', xpEarned: 50),
+        MaterialApp(
+          home: DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            onDone: () {},
+          ),
         ),
       );
       await tester.pump(); // post-frame haptic callback
@@ -19,8 +23,12 @@ void main() {
 
     testWidgets('renders flag emoji for country code', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: DiscoveryOverlay(isoCode: 'JP', xpEarned: 50),
+        MaterialApp(
+          home: DiscoveryOverlay(
+            isoCode: 'JP',
+            xpEarned: 50,
+            onDone: () {},
+          ),
         ),
       );
       await tester.pump();
@@ -28,15 +36,40 @@ void main() {
       expect(find.textContaining('Japan'), findsOneWidget);
     });
 
-    testWidgets('shows Explore your map CTA', (tester) async {
+    testWidgets('shows Explore your map CTA for single overlay', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: DiscoveryOverlay(isoCode: 'GB', xpEarned: 50),
+        MaterialApp(
+          home: DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            onDone: () {},
+          ),
         ),
       );
       await tester.pump();
 
       expect(find.text('Explore your map'), findsOneWidget);
+    });
+
+    testWidgets('shows Next arrow and Skip all for multi-country sequence',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            currentIndex: 0,
+            totalCount: 3,
+            onDone: () {},
+            onSkipAll: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Next →'), findsOneWidget);
+      expect(find.text('Skip all'), findsOneWidget);
+      expect(find.text('Country 1 of 3'), findsOneWidget);
     });
 
     testWidgets('fires HeavyImpact haptic on appear', (tester) async {
@@ -51,8 +84,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: DiscoveryOverlay(isoCode: 'GB', xpEarned: 50),
+        MaterialApp(
+          home: DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            onDone: () {},
+          ),
         ),
       );
       await tester.pump(); // post-frame haptic fires
@@ -74,42 +111,25 @@ void main() {
           .setMockMethodCallHandler(SystemChannels.platform, null);
     });
 
-    testWidgets('CTA triggers popUntil back to home route', (tester) async {
-      // Build: Home screen with a button that pushes DiscoveryOverlay.
+    testWidgets('primary CTA calls onDone on last overlay', (tester) async {
+      bool doneCalled = false;
       await tester.pumpWidget(
         MaterialApp(
-          home: Builder(
-            builder: (ctx) => Scaffold(
-              body: TextButton(
-                onPressed: () => Navigator.of(ctx).push(
-                  MaterialPageRoute<void>(
-                    settings: const RouteSettings(
-                      name: DiscoveryOverlay.routeName,
-                    ),
-                    builder: (_) => const DiscoveryOverlay(
-                      isoCode: 'DE',
-                      xpEarned: 50,
-                    ),
-                  ),
-                ),
-                child: const Text('Go'),
-              ),
-            ),
+          home: DiscoveryOverlay(
+            isoCode: 'DE',
+            xpEarned: 50,
+            currentIndex: 0,
+            totalCount: 1,
+            onDone: () => doneCalled = true,
           ),
         ),
       );
-
-      await tester.tap(find.text('Go'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Germany'), findsOneWidget);
+      await tester.pump();
 
       await tester.tap(find.text('Explore your map'));
       await tester.pumpAndSettle();
 
-      // popUntil('/') lands back on Home
-      expect(find.text('Go'), findsOneWidget);
-      expect(find.textContaining('Germany'), findsNothing);
+      expect(doneCalled, isTrue);
     });
   });
 }

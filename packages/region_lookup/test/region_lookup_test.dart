@@ -264,4 +264,39 @@ void main() {
       expect(resolveRegion(41.0, -113.0), isNull);
     });
   });
+
+  // ── regionPolygonsForCountry ───────────────────────────────────────────────
+
+  group('regionPolygonsForCountry', () {
+    test('returns polygons for a known country code', () {
+      final polys = regionPolygonsForCountry('US');
+      expect(polys, hasLength(2)); // US-CA and US-NY in test data
+      final codes = polys.map((p) => p.regionCode).toSet();
+      expect(codes, containsAll(['US-CA', 'US-NY']));
+    });
+
+    test('all returned polygons have the correct country prefix', () {
+      final polys = regionPolygonsForCountry('GB');
+      expect(polys, hasLength(1));
+      expect(polys.first.regionCode, equals('GB-ENG'));
+    });
+
+    test('each polygon has non-empty vertices', () {
+      for (final p in regionPolygonsForCountry('US')) {
+        expect(p.vertices, isNotEmpty);
+      }
+    });
+
+    test('returns empty list for unknown country code', () {
+      expect(regionPolygonsForCountry('XX'), isEmpty);
+    });
+
+    test('does not return polygons from other countries', () {
+      final polys = regionPolygonsForCountry('FR');
+      expect(polys, hasLength(1));
+      expect(polys.first.regionCode, equals('FR-IDF'));
+      // Ensure US polygons are not included
+      expect(polys.any((p) => p.regionCode.startsWith('US-')), isFalse);
+    });
+  });
 }

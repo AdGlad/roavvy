@@ -58,6 +58,41 @@ class RegionRepository {
     return rows.map(_rowToRecord).toList();
   }
 
+  /// Returns all region visits across every country and trip.
+  ///
+  /// Used by [RegionBreakdownSheet] to display the full region breakdown.
+  Future<List<RegionVisit>> loadAll() async {
+    final rows = await _db.select(_db.regionVisits).get();
+    return rows.map(_rowToRecord).toList();
+  }
+
+  /// Returns distinct ISO 3166-2 region codes for photos taken during [trip].
+  ///
+  /// Queries [photo_date_records] by country code and date range so that the
+  /// result reflects raw scan data rather than the inferred [region_visits]
+  /// aggregate. Used by [TripMapScreen] to highlight visited regions.
+  Future<List<String>> loadRegionCodesForTrip(TripRecord trip) async {
+    final startUtc =
+        DateTime(trip.startedOn.year, trip.startedOn.month, trip.startedOn.day)
+            .toUtc();
+    final endUtc = DateTime(
+      trip.endedOn.year,
+      trip.endedOn.month,
+      trip.endedOn.day,
+      23,
+      59,
+      59,
+      999,
+    ).toUtc();
+    final rows = await (_db.select(_db.photoDateRecords)
+          ..where((t) =>
+              t.countryCode.equals(trip.countryCode) &
+              t.regionCode.isNotNull() &
+              t.capturedAt.isBetweenValues(startUtc, endUtc)))
+        .get();
+    return rows.map((r) => r.regionCode!).toSet().toList();
+  }
+
   /// Returns all region visits belonging to [tripId].
   Future<List<RegionVisit>> loadByTrip(String tripId) async {
     final rows = await (_db.select(_db.regionVisits)

@@ -1,12 +1,12 @@
-# M27 — ✅ Complete
+# M37 — Travel Card Generator — Task 130
 
-**Milestone:** 27
-**Phase:** 12 — Commerce & Mobile Completion
-**Status:** ✅ Complete — 2026-03-22
+**Milestone:** 37
+**Phase:** Phase 13 — Identity Commerce
+**Status:** Not started
 
-## Task List
+## Tasks
 
-| Task | Description | Status |
-|---|---|---|
-| 101 | `/shop` public landing page | ✅ Done |
-| 102 | Entry point wiring: `/map` nav + `/share/[token]` CTA + `/sign-in` redirect | ✅ Done |
+- [ ] **Task 130** — `TravelCard` domain model in `shared_models` + `TravelCardService` Firestore write + security rule
+- [ ] **Task 131** — 3 template preview widgets: `GridFlagsCard` · `HeartFlagsCard` · `PassportStampsCard`
+- [ ] **Task 132** — `CardGeneratorScreen` — template picker + live preview + Share CTA
+- [ ] **Task 133** — Entry points: Stats screen "Create card" button + Map "⋮" menu item

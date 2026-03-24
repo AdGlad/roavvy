@@ -73,10 +73,18 @@ class MilestoneCardSheet extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: () => Share.share(shareText),
-              icon: const Icon(Icons.share_outlined),
-              label: const Text('Share'),
+            Builder(
+              builder: (btnCtx) => FilledButton.icon(
+                onPressed: () {
+                  final box = btnCtx.findRenderObject() as RenderBox?;
+                  final origin = box != null
+                      ? box.localToGlobal(Offset.zero) & box.size
+                      : Rect.fromLTWH(0, 0, 1, 1);
+                  Share.share(shareText, sharePositionOrigin: origin);
+                },
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Share'),
+              ),
             ),
             const SizedBox(height: 8),
             TextButton(

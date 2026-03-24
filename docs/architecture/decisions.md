@@ -2515,3 +2515,411 @@ This is a denylist-of-patterns approach rather than an allowlist. It is sufficie
 - Open redirect is prevented: `https://evil.com` fails check (b); `//evil.com` fails check (b); `/evil` passes and is safe (relative path, Next.js router will navigate within the same origin).
 - The sign-in page must use `useSearchParams()` which requires a `<Suspense>` boundary in Next.js App Router. Wrap the page body in `<Suspense fallback={<p>Loading...</p>}` or extract the params-reading logic into a child component.
 - No allowlist maintenance needed — any new internal route works automatically.
+
+---
+
+## ADR-079 — Web `/shop/design` calls `createMerchCart` via Firebase Functions JS SDK; `checkoutUrl` opened via `window.location.href` (M28)
+
+**Status:** Accepted
+
+**Context:**
+M28 introduces a web checkout flow: the user selects countries on `/shop/design`, the page calls the existing `createMerchCart` Firebase callable function, and the user is redirected to Shopify's hosted checkout. Three decisions were needed: (1) how to initialise Firebase Functions on the web side, (2) how to perform the redirect, and (3) how to display country names without a server round-trip.
+
+**Decision:**
+
+**Functions init:** `getFunctions(app)` is added to `apps/web_nextjs/src/lib/firebase/init.ts` and exported alongside `auth` and `db`. This mirrors the existing pattern for `auth` and `db`. The `firebase/functions` module is already bundled as part of the `firebase` package in `package.json`.
+
+**Checkout redirect:** After `createMerchCart` returns `{ checkoutUrl }`, the web page does `window.location.href = checkoutUrl`. This is a full-page navigation away from the Next.js app into Shopify's domain — `router.push` cannot be used as it only works for same-origin Next.js routes.
+
+**Country names:** A `const` map `COUNTRY_NAMES: Record<string, string>` is added in `apps/web_nextjs/src/lib/countryNames.ts`. It mirrors the Dart `kCountryNames` in `apps/mobile_flutter/lib/core/country_names.dart`. If a code is absent from the map, the ISO code itself is shown. This avoids a network dependency and matches ADR-019.
+
+**Consequences:**
+- `getFunctions` is exported from `init.ts`; every file that needs callable functions imports it from there.
+- The `/shop/design` page calls `httpsCallable(functions, "createMerchCart")` with payload `{ countryCodes: string[], product: "poster" }`. The response type is `{ checkoutUrl: string }`.
+- After Shopify checkout, Shopify redirects the browser to the shop's configured "thank you" URL. We set that to `/shop?ordered=true` in the Shopify store settings. The `/shop` page detects `?ordered=true` and shows a confirmation banner. This requires `useSearchParams` — same Suspense wrapping pattern as ADR-078.
+- Function errors (network failure, Shopify misconfiguration) are caught and shown as an inline retry message. The user is not redirected on error.
+- No order tracking on the web side in this milestone — that is a mobile-only feature (M24).
+
+---
+
+## ADR-080 — Map dark-ocean colour scheme (M32)
+
+**Status:** Accepted
+
+**Context:**
+The map uses white/grey tones for ocean and muted amber for countries. User feedback indicates the map looks "boring". A premium travel-app aesthetic requires high contrast between visited (gold) countries, unvisited land, and the ocean.
+
+**Decision:**
+Set `FlutterMap`'s background `Scaffold` colour to `Color(0xFF0D2137)` (dark navy). Unvisited countries become `Color(0xFF1E3A5F)` with a `Color(0xFF2A4F7A)` border at 0.4 stroke. Visited depth colours shift from amber to richer gold: tier 1 (1 trip) → `Color(0xFFD4A017)`, tier 2 (2–3) → `Color(0xFFC8860A)`, tier 3 (4–5) → `Color(0xFFB86A00)`, tier 4 (6+) → `Color(0xFF8B4500)`. Newly-discovered pulse uses `Color(0xFFFFD700)` (bright gold). Target (1-away) border shifts to `Color(0xFFFF8C00)`. No new packages required.
+
+`XpLevelBar` and `StatsStrip` switch from `Colors.black54` to a `Color(0xFF0D2137).withValues(alpha: 0.85)` background to blend with the new ocean colour. The level badge becomes `Color(0xFFFFD700)` and the progress bar track uses `Color(0xFF1E3A5F)`.
+
+**Consequences:**
+- Colour constants in `country_polygon_layer.dart` are updated; all tests that snapshot exact fill colours must be updated to match.
+- No new dependencies or provider changes needed.
+- The map background matches the overlay bars, producing a unified dark theme without requiring a full dark-mode MaterialTheme switch.
+
+---
+
+## ADR-081 — `tripListProvider` FutureProvider replaces `late final` future in JournalScreen (M32)
+
+**Status:** Accepted
+
+**Context:**
+`JournalScreen` stores trip data in a `late final Future<List<TripRecord>> _tripsFuture` assigned in `initState`. This future is never re-executed: after `clearAll()` or a rescan, the journal continues showing stale (or empty) data from the initial load. A sign-out/sign-in forces a widget rebuild, which is why that workaround works.
+
+**Decision:**
+Add `tripListProvider` as a `FutureProvider<List<TripRecord>>` in `providers.dart`, backed by `TripRepository.loadAll()`. `JournalScreen` watches `tripListProvider` via `ref.watch` instead of a `late final` future. The `FutureBuilder` is removed; the journal builds directly from the provider's `AsyncValue`.
+
+After `clearAll()` in `map_screen.dart`, add `ref.invalidate(tripListProvider)`. After scan save in `scan_screen.dart`, add `ref.invalidate(tripListProvider)`. Both call sites must also invalidate `regionCountProvider` (which was already missing from the scan-save path).
+
+**Consequences:**
+- `JournalScreen` no longer needs `ConsumerStatefulWidget`; it becomes a `ConsumerWidget`.
+- The journal updates reactively whenever `tripListProvider` is invalidated.
+- `countryTripCountsProvider` and `earliestVisitYearProvider` both call `TripRepository.loadAll()` internally — they are also FutureProviders and are already re-evaluated after `ref.invalidate(effectiveVisitsProvider)` triggers their dependency chain. No change needed for those.
+
+---
+
+## ADR-082 — Trip photo date filtering via optional `tripFilter` on `CountryDetailSheet` (M32)
+
+**Status:** Accepted
+
+**Context:**
+`CountryDetailSheet` loads all photo asset IDs for a country via `VisitRepository.loadAssetIds(isoCode)`, with no date filter. When the sheet is opened from a trip row in the Journal, users expect to see only the photos from that trip's date range — not all photos ever taken in that country.
+
+**Decision:**
+Add `loadAssetIdsByDateRange(String countryCode, DateTime start, DateTime end)` to `VisitRepository`. The query adds a `capturedAt >= start AND capturedAt <= end` filter using Drift's `isBetweenValues` on the existing `capturedAt` column. No schema migration needed.
+
+Add an optional `TripRecord? tripFilter` parameter to `CountryDetailSheet`. When non-null, `_assetIdsFuture` calls `loadAssetIdsByDateRange` instead of `loadAssetIds`, using start-of-day for `startedOn` and end-of-day (23:59:59.999) for `endedOn`. `JournalScreen._TripTile._openSheet()` passes the trip record to `CountryDetailSheet`.
+
+**Consequences:**
+- Photos opened from a country polygon (map tap) still show all country photos — `tripFilter` is null in that path.
+- The photo count badge on the trip tile ("N photos") will now match the gallery count.
+- `loadAssetIdsByDateRange` requires a unit test for boundary edge cases.
+
+---
+
+## ADR-083 — Real-time scan discovery feed: `_newlyFoundCodes` list in `ScanScreen` (M32)
+
+**Status:** Accepted
+
+**Context:**
+The scan screen shows only a processed-photo count during scanning. New country discoveries are invisible until `ScanSummaryScreen` appears post-scan. This makes the scanning process feel unrewarding.
+
+**Decision:**
+In `ScanScreen._scan()`, after assigning `preScanCodes` (which already exists), initialise an empty `_newlyFoundCodes` list in state. In the batch loop, after merging into `accum`, compare `accum.keys` against `preScanCodes` ∪ `_newlyFoundCodes`. Any new code is appended to `_newlyFoundCodes` and triggers `setState`. The scan UI renders a "Countries found" `Column` below the photo counter; each entry animates in using `AnimatedList` or a growing `Column` with `FadeTransition` (respects `reduceMotion`). The section only appears when `_newlyFoundCodes.isNotEmpty`.
+
+**Consequences:**
+- `_ScanProgress` is extended with an optional `newCodes` field, or `_newlyFoundCodes` is held as a separate state field (preferred — avoids changing `_ScanProgress`).
+- One additional `setState` per new country — negligible cost during a scan of thousands of photos.
+- Previously-visited countries that appear again in the scan batch are not added (diff against `preScanCodes`).
+
+---
+
+## ADR-085 — M29 commerce entry point decisions
+
+**Status:** Accepted
+
+**Context:**
+M29 adds three commerce/nudge touchpoints to the mobile app:
+1. `MerchCountrySelectionScreen` is opened from scan summary pre-filtered to newly discovered codes only.
+2. `MapScreen` needs a "Get a poster" overflow menu item.
+3. `MapScreen` needs a per-session dismissible nudge banner when `lastScanAt > 30 days ago`.
+
+Three non-obvious decisions arise:
+
+**Decision A — `MerchCountrySelectionScreen.preSelectedCodes` initialisation**
+`MerchCountrySelectionScreen` derives its country list from `effectiveVisitsProvider`, which is async. The pre-selection state (`_deselected`) cannot be seeded in the constructor because the full country list isn't available yet. The chosen pattern: add a `preSelectedCodes: List<String>?` constructor param and an `_initialized` bool flag. On the first `_buildScreen()` call after data loads, if `preSelectedCodes` is non-null, compute `_deselected = { all effective codes } - { preSelectedCodes }`, then set `_initialized = true` so subsequent rebuilds don't reset the selection. Filter `preSelectedCodes` against the loaded visits to guard against stale codes.
+
+**Decision B — Nudge banner dismissal via `StateProvider<bool>`**
+`MapScreen` is a `ConsumerWidget`. Per-session dismissed state cannot be stored in a local variable in a `ConsumerWidget.build()` method. Converting `MapScreen` to `ConsumerStatefulWidget` solely to hold a bool is unnecessary complexity. The chosen pattern: `scanNudgeDismissedProvider = StateProvider<bool>((ref) => false)` in `providers.dart`. It starts false on app launch and is set to true when the user dismisses. Since `StateProvider` is in-memory and not persisted, it resets to false on app restart — which is exactly the per-session behaviour required.
+
+**Decision C — Nudge banner placement in MapScreen Stack**
+The MapScreen Stack already contains `XpLevelBar` (top), `StatsStrip` (bottom), `TimelineScrubberBar` (above StatsStrip, shown when filter active), and `RovyBubble` (bottom-right). The nudge banner is placed above `StatsStrip` using a `Positioned` widget anchored from the bottom with enough offset to clear the StatsStrip height (approx 56 dp). The banner does not stack with `TimelineScrubberBar` — both can be shown simultaneously since the scrubber appears above the nudge banner.
+
+**Consequences:**
+- No schema changes. No new tables. No Firestore writes.
+- `MerchCountrySelectionScreen` remains a single widget; callers control initial selection via the `preSelectedCodes` param — no need for two separate screen variants.
+- Nudge banner dismissal does not survive app restart, which is intentional — it prevents the banner from being permanently silenced by an accidental tap.
+- `lastScanAtProvider` is a new `FutureProvider<DateTime?>` that wraps `visitRepositoryProvider.loadLastScanAt()`; it is invalidated implicitly on app restart (provider graph reset).
+
+---
+
+## ADR-084 — Sequential `DiscoveryOverlay` for multiple new countries; cap at 5 (M32)
+
+**Status:** Accepted
+
+**Context:**
+`ScanSummaryScreen._handleDone()` pushes `DiscoveryOverlay` once, only for `widget.newCodes.first`. Users who discover multiple countries on a scan see only one celebration screen, which feels incomplete.
+
+**Decision:**
+Add `currentIndex` (int, 0-based) and `totalCount` (int) to `DiscoveryOverlay`. When `totalCount > 1`, a "Country N of M" subtitle appears below the country name. The primary CTA reads "Next →" for all indices except the last, and "Done" for the last. A "Skip all" `TextButton` appears on every overlay screen.
+
+`ScanSummaryScreen._handleDone()` iterates over `widget.newCodes` up to a cap of 5. It pushes each overlay sequentially, `await`-ing the pop before pushing the next. The "Skip all" CTA pops to the route just below the first overlay (using a counter to pop N times). After all overlays (or after skip), execution continues to register `recentDiscoveriesProvider` and call `onDone()` — these must happen regardless of the skip path.
+
+**Consequences:**
+- First-time users discovering 50 countries are shown 5 overlays max, then proceed to the summary — avoids an overwhelming sequence.
+- "Skip all" on overlay 1 of 5 pops 1 route; "Skip all" on overlay 3 of 5 pops 3 routes. The overlay must receive a `onSkipAll` callback (or a `skipAll` return value) to signal the caller to pop all remaining overlays.
+- `DiscoveryOverlay.routeName` is kept as `'/discovery'`; `popUntil(ModalRoute.withName('/'))` is replaced with calling the provided `onDone` callback so the caller controls navigation.
+
+---
+
+## ADR-086 — Shopify credential model: OAuth Client Credentials for admin token; permanent Storefront token
+
+**Status:** Accepted
+
+**Context:**
+The `createMerchCart` Cloud Function calls the Shopify Storefront API (`cartCreate` mutation) server-side. Initial setup stored a `shpat_`-prefixed token directly in `.env` as `SHOPIFY_STOREFRONT_TOKEN`. This token was invalid: it had been revoked by repeated app reinstalls, and was being used against the wrong API (it is an Admin API token, not a Storefront API token). The Shopify admin UI no longer surfaces static Admin API tokens for OAuth-based custom apps — credentials are now issued via the Client Credentials OAuth grant.
+
+Two distinct Shopify credentials are required:
+1. **Admin API access token** — short-lived (24h), obtained via `POST /admin/oauth/access_token` using Client ID + Client Secret. Used only to provision Storefront tokens via the Admin REST API.
+2. **Storefront API access token** — permanent (until explicitly deleted), a 32-char hex string. Used in `X-Shopify-Storefront-Access-Token` on every Storefront API call.
+
+**Decision:**
+- Store `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET` (OAuth credentials) in `apps/functions/.env`.
+- To provision or rotate a Storefront token:
+  1. Exchange credentials for a short-lived admin token: `POST https://{shop}.myshopify.com/admin/oauth/access_token` with `client_id`, `client_secret`, `grant_type: client_credentials`.
+  2. Use that admin token to create a permanent Storefront token: `POST /admin/api/{version}/storefront_access_tokens.json`.
+  3. Store the resulting hex token as `SHOPIFY_STOREFRONT_TOKEN` in `.env` and redeploy.
+- The `createMerchCart` function reads only `SHOPIFY_STOREFRONT_TOKEN` at runtime — it never holds the Client Secret or performs OAuth itself.
+- The required Storefront API scopes are: `unauthenticated_read_product_listings`, `unauthenticated_write_checkouts`, `unauthenticated_read_checkouts`.
+
+**Consequences:**
+- The Storefront token is permanent and survives app reinstalls. It must be manually rotated if compromised.
+- The admin token is never stored — it is obtained on demand during provisioning only.
+- If the Storefront token is lost or the Shopify app is reinstalled, re-run the two-step provisioning process above to generate a new one.
+- Firebase Storage uploads from the Admin SDK must include `metadata: { firebaseStorageDownloadTokens: crypto.randomUUID() }` in custom metadata, or files will not appear in the Firebase console (GCS stores the object; the console requires the token to list it).
+
+---
+
+## ADR-087 — Post-purchase payment confirmation via Firestore poll (M33)
+
+**Status:** Accepted
+
+**Context:**
+`MerchVariantScreen` uses `WidgetsBindingObserver.didChangeAppLifecycleState` to detect when the app resumes after the in-app browser (SFSafariViewController via `url_launcher`) is dismissed. It then unconditionally pushes `MerchPostPurchaseScreen` — regardless of whether the user actually completed payment. A user who closes the browser mid-checkout (abandoned cart, wrong card, etc.) will see the celebration screen and read "Your order is on its way!" even though no order was placed. This is a confirmed UX/correctness gap (Task 118, M33 risks table).
+
+Shopify's `return_url` deep-link mechanism would provide a payment-completion signal but requires a registered custom URL scheme and app handling for universal links — not yet implemented.
+
+**Decision:**
+Replace the optimistic post-purchase flow with a Firestore poll:
+
+1. After `didChangeAppLifecycleState(resumed)` fires (browser dismissed), push a "Checking order..." loading screen instead of the celebration screen immediately.
+2. From that screen, poll `users/{uid}/merch_configs/{configId}` every 3 seconds, up to 10 attempts (30 seconds total), using `docRef.get()` in a loop with `Future.delayed`.
+3. If `status == 'ordered'` is observed: transition to celebration (`MerchPostPurchaseScreen`).
+4. If 10 attempts elapse without `status == 'ordered'`: show a neutral fallback ("We're processing your order...") with a "Back to map" button. This handles cancelled payments, network lag, or webhook delays.
+
+The poll is implemented as a `_pollForOrderConfirmation()` method on `_MerchVariantScreenState` (the widget that owns the checkout launch and the `WidgetsBindingObserver`). The `merchConfigId` returned by `createMerchCart` is stored in `_MerchVariantScreenState` alongside `_checkoutUrl` and `_previewUrl`.
+
+The authenticated user's UID is obtained from `FirebaseAuth.instance.currentUser?.uid`. If null (unauthenticated — should not happen since `createMerchCart` requires auth), the fallback is shown immediately.
+
+**Why poll Firestore rather than a Cloud Function endpoint?**
+The `shopifyOrderCreated` webhook fires asynchronously after Shopify processes the payment (typically within 5–30 seconds). Firestore is already the source of truth for `MerchConfig.status`. Polling Firestore directly is simpler than introducing a new endpoint, avoids cold-start latency on Cloud Functions, and requires no additional backend code.
+
+**Consequences:**
+- The celebration screen is only shown when payment is confirmed (via webhook updating `status: 'ordered'`). False positives are eliminated.
+- If the Shopify webhook is delayed beyond 30 seconds (rare), the user sees a neutral fallback. They will still receive the Shopify confirmation email and the Printful order will proceed normally once the webhook fires.
+- The 3s / 30s parameters are constants in `_MerchVariantScreenState`; they can be tuned without an ADR update.
+- `MerchPostPurchaseScreen` requires `product`, `countryCount`, AND `merchConfigId` (added in M33) so the celebration screen can display the correct product without re-fetching.
+- `FirebaseAuth` import is already in the project (`firebase_auth` package); `cloud_firestore` is already imported in `providers.dart`. No new packages required.
+
+---
+
+## ADR-088 — Payment provider strategy: manual method for sandbox testing; Shopify Payments for production
+
+**Status:** Accepted (sandbox); Production path defined
+
+**Context:**
+The Bogus Gateway (Shopify's built-in test payment provider) is only available on Shopify Partner development stores. It is not available on paid merchant stores (`roavvy.myshopify.com` on the Basic plan). During M33 sandbox validation, a **Manual payment method** named "Test Payment" was added to the store as the mechanism for placing test orders without a real card.
+
+A manual payment method allows an order to be placed and the `orders/create` webhook to fire — which is sufficient to validate the full backend flow (webhook receipt → Firestore update → Printful draft order creation). It is not suitable for production because:
+- No card details are collected — any visitor can "pay" without submitting payment credentials.
+- No funds are captured.
+- Fulfilment would ship without payment received.
+
+**Decision:**
+
+**Sandbox (current):** Manual payment method "Test Payment" remains active on the store for developer testing only. The store is not publicly marketed during this phase.
+
+**Production (required before public launch):** Replace the manual method with a real payment provider:
+
+1. **Activate Shopify Payments** — the preferred provider (lowest fees, native Shopify checkout experience, Shop Pay support). Requires:
+   - A business bank account in a [supported country](https://help.shopify.com/en/manual/payments/shopify-payments/supported-countries)
+   - Business or personal identity verification (Shopify KYC)
+   - A valid business address and tax information
+   - Remove the "Test Payment" manual method after activation
+
+2. **Enable test mode on Shopify Payments** — for pre-launch validation after activating Shopify Payments. Allows use of Stripe-standard test cards (e.g. `4242 4242 4242 4242`) without real charges. This is the proper sandbox path once Shopify Payments is active.
+
+3. **Disable test mode** before the store goes live.
+
+**What else must be completed before public launch:**
+
+| Item | Detail |
+|---|---|
+| Remove manual "Test Payment" method | Prevents orders without captured payment |
+| Activate Shopify Payments (or Stripe) | Real card capture required |
+| Set up Printful production shipping | Confirm rates, origin address, and fulfilment SLA |
+| Configure Shopify shipping zones and rates | Currently unset — checkout may show $0 or block on shipping |
+| Review Shopify store policies | Privacy policy, refund policy, terms of service — required by Shopify |
+| Configure order confirmation emails | Shopify sends these automatically; customise branding |
+| Remove test product variants (if any) | Ensure only live SKUs are purchasable |
+| Validate Printful auto-confirm | Currently orders are created as drafts (`"confirm": false` default). Before launch, decide whether to enable auto-confirm on production orders or add a manual review step. |
+| Register Apple Pay domain | Optional but recommended — increases checkout conversion on iOS |
+
+**Consequences:**
+- Until Shopify Payments is activated and verified, the commerce flow cannot accept real payments.
+- The manual method must be explicitly removed — it is not automatically deactivated when Shopify Payments is enabled.
+- Shopify Payments KYC can take 1–3 business days; plan accordingly before public launch.
+- The mobile and web checkout flows (`MerchVariantScreen`, `/shop/design`) require no code changes for this transition — they use the `checkoutUrl` returned by `createMerchCart`, which works identically with any active Shopify payment provider.
+
+
+---
+
+## ADR-089 — Printful Mockup API: v2 async generation within `createMerchCart` (M34)
+
+**Status:** Accepted
+
+**Context:**
+
+Users currently see only the flag grid print file (the design itself) before completing checkout. A photorealistic t-shirt mockup — the actual shirt with the design placed on it — significantly improves purchase confidence.
+
+Printful provides a mockup generation API. Two integration points were considered:
+1. Call it within `createMerchCart` (synchronous from the app's perspective — one function call returns everything)
+2. Separate endpoint polled by the mobile app after `createMerchCart` returns
+
+**Decision:**
+
+Use **Printful v2 Mockup API** (`POST /v2/mockup-tasks`, `GET /v2/mockup-tasks/{task_key}`) called synchronously within `createMerchCart`, after the Shopify cart is created.
+
+- **v2 not v1**: Consistent with the existing `POST /v2/orders` usage. v2 accepts `variant_ids` directly — no separate catalog product ID lookup required.
+- **Within `createMerchCart`**: The function already has a 300s timeout and the app already shows a loading state. Adding ≤20s of mockup polling is acceptable. No separate function, no second callable, no mobile-side polling.
+- **Non-blocking fallback**: If mockup generation times out (10 × 2s) or errors, `mockupUrl` is `null` in the response. The function does not throw. The flag grid preview is shown instead. Checkout proceeds normally.
+- **Return in response**: `mockupUrl` is added to `CreateMerchCartResponse` so the mobile app receives it immediately — no Firestore poll needed for the image URL.
+- **Also persist in Firestore**: `MerchConfig.mockupUrl` is written when available, for completeness and future web use.
+- **No Dart model class**: The mobile app reads the callable response as a raw `Map<String, dynamic>` — no Dart `MerchConfig` class exists. Task 120 only changes TypeScript types.
+- **T-shirt only**: Poster variants have `PRINTFUL_VARIANT_IDS` value `0` — used as the skip signal. When `printfulVariantId === 0`, skip mockup generation and return `mockupUrl: null`.
+- **Colour matters; size does not**: The mockup appearance differs by shirt colour. Size has no visible effect on the rendered mockup. The `catalog_variant_id` already encodes colour × size, so passing it to the mockup API gives the correct shirt colour without extra logic.
+
+**Printful Mockup API shape (v2):**
+
+```
+POST https://api.printful.com/v2/mockup-tasks
+Authorization: Bearer {PRINTFUL_API_KEY}
+{
+  "variant_ids": [536],
+  "files": [{ "placement": "front", "url": "https://storage.googleapis.com/..." }],
+  "format": "jpg"
+}
+
+→ { "data": { "task_key": "abc123" } }
+
+GET https://api.printful.com/v2/mockup-tasks/abc123
+→ { "data": { "status": "completed", "mockups": [{ "placement": "front", "mockup_url": "https://..." }] } }
+   OR  { "data": { "status": "waiting" } }
+   OR  { "data": { "status": "error" } }
+```
+
+**`createMerchCart` step sequence (updated):**
+1. Write MerchConfig (status=pending)
+2. Generate preview + print PNGs (existing)
+3. Upload preview (public) + print file (private); generate signed URL (existing)
+4. Create Shopify cart (existing)
+5. **NEW**: Call Printful Mockup API; poll up to 20s; store result in `MerchConfig.mockupUrl`
+6. Update MerchConfig (shopifyCartId, status=cart_created)
+7. Return `{ checkoutUrl, cartId, merchConfigId, previewUrl, mockupUrl }`
+
+**Consequences:**
+- `createMerchCart` may take up to 20s longer on the happy path (mockup generation).
+- The existing loading state on `MerchVariantScreen` covers this — no UX change needed.
+- `mockupUrl` is a Printful CDN URL (not Firebase Storage). No storage cost. It is not a signed URL and does not expire on a fixed schedule.
+- If Printful changes the mockup URL CDN, cached URLs may break. Acceptable for PoC.
+- Poster mockups are not supported until Printful poster sync variants are configured (tracked separately).
+
+---
+
+## ADR-091 — Country Region Map: hit-notifier tap detection + tap-point label anchor (M36)
+
+**Status:** Accepted
+
+**Context:**
+
+M36 adds `CountryRegionMapScreen` — a full-screen map of all visited regions for a country (across all trips, not per-trip). It extends the M35 `TripMapScreen` pattern with two new requirements:
+1. Region tap interaction — tapping a visited region shows a floating name label.
+2. Entry from `RegionBreakdownSheet` — a map icon on each country tile navigates to the screen.
+
+**Decisions:**
+
+**Polygon hit detection — `LayerHitNotifier<String>` (flutter_map v7 API):**
+flutter_map v7 does not expose `onTap` directly on `Polygon`. Instead, hit detection uses:
+- `Polygon<String>` with `hitValue: regionCode` on each visited polygon.
+- `PolygonLayer<String>(hitNotifier: _hitNotifier, ...)` for the visited layer only.
+- A `GestureDetector` wrapping the `PolygonLayer<String>` (not the whole map).
+
+In `GestureDetector.onTap`, `_hitNotifier.value` is read:
+- Non-null → polygon was hit; set `_selectedCode` + `_selectedLatLng` from `hit.coordinate`.
+- Null → background/unvisited tap; clear selection.
+
+`MapOptions.onTap` is not used for dismissal (it fires for all taps, including polygon taps, causing conflicts). The `GestureDetector` approach is the canonical flutter_map v7 pattern.
+
+**Label anchor — tap coordinate (not centroid):**
+The label `Marker` is placed at `_hitNotifier.value!.coordinate` (the exact tap point) rather than a computed polygon centroid. Reasons:
+- Tap point is immediately available with zero computation.
+- For large polygons (e.g. US states, Russian oblasts), the centroid may fall outside the polygon boundary; the tap point is guaranteed to be within the visible polygon area.
+- The tap-point anchor provides direct visual feedback at the touch site.
+
+**AppBar region count — `_visitedCount` state field:**
+The AppBar subtitle shows "N regions visited". Since the count is async (from `RegionRepository.loadByCountry`), it is stored in a `_visitedCount` int state field (default 0) updated via `.then()` on the same future used for the body `FutureBuilder`. This avoids a nested `FutureBuilder` in the `AppBar` and keeps subtitle update reactive via `setState`.
+
+**Navigation from `RegionBreakdownSheet` — pop-then-push cascade:**
+`Navigator.of(context)..pop()..push(...)` closes the bottom sheet and pushes `CountryRegionMapScreen` in a single expression. This prevents the sheet from lingering visually behind the new screen. The `trailing` of each `ExpansionTile` is set to an `IconButton(Icons.map_outlined)` — the default expand chevron is replaced; expand/collapse via header tap is preserved (tile body still expands).
+
+**`_flagEmoji` and colour constants — local file, not extracted:**
+Follows the pattern established in ADR-090 (each screen defines its own local helpers). Three screens now have local `_flagEmoji` functions; extraction to a shared utility is deferred until a fourth consumer appears.
+
+**Consequences:**
+- `GestureDetector` wrapping only the visited `PolygonLayer<String>` means unvisited polygon taps correctly produce a null hit → label is dismissed. No separate handling needed.
+- `ExpansionTile.trailing` override removes the default animated chevron. The tile is still expandable via header tap, but there is no rotate animation. Acceptable: the region list is the secondary action; the map icon is the primary new feature.
+- `LayerHitNotifier` is a `ValueNotifier` — it must be disposed in the screen's `dispose()` to avoid leaks.
+
+---
+
+## ADR-090 — Trip Region Map: synchronous polygon access + FutureBuilder for visited codes (M35)
+
+**Status:** Accepted
+
+**Context:**
+
+M35 adds a `TripMapScreen` showing a country's region polygons with visited regions highlighted amber. Two data sources are needed:
+1. All region polygons for the country (for rendering and bounds computation)
+2. Which region codes were visited on the specific trip (for colour selection)
+
+**Decisions:**
+
+**Polygon access — synchronous, added to `RegionLookupEngine`:**
+`RegionGeodataIndex` already stores all polygons in memory as `List<RegionPolygon>` and exposes them via `get polygons`. A `polygonsForCountry(String countryCode)` method is added to `RegionLookupEngine` — filters `_index.polygons` where `regionCode.startsWith('$countryCode-')`. The public `regionPolygonsForCountry` function in `region_lookup.dart` delegates to the engine. This call is synchronous (no I/O — the binary is already parsed at startup) and safe to call in `initState`.
+
+**Visited region codes — async, `RegionRepository.loadRegionCodesForTrip`:**
+Queries `photo_date_records` where `countryCode == trip.countryCode` AND `capturedAt BETWEEN trip.startedOn AND trip.endedOn` AND `regionCode IS NOT NULL`, returning distinct region codes. Pattern mirrors `VisitRepository.loadAssetIdsByDateRange` (ADR-083). This is an async Drift query, therefore:
+
+**`TripMapScreen` uses a `StatefulWidget` + `FutureBuilder`** (not a Riverpod provider):
+- `initState` calls `regionPolygonsForCountry` synchronously → stored in `_allPolygons`
+- `FutureBuilder` over `_visitedFuture` (the Drift query) controls the loading/ready states
+- No Riverpod provider needed — screen is transient, single-use, not shared
+
+**Map initial camera — `CameraFit.bounds` in `MapOptions.initialCameraFit`:**
+Bounding box computed from all region polygon vertices (`LatLngBounds.fromPoints`). Passed as `MapOptions.initialCameraFit` — no `MapController` required. Falls back to world view when the polygon list is empty (micro-states).
+
+**Navigation — full-screen push (not modal bottom sheet):**
+`TripMapScreen` is pushed via `Navigator.push(MaterialPageRoute)` from `JournalScreen`. The existing `CountryDetailSheet` modal is removed from the Journal trip card tap. Back navigation returns to Journal.
+
+**`depthFillColor` — inline constant, not extracted:**
+`TripMapScreen` uses `const Color(0xFFD4A017)` directly (the 1-trip amber tier). Extracting `depthFillColor` to a shared file is deferred — one new consumer does not justify the refactor.
+
+**`_flagEmoji` — local file function:**
+Matches existing pattern in `journal_screen.dart` and `scan_screen.dart`. Not extracted to a shared utility — three separate local functions is acceptable until a dedicated `utils.dart` is warranted.
+
+**Consequences:**
+- `RegionPolygon` becomes part of the public API surface of `packages/region_lookup` — a breaking change if the shape changes. Acceptable: the class is simple and stable.
+- `TripMapScreen` renders up to ~80 polygons for large countries (US, RU). `flutter_map` handles this without optimisation.
+- Countries with no region data (micro-states) show a blank dark navy map — acceptable UX, no crash.

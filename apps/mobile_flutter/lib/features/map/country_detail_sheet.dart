@@ -16,12 +16,16 @@ import 'photo_gallery_screen.dart';
 ///
 /// [onAdd] is called when the user confirms adding an unvisited country.
 /// Null means no add button (used for already-visited countries).
+///
+/// When [tripFilter] is non-null (set by [JournalScreen]), the Photos tab
+/// shows only photos taken during that trip's date range. (ADR-082)
 class CountryDetailSheet extends ConsumerStatefulWidget {
   const CountryDetailSheet({
     super.key,
     required this.isoCode,
     this.visit,
     this.onAdd,
+    this.tripFilter,
   });
 
   /// ISO 3166-1 alpha-2 code of the tapped country.
@@ -32,6 +36,9 @@ class CountryDetailSheet extends ConsumerStatefulWidget {
 
   /// Called when the user taps "Add to my countries". Null = button not shown.
   final Future<void> Function()? onAdd;
+
+  /// When non-null, the Photos tab filters to this trip's date range. (ADR-082)
+  final TripRecord? tripFilter;
 
   @override
   ConsumerState<CountryDetailSheet> createState() => _CountryDetailSheetState();
@@ -51,8 +58,13 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
         ref.read(tripRepositoryProvider).loadByCountry(widget.isoCode);
     _regionsFuture =
         ref.read(regionRepositoryProvider).loadByCountry(widget.isoCode);
-    _assetIdsFuture =
-        ref.read(visitRepositoryProvider).loadAssetIds(widget.isoCode);
+    // When a trip filter is provided, show only photos from that trip's
+    // date range; otherwise show all country photos. (ADR-082)
+    final tripF = widget.tripFilter;
+    _assetIdsFuture = tripF != null
+        ? ref.read(visitRepositoryProvider).loadAssetIdsByDateRange(
+            widget.isoCode, tripF.startedOn, tripF.endedOn)
+        : ref.read(visitRepositoryProvider).loadAssetIds(widget.isoCode);
   }
 
   void _reload() {

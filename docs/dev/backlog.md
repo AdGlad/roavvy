@@ -390,6 +390,50 @@ All sharing features are complete as of M12.
 
 ---
 
+## Milestone 35 — Trip Region Map ✅ COMPLETE (2026-03-24)
+
+**Goal:** Tapping a trip in the Journal opens a full-screen country map styled like the main map, with the regions visited on that trip highlighted in amber.
+
+**Tasks:** 123–126
+
+---
+
+## Milestone 36 — Country Region Map (Stats → Regions) ⬅ CURRENT MILESTONE
+
+**Goal:** From the Stats screen Regions breakdown, tapping a country opens a full-screen map of that country with all visited regions highlighted; tapping a region shows a floating name label.
+
+**Tasks:** 127–129 (see `next_tasks.md`)
+
+---
+
+## Milestone 34 — Mobile Commerce: Full T-shirt Mockup Preview ✅ COMPLETE (2026-03-24)
+
+**Goal:** Before completing checkout, the user sees a photorealistic mockup of the full t-shirt with their flag grid design applied — not just the print file image.
+
+**Tasks:** 120–122 (see `next_tasks.md`)
+
+---
+
+## Milestone 32 — Mobile Quality & Scan Reward Pass
+
+**Goal:** Fix six user-reported UX and correctness issues across map, journal, stats, and scan flows.
+
+**Priority:** Ahead of M29/M30 — these are bugs and UX gaps in already-shipped features.
+
+**Scope — included:**
+- Map visual refresh: dark navy ocean, richer gold polygon colour scheme, glass-morphic XpLevelBar and StatsStrip
+- Stats screen: country count, regions count, and achievement count tappable with drill-down destinations (`CountryListScreen`, `RegionBreakdownSheet`, achievement gallery scroll)
+- Journal stale state: full provider invalidation after `clearAll()` and after scan save — no sign-out required
+- Trip photo filtering: `PhotoGalleryScreen` opened from a trip card shows only photos taken during that trip's date range
+- Real-time scan discovery feed: `ScanScreen` shows a live "Countries found" list growing as new countries are first detected
+- Discovery overlay for all new countries: `DiscoveryOverlay` shown sequentially per new country, capped at 5, with "Skip all" CTA
+
+**Tasks:** 105–110 (see `next_tasks.md`)
+
+**Not started.**
+
+---
+
 ## Milestone 29 — Mobile Commerce: Remaining Entry Points + Scan Nudge
 
 **Goal:** Users encounter the shop at peak motivation moments; the app proactively nudges users who haven't scanned in 30+ days.
@@ -406,21 +450,13 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 30 — Firestore Trip Sync
+## Milestone 30 — Firestore Trip Sync ✅ COMPLETE (2026-03-23)
 
-**Goal:** Trip records are synced to Firestore for multi-device access and web trip display.
+**Goal:** Trip records are synced to Firestore for multi-device access.
 
-**Scope — included:**
-- `FirestoreSyncService` extended to sync dirty `TripRecord` rows to `users/{uid}/trips/{tripId}` — fire-and-forget pattern
-- Trip sync wired at same sites as visit sync (post-scan/review-save, sign-in, startup flush)
-- Firestore rules: `users/{uid}/trips/{tripId}` — read/write matching `request.auth.uid` only
-- Web `/map`: trip count shown on country panel (reads `users/{uid}/trips` filtered by `countryCode`)
+**Delivered (Task 114):** Trip sync infrastructure was substantially pre-built in earlier milestones (`FirestoreSyncService.flushDirty()` trips path, `TripRepository.loadDirty/markClean`, wired at scan save / review save / app startup, 5 trip-flush tests, Firestore wildcard rules). M30 closed the only remaining gap: `apple_sign_in.dart` now accepts optional `tripRepo: TripRepository?` and forwards it to `flushDirty` so trips are flushed immediately post-Apple-sign-in.
 
-**Scope — excluded:**
-- Region visit sync (no web consumer yet)
-- Trip editing from web
-
-**Not started. No tasks written yet.**
+**Deferred:** Web `/map` trip count (mobile-first priority).
 
 ---
 
@@ -454,4 +490,5 @@ All sharing features are complete as of M12.
 - Password reset flow for web accounts
 - Social sign-in on web (Google / Apple) — deferred; email/password is sufficient for M13/14
 - "Scan for new photos" button when > 30 days since last scan (currently the user must go to Scan tab manually)
+- `createMerchCart` Cloud Function deployed with 256 MB memory but source specifies `memory: '2GiB'` — function needs redeployment with correct config; large flag grids may OOM under the current deployed spec (discovered 2026-03-24)
 - Social feed or user discovery — soft social ranking (aggregate percentile comparison, "you've explored more than 72% of Roavvy travellers") is partially addressed in M23 (Slice 3 of Phase 11); a full social feed with user-to-user interaction remains deferred indefinitely
