@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-23, through Task 114 / M30)
+# Roavvy — Development State (as of 2026-03-24, through Task 126 / M35)
 
 ## What Works
 
@@ -104,7 +104,13 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - **Task 117 — Printful draft order**: Confirmed no `"confirm": true` in Printful API v2 request body — orders are created as drafts by default (safe for sandbox testing). Added `console.error` log of Printful API response status and body for debugging.
   - **Task 118 — Post-purchase Firestore poll (ADR-087)**: `MerchVariantScreen` now stores `_merchConfigId` from `createMerchCart` response. `didChangeAppLifecycleState` no longer unconditionally pushes celebration; instead calls `_pollForOrderConfirmation()`, which polls `users/{uid}/merch_configs/{configId}` every 3s for up to 30s. Pushes `MerchPostPurchaseScreen` only when `status == 'ordered'`; shows neutral "We're processing your order..." dialog on timeout. `cloud_firestore` and `firebase_auth` imported in `merch_variant_screen.dart` (both packages already in `pubspec.yaml`).
   - **Task 119 — Variant mapping smoke test**: White/L → Printful ID 535 and Navy/M → Printful ID 527 confirmed correct in `printDimensions.ts`. No code change needed.
-- 456 flutter tests passing; ~93 package tests passing
+- **Trip Region Map (M35 — Tasks 123–126, ADR-090)**:
+  - `regionPolygonsForCountry(String countryCode)` public function added to `packages/region_lookup` barrel; `RegionPolygon` exported from same barrel; `RegionLookupEngine.polygonsForCountry()` filters `_index.polygons` by `regionCode.startsWith('$countryCode-')` — synchronous, no I/O
+  - `RegionRepository.loadRegionCodesForTrip(TripRecord trip)` — queries `photo_date_records` where `countryCode == trip.countryCode AND regionCode IS NOT NULL AND capturedAt BETWEEN startedOn AND endedOn`; returns distinct region codes via `.toSet().toList()` (Drift `isBetweenValues` pattern, mirrors `loadAssetIdsByDateRange`)
+  - `TripMapScreen` (`lib/features/map/trip_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean background `Color(0xFF0D2137)`; two `PolygonLayer`s: amber visited (`Color(0xFFD4A017)`, 0.85α) + dark navy unvisited (`Color(0xFF1E3A5F)`, 0.9α); `FutureBuilder` for async region codes (shows `CircularProgressIndicator` while loading); `onMapReady: _fitBounds` calls `mapController.fitCamera(CameraFit.bounds(...))` from polygon vertex min/max; `AppBar` shows flag emoji + country name (title) + month range (subtitle)
+  - `JournalScreen` trip card tap now pushes `TripMapScreen` via `Navigator.push(MaterialPageRoute)` (replaces `showModalBottomSheet` to `CountryDetailSheet`)
+  - 28 region_repository tests; 48 region_lookup package tests; journal test updated to initialize region_lookup with minimal valid binary
+- 456+ flutter tests passing; ~98 package tests passing
 
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup

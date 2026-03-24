@@ -2835,3 +2835,45 @@ GET https://api.printful.com/v2/mockup-tasks/abc123
 - `mockupUrl` is a Printful CDN URL (not Firebase Storage). No storage cost. It is not a signed URL and does not expire on a fixed schedule.
 - If Printful changes the mockup URL CDN, cached URLs may break. Acceptable for PoC.
 - Poster mockups are not supported until Printful poster sync variants are configured (tracked separately).
+
+---
+
+## ADR-090 — Trip Region Map: synchronous polygon access + FutureBuilder for visited codes (M35)
+
+**Status:** Accepted
+
+**Context:**
+
+M35 adds a `TripMapScreen` showing a country's region polygons with visited regions highlighted amber. Two data sources are needed:
+1. All region polygons for the country (for rendering and bounds computation)
+2. Which region codes were visited on the specific trip (for colour selection)
+
+**Decisions:**
+
+**Polygon access — synchronous, added to `RegionLookupEngine`:**
+`RegionGeodataIndex` already stores all polygons in memory as `List<RegionPolygon>` and exposes them via `get polygons`. A `polygonsForCountry(String countryCode)` method is added to `RegionLookupEngine` — filters `_index.polygons` where `regionCode.startsWith('$countryCode-')`. The public `regionPolygonsForCountry` function in `region_lookup.dart` delegates to the engine. This call is synchronous (no I/O — the binary is already parsed at startup) and safe to call in `initState`.
+
+**Visited region codes — async, `RegionRepository.loadRegionCodesForTrip`:**
+Queries `photo_date_records` where `countryCode == trip.countryCode` AND `capturedAt BETWEEN trip.startedOn AND trip.endedOn` AND `regionCode IS NOT NULL`, returning distinct region codes. Pattern mirrors `VisitRepository.loadAssetIdsByDateRange` (ADR-083). This is an async Drift query, therefore:
+
+**`TripMapScreen` uses a `StatefulWidget` + `FutureBuilder`** (not a Riverpod provider):
+- `initState` calls `regionPolygonsForCountry` synchronously → stored in `_allPolygons`
+- `FutureBuilder` over `_visitedFuture` (the Drift query) controls the loading/ready states
+- No Riverpod provider needed — screen is transient, single-use, not shared
+
+**Map initial camera — `CameraFit.bounds` in `MapOptions.initialCameraFit`:**
+Bounding box computed from all region polygon vertices (`LatLngBounds.fromPoints`). Passed as `MapOptions.initialCameraFit` — no `MapController` required. Falls back to world view when the polygon list is empty (micro-states).
+
+**Navigation — full-screen push (not modal bottom sheet):**
+`TripMapScreen` is pushed via `Navigator.push(MaterialPageRoute)` from `JournalScreen`. The existing `CountryDetailSheet` modal is removed from the Journal trip card tap. Back navigation returns to Journal.
+
+**`depthFillColor` — inline constant, not extracted:**
+`TripMapScreen` uses `const Color(0xFFD4A017)` directly (the 1-trip amber tier). Extracting `depthFillColor` to a shared file is deferred — one new consumer does not justify the refactor.
+
+**`_flagEmoji` — local file function:**
+Matches existing pattern in `journal_screen.dart` and `scan_screen.dart`. Not extracted to a shared utility — three separate local functions is acceptable until a dedicated `utils.dart` is warranted.
+
+**Consequences:**
+- `RegionPolygon` becomes part of the public API surface of `packages/region_lookup` — a breaking change if the shape changes. Acceptable: the class is simple and stable.
+- `TripMapScreen` renders up to ~80 polygons for large countries (US, RU). `flutter_map` handles this without optimisation.
+- Countries with no region data (micro-states) show a blank dark navy map — acceptable UX, no crash.

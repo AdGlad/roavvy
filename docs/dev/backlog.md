@@ -390,7 +390,15 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 34 — Mobile Commerce: Full T-shirt Mockup Preview ⬅ CURRENT MILESTONE
+## Milestone 35 — Trip Region Map ⬅ CURRENT MILESTONE
+
+**Goal:** Tapping a trip in the Journal opens a full-screen country map styled like the main map, with the regions visited on that trip highlighted in amber.
+
+**Tasks:** 123–126 (see `next_tasks.md`)
+
+---
+
+## Milestone 34 — Mobile Commerce: Full T-shirt Mockup Preview ✅ COMPLETE (2026-03-24)
 
 **Goal:** Before completing checkout, the user sees a photorealistic mockup of the full t-shirt with their flag grid design applied — not just the print file image.
 

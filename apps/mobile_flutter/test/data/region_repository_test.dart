@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
+import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:shared_models/shared_models.dart';
 
 RoavvyDatabase _makeDb() {
@@ -11,6 +12,26 @@ RoavvyDatabase _makeDb() {
 }
 
 RegionRepository _makeRepo() => RegionRepository(_makeDb());
+
+(VisitRepository, RegionRepository) _makeRepoWithVisits() {
+  final db = _makeDb();
+  return (VisitRepository(db), RegionRepository(db));
+}
+
+TripRecord _trip({
+  String id = 'FR_2023-01-01T00:00:00.000Z',
+  String countryCode = 'FR',
+  DateTime? startedOn,
+  DateTime? endedOn,
+}) =>
+    TripRecord(
+      id: id,
+      countryCode: countryCode,
+      startedOn: startedOn ?? DateTime.utc(2023, 1, 1),
+      endedOn: endedOn ?? DateTime.utc(2023, 1, 31),
+      photoCount: 1,
+      isManual: false,
+    );
 
 RegionVisit _visit({
   String tripId = 'FR_2023-01-01T00:00:00.000Z',
@@ -196,6 +217,111 @@ void main() {
             tripId: 'FR_2024-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
       ]);
       expect(await repo.countUnique(), 1);
+    });
+  });
+
+  // ── loadRegionCodesForTrip ────────────────────────────────────────────────
+
+  group('loadRegionCodesForTrip', () {
+    test('returns empty list when no photo_date_records exist', () async {
+      final (_, regionRepo) = _makeRepoWithVisits();
+      expect(await regionRepo.loadRegionCodesForTrip(_trip()), isEmpty);
+    });
+
+    test('returns region codes for photos within trip date range', () async {
+      final (visitRepo, regionRepo) = _makeRepoWithVisits();
+      await visitRepo.savePhotoDates([
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 10),
+          regionCode: 'FR-IDF',
+        ),
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 20),
+          regionCode: 'FR-ARA',
+        ),
+      ]);
+      final codes = await regionRepo.loadRegionCodesForTrip(_trip());
+      expect(codes, hasLength(2));
+      expect(codes, containsAll(['FR-IDF', 'FR-ARA']));
+    });
+
+    test('excludes photos outside the trip date range', () async {
+      final (visitRepo, regionRepo) = _makeRepoWithVisits();
+      await visitRepo.savePhotoDates([
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 15), // inside
+          regionCode: 'FR-IDF',
+        ),
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 3, 1), // outside (after endedOn)
+          regionCode: 'FR-ARA',
+        ),
+      ]);
+      final codes = await regionRepo.loadRegionCodesForTrip(_trip());
+      expect(codes, hasLength(1));
+      expect(codes.first, 'FR-IDF');
+    });
+
+    test('excludes photos with null regionCode', () async {
+      final (visitRepo, regionRepo) = _makeRepoWithVisits();
+      await visitRepo.savePhotoDates([
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 10),
+          regionCode: 'FR-IDF',
+        ),
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 15),
+          // no regionCode
+        ),
+      ]);
+      final codes = await regionRepo.loadRegionCodesForTrip(_trip());
+      expect(codes, hasLength(1));
+      expect(codes.first, 'FR-IDF');
+    });
+
+    test('deduplicates region codes when multiple photos share the same region',
+        () async {
+      final (visitRepo, regionRepo) = _makeRepoWithVisits();
+      await visitRepo.savePhotoDates([
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 5),
+          regionCode: 'FR-IDF',
+        ),
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 12),
+          regionCode: 'FR-IDF',
+        ),
+      ]);
+      final codes = await regionRepo.loadRegionCodesForTrip(_trip());
+      expect(codes, hasLength(1));
+      expect(codes.first, 'FR-IDF');
+    });
+
+    test('excludes photos from other countries', () async {
+      final (visitRepo, regionRepo) = _makeRepoWithVisits();
+      await visitRepo.savePhotoDates([
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 1, 10),
+          regionCode: 'FR-IDF',
+        ),
+        PhotoDateRecord(
+          countryCode: 'DE',
+          capturedAt: DateTime.utc(2023, 1, 10),
+          regionCode: 'DE-BY',
+        ),
+      ]);
+      final codes = await regionRepo.loadRegionCodesForTrip(_trip());
+      expect(codes, hasLength(1));
+      expect(codes.first, 'FR-IDF');
     });
   });
 

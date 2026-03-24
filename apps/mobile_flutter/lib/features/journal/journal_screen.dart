@@ -4,7 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
-import '../map/country_detail_sheet.dart';
+import '../map/trip_map_screen.dart';
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -300,13 +300,9 @@ class _TripTile extends StatelessWidget {
   }
 
   void _openSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => CountryDetailSheet(
-        isoCode: trip.countryCode,
-        visit: visit,
-        tripFilter: trip, // ADR-082: filter Photos tab to this trip's dates
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TripMapScreen(trip: trip),
       ),
     );
   }

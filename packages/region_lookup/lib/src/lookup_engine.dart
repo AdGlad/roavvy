@@ -57,6 +57,18 @@ class RegionLookupEngine {
   /// half the grid step — about 27 km at the equator.
   static const double _kCoastalEpsilon = 0.25;
 
+  /// Returns all [RegionPolygon]s whose [RegionPolygon.regionCode] starts with
+  /// `'$countryCode-'` (e.g. `'GB'` → all `'GB-*'` polygons).
+  ///
+  /// Returns an empty list for countries with no admin1 data in the binary.
+  List<RegionPolygon> polygonsForCountry(String countryCode) {
+    final prefix = '$countryCode-';
+    return [
+      for (final p in _index.polygons)
+        if (p.regionCode.startsWith(prefix)) p,
+    ];
+  }
+
   String? _resolveAt(double lat, double lng) {
     for (final polygon in _index.candidatesAt(lat, lng)) {
       if (pointInPolygon(lat, lng, polygon.vertices)) {
