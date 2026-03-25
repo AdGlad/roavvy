@@ -62,6 +62,7 @@ Future<void> pumpApp(
         regionRepositoryProvider.overrideWithValue(regionRepo),
         xpRepositoryProvider.overrideWithValue(XpRepository(db)),
         currentUidProvider.overrideWithValue(null),
+        polygonsProvider.overrideWithValue(const []),
       ],
       child: MaterialApp(
         home: ScanScreen(

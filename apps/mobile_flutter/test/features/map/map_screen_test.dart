@@ -375,4 +375,132 @@ void main() {
 
     expect(find.text("It's been a while — time for a new scan"), findsNothing);
   });
+
+  // ── M43: DiscoverNewCountriesSheet ─────────────────────────────────────────
+
+  group('DiscoverNewCountriesSheet widget', () {
+    Future<void> pumpSheet(
+      WidgetTester tester, {
+      VoidCallback? onScanNow,
+      VoidCallback? onLater,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DiscoverNewCountriesSheet(
+              onScanNow: onScanNow ?? () {},
+              onLater: onLater ?? () {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('shows headline and body text', (tester) async {
+      await pumpSheet(tester);
+      expect(find.text('New countries may be waiting'), findsOneWidget);
+      expect(find.textContaining("You haven't scanned in a while"), findsOneWidget);
+    });
+
+    testWidgets('shows Scan now and Later buttons', (tester) async {
+      await pumpSheet(tester);
+      expect(find.text('Scan now'), findsOneWidget);
+      expect(find.text('Later'), findsOneWidget);
+    });
+
+    testWidgets('Scan now calls onScanNow', (tester) async {
+      var called = false;
+      await pumpSheet(tester, onScanNow: () => called = true);
+      await tester.tap(find.text('Scan now'));
+      expect(called, isTrue);
+    });
+
+    testWidgets('Later calls onLater', (tester) async {
+      var called = false;
+      await pumpSheet(tester, onLater: () => called = true);
+      await tester.tap(find.text('Later'));
+      expect(called, isTrue);
+    });
+  });
+
+  // ── M43: _ScanPromptGate integration ───────────────────────────────────────
+
+  Widget pumpMapScreenWithPrompt({
+    required bool onboardingDone,
+    required DateTime? lastScanAt,
+  }) {
+    final mockAuth = MockFirebaseAuth(
+      signedIn: true,
+      mockUser: MockUser(isAnonymous: true, uid: 'anon'),
+    );
+    return ProviderScope(
+      overrides: [
+        visitRepositoryProvider.overrideWithValue(_makeRepo()),
+        achievementRepositoryProvider
+            .overrideWithValue(AchievementRepository(_makeDb())),
+        xpRepositoryProvider.overrideWithValue(XpRepository(_makeDb())),
+        polygonsProvider.overrideWithValue(const []),
+        authStateProvider.overrideWith((_) => mockAuth.authStateChanges()),
+        onboardingCompleteProvider
+            .overrideWith((_) async => onboardingDone),
+        lastScanAtProvider.overrideWith((_) async => lastScanAt),
+      ],
+      child: const MaterialApp(home: MapScreen(syncService: NoOpSyncService())),
+    );
+  }
+
+  testWidgets('scan prompt shown when onboarding done and lastScanAt is null',
+      (tester) async {
+    await tester.pumpWidget(pumpMapScreenWithPrompt(
+      onboardingDone: true,
+      lastScanAt: null,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New countries may be waiting'), findsOneWidget);
+  });
+
+  testWidgets('scan prompt shown when lastScanAt > 7 days ago', (tester) async {
+    await tester.pumpWidget(pumpMapScreenWithPrompt(
+      onboardingDone: true,
+      lastScanAt: DateTime.now().subtract(const Duration(days: 10)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New countries may be waiting'), findsOneWidget);
+  });
+
+  testWidgets('scan prompt not shown when lastScanAt is recent', (tester) async {
+    await tester.pumpWidget(pumpMapScreenWithPrompt(
+      onboardingDone: true,
+      lastScanAt: DateTime.now().subtract(const Duration(days: 3)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New countries may be waiting'), findsNothing);
+  });
+
+  testWidgets('scan prompt not shown when onboarding not complete',
+      (tester) async {
+    await tester.pumpWidget(pumpMapScreenWithPrompt(
+      onboardingDone: false,
+      lastScanAt: null,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New countries may be waiting'), findsNothing);
+  });
+
+  testWidgets('scan prompt not shown when dismissed today', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'scan_prompt_dismissed_at': DateTime.now().toIso8601String(),
+    });
+    await tester.pumpWidget(pumpMapScreenWithPrompt(
+      onboardingDone: true,
+      lastScanAt: null,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New countries may be waiting'), findsNothing);
+  });
 }

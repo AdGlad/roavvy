@@ -347,6 +347,7 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
     final colorScheme = theme.colorScheme;
 
     return Stack(
+      clipBehavior: Clip.none,
       children: [
         // Main content
         Column(
@@ -386,7 +387,7 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
                       padding: const EdgeInsets.only(bottom: 16),
                       child: ScanRevealMiniMap(newCodes: widget.newCodes),
                     ),
-                  _CountryList(
+                  _FlagTimelineList(
                     newCountries: widget.newCountries,
                     rowOpacities: _rowOpacities,
                   ),
@@ -458,8 +459,9 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
   }
 }
 
-class _CountryList extends StatelessWidget {
-  const _CountryList({
+/// Flag timeline — Task 149 (M43). Larger flag cards with staggered reveal.
+class _FlagTimelineList extends StatelessWidget {
+  const _FlagTimelineList({
     required this.newCountries,
     this.rowOpacities,
   });
@@ -473,6 +475,7 @@ class _CountryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final seenContinents = <String>{};
 
     return Column(
@@ -488,33 +491,52 @@ class _CountryList extends StatelessWidget {
             ? '$name. First country in $continent.'
             : name;
 
-        final row = Semantics(
+        final card = Semantics(
           label: semanticLabel,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                Text(
-                  _flagEmoji(v.countryCode),
-                  style: const TextStyle(fontSize: 28),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name, style: theme.textTheme.bodyLarge),
-                      if (isFirstOnContinent)
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    _flagEmoji(v.countryCode),
+                    style: const TextStyle(fontSize: 40),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          '${kContinentEmoji[continent] ?? ''} First country in $continent',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.tertiary,
+                          name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                    ],
+                        if (isFirstOnContinent)
+                          Text(
+                            '${kContinentEmoji[continent] ?? ''} First country in $continent',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.tertiary,
+                            ),
+                          )
+                        else if (continent != null)
+                          Text(
+                            continent,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -522,9 +544,9 @@ class _CountryList extends StatelessWidget {
         final opacity = rowOpacities != null && i < rowOpacities!.length
             ? rowOpacities![i]
             : null;
-        if (opacity == null) return row;
+        if (opacity == null) return card;
 
-        return FadeTransition(opacity: opacity, child: row);
+        return FadeTransition(opacity: opacity, child: card);
       }),
     );
   }

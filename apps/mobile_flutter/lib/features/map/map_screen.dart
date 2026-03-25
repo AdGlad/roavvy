@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:country_lookup/country_lookup.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -384,6 +385,8 @@ class MapScreen extends ConsumerWidget {
               ),
             ),
           ),
+          // App-open scan prompt gate (Task 150 — M43)
+          _ScanPromptGate(onNavigateToScan: onNavigateToScan),
         ],
       ),
     );
@@ -482,6 +485,127 @@ class _EmptyStateOverlay extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── App-open scan prompt ───────────────────────────────────────────────────────
+
+/// Invisible gate widget that shows [DiscoverNewCountriesSheet] once per day
+/// when onboarding is complete and the last scan was > 7 days ago. (ADR-095)
+class _ScanPromptGate extends ConsumerStatefulWidget {
+  const _ScanPromptGate({this.onNavigateToScan});
+  final VoidCallback? onNavigateToScan;
+
+  @override
+  ConsumerState<_ScanPromptGate> createState() => _ScanPromptGateState();
+}
+
+class _ScanPromptGateState extends ConsumerState<_ScanPromptGate> {
+  static const _prefKey = 'scan_prompt_dismissed_at';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShow());
+  }
+
+  Future<void> _maybeShow() async {
+    if (!mounted) return;
+
+    final onboardingDone =
+        await ref.read(onboardingCompleteProvider.future).catchError((_) => false);
+    if (!onboardingDone || !mounted) return;
+
+    final lastScan = await ref.read(lastScanAtProvider.future).catchError((_) => null);
+    final now = DateTime.now();
+    final needsScan = lastScan == null ||
+        now.difference(lastScan).inDays > 7;
+    if (!needsScan || !mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final dismissedAt = prefs.getString(_prefKey);
+    if (dismissedAt != null) {
+      final dismissed = DateTime.tryParse(dismissedAt);
+      if (dismissed != null &&
+          DateUtils.isSameDay(dismissed, now)) {
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: true,
+      builder: (_) => DiscoverNewCountriesSheet(
+        onScanNow: () {
+          Navigator.of(context).pop();
+          widget.onNavigateToScan?.call();
+        },
+        onLater: () => Navigator.of(context).pop(),
+      ),
+    );
+
+    // Record dismiss date regardless of which button was tapped.
+    await prefs.setString(_prefKey, now.toIso8601String());
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Bottom sheet shown when the user hasn't scanned in 7+ days. (ADR-095)
+class DiscoverNewCountriesSheet extends StatelessWidget {
+  const DiscoverNewCountriesSheet({
+    super.key,
+    required this.onScanNow,
+    required this.onLater,
+  });
+
+  final VoidCallback onScanNow;
+  final VoidCallback onLater;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.photo_camera_outlined,
+              size: 48,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'New countries may be waiting',
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "You haven't scanned in a while. Scan your photo library to discover new countries.",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: onScanNow,
+              child: const Text('Scan now'),
+            ),
+            TextButton(
+              onPressed: onLater,
+              child: const Text('Later'),
+            ),
+          ],
         ),
       ),
     );

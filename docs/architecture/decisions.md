@@ -3032,3 +3032,40 @@ A const map `_kLevelEmoji` (Traveller: 🌱, Explorer: 🧭, Navigator: 🗺️,
 - `LevelUpRepository` is a new SharedPreferences-backed class; its unit tests mirror `MilestoneRepository` tests.
 - `MilestoneCardSheet` gains one optional parameter — zero impact on existing callers.
 - No XP system, Firestore, or Firebase Function changes required for M39.
+
+
+---
+
+## ADR-095 — M43 Scan Delight: widget conversions, in-scan toast/map/confetti, and app-open prompt
+
+**Status:** Accepted
+
+**Context:**
+M43 adds real-time discovery feedback during scanning (toast, inline world map, micro-confetti), a redesigned post-scan flag timeline, and an app-open scan prompt. These require decisions about: (1) how to convert `_ScanningView` to stateful to manage animation controllers; (2) how to detect new codes in widget lifecycle; (3) how to debounce camera moves; (4) how to trigger a one-shot modal from `MapScreen`, which is currently a `ConsumerWidget` with no `initState`.
+
+**Decision:**
+
+**`_ScanningView` → `ConsumerStatefulWidget`:**
+`_ScanningView` is converted from `StatelessWidget` to `ConsumerStatefulWidget` to support: (a) watching `polygonsProvider` for `_ScanLiveMap`, (b) managing the `ConfettiController` for micro-confetti, and (c) managing the toast animation controller. All existing props (`progress`, `liveNewCodes`) remain unchanged.
+
+**New code detection via `didUpdateWidget` length comparison:**
+The trigger for both toast and confetti is: `widget.liveNewCodes.length > oldWidget.liveNewCodes.length`. The newly discovered code is `widget.liveNewCodes.last`. This is reliable because `_liveNewCodes` in `_ScanScreenState` only ever grows (never shrinks mid-scan). No need for Set diffing.
+
+**Camera debounce via Timer cancel-and-restart:**
+`_ScanLiveMap` holds a `Timer? _debounceTimer` and a `String? _pendingCode`. On each new code: cancel any running timer, store the code as pending, start a new 800ms timer. When the timer fires, call `mapController.fitCamera(...)` for `_pendingCode`. This ensures only the latest code drives camera movement during rapid discovery, discarding intermediate codes. The `MapController` is initialised in `initState`.
+
+**App-open scan prompt via `_ScanPromptGate` (ConsumerStatefulWidget):**
+`MapScreen` is currently a `ConsumerWidget` (no `initState`). Rather than reverting it to `ConsumerStatefulWidget`, a small `_ScanPromptGate` — a `ConsumerStatefulWidget` returning `SizedBox.shrink()` — is inserted into the `MapScreen` Stack. Its `initState` uses `WidgetsBinding.instance.addPostFrameCallback` to read the two async conditions (`onboardingCompleteProvider`, `lastScanAtProvider`) and show `DiscoverNewCountriesSheet` if both are met. This pattern mirrors `_NewDiscoveriesStateState._initAnimations()` and keeps `MapScreen` lean.
+
+**Dismissed-today state via SharedPreferences key `scan_prompt_dismissed_at`:**
+On dismiss ("Later" or "Scan now"), write today's date as ISO string (`DateTime.now().toIso8601String()`) to SharedPreferences key `scan_prompt_dismissed_at`. On next app open, `_ScanPromptGate` reads this key; if the stored date matches today's `DateUtils.dateOnly(DateTime.now())`, the prompt is skipped. No new Riverpod provider needed — read directly from SharedPreferences in `_ScanPromptGate.initState`.
+
+**Micro-confetti cap and debounce in `_ScanningViewState`:**
+`_burstCount: int` tracks how many bursts have fired; reset to 0 in `initState`. A `_burstTimer: Timer?` enforces the 500ms minimum gap. On `didUpdateWidget` new code detected: if `_burstCount >= 5` → skip; if timer is active → skip (still cooling down); otherwise play one burst, increment `_burstCount`, start 500ms timer. `ConfettiController` disposed in `dispose()` with `mounted` guard.
+
+**Consequences:**
+- `_ScanningView` becomes a `ConsumerStatefulWidget` — slight complexity increase, same pattern as `TripMapScreen` and others.
+- `_ScanLiveMap` is a `ConsumerStatefulWidget` nested inside `_ScanningView`; it watches `polygonsProvider` directly (already loaded at app start — no latency).
+- `MapScreen` stays a `ConsumerWidget` — no regression.
+- `_ScanPromptGate` is a `SizedBox.shrink()` — zero visual impact; disposed when MapScreen leaves the tree.
+- No new packages required; no Firestore or platform channel changes.
