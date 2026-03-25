@@ -111,11 +111,16 @@ async function generatePrintfulMockup(
     const status = task?.status;
 
     if (status === 'completed') {
-      // Find the front mockup across all returned variant mockups
-      for (const variantMockup of task?.catalog_variant_mockups ?? []) {
-        const mockup = variantMockup.mockups.find((m) => m.placement === 'front');
-        if (mockup) return mockup.mockup_url;
-      }
+      // Prefer the mockup for the exact variant requested; fall back to first
+      // front-placement mockup. Without the ID filter, Printful may return
+      // multiple colour variants and the first entry (often White) would always
+      // be used regardless of the user's colour selection (BUG-001).
+      const variantMockups = task?.catalog_variant_mockups ?? [];
+      const targetVariant =
+        variantMockups.find((vm) => vm.catalog_variant_id === printfulVariantId) ??
+        variantMockups[0];
+      const mockup = targetVariant?.mockups.find((m) => m.placement === 'front');
+      if (mockup) return mockup.mockup_url;
       console.error('[mockup] Completed but no front placement found', JSON.stringify(task));
       return null;
     }

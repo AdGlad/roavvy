@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -284,13 +286,21 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
       if (!mounted) return;
       setState(() {
         _previewState = _PreviewState.initial;
-        _error = e.message ?? 'An error occurred.';
+        _error = e.code == 'unavailable'
+            ? 'An internet connection is required to generate a preview.'
+            : e.message ?? 'An error occurred.';
+      });
+    } on SocketException {
+      if (!mounted) return;
+      setState(() {
+        _previewState = _PreviewState.initial;
+        _error = 'An internet connection is required to generate a preview.';
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _previewState = _PreviewState.initial;
-        _error = e.toString();
+        _error = 'An error occurred. Please try again.';
       });
     }
   }
