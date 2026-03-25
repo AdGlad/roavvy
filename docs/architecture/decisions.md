@@ -3069,3 +3069,47 @@ On dismiss ("Later" or "Scan now"), write today's date as ISO string (`DateTime.
 - `MapScreen` stays a `ConsumerWidget` — no regression.
 - `_ScanPromptGate` is a `SizedBox.shrink()` — zero visual impact; disposed when MapScreen leaves the tree.
 - No new packages required; no Firestore or platform channel changes.
+
+---
+
+## ADR-096 — Passport Stamp Card: CustomPainter rendering, deterministic layout, and richer card input (M44)
+
+**Status:** Accepted
+
+**Context:**
+`PassportStampsCard` in M37 is a widget-based `Wrap` of small bordered boxes (`_StampWidget`). It functions but looks like a data table, not a passport page. The two other card templates (grid, heart) similarly use widget layout and flag emojis. For the passport template specifically, authentic stamp appearance requires: true arbitrary rotation (not `Transform.rotate` which affects widget layout flow), overlapping stamps with controlled occlusion, per-stamp `CustomPainter` drawing of shape-specific stamp anatomy, and ink-transparency effects. None of these are achievable with standard widget layout.
+
+Additionally, `PassportStampsCard` currently accepts only `List<String> countryCodes`. Showing trip dates ("12 JAN 2023") and ENTRY/EXIT labels requires access to `TripRecord` data, which the `CardGeneratorScreen` already loads via `tripRepositoryProvider`.
+
+**Decision:**
+
+**1. Flutter `CustomPainter` + `Canvas` for all stamp drawing:**
+Each stamp is drawn by `StampPainter.paint()` using `canvas.save()` / `translate(center)` / `rotate(rotation)` / `restore()`. This gives pixel-accurate rotation and placement with no layout side-effects. The `PassportStampsCard` widget wraps a single top-level `CustomPaint` (sized by `LayoutBuilder`) whose painter composes background + stamps in a single paint pass.
+
+**2. `StampData` is a rendering artefact, not a domain model:**
+`StampData` lives in `lib/features/cards/` alongside the card templates. It has no Firestore serialisation. It is derived transiently from `TripRecord` data at paint time. This keeps `packages/shared_models` clean.
+
+**3. Deterministic layout via seeded `Random`:**
+`PassportLayoutEngine.layout()` accepts a `seed` (default 0). The seed is derived from `countryCodes.join().hashCode`. Same user → same layout on every device and session. A caller can pass a different seed for "shuffle" variety. Partial overlap is allowed; full occlusion is prevented by an 80%-radius rejection test with 8 max attempts per stamp.
+
+**4. Procedural paper texture — no PNG asset:**
+`PaperTexturePainter` draws: warm parchment base (`0xFFF5ECD7`), ~1000 seeded micro-rects for grain, two faint fold lines, and corner aging via radial gradient. Avoids adding a binary asset to the Flutter bundle and keeps the texture deterministic.
+
+**5. `PassportStampsCard` signature extension:**
+New signature: `PassportStampsCard({required List<String> countryCodes, List<TripRecord> trips = const []})`. When `trips` is non-empty, stamp data is derived from trips sorted by date. When empty (fallback), stamps use codes only with no date label. Grid and Heart cards are unchanged.
+
+**6. `CardGeneratorScreen` passes trips to passport template only:**
+`CardGeneratorScreen` already watches `visitRepositoryProvider` for codes. It now also watches `tripRepositoryProvider`. When the passport template is active, it passes `trips: allTrips.where((t) => selectedCodes.contains(t.countryCode)).toList()`. This is a UI-layer concern; no package boundaries are crossed.
+
+**7. 4 stamp shapes for MVP:**
+`circular`, `rectangular`, `oval`, `doubleRing`. Hexagonal, vintage, and block-typography shapes are deferred. Shapes cycle deterministically by stamp index so the layout has visual variety without randomness.
+
+**8. Cap of 20 stamps:**
+Cards render at most 20 stamps. Countries beyond 20 are silently omitted from the stamp layout (the card footer continues to show the total country count). This prevents layout engine performance degradation and visual clutter on the small card canvas.
+
+**Consequences:**
+- `_StampWidget` and `_OverflowChip` private classes are deleted from `card_templates.dart`.
+- `card_templates_test.dart` requires update: `PassportStampsCard` tests must pass `trips: []` (or supply `TripRecord` stubs).
+- `CardGeneratorScreen` gains a second async dependency (`tripRepositoryProvider`) — handled by `.when()` in the existing provider pattern.
+- Arc text for the circular stamp shape requires manual glyph positioning via `TextPainter`; if too complex, circular stamps use top-aligned straight text instead (builder decision).
+- No new pub packages required. `intl` (date formatting) and `dart:math` (PRNG) are already present.

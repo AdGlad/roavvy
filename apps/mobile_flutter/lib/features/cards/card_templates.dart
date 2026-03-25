@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_models/shared_models.dart';
 
-import '../../core/country_names.dart';
+import 'paper_texture_painter.dart';
+import 'passport_layout_engine.dart';
+import 'passport_stamp_model.dart';
+import 'stamp_painter.dart';
 
 // ── Shared constants ─────────────────────────────────────────────────────────
 
@@ -223,133 +227,132 @@ class HeartFlagsCard extends StatelessWidget {
 
 // ── PassportStampsCard ────────────────────────────────────────────────────────
 
-/// Travel card template: country "passport stamps" on a dark leather background.
+/// Travel card template: authentic ink-style passport stamps on parchment.
 ///
-/// Up to 12 stamps visible; each stamp shows the flag, ISO code, and country
-/// name with a slight deterministic rotation. Overflow shown as "+N more".
+/// Stamps are drawn by [StampPainter] via [CustomPainter] — true arbitrary
+/// rotation, overlapping stamps, and per-shape anatomy. Background is a
+/// procedural parchment from [PaperTexturePainter]. Stamp positions are
+/// deterministic via [PassportLayoutEngine] (ADR-096).
+///
+/// When [trips] is non-empty, stamps show real trip dates and ENTRY/EXIT labels.
+/// When empty (fallback), stamps show codes only with no date label.
 class PassportStampsCard extends StatelessWidget {
-  const PassportStampsCard({super.key, required this.countryCodes});
+  const PassportStampsCard({
+    super.key,
+    required this.countryCodes,
+    this.trips = const [],
+  });
 
   final List<String> countryCodes;
+  final List<TripRecord> trips;
 
   @override
   Widget build(BuildContext context) {
-    const maxStamps = 12;
-    final visible = countryCodes.take(maxStamps).toList();
-    final overflow = countryCodes.length - visible.length;
-
     return AspectRatio(
       aspectRatio: _kAspectRatio,
-      child: Container(
-        decoration: const BoxDecoration(color: Color(0xFF2C1810)),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              _kBrand,
-              style: TextStyle(
-                color: Color(0xFFD4A017),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: countryCodes.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Scan your photos\nto fill your passport',
-                        style: TextStyle(color: Colors.white54, fontSize: 13),
-                        textAlign: TextAlign.center,
+      child: countryCodes.isEmpty
+          ? const _PassportEmptyState()
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final size =
+                    Size(constraints.maxWidth, constraints.maxHeight);
+                return Stack(
+                  children: [
+                    // Background
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: const PaperTexturePainter(),
                       ),
-                    )
-                  : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final code in visible) _StampWidget(code: code),
-                        if (overflow > 0)
-                          _OverflowChip(overflow: overflow),
-                      ],
                     ),
+                    // Stamps
+                    Positioned.fill(
+                      child: _PassportPagePainter(
+                        countryCodes: countryCodes,
+                        trips: trips,
+                        canvasSize: size,
+                      ),
+                    ),
+                    // ROAVVY watermark
+                    Positioned(
+                      bottom: 6,
+                      right: 10,
+                      child: Text(
+                        _kBrand,
+                        style: const TextStyle(
+                          color: Color(0xFF8B6914),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          ],
-        ),
-      ),
     );
   }
 }
 
-class _StampWidget extends StatelessWidget {
-  const _StampWidget({required this.code});
-
-  final String code;
-
-  /// Deterministic rotation in the range -3°..+3° based on the country code.
-  double get _rotationRadians {
-    final seed = (code.codeUnitAt(0) * 31 + code.codeUnitAt(1)) % 7 - 3;
-    return seed * 3.14159 / 180;
-  }
+class _PassportEmptyState extends StatelessWidget {
+  const _PassportEmptyState();
 
   @override
   Widget build(BuildContext context) {
-    final name = kCountryNames[code] ?? code;
-    final shortName = name.length > 10 ? name.substring(0, 9) : name;
-
-    return Transform.rotate(
-      angle: _rotationRadians,
-      child: ClipRect(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFD4A017), width: 1.5),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_flag(code), style: const TextStyle(fontSize: 16)),
-              Text(
-                code,
-                style: const TextStyle(
-                  color: Color(0xFFD4A017),
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-              Text(
-                shortName,
-                style: const TextStyle(color: Colors.white70, fontSize: 7),
-              ),
-            ],
+    return Stack(
+      children: [
+        const Positioned.fill(
+          child: CustomPaint(painter: PaperTexturePainter()),
+        ),
+        const Center(
+          child: Text(
+            'Scan your photos\nto fill your passport',
+            style: TextStyle(color: Color(0xFF8B6914), fontSize: 13),
+            textAlign: TextAlign.center,
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _OverflowChip extends StatelessWidget {
-  const _OverflowChip({required this.overflow});
+class _PassportPagePainter extends StatelessWidget {
+  const _PassportPagePainter({
+    required this.countryCodes,
+    required this.trips,
+    required this.canvasSize,
+  });
 
-  final int overflow;
+  final List<String> countryCodes;
+  final List<TripRecord> trips;
+  final Size canvasSize;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        border:
-            Border.all(color: Colors.white30, width: 1.5, style: BorderStyle.solid),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '+$overflow',
-        style: const TextStyle(color: Colors.white54, fontSize: 12),
-      ),
+    final stamps = PassportLayoutEngine.layout(
+      trips: trips,
+      countryCodes: countryCodes,
+      canvasSize: canvasSize,
+    );
+
+    return CustomPaint(
+      painter: _MultiStampPainter(stamps),
     );
   }
+}
+
+class _MultiStampPainter extends CustomPainter {
+  const _MultiStampPainter(this.stamps);
+
+  final List<StampData> stamps;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final stamp in stamps) {
+      StampPainter(stamp).paint(canvas, size);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MultiStampPainter old) => old.stamps != stamps;
 }

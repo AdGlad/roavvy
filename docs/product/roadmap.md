@@ -286,6 +286,16 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
+## Phase 15 — Visual Design Upgrade
+
+**Goal:** Elevate the passport stamps card template from functional to visually compelling — authentic `CustomPainter`-drawn ink stamps on a paper-textured background, making it worthy of sharing and printing.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M44 — Passport Stamp Card: Authentic Stamp Renderer | Replace widget-based stamps with `CustomPainter` — 4 stamp shapes, procedural paper texture, real trip dates, ENTRY/EXIT labels, deterministic layout engine | ✅ Complete |
+
+---
+
 ## Deferred / Not Planned
 
 - Android support (revisit after iOS App Store launch)

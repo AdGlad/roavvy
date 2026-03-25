@@ -34,6 +34,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   @override
   Widget build(BuildContext context) {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
+    final tripsAsync = ref.watch(tripListProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create card')),
@@ -56,6 +57,10 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           }
 
           final codes = visits.map((v) => v.countryCode).toList()..sort();
+          final trips = tripsAsync.valueOrNull
+                  ?.where((t) => codes.contains(t.countryCode))
+                  .toList() ??
+              [];
 
           return Column(
             children: [
@@ -71,7 +76,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                   child: Center(
                     child: RepaintBoundary(
                       key: _previewKey,
-                      child: _buildTemplate(codes),
+                      child: _buildTemplate(codes, trips),
                     ),
                   ),
                 ),
@@ -90,14 +95,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     );
   }
 
-  Widget _buildTemplate(List<String> codes) {
+  Widget _buildTemplate(List<String> codes, List<TripRecord> trips) {
     switch (_selected) {
       case CardTemplateType.grid:
         return GridFlagsCard(countryCodes: codes);
       case CardTemplateType.heart:
         return HeartFlagsCard(countryCodes: codes);
       case CardTemplateType.passport:
-        return PassportStampsCard(countryCodes: codes);
+        return PassportStampsCard(countryCodes: codes, trips: trips);
     }
   }
 

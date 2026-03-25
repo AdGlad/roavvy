@@ -1,118 +1,170 @@
-# M43 — Scan Delight: Real-Time Discovery
+# M44 — Passport Stamp Card: Authentic Stamp Renderer
 
-**Goal:** Make every scan feel alive — each new country triggers an animated discovery toast, a world map grows in real-time, micro-confetti fires per country, and the post-scan summary shows a dramatic flag timeline. On app open after 7+ days, the user is prompted to scan.
+**Goal:** Replace the widget-based `PassportStampsCard` with a `CustomPainter`-driven stamp renderer that draws realistic ink-style country stamps on a paper-textured background, using real trip dates and ENTRY/EXIT labels — making it the most visually distinctive of the three card templates.
 
-**Branch:** `milestone/m43-scan-delight`
+**Branch:** `milestone/m44-passport-stamp-renderer`
+
+**ADR:** ADR-096
 
 ---
 
 ## Scope
 
 ### Included
-- Fix confetti clipping in `ScanSummaryScreen` (already applied — `Stack clipBehavior: Clip.none`)
-- `_DiscoveryToastOverlay` animated banner in `_ScanningView` per new country during scan
-- `_ScanLiveMap` inline FlutterMap in `_ScanningView` with amber highlights and auto-camera per country
-- Micro-confetti per discovery in `_ScanningView` (capped at 5 per scan, 500ms debounce, reduce-motion guard)
-- Post-scan flag timeline — `ScanSummaryScreen` State A: larger flag emoji cards with staggered reveal
-- App-open scan prompt — `DiscoverNewCountriesSheet` shown when `lastScanAt == null || daysSince > 7` and onboarding complete
+- `StampData` rendering model + `StampShape` enum (4 shapes: circular, rectangular, oval, double-ring)
+- `StampPainter` CustomPainter — ink-style border, rotation, transparency, per-shape drawing logic
+- `PassportLayoutEngine` — deterministic seeded positioning, partial-overlap allowed, full occlusion prevented, margin respect
+- `PaperTexturePainter` — procedural off-white grain background (no PNG asset)
+- Upgraded `PassportStampsCard` widget — accepts `List<TripRecord>? trips` + `List<String> countryCodes`; maps trips to stamps with date (DD MMM YYYY) + ENTRY/EXIT label
+- `CardGeneratorScreen` — reads `tripRepositoryProvider` and passes `trips` to `PassportStampsCard` only; Grid/Heart unchanged
+- Updated `card_templates_test.dart` for new signature
 
 ### Excluded
+- Server-side image generation (Printful handles high-res merch)
+- New canvas sizes / poster/shirt dimensions
+- Airport codes (not in data model)
+- City labels (city detection not built)
+- Hexagonal stamp shape, vintage worn stamp, block typography stamp (deferred)
+- Rare/milestone stamp gamification (deferred)
 - Sound effects
-- Map screen continent rings / dashboard circles
-- Confetti for 6th+ country in a single scan (performance cap)
-- Trip timeline sidebar on map screen
 
 ---
 
 ## Tasks
 
-### Task 145 — Fix confetti clipping in ScanSummaryScreen ✅ Done
+### Task 151 — `StampData` model and `StampShape` enum
 
-**Deliverable:** `Stack` in `_NewDiscoveriesState.build()` gets `clipBehavior: Clip.none` so particles fall across the full screen.
+**Deliverable:** `lib/features/cards/passport_stamp_model.dart` — pure Dart file containing:
+- `StampShape` enum: `circular`, `rectangular`, `oval`, `doubleRing`
+- `StampColor` enum: `blue`, `red`, `purple`, `green`, `black` (each maps to a specific `Color` constant)
+- `StampData` class (immutable): `countryCode`, `countryName`, `dateLabel` (nullable String, formatted "DD MMM YYYY"), `entryLabel` ("ENTRY" or "EXIT"), `shape`, `color`, `rotation` (radians), `center` (`Offset`), `scale` (double, default 1.0)
+- `StampData.fromTrip(TripRecord trip, {required StampShape shape, required StampColor color, required double rotation, required Offset center, required bool isEntry})` factory
+- `StampData.fromCode(String code, {required StampShape shape, required StampColor color, required double rotation, required Offset center})` factory — fallback for countries without trips
 
 **Acceptance criteria:**
-- Confetti particles visibly fall down the screen after scan (not cut off at top)
-- Existing confetti tests in `scan_summary_screen_test.dart` still pass
+- `StampData.fromTrip` formats `trip.startedOn` as "12 JAN 2023"
+- `StampData.fromCode` produces `dateLabel: null` and `entryLabel: 'ENTRY'`
+- All fields are final; `StampData` is not a domain model (no Firestore serialisation)
+- Unit tests in `test/features/cards/passport_stamp_model_test.dart` (date formatting, factory outputs)
+
+**Dependencies:** `TripRecord` from `packages/shared_models`; `dart:intl` via `intl` package (already in pubspec)
 
 ---
 
-### Task 146 — `_DiscoveryToastOverlay`: animated banner in `_ScanningView`
+### Task 152 — `StampPainter` CustomPainter
 
-**Deliverable:** `_ScanningView` converted from `StatelessWidget` to `StatefulWidget`. `_DiscoveryToastOverlay` — a `StatefulWidget` that sits in a `Stack` over the scan content and shows a slide-in banner ("🎉 New Country! {flag} {name}") when a new code is added to `liveNewCodes`. Banner slides in from top, holds 2.5s, slides out. Non-blocking.
+**Deliverable:** `lib/features/cards/stamp_painter.dart` — `StampPainter extends CustomPainter` that draws a single `StampData` onto a `Canvas`. Drawing logic:
+
+- `circular`: outer circle border (2pt stroke) + inner concentric circle (1pt) + country name arc text along top + date text at centre + entry label at bottom
+- `rectangular`: double-border rectangle (outer 2pt, inner 1pt, 3px gap) + country name (bold uppercase) + date + entry label stacked
+- `oval`: `rrect` with high radius + single border + content layout same as rectangular
+- `doubleRing`: two concentric circles (outer 2pt, inner 1.5pt) + wavy or serrated inner ring effect via `Path.lineTo` segments + country name + date
+
+All shapes:
+- Use `canvas.save()` / `translate(center)` / `rotate(rotation)` / `restore()` pattern
+- Paint stroke colour from `StampData.color` at 75% opacity (ink worn effect)
+- Fill transparent (stamps are outline-only)
+- Text colour matches border colour
+- Font: monospace (use `TextStyle(fontFamily: 'Courier', ...)` or system monospace)
 
 **Acceptance criteria:**
-- When `liveNewCodes` grows (widget rebuilds with a longer list), the banner fires for the latest code
-- Banner auto-dismisses after 2.5s
-- If `MediaQuery.disableAnimationsOf` is true, no banner is shown
-- Widget test: banner appears when `liveNewCodes` gains a new entry
+- `StampPainter` is a pure `CustomPainter` (no Flutter widget tree inside `paint()`)
+- All 4 shapes render without assertion errors
+- `shouldRepaint` returns false when `StampData` is unchanged
+- Widget test in `test/features/cards/stamp_painter_test.dart`: wrap in `CustomPaint` + `RepaintBoundary`, call `toImage`, verify non-null
+
+**Dependencies:** Task 151 (`StampData`)
 
 ---
 
-### Task 147 — `_ScanLiveMap`: inline world map in `_ScanningView`
+### Task 153 — `PassportLayoutEngine`
 
-**Deliverable:** `_ScanLiveMap` — a `ConsumerStatefulWidget` with fixed height 220px; embeds `FlutterMap` (non-interactive) using `polygonsProvider`; discovered countries rendered amber (`Color(0xFFD4A017)`); unvisited countries dark navy (`Color(0xFF1E3A5F)`); `MapController` auto-fits to each new country's polygon bounds (debounced 800ms). Placed above live country rows. Hidden (`SizedBox.shrink()`) when `polygonsProvider` is empty.
+**Deliverable:** `lib/features/cards/passport_layout_engine.dart` — `PassportLayoutEngine` class with:
+
+```
+static List<StampData> layout({
+  required List<TripRecord> trips,
+  required List<String> countryCodes,
+  required Size canvasSize,
+  int seed = 0,
+})
+```
+
+Algorithm:
+1. Merge trips and any codes without a trip into a unified input list (trips sorted ascending by `startedOn`, trip-less codes appended)
+2. For each item, assign: `shape` (cycle through enum values using item index), `color` (deterministic from `countryCode` hash), `rotation` (seeded random ±12°)
+3. Place stamps using a seeded `Random(seed)`:
+   - Margins: 8% of canvas width/height
+   - First attempt: random point in usable area
+   - Reject if centre is within 80% of any already-placed stamp's effective radius (partial overlap allowed; full occlusion prevented)
+   - Max 8 placement attempts per stamp; accept best-effort on failure
+4. Alternate ENTRY/EXIT: even index = ENTRY, odd = EXIT (based on trip sequence order)
+5. Cap at 20 stamps maximum; if more countries, do not render overflow (share button shows full count separately)
 
 **Acceptance criteria:**
-- Map renders at 220px height inside the scan view
-- Amber polygons appear for each entry in `liveNewCodes`
-- Camera moves to each new country (debounced)
-- Map absent if polygon data unavailable
-- Widget test: map widget present when polygons non-empty
+- Unit test: `layout()` with 5 known codes + seed 0 produces stable, deterministic positions across calls
+- All stamp centres within canvas margins
+- No two stamps have identical centres
+- `trips` empty: falls back to codes-only path without error
+- `countryCodes` empty: returns empty list
+
+**Dependencies:** Task 151 (`StampData`)
 
 ---
 
-### Task 148 — Micro-confetti per discovery in `_ScanningView`
+### Task 154 — `PaperTexturePainter` background
 
-**Deliverable:** `ConfettiController` managed in `_ScanningViewState`; fires a short burst on each new country in `liveNewCodes`; capped at 5 per scan; minimum 500ms gap between bursts; `ConfettiWidget` anchored top-center in `_ScanningView`'s Stack with `clipBehavior: Clip.none`; reduced-motion guard.
+**Deliverable:** `lib/features/cards/paper_texture_painter.dart` — `PaperTexturePainter extends CustomPainter`:
+
+- Base fill: `Color(0xFFF5ECD7)` (warm parchment)
+- Grain: scatter ~1000 micro-rects (1×1 to 2×2 px) with seeded `Random(42)` positions and slight colour variance (±8 lightness from base)
+- Two faint horizontal lines at 30% and 70% canvas height (passport page fold marks, 0.3pt, 15% opacity)
+- Corner aging: very faint radial gradient darkening in all 4 corners (radius = 20% of smallest dimension, black at 8% opacity)
 
 **Acceptance criteria:**
-- Confetti fires when `liveNewCodes` grows (up to 5 times)
-- No confetti if `MediaQuery.disableAnimationsOf` is true
-- No crash if scan cancelled mid-burst (dispose guard)
-- Widget test: ConfettiWidget present in scanning view when new codes exist
+- Renders within a `CustomPaint` without errors
+- `shouldRepaint` always returns false (static)
+- Widget test: paint into an `ImageRecorder`, verify size matches
+
+**Dependencies:** None (pure `dart:math` + `dart:ui`)
 
 ---
 
-### Task 149 — Post-scan flag timeline in `ScanSummaryScreen` State A
+### Task 155 — `PassportStampsCard` upgrade + `CardGeneratorScreen` wiring
 
-**Deliverable:** Replace `_CountryList` compact text list with `_FlagTimelineList` — vertically scrolling cards, one per new country. Each card: flag emoji (40px), country name (bold 16pt), continent label (muted). Discovery-order preserved. Staggered reveal using existing `_rowOpacities` animation. `ScanRevealMiniMap` remains at top.
+**Deliverable:**
+1. `PassportStampsCard` in `card_templates.dart` replaced: new constructor signature `const PassportStampsCard({required List<String> countryCodes, this.trips = const []})`. Widget wraps a single `CustomPaint` sized to `AspectRatio(3/2)` using `LayoutBuilder` for size. Painter is `_PassportPagePainter` which composes: `PaperTexturePainter` → `PassportLayoutEngine.layout()` → one `StampPainter` per stamp. ROAVVY watermark retained as a tiny `Text` widget overlaid on the `Stack`.
 
-**Acceptance criteria:**
-- State A shows flag cards with large emoji
-- Cards reveal in staggered order
-- Reduce-motion: all cards at full opacity immediately
-- Widget test: flag emoji visible for 'GB' → '🇬🇧'
+2. `CardGeneratorScreen` updated: watches `tripRepositoryProvider` (already in `providers.dart`); extracts trips for the selected country codes; passes `trips:` param when building `PassportStampsCard`. Grid and Heart cards receive only `countryCodes` (unchanged).
 
----
-
-### Task 150 — App-open scan prompt (`DiscoverNewCountriesSheet`)
-
-**Deliverable:** `DiscoverNewCountriesSheet` modal bottom sheet. Shown from `MapScreen` when onboarding complete AND (`lastScanAt == null` OR `daysSince > 7`). Content: scan icon, headline, body, "Scan now" → navigate to scan tab, "Later" → dismiss. Dismissed-today state persisted to SharedPreferences (`scan_prompt_dismissed_at`); skipped if dismissed today.
+3. Remove `_StampWidget`, `_OverflowChip` private classes (now unused).
 
 **Acceptance criteria:**
-- Sheet shown when `lastScanAt` is null and onboarding complete
-- Sheet shown when `lastScanAt` > 7 days ago
-- Sheet NOT shown when `lastScanAt` within 7 days
-- Sheet NOT shown before onboarding complete
-- Sheet NOT shown again same calendar day it was dismissed
-- "Scan now" navigates to Scan tab
-- Widget tests covering each condition
+- `PassportStampsCard` renders with trips: shows at least one stamp with a date label
+- `PassportStampsCard` renders without trips: shows stamps with no date label, no crash
+- `RepaintBoundary.toImage(pixelRatio: 3.0)` captures the upgraded card (verified by Share flow)
+- `card_templates_test.dart` updated: tests for `PassportStampsCard` pass with `trips: []`
+- No regressions in Grid/Heart card tests
+- All existing flutter tests pass
+
+**Dependencies:** Tasks 151–154; `tripRepositoryProvider`
 
 ---
 
 ## Dependencies
 
-- `confetti`: already in `pubspec.yaml`
-- `polygonsProvider`: already in `providers.dart`
-- `lastScanAtProvider`: already in `providers.dart`
-- `onboardingCompleteProvider`: already in `providers.dart`
-- `SharedPreferences`: already a dependency
+- `TripRecord` — in `packages/shared_models`
+- `tripRepositoryProvider` — already in `lib/core/providers.dart`
+- `intl` package — already in `pubspec.yaml` (date formatting)
+- `dart:math` — standard library (PRNG)
+- `dart:ui` / `CustomPainter` — Flutter core
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| `fitCamera` during rapid discovery causes jank | Debounce to max one move per 800ms; queue latest code only |
-| `ConfettiController.play()` on disposed widget | Guard with `mounted`; cancel burst Timer in `dispose()` |
-| App-open prompt on first launch | Only show when `onboardingCompleteProvider` is true |
-| `_ScanningView` → Stateful breaks existing tests | No existing test targets `_ScanningView` directly |
+| Monospace font not available on all iOS versions | Use `TextStyle(fontFamily: 'Courier New')` — ships with iOS; no custom font needed |
+| Arc text for circular stamps is complex | Arc text via `TextPainter` + manual glyph positioning; fall back to top-aligned straight text if implementation is too complex |
+| `PassportLayoutEngine` overlap rejection loops forever with many stamps | Max 8 attempts per stamp; accept placement regardless on attempt 9 |
+| `TripRecord.startedOn` is null (manual entry with no date) | `StampData.fromTrip` checks null and produces `dateLabel: null` |
+| `CardGeneratorScreen` acquires second async dependency (trips) | Use `.when(data:, loading:, error:)` on combined provider; loading state shows shimmer already |
