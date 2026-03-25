@@ -2515,3 +2515,51 @@ This is a denylist-of-patterns approach rather than an allowlist. It is sufficie
 - Open redirect is prevented: `https://evil.com` fails check (b); `//evil.com` fails check (b); `/evil` passes and is safe (relative path, Next.js router will navigate within the same origin).
 - The sign-in page must use `useSearchParams()` which requires a `<Suspense>` boundary in Next.js App Router. Wrap the page body in `<Suspense fallback={<p>Loading...</p>}` or extract the params-reading logic into a child component.
 - No allowlist maintenance needed — any new internal route works automatically.
+
+---
+
+## ADR-079 — Web `/shop/design` calls `createMerchCart` via `httpsCallable`; redirects to `checkoutUrl` directly (M28)
+
+**Status:** Accepted
+
+**Context:**
+M28 requires the web app to create a Shopify cart for the user's selected countries and redirect them to the Shopify checkout URL. The same `createMerchCart` Firebase callable used by the mobile app must be called from the web JS SDK.
+
+Two options for the web integration:
+1. **Next.js API route proxy** — create a `/api/merch/cart` Next.js server route that calls the Firebase Function via the Admin SDK. Adds an extra hop, requires Admin SDK credentials in the Next.js server environment.
+2. **`httpsCallable` directly from the client** — call `createMerchCart` directly from the browser using the Firebase JS SDK `httpsCallable`. The callable verifies the Firebase Auth ID token automatically. No additional server needed.
+
+**Decision:**
+Use `httpsCallable` directly from the client (option 2). The Firebase Functions SDK is already initialised in `apps/web_nextjs/src/lib/firebase/init.ts` and `functions` is exported. The callable handles auth token verification transparently. No Admin SDK or proxy needed.
+
+The poster variant is hardcoded to the Enhanced Matte 18×24in Shopify GID (`gid://shopify/ProductVariant/47577104351419`) as the M28 scope excludes a variant picker. The constant is defined in the design page module.
+
+On callable success, the page redirects immediately via `window.location.href = checkoutUrl`. No post-redirect cleanup is needed — the browser unloads the page.
+
+**Consequences:**
+- Auth is handled automatically by Firebase SDK — no token management in the page.
+- The `functions` region must match what was used at deploy time (default `us-central1`). If the region differs, `getFunctions(app, 'REGION')` must be passed. This is a configuration detail, not a code structure issue.
+- The design page is a client component (`"use client"`) — the callable and `window.location` are browser APIs.
+- No allowance for variant selection in this milestone; the variantId constant is the single coupling point to extend later.
+
+---
+
+## ADR-080 — `COUNTRY_NAMES` is a static TypeScript record in `src/lib/countryNames.ts` (M28)
+
+**Status:** Accepted
+
+**Context:**
+The `/shop/design` country-selection grid needs to display a human-readable name alongside each ISO 3166-1 alpha-2 code. Options:
+1. Bundle a full i18n library (e.g. `Intl.DisplayNames`) — available in modern browsers natively.
+2. Static TypeScript record — plain key-value map, zero runtime cost, tree-shakeable.
+3. Fetch from an external API — violates offline-first constraint for non-core features.
+
+**Decision:**
+Use `Intl.DisplayNames` with a static fallback record. `Intl.DisplayNames('en', { type: 'region' })` resolves ISO codes to display names using the browser's built-in locale data — no bundle size cost. A lightweight static fallback covers environments where the API is unavailable (older browsers, SSR context).
+
+The helper function `countryName(code: string): string` tries `Intl.DisplayNames` first, then falls back to a static `COUNTRY_NAMES` partial record for common codes, then returns the code itself.
+
+**Consequences:**
+- No new npm dependencies.
+- SSR-safe: `Intl.DisplayNames` is available in Node ≥13 and all modern browsers.
+- Static fallback ensures no empty labels even if `Intl` is unavailable.
