@@ -390,6 +390,59 @@ All sharing features are complete as of M12.
 
 ---
 
+## Milestone 43 — Scan Delight: Real-Time Discovery
+
+**Goal:** Make every scan feel alive. Each newly discovered country triggers an in-scan toast, a confetti burst, and a world map that zooms to that country in real-time. After the scan, new countries are displayed as a dramatic flag timeline. When the user opens the app after 7+ days away, they are proactively prompted to scan for new countries.
+
+**Phase:** Celebrations & Delight (Phase 8 follow-on)
+
+**Why this milestone:** The scan is the highest-emotion moment in the app. The existing live feed (Task 109) shows a text list — this milestone turns it into a proper discovery experience: the user *watches* their map grow with each country found.
+
+### Scope — included
+
+| # | Feature | Notes |
+|---|---|---|
+| In | Discovery toast during scan | Animated "🎉 New Country! 🇯🇵 Japan" banner slides in from top, stays 2.5s, slides away; non-blocking |
+| In | Inline world map during scan | `FlutterMap` embedded in `_ScanningView`; discovered countries highlight amber; camera auto-fits to each new country's polygon bounds on discovery |
+| In | Micro-confetti per discovery | Short burst via existing `ConfettiWidget` when each new country is added; capped at first 5 per scan, min 500ms gap between bursts; respects `MediaQuery.disableAnimationsOf` |
+| In | Post-scan flag timeline | Visual upgrade to `ScanSummaryScreen` State A — larger flag emojis, staggered card reveal, discovery-order preserved |
+| In | App-open scan prompt | When `lastScanAt` is null or > 7 days ago, show a `DiscoverNewCountriesSheet` modal on app open; "Scan now" → Scan tab; "Later" dismisses |
+
+### Scope — excluded
+
+- Sound effects (separate milestone; App Store audio review complexity)
+- Map screen dashboard circles / continent rings (significant layout redesign, separate milestone)
+- Trip timeline sidebar on map screen (separate milestone)
+- Confetti for the 6th+ country in a single scan (performance cap; addressable in a polish pass)
+
+### Tasks
+
+| Task | Description |
+|---|---|
+| 140 | `_DiscoveryToastOverlay` — animated banner widget shown in `_ScanningView` when a new country is added to `_liveNewCodes`; flag emoji + country name; slide-in/out; non-blocking |
+| 141 | Inline scan world map — `_ScanLiveMap` widget added to `_ScanningView`; `FlutterMap` with `polygonsProvider`; discovered countries rendered amber; `MapController.fitCamera(CameraFit.bounds(...))` per new country |
+| 142 | Micro-confetti per discovery — `ConfettiController` in `_ScanningView`; fires short burst on each new country (cap 5, min 500ms debounce); anchored near the toast overlay; `MediaQuery.disableAnimationsOf` guard |
+| 143 | Post-scan flag timeline — `ScanSummaryScreen` State A redesign: larger flag cards with staggered reveal; replaces current compact country-name list |
+| 144 | App-open scan prompt — `DiscoverNewCountriesSheet`; shown from `MapScreen` `initState`/`didChangeDependencies` when `lastScanAt == null \|\| daysSince > 7`; persists dismissed-today state to SharedPreferences; "Scan now" calls `onNavigateToScan` |
+
+### Dependencies
+
+- `confetti` package: already in `pubspec.yaml` (Task 52)
+- `polygonsProvider`: already in `providers.dart`
+- `lastScanAtProvider`: already in `providers.dart` (Task 113)
+- All tasks depend on no new packages
+
+### Risks
+
+| Risk | Mitigation |
+|---|---|
+| `fitCamera` on `MapController` during scan causes jank if many countries found rapidly | Debounce camera moves to max one per 800ms; queue latest code, skip intermediate ones |
+| Inline map in scan screen makes the screen too tall / cluttered | Fixed height 200px; sits above the live feed list; collapses gracefully if `polygonsProvider` is empty |
+| `ConfettiController` `play()` called on a disposed widget (scan cancelled mid-burst) | Guard with `mounted` check; cancel burst timer in `dispose()` |
+| App-open prompt shown immediately on first launch (before onboarding) | Only show when `onboardingCompleteProvider` is true AND `lastScanAt` condition met |
+
+---
+
 ## Milestone 35 — Trip Region Map ✅ COMPLETE (2026-03-24)
 
 **Goal:** Tapping a trip in the Journal opens a full-screen country map styled like the main map, with the regions visited on that trip highlighted in amber.
