@@ -1,10 +1,14 @@
-# M40 — Scan & Map Commerce Triggers
+# M43 — Scan Delight: Real-Time Discovery
 
-**Milestone:** 40
-**Phase:** Phase 13b — Identity Commerce
+**Milestone:** 43
+**Phase:** Phase 14 — Scan Delight
 **Status:** ✅ Complete (2026-03-25)
 
 ## Tasks
 
-- [x] **Task 140** — "Create a travel card" nudge in ScanSummaryScreen State A
-- [x] **Task 141** — Rename "Get a poster" → "Create a poster" in MapScreen menu
+- [x] **Task 145** — Fix confetti clipping (Stack clipBehavior: Clip.none in ScanSummaryScreen) ✅
+- [x] **Task 146** — `_DiscoveryToastOverlay`: animated banner in `_ScanningView` ✅
+- [x] **Task 147** — `_ScanLiveMap`: inline world map in `_ScanningView` ✅
+- [x] **Task 148** — Micro-confetti per discovery in `_ScanningView` ✅
+- [x] **Task 149** — Post-scan flag timeline in `ScanSummaryScreen` State A ✅
+- [x] **Task 150** — App-open scan prompt (`DiscoverNewCountriesSheet`) ✅

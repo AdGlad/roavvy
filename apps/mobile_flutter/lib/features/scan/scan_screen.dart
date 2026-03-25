@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:confetti/confetti.dart';
 import 'package:country_lookup/country_lookup.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:region_lookup/region_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -659,7 +662,9 @@ class _RestrictedPanel extends StatelessWidget {
   }
 }
 
-class _ScanningView extends StatelessWidget {
+// ── _ScanningView (Tasks 146, 147, 148 — M43) ─────────────────────────────────
+
+class _ScanningView extends ConsumerStatefulWidget {
   const _ScanningView({this.progress, this.liveNewCodes = const []});
 
   final _ScanProgress? progress;
@@ -669,35 +674,280 @@ class _ScanningView extends StatelessWidget {
   final List<String> liveNewCodes;
 
   @override
+  ConsumerState<_ScanningView> createState() => _ScanningViewState();
+}
+
+class _ScanningViewState extends ConsumerState<_ScanningView> {
+  // ── Toast state ──────────────────────────────────────────────────────────────
+  String? _toastCode;
+  AnimationController? _toastCtrl;
+  Animation<Offset>? _toastSlide;
+  Timer? _toastTimer;
+
+  // ── Confetti ─────────────────────────────────────────────────────────────────
+  ConfettiController? _confettiCtrl;
+  int _burstCount = 0;
+  Timer? _burstCooldown;
+
+  @override
+  void initState() {
+    super.initState();
+    // ConfettiController created unconditionally; reduce-motion guard applied
+    // in _maybeBurst() and build() where MediaQuery is safely accessible.
+    _confettiCtrl = ConfettiController(duration: const Duration(milliseconds: 800));
+  }
+
+  @override
+  void didUpdateWidget(_ScanningView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.liveNewCodes.length > oldWidget.liveNewCodes.length) {
+      final newCode = widget.liveNewCodes.last;
+      if (!MediaQuery.disableAnimationsOf(context)) {
+        _showToast(newCode);
+        _maybeBurst();
+      }
+    }
+  }
+
+  void _showToast(String code) {
+    _toastTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _toastCode = code);
+    _toastCtrl?.dispose();
+    _toastCtrl = AnimationController(
+      vsync: Navigator.of(context),
+      duration: const Duration(milliseconds: 300),
+    );
+    _toastSlide = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _toastCtrl!, curve: Curves.easeOut));
+    _toastCtrl!.forward();
+    _toastTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (!mounted) return;
+      _toastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _toastCode = null);
+      });
+    });
+  }
+
+  void _maybeBurst() {
+    if (_burstCount >= 5) return;
+    if (_burstCooldown?.isActive == true) return;
+    _confettiCtrl?.play();
+    _burstCount++;
+    _burstCooldown = Timer(const Duration(milliseconds: 500), () {});
+  }
+
+  @override
+  void dispose() {
+    _toastTimer?.cancel();
+    _toastCtrl?.dispose();
+    _burstCooldown?.cancel();
+    _confettiCtrl?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final processed = progress?.processed ?? 0;
+    final processed = widget.progress?.processed ?? 0;
     final theme = Theme.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final colorScheme = theme.colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        const LinearProgressIndicator(value: null),
-        const SizedBox(height: 8),
-        Text(
-          processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const LinearProgressIndicator(value: null),
+            const SizedBox(height: 8),
+            Text(
+              processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 4),
+            const Text('Detecting visited countries'),
+            const SizedBox(height: 12),
+            _ScanLiveMap(liveNewCodes: widget.liveNewCodes),
+            if (widget.liveNewCodes.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Countries found',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              // Newest first.
+              for (final code in widget.liveNewCodes.reversed)
+                _LiveCountryRow(isoCode: code, reduceMotion: reduceMotion),
+            ],
+          ],
         ),
-        const SizedBox(height: 4),
-        const Text('Detecting visited countries'),
-        if (liveNewCodes.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            'Countries found',
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+        // Toast overlay
+        if (_toastCode != null && _toastSlide != null)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SlideTransition(
+              position: _toastSlide!,
+              child: _DiscoveryToastBanner(code: _toastCode!),
+            ),
           ),
-          const SizedBox(height: 8),
-          // Newest first.
-          for (final code in liveNewCodes.reversed)
-            _LiveCountryRow(isoCode: code, reduceMotion: reduceMotion),
-        ],
+        // Confetti — skip when reduce-motion is enabled
+        if (_confettiCtrl != null && !MediaQuery.disableAnimationsOf(context))
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiCtrl!,
+              blastDirectionality: BlastDirectionality.explosive,
+              emissionFrequency: 0.6,
+              numberOfParticles: 8,
+              gravity: 0.3,
+              shouldLoop: false,
+              colors: [
+                colorScheme.primary,
+                colorScheme.secondary,
+                Colors.amber[400]!,
+                Colors.amber[700]!,
+              ],
+            ),
+          ),
       ],
+    );
+  }
+}
+
+// ── Discovery toast banner ────────────────────────────────────────────────────
+
+class _DiscoveryToastBanner extends StatelessWidget {
+  const _DiscoveryToastBanner({required this.code});
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final flag = _flagEmoji(code);
+    final name = kCountryNames[code] ?? code;
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(8),
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            const Text('🎉', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Text('New Country!', style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onPrimaryContainer,
+            )),
+            const SizedBox(width: 8),
+            Text('$flag $name', style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer,
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Inline scan world map ─────────────────────────────────────────────────────
+
+class _ScanLiveMap extends ConsumerStatefulWidget {
+  const _ScanLiveMap({required this.liveNewCodes});
+  final List<String> liveNewCodes;
+
+  @override
+  ConsumerState<_ScanLiveMap> createState() => _ScanLiveMapState();
+}
+
+class _ScanLiveMapState extends ConsumerState<_ScanLiveMap> {
+  final _mapController = MapController();
+  Timer? _debounceTimer;
+  String? _pendingCode;
+
+  @override
+  void didUpdateWidget(_ScanLiveMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.liveNewCodes.length > oldWidget.liveNewCodes.length) {
+      _scheduleCamera(widget.liveNewCodes.last);
+    }
+  }
+
+  void _scheduleCamera(String code) {
+    _pendingCode = code;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+      if (!mounted || _pendingCode == null) return;
+      final polygons = ref.read(polygonsProvider);
+      final matches = polygons.where((p) => p.isoCode == _pendingCode).toList();
+      if (matches.isEmpty) return;
+      final allPoints = [
+        for (final p in matches)
+          for (final (lat, lng) in p.vertices) LatLng(lat, lng),
+      ];
+      if (allPoints.isEmpty) return;
+      final bounds = LatLngBounds.fromPoints(allPoints);
+      _mapController.fitCamera(
+        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(24)),
+      );
+      _pendingCode = null;
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final polygons = ref.watch(polygonsProvider);
+    if (polygons.isEmpty) return const SizedBox.shrink();
+
+    final discoveredSet = widget.liveNewCodes.toSet();
+
+    final unvisitedPolygons = polygons
+        .where((p) => !discoveredSet.contains(p.isoCode))
+        .map((p) => Polygon(
+              points: [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
+              color: const Color(0xFF1E3A5F),
+            ))
+        .toList();
+
+    final visitedPolygons = polygons
+        .where((p) => discoveredSet.contains(p.isoCode))
+        .map((p) => Polygon(
+              points: [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
+              color: const Color(0xFFD4A017),
+            ))
+        .toList();
+
+    return SizedBox(
+      height: 220,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: FlutterMap(
+          mapController: _mapController,
+          options: const MapOptions(
+            initialCenter: LatLng(20, 0),
+            initialZoom: 1.5,
+            interactionOptions: InteractionOptions(flags: 0),
+          ),
+          children: [
+            ColoredBox(color: const Color(0xFF0D2137)),
+            PolygonLayer(polygons: unvisitedPolygons),
+            PolygonLayer(polygons: visitedPolygons),
+          ],
+        ),
+      ),
     );
   }
 }

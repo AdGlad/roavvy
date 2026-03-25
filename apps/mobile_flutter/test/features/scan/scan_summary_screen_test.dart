@@ -257,4 +257,27 @@ void main() {
       expect(find.text('Create a travel card →'), findsNothing);
     });
   });
+
+  group('ScanSummaryScreen — flag timeline (M43)', () {
+    testWidgets('shows flag emoji for GB in State A', (tester) async {
+      await pumpSummary(tester, newCountries: [_country('GB')]);
+      // 🇬🇧 rendered as large emoji in _FlagTimelineList
+      expect(find.text('🇬🇧'), findsOneWidget);
+    });
+
+    testWidgets('shows flag emoji for each new country', (tester) async {
+      await pumpSummary(
+        tester,
+        newCountries: [_country('GB'), _country('JP')],
+      );
+      expect(find.text('🇬🇧'), findsOneWidget);
+      expect(find.text('🇯🇵'), findsOneWidget);
+    });
+
+    testWidgets('still shows country names in flag cards', (tester) async {
+      await pumpSummary(tester, newCountries: [_country('DE'), _country('FR')]);
+      expect(find.textContaining('Germany'), findsOneWidget);
+      expect(find.textContaining('France'), findsOneWidget);
+    });
+  });
 }

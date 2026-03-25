@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-25, through Task 141 / M40)
+# Roavvy — Development State (as of 2026-03-25, through Task 150 / M43)
 
 ## What Works
 
@@ -132,6 +132,13 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **Scan & Map Commerce Triggers (M40 — Tasks 140–141)**:
   - `ScanSummaryScreen` State A gains "Create a travel card →" `TextButton` above the existing "Get a poster" TextButton; navigates to `CardGeneratorScreen`; only shown when new countries found (M40 scan nudge)
   - `MapScreen` overflow menu "Get a poster" renamed → "Create a poster" (Phase 13b copy alignment; navigation to `MerchCountrySelectionScreen` unchanged); 2 new widget tests; 508 flutter tests passing (no regressions)
+- **Scan Delight: Real-Time Discovery (M43 — Tasks 145–150, ADR-095)**:
+  - **Confetti clipping fix (Task 145)**: `Stack` in `_NewDiscoveriesState.build()` gains `clipBehavior: Clip.none`; particles now fall across the full screen instead of being clipped at the top
+  - **`_DiscoveryToastOverlay` (Task 146)**: `_ScanningView` converted from `StatelessWidget` to `ConsumerStatefulWidget`; `_DiscoveryToastBanner` slides in from top on each new country detected (`didUpdateWidget` length comparison); 2.5s hold then slides out; reduce-motion guard; toast controller disposed on `dispose()`
+  - **`_ScanLiveMap` (Task 147)**: `ConsumerStatefulWidget` embedded in `_ScanningView`; fixed 220px `FlutterMap` (non-interactive); dark navy unvisited polygons + amber visited polygons; `MapController` auto-fits to each new country (debounced 800ms via cancel-and-restart `Timer`); returns `SizedBox.shrink()` when `polygonsProvider` is empty; `widget_test.dart` updated to override `polygonsProvider` with empty list
+  - **Micro-confetti per discovery (Task 148)**: `ConfettiController` in `_ScanningViewState`; fires burst on each new country (cap 5, 500ms debounce); `ConfettiWidget` at top-center with `clipBehavior: Clip.none`; reduce-motion guard in `didUpdateWidget` and `build()`
+  - **Post-scan flag timeline (Task 149)**: `_CountryList` replaced by `_FlagTimelineList`; each card shows 40px flag emoji, bold country name (`titleMedium`), continent label; rounded card background; staggered reveal reuses existing `_rowOpacities` animation; reduce-motion shows all cards at full opacity
+  - **App-open scan prompt (Task 150)**: `DiscoverNewCountriesSheet` public `StatelessWidget` (camera icon, headline, "Scan now" `FilledButton`, "Later" `TextButton`); `_ScanPromptGate` `ConsumerStatefulWidget` (returns `SizedBox.shrink()`); added to `MapScreen` Stack; shown when `onboardingCompleteProvider == true && (lastScanAt == null || daysSince > 7)`; dismissed-today state persisted to SharedPreferences key `scan_prompt_dismissed_at`; 9 new widget tests (4 sheet tests + 5 gate integration tests); 511 flutter tests passing (no regressions)
 - **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
   - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
   - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)
