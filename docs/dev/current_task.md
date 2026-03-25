@@ -1,11 +1,11 @@
-# M38 — Print from Card — Task 134
+# M39 — Achievement & Level-Up Commerce Triggers
 
-**Milestone:** 38
-**Phase:** Phase 13a — Identity Commerce
+**Milestone:** 39
+**Phase:** Phase 13b — Identity Commerce
 **Status:** ✅ Complete (2026-03-25)
 
 ## Tasks
 
-- [x] **Task 134** — Add `cardId` to `CreateMerchCartRequest`, `MerchConfig` types + `createMerchCart` function; deploy
-- [x] **Task 135** — Thread `cardId` through `MerchProductBrowserScreen` + `MerchVariantScreen`
-- [x] **Task 136** — Enable "Print your card" CTA in `CardGeneratorScreen`
+- [x] **Task 137** — LevelUpRepository + LevelUpSheet widget
+- [x] **Task 138** — Wire level-up check into ScanSummaryScreen
+- [x] **Task 139** — Add commerce CTA to MilestoneCardSheet

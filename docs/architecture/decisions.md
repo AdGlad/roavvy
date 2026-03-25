@@ -2992,3 +2992,43 @@ The card save uses the same `unawaited(TravelCardService(...).create(card))` pat
 - Future milestone can query `merch_configs` by `cardId` to find all orders from a specific card.
 - Firebase Function deploy required (TypeScript types + Function code change).
 - No Firestore security rule change needed (existing wildcard rule covers `merch_configs` subcollection).
+
+
+---
+
+## ADR-094 — Achievement & Level-Up Commerce Triggers: level detection, sheet navigation, and milestone CTA (M39)
+
+**Status:** Accepted
+
+**Context:**
+
+M39 adds two commerce-trigger surfaces: (1) a `LevelUpSheet` shown when a user crosses an XP level threshold during/after scan, and (2) a "Create a travel card" CTA on the existing `MilestoneCardSheet`. Both surfaces navigate the user to `CardGeneratorScreen` — the Phase 13b primary path into commerce.
+
+**Decisions:**
+
+**Level-up detection: SharedPreferences `lastShownLevel` (not stream-based):**
+XP is awarded during `ScanScreen` before `ScanSummaryScreen` is pushed. By the time `ScanSummaryScreen` builds, `xpNotifierProvider.state.level` already reflects the post-scan level and the `xpEarned` broadcast stream has already emitted. A stream listener in `ScanSummaryScreen.initState` would miss these events. Instead, `LevelUpRepository` persists `lastShownLevel` (int, default 1, SharedPreferences key `level_up_shown_v1`). In `ScanSummaryScreen._checkAndShowLevelUp()`, `currentLevel > lastShownLevel` triggers the sheet. This mirrors the `MilestoneRepository` pattern exactly.
+
+**`_checkAndShowLevelUp` as a `VoidCallback next` chain (mirrors `_checkAndShowMilestone`):**
+`ScanSummaryScreen` already uses the `_checkAndShowMilestone(VoidCallback next)` pattern. `_checkAndShowLevelUp(VoidCallback next)` follows the same shape: check, show if needed, then call `next`. The chains become:
+- `_handleDone`: `_checkAndShowMilestone(() => _checkAndShowLevelUp(() => _pushDiscoveryOverlays()))`
+- `_handleCaughtUp`: `_checkAndShowMilestone(() => _checkAndShowLevelUp(widget.onDone))`
+Level-up is shown after milestone (if both trigger on the same scan) — milestone first is the natural chronological order.
+
+**Sheet → CardGeneratorScreen navigation: pop then push on the same navigator:**
+Both `LevelUpSheet` and the updated `MilestoneCardSheet` navigate to `CardGeneratorScreen` via a `onCreateCard: VoidCallback?` callback passed from `ScanSummaryScreen`. The callback: (1) pops the sheet with `Navigator.of(context).pop()`, then (2) pushes `CardGeneratorScreen` with `Navigator.of(context).push(MaterialPageRoute(...))`. Using a callback (not inline navigation inside the widget) ensures the correct navigator context is used. Do not pass `rootNavigator: true` — the main navigator is the correct target.
+
+**`MilestoneCardSheet` gets `onCreateCard: VoidCallback?` (optional, backward-compatible):**
+The sheet renders "Create a travel card" `FilledButton` only when `onCreateCard` is non-null. All existing call sites that omit the parameter continue to work. The button is placed above the Share button (primary CTA position).
+
+**`LevelUpSheet` is not shown for Level 1 (the default starting level):**
+`LevelUpRepository.getLastShownLevel()` returns 1 on first install. The condition is `currentLevel > lastShownLevel`, so a user at level 1 never sees the sheet. The sheet is first shown when reaching level 2 (Explorer). This is intentional — level 1 is the baseline, not an achievement.
+
+**Level emoji map defined in `level_up_sheet.dart`:**
+A const map `_kLevelEmoji` (Traveller: 🌱, Explorer: 🧭, Navigator: 🗺️, Globetrotter: ✈️, Pathfinder: 🌍, Voyager: ⚓, Pioneer: 🔭, Legend: 🏆). Unknown labels fall back to ✈️.
+
+**Consequences:**
+- `ScanSummaryScreen` gains one new async method and two updated call chains — no change to the existing milestone or discovery overlay flows.
+- `LevelUpRepository` is a new SharedPreferences-backed class; its unit tests mirror `MilestoneRepository` tests.
+- `MilestoneCardSheet` gains one optional parameter — zero impact on existing callers.
+- No XP system, Firestore, or Firebase Function changes required for M39.

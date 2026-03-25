@@ -23,25 +23,43 @@ const _kThresholdShareEmoji = {
 
 /// Shows the [MilestoneCardSheet] for [threshold] as a modal bottom sheet.
 ///
+/// [onCreateCard] is optional. When provided, a "Create a travel card" CTA
+/// is shown in the sheet. The callback should pop the sheet and navigate to
+/// [CardGeneratorScreen] (ADR-094).
+///
 /// Mirrors the [showRegionDetailSheet] pattern (ADR-069).
 Future<void> showMilestoneCardSheet(
-    BuildContext context, int threshold) {
+    BuildContext context, int threshold, {VoidCallback? onCreateCard}) {
   return showModalBottomSheet<void>(
     context: context,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (_) => MilestoneCardSheet(threshold: threshold),
+    builder: (_) => MilestoneCardSheet(
+      threshold: threshold,
+      onCreateCard: onCreateCard,
+    ),
   );
 }
 
 /// Celebrates reaching a country count milestone (5, 10, 25, 50, 100).
 ///
 /// Shown once per threshold via [MilestoneRepository].
+///
+/// When [onCreateCard] is provided, a "Create a travel card" CTA is shown
+/// above the Share button (ADR-094).
 class MilestoneCardSheet extends StatelessWidget {
-  const MilestoneCardSheet({super.key, required this.threshold});
+  const MilestoneCardSheet({
+    super.key,
+    required this.threshold,
+    this.onCreateCard,
+  });
 
   final int threshold;
+
+  /// Optional callback invoked when the user taps "Create a travel card".
+  /// Should pop the sheet and push [CardGeneratorScreen].
+  final VoidCallback? onCreateCard;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +91,17 @@ class MilestoneCardSheet extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
+            if (onCreateCard != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onCreateCard,
+                  icon: const Icon(Icons.style_outlined),
+                  label: const Text('Create a travel card'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Builder(
               builder: (btnCtx) => FilledButton.icon(
                 onPressed: () {

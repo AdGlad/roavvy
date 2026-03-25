@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-25, through Task 136 / M38)
+# Roavvy — Development State (as of 2026-03-25, through Task 139 / M39)
 
 ## What Works
 
@@ -123,6 +123,12 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - Stats screen "Create card" `OutlinedButton` — below stats panel, above achievements, visible when `visits.isNotEmpty`; pushes `CardGeneratorScreen`
   - Map "⋮" menu "Create card" item — `_MapMenuAction.createCard`; between "Share travel card" and "Get a poster"; visible when `hasVisits`; pushes `CardGeneratorScreen`
   - 9 widget tests in `test/features/cards/card_templates_test.dart`; 478 flutter tests passing (no regressions)
+- **Achievement & Level-Up Commerce Triggers (M39 — Tasks 137–139, ADR-094)**:
+  - `LevelUpRepository` (`lib/data/level_up_repository.dart`) — SharedPreferences-backed (`level_up_shown_v1` int key, default 1); `getLastShownLevel()` / `markShown(int)`; `levelUpRepositoryProvider` in `providers.dart`
+  - `LevelUpSheet` (`lib/features/scan/level_up_sheet.dart`) — modal bottom sheet shown when user crosses an XP level; level emoji (8 mapped per label: 🌱🧭🗺️✈️🌍⚓🔭🏆); "You're now a [label]!" headline; "Create a travel card" `FilledButton` → pop + push `CardGeneratorScreen`; "Later" dismiss; `LevelUpSheet.show(context, levelLabel:)` convenience method (ADR-094)
+  - `_checkAndShowLevelUp(VoidCallback next)` in `ScanSummaryScreen` — reads `xpNotifierProvider.state.level`; compares with `levelUpRepository.getLastShownLevel()`; marks shown + shows sheet when `currentLevel > lastShown`; chained in both `_handleDone` and `_handleCaughtUp` between milestone check and next step (ADR-094)
+  - `MilestoneCardSheet` gains `onCreateCard: VoidCallback?` optional param; renders "Create a travel card" `FilledButton` above Share button when non-null; `showMilestoneCardSheet` gains matching `onCreateCard` param; wired from `ScanSummaryScreen._checkAndShowMilestone()` with navigation to `CardGeneratorScreen` (ADR-094)
+  - `scan_summary_screen_test.dart`: `_StubXpNotifier` override added to `pumpSummary` to decouple from DB; `pumpAndSettle` added to "Back to map calls onDone" test; 5 unit tests for `LevelUpRepository`; 19 widget tests for `LevelUpSheet`; 506 flutter tests passing (no regressions)
 - **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
   - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
   - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)
