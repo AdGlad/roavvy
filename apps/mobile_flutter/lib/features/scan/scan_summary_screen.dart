@@ -399,6 +399,18 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
                 ],
               ),
             ),
+            // Card creation nudge — scan commerce trigger (M40)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CardGeneratorScreen(),
+                  ),
+                ),
+                child: const Text('Create a travel card →'),
+              ),
+            ),
             // Secondary CTA — commerce entry point (ADR-085)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
