@@ -1,12 +1,11 @@
-# M37 — Travel Card Generator
+# M38 — Print from Card — Task 134
 
-**Milestone:** 37
-**Phase:** Phase 13 — Identity Commerce
+**Milestone:** 38
+**Phase:** Phase 13a — Identity Commerce
 **Status:** ✅ Complete (2026-03-25)
 
 ## Tasks
 
-- [x] **Task 130** — `TravelCard` domain model in `shared_models` + `TravelCardService` Firestore write
-- [x] **Task 131** — 3 template preview widgets: `GridFlagsCard` · `HeartFlagsCard` · `PassportStampsCard`
-- [x] **Task 132** — `CardGeneratorScreen` — template picker + live preview + Share CTA
-- [x] **Task 133** — Entry points: Stats screen "Create card" button + Map "⋮" menu item
+- [x] **Task 134** — Add `cardId` to `CreateMerchCartRequest`, `MerchConfig` types + `createMerchCart` function; deploy
+- [x] **Task 135** — Thread `cardId` through `MerchProductBrowserScreen` + `MerchVariantScreen`
+- [x] **Task 136** — Enable "Print your card" CTA in `CardGeneratorScreen`

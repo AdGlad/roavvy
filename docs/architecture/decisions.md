@@ -2959,3 +2959,36 @@ A `ClipPath` heart-shaped mask over a `Wrap` of flags requires either a custom c
 - `TravelCard` is not available offline. If Firestore is unreachable, cards are not persisted. The share image still works.
 - Future print flow (M38) depends on `cardId` being persisted in Firestore — fire-and-forget write should succeed in the vast majority of cases; the rare failure would require the user to re-generate.
 - Timestamp IDs are not universally unique across users (different users could theoretically get the same timestamp). Subcollection path `users/{uid}/...` ensures no collision since each user's collection is independent.
+
+
+---
+
+## ADR-093 — Print from Card: optional `cardId` on `createMerchCart` + `MerchConfig` (M38)
+
+**Status:** Accepted
+
+**Context:**
+
+M38 enables the "Print your card" CTA in `CardGeneratorScreen`. The user taps Print → a `TravelCard` is saved → they navigate directly to `MerchProductBrowserScreen` (skipping `MerchCountrySelectionScreen`) → they complete checkout via the existing `MerchVariantScreen` → `createMerchCart` flow.
+
+The `MerchConfig` Firestore document created by `createMerchCart` currently has no reference back to the originating `TravelCard`. For future milestones (e.g. print-file generation from the card's template rather than the generic flag grid), the order must be traceable to the card.
+
+**Decisions:**
+
+**Optional `cardId` on `CreateMerchCartRequest` and `MerchConfig` (backwards-compatible):**
+`cardId?: string` is added as an optional field to both the TypeScript request type and the `MerchConfig` Firestore document shape. When the print flow originates from a card, `CardGeneratorScreen` passes `cardId` through `MerchProductBrowserScreen` → `MerchVariantScreen` → `createMerchCart` callable payload. The Firebase Function stores it on `MerchConfig`. When the flow originates from `MerchCountrySelectionScreen` (existing path), `cardId` is omitted from the payload and stored as `null`.
+
+**Skip `MerchCountrySelectionScreen` — navigate directly to `MerchProductBrowserScreen`:**
+The card already captures the country selection. Showing `MerchCountrySelectionScreen` again would be confusing — the user would see all their countries pre-selected, not the card-specific subset. `CardGeneratorScreen` passes `codes` (the card's country list) directly to `MerchProductBrowserScreen`. Country re-selection is out of scope for M38.
+
+**`MerchProductBrowserScreen` and `MerchVariantScreen` accept optional `cardId: String?`:**
+Adding an optional parameter (default `null`) is backwards-compatible — all existing callers continue to work without change. The parameter is threaded through to the callable payload as `'cardId': widget.cardId` only when non-null (to avoid sending unnecessary data on existing paths).
+
+**`TravelCard` persisted before navigation (same fire-and-forget pattern as share):**
+The card save uses the same `unawaited(TravelCardService(...).create(card))` pattern from the share flow. Navigation proceeds immediately; a rare persistence failure means `cardId` in `MerchConfig` would point to a non-existent `TravelCard` — acceptable, as the order fulfils correctly regardless.
+
+**Consequences:**
+- `MerchConfig` documents from card-originated print flows have a `cardId` field; others have `null`.
+- Future milestone can query `merch_configs` by `cardId` to find all orders from a specific card.
+- Firebase Function deploy required (TypeScript types + Function code change).
+- No Firestore security rule change needed (existing wildcard rule covers `merch_configs` subcollection).

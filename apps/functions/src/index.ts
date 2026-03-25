@@ -180,7 +180,7 @@ export const createMerchCart = onCall<
     const uid = request.auth.uid;
 
     // Input validation
-    const { variantId, selectedCountryCodes, quantity } = request.data;
+    const { variantId, selectedCountryCodes, quantity, cardId } = request.data;
     if (!variantId || typeof variantId !== 'string') {
       throw new HttpsError('invalid-argument', 'variantId is required.');
     }
@@ -234,6 +234,8 @@ export const createMerchCart = onCall<
       printfulOrderId: null,
       // M34 field
       mockupUrl: null,
+      // M38 field (ADR-093): links this order to the originating TravelCard, if any
+      cardId: typeof cardId === 'string' ? cardId : null,
     };
     await configRef.set(configData);
 

@@ -58,6 +58,11 @@ export interface MerchConfig {
    * Set by createMerchCart after the Shopify cart is created.
    */
   mockupUrl: string | null;
+  /**
+   * ID of the TravelCard that originated this order (M38: print from card, ADR-093).
+   * Null when the order was created from the country selection flow.
+   */
+  cardId: string | null;
 }
 
 /** Request payload for createMerchCart onCall function */
@@ -65,6 +70,8 @@ export interface CreateMerchCartRequest {
   variantId: string;
   selectedCountryCodes: string[];
   quantity: number;
+  /** Optional: links this cart to a TravelCard (ADR-093) */
+  cardId?: string;
 }
 
 /** Response payload from createMerchCart */

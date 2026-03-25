@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-25, through Task 133 / M37)
+# Roavvy — Development State (as of 2026-03-25, through Task 136 / M38)
 
 ## What Works
 
@@ -114,7 +114,12 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `TravelCard` domain model in `packages/shared_models/lib/src/travel_card.dart`; `CardTemplateType` enum (grid, heart, passport); `toFirestore()` serialisation; exported from `shared_models` barrel
   - `TravelCardService` (`lib/features/cards/travel_card_service.dart`) — writes `TravelCard` to `users/{uid}/travel_cards/{cardId}` subcollection; covered by existing wildcard Firestore rule; no new security rule needed
   - `GridFlagsCard`, `HeartFlagsCard`, `PassportStampsCard` (`lib/features/cards/card_templates.dart`) — all `AspectRatio(3/2)` `StatelessWidget`s accepting `List<String> countryCodes`; footer Row uses `Flexible` to prevent overflow at narrow widths; `HeartFlagsCard` uses gradient background + ❤️ watermark (ADR-092)
-  - `CardGeneratorScreen` (`lib/features/cards/card_generator_screen.dart`) — `ConsumerWidget`; template picker row (3 amber-bordered tiles); `RepaintBoundary` in-screen preview; Share button captures PNG via `boundary.toImage(pixelRatio: 3.0)`, calls `TravelCardService.create()` fire-and-forget, opens `Share.shareXFiles`; disabled "Print your card" stub with `Tooltip("Coming soon")`; empty state when 0 countries visited
+  - `CardGeneratorScreen` (`lib/features/cards/card_generator_screen.dart`) — `ConsumerWidget`; template picker row (3 amber-bordered tiles); `RepaintBoundary` in-screen preview; Share button captures PNG via `boundary.toImage(pixelRatio: 3.0)`, calls `TravelCardService.create()` fire-and-forget, opens `Share.shareXFiles`; "Print your card" button active (M38); empty state when 0 countries visited
+- **Print from Card (M38 — Tasks 134–136, ADR-093)**:
+  - `MerchConfig` TypeScript interface gains `cardId: string | null`; `CreateMerchCartRequest` gains `cardId?: string`; `createMerchCart` Function stores `cardId` (or null) on initial `MerchConfig` write — deployed to `roavvy-prod`
+  - `MerchProductBrowserScreen` + `_ProductCard` + `MerchVariantScreen` each gain optional `cardId: String?` param; `MerchVariantScreen._generatePreview()` includes `'cardId': widget.cardId` in callable payload when non-null
+  - `CardGeneratorScreen._onPrint()`: saves `TravelCard` fire-and-forget, navigates to `MerchProductBrowserScreen(selectedCodes: codes, cardId: cardId)` — skips `MerchCountrySelectionScreen`; "Print your card" button active (was disabled stub); guarded by `_sharing` flag
+  - Existing `MerchCountrySelectionScreen` → `MerchProductBrowserScreen` path unchanged (no required params added); 478 tests passing
   - Stats screen "Create card" `OutlinedButton` — below stats panel, above achievements, visible when `visits.isNotEmpty`; pushes `CardGeneratorScreen`
   - Map "⋮" menu "Create card" item — `_MapMenuAction.createCard`; between "Share travel card" and "Get a poster"; visible when `hasVisits`; pushes `CardGeneratorScreen`
   - 9 widget tests in `test/features/cards/card_templates_test.dart`; 478 flutter tests passing (no regressions)

@@ -78,10 +78,14 @@ class MerchVariantScreen extends StatefulWidget {
     super.key,
     required this.product,
     required this.selectedCodes,
+    this.cardId,
   });
 
   final MerchProduct product;
   final List<String> selectedCodes;
+  /// Optional TravelCard ID — included in the `createMerchCart` payload so the
+  /// resulting order is traceable back to the card (ADR-093).
+  final String? cardId;
 
   @override
   State<MerchVariantScreen> createState() => _MerchVariantScreenState();
@@ -256,6 +260,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         'variantId': _resolvedVariantGid,
         'selectedCountryCodes': widget.selectedCodes,
         'quantity': 1,
+        if (widget.cardId != null) 'cardId': widget.cardId,
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
