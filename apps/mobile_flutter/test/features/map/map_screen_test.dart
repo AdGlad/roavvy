@@ -275,7 +275,7 @@ void main() {
 
   // ── M29: Commerce entry points ─────────────────────────────────────────────
 
-  testWidgets('overflow menu shows Get a poster when visits exist',
+  testWidgets('overflow menu shows Create a poster when visits exist',
       (tester) async {
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
@@ -292,10 +292,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
 
-    expect(find.text('Get a poster'), findsOneWidget);
+    expect(find.text('Create a poster'), findsOneWidget);
   });
 
-  testWidgets('overflow menu hides Get a poster when no visits',
+  testWidgets('overflow menu hides Create a poster when no visits',
       (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pumpAndSettle();
@@ -303,7 +303,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
 
-    expect(find.text('Get a poster'), findsNothing);
+    expect(find.text('Create a poster'), findsNothing);
   });
 
   // ── M29: 30-day scan nudge banner ──────────────────────────────────────────

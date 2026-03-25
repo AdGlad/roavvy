@@ -345,7 +345,7 @@ class MapScreen extends ConsumerWidget {
                       value: _MapMenuAction.shop,
                       child: ListTile(
                         leading: Icon(Icons.shopping_bag_outlined),
-                        title: Text('Get a poster'),
+                        title: Text('Create a poster'),
                       ),
                     ),
                   PopupMenuItem(

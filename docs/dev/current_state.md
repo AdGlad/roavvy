@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-25, through Task 139 / M39)
+# Roavvy — Development State (as of 2026-03-25, through Task 141 / M40)
 
 ## What Works
 
@@ -129,6 +129,9 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `_checkAndShowLevelUp(VoidCallback next)` in `ScanSummaryScreen` — reads `xpNotifierProvider.state.level`; compares with `levelUpRepository.getLastShownLevel()`; marks shown + shows sheet when `currentLevel > lastShown`; chained in both `_handleDone` and `_handleCaughtUp` between milestone check and next step (ADR-094)
   - `MilestoneCardSheet` gains `onCreateCard: VoidCallback?` optional param; renders "Create a travel card" `FilledButton` above Share button when non-null; `showMilestoneCardSheet` gains matching `onCreateCard` param; wired from `ScanSummaryScreen._checkAndShowMilestone()` with navigation to `CardGeneratorScreen` (ADR-094)
   - `scan_summary_screen_test.dart`: `_StubXpNotifier` override added to `pumpSummary` to decouple from DB; `pumpAndSettle` added to "Back to map calls onDone" test; 5 unit tests for `LevelUpRepository`; 19 widget tests for `LevelUpSheet`; 506 flutter tests passing (no regressions)
+- **Scan & Map Commerce Triggers (M40 — Tasks 140–141)**:
+  - `ScanSummaryScreen` State A gains "Create a travel card →" `TextButton` above the existing "Get a poster" TextButton; navigates to `CardGeneratorScreen`; only shown when new countries found (M40 scan nudge)
+  - `MapScreen` overflow menu "Get a poster" renamed → "Create a poster" (Phase 13b copy alignment; navigation to `MerchCountrySelectionScreen` unchanged); 2 new widget tests; 508 flutter tests passing (no regressions)
 - **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
   - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
   - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)

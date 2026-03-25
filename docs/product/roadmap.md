@@ -261,8 +261,8 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 |---|---|---|
 | M37 — Travel Card Generator | TravelCard data model + card generator screen (3 templates: grid, heart, passport stamps) + entry points from Stats and Map | ✅ Complete |
 | M38 — Print from Card | "Print" CTA on card preview → product selection → `createMerchCart` with card design; replaces direct product browsing as primary commerce path | ✅ Complete |
-| M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | 🔄 In Progress |
-| M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | Not started |
+| M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | ✅ Complete |
+| M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | 🔄 In Progress |
 | M41 — Shop De-emphasis | Move Shop tab content inside Cards tab; Stats-screen "Shop" button replaced by "Cards" | Not started |
 
 **New data entities:**

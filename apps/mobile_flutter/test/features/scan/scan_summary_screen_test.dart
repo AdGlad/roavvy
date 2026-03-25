@@ -241,4 +241,20 @@ void main() {
       );
     });
   });
+
+  group('ScanSummaryScreen — card creation nudge (M40)', () {
+    testWidgets('shows Create a travel card CTA in State A', (tester) async {
+      await pumpSummary(
+        tester,
+        newCountries: [_country('GB')],
+        newCodes: ['GB'],
+      );
+      expect(find.text('Create a travel card →'), findsOneWidget);
+    });
+
+    testWidgets('Create a travel card CTA not shown in State B', (tester) async {
+      await pumpSummary(tester); // no new countries
+      expect(find.text('Create a travel card →'), findsNothing);
+    });
+  });
 }

@@ -1,102 +1,62 @@
-# M39 — Achievement & Level-Up Commerce Triggers
+# M40 — Scan & Map Commerce Triggers
 
-**Goal:** After a country-count milestone or XP level-up, users are prompted to create a travel card — driving commerce through emotional peak moments.
+**Goal:** After discovering new countries, users are nudged to create a travel card. The map menu copy aligns with Phase 13b strategy ("Create a poster" not "Get a poster").
 
 ---
 
 ## Scope
 
 **Included:**
-- `LevelUpRepository` — SharedPreferences-backed, tracks last shown level (default 1)
-- `LevelUpSheet` — celebratory modal shown when user reaches a new XP level during/after scan
-- Wire level-up check into `ScanSummaryScreen` (after milestone check, before `onDone`)
-- "Create a travel card" CTA added to `MilestoneCardSheet` → navigates to `CardGeneratorScreen`
+- "Create a travel card →" `TextButton` in `ScanSummaryScreen` State A — shown in `_NewDiscoveriesState` between existing content and "Get a poster" button; navigates to `CardGeneratorScreen`
+- Map menu "Get a poster" renamed → "Create a poster" (Phase 13b copy alignment; navigation unchanged → `MerchCountrySelectionScreen`)
 
 **Excluded:**
-- Level-up triggers from non-scan paths (share, manual add) — scan is the primary emotional peak
-- Commerce CTA on `AchievementUnlockSheet` — deferred to M40
-- Variant/product selection directly from level-up or milestone sheets — card creation is the gateway per Phase 13b strategy
+- Replacing the "Get a poster" navigation with a card-first flow — deferred to M41 (Shop De-emphasis)
+- Changes to State B (nothing new) — no nudge on caught-up scan
+- Web changes
+- Any new Firestore, Firebase Function, or SharedPreferences state
 
 ---
 
 ## Tasks
 
-### Task 137 — LevelUpRepository + LevelUpSheet widget
+### Task 140 — "Create a travel card" nudge in ScanSummaryScreen State A
 
 **Deliverable:**
-- `apps/mobile_flutter/lib/data/level_up_repository.dart` — `LevelUpRepository` stores `lastShownLevel` (int, default 1) in SharedPreferences key `level_up_shown_v1`; methods: `getLastShownLevel()` and `markShown(int level)`
-- `apps/mobile_flutter/lib/features/scan/level_up_sheet.dart` — `LevelUpSheet` widget
-  - Constructor: `LevelUpSheet({required String levelLabel})`
-  - Static convenience: `LevelUpSheet.show(BuildContext context, {required String levelLabel})`
-  - Layout: level emoji (mapped from label) + "You're now a [levelLabel]!" headline + subtext + buttons
-  - "Create a travel card" `FilledButton` → pops sheet, pushes `CardGeneratorScreen`
-  - "Later" `TextButton` → pops sheet
-- `levelUpRepositoryProvider` registered in `apps/mobile_flutter/lib/core/providers.dart`
-- Unit tests: `apps/mobile_flutter/test/data/level_up_repository_test.dart`
-
-**Level emoji map (defined in `level_up_sheet.dart`):**
-- Traveller → 🌱
-- Explorer → 🧭
-- Navigator → 🗺️
-- Globetrotter → ✈️
-- Pathfinder → 🌍
-- Voyager → ⚓
-- Pioneer → 🔭
-- Legend → 🏆
+- In `_NewDiscoveriesStateState.build()` (inside `_NewDiscoveriesState`), add a `TextButton` "Create a travel card →" above the existing "Get a poster" TextButton
+- On tap: `Navigator.of(context).push(MaterialPageRoute(builder: (_) => CardGeneratorScreen()))`
+- Follows the same layout pattern as the existing "Get a poster" button (same padding `fromLTRB(16, 0, 16, 0)`)
 
 **Acceptance criteria:**
-- `LevelUpRepository.getLastShownLevel()` returns 1 when no key exists
-- `markShown(3)` persists; `getLastShownLevel()` subsequently returns 3
-- `LevelUpSheet` renders level emoji + headline + both buttons
-- Tests pass: `flutter test apps/mobile_flutter/test/data/level_up_repository_test.dart`
+- "Create a travel card →" button visible in State A (new countries found)
+- Tapping it navigates to `CardGeneratorScreen`
+- "Get a poster with your new discoveries →" button still present below it
+- "Explore your map" primary button still present and functional
+- Widget test: button renders in State A; tapping it pushes `CardGeneratorScreen`
+- `flutter analyze` zero issues
 
 ---
 
-### Task 138 — Wire level-up check into ScanSummaryScreen
+### Task 141 — Rename "Get a poster" → "Create a poster" in MapScreen menu
 
 **Deliverable:**
-- `_checkAndShowLevelUp(VoidCallback next)` method in `ScanSummaryScreen`
-  - Reads `xpNotifierProvider.state.level` for current level
-  - Reads `levelUpRepositoryProvider.getLastShownLevel()` for last shown level
-  - If `currentLevel > lastShownLevel`: calls `markShown(currentLevel)`, shows `LevelUpSheet`, then calls `next`
-  - Otherwise calls `next` directly
-- Update `_handleDone` call chain:
-  `_checkAndShowMilestone(() => _checkAndShowLevelUp(() => _pushDiscoveryOverlays()))`
-- Update `_handleCaughtUp` call chain:
-  `_checkAndShowMilestone(() => _checkAndShowLevelUp(widget.onDone))`
-- Widget tests: `apps/mobile_flutter/test/features/scan/level_up_sheet_test.dart`
-  - `LevelUpSheet` displays correct headline for each level label
-  - "Later" button dismisses
+- In `map_screen.dart`, change the `PopupMenuItem` title text: `'Get a poster'` → `'Create a poster'`
+- No navigation change — still pushes `MerchCountrySelectionScreen()`
+- No enum rename needed (`_MapMenuAction.shop` stays as-is)
 
 **Acceptance criteria:**
-- When `xpState.level > lastShownLevel`, `LevelUpSheet` shown before discovery overlays / `onDone`
-- When `xpState.level == lastShownLevel`, no sheet shown
-- Level is marked shown before the sheet appears
-- Existing scan summary tests continue to pass
-
----
-
-### Task 139 — Add commerce CTA to MilestoneCardSheet
-
-**Deliverable:**
-- `MilestoneCardSheet` gains `onCreateCard: VoidCallback?` optional parameter
-- `showMilestoneCardSheet` gains `onCreateCard: VoidCallback?` optional parameter; passes through to widget
-- If `onCreateCard != null`, a "Create a travel card" `FilledButton` shown above the Share button
-- In `ScanSummaryScreen._checkAndShowMilestone()`, pass `onCreateCard` that pops the sheet and pushes `CardGeneratorScreen`
-
-**Acceptance criteria:**
-- `MilestoneCardSheet` renders "Create a travel card" button when `onCreateCard` is non-null
-- `MilestoneCardSheet` renders without the button when `onCreateCard` is null (backward-compatible)
-- Tapping "Create a travel card" invokes `onCreateCard` callback
+- Map overflow menu shows "Create a poster" (not "Get a poster")
+- Tapping "Create a poster" navigates to `MerchCountrySelectionScreen`
+- Existing map menu tests (if any) updated to match new label
+- `flutter analyze` zero issues
 
 ---
 
 ## Dependencies
 
-- Task 137 before Task 138 (repository + widget required before wiring)
-- Task 139 is independent of 137/138
+- Task 140 and 141 are independent; implement in order.
 
 ## Risks
 
-- **XP state at mount time:** XP is awarded in `ScanScreen` before navigating to `ScanSummaryScreen`, so `xpNotifierProvider.state.level` reflects the post-scan level. The SharedPreferences `lastShownLevel` comparison is therefore reliable.
-- **Navigator context in sheet callbacks:** Using `onCreateCard` callback passed from `ScanSummaryScreen` (not from inside the sheet widget) ensures the correct navigator context is used.
+- **Two card CTAs in the map menu**: After M40, the map menu has both "Create card" (→ `CardGeneratorScreen`) and "Create a poster" (→ `MerchCountrySelectionScreen`). This is intentional for M40; M41 will consolidate/restructure.
+- **Two card CTAs in scan State A**: After M40, State A has "Create a travel card →" (above) and "Get a poster with your new discoveries →" (below). Both are low-visual-weight `TextButton`s — the primary CTA remains "Explore your map". This duplication is acceptable for M40; M41 will clean up.
