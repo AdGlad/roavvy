@@ -2923,3 +2923,39 @@ Matches existing pattern in `journal_screen.dart` and `scan_screen.dart`. Not ex
 - `RegionPolygon` becomes part of the public API surface of `packages/region_lookup` — a breaking change if the shape changes. Acceptable: the class is simple and stable.
 - `TripMapScreen` renders up to ~80 polygons for large countries (US, RU). `flutter_map` handles this without optimisation.
 - Countries with no region data (micro-states) show a blank dark navy map — acceptable UX, no crash.
+
+
+---
+
+## ADR-092 — Travel Card Generator: Firestore-only storage, timestamp ID, in-screen capture, simplified Heart template (M37)
+
+**Status:** Accepted
+
+**Context:**
+
+M37 introduces the Travel Card Generator — a screen where users pick one of three card templates (Grid Flags, Heart Flags, Passport Stamps), preview a card built from their visited countries, and share it. The card is also persisted as a `TravelCard` entity so future milestones (M38: print flow) can reference it.
+
+**Decisions:**
+
+**`TravelCard` in `shared_models`, Firestore-only (no Drift table):**
+Unlike visits, trips, and region visits — which are scanned from on-device data and must work fully offline — travel cards are user-initiated creative artefacts. They have no offline-first requirement: a card cannot be generated without the user actively opening the generator, and the generator already requires the visit data to be loaded. Firestore-only storage avoids a schema migration and keeps the local DB focused on scan-derived data.
+
+**Card ID: `'card-${DateTime.now().microsecondsSinceEpoch}'`:**
+A microsecond-precision timestamp prefix gives collision-free IDs within a single user session without adding the `uuid` package. The same pattern is used for XP event IDs. Acceptable: two cards created within the same microsecond is not a realistic scenario.
+
+**Firestore path: `users/{uid}/travel_cards/{cardId}`:**
+Consistent with `users/{uid}/inferred_visits`, `users/{uid}/trips` etc. (ADR-029). The existing wildcard security rule `match /users/{userId}/{document=**}` already covers this subcollection — no rule change needed.
+
+**`TravelCardService.create()` fire-and-forget before sharing:**
+The share flow must not be blocked by a Firestore write. `create()` is called with `unawaited`; any error is silently logged. The card is primarily useful for future print flows (M38); if persistence fails the user can still share the image. Anonymous users have a valid UID (Firebase anonymous auth) so they can also persist cards.
+
+**In-screen `RepaintBoundary.toImage()` capture (not off-screen overlay):**
+The existing `captureAndShare()` in `travel_card_share.dart` renders the card widget off-screen via `Overlay.insert` because the share action originates from a menu button where no card widget is on-screen. In `CardGeneratorScreen`, the preview is already rendered and visible — the `RepaintBoundary` wrapping the preview widget can be captured directly via its `GlobalKey`. No overlay required; simpler and avoids a render frame delay.
+
+**`HeartFlagsCard`: gradient background + ❤️ watermark (not `ClipPath` heart mask):**
+A `ClipPath` heart-shaped mask over a `Wrap` of flags requires either a custom clip path with precise Bézier curves, or pre-computing which grid cells fall inside a heart shape — complex for variable country counts and device sizes. The simplified version (warm amber gradient + large semi-transparent ❤️ as a background layer) delivers the identity-driven "Heart" feeling at low implementation cost, and is visually distinct from the Grid template. This can be upgraded to a true heart mask in a future polish pass.
+
+**Consequences:**
+- `TravelCard` is not available offline. If Firestore is unreachable, cards are not persisted. The share image still works.
+- Future print flow (M38) depends on `cardId` being persisted in Firestore — fire-and-forget write should succeed in the vast majority of cases; the rare failure would require the user to re-generate.
+- Timestamp IDs are not universally unique across users (different users could theoretically get the same timestamp). Subcollection path `users/{uid}/...` ensures no collision since each user's collection is independent.

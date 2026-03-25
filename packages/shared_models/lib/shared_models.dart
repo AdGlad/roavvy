@@ -19,3 +19,4 @@ export 'src/trip_record.dart';
 export 'src/trip_inference.dart';
 export 'src/region_visit.dart';
 export 'src/region.dart';
+export 'src/travel_card.dart';

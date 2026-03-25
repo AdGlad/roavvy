@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-24, through Task 126 / M35)
+# Roavvy — Development State (as of 2026-03-25, through Task 133 / M37)
 
 ## What Works
 
@@ -110,6 +110,14 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `TripMapScreen` (`lib/features/map/trip_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean background `Color(0xFF0D2137)`; two `PolygonLayer`s: amber visited (`Color(0xFFD4A017)`, 0.85α) + dark navy unvisited (`Color(0xFF1E3A5F)`, 0.9α); `FutureBuilder` for async region codes (shows `CircularProgressIndicator` while loading); `onMapReady: _fitBounds` calls `mapController.fitCamera(CameraFit.bounds(...))` from polygon vertex min/max; `AppBar` shows flag emoji + country name (title) + month range (subtitle)
   - `JournalScreen` trip card tap now pushes `TripMapScreen` via `Navigator.push(MaterialPageRoute)` (replaces `showModalBottomSheet` to `CountryDetailSheet`)
   - 28 region_repository tests; 48 region_lookup package tests; journal test updated to initialize region_lookup with minimal valid binary
+- **Travel Card Generator (M37 — Tasks 130–133, ADR-092)**:
+  - `TravelCard` domain model in `packages/shared_models/lib/src/travel_card.dart`; `CardTemplateType` enum (grid, heart, passport); `toFirestore()` serialisation; exported from `shared_models` barrel
+  - `TravelCardService` (`lib/features/cards/travel_card_service.dart`) — writes `TravelCard` to `users/{uid}/travel_cards/{cardId}` subcollection; covered by existing wildcard Firestore rule; no new security rule needed
+  - `GridFlagsCard`, `HeartFlagsCard`, `PassportStampsCard` (`lib/features/cards/card_templates.dart`) — all `AspectRatio(3/2)` `StatelessWidget`s accepting `List<String> countryCodes`; footer Row uses `Flexible` to prevent overflow at narrow widths; `HeartFlagsCard` uses gradient background + ❤️ watermark (ADR-092)
+  - `CardGeneratorScreen` (`lib/features/cards/card_generator_screen.dart`) — `ConsumerWidget`; template picker row (3 amber-bordered tiles); `RepaintBoundary` in-screen preview; Share button captures PNG via `boundary.toImage(pixelRatio: 3.0)`, calls `TravelCardService.create()` fire-and-forget, opens `Share.shareXFiles`; disabled "Print your card" stub with `Tooltip("Coming soon")`; empty state when 0 countries visited
+  - Stats screen "Create card" `OutlinedButton` — below stats panel, above achievements, visible when `visits.isNotEmpty`; pushes `CardGeneratorScreen`
+  - Map "⋮" menu "Create card" item — `_MapMenuAction.createCard`; between "Share travel card" and "Get a poster"; visible when `hasVisits`; pushes `CardGeneratorScreen`
+  - 9 widget tests in `test/features/cards/card_templates_test.dart`; 478 flutter tests passing (no regressions)
 - **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
   - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
   - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)
