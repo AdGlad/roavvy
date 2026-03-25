@@ -261,7 +261,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 |---|---|---|
 | M37 — Travel Card Generator | TravelCard data model + card generator screen (3 templates: grid, heart, passport stamps) + entry points from Stats and Map | ✅ Complete |
 | M38 — Print from Card | "Print" CTA on card preview → product selection → `createMerchCart` with card design; replaces direct product browsing as primary commerce path | ✅ Complete |
-| M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | Not started |
+| M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | 🔄 In Progress |
 | M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | Not started |
 | M41 — Shop De-emphasis | Move Shop tab content inside Cards tab; Stats-screen "Shop" button replaced by "Cards" | Not started |
 
@@ -272,6 +272,16 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 **Commerce copy rules:** "Turn your travels into a shirt" not "Buy this shirt". "Print your travel map" not "View products". CTAs feel optional and celebratory.
 
 **Not in this phase:** additional product categories beyond tee/poster, social commerce features, web Cards UI.
+
+---
+
+## Phase 14 — Scan Delight & Real-Time Discovery
+
+**Goal:** Make every scan feel alive. Real-time animated feedback during scanning; dramatic post-scan reveal; proactive re-engagement on app open.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M43 — Scan Delight: Real-Time Discovery | Discovery toast + inline world map + micro-confetti during scan; post-scan flag timeline; app-open scan prompt | Not started |
 
 ---
 

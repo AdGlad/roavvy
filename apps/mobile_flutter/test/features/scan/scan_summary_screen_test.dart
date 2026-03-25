@@ -2,7 +2,10 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/scan/scan_summary_screen.dart';
+import 'package:mobile_flutter/features/xp/xp_event.dart';
+import 'package:mobile_flutter/features/xp/xp_notifier.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,6 +14,18 @@ EffectiveVisitedCountry _country(String code) => EffectiveVisitedCountry(
       hasPhotoEvidence: true,
       photoCount: 1,
     );
+
+/// Stub XpNotifier that never reads from the database.
+/// Starts at XpState.zero (level 1 — Traveller) and ignores awards.
+class _StubXpNotifier extends StateNotifier<XpState> implements XpNotifier {
+  _StubXpNotifier() : super(XpState.zero);
+
+  @override
+  Stream<int> get xpEarned => const Stream.empty();
+
+  @override
+  Future<void> award(XpEvent event) async {}
+}
 
 Future<void> pumpSummary(
   WidgetTester tester, {
@@ -22,6 +37,9 @@ Future<void> pumpSummary(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        xpNotifierProvider.overrideWith((_) => _StubXpNotifier()),
+      ],
       child: MaterialApp(
         home: ScanSummaryScreen(
           newCountries: newCountries,
@@ -197,6 +215,7 @@ void main() {
       bool called = false;
       await pumpSummary(tester, onDone: () => called = true);
       await tester.tap(find.text('Back to map'));
+      await tester.pumpAndSettle();
       expect(called, isTrue);
     });
   });

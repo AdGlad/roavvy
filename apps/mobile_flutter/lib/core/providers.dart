@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../data/achievement_repository.dart';
+import '../data/level_up_repository.dart';
 import '../data/milestone_repository.dart';
 import '../data/db/roavvy_database.dart';
 import '../data/region_repository.dart';
@@ -91,6 +92,10 @@ final xpNotifierProvider = StateNotifierProvider<XpNotifier, XpState>(
 
 final milestoneRepositoryProvider = Provider<MilestoneRepository>(
   (_) => MilestoneRepository(),
+);
+
+final levelUpRepositoryProvider = Provider<LevelUpRepository>(
+  (_) => LevelUpRepository(),
 );
 
 /// All trips from local SQLite, for [JournalScreen]. (ADR-081)

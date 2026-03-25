@@ -11,7 +11,9 @@ import '../map/country_visual_state.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import '../merch/merch_country_selection_screen.dart';
+import '../cards/card_generator_screen.dart';
 import 'achievement_unlock_sheet.dart';
+import 'level_up_sheet.dart';
 import 'milestone_card_sheet.dart';
 import 'scan_reveal_mini_map.dart';
 
@@ -80,6 +82,22 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
 
   /// Shows the milestone card if a new threshold has been crossed, then
   /// proceeds with [next]. Returns without calling [next] if unmounted.
+  Future<void> _checkAndShowLevelUp(VoidCallback next) async {
+    final currentLevel = ref.read(xpNotifierProvider).level;
+    final levelUpRepo = ref.read(levelUpRepositoryProvider);
+    final lastShown = await levelUpRepo.getLastShownLevel();
+
+    if (currentLevel > lastShown) {
+      await levelUpRepo.markShown(currentLevel);
+      if (!mounted) return;
+      final levelLabel = ref.read(xpNotifierProvider).levelLabel;
+      await LevelUpSheet.show(context, levelLabel: levelLabel);
+    }
+
+    if (!mounted) return;
+    next();
+  }
+
   Future<void> _checkAndShowMilestone(VoidCallback next) async {
     final allVisits =
         ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
@@ -91,7 +109,18 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     if (threshold != null) {
       await milestoneRepo.markShown(threshold);
       if (!mounted) return;
-      await showMilestoneCardSheet(context, threshold);
+      await showMilestoneCardSheet(
+        context,
+        threshold,
+        onCreateCard: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const CardGeneratorScreen(),
+            ),
+          );
+        },
+      );
     }
 
     if (!mounted) return;
@@ -137,7 +166,10 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
       // sequentially — up to 5, one per new country. (ADR-084)
       await _checkAndShowMilestone(() async {
         if (!mounted) return;
-        await _pushDiscoveryOverlays();
+        await _checkAndShowLevelUp(() async {
+          if (!mounted) return;
+          await _pushDiscoveryOverlays();
+        });
       });
     } else {
       widget.onDone();
@@ -185,7 +217,9 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
       trigger: RovyTrigger.caughtUp,
       emoji: '✅',
     ));
-    await _checkAndShowMilestone(widget.onDone);
+    await _checkAndShowMilestone(
+      () => _checkAndShowLevelUp(widget.onDone),
+    );
   }
 
   @override
