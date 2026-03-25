@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-22, through Task 100 / M14)
+# Roavvy — Development State (as of 2026-03-26, through Task 116 / M28)
 
 ## What Works
 
@@ -32,7 +32,7 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
 - **Bootstrap service**: `BootstrapService` re-derives trips and region visits from existing photo scan records on app launch (catches up users who scanned before these features existed)
 - **Journal screen**: `JournalScreen` (tab 1); chronological trip list grouped by year; country flag emoji; taps open `CountryDetailSheet`; empty state with "Scan Photos" CTA
 - **Stats screen**: `StatsScreen` (tab 2); stats panel (countries, regions, since year) with "—" fallback; achievement gallery grid (unlocked first, sorted by unlock date; then locked); amber trophy icon for unlocked, grey lock for locked; unlock date shown on unlocked cards
-- **Web map** (`apps/web_nextjs`): Next.js 15 app; `/sign-in` (email/password, `?next` redirect-after-login with open-redirect sanitisation, ADR-078); `/sign-up`; `/map` authenticated route (header has "Shop" link); `/shop` public landing page (product showcase, sign-in CTA for unauthenticated, "coming soon" placeholder for authenticated); `/share/[token]` share page (+ "Turn your travels into a poster" CTA above App Store section); `/privacy`
+- **Web map** (`apps/web_nextjs`): Next.js 15 app; `/sign-in` (email/password, `?next` redirect-after-login with open-redirect sanitisation, ADR-078); `/sign-up`; `/map` authenticated route (header has "Shop" link); `/shop` public landing page (product showcase, sign-in CTA for unauthenticated, "Create my poster →" CTA + country count for authenticated users, `?ordered=true` confirmation banner); `/shop/design` authenticated country-selection page (checkbox grid pre-populated with all visited countries, select all/deselect all, calls `createMerchCart` Firebase callable, redirects to Shopify `checkoutUrl`; auth guard → `/sign-in?next=/shop/design`); `countryNames.ts` helper (`Intl.DisplayNames` + static fallback for 65 codes); `/share/[token]` share page (+ "Turn your travels into a poster" CTA above App Store section); `/privacy`
 - **Onboarding flow**: `_OnboardingGate` in `app.dart` routes new users to `OnboardingFlow` (3-screen PageView: Welcome · Privacy · Ready); returning users (existing visits) bypass onboarding; schema v8 `hasSeenOnboardingAt` column; `onboardingCompleteProvider` FutureProvider
 - **Scan summary**: `ScanSummaryScreen` shown after review-save; State A (new discoveries) shows new country list + achievement chips with confetti animation; State B (nothing new) shows friendly compact summary with last-scan date; animations respect `reduceMotion`
 - **Achievement unlock sheet**: `AchievementUnlockSheet` modal bottom sheet shown from scan summary chips and stats gallery; share action via `share_plus`
