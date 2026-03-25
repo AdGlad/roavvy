@@ -262,8 +262,9 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | M37 — Travel Card Generator | TravelCard data model + card generator screen (3 templates: grid, heart, passport stamps) + entry points from Stats and Map | ✅ Complete |
 | M38 — Print from Card | "Print" CTA on card preview → product selection → `createMerchCart` with card design; replaces direct product browsing as primary commerce path | ✅ Complete |
 | M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | ✅ Complete |
-| M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | 🔄 In Progress |
-| M41 — Shop De-emphasis | Move Shop tab content inside Cards tab; Stats-screen "Shop" button replaced by "Cards" | Not started |
+| M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | ✅ Complete |
+| M43 — Scan Delight: Real-Time Discovery | Discovery toast + inline world map + micro-confetti during scan; post-scan flag timeline; app-open scan prompt | Not started |
+| M41 — Shop De-emphasis | Move Shop tab content inside Cards tab; Stats-screen "Shop" button replaced by "Cards" | Deferred |
 
 **New data entities:**
 - `TravelCard` (Firestore `travel_cards/{cardId}`): cardId, userId, templateType (grid|heart|passport), countryCodes, countryCount, previewImageUrl, createdAt, updatedAt, schemaVersion
@@ -281,7 +282,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 | Milestone | Goal | Status |
 |---|---|---|
-| M43 — Scan Delight: Real-Time Discovery | Discovery toast + inline world map + micro-confetti during scan; post-scan flag timeline; app-open scan prompt | Not started |
+| M43 — Scan Delight: Real-Time Discovery | Discovery toast + inline world map + micro-confetti during scan; post-scan flag timeline; app-open scan prompt | **Next** |
 
 ---
 
