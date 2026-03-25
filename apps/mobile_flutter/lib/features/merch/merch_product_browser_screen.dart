@@ -38,9 +38,13 @@ class MerchProductBrowserScreen extends StatelessWidget {
   const MerchProductBrowserScreen({
     super.key,
     required this.selectedCodes,
+    this.cardId,
   });
 
   final List<String> selectedCodes;
+  /// Optional TravelCard ID — passed through to [MerchVariantScreen] and
+  /// on to `createMerchCart` so the order is traceable to the card (ADR-093).
+  final String? cardId;
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +58,13 @@ class MerchProductBrowserScreen extends StatelessWidget {
           _ProductCard(
             product: MerchProduct.tshirt,
             selectedCodes: selectedCodes,
+            cardId: cardId,
           ),
           const SizedBox(height: 16),
           _ProductCard(
             product: MerchProduct.poster,
             selectedCodes: selectedCodes,
+            cardId: cardId,
           ),
         ],
       ),
@@ -70,10 +76,12 @@ class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
     required this.selectedCodes,
+    this.cardId,
   });
 
   final MerchProduct product;
   final List<String> selectedCodes;
+  final String? cardId;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +95,7 @@ class _ProductCard extends StatelessWidget {
             builder: (_) => MerchVariantScreen(
               product: product,
               selectedCodes: selectedCodes,
+              cardId: cardId,
             ),
           ),
         ),

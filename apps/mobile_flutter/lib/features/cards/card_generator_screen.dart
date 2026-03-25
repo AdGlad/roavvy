@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
+import '../merch/merch_product_browser_screen.dart';
 import 'card_templates.dart';
 import 'travel_card_service.dart';
 
@@ -79,6 +80,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
               _ActionBar(
                 sharing: _sharing,
                 onShare: () => _onShare(context, codes),
+                onPrint: () => _onPrint(context, codes),
               ),
               SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
             ],
@@ -142,6 +144,33 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
+  }
+
+  void _onPrint(BuildContext context, List<String> codes) {
+    if (_sharing) return;
+
+    // Persist card fire-and-forget so the order is traceable (ADR-093).
+    final uid = ref.read(currentUidProvider);
+    String? cardId;
+    if (uid != null) {
+      cardId = 'card-${DateTime.now().microsecondsSinceEpoch}';
+      final card = TravelCard(
+        cardId: cardId,
+        userId: uid,
+        templateType: _selected,
+        countryCodes: codes,
+        countryCount: codes.length,
+        createdAt: DateTime.now().toUtc(),
+      );
+      unawaited(TravelCardService(FirebaseFirestore.instance).create(card));
+    }
+
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => MerchProductBrowserScreen(
+        selectedCodes: codes,
+        cardId: cardId,
+      ),
+    ));
   }
 }
 
@@ -229,10 +258,15 @@ class _Tile extends StatelessWidget {
 // ── Action bar ─────────────────────────────────────────────────────────────────
 
 class _ActionBar extends StatelessWidget {
-  const _ActionBar({required this.sharing, required this.onShare});
+  const _ActionBar({
+    required this.sharing,
+    required this.onShare,
+    required this.onPrint,
+  });
 
   final bool sharing;
   final VoidCallback onShare;
+  final VoidCallback onPrint;
 
   @override
   Widget build(BuildContext context) {
@@ -257,13 +291,10 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
-            child: Tooltip(
-              message: 'Coming soon',
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.print_outlined),
-                label: const Text('Print your card'),
-              ),
+            child: OutlinedButton.icon(
+              onPressed: sharing ? null : onPrint,
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Print your card'),
             ),
           ),
         ],

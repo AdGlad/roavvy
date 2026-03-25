@@ -169,7 +169,7 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
     }
     const uid = request.auth.uid;
     // Input validation
-    const { variantId, selectedCountryCodes, quantity } = request.data;
+    const { variantId, selectedCountryCodes, quantity, cardId } = request.data;
     if (!variantId || typeof variantId !== 'string') {
         throw new https_1.HttpsError('invalid-argument', 'variantId is required.');
     }
@@ -212,6 +212,8 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
         printfulOrderId: null,
         // M34 field
         mockupUrl: null,
+        // M38 field (ADR-093): links this order to the originating TravelCard, if any
+        cardId: typeof cardId === 'string' ? cardId : null,
     };
     await configRef.set(configData);
     // ── Step 2 & 3: Generate preview + print PNGs ──────────────────────────
