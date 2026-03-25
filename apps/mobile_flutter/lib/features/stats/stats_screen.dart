@@ -4,6 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
+import '../cards/card_generator_screen.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../scan/achievement_unlock_sheet.dart';
 import 'countries_list_screen.dart';
@@ -105,6 +106,21 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                 ),
               ),
             ),
+            if (visits != null && visits.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CardGeneratorScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.style_outlined),
+                    label: const Text('Create card'),
+                  ),
+                ),
+              ),
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(16, 24, 16, 8),

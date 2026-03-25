@@ -13,6 +13,7 @@ import '../../core/providers.dart';
 import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
+import '../cards/card_generator_screen.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
@@ -286,6 +287,10 @@ class MapScreen extends ConsumerWidget {
                       amount: 30,
                       awardedAt: now,
                     )));
+                  } else if (action == _MapMenuAction.createCard) {
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const CardGeneratorScreen(),
+                    ));
                   } else if (action == _MapMenuAction.shop) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const MerchCountrySelectionScreen(),
@@ -325,6 +330,14 @@ class MapScreen extends ConsumerWidget {
                       child: ListTile(
                         leading: Icon(Icons.share),
                         title: Text('Share travel card'),
+                      ),
+                    ),
+                  if (hasVisits)
+                    const PopupMenuItem(
+                      value: _MapMenuAction.createCard,
+                      child: ListTile(
+                        leading: Icon(Icons.style_outlined),
+                        title: Text('Create card'),
                       ),
                     ),
                   if (hasVisits)
@@ -432,6 +445,7 @@ enum _MapMenuAction {
   signInWithApple,
   deleteHistory,
   shareMyMap,
+  createCard,
   shop,
   privacyAccount,
   signOut,
