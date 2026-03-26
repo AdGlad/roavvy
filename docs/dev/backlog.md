@@ -537,7 +537,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 46 — Flag Heart: True Heart-Mask Layout Engine
+## Milestone 46 — Flag Heart: True Heart-Mask Layout Engine ✅ COMPLETE (2026-03-27)
 
 **Goal:** Replace the current `HeartFlagsCard` (gradient background + emoji flags) with a geometric heart composed entirely of real SVG flag tiles — the heart shape itself is formed by the flags, clipped at the heart boundary with at least 66% of each tile visible.
 
@@ -563,7 +563,9 @@ All sharing features are complete as of M12.
 - Web card generator
 - Android
 
-**Not started. No tasks written yet.**
+**Delivered (Tasks 163–168):** `HeartLayoutEngine` (parametric mask + density bands + coverage filter + 4 ordering strategies); `MaskCalculator` (isInsideHeart + coverageFraction + heartPath); `FlagTileRenderer` + `FlagImageCache` (LRU, 300 entries); 271 SVG flag assets (flag-icons 4x3, MIT); `flutter_svg ^2.0.10+1`; `HeartFlagsCard` rewritten to `CustomPaint` with `_HeartPainter`; `HeartRenderConfig`; `CardGeneratorScreen` flag-order segmented control; 632 flutter tests passing.
+
+**Deferred:** `HeartImageExporter` multi-resolution export at 3000/5000px (deferred — `RepaintBoundary.toImage(pixelRatio: 3.0)` remains export path).
 
 ---
 

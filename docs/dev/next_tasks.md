@@ -1,73 +1,10 @@
-# M45 — Passport Stamp Realism Upgrade
+# Next Tasks — post-M47
 
-**Milestone:** 45
-**Phase:** Phase 15 — Visual Design Upgrade
-**Architecture:** ADR-097
-**Status:** Complete
+M47 (Commerce Template & Placement) is complete. The next milestone has not yet been planned.
 
----
+Refer to [docs/product/roadmap.md](../product/roadmap.md) for the Phase 15 Visual Design Upgrade roadmap and Phase 13 Identity Commerce remaining items.
 
-## Goal
-
-Make passport stamps look physically authentic — ink simulation, pressure distortion, 15 stamp style templates, realistic typography with arc text and sublabels, aging effects, and rare artefacts.
-
-## Scope
-
-**Included:**
-- `StampStyle` enum (15 styles replacing the previous 4-shape StampShape)
-- `StampNoiseGenerator` — procedural blotchy ink-wear opacity mask
-- `StampShapeDistorter` — vertex jitter for geometric imperfection
-- `StampTypographyPainter` — condensed typography, monospaced dates, arc text, baseline jitter
-- `StampInkPalette` — 12 vibrant ink colour families
-- `StampAgeEffect` — 4 aging levels (fresh/aged/worn/faded)
-- `RareArtefactEngine` — ghost, partial stamp, ink blob, smudge, correction stamp
-- `StampPainter` — full 15-style `CustomPainter` with offscreen `PictureRecorder` pipeline
-- `PassportLayoutEngine` — soft-grid placement, temporal ordering, edge clipping
-- `PassportStampsCard` — card template widget using the new engine
-
-**Excluded:**
-- Flag Heart card (M46)
-- Sound effects
-
----
-
-## Tasks
-
-### Task 156 — StampStyle enum + StampInkPalette + StampAgeEffect + StampRenderConfig + StampData model
-- [x] Deliverable: `passport_stamp_model.dart` with all types and factories
-- [x] Tests: `passport_stamp_model_test.dart`
-
-### Task 157 — StampNoiseGenerator
-- [x] Deliverable: `stamp_noise_generator.dart`
-- [x] Tests: `stamp_noise_generator_test.dart`
-
-### Task 158 — StampShapeDistorter
-- [x] Deliverable: `stamp_shape_distorter.dart`
-- [x] Tests: `stamp_shape_distorter_test.dart`
-
-### Task 159 — StampTypographyPainter
-- [x] Deliverable: `stamp_typography_painter.dart`
-- [x] Tests: `stamp_typography_painter_test.dart`
-
-### Task 160 — RareArtefactEngine
-- [x] Deliverable: `rare_artefact_engine.dart`
-- [x] Tests: `rare_artefact_engine_test.dart`
-
-### Task 161 — StampPainter (15-style CustomPainter)
-- [x] Deliverable: `stamp_painter.dart`
-- [x] Tests: `stamp_painter_test.dart`
-
-### Task 162 — PassportLayoutEngine + PassportStampsCard integration
-- [x] Deliverable: `passport_layout_engine.dart`; `passport_stamp_model.dart` updated; `card_templates.dart` updated
-- [x] Tests: `passport_layout_engine_test.dart` updated
-- [x] flutter analyze clean; all 85 card tests pass
-
----
-
-## Dependencies
-
-All tasks sequential (each builds on the previous).
-
-## Risks / open questions
-
-None outstanding — milestone complete.
+Candidate next milestones (run Planner to scope):
+- **M48** — Visual Design Upgrade: Flag Grid card elevated (improved layout, country-count labelling, border polish)
+- **M41** — Shop De-emphasis (deferred Phase 13d): move Shop under Cards tab, update nav
+- **App Store readiness** (Phase 9 remaining gaps): final icon, screenshots, push notification wiring

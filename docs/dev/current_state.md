@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-26, through Task 162 / M45)
+# Roavvy — Development State (as of 2026-03-27, through M47)
 
 ## What Works
 
@@ -152,6 +152,25 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `PassportLayoutEngine` updated: ±20° rotation (was ±12°), 3×4 soft-grid clustering (probability ∝ 1/(1+occupancy)), 8% edge-clipping stamps, category-balanced style selection (25% each: circles/rects/polygons/other), native-language entry/exit alternation
   - `PaperTexturePainter` corner aging removed; `_MultiStampPainter` upgraded to `canvas.saveLayer(BlendMode.multiply)` pipeline with paper texture drawn first then stamps composited over it; vignette replaces corner aging; `PassportStampsCard` uses single unified `CustomPaint` for correct multiply blending
   - 85 card tests passing; `flutter analyze` clean; stale layout engine tests corrected to match ADR-097 contracts
+- **Flag Heart: True Heart-Mask Layout Engine (M46 — Tasks 163–168, ADR-098)**:
+  - `HeartFlagOrder` enum (4 values: randomized, chronological, alphabetical, geographic) in `lib/features/cards/heart_layout_engine.dart`
+  - `MaskCalculator` — parametric heart equation `(x²+y²−1)³−x²y³≤0`, `isInsideHeart()`, `coverageFraction()` (5-point then 9-point test for 66% threshold), `heartPath()` (120-point polygon via standard trigonometric parametric form)
+  - `HeartLayoutEngine.layout()` — density-band selection (5 tiers from 180px tiles at ≤12 flags to 40px at 200+), candidate generation with coverage filter, centre-outward sorting, flag assignment with up to 2 re-run cycles on density mismatch; `HeartTilePosition` model
+  - `FlagImageCache` — LRU cache (max 300 entries) keyed by `{code}_{tileSize}`; insertion-ordered `Map` for O(1) eviction
+  - `FlagTileRenderer` — `renderFromCache()` draws from `ui.Image` cache or falls back to emoji; `loadSvgToCache()` async SVG → `ui.Image` conversion via `SvgAssetLoader` + `VectorGraphicUtilities.loadPicture`; `hasSvg()` lookup against bundled codes set
+  - 271 SVG flag files bundled under `assets/flags/svg/` (flag-icons 4x3, MIT licence); `flutter_svg ^2.0.10+1` added to `pubspec.yaml`
+  - `HeartRenderConfig` model (gapWidth, tileCornerRadius, tileShadowOpacity, edgeFeatherPx)
+  - `HeartFlagsCard` fully rewritten: `CustomPaint` with `_HeartPainter`; dark navy background; `canvas.clipPath(heartPath)` + `dstIn` feathered edge pass; `ROAVVY` brand label; empty state unchanged; optional `trips`, `flagOrder`, `config` params
+  - `CardGeneratorScreen` gains `_HeartOrderPicker` (4 chip-style buttons: Shuffle / By date / A→Z / By region); visible only when heart template selected; resets to `randomized` on template switch
+  - 47 new tests across `heart_layout_engine_test.dart`, `flag_tile_renderer_test.dart`, updated `card_templates_test.dart`, `card_generator_heart_order_test.dart`; `flutter analyze` clean
+- **Commerce Template & Placement (M47 — ADR-099)**:
+  - `CardImageRenderer` (`lib/features/cards/card_image_renderer.dart`) — off-screen renderer using `OverlayEntry` positioned off-screen; `render(context, template, codes, trips)` captures `RepaintBoundary.toImage(pixelRatio: 3.0)` and returns PNG bytes; no pub package dependencies; used by `MerchVariantScreen` to send the correct card design to the server
+  - `MerchVariantScreen` gains `initialTemplate: CardTemplateType` constructor param (default `grid`); template picker (`SegmentedPicker` with Grid/Heart/Passport) visible for all products; placement picker (Front/Back, t-shirt only) visible when `_isTshirt`; `_generatePreview()` calls `CardImageRenderer.render()` and sends `clientCardBase64` + `placement` to `createMerchCart`; preview resets on template or placement change
+  - `cardImageBytes: Uint8List?` parameter removed from entire navigation stack (`MerchProductBrowserScreen`, `MerchVariantScreen`, `CardGeneratorScreen`) — was added in M38, now superseded by in-screen rendering (ADR-099 decision 2)
+  - `CreateMerchCartRequest` gains `placement?: 'front' | 'back'`; `MerchConfig` gains `placement: 'front' | 'back'` field; `createMerchCart` function extracts placement, validates to `'front' | 'back'`, stores on `MerchConfig`, and passes to `generatePrintfulMockup`
+  - `clientCardBase64` size guard: rejects inputs with string length > 5,500,000 characters (~4 MB decoded) with `HttpsError('invalid-argument')`
+  - BUG-001 diagnostic: `logger.info('mockup_variant_match', {...})` logs matched variant ID, runtime type, and all returned variant IDs on every mockup completion — closes observability gap on the `Number()` coercion fix
+  - 9 widget tests in `merch_variant_screen_test.dart` (template picker visibility, poster template picker, template change resets preview, placement visibility t-shirt/poster, placement change resets preview); `card_image_renderer_test.dart` (render completes without throw); 632 flutter tests passing; `flutter analyze` clean; Functions TypeScript builds clean
 - **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
   - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
   - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)

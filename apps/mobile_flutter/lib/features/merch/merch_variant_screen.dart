@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_models/shared_models.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../cards/card_image_renderer.dart';
 import 'flag_grid_preview.dart';
 import 'merch_post_purchase_screen.dart';
 import 'merch_product_browser_screen.dart';
@@ -81,6 +84,7 @@ class MerchVariantScreen extends StatefulWidget {
     required this.product,
     required this.selectedCodes,
     this.cardId,
+    this.initialTemplate = CardTemplateType.grid,
   });
 
   final MerchProduct product;
@@ -88,6 +92,8 @@ class MerchVariantScreen extends StatefulWidget {
   /// Optional TravelCard ID — included in the `createMerchCart` payload so the
   /// resulting order is traceable back to the card (ADR-093).
   final String? cardId;
+  /// Card template to pre-select when the screen opens.
+  final CardTemplateType initialTemplate;
 
   @override
   State<MerchVariantScreen> createState() => _MerchVariantScreenState();
@@ -102,6 +108,10 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   // Poster state
   String _posterPaper = _posterPapers.first;
   String _posterSize = _posterSizes.first;
+
+  // Card template + placement state (Task 164 / 165)
+  late CardTemplateType _selectedTemplate;
+  String _placement = 'front'; // 'front' | 'back'; t-shirt only
 
   _PreviewState _previewState = _PreviewState.initial;
   String? _previewUrl;
@@ -118,6 +128,18 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   static const int _pollMaxAttempts = 10;
 
   bool get _isTshirt => widget.product == MerchProduct.tshirt;
+
+  static String _templateLabel(CardTemplateType t) => switch (t) {
+        CardTemplateType.grid => 'Grid',
+        CardTemplateType.heart => 'Heart',
+        CardTemplateType.passport => 'Passport',
+      };
+
+  static CardTemplateType _templateFromLabel(String label) => switch (label) {
+        'Heart' => CardTemplateType.heart,
+        'Passport' => CardTemplateType.passport,
+        _ => CardTemplateType.grid,
+      };
 
   String get _resolvedVariantGid {
     if (_isTshirt) {
@@ -136,6 +158,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   @override
   void initState() {
     super.initState();
+    _selectedTemplate = widget.initialTemplate;
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -256,6 +279,22 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     });
 
     try {
+      // Render the selected card template to PNG bytes so the server mockup
+      // reflects what the user chose (ADR-099).
+      String? cardBase64;
+      try {
+        if (context.mounted) {
+          final bytes = await CardImageRenderer.render(
+            context,
+            _selectedTemplate,
+            codes: widget.selectedCodes,
+          );
+          cardBase64 = base64Encode(bytes);
+        }
+      } catch (_) {
+        // Rendering failure is non-fatal; server falls back to flag grid.
+      }
+
       final callable =
           FirebaseFunctions.instance.httpsCallable('createMerchCart');
       final result = await callable.call<Map<String, dynamic>>({
@@ -263,6 +302,8 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         'selectedCountryCodes': widget.selectedCodes,
         'quantity': 1,
         if (widget.cardId != null) 'cardId': widget.cardId,
+        if (cardBase64 != null) 'clientCardBase64': cardBase64,
+        if (_isTshirt) 'placement': _placement,
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
@@ -440,7 +481,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           _buildProductImageSlot(theme),
           const SizedBox(height: 16),
 
-          // Flag grid preview
+          // Country count label
           Text(
             'Designing for ${widget.selectedCodes.length} '
             '${widget.selectedCodes.length == 1 ? 'country' : 'countries'}',
@@ -449,9 +490,35 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
             ),
           ),
           FlagGridPreview(selectedCodes: widget.selectedCodes),
+          const SizedBox(height: 16),
+
+          // Card template picker (ADR-099)
+          _SectionLabel('Card design'),
+          _SegmentedPicker(
+            options: const ['Grid', 'Heart', 'Passport'],
+            selected: _templateLabel(_selectedTemplate),
+            onChanged: (v) => setState(() {
+              _selectedTemplate = _templateFromLabel(v);
+              _resetPreview();
+            }),
+          ),
+
+          // Placement picker — t-shirt only (ADR-099)
+          if (_isTshirt) ...[
+            const SizedBox(height: 16),
+            _SectionLabel('Print position'),
+            _SegmentedPicker(
+              options: const ['Front', 'Back'],
+              selected: _placement == 'front' ? 'Front' : 'Back',
+              onChanged: (v) => setState(() {
+                _placement = v.toLowerCase();
+                _resetPreview();
+              }),
+            ),
+          ],
           const SizedBox(height: 8),
 
-          // Pickers
+          // Variant pickers
           if (_isTshirt) ...[
             _SectionLabel('Colour'),
             _SegmentedPicker(

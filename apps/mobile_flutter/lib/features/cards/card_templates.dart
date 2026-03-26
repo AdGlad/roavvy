@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'flag_tile_renderer.dart';
+import 'heart_layout_engine.dart';
 import 'paper_texture_painter.dart';
 import 'passport_layout_engine.dart';
 import 'passport_stamp_model.dart';
@@ -112,119 +114,184 @@ class GridFlagsCard extends StatelessWidget {
   }
 }
 
+// ── HeartRenderConfig ─────────────────────────────────────────────────────────
+
+/// Visual configuration for [HeartFlagsCard].
+class HeartRenderConfig {
+  const HeartRenderConfig({
+    this.gapWidth = 1.0,
+    this.tileCornerRadius = 2.0,
+    this.tileShadowOpacity = 0.0,
+    this.edgeFeatherPx = 1.5,
+  });
+
+  /// White gap between tiles (pixels). Default 1.0.
+  final double gapWidth;
+
+  /// Rounded corner radius for each tile (pixels). Default 2.0.
+  final double tileCornerRadius;
+
+  /// Subtle drop shadow opacity per tile (0.0–0.3). Default 0.0.
+  final double tileShadowOpacity;
+
+  /// Heart edge feather softness in pixels. Default 1.5.
+  final double edgeFeatherPx;
+}
+
 // ── HeartFlagsCard ────────────────────────────────────────────────────────────
 
-/// Travel card template: flag emojis on a warm amber gradient with a heart motif.
+/// Travel card template: a geometric heart composed of real SVG flag tiles.
 ///
-/// Simplified from a true ClipPath heart mask — uses a warm gradient background
-/// and a semi-transparent ❤️ watermark. Visually distinct from GridFlagsCard
-/// (ADR-092).
+/// The heart shape is formed by the flag tiles themselves, clipped at the heart
+/// boundary with at least 66% of each tile visible. Uses the parametric heart
+/// equation `(x²+y²−1)³−x²y³≤0` (ADR-098).
 class HeartFlagsCard extends StatelessWidget {
-  const HeartFlagsCard({super.key, required this.countryCodes});
+  const HeartFlagsCard({
+    super.key,
+    required this.countryCodes,
+    this.trips = const [],
+    this.flagOrder = HeartFlagOrder.randomized,
+    this.config = const HeartRenderConfig(),
+  });
 
   final List<String> countryCodes;
+  final List<TripRecord> trips;
+  final HeartFlagOrder flagOrder;
+  final HeartRenderConfig config;
 
   @override
   Widget build(BuildContext context) {
-    const maxFlags = 40;
-    final visible = countryCodes.take(maxFlags).toList();
-    final overflow = countryCodes.length - visible.length;
+    if (countryCodes.isEmpty) {
+      return AspectRatio(
+        aspectRatio: _kAspectRatio,
+        child: Container(
+          color: const Color(0xFF0D2137),
+          child: const Center(
+            child: Text(
+              'Scan your photos\nto fill your card',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
 
     return AspectRatio(
       aspectRatio: _kAspectRatio,
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF7B2D3E), Color(0xFFB85C38)],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Heart watermark
-            const Positioned.fill(
-              child: Center(
-                child: Text(
-                  '❤️',
-                  style: TextStyle(fontSize: 120),
-                ),
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+          return CustomPaint(
+            painter: _HeartPainter(
+              countryCodes: countryCodes,
+              trips: trips,
+              flagOrder: flagOrder,
+              config: config,
+              canvasSize: size,
             ),
-            // Content overlay
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    _kBrand,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: countryCodes.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Scan your photos\nto fill your card',
-                              style:
-                                  TextStyle(color: Colors.white70, fontSize: 13),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : Wrap(
-                            spacing: 4,
-                            runSpacing: 2,
-                            children: [
-                              for (final code in visible)
-                                Text(_flag(code),
-                                    style: const TextStyle(fontSize: 18)),
-                              if (overflow > 0)
-                                Text(
-                                  '+$overflow',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        '${countryCodes.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          height: 1,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Flexible(
-                        child: Text(
-                          'countries visited',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
+}
+
+/// CustomPainter that renders the heart composed of flag tiles.
+class _HeartPainter extends CustomPainter {
+  _HeartPainter({
+    required this.countryCodes,
+    required this.trips,
+    required this.flagOrder,
+    required this.config,
+    required this.canvasSize,
+  });
+
+  final List<String> countryCodes;
+  final List<TripRecord> trips;
+  final HeartFlagOrder flagOrder;
+  final HeartRenderConfig config;
+  final Size canvasSize;
+
+  // Shared cache across all painters in the same card preview.
+  static final _sharedCache = FlagImageCache();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Dark navy background behind the heart.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = const Color(0xFF0D2137),
+    );
+
+    final tiles = HeartLayoutEngine.layout(
+      countryCodes,
+      size,
+      order: flagOrder,
+      trips: trips,
+    );
+
+    if (tiles.isEmpty) return;
+
+    final heartPath = MaskCalculator.heartPath(size);
+
+    // 1. Clip to heart and draw flag tiles.
+    canvas.save();
+    canvas.clipPath(heartPath, doAntiAlias: true);
+
+    for (final tile in tiles) {
+      FlagTileRenderer.renderFromCache(
+        canvas,
+        tile,
+        _sharedCache,
+        cornerRadius: config.tileCornerRadius,
+        gapWidth: config.gapWidth,
+      );
+    }
+
+    canvas.restore();
+
+    // 2. dstIn feathered edge pass for smooth heart boundary.
+    if (config.edgeFeatherPx > 0) {
+      canvas.saveLayer(
+        Offset.zero & size,
+        Paint()..blendMode = BlendMode.dstIn,
+      );
+      canvas.drawPath(
+        heartPath,
+        Paint()
+          ..maskFilter =
+              MaskFilter.blur(BlurStyle.normal, config.edgeFeatherPx)
+          ..color = const Color(0xFFFFFFFF),
+      );
+      canvas.restore();
+    }
+
+    // 3. ROAVVY brand label.
+    _drawBrandLabel(canvas, size);
+  }
+
+  void _drawBrandLabel(Canvas canvas, Size size) {
+    final tp = TextPainter(
+      text: const TextSpan(
+        text: _kBrand,
+        style: TextStyle(
+          color: Color(0xB3FFFFFF), // white70
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(size.width - tp.width - 10, size.height - tp.height - 6));
+  }
+
+  @override
+  bool shouldRepaint(_HeartPainter old) =>
+      old.countryCodes != countryCodes ||
+      old.flagOrder != flagOrder ||
+      old.canvasSize != canvasSize;
 }
 
 // ── PassportStampsCard ────────────────────────────────────────────────────────
