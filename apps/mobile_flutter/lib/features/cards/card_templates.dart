@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -229,10 +231,8 @@ class HeartFlagsCard extends StatelessWidget {
 
 /// Travel card template: authentic ink-style passport stamps on parchment.
 ///
-/// Stamps are drawn by [StampPainter] via [CustomPainter] — true arbitrary
-/// rotation, overlapping stamps, and per-shape anatomy. Background is a
-/// procedural parchment from [PaperTexturePainter]. Stamp positions are
-/// deterministic via [PassportLayoutEngine] (ADR-096).
+/// Paper texture and stamps are drawn in a single [CustomPainter] so that
+/// [BlendMode.multiply] correctly composites ink over paper texture (ADR-097).
 ///
 /// When [trips] is non-empty, stamps show real trip dates and ENTRY/EXIT labels.
 /// When empty (fallback), stamps show codes only with no date label.
@@ -258,13 +258,7 @@ class PassportStampsCard extends StatelessWidget {
                     Size(constraints.maxWidth, constraints.maxHeight);
                 return Stack(
                   children: [
-                    // Background
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: const PaperTexturePainter(),
-                      ),
-                    ),
-                    // Stamps
+                    // Single unified painter: paper + stamps with BlendMode.multiply
                     Positioned.fill(
                       child: _PassportPagePainter(
                         countryCodes: countryCodes,
@@ -341,6 +335,8 @@ class _PassportPagePainter extends StatelessWidget {
   }
 }
 
+/// Unified painter: draws parchment background then stamps with
+/// [BlendMode.multiply] so ink darkens the paper texture (ADR-097 Decision 9).
 class _MultiStampPainter extends CustomPainter {
   const _MultiStampPainter(this.stamps);
 
@@ -348,8 +344,94 @@ class _MultiStampPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 1. Paper texture background (drawn directly — not in saveLayer so it
+    //    acts as the "destination" for the multiply blend)
+    const PaperTexturePainter().paint(canvas, size);
+
+    // 2. Open saveLayer with BlendMode.multiply: stamps multiply over paper
+    canvas.saveLayer(
+      Offset.zero & size,
+      Paint()..blendMode = BlendMode.multiply,
+    );
+
     for (final stamp in stamps) {
+      // Apply edge clipping if set (partial stamp at page boundary)
+      final hasClip = stamp.edgeClip != null;
+      if (hasClip) {
+        canvas.save();
+        canvas.clipRect(stamp.edgeClip!);
+      }
       StampPainter(stamp).paint(canvas, size);
+      if (hasClip) {
+        canvas.restore();
+      }
+    }
+
+    canvas.restore(); // end BlendMode.multiply layer
+
+    // 3. Wavy cancel lines: 2–3 faint ink strokes crossing the page
+    if (stamps.isNotEmpty) {
+      _drawWavyCancelLines(canvas, size, stamps.first.seed);
+    }
+
+    // 4. Vignette: subtle corner darkening (replaces PaperTexturePainter corner
+    //    aging which was removed in M45)
+    _drawVignette(canvas, size);
+  }
+
+  void _drawWavyCancelLines(Canvas canvas, Size size, int seed) {
+    final rng = math.Random(seed ^ 0xCAB0);
+    final lineCount = 2 + rng.nextInt(2); // 2–3 lines
+
+    for (var i = 0; i < lineCount; i++) {
+      final baseY = size.height * (0.22 + i * 0.28 + rng.nextDouble() * 0.06);
+      final path = Path();
+      path.moveTo(0, baseY);
+
+      const segments = 8;
+      final segW = size.width / segments;
+      var prevY = baseY;
+      for (var s = 0; s < segments; s++) {
+        final x1 = s * segW + segW * 0.33;
+        final x2 = s * segW + segW * 0.67;
+        final x3 = (s + 1) * segW;
+        final amp = size.height * 0.018 * (rng.nextDouble() * 2 - 1);
+        path.cubicTo(x1, prevY + amp, x2, prevY - amp, x3, prevY + amp * 0.4);
+        prevY = prevY + amp * 0.4;
+      }
+
+      final opacity = 0.06 + rng.nextDouble() * 0.06;
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = const Color(0xFF3B2A1A).withValues(alpha: opacity)
+          ..strokeWidth = 0.7 + rng.nextDouble() * 0.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  void _drawVignette(Canvas canvas, Size size) {
+    final cornerRadius = math.min(size.width, size.height) * 0.28;
+    for (final alignment in const [
+      Alignment.topLeft,
+      Alignment.topRight,
+      Alignment.bottomLeft,
+      Alignment.bottomRight,
+    ]) {
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = RadialGradient(
+            center: alignment,
+            radius: cornerRadius / math.min(size.width, size.height),
+            colors: const [
+              Color(0x14000000), // 8% black
+              Color(0x00000000), // transparent
+            ],
+          ).createShader(Offset.zero & size),
+      );
     }
   }
 

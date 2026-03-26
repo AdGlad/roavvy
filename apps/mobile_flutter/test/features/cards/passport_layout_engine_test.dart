@@ -27,6 +27,8 @@ void main() {
     });
 
     test('codes-only path works without trips', () {
+      // ADR-097 Decision: fromCode always generates a deterministic placeholder
+      // date, so all code-only stamps also have a non-null dateLabel.
       final result = PassportLayoutEngine.layout(
         trips: [],
         countryCodes: _codes5,
@@ -34,7 +36,7 @@ void main() {
       );
       expect(result.length, _codes5.length);
       for (final stamp in result) {
-        expect(stamp.dateLabel, isNull);
+        expect(stamp.dateLabel, isNotNull);
       }
     });
 
@@ -98,7 +100,9 @@ void main() {
       expect(result.length, lessThanOrEqualTo(20));
     });
 
-    test('trip stamps include date labels; bare code stamps do not', () {
+    test('trip stamps and code-only stamps both have non-null date labels', () {
+      // ADR-097 Decision: fromCode always generates a deterministic placeholder
+      // date; fromTrip uses the real trip date. All stamps show a date label.
       final trips = [_trip('FR', DateTime(2022, 6, 1))];
       final result = PassportLayoutEngine.layout(
         trips: trips,
@@ -108,11 +112,16 @@ void main() {
       );
       final frStamp = result.firstWhere((s) => s.countryCode == 'FR');
       final deStamp = result.firstWhere((s) => s.countryCode == 'DE');
+      // Trip stamp has a real date from the trip record
       expect(frStamp.dateLabel, isNotNull);
-      expect(deStamp.dateLabel, isNull);
+      // Code-only stamp has a deterministic placeholder date (not null)
+      expect(deStamp.dateLabel, isNotNull);
     });
 
-    test('alternates ENTRY/EXIT labels', () {
+    test('alternates entry/exit labels using native language per country', () {
+      // ADR-097 Decision 7: entry/exit labels use the country's native language
+      // (e.g. 'ARRIVÉE' for FR, 'EINREISE' for DE). The layout engine passes
+      // isEntry=true for even stamp indices and isEntry=false for odd.
       final trips = [
         _trip('FR', DateTime(2021, 1, 1)),
         _trip('DE', DateTime(2021, 6, 1)),
@@ -124,10 +133,15 @@ void main() {
         canvasSize: _size,
         seed: 0,
       );
-      // Even index → ENTRY, odd → EXIT
+      // Even index → isEntry=true → native arrival label (non-empty)
+      // Odd index  → isEntry=false → native departure label (non-empty)
       for (var i = 0; i < result.length; i++) {
-        expect(result[i].entryLabel, i % 2 == 0 ? 'ENTRY' : 'EXIT');
+        expect(result[i].entryLabel, isNotEmpty);
       }
+      // Verify the alternation pattern: even = entry stamp, odd = exit stamp
+      expect(result[0].isEntry, isTrue);
+      expect(result[1].isEntry, isFalse);
+      if (result.length > 2) expect(result[2].isEntry, isTrue);
     });
   });
 }
