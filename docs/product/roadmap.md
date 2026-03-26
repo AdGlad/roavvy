@@ -264,6 +264,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | M39 — Achievement & Level-Up Commerce Triggers | Level-up modal with "Create your [Level] shirt" CTA; commerce offer on milestone card (5/10/25/50/100 countries) | ✅ Complete |
 | M40 — Scan & Map Commerce Triggers | New-country scan → card creation nudge; map "Create poster" menu item | ✅ Complete |
 | M43 — Scan Delight: Real-Time Discovery | Discovery toast + inline world map + micro-confetti during scan; post-scan flag timeline; app-open scan prompt | ✅ Complete |
+| M47 — Commerce Template & Placement | In-screen template picker + placement picker in `MerchVariantScreen`; `CardImageRenderer` off-screen renderer; Printful `placement` field; BUG-001 diagnostic logging | ✅ Complete |
 | M41 — Shop De-emphasis | Move Shop tab content inside Cards tab; Stats-screen "Shop" button replaced by "Cards" | Deferred |
 
 **New data entities:**
@@ -283,6 +284,18 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | Milestone | Goal | Status |
 |---|---|---|
 | M43 — Scan Delight: Real-Time Discovery | Discovery toast + inline world map + micro-confetti during scan; post-scan flag timeline; app-open scan prompt | ✅ Complete |
+
+---
+
+## Phase 15 — Visual Design Upgrade
+
+**Goal:** Elevate all three card templates to product-quality graphics worthy of sharing and printing — authentic passport stamps, a true geometric Flag Heart, and an improved flag grid.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M44 — Passport Stamp Card: Authentic Stamp Renderer | Replace widget-based stamps with `CustomPainter` — 4 stamp shapes, procedural paper texture, real trip dates, ENTRY/EXIT labels, deterministic layout engine | ✅ Complete |
+| M45 — Passport Stamp Realism Upgrade | Ink simulation, pressure distortion, 12 stamp styles, authentic typography, aging effects, rare artefacts — see ADR-097 | ✅ Complete |
+| M46 — Flag Heart: True Heart-Mask Layout Engine | Replace gradient+emoji heart with a geometric heart composed of real SVG flag tiles — dynamic grid density, 66% visibility rule, multi-resolution export — see ADR-098 | ✅ Complete |
 
 ---
 

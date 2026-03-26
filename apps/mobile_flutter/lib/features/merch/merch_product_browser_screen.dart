@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_models/shared_models.dart';
 
 import 'merch_variant_screen.dart';
 
@@ -39,12 +40,15 @@ class MerchProductBrowserScreen extends StatelessWidget {
     super.key,
     required this.selectedCodes,
     this.cardId,
+    this.initialTemplate = CardTemplateType.grid,
   });
 
   final List<String> selectedCodes;
   /// Optional TravelCard ID — passed through to [MerchVariantScreen] and
   /// on to `createMerchCart` so the order is traceable to the card (ADR-093).
   final String? cardId;
+  /// Card template to pre-select in [MerchVariantScreen] (ADR-099).
+  final CardTemplateType initialTemplate;
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +63,14 @@ class MerchProductBrowserScreen extends StatelessWidget {
             product: MerchProduct.tshirt,
             selectedCodes: selectedCodes,
             cardId: cardId,
+            initialTemplate: initialTemplate,
           ),
           const SizedBox(height: 16),
           _ProductCard(
             product: MerchProduct.poster,
             selectedCodes: selectedCodes,
             cardId: cardId,
+            initialTemplate: initialTemplate,
           ),
         ],
       ),
@@ -77,11 +83,13 @@ class _ProductCard extends StatelessWidget {
     required this.product,
     required this.selectedCodes,
     this.cardId,
+    this.initialTemplate = CardTemplateType.grid,
   });
 
   final MerchProduct product;
   final List<String> selectedCodes;
   final String? cardId;
+  final CardTemplateType initialTemplate;
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +104,7 @@ class _ProductCard extends StatelessWidget {
               product: product,
               selectedCodes: selectedCodes,
               cardId: cardId,
+              initialTemplate: initialTemplate,
             ),
           ),
         ),
@@ -159,6 +168,8 @@ class _ProductCard extends StatelessWidget {
                     builder: (_) => MerchVariantScreen(
                       product: product,
                       selectedCodes: selectedCodes,
+                      cardId: cardId,
+                      initialTemplate: initialTemplate,
                     ),
                   ),
                 ),

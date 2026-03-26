@@ -390,7 +390,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 43 — Scan Delight: Real-Time Discovery
+## Milestone 43 — Scan Delight: Real-Time Discovery ✅ COMPLETE (2026-03-26)
 
 **Goal:** Make every scan feel alive. Each newly discovered country triggers an in-scan toast, a confetti burst, and a world map that zooms to that country in real-time. After the scan, new countries are displayed as a dramatic flag timeline. When the user opens the app after 7+ days away, they are proactively prompted to scan for new countries.
 
@@ -451,7 +451,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 36 — Country Region Map (Stats → Regions) ⬅ CURRENT MILESTONE
+## Milestone 36 — Country Region Map (Stats → Regions) ✅ COMPLETE (2026-03-26)
 
 **Goal:** From the Stats screen Regions breakdown, tapping a country opens a full-screen map of that country with all visited regions highlighted; tapping a region shows a floating name label.
 
@@ -467,39 +467,19 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 32 — Mobile Quality & Scan Reward Pass
+## Milestone 32 — Mobile Quality & Scan Reward Pass ✅ COMPLETE (2026-03-26)
 
 **Goal:** Fix six user-reported UX and correctness issues across map, journal, stats, and scan flows.
 
-**Priority:** Ahead of M29/M30 — these are bugs and UX gaps in already-shipped features.
-
-**Scope — included:**
-- Map visual refresh: dark navy ocean, richer gold polygon colour scheme, glass-morphic XpLevelBar and StatsStrip
-- Stats screen: country count, regions count, and achievement count tappable with drill-down destinations (`CountryListScreen`, `RegionBreakdownSheet`, achievement gallery scroll)
-- Journal stale state: full provider invalidation after `clearAll()` and after scan save — no sign-out required
-- Trip photo filtering: `PhotoGalleryScreen` opened from a trip card shows only photos taken during that trip's date range
-- Real-time scan discovery feed: `ScanScreen` shows a live "Countries found" list growing as new countries are first detected
-- Discovery overlay for all new countries: `DiscoveryOverlay` shown sequentially per new country, capped at 5, with "Skip all" CTA
-
-**Tasks:** 105–110 (see `next_tasks.md`)
-
-**Not started.**
+**Delivered (Tasks 105–110):** Map dark navy/gold visual refresh (ADR-080); tappable regions stat → `RegionBreakdownSheet` (ADR-081); journal stale state fix via `tripListProvider` (ADR-082); trip photo date filtering via `loadAssetIdsByDateRange` (ADR-083); real-time scan discovery feed; sequential `DiscoveryOverlay` for all new countries capped at 5 with "Skip all" CTA (ADR-084).
 
 ---
 
-## Milestone 29 — Mobile Commerce: Remaining Entry Points + Scan Nudge
+## Milestone 29 — Mobile Commerce: Remaining Entry Points + Scan Nudge ✅ COMPLETE (2026-03-26)
 
 **Goal:** Users encounter the shop at peak motivation moments; the app proactively nudges users who haven't scanned in 30+ days.
 
-**Scope — included:**
-- `ScanSummaryScreen` State A: "Get a poster with your new discoveries" `TextButton` → `MerchCountrySelectionScreen` pre-filtered to new codes
-- Travel card share flow: "Turn this into a poster →" link below share button → `MerchCountrySelectionScreen`
-- `MapScreen` dismissible scan nudge banner when `lastScanAt > 30 days ago`; taps to Scan tab; dismissed per-session
-
-**Scope — excluded:**
-- Changes to `scheduleNudge` push notification (already exists)
-
-**Not started. No tasks written yet.**
+**Delivered (Tasks 111–113, ADR-085):** Scan summary "Get a poster" CTA pre-filtered to new codes; Map "⋮" menu "Get a poster" item; 30-day scan nudge banner in `MapScreen` (dismissed per-session via `scanNudgeDismissedProvider`).
 
 ---
 
@@ -527,6 +507,91 @@ All sharing features are complete as of M12.
 - Password reset on mobile
 
 **Not started. No tasks written yet.**
+
+---
+
+## Milestone 45 — Passport Stamp Realism Upgrade ✅ COMPLETE (2026-03-26)
+
+**Goal:** Make passport stamps look physically authentic — ink simulation, pressure distortion, 12 stamp style templates, realistic typography with arc text and sublabels, aging effects, and rare artefacts (double-stamp ghosting, partial stamps, ink blobs).
+
+**Phase:** Phase 15 — Visual Design Upgrade
+
+**Architecture:** ADR-097
+
+**Scope — included:**
+- `StampStyle` enum (12 styles: airportEntry, airportExit, landBorder, visaApproval, transit, vintage, modernSans, triangle, hexBadge, dottedCircle, multiRing, blockText) replacing `StampShape`
+- `StampNoiseGenerator` — procedural opacity mask via seeded noise (edge falloff, micro-gaps, ink bleed via `MaskFilter.blur`)
+- `StampShapeDistorter` — vertex jitter for geometric imperfection
+- `StampTypographyPainter` — condensed typography, monospaced dates, ARRIVAL/DEPARTURE sublabels, arc text on circular stamps, baseline jitter
+- `StampInkPalette` — 6 de-saturated ink families
+- `StampAgeEffect` — 4 aging levels (fresh/aged/worn/faded) affecting opacity and colour
+- `RareArtefactEngine` — double-stamp ghost (5%), partial stamp (3%), ink blob (2%), smudge (2%), correction stamp (1%)
+- Multi-step rendering pipeline with `PictureRecorder` offscreen compositing and `BlendMode.multiply` over paper
+- Layout: temporal ordering (earliest stamps lower), partial page-edge clipping (8% of stamps), 3×4 soft-grid clustering
+
+**Scope — excluded:**
+- Flag Heart card (M46)
+- Sound effects
+
+**Not started. No tasks written yet.**
+
+---
+
+## Milestone 46 — Flag Heart: True Heart-Mask Layout Engine ✅ COMPLETE (2026-03-27)
+
+**Goal:** Replace the current `HeartFlagsCard` (gradient background + emoji flags) with a geometric heart composed entirely of real SVG flag tiles — the heart shape itself is formed by the flags, clipped at the heart boundary with at least 66% of each tile visible.
+
+**Phase:** Phase 15 — Visual Design Upgrade
+
+**Architecture:** ADR-098
+
+**Scope — included:**
+- `HeartLayoutEngine` — parametric heart mask `(x²+y²−1)³−x²y³≤0`, density bands (5 tiers), 5/9-point coverage test, flag assignment with re-run on density mismatch
+- `MaskCalculator` — heart parametric evaluation, tile coverage fraction, `Path` generation for `Canvas.clipPath()`
+- `FlagTileRenderer` — SVG flag rendering via `flutter_svg`, PNG fallback, offscreen `PictureRecorder` at export DPI
+- `FlagImageCache` — LRU cache (max 300 entries) keyed by country code + tile size
+- `HeartImageExporter` — multi-resolution export (1024, 3000, 5000px) via `compute()`
+- `HeartRenderConfig` — gap width, corner radius, edge feather, shadow opacity
+- `HeartFlagOrder` enum — randomized (default), chronological, alphabetical, geographic
+- Flag SVG asset bundle: `assets/flags/svg/{code}.svg`, ~260 files
+- `flutter_svg` added to `pubspec.yaml`
+- `CardGeneratorScreen`: flag-order segmented control (heart template only)
+- Transparent PNG export (alpha channel, no background artefacts)
+
+**Scope — excluded:**
+- Passport stamp realism (M45)
+- Web card generator
+- Android
+
+**Delivered (Tasks 163–168):** `HeartLayoutEngine` (parametric mask + density bands + coverage filter + 4 ordering strategies); `MaskCalculator` (isInsideHeart + coverageFraction + heartPath); `FlagTileRenderer` + `FlagImageCache` (LRU, 300 entries); 271 SVG flag assets (flag-icons 4x3, MIT); `flutter_svg ^2.0.10+1`; `HeartFlagsCard` rewritten to `CustomPaint` with `_HeartPainter`; `HeartRenderConfig`; `CardGeneratorScreen` flag-order segmented control; 632 flutter tests passing.
+
+**Deferred:** `HeartImageExporter` multi-resolution export at 3000/5000px (deferred — `RepaintBoundary.toImage(pixelRatio: 3.0)` remains export path).
+
+---
+
+## Milestone 47 — Commerce Template & Placement
+
+**Goal:** The merch purchase workflow correctly reflects the card template the user designed (Grid, Heart, or Passport), the selected colour variant drives the Printful mockup so the user sees the right coloured t-shirt, and the user can choose front or back placement for their design.
+
+**Phase:** Phase 10 — Commerce (Bug Fix + Enhancement)
+
+**Architecture:** ADR-099
+
+**Scope — included:**
+- `CardImageRenderer` utility — offscreen `PictureRecorder` PNG renderer for all 3 card templates
+- Template picker (Grid / Heart / Passport) inside `MerchVariantScreen` with live mockup regeneration
+- Front/back placement picker in `MerchVariantScreen` (t-shirt only)
+- Firebase Function: `placement` field support in `CreateMerchCartRequest` → Printful mockup API
+- `clientCardBase64` size guard (>4 MB rejected)
+- BUG-001 diagnostic logging closure for `catalog_variant_id` type coercion
+
+**Scope — excluded:**
+- Flag Heart SVG renderer (M46)
+- Web commerce flow
+- Poster placement
+- Android
+
+**In Progress. Tasks 163–168.**
 
 ---
 

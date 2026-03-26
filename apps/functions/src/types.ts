@@ -63,6 +63,11 @@ export interface MerchConfig {
    * Null when the order was created from the country selection flow.
    */
   cardId: string | null;
+  /**
+   * Print placement for t-shirt products (M47: front/back picker, ADR-099).
+   * Defaults to 'front'. Not applicable for poster products.
+   */
+  placement: 'front' | 'back';
 }
 
 /** Request payload for createMerchCart onCall function */
@@ -72,6 +77,19 @@ export interface CreateMerchCartRequest {
   quantity: number;
   /** Optional: links this cart to a TravelCard (ADR-093) */
   cardId?: string;
+  /**
+   * Base64-encoded PNG of the card rendered on the client (passport, heart,
+   * or grid). When present, the function uses this image as both the preview
+   * and print file instead of generating a server-side flag grid. This ensures
+   * the t-shirt mockup reflects the template the user actually designed.
+   * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
+   */
+  clientCardBase64?: string;
+  /**
+   * Print placement for t-shirt products: 'front' or 'back' (M47, ADR-099).
+   * Defaults to 'front' when absent. Ignored for poster products.
+   */
+  placement?: 'front' | 'back';
 }
 
 /** Response payload from createMerchCart */

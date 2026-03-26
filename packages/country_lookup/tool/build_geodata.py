@@ -40,17 +40,29 @@ def read_shapefile(path: str) -> list[tuple[str, list[list[tuple[float, float]]]
 
     sf = shapefile.Reader(path)
     iso_field_index = None
+    iso_eh_field_index = None
     for i, field in enumerate(sf.fields[1:], start=0):  # fields[0] is DeletionFlag
         if field[0] in ("ISO_A2", "iso_a2"):
             iso_field_index = i
-            break
+        elif field[0] in ("ISO_A2_EH", "iso_a2_eh"):
+            iso_eh_field_index = i
 
     if iso_field_index is None:
         sys.exit("Could not find ISO_A2 field in shapefile")
 
+    # Some Natural Earth releases store France (and a handful of other countries)
+    # as ISO_A2="-99" while the correct code sits in ISO_A2_EH.  Fall back to
+    # ISO_A2_EH when ISO_A2 is absent.
+    _CODE_OVERRIDES = {
+        "FX": "FR",   # Metropolitan France — deprecated code used by older NE releases
+    }
+
     results = []
     for sr in sf.shapeRecords():
         iso = sr.record[iso_field_index]
+        if (iso == "-99" or not iso) and iso_eh_field_index is not None:
+            iso = sr.record[iso_eh_field_index] or "-99"
+        iso = _CODE_OVERRIDES.get(iso, iso)
         if iso == "-99" or not iso or len(iso) != 2:
             continue
 

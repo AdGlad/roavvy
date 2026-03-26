@@ -5,6 +5,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions';
 import * as crypto from 'crypto';
 import type {
   MerchConfig,
@@ -21,15 +22,16 @@ const db = getFirestore();
 // ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
 
 /**
- * Calls the Printful v2 Mockup API and polls until a front-placement mockup
- * is ready. Returns the mockup image URL or null on timeout / error.
+ * Calls the Printful v2 Mockup API and polls until the requested placement
+ * mockup is ready. Returns the mockup image URL or null on timeout / error.
  *
  * Non-blocking: the caller catches errors and proceeds with null.
  * Max wait: 10 attempts × 2s = 20 s.
  */
 async function generatePrintfulMockup(
   printfulVariantId: number,
-  printFileUrl: string
+  printFileUrl: string,
+  placement: 'front' | 'back' = 'front'
 ): Promise<string | null> {
   const apiKey = process.env['PRINTFUL_API_KEY'];
   if (!apiKey) {
@@ -55,7 +57,7 @@ async function generatePrintfulMockup(
           catalog_variant_id: printfulVariantId,
           placements: [
             {
-              placement: 'front',
+              placement: placement,
               technique: 'dtg',
               layers: [{ type: 'file', url: printFileUrl }],
             },
@@ -111,12 +113,26 @@ async function generatePrintfulMockup(
     const status = task?.status;
 
     if (status === 'completed') {
-      // Find the front mockup across all returned variant mockups
-      for (const variantMockup of task?.catalog_variant_mockups ?? []) {
-        const mockup = variantMockup.mockups.find((m) => m.placement === 'front');
-        if (mockup) return mockup.mockup_url;
-      }
-      console.error('[mockup] Completed but no front placement found', JSON.stringify(task));
+      // Prefer the mockup for the exact variant requested; fall back to first.
+      // Coerce catalog_variant_id to Number because the Printful API may return
+      // it as a string, causing strict === to fail (BUG-001).
+      const variantMockups = task?.catalog_variant_mockups ?? [];
+      const matched =
+        variantMockups.find((vm) => Number(vm.catalog_variant_id) === printfulVariantId) ??
+        variantMockups[0];
+      // BUG-001 diagnostic: confirms Number() coercion and placement match.
+      logger.info('mockup_variant_match', {
+        requestedVariantId: printfulVariantId,
+        foundVariantId: matched?.catalog_variant_id ?? null,
+        foundType: typeof matched?.catalog_variant_id,
+        allVariantIds: variantMockups.map((v) => ({
+          id: v.catalog_variant_id,
+          type: typeof v.catalog_variant_id,
+        })),
+      });
+      const mockup = matched?.mockups.find((m) => m.placement === placement);
+      if (mockup) return mockup.mockup_url;
+      console.error('[mockup] Completed but no placement found', placement, JSON.stringify(task));
       return null;
     }
 
@@ -180,7 +196,8 @@ export const createMerchCart = onCall<
     const uid = request.auth.uid;
 
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId } = request.data;
+    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, placement: rawPlacement } = request.data;
+    const placement: 'front' | 'back' = rawPlacement === 'back' ? 'back' : 'front';
     if (!variantId || typeof variantId !== 'string') {
       throw new HttpsError('invalid-argument', 'variantId is required.');
     }
@@ -195,6 +212,9 @@ export const createMerchCart = onCall<
     }
     if (typeof quantity !== 'number' || quantity < 1) {
       throw new HttpsError('invalid-argument', 'quantity must be at least 1.');
+    }
+    if (typeof clientCardBase64 === 'string' && clientCardBase64.length > 5_500_000) {
+      throw new HttpsError('invalid-argument', 'Card image too large.');
     }
 
     // Look up print dimensions for this variant
@@ -236,6 +256,8 @@ export const createMerchCart = onCall<
       mockupUrl: null,
       // M38 field (ADR-093): links this order to the originating TravelCard, if any
       cardId: typeof cardId === 'string' ? cardId : null,
+      // M47 field (ADR-099): print placement for t-shirt; defaults to 'front'
+      placement,
     };
     await configRef.set(configData);
 
@@ -247,31 +269,51 @@ export const createMerchCart = onCall<
     let printFileSignedUrl: string;
 
     try {
-      // Preview PNG (web-optimised: 800×600 @ 96 DPI, JPEG 80)
-      const previewBuf = await generateFlagGrid({
-        templateId: 'flag_grid_v1',
-        selectedCountryCodes,
-        widthPx: 800,
-        heightPx: 600,
-        dpi: 96,
-        backgroundColor: 'white',
-      });
-      // Convert PNG → JPEG at quality 80 (sharp is already imported in imageGen)
-      // The generateFlagGrid returns PNG; we re-encode here to JPEG for preview
       const sharp = (await import('sharp')).default;
-      const previewJpeg = await sharp(previewBuf)
-        .toFormat('jpeg', { quality: 80 })
-        .toBuffer();
+      let previewJpeg: Buffer;
+      let printBuf: Buffer;
 
-      // Print PNG (full resolution at product dimensions)
-      const printBuf = await generateFlagGrid({
-        templateId: 'flag_grid_v1',
-        selectedCountryCodes,
-        widthPx: printDims.widthPx,
-        heightPx: printDims.heightPx,
-        dpi: printDims.dpi,
-        backgroundColor: printDims.backgroundColor,
-      });
+      if (typeof clientCardBase64 === 'string' && clientCardBase64.length > 0) {
+        // Use the client-rendered card image (passport, heart, or grid) so the
+        // t-shirt mockup matches what the user designed rather than always the
+        // flag grid.
+        const clientBuf = Buffer.from(clientCardBase64, 'base64');
+        const bgColour = printDims.backgroundColor === 'transparent'
+          ? { r: 0, g: 0, b: 0, alpha: 0 }
+          : { r: 255, g: 255, b: 255, alpha: 1 };
+
+        previewJpeg = await sharp(clientBuf)
+          .resize(800, 600, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+          .toFormat('jpeg', { quality: 80 })
+          .toBuffer();
+
+        printBuf = await sharp(clientBuf)
+          .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
+          .toFormat('png')
+          .toBuffer();
+      } else {
+        // Server-side flag grid generation (fallback when no client image provided)
+        const previewPng = await generateFlagGrid({
+          templateId: 'flag_grid_v1',
+          selectedCountryCodes,
+          widthPx: 800,
+          heightPx: 600,
+          dpi: 96,
+          backgroundColor: 'white',
+        });
+        previewJpeg = await sharp(previewPng)
+          .toFormat('jpeg', { quality: 80 })
+          .toBuffer();
+
+        printBuf = await generateFlagGrid({
+          templateId: 'flag_grid_v1',
+          selectedCountryCodes,
+          widthPx: printDims.widthPx,
+          heightPx: printDims.heightPx,
+          dpi: printDims.dpi,
+          backgroundColor: printDims.backgroundColor,
+        });
+      }
 
       // Upload preview (public read)
       const previewFile = bucket.file(previewPath);
@@ -375,7 +417,8 @@ export const createMerchCart = onCall<
       try {
         mockupUrl = await generatePrintfulMockup(
           printfulVariantId,
-          printFileSignedUrl
+          printFileSignedUrl,
+          placement
         );
       } catch (err) {
         // Mockup failure must never block checkout.

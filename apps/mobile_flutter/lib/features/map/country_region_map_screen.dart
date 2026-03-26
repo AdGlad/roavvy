@@ -83,15 +83,34 @@ class _CountryRegionMapScreenState
   }
 
   /// Fits the camera to the bounding box of all region polygons.
+  ///
+  /// Falls back to the country polygon from [polygonsProvider] when no region
+  /// data is available (e.g. small island nations like Seychelles whose
+  /// districts are absent from the region binary). Without this fallback the
+  /// map stays at world zoom and the island appears as a tiny unclickable dot.
   void _fitBounds() {
-    if (_allPolygons.isEmpty) return;
-    final allPoints = [
-      for (final p in _allPolygons)
+    if (_allPolygons.isNotEmpty) {
+      final allPoints = [
+        for (final p in _allPolygons)
+          for (final v in p.vertices) LatLng(v.$1, v.$2),
+      ];
+      final bounds = LatLngBounds.fromPoints(allPoints);
+      _mapController.fitCamera(
+        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(24)),
+      );
+      return;
+    }
+
+    // No region polygons — fit to the country outline instead.
+    final countryPolygons = ref.read(polygonsProvider);
+    final countryPoints = [
+      for (final p in countryPolygons.where((p) => p.isoCode == widget.countryCode))
         for (final v in p.vertices) LatLng(v.$1, v.$2),
     ];
-    final bounds = LatLngBounds.fromPoints(allPoints);
+    if (countryPoints.isEmpty) return;
+    final bounds = LatLngBounds.fromPoints(countryPoints);
     _mapController.fitCamera(
-      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(24)),
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
     );
   }
 

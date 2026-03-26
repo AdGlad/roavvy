@@ -13,6 +13,14 @@ class LookupEngine {
     return LookupEngine._(GeodataIndex.parse(bytes));
   }
 
+  // Maps legacy or non-standard codes that appear in some Natural Earth
+  // releases to their current ISO 3166-1 alpha-2 equivalents.
+  // Applied after polygon lookup so that binaries built from older shapefiles
+  // still produce correct codes without requiring a rebuild.
+  static const Map<String, String> _kCodeNormalisations = {
+    'FX': 'FR', // Metropolitan France — deprecated code in some NE releases
+  };
+
   /// All country polygons from the loaded binary. See [GeodataIndex.polygons].
   List<CountryPolygon> get polygons => _index.polygons;
 
@@ -25,7 +33,8 @@ class LookupEngine {
 
     for (final polygon in _index.candidatesAt(latitude, longitude)) {
       if (pointInPolygon(latitude, longitude, polygon.vertices)) {
-        return polygon.isoCode;
+        final code = polygon.isoCode;
+        return _kCodeNormalisations[code] ?? code;
       }
     }
     return null;

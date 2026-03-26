@@ -41,6 +41,7 @@ Widget _pumpScreen(
   return ProviderScope(
     overrides: [
       regionRepositoryProvider.overrideWithValue(repo),
+      polygonsProvider.overrideWithValue(const []),
     ],
     child: MaterialApp(
       home: CountryRegionMapScreen(countryCode: countryCode),

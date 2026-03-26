@@ -181,10 +181,14 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
 
   Future<void> _pushDiscoveryOverlays() async {
     final codes = widget.newCodes.take(_kMaxOverlays).toList();
-    final total = codes.length;
+    final overlayCount = codes.length;
+    // Use the real total so the overlay reads "1 of 12" not "1 of 5" when
+    // more countries were found than the overlay cap (BUG: showed 5 of 5
+    // even when 12+ countries were discovered).
+    final actualTotal = widget.newCodes.length;
     bool skipped = false;
 
-    for (var i = 0; i < total; i++) {
+    for (var i = 0; i < overlayCount; i++) {
       if (!mounted || skipped) break;
 
       await Navigator.of(context).push(
@@ -194,9 +198,9 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
             isoCode: codes[i],
             xpEarned: 50,
             currentIndex: i,
-            totalCount: total,
+            totalCount: actualTotal,
             onDone: () => Navigator.of(context).pop(),
-            onSkipAll: i == total - 1
+            onSkipAll: i == overlayCount - 1
                 ? null
                 : () {
                     skipped = true;

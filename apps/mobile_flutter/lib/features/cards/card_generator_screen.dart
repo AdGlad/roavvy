@@ -13,6 +13,8 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/providers.dart';
 import '../merch/merch_product_browser_screen.dart';
 import 'card_templates.dart';
+import 'heart_layout_engine.dart';
+import 'stamp_preview_screen.dart';
 import 'travel_card_service.dart';
 
 /// Full-screen card generator: pick a template, preview it, and share.
@@ -28,15 +30,30 @@ class CardGeneratorScreen extends ConsumerStatefulWidget {
 
 class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   CardTemplateType _selected = CardTemplateType.grid;
+  HeartFlagOrder _heartOrder = HeartFlagOrder.randomized;
   final _previewKey = GlobalKey();
   bool _sharing = false;
 
   @override
   Widget build(BuildContext context) {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
+    final tripsAsync = ref.watch(tripListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create card')),
+      appBar: AppBar(
+        title: const Text('Create card'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.travel_explore),
+            tooltip: 'European stamps preview',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const StampPreviewScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: visitsAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator.adaptive()),
@@ -56,14 +73,31 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           }
 
           final codes = visits.map((v) => v.countryCode).toList()..sort();
+          final trips = tripsAsync.valueOrNull
+                  ?.where((t) => codes.contains(t.countryCode))
+                  .toList() ??
+              [];
 
           return Column(
             children: [
               const SizedBox(height: 16),
               _TemplatePicker(
                 selected: _selected,
-                onChanged: (t) => setState(() => _selected = t),
+                onChanged: (t) => setState(() {
+                  _selected = t;
+                  // Reset heart order when switching away from heart template.
+                  if (t != CardTemplateType.heart) {
+                    _heartOrder = HeartFlagOrder.randomized;
+                  }
+                }),
               ),
+              if (_selected == CardTemplateType.heart) ...[
+                const SizedBox(height: 8),
+                _HeartOrderPicker(
+                  selected: _heartOrder,
+                  onChanged: (o) => setState(() => _heartOrder = o),
+                ),
+              ],
               const SizedBox(height: 24),
               Expanded(
                 child: Padding(
@@ -71,7 +105,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                   child: Center(
                     child: RepaintBoundary(
                       key: _previewKey,
-                      child: _buildTemplate(codes),
+                      child: _buildTemplate(codes, trips),
                     ),
                   ),
                 ),
@@ -90,14 +124,18 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     );
   }
 
-  Widget _buildTemplate(List<String> codes) {
+  Widget _buildTemplate(List<String> codes, List<TripRecord> trips) {
     switch (_selected) {
       case CardTemplateType.grid:
         return GridFlagsCard(countryCodes: codes);
       case CardTemplateType.heart:
-        return HeartFlagsCard(countryCodes: codes);
+        return HeartFlagsCard(
+          countryCodes: codes,
+          trips: trips,
+          flagOrder: _heartOrder,
+        );
       case CardTemplateType.passport:
-        return PassportStampsCard(countryCodes: codes);
+        return PassportStampsCard(countryCodes: codes, trips: trips);
     }
   }
 
@@ -148,7 +186,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
 
   void _onPrint(BuildContext context, List<String> codes) {
     if (_sharing) return;
+    unawaited(_captureAndNavigateToMerch(context, codes));
+  }
 
+  /// Persists the TravelCard and navigates to [MerchProductBrowserScreen],
+  /// passing the currently selected template so the variant screen pre-selects
+  /// and renders it via [CardImageRenderer] (ADR-099).
+  Future<void> _captureAndNavigateToMerch(
+      BuildContext context, List<String> codes) async {
     // Persist card fire-and-forget so the order is traceable (ADR-093).
     final uid = ref.read(currentUidProvider);
     String? cardId;
@@ -165,10 +210,12 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       unawaited(TravelCardService(FirebaseFirestore.instance).create(card));
     }
 
+    if (!context.mounted) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => MerchProductBrowserScreen(
         selectedCodes: codes,
         cardId: cardId,
+        initialTemplate: _selected,
       ),
     ));
   }
@@ -229,6 +276,7 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -236,7 +284,7 @@ class _Tile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           border: Border.all(
-            color: selected ? _amber : Colors.white24,
+            color: selected ? _amber : onSurface.withValues(alpha: 0.35),
             width: selected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
@@ -245,9 +293,99 @@ class _Tile extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? _amber : Colors.white70,
+            color: selected ? _amber : onSurface.withValues(alpha: 0.75),
             fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
             fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Heart order picker ─────────────────────────────────────────────────────────
+
+class _HeartOrderPicker extends StatelessWidget {
+  const _HeartOrderPicker({required this.selected, required this.onChanged});
+
+  final HeartFlagOrder selected;
+  final ValueChanged<HeartFlagOrder> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _OrderChip(
+          label: 'Shuffle',
+          value: HeartFlagOrder.randomized,
+          selected: selected,
+          onTap: () => onChanged(HeartFlagOrder.randomized),
+        ),
+        const SizedBox(width: 6),
+        _OrderChip(
+          label: 'By date',
+          value: HeartFlagOrder.chronological,
+          selected: selected,
+          onTap: () => onChanged(HeartFlagOrder.chronological),
+        ),
+        const SizedBox(width: 6),
+        _OrderChip(
+          label: 'A→Z',
+          value: HeartFlagOrder.alphabetical,
+          selected: selected,
+          onTap: () => onChanged(HeartFlagOrder.alphabetical),
+        ),
+        const SizedBox(width: 6),
+        _OrderChip(
+          label: 'By region',
+          value: HeartFlagOrder.geographic,
+          selected: selected,
+          onTap: () => onChanged(HeartFlagOrder.geographic),
+        ),
+      ],
+    );
+  }
+
+}
+
+class _OrderChip extends StatelessWidget {
+  const _OrderChip({
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final HeartFlagOrder value;
+  final HeartFlagOrder selected;
+  final VoidCallback onTap;
+
+  static const _amber = Color(0xFFD4A017);
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = selected == value;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? _amber : onSurface.withValues(alpha: 0.25),
+          ),
+          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? _amber.withValues(alpha: 0.12) : Colors.transparent,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: isSelected ? _amber : onSurface.withValues(alpha: 0.65),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
       ),
