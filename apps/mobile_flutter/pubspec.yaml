@@ -59,6 +59,7 @@ dependencies:
   shared_preferences: ^2.3.0
   intl: ^0.19.0
   flutter_svg: ^2.0.10+1
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -90,6 +91,12 @@ flutter:
     - assets/geodata/ne_countries.bin
     - assets/geodata/ne_admin1.bin
     - assets/flags/svg/
+    - assets/mobile_meta/
+    - assets/mobile_png/
+    - assets/mobile_svg/
+    - assets/mockups/
+    - assets/onboarding/
+    - assets/audio/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

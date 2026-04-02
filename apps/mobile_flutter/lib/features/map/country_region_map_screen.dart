@@ -9,11 +9,30 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../../core/region_names.dart';
 
-// ── Colours (match TripMapScreen / CountryPolygonLayer — ADR-080, ADR-090) ───
+// ── Colours ───────────────────────────────────────────────────────────────────
 
 const _kOceanBackground = Color(0xFF0D2137);
-const _kVisitedFill = Color(0xFFD4A017);   // amber tier-1
 const _kUnvisitedFill = Color(0xFF1E3A5F); // dark navy land
+
+/// 12-colour pastel palette for visited regions (ADR-111).
+///
+/// Colours are assigned by region index (sorted by regionCode alphabetically)
+/// modulo 12, ensuring deterministic and visually distinguishable fills.
+/// HSL lightness ≥ 0.60, saturation ≤ 0.55 for all entries.
+const List<Color> _kRegionPastelPalette = [
+  Color(0xFFFFD1DC), // pastel pink
+  Color(0xFFA8D8EA), // pastel sky blue
+  Color(0xFFB7E5B4), // pastel green
+  Color(0xFFFFE5A0), // pastel yellow
+  Color(0xFFCFB8E8), // pastel lavender
+  Color(0xFFFFBD9B), // pastel peach
+  Color(0xFFB5EAD7), // pastel mint
+  Color(0xFFDCEFF9), // pastel ice blue
+  Color(0xFFFFD9A0), // pastel apricot
+  Color(0xFFD4E9C8), // pastel sage
+  Color(0xFFF7C6C7), // pastel rose
+  Color(0xFFE8D5B7), // pastel tan
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -176,13 +195,24 @@ class _CountryRegionMapScreenState
           final visitedPolygons = <Polygon<String>>[];
           final unvisitedPolygons = <Polygon>[];
 
+          // Sort all polygons by regionCode for deterministic palette
+          // assignment (ADR-111). Index mod 12 selects the pastel colour.
+          final sorted = [..._allPolygons]
+            ..sort((a, b) => a.regionCode.compareTo(b.regionCode));
+          final sortedIndex = {
+            for (var i = 0; i < sorted.length; i++) sorted[i].regionCode: i,
+          };
+
           for (final p in _allPolygons) {
             final points =
                 p.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
             if (visitedCodes.contains(p.regionCode)) {
+              final idx = sortedIndex[p.regionCode] ?? 0;
+              final fill =
+                  _kRegionPastelPalette[idx % _kRegionPastelPalette.length];
               visitedPolygons.add(Polygon<String>(
                 points: points,
-                color: _kVisitedFill.withValues(alpha: 0.85),
+                color: fill.withValues(alpha: 0.85),
                 borderStrokeWidth: 0,
                 hitValue: p.regionCode,
               ));

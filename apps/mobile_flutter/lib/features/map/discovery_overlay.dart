@@ -1,7 +1,14 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/country_names.dart';
+
+/// Gap inserted between sequential country celebrations (ADR-108).
+const int kCelebrationGapMs = 300;
+
+final _firstVisitedFmt = DateFormat('MMMM y');
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
 String _flagEmoji(String code) {
@@ -28,6 +35,7 @@ class DiscoveryOverlay extends StatefulWidget {
     required this.onDone,
     this.currentIndex = 0,
     this.totalCount = 1,
+    this.firstVisited,
     this.onSkipAll,
   });
 
@@ -45,6 +53,9 @@ class DiscoveryOverlay extends StatefulWidget {
   /// Total number of overlays in the sequence.
   final int totalCount;
 
+  /// Earliest photo evidence date for this country, if known.
+  final DateTime? firstVisited;
+
   /// Called when the user taps the primary CTA on the final overlay.
   final VoidCallback onDone;
 
@@ -59,12 +70,32 @@ class DiscoveryOverlay extends StatefulWidget {
 }
 
 class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
+  late final AudioPlayer _audioPlayer;
+
   @override
   void initState() {
     super.initState();
+    _audioPlayer = AudioPlayer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) HapticFeedback.heavyImpact();
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        _playCelebrationAudio();
+      }
     });
+  }
+
+  Future<void> _playCelebrationAudio() async {
+    try {
+      await _audioPlayer.play(AssetSource('audio/celebration.mp3'));
+    } catch (_) {
+      // Silently suppressed in test environments (MissingPluginException).
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   void _handlePrimary() {
@@ -150,6 +181,17 @@ class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (widget.firstVisited != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'First visited: ${_firstVisitedFmt.format(widget.firstVisited!)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 const Spacer(),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),

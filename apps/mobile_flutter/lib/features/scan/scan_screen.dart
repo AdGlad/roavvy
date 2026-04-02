@@ -200,6 +200,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   _ScanProgress? _scanProgress;
   _ScanResult? _scanResult;
 
+  /// True after the first successful scan has completed (ADR-110).
+  /// Set in [_loadPersisted]; used to gate scan-mode controls and auto-scan.
+  bool _hasCompletedFirstScan = false;
+
+  /// When true, [_scan] ignores [lastScanAt] and performs a full scan (M56-14).
+  bool _forceFullScan = false;
+
   /// ISO codes of countries found for the first time during the current scan.
   /// Updated live during the scan loop. (ADR-083)
   final List<String> _liveNewCodes = [];
@@ -217,15 +224,36 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   Future<void> _loadPersisted() async {
     try {
       final visits = await _repo.loadEffective();
+      final hasFirstScan = await _repo.hasCompletedFirstScan();
+      if (!mounted) return;
       setState(() {
         _effectiveVisits = visits;
+        _hasCompletedFirstScan = hasFirstScan;
         _loading = false;
       });
+
+      // M56-15: auto-run incremental scan on app open after first scan.
+      // requestPhotoPermission returns current status without a dialog when
+      // the user has already made a permission decision.
+      if (hasFirstScan && !_scanning) {
+        try {
+          final permission = await requestPhotoPermission();
+          if (!mounted) return;
+          setState(() => _permission = permission);
+          if (permission.canScan) {
+            _scan(); // fire-and-forget incremental auto-scan (ADR-110)
+          }
+        } catch (_) {
+          // Permission check failed — skip auto-scan silently.
+        }
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load saved visits: $e';
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load saved visits: $e';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -273,9 +301,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     });
 
     try {
-      // Read persisted timestamp for incremental scan (ADR-022).
+      // Read persisted timestamp for incremental scan (ADR-022, ADR-110).
       // null → full scan (first launch or after clearAll).
       final lastScanAt = await _repo.loadLastScanAt();
+
+      // M56-13: capture pre-scan timestamp BEFORE startPhotoScan to avoid
+      // silently skipping photos added during the scan (ADR-110).
+      final preScanTimestamp = DateTime.now().toUtc();
+
+      // M56-14: respect user's choice — full scan ignores lastScanAt.
+      final sinceDate = _forceFullScan ? null : lastScanAt;
 
       final accum = <String, CountryAccum>{};
       final allPhotoDates = <PhotoDateRecord>[];
@@ -284,7 +319,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       final scanStream = widget.scanStarter != null
           ? widget.scanStarter!(limit: 100000)
-          : startPhotoScan(limit: 100000, sinceDate: lastScanAt);
+          : startPhotoScan(limit: 100000, sinceDate: sinceDate);
       await for (final event in scanStream) {
         if (event is ScanBatchEvent) {
           final batchResult = await _resolveBatch(event.photos);
@@ -316,11 +351,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       final resolveSuccesses =
           accum.values.fold(0, (sum, a) => sum + a.photoCount);
-      final now = DateTime.now().toUtc();
       final inferred = accum.entries
           .map((e) => InferredCountryVisit(
                 countryCode: e.key,
-                inferredAt: now,
+                inferredAt: preScanTimestamp,
                 photoCount: e.value.photoCount,
                 firstSeen: e.value.firstSeen,
                 lastSeen: e.value.lastSeen,
@@ -329,7 +363,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       await _repo.clearAndSaveAllInferred(inferred);
       await _repo.savePhotoDates(allPhotoDates);
-      await _repo.saveLastScanAt(now);
+      // M56-13: persist pre-scan timestamp (ADR-110).
+      await _repo.saveLastScanAt(preScanTimestamp);
 
       // Re-infer all trips from the full photo date history and persist.
       final allDates = await _repo.loadPhotoDates();
@@ -344,7 +379,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final unlockedIds = AchievementEngine.evaluate(effective);
       final newlyUnlockedIds = unlockedIds.difference(priorIds);
       if (newlyUnlockedIds.isNotEmpty) {
-        await _achievementRepo.upsertAll(newlyUnlockedIds, now);
+        await _achievementRepo.upsertAll(newlyUnlockedIds, preScanTimestamp);
       }
 
       // Flush dirty records to Firestore fire-and-forget (ADR-030).
@@ -371,6 +406,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _lastScanStats = stats;
           _effectiveVisits = effective;
           _scanResult = scanResult;
+          _hasCompletedFirstScan = true; // M56-15: reveal scan mode toggle
         });
         ref.invalidate(effectiveVisitsProvider);
         ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
@@ -381,18 +417,18 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         // Award XP: scan completion + any new countries (fire-and-forget).
         final xpNotifier = ref.read(xpNotifierProvider.notifier);
         unawaited(xpNotifier.award(XpEvent(
-          id: '${now.microsecondsSinceEpoch}-scan',
+          id: '${preScanTimestamp.microsecondsSinceEpoch}-scan',
           reason: XpReason.scanCompleted,
           amount: 25,
-          awardedAt: now,
+          awardedAt: preScanTimestamp,
         )));
         if (scanResult is _NewCountriesFound) {
           for (var i = 0; i < scanResult.newCodes.length; i++) {
             unawaited(xpNotifier.award(XpEvent(
-              id: '${now.microsecondsSinceEpoch}-country-$i',
+              id: '${preScanTimestamp.microsecondsSinceEpoch}-country-$i',
               reason: XpReason.newCountry,
               amount: 50,
-              awardedAt: now,
+              awardedAt: preScanTimestamp,
             )));
           }
         }
@@ -481,6 +517,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     onOpenSettings: _openSettings,
                   ),
                   const SizedBox(height: 12),
+                  // M56-14: scan mode selector — only after first scan.
+                  if (_hasCompletedFirstScan && !_scanning)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment(
+                            value: false,
+                            label: Text('Incremental scan'),
+                            icon: Icon(Icons.update),
+                          ),
+                          ButtonSegment(
+                            value: true,
+                            label: Text('Full scan'),
+                            icon: Icon(Icons.refresh),
+                          ),
+                        ],
+                        selected: {_forceFullScan},
+                        onSelectionChanged: (s) =>
+                            setState(() => _forceFullScan = s.first),
+                      ),
+                    ),
                   FilledButton.tonal(
                     onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
                     child: const Text('Scan my photo library'),

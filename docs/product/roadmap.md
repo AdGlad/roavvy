@@ -299,6 +299,44 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
+## Phase 16 — Print Confidence
+
+**Goal:** Give users full confidence that what they approve is what gets printed — confirmed artwork, mockup approval before checkout, and Firestore audit trail.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M48 — Artwork Confirmation | `ArtworkConfirmation` Firestore record; `ArtworkConfirmationScreen`; wire into `CardGeneratorScreen` | ✅ Complete |
+| M49 — Confirmation Guard | `MockupApprovalScreen` guard; prevent checkout without approval | ✅ Complete |
+| M50 — Confirmation Audit | Archive stale confirmations; `ArtworkConfirmationService.archive()` | ✅ Complete |
+| M51 — UID Guard | `currentUidProvider` in approval screens; silent failure prevention groundwork | ✅ Complete |
+| M52 — Timeline Card Threading | Thread `trips` through card generator → `CardImageRenderer`; Timeline template renders real trips | ✅ Complete |
+| M53 — Mockup Approval Screen | Explicit 3-checkbox consent before `createMerchCart`; `MockupApproval` Firestore record; `artworkImageBytes` threading into `MerchVariantScreen` | ✅ Complete |
+| M54 — Print Confidence: Gap Closure | Use confirmed artwork bytes when template unchanged; archive superseded confirmations; SnackBar on UID null | ✅ Complete |
+| M55 — Local Product Mockup: Unified Commerce Screen | Bundle product mockup assets; `LocalMockupImageCache` + `LocalMockupPainter`; `LocalMockupPreviewScreen` (3 states); wire into `CardGeneratorScreen`; deprecate old screens | ✅ Complete |
+
+---
+
+## Phase 17 — Bugs and Small Enhancements
+
+**Goal:** Resolve known UX bugs and deliver focused small enhancements across the scan celebration flow, map interaction, and country navigation. No new feature systems.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M56 — Bugs and Small Enhancements | Flag-coloured confetti; confetti layout fix; celebration queue; celebration audio; first-visited date on discovered screen; navigation fixes (flow, Skip All, map zoom, double-tap); pastel region colours; incremental scanning | ✅ Complete |
+
+---
+
+## Phase 18 — Passport Stamp Image Quality
+
+**Goal:** Improve visual correctness, layout, realism, and usability of passport stamp compositions across all card and merchandise flows. All stamps visible, correctly bounded, dynamically scaled, and rendered on-demand from the filtered dataset.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M57 — Passport Stamp Image Improvements | Stamp visibility, safe placement, dynamic scaling, on-the-fly rendering, year-filter correctness, full-screen preview, transparency, realism | 📋 In Planning |
+| M58 — Virtual Passport Book Experience | Replace stamp entry point; book structure (cover, pages, end); page textures; stamp integration; page-turn interaction; grouping logic; full-screen view; print output | 📋 In Planning |
+
+---
+
 ## Deferred / Not Planned
 
 - Android support (revisit after iOS App Store launch)

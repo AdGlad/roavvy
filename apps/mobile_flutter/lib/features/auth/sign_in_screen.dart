@@ -18,6 +18,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _isSignUp = false;
 
   @override
   void dispose() {
@@ -26,7 +27,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     super.dispose();
   }
 
-  Future<void> _signInWithEmail() async {
+  Future<void> _submitEmail() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
@@ -38,14 +39,40 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      if (_isSignUp) {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      }
     } on FirebaseAuthException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'Sign in failed.');
+      if (mounted) {
+        setState(() => _error = _friendlyError(e.code));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _friendlyError(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'An account with that email already exists.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      case 'weak-password':
+        return 'Password must be at least 6 characters.';
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Incorrect email or password.';
+      default:
+        return _isSignUp ? 'Sign up failed. Try again.' : 'Sign in failed. Try again.';
     }
   }
 
@@ -98,6 +125,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              Text(
+                _isSignUp ? 'Create your account' : 'Sign in to continue',
+                style: const TextStyle(fontSize: 15, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 32),
               if (_error != null) ...[
                 Text(
@@ -127,8 +160,20 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: _signInWithEmail,
-                  child: const Text('Sign in'),
+                  onPressed: _submitEmail,
+                  child: Text(_isSignUp ? 'Create account' : 'Sign in'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => setState(() {
+                    _isSignUp = !_isSignUp;
+                    _error = null;
+                  }),
+                  child: Text(
+                    _isSignUp
+                        ? 'Already have an account? Sign in'
+                        : 'No account? Create one',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(

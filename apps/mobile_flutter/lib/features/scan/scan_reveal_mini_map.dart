@@ -21,11 +21,20 @@ const _kRevealedBorder = Color(0xFFFF8F00); // amber-900
 ///
 /// Respects [MediaQuery.disableAnimationsOf]: when true, all countries are
 /// revealed immediately without a timer.
+///
+/// [onDoubleTap] is called when the user double-taps the map (M56-10).
 class ScanRevealMiniMap extends ConsumerStatefulWidget {
-  const ScanRevealMiniMap({super.key, required this.newCodes});
+  const ScanRevealMiniMap({
+    super.key,
+    required this.newCodes,
+    this.onDoubleTap,
+  });
 
   /// ISO codes of newly discovered countries to reveal one-by-one.
   final List<String> newCodes;
+
+  /// Optional callback invoked on double-tap (e.g. navigate to main map).
+  final VoidCallback? onDoubleTap;
 
   @override
   ConsumerState<ScanRevealMiniMap> createState() => _ScanRevealMiniMapState();
@@ -102,18 +111,27 @@ class _ScanRevealMiniMapState extends ConsumerState<ScanRevealMiniMap> {
       }
     }
 
-    return SizedBox(
-      height: 180,
-      child: FlutterMap(
-        options: const MapOptions(
-          initialCenter: LatLng(20, 0),
-          initialZoom: 1.8,
-          interactionOptions: InteractionOptions(flags: 0),
+    // Double-tap zoom is disabled so GestureDetector can handle double-tap
+    // for navigation (M56-10). Pinch-zoom and drag remain enabled (M56-09).
+    return GestureDetector(
+      onDoubleTap: widget.onDoubleTap,
+      child: SizedBox(
+        height: 220,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: const LatLng(20, 0),
+            initialZoom: 1.2,
+            interactionOptions: InteractionOptions(
+              flags: InteractiveFlag.all &
+                  ~InteractiveFlag.doubleTapZoom &
+                  ~InteractiveFlag.doubleTapDragZoom,
+            ),
+          ),
+          children: [
+            PolygonLayer(polygons: unvisitedPolygons),
+            PolygonLayer(polygons: revealedPolygons),
+          ],
         ),
-        children: [
-          PolygonLayer(polygons: unvisitedPolygons),
-          PolygonLayer(polygons: revealedPolygons),
-        ],
       ),
     );
   }

@@ -303,6 +303,13 @@ class VisitRepository {
         lastScanAt: Value(value.toUtc().toIso8601String()),
       ));
 
+  /// Returns true after the first successful scan has completed.
+  ///
+  /// Used by [ScanScreen] to gate incremental scan controls and the
+  /// on-open auto-scan (M56-13, M56-14, M56-15).
+  Future<bool> hasCompletedFirstScan() async =>
+      (await loadLastScanAt()) != null;
+
   /// Clears [lastScanAt] so the next scan performs a full scan.
   Future<void> clearLastScanAt() =>
       _db.delete(_db.scanMetadata).go();

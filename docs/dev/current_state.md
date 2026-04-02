@@ -1,4 +1,4 @@
-# Roavvy — Development State (as of 2026-03-27, through M47)
+# Roavvy — Development State (as of 2026-04-02, through M56)
 
 ## What Works
 
@@ -171,6 +171,83 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `clientCardBase64` size guard: rejects inputs with string length > 5,500,000 characters (~4 MB decoded) with `HttpsError('invalid-argument')`
   - BUG-001 diagnostic: `logger.info('mockup_variant_match', {...})` logs matched variant ID, runtime type, and all returned variant IDs on every mockup completion — closes observability gap on the `Number()` coercion fix
   - 9 widget tests in `merch_variant_screen_test.dart` (template picker visibility, poster template picker, template change resets preview, placement visibility t-shirt/poster, placement change resets preview); `card_image_renderer_test.dart` (render completes without throw); 632 flutter tests passing; `flutter analyze` clean; Functions TypeScript builds clean
+- **Branding Layer (M49 — ADR-101)**:
+  - `CardBrandingFooter` (`lib/features/cards/card_branding_footer.dart`) — `StatelessWidget`; accepts `countryCount: int`, `dateLabel: String`, optional `textColor` and `backgroundColor`; renders ROAVVY wordmark + `"{N} countries"` + dateLabel (omitted when empty)
+  - `GridFlagsCard`: `dateLabel: String = ''` parameter added; top ROAVVY text header removed; bottom Row (count + "countries visited") replaced by `CardBrandingFooter`
+  - `HeartFlagsCard`: `dateLabel: String = ''` parameter added; `_HeartPainter._drawBrandLabel()` canvas method removed; `CustomPaint` wrapped in `Stack` with `Positioned(CardBrandingFooter)` at bottom using semi-transparent `Color(0xCC0D2137)` background
+  - `PassportStampsCard`: `dateLabel: String = ''` parameter added; `Positioned` ROAVVY watermark replaced by `Positioned(CardBrandingFooter)` with `textColor: Color(0xFF8B6914)` (parchment-legible amber)
+  - `CardGeneratorScreen._buildTemplate()` computes `dateLabel` via `_computeDateLabel(filteredTrips)` and passes it to all template constructors; `_computeDateLabel` returns `''` (no trips), `"YYYY"` (single year), or `"YYYY–YYYY"` (multi-year, en-dash)
+  - All existing call sites (CardImageRenderer, MerchVariantScreen) use default `dateLabel: ''` — backward-compatible; ROAVVY + count always visible in rendered PNG
+  - 6 `CardBrandingFooter` unit tests; 5 new template tests (branding footer present in each template); all existing tests updated; `flutter analyze` clean
+- **Layout Quality (M50 — ADR-102)**:
+  - `gridTileSize(double canvasArea, int n)` — `@visibleForTesting` top-level function in `card_templates.dart`; implements `clamp(floor(sqrt(canvasArea/n) × 0.85), 28, 90)`; exposed for pure unit testing without widget infrastructure
+  - `GridFlagsCard` wrapped `Expanded` content in `LayoutBuilder`; emoji `fontSize` now driven by `gridTileSize(constraints.maxWidth * constraints.maxHeight, visible.length)`; overflow indicator font scales proportionally; min tile 28px, max 90px
+  - `PassportLayoutResult({stamps: List<StampData>, wasForced: bool})` — new return type for `PassportLayoutEngine.layout()`; replaces bare `List<StampData>`
+  - `PassportLayoutEngine.layout()` gains `forPrint: bool = false`; when `true`: 3% safe-zone margin (was 8%), all `edgeClip = null`, uniform adaptive `baseRadius = clamp(safeArea.shortSide / (2.5 × ceil(sqrt(N))), 20, 38)` with `scale = baseRadius / 38.0`; when unclamped radius < 20 and `entryOnly` was false → `entryOnly` forced, `wasForced = true`
+  - `PassportStampsCard` gains `forPrint: bool = false`; passed to `_PassportPagePainter`; `_PassportPagePainterState` stores `_wasForced` (surfaced in M51)
+  - 8 new tile-size unit tests; 6 new forPrint unit tests; all existing passport layout tests updated to `.stamps`; `flutter analyze` clean; 44 card tests passing
+- **Scan Quality & UX Improvements (M56)**:
+  - `VisitRepository.hasCompletedFirstScan()` — returns `true` when `lastScanAt != null`; used to gate incremental scan controls and auto-scan on open
+  - `ScanScreen` incremental scan support (M56-13/14/15): `_hasCompletedFirstScan` flag; `_forceFullScan` toggle; `preScanTimestamp` captured before `startPhotoScan` and used for `lastScanAt`, `inferredAt`, XP event IDs; `SegmentedButton` scan-mode picker shown after first scan; auto incremental scan fired on open when permission already granted
+  - `DiscoveryOverlay` — `firstVisited: DateTime?` optional field; displays "First visited: Month Year" line when provided (M56-05); `audioplayers ^6.0.0` added; `AudioPlayer` created per overlay in `initState()`, plays `assets/audio/celebration.mp3` (try/catch suppresses `MissingPluginException` in tests), disposed in `dispose()` (M56-04); `kCelebrationGapMs = 300` constant defined here (ADR-108)
+  - `ScanSummaryScreen._pushDiscoveryOverlays()` — removed 5-overlay cap: all discovered countries shown; `kCelebrationGapMs` (300 ms) gap between overlays (M56-03/06); `firstVisitedByCode` map populated from `newCountries`
+  - `_flagColours()` — async helper loading flag SVG from `assets/flags/svg/`; extracts up to 4 non-white fill colours via regex; gracefully returns `null` on failure
+  - `_NewDiscoveriesState` — confetti uses flag colours (`_confettiColors`) loaded in `_loadConfettiColors()` for up to 3 new countries; falls back to theme colours (M56-01)
+  - Confetti `Align(topCenter)` replaced with `Positioned.fill` + `IgnorePointer` so particles span the full screen (M56-02)
+  - `ScanRevealMiniMap` — height increased to 220, initial zoom reduced to 1.2 (world fits on screen, M56-08); `GestureDetector` wrapping with `onDoubleTap` callback; `InteractiveFlag.doubleTapZoom` and `doubleTapDragZoom` disabled; pinch-zoom and drag remain enabled (M56-09/10)
+  - `CountryRegionMapScreen` — `_kVisitedFill` (amber) replaced with `_kRegionPastelPalette` (12 colours); region index assigned by alphabetical sort of `regionCode` mod 12 for deterministic assignment (M56-11, ADR-111)
+  - `OnboardingFlow` — onboarding illustration placeholders replaced with shuffled photos from `assets/onboarding/`
+  - `SignInScreen` — sign-up mode added (`_isSignUp` toggle); friendly error messages via `_friendlyError()`
+  - `shared_models` — new `ArtworkConfirmation` and `MockupApproval` models exported; `CardTemplateType.timeline` variant added
+  - 4 new widget tests in `discovery_overlay_test.dart`; 749 flutter tests passing; 87 shared_models tests passing; `flutter analyze` clean
+- **Unified Commerce Screen (M55 — ADR-107)**:
+  - `merch_variant_lookup.dart` (`lib/features/merch/merch_variant_lookup.dart`) — extracted `MerchProduct` enum + all variant tables (`tshirtColors`, `tshirtSizes`, `posterPapers`, `posterSizes`, `tshirtGids`, `posterGids`) + `resolveVariantGid()` from `merch_product_browser_screen.dart`; `merch_post_purchase_screen.dart` and `merch_variant_screen.dart` updated to import from here
+  - `ProductMockupSpec` + `ProductMockupSpecs` (`lib/features/merch/product_mockup_specs.dart`) — `ProductMockupSpec({assetPath, printAreaNorm: Rect})`; `ProductMockupSpecs.specsFor(product, colour, placement)` static registry; 10 t-shirt specs (5 colours × 2 placements) + 1 poster spec; throws `ArgumentError` on unknown combo
+  - 11 placeholder PNG mockup assets under `assets/mockups/` (5 t-shirt colours × front + back placements + poster); registered in `pubspec.yaml`
+  - `LocalMockupImageCache` (`lib/features/merch/local_mockup_image_cache.dart`) — singleton LRU cache (max 6 entries); `load(assetPath)` decodes via `rootBundle.load()` + `ui.instantiateImageCodec`; `dispose()` disposes all cached `ui.Image` handles
+  - `LocalMockupPainter` (`lib/features/merch/local_mockup_painter.dart`) — `CustomPainter` compositing artwork `ui.Image` over product `ui.Image`; `BoxFit.cover` for product background (white fill when `productImage == null` for posters); `BoxFit.contain` within `spec.printAreaNorm` print area; inner shadow on t-shirts; optional debug print-area border
+  - `LocalMockupPreviewScreen` (`lib/features/merch/local_mockup_preview_screen.dart`) — `ConsumerStatefulWidget` with 4 internal states (`configuring`, `rerendering`, `approving`, `ready`); product picker (T-Shirt / Poster); card design picker (Grid / Heart / Passport / Timeline); variant option pickers (colour + size / paper + size); inline re-confirmation amber banner when template changes + CTA switches to "Confirm updated design"; `_artworkConfirmationId` nulled on template change → new `ArtworkConfirmation` created inline in `_onApprove()`; null-UID guard shows SnackBar; `ready` state shows `Image.network(mockupUrl)` with local `CustomPaint` as `loadingBuilder` fallback
+  - `CardGeneratorScreen` updated: `_lastConfirmedTrips: List<TripRecord>?` captured at confirmation time and threaded to `LocalMockupPreviewScreen`; `_goToProductBrowser` pushes `LocalMockupPreviewScreen` (replaces the `MerchProductBrowserScreen` → `MerchVariantScreen` → `MockupApprovalScreen` 3-screen sequence)
+  - `MerchProductBrowserScreen`, `MerchVariantScreen`, `MockupApprovalScreen` marked deprecated (scheduled for M56 deletion)
+  - 26 new tests: 7 `product_mockup_specs_test.dart`, 5 `local_mockup_image_cache_test.dart`, 5 `local_mockup_painter_test.dart`, 9 `local_mockup_preview_screen_test.dart`; 743 flutter tests passing; `flutter analyze` clean
+- **Print Confidence Gap Closure (M54 — ADR-106)**:
+  - `MerchVariantScreen._generatePreview()`: if `widget.artworkImageBytes != null` AND `_selectedTemplate == widget.initialTemplate`, uses `base64Encode(widget.artworkImageBytes!)` directly as `clientCardBase64` — skips `CardImageRenderer.render()` call; fixes Timeline cards rendering empty in the re-render path; confirmed artwork is pixel-identical to what the user approved
+  - `CardGeneratorScreen._navigateToPrint()`: before overwriting `_artworkConfirmationId`, archives the prior ID via `ArtworkConfirmationService.archive(uid, priorId)` fire-and-forget (`unawaited`) when priorId differs from new ID — eliminates orphaned Firestore `artwork_confirmations` documents
+  - `ArtworkConfirmationScreen._onConfirm()` + `MockupApprovalScreen._onApprove()`: null-UID path now shows `SnackBar('Please sign in to continue')` and resets loading state (`_confirming`/`_approving = false`) instead of silently returning
+  - 3 widget tests for `merch_variant_screen_test.dart` (G1 three paths); 2 unit tests in `card_generator_archive_guard_test.dart` (G2 first-time / re-confirm); 1 widget test each in `artwork_confirmation_screen_test.dart` + `mockup_approval_screen_test.dart` (G3 null-UID)
+- **Mockup Approval Screen (M53 — ADR-105)**:
+  - `MockupApproval` domain model in `packages/shared_models/lib/src/mockup_approval.dart`; fields: `mockupApprovalId`, `userId`, `artworkConfirmationId?`, `templateType`, `variantId`, `placementType?`, `confirmedAt`; `toFirestore()` / `fromFirestore()` round-trip; exported from barrel
+  - `MockupApprovalService` (`lib/features/merch/mockup_approval_service.dart`): `create(approval)` writes to `users/{uid}/mockup_approvals/{id}`
+  - `MockupApprovalScreen` (`lib/features/merch/mockup_approval_screen.dart`) — `ConsumerStatefulWidget`; shows card artwork PNG (or "Preview unavailable" when null); 3 `CheckboxListTile` items (design, colour, placement); placement checkbox hidden when `placementType == null`; CTA disabled until all visible checkboxes checked; loading state during Firestore write; error SnackBar; pops `MockupApprovalResult(mockupApprovalId)` on approval; pops null on back
+  - `MerchVariantScreen` gains `artworkImageBytes: Uint8List?` constructor param; "Preview my design" button replaced with "Approve & buy"; `_navigateToApproval()` pushes `MockupApprovalScreen`; on result: calls `_generatePreview(mockupApprovalId: ...)` which includes field in `createMerchCart` payload
+  - `MerchProductBrowserScreen` → `_ProductCard`: threads `artworkImageBytes` through to `MerchVariantScreen` (ADR-105)
+  - Firebase Functions: `mockupApprovalId?: string` in `CreateMerchCartRequest`; `mockupApprovalId: string | null` in `MerchConfig`; stored on initial write
+  - 5 model unit tests; 3 service tests; 7 widget tests for screen; 4 wiring tests in `merch_variant_screen_test.dart`; 710 flutter tests passing; `flutter analyze` clean; TypeScript builds clean
+- **Timeline Card Template (M52 — ADR-104)**:
+  - `CardTemplateType.timeline` added to Dart enum in `packages/shared_models/lib/src/travel_card.dart`
+  - `TimelineEntry({countryCode, countryName, entryDate, exitDate, durationDays?})` and `TimelineLayoutResult({entries, truncatedCount})` value objects
+  - `TimelineLayoutEngine.layout({trips, countryCodes, canvasSize})` — pure static method in `lib/features/cards/timeline_layout_engine.dart`; sorts trips most-recent first; computes row height from canvas height clamped [28, 52]px; tracks year-divider overhead; truncates to fit available height; invariant: `entries.length + truncatedCount == total trips`
+  - `formatTimelineDate(entry, exit)` — pure function: same month+year → `"Mar 2023"`, same year → `"Mar–Jun 2023"`, cross-year → `"Mar 2023–Jan 2024"`
+  - `TimelineCard({trips, countryCodes, aspectRatio, dateLabel})` StatelessWidget in `lib/features/cards/timeline_card.dart`; parchment background `Color(0xFFF5F0E8)`; "TRAVEL LOG" amber header; year dividers (amber `Color(0xFFD4A017)` line + year label); entry rows (flag emoji + country name Expanded + monospaced date); truncation note; empty state; `CardBrandingFooter` at bottom
+  - `CardImageRenderer._cardWidget()` gains `timeline` case → `TimelineCard`
+  - `CardGeneratorScreen` template picker: "Timeline" tile; `_buildTemplate()` gains timeline case
+  - `MerchVariantScreen` template picker: `['Grid', 'Heart', 'Passport', 'Timeline']`; `_templateLabel`/`_templateFromLabel` extended
+  - 13 unit tests for layout engine + date formatting; 8 widget tests for `TimelineCard`; 3 new `card_templates_test` cases; `flutter analyze` clean; all tests pass
+- **Artwork Confirmation Flow (M51 — ADR-103)**:
+  - `ArtworkConfirmResult({confirmationId: String, bytes: Uint8List})` — return type from `ArtworkConfirmationScreen`
+  - `ArtworkConfirmationScreen` (`lib/features/cards/artwork_confirmation_screen.dart`) — `ConsumerStatefulWidget`; renders card at print quality via `CardImageRenderer.render(forPrint: passport)`; shows loading indicator while rendering; updated amber banner (`showUpdatedBanner`); metadata header (country count + date label); `wasForced` notice (passport only); "Confirm artwork" `FilledButton` (disabled during render); "Change something" `TextButton` (pops null, no Firestore write); on confirm: creates `ArtworkConfirmation` in Firestore via `ArtworkConfirmationService`, pops with `ArtworkConfirmResult`
+  - `CardImageRenderer.render()` gains `forPrint: bool = false`; returns `CardRenderResult` (extended with `wasForced: bool = false`); captures `wasForced` via `onWasForced` callback on `PassportStampsCard`
+  - `_CardParams` class in `CardGeneratorScreen`: equality snapshot of `{templateType, countryCodes, aspectRatio, entryOnly, yearStart?, yearEnd?}`; `listEquals` for codes; used for M51-E3 re-confirmation shortcut
+  - `_navigateToPrint` / `_goToProductBrowser` split in `CardGeneratorScreen`; shortcut: same params + existing `_artworkConfirmationId` → skip `ArtworkConfirmationScreen`; `showUpdatedBanner` set when previous `_artworkConfirmationId` exists but params changed
+  - `artworkConfirmationId: String?` + `artworkImageBytes: Uint8List?` threaded: `MerchProductBrowserScreen` (thumbnail header) → `MerchVariantScreen` (in `createMerchCart` payload)
+  - 9 new widget tests in `artwork_confirmation_screen_test.dart`; `flutter analyze` clean; all tests pass
+- **Data Foundation (M48 — ADR-100)**:
+  - `ArtworkConfirmation` domain model in `packages/shared_models/lib/src/artwork_confirmation.dart`; fields: confirmationId, userId, templateType, aspectRatio, countryCodes, countryCount, dateLabel, dateRangeStart?, dateRangeEnd?, entryOnly, imageHash, renderSchemaVersion, confirmedAt, status (`confirmed`/`purchase_linked`/`archived`); `toFirestore()` / `fromFirestore()` round-trip; exported from `shared_models` barrel
+  - `ArtworkConfirmationService` (`lib/features/cards/artwork_confirmation_service.dart`): `create()` writes to `users/{uid}/artwork_confirmations/{id}`; `linkPurchase(uid, id, orderId)` updates status → `purchase_linked` + orderId; `archive(uid, id)` updates status → `archived`; covered by existing wildcard Firestore rule
+  - Firestore security rules: no changes needed — existing `match /users/{userId}/{document=**}` wildcard already covers `artwork_confirmations` and `mockup_approvals` subcollections at any depth (confirmed ADR-100)
+  - Firebase Functions: `artworkConfirmationId?: string` added to `CreateMerchCartRequest`; `artworkConfirmationId: string | null` added to `MerchConfig`; `createMerchCart` stores the field on initial write; `shopifyOrderCreated` webhook updates `ArtworkConfirmation.status = 'purchase_linked'` + `orderId` when `artworkConfirmationId` is non-null (non-blocking, wrapped in try/catch)
+  - `CardImageRenderer.render()` now returns `CardRenderResult({Uint8List bytes, String imageHash})` instead of `Uint8List`; imageHash is SHA-256 hex (64 lowercase chars) of the PNG bytes; `merch_variant_screen.dart` updated to use `.bytes`; all renderer tests updated
+  - 8 model unit tests, 5 service unit tests (FakeFirebaseFirestore), 5 renderer tests (including hash determinism); Functions TypeScript builds clean; `flutter analyze` clean; all existing tests passing
 - **Country Region Map (M36 — Tasks 127–129, ADR-091)**:
   - `CountryRegionMapScreen` (`lib/features/map/country_region_map_screen.dart`) — full-screen `FlutterMap`; dark navy ocean + two `PolygonLayer`s (amber visited at 0.85α, dark navy unvisited at 0.9α); visited region codes fetched async via `RegionRepository.loadByCountry(countryCode)`; camera auto-fits via `onMapReady: _fitBounds`; `AppBar` shows flag + country name + "N regions visited" subtitle (updated reactively via `.then()` on the same future)
   - Region tap interaction: `LayerHitNotifier<String>` on the visited `PolygonLayer<String>` (each polygon has `hitValue: regionCode`); `GestureDetector` wrapping the visited layer reads `_hitNotifier.value` on tap — non-null hit → show `MarkerLayer` label at tap coordinate; null hit → dismiss label; `_hitNotifier` disposed in `dispose()` (ADR-091)
@@ -338,11 +415,11 @@ apps/web_nextjs/
 
 | Layer | Count | Framework |
 |---|---|---|
-| `packages/shared_models` — merge, TravelSummary, AchievementEngine, TripInference | 56 | `dart test` |
+| `packages/shared_models` — merge, TravelSummary, AchievementEngine, TripInference, ArtworkConfirmation, MockupApproval | 87 | `dart test` |
 | `packages/country_lookup` — lookup + loadPolygons | 27 | `dart test` |
 | `packages/region_lookup` — region lookup | ~10 | `dart test` |
-| `apps/mobile_flutter` — all flutter tests | 404 | `flutter test` |
-| **Total** | **~487** | |
+| `apps/mobile_flutter` — all flutter tests | 749 | `flutter test` |
+| **Total** | **~873** | |
 
 `flutter test` covers: channel unit tests, VisitRepository, ReviewScreen, ScanScreen, FirestoreSyncService, MapScreen, StatsStrip, CountryDetailSheet, MainShell (6), JournalScreen (11), StatsScreen (8), TripRepository, RegionRepository, AchievementRepository, BootstrapService, TripEditSheet, SignInScreen, AccountDeletionService, ShareTokenService, TravelCardWidget, providers, and achievement evaluation.
 
@@ -380,6 +457,8 @@ cd apps/mobile_flutter && flutter test
 | M26 (Tasks 97–99) | Phase 11 Slice 4 — Timeline Scrubber + Scan Reveal (yearFilterProvider, filteredEffectiveVisitsProvider, TimelineScrubberBar, ScanRevealMiniMap) | ✅ Complete |
 | M14 (Task 100) | Phase 4 — Web Sign-Up (`/sign-up` page, email/password account creation, cross-links with `/sign-in`) | ✅ Complete |
 | M27 (Tasks 101–102) | Phase 12 — Web Shop landing page (`/shop` public page, product cards, auth-aware CTA, `/map` Shop nav link, `/share/[token]` poster CTA, `/sign-in` redirect-after-login with open-redirect sanitisation) | ✅ Complete |
+| M56 | Scan Quality & UX Improvements — incremental scan controls, pre-scan timestamp fix, flag-colour confetti, confetti layout fix, celebration queue (300 ms gap), all countries shown in discovery flow, first-visited date on overlays, Skip All → map, world-fit mini-map, pinch-zoom, double-tap → map, pastel region colours, onboarding photos, sign-up mode | ✅ Complete |
+| M55 | Phase 13 — Unified Commerce Screen (`LocalMockupPreviewScreen`, on-device mockup compositing, `ProductMockupSpecs` registry, `LocalMockupImageCache`, `LocalMockupPainter`, inline re-confirmation, deprecated old 3-screen commerce flow) | ✅ Complete |
 
 **All phases 1–11 are complete (M14 + M22–M26).** Remaining M19 blockers are external: 1024×1024 icon PNG from designer, App Store Connect listing for final URL. Deferred: Phase 6 continent overlay and city detection; Phase 11 soft social ranking; Phase 12 not yet defined.
 

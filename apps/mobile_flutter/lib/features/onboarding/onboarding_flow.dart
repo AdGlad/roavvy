@@ -1,7 +1,17 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+
+const _onboardingImages = [
+  'assets/onboarding/paris.jpg',
+  'assets/onboarding/london.jpg',
+  'assets/onboarding/egypt.jpg',
+  'assets/onboarding/tokyo.jpg',
+  'assets/onboarding/sydney.jpg',
+];
 
 /// Three-screen onboarding flow shown to first-time users (ADR-053).
 ///
@@ -27,6 +37,14 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   final _controller = PageController();
   int _page = 0;
   bool _saving = false;
+  late final List<String> _images;
+
+  @override
+  void initState() {
+    super.initState();
+    final shuffled = List<String>.from(_onboardingImages)..shuffle(Random());
+    _images = shuffled.take(3).toList();
+  }
 
   @override
   void dispose() {
@@ -66,8 +84,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
             _OnboardingPage(
               pageIndex: 0,
               currentPage: _page,
-              illustrationColor:
-                  Theme.of(context).colorScheme.primaryContainer,
+              imagePath: _images[0],
               title: 'Your travels, discovered',
               body: 'Roavvy finds every country you\'ve visited — '
                   'automatically, using the photos already on your phone.',
@@ -79,8 +96,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
             _OnboardingPage(
               pageIndex: 1,
               currentPage: _page,
-              illustrationColor:
-                  Theme.of(context).colorScheme.secondaryContainer,
+              imagePath: _images[1],
               title: 'Your photos never leave your phone',
               body: 'Roavvy reads only location and date from your photos — '
                   'not the images themselves. Nothing is uploaded. '
@@ -93,8 +109,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
             _OnboardingPage(
               pageIndex: 2,
               currentPage: _page,
-              illustrationColor:
-                  Theme.of(context).colorScheme.tertiaryContainer,
+              imagePath: _images[2],
               title: 'Ready to discover your travels?',
               body: 'Scanning usually takes a few minutes. '
                   'You can explore the app while it runs.',
@@ -114,7 +129,7 @@ class _OnboardingPage extends StatelessWidget {
   const _OnboardingPage({
     required this.pageIndex,
     required this.currentPage,
-    required this.illustrationColor,
+    required this.imagePath,
     required this.title,
     required this.body,
     required this.ctaLabel,
@@ -125,7 +140,7 @@ class _OnboardingPage extends StatelessWidget {
 
   final int pageIndex;
   final int currentPage;
-  final Color illustrationColor;
+  final String imagePath;
   final String title;
   final String body;
   final String ctaLabel;
@@ -141,21 +156,22 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 48),
-          // Illustration placeholder (decorative — excluded from semantics)
+          const SizedBox(height: 24),
+          // Illustration (decorative — excluded from semantics)
           ExcludeSemantics(
             child: Center(
-              child: Container(
-                width: 240,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: illustrationColor,
-                  borderRadius: BorderRadius.circular(16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  imagePath,
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           // Progress dots
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

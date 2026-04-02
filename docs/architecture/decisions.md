@@ -3402,3 +3402,398 @@ The `Number()` coercion fix (ADR-093 + M44) is believed correct but unconfirmed 
 - `MerchConfig` Firestore schema gains a `placement` field — backward-compatible (new orders written with `placement: 'front'`; old documents missing the field treated as `'front'` at read time).
 - `CreateMerchCartRequest` and `CreateMerchCartResponse` TypeScript interfaces updated — `packages/shared_models` TypeScript counterpart does not exist yet (deferred; not affected).
 - Printful sandbox testing required to confirm `placement: 'back'` produces a back-print mockup URL before production deploy.
+
+---
+
+## ADR-100 — ArtworkConfirmation: user-scoped Firestore subcollection, SHA-256 image hash, optional cart linkage (M48)
+
+**Status:** Accepted
+
+**Context:** M48 establishes the data foundation for the Print Confidence series (M48–M54). The feature requires:
+1. An `ArtworkConfirmation` record that proves the user explicitly approved a specific rendered image before purchase.
+2. A deterministic image hash so the approval is tied to the exact pixels, not just the parameters.
+3. A linkage from `MerchConfig` → `ArtworkConfirmation` so after purchase the `ArtworkConfirmation` status updates to `purchase_linked`.
+
+Three structural decisions are needed: where to store the record, how to compute the hash, and how to add the linkage non-breakingly.
+
+**Decision:**
+
+**1. Storage: `users/{uid}/artwork_confirmations/{confirmationId}` subcollection**
+Confirmed and pre-existing Firestore rule `match /users/{userId}/{document=**}` already covers all subcollections at any depth — no new rules are needed for `artwork_confirmations` or `mockup_approvals`. The `{document=**}` wildcard covers `users/{uid}/artwork_confirmations/{id}/mockup_approvals/{id}`.
+
+**2. Hash: SHA-256 hex of the PNG bytes from `CardImageRenderer.render()`**
+`CardImageRenderer.render()` is changed to return `CardRenderResult({Uint8List bytes, String imageHash})` instead of `Uint8List`. The hash is computed in Dart using `package:crypto` (already in pubspec) so it is deterministic for identical inputs within the same render session. The `renderSchemaVersion` field (`"v1"`) documents the rendering parameters so future re-renders can be verified.
+
+**3. `artworkConfirmationId` on `MerchConfig`: optional, null for legacy orders**
+`CreateMerchCartRequest` gains `artworkConfirmationId?: string`. `MerchConfig` gains `artworkConfirmationId: string | null`. The `shopifyOrderCreated` webhook: when `artworkConfirmationId` is non-null, updates the `ArtworkConfirmation` document status to `purchase_linked` + stores `orderId`. Legacy orders (null `artworkConfirmationId`) are unaffected.
+
+**Consequences:**
+- `CardImageRenderer.render()` return type changes — only one call site (`merch_variant_screen.dart`) must be updated to `.bytes`.
+- `CardRenderResult` is a plain value type in `card_image_renderer.dart` — not in `shared_models` (no network/persistence boundary; Flutter-only type).
+- `MerchConfig` schema gains `artworkConfirmationId: string | null` — backward-compatible (old docs missing the field read as null).
+- The `shopifyOrderCreated` webhook gains a Firestore write to the confirmation doc — non-breaking side-effect; fails gracefully if doc not found.
+- No new Firestore security rules needed — existing wildcard covers the new subcollections.
+
+---
+
+## ADR-101 — Branding Layer: `CardBrandingFooter` Widget, dateLabel pass-through, Heart canvas-to-Widget migration (M49)
+
+**Status:** Accepted
+
+**Context:** M49 requires all three card templates (Grid, Heart, Passport) to show a consistent branding footer — Roavvy wordmark + country count + date range label — as part of the captured PNG artwork.
+
+Three structural decisions:
+
+1. **Widget vs. canvas for branding**: The Grid and Passport templates are `StatelessWidget`/`Stack` layouts; adding a footer widget is straightforward. The Heart template currently draws the ROAVVY label directly in `_HeartPainter.paint()` as a `TextPainter` canvas call.
+
+2. **Where to compute the date label**: Date range depends on which trips are in scope, not on the card template. Templates should receive a pre-computed string, not trip records they must re-process.
+
+3. **`CardImageRenderer` parameter surface**: Adding `dateLabel` to `render()` now is premature — M51 (Artwork Confirmation Screen) is the first caller that will have a meaningful date range from the UI. Changing the signature now would require updating M48-era tests with no actual benefit.
+
+**Decision:**
+
+**1. `CardBrandingFooter` is a `StatelessWidget`** in `lib/features/cards/card_branding_footer.dart`. All three card templates use it as a Widget positioned at the bottom of their layout — consistent approach, no canvas drawing for branding text.
+
+**2. Heart template: replace canvas brand label with `Positioned` Widget overlay**. `_HeartPainter._drawBrandLabel()` is removed. The Heart card's `LayoutBuilder` → `CustomPaint` is wrapped in a `Stack`; `CardBrandingFooter` is `Positioned(bottom: 0)`. Dark navy background beneath the branding strip is inherent to the canvas; `CardBrandingFooter` uses a semi-transparent `Color(0xFF0D2137)` background to stay readable regardless of what heart tiles are drawn below.
+
+**3. `dateLabel: String = ''` added to all three card templates**. Empty string = date label omitted from footer (only ROAVVY + count shown). This is backward-compatible: all existing call sites compile without changes. `CardGeneratorScreen._buildTemplate()` computes the label from `filteredTrips` and passes it. `CardImageRenderer.render()` is NOT changed — its rendered output will show ROAVVY + count (satisfying M49 acceptance criteria) with an empty date label, which is correct behaviour for a programmatic render without UI date selection context.
+
+**4. Date label format**: single-year → `"2024"`, multi-year → `"2018\u20132024"` (en-dash, not hyphen). Empty string when no trip data. Computed by a pure helper `_computeDateLabel(List<TripRecord>)` local to `card_generator_screen.dart`.
+
+**Consequences:**
+- `GridFlagsCard`: top-level ROAVVY text header removed; bottom Row (count + "countries visited") replaced by `CardBrandingFooter`. Visual change: ROAVVY moves from top to footer.
+- `HeartFlagsCard`: `_drawBrandLabel` removed from `_HeartPainter`. Branding now Widget-level; `shouldRepaint` gains `dateLabel` comparison.
+- `PassportStampsCard`: `Positioned` ROAVVY watermark replaced by `Positioned` `CardBrandingFooter`. Passport-specific amber text colour (`Color(0xFF8B6914)`) preserved via `textColor` parameter.
+- Existing template tests that checked for `find.text('countries visited')` must be updated (text changes to `'{N} countries'`).
+- All card templates remain backward-compatible: `dateLabel` defaults to `''`.
+
+---
+
+## ADR-102 — M50 Layout Quality: Grid Adaptive Tile Size and Passport Print-Safe Mode
+
+**Status:** Accepted
+
+**Context:** M50 corrects two layout deficiencies before M51 (Artwork Confirmation) asks users to confirm print-ready artwork:
+
+1. **Grid adaptive fill**: `GridFlagsCard` uses a fixed `fontSize: 18` regardless of country count. For N=1 this wastes most card area; for N=50+ the tiles become small and uniform.
+2. **Passport print-safe mode**: `PassportLayoutEngine` uses 8% margins and randomly edge-clips ~8% of stamps. For print output, clipped stamps are unacceptable and all stamp centres must remain within a 3% safe zone.
+
+**Decision:**
+
+**M50-C1 — Grid adaptive fill**: A `gridTileSize(double canvasArea, int n)` pure function implements `clamp(floor(sqrt(canvasArea / n) * 0.85), 28, 90)`. `GridFlagsCard` wraps its tile area in a `LayoutBuilder`; the result drives the emoji `fontSize`. Minimum tile: 28 logical pixels; maximum: 90. The function is exposed with `@visibleForTesting` for unit testing without widget infrastructure.
+
+**M50-C2 — Passport print-safe mode**: `PassportLayoutEngine.layout()` gains `forPrint: bool = false` and now returns `PassportLayoutResult({stamps: List<StampData>, wasForced: bool})` instead of bare `List<StampData>`.
+
+When `forPrint = true`:
+- Safe-zone margin: 3% each edge (was 8%).
+- No edge clipping: `edgeClip` is always `null`.
+- Uniform adaptive base radius: `unclamped = safeArea.shortSide / (2.5 × ceil(sqrt(N)))`, clamped to [20, 38]. Stamp scale is derived: `scale = clampedRadius / 38.0`.
+- If `unclamped < 20` and caller did not already set `entryOnly`: force `entryOnly = true`, set `wasForced = true` on the result.
+
+`PassportStampsCard` gains `forPrint: bool = false`, which it passes to `_PassportPagePainter`. `_PassportPagePainterState` stores `_wasForced: bool` for future surfacing by M51.
+
+**Consequences:**
+- Existing `PassportLayoutEngine.layout()` callers must access `.stamps` on the returned `PassportLayoutResult`; all existing tests updated accordingly.
+- `gridTileSize()` is a top-level `@visibleForTesting` function in `card_templates.dart`.
+- N=1 on a square canvas: tile fills ~85% of canvas width.
+- N≥100 on typical card canvas: tile clamped to 28 px minimum.
+- `wasForced` stored in `_PassportPagePainterState`; M51 will surface it to callers.
+
+---
+
+## ADR-103 — M51 Artwork Confirmation Flow: Screen, Navigation, and Re-Confirmation
+
+**Status:** Accepted
+
+**Context:** M51 requires users to explicitly confirm the exact rendered artwork before entering the product selection / purchase flow (M51-E1), with correct forward/back navigation (M51-E2) and re-confirmation when artwork parameters change (M51-E3).
+
+Three structural decisions:
+
+1. **How to surface `wasForced` from `_PassportPagePainterState` to `CardImageRenderer.render()`**: The renderer creates a widget, inserts it into an `OverlayEntry`, and captures it after one frame. The layout engine's `wasForced` result is set during `_PassportPagePainterState.initState()`, which runs synchronously during the first frame build — before `addPostFrameCallback` fires. An `onWasForced: ValueChanged<bool>?` callback on `PassportStampsCard` (called in `_applyLayoutResult()`) is therefore sufficient to capture the value before image capture.
+
+2. **Navigation stack for the confirmation flow**: The M51-E2 requirement "Back from Product Browser returns to Card Generator (not Artwork Confirmation)" requires the Artwork Confirmation screen to be absent from the route stack when Product Browser is live. The cleanest approach: `ArtworkConfirmationScreen` pops with an `ArtworkConfirmResult({confirmationId, bytes})` return value; `CardGeneratorScreen` awaits the push, then (on non-null result) stores `_lastConfirmedParams` + `_artworkConfirmationId` + `_artworkImageBytes`, and pushes `MerchProductBrowserScreen`. Stack: Card Generator → Product Browser. ✓
+
+3. **Re-confirmation comparison**: `CardGeneratorScreen` stores a `_CardParams` snapshot (templateType, countryCodes, aspectRatio, entryOnly, yearStart?, yearEnd?). On each "Print your card" press: if `currentParams == _lastConfirmedParams && _artworkConfirmationId != null`, navigate directly to Product Browser (skip confirmation). Otherwise, navigate through `ArtworkConfirmationScreen` (with `showUpdatedBanner: true` when a prior confirmation exists).
+
+**Decision:**
+
+- `PassportStampsCard` gains `onWasForced: ValueChanged<bool>?`; `_PassportPagePainterState._applyLayoutResult()` calls it after applying the layout result.
+- `CardRenderResult` gains `wasForced: bool = false`.
+- `CardImageRenderer.render()` gains `forPrint: bool = false`; when rendering passport with `forPrint=true`, wires up `onWasForced` to capture the flag.
+- `ArtworkConfirmationScreen` (`lib/features/cards/artwork_confirmation_screen.dart`) is a `ConsumerStatefulWidget` receiving `(templateType, countryCodes, filteredTrips, dateRangeStart?, dateRangeEnd?, aspectRatio, entryOnly, showUpdatedBanner)`. On init it renders the card; on confirm it creates an `ArtworkConfirmation` and pops with `ArtworkConfirmResult`.
+- `CardGeneratorScreen` stores `_lastConfirmedParams: _CardParams?`, `_artworkConfirmationId: String?`, `_artworkImageBytes: Uint8List?`. `_onPrint()` checks for same-params shortcut or routes through confirmation.
+- `MerchProductBrowserScreen` gains `artworkConfirmationId: String?` and `artworkImageBytes: Uint8List?`; shows a rendered preview thumbnail at the top of the screen when bytes are present; threads `artworkConfirmationId` to `MerchVariantScreen`.
+- `MerchVariantScreen` gains `artworkConfirmationId: String?`; passes it in the `createMerchCart` callable payload.
+
+**Consequences:**
+- `CardImageRenderer.render()` callers that already check `.bytes` and `.imageHash` are unaffected by the new `wasForced` field (default `false`).
+- The `onWasForced` callback is only set for passport + `forPrint=true`; all other templates/modes are unaffected.
+- `ArtworkConfirmationScreen` handles Firestore write internally via `ArtworkConfirmationService(FirebaseFirestore.instance)` — no new Riverpod provider needed.
+- Re-confirmation banner copy: "Your artwork has been updated — please confirm the new version." (positive/factual, not legalistic).
+
+---
+
+## ADR-104 — M52 Timeline Card Template: Layout Engine, Widget, and Enum Extension
+
+**Status:** Accepted
+
+**Context:** M52 adds a fourth card template — "Timeline" — which renders a user's trips as a dated travel log. Three decisions need to be locked before building:
+
+1. **Where `TimelineLayoutEngine` lives**: It uses `TripRecord` (from `shared_models`) and `Size` (from `dart:ui`). `dart:ui` is a Flutter/Dart runtime import, not a platform API, so it is available in pure Dart unit tests. However, the package boundary rule is that `shared_models` contains no business logic. The layout engine IS business logic. Therefore `TimelineLayoutEngine` lives in `lib/features/cards/timeline_layout_engine.dart` inside the mobile app, not in `shared_models`.
+
+2. **`CardTemplateType.timeline` enum extension**: Adding `timeline` to the Dart enum in `shared_models` is a backwards-compatible change (new enum variant). All Dart exhaustive switch statements over `CardTemplateType` will fail to compile if they omit the new case — the compiler enforces completeness. The TypeScript type in `ts/` is not updated in this milestone (TypeScript-side update is deferred; `artworkConfirmationId` flow in Functions does not switch over template type).
+
+3. **Font strategy for monospaced dates**: iOS provides `Courier` (serif monospaced) and `Courier New` natively. Rather than bundling a font, use `fontFamily: 'CourierNew'` with `fontFamilyFallback: ['Courier', 'monospace']`. For the rendered PNG (via `CardImageRenderer`) this is acceptable — the font will resolve correctly on the test/rendering device. Date columns use a fixed `TextStyle` width via `SizedBox` wrappers to prevent layout shifts regardless of font metrics.
+
+**Decision:**
+
+- `CardTemplateType.timeline` added to the Dart enum in `packages/shared_models/lib/src/travel_card.dart`. TypeScript `ts/` not updated this milestone.
+- `TimelineLayoutEngine` and `TimelineEntry` / `TimelineLayoutResult` in `lib/features/cards/timeline_layout_engine.dart` (mobile app, features layer). Pure static methods; `Size` from `dart:ui` is the only non-domain import.
+- `TimelineCard` is a `StatelessWidget` in `lib/features/cards/timeline_card.dart`. Parchment background `Color(0xFFF5F0E8)`, dark ink `Color(0xFF2C1810)`, amber year dividers `Color(0xFFD4A017)`. Monospaced date column uses `fontFamily: 'CourierNew'` with Courier fallback.
+- `TimelineCard` calls `TimelineLayoutEngine.layout()` inside `build()` via `LayoutBuilder` to obtain the canvas size. This keeps the widget stateless and avoids a `CustomPainter` for text-heavy content.
+- `CardImageRenderer._cardWidget()` gains a `timeline` case. No `forPrint` special mode needed — no stamps, no edge clipping.
+- `ArtworkConfirmationScreen` needs no change: it renders via `CardImageRenderer.render()` which already dispatches to `_cardWidget()`.
+- `MerchVariantScreen` template picker gains a "Timeline" segment.
+
+**Consequences:**
+- All `switch (templateType)` statements in `card_generator_screen.dart`, `card_image_renderer.dart`, `merch_variant_screen.dart` must add a `timeline` case — Dart compiler enforces this exhaustively.
+- `TimelineLayoutEngine.layout()` takes `Size` as a parameter; tests can pass a literal `Size(600, 400)` without needing widget infrastructure.
+- `PassportStampsCard`'s `forPrint` complexity does not apply to Timeline — the layout engine is simpler.
+- TypeScript Functions code is unaffected: `createMerchCart` accepts `templateType` as an opaque string stored on `MerchConfig`; no server-side switch over template type exists.
+
+---
+
+## ADR-105 — M53 Mockup Approval: Screen Placement, `artworkImageBytes` Threading, and Approval-Before-Cart Ordering
+
+**Status:** Accepted
+
+**Context:** M53 inserts an explicit user-approval step into the commerce flow before checkout is initiated. Three structural decisions must be made before building begins:
+
+1. **When in the flow to request approval** — the approval screen can be shown either (a) before `createMerchCart` is called, (b) after the cart is created but before the checkout URL is launched, or (c) as part of the Printful mockup review step. The product intent is to capture consent before any server-side cart is created, ensuring that `mockupApprovalId` can be included in the `createMerchCart` payload as evidence of explicit user approval at order time.
+
+2. **Where `artworkImageBytes` is available in the commerce stack** — `artworkImageBytes: Uint8List?` is currently a constructor parameter on `MerchProductBrowserScreen` (threaded from `CardGeneratorScreen` via `ArtworkConfirmResult`) but is NOT passed to `MerchVariantScreen`. The approval screen needs to show the card artwork for the user to confirm it is correct.
+
+3. **What the `variantId` type is at the call site** — `_resolvedVariantGid` in `MerchVariantScreen` is already a `String`. The `MockupApproval` model stores it as `String`. No type conversion is needed.
+
+**Decision:**
+
+1. **Approval before cart creation.** `MockupApprovalScreen` is shown when the user taps the "Approve & buy" button (replacing the current "Preview my design" label on the `initial` state button). After approval, `_generatePreview(mockupApprovalId: result.mockupApprovalId)` is called, which includes `mockupApprovalId` in the `createMerchCart` payload. The Printful product mockup is then shown in the existing `ready` state. The existing two-stage flow (`initial → loading → ready → "Complete checkout →"`) is preserved; the approval screen is inserted before the `initial → loading` transition.
+
+2. **Thread `artworkImageBytes` into `MerchVariantScreen`.** `MerchVariantScreen` gains `artworkImageBytes: Uint8List?` as an optional constructor parameter. `MerchProductBrowserScreen` passes it when navigating to `MerchVariantScreen` (it already holds the bytes). `MerchVariantScreen` passes `artworkImageBytes` to `MockupApprovalScreen`. The screen gracefully handles null bytes with a "Preview unavailable" placeholder.
+
+3. **`MockupApproval` model in `shared_models`; `MockupApprovalService` in mobile features layer.** Consistent with `ArtworkConfirmation` / `ArtworkConfirmationService` pattern (ADR-100 / ADR-103). The model is a pure data class exported from the shared barrel; the service contains Firestore write logic and lives in `lib/features/merch/`. The Functions side adds `mockupApprovalId?: string` to `CreateMerchCartRequest` and `MerchConfig`.
+
+4. **`MockupApprovalScreen` is a push route, not a bottom sheet.** The screen performs an async Firestore write before popping — this warrants full-screen treatment to prevent accidental dismissal. It pops with `MockupApprovalResult(mockupApprovalId: String)` on approval; pops null on back navigation. Consistent with `ArtworkConfirmationScreen` (ADR-103).
+
+5. **Placement checkbox is conditional.** The screen shows 3 checkboxes for t-shirts (design, colour, placement) and 2 for posters (design, colour — placement omitted when `placementType == null`). This is safe because `MerchVariantScreen` does not include `placement` in the `createMerchCart` payload for posters.
+
+**Consequences:**
+- `MerchVariantScreen` gains one new optional constructor parameter: `artworkImageBytes: Uint8List?`. `MerchProductBrowserScreen` must be updated to pass this when navigating.
+- The "Preview my design" button label in `MerchVariantScreen` state `initial` changes to "Approve & buy". Any widget tests asserting on the old label text must be updated.
+- `_generatePreview()` gains a `mockupApprovalId: String` required parameter (or is split into `_navigateToApproval()` + `_generatePreview(String mockupApprovalId)`); the `initial` state button no longer calls `_generatePreview()` directly.
+- Firestore `mockup_approvals` subcollection is already covered by the wildcard security rule `match /users/{userId}/{document=**}` (confirmed ADR-100). No Firestore rules changes needed.
+- `MockupApproval.variantId` is a `String` — no coercion from int. Consistent with BUG-001 resolution (ADR-099) where all variant IDs are treated as opaque strings.
+
+---
+
+## ADR-106 — M54 Gap Closure: Artwork Bytes Reuse, Confirmation Archival, and UID-Null UX
+
+**Status:** Accepted
+
+**Context:** Three concrete gaps identified after M53 completion:
+
+1. **Timeline card renders empty in `MerchVariantScreen`**: `CardImageRenderer.render()` accepts `List<TripRecord> trips = const []` as a default. When `MerchVariantScreen._generatePreview()` calls it, no trips are threaded in, so the Timeline template renders an empty card. The confirmed artwork bytes (in `widget.artworkImageBytes`) already have trips baked in from the `ArtworkConfirmationScreen` render — reusing them is both correct and avoids a needless re-render.
+
+2. **Orphaned `ArtworkConfirmation` documents**: `ArtworkConfirmationService.archive()` was implemented and tested in M48/M50 but is never called. Each time a user re-confirms with changed params in `CardGeneratorScreen`, the old `_artworkConfirmationId` is silently overwritten, leaving an unarchived document in Firestore.
+
+3. **Silent UID-null failures**: Both `ArtworkConfirmationScreen._onConfirm()` and `MockupApprovalScreen._onApprove()` silently return when `currentUidProvider` is null. The loading spinner stays visible and no feedback is shown — the user has no way to know what happened.
+
+**Decision:**
+
+1. **Reuse `artworkImageBytes` as `clientCardBase64` when template unchanged.** In `MerchVariantScreen._generatePreview()`, if `widget.artworkImageBytes != null` AND `_selectedTemplate == widget.initialTemplate`, set `cardBase64 = base64Encode(widget.artworkImageBytes!)` and skip the `CardImageRenderer.render()` call. The confirmed artwork is the source of truth — it is pixel-identical to what the user approved. If the user changes template, the re-render path proceeds normally. This is a conditional bypass, not a removal of the renderer.
+
+2. **Archive superseded confirmation fire-and-forget.** In `CardGeneratorScreen._goToProductBrowser()`, before overwriting `_artworkConfirmationId` with `result.confirmationId`, check if a prior ID exists and differs. If so, call `ArtworkConfirmationService(FirebaseFirestore.instance).archive(uid, _artworkConfirmationId!)` via `unawaited()` (fire-and-forget). Exceptions are swallowed. Archive failure must not block checkout navigation — it is a housekeeping concern, not a correctness concern.
+
+3. **SnackBar + loading reset on UID null.** Both approval screens replace `if (uid == null || !mounted) return;` with an explicit branch: show `SnackBar('Please sign in to continue')`, reset the loading state flag, and return. This makes the failure visible without requiring a restart or nav action from the user.
+
+**Consequences:**
+- `MerchVariantScreen` must import `dart:convert` for `base64Encode`; it already has `widget.artworkImageBytes` and `widget.initialTemplate` in scope (M53).
+- `CardGeneratorScreen` must have access to `currentUidProvider` (already used, M51) and `ArtworkConfirmationService` (already imported, M51). If `dart:async` is not already imported, `unawaited` requires it — alternatively `.ignore()` may be used.
+- Both approval screens already import `ScaffoldMessenger` via their widget tree; no new dependencies needed.
+- The `artworkImageBytes` reuse path produces identical bytes to what was shown in `ArtworkConfirmationScreen` — the confirmed artwork is the product print source of truth.
+
+---
+
+## ADR-107 — M55 Local Product Mockup: Screen Architecture, Inline Re-confirmation, Deferred Printful Mockup, and Poster Handling
+
+**Status:** Accepted
+
+**Context:** The existing commerce navigation sequence (`MerchProductBrowserScreen` → `MerchVariantScreen` → `MockupApprovalScreen`) has four structural problems:
+
+1. **Product image is never shown before checkout.** `MockupApprovalScreen` shows the flat card art, not the card on the product. The user cannot see how their design looks on a t-shirt or poster until after they leave the app to Shopify.
+2. **Printful mockup API called too early.** `MerchVariantScreen._generatePreview()` calls `createMerchCart` immediately when the screen loads, triggering a Printful API call before the user has made any product choices. This wastes credits and creates latency before confirmation.
+3. **Colour/variant changes restart the full flow.** Any product option change requires popping back through multiple screens.
+4. **`artworkImageBytes` threading gap.** `MerchVariantScreen` needed `artworkImageBytes` threaded through two screens (`MerchProductBrowserScreen` → `MerchVariantScreen`) to avoid Timeline re-render emptiness — a brittle prop-drilling pattern across unrelated screens.
+
+**Decision:**
+
+1. **Introduce `LocalMockupPreviewScreen` as a single unified screen** replacing `MerchProductBrowserScreen`, `MerchVariantScreen`, and `MockupApprovalScreen`. All product configuration, mockup preview, and approval happen on one screen. `CardGeneratorScreen._goToProductBrowser()` pushes `LocalMockupPreviewScreen` directly.
+
+2. **On-device compositing with `LocalMockupPainter`.** Bundled product mockup images (PNG) are loaded from the asset bundle by `LocalMockupImageCache` (LRU, 6 entries). `LocalMockupPainter` (`CustomPainter`) composites `ui.Image` (product) + `ui.Image` (artwork bytes) using `spec.printAreaNorm: Rect` (normalised 0.0–1.0 coordinates). No network call is made during configuration. This is entirely local rendering.
+
+3. **Inline re-confirmation when template changes.** When the user changes card template inside `LocalMockupPreviewScreen`, show an amber inline banner ("Design changed — please confirm again") and change the CTA to "Confirm updated design". Do not force navigation back to `ArtworkConfirmationScreen`. Instead, `_onApprove()` creates a new `ArtworkConfirmation` inline (with `archive()` fire-and-forget on the prior ID) before writing `MockupApproval`. Colour, size, and placement changes do NOT invalidate the artwork confirmation.
+
+4. **Printful mockup deferred to `ready` state only.** `createMerchCart` (which triggers the Printful API call) is called exactly once: when the user explicitly taps "Approve this order". The `ready` state then shows `Image.network(mockupUrl)` as the photorealistic preview. The local `CustomPaint` is the `loadingBuilder` fallback — the user always sees something while the network image loads. The remote mockup is not optional; it is always shown in `ready` state before "Complete order →".
+
+5. **Poster: `productImage = null` → edge-to-edge artwork.** For poster products, `LocalMockupPainter` is constructed with `productImage: null`. When `productImage` is null, the painter fills the canvas with a white background and draws the artwork at `spec.printAreaNorm = Rect.fromLTWH(0.0, 0.0, 1.0, 1.0)` (full canvas). No frame or room mockup is rendered for MVP.
+
+6. **Variant GID lookup tables extracted to `lib/features/merch/merch_variant_lookup.dart`.** Both `MerchVariantScreen` and `LocalMockupPreviewScreen` require the same `(MerchProduct, colour, size, placement) → variantGid` mapping. Extract to a single shared file to avoid divergence. `MerchVariantScreen` (deprecated) may delegate to this file or keep its own copy until M56 deletion.
+
+7. **`_lastConfirmedTrips` added to `_CardGeneratorScreenState`.** `filteredTrips` is computed inside `_navigateToPrint()` and currently not persisted to state. Add `List<TripRecord>? _lastConfirmedTrips` and capture the value alongside `_artworkImageBytes` when an `ArtworkConfirmResult` is received. Thread to `LocalMockupPreviewScreen` as `trips:` so template re-renders within the screen use the trip list that corresponds to the confirmed artwork.
+
+**Consequences:**
+- `MerchProductBrowserScreen`, `MerchVariantScreen`, and `MockupApprovalScreen` are deprecated (not deleted); deletion is scheduled for M56.
+- `LocalMockupPreviewScreen` must implement `WidgetsBindingObserver` for the app-resume poll (same pattern as `MerchVariantScreen`).
+- Bundled mockup PNG assets (~11 files, ≤200 KB each) must be registered in `pubspec.yaml`.
+- `ProductMockupSpec.printAreaNorm` values must be calibrated against actual image dimensions at native size; a `kDebugMockup` flag should draw a visible debug border during development.
+- `LocalMockupImageCache.dispose()` is called from `LocalMockupPreviewScreen.dispose()` to release `ui.Image` objects and avoid memory leaks.
+- The `_MockupState` enum (`configuring | rerendering | approving | ready`) is internal to `LocalMockupPreviewScreen` and not persisted to Firestore.
+
+---
+
+## ADR-108 — M56 Celebration Queue: Sequential Navigation via Async Loop
+
+**Status:** Proposed
+
+**Context:** M56-03 requires that when multiple countries are discovered in a single scan, celebrations do not overlap. M56-06 reports that pressing Next can navigate prematurely to the main map before all countries in the queue are shown. M56-07 reports that Skip All does not reliably navigate to the correct destination.
+
+Examining the existing implementation in `scan_summary_screen.dart`: `_pushDiscoveryOverlays()` already drives a sequential loop using `await Navigator.of(context).push(...)` inside a `for` loop, with a `skipped` boolean flag to break early on Skip All. However, three bugs exist:
+
+1. **Early exit bug (M56-06)**: `_pushDiscoveryOverlays()` is capped at `_kMaxOverlays = 5`. The loop `codes = widget.newCodes.take(_kMaxOverlays).toList()` processes at most 5 overlays, but `widget.onDone()` is called after only those 5 complete — causing navigation to the map while remaining countries in the queue are unshown.
+
+2. **Skip All navigation bug (M56-07)**: `onSkipAll` on the final overlay in the 5-cap batch is set to `null`, meaning the last visible overlay has no Skip All button. When Skip All is tapped on a non-final overlay, `skipped = true` breaks the loop and calls `widget.onDone()`, but the `Navigator.of(context).pop()` inside `_handleSkipAll()` pops the overlay before the loop's `await` resumes — this path works correctly. The actual navigation destination failure is a separate issue: `widget.onDone()` at the call site must navigate to the Main Map, not simply return.
+
+3. **No inter-celebration gap**: There is no configurable pause between sequential overlays.
+
+**Decision:**
+
+The existing async `for`-loop + `await push` pattern is the correct structural approach and must not be replaced with a separate queue object or `StreamController`. The pattern is clean, respects `mounted` checks, and avoids shared mutable state across rebuilds.
+
+The three bugs are fixed surgically:
+
+1. **Remove the `_kMaxOverlays = 5` cap.** All countries in `widget.newCodes` are iterated. The `take(5)` guard was a conservative UI decision made in ADR-084 that is now overridden by M56 requirements.
+
+2. **Skip All destination.** The `onSkipAll` callback on every overlay (except the last) clears the queue by setting `skipped = true` and popping. After the loop, `widget.onDone()` is called unconditionally. The caller (`ReviewScreen` / `ScanSummaryScreen`) is responsible for routing `onDone` to the Main Map — this is already the contract. No navigation change is needed inside `_pushDiscoveryOverlays()`.
+
+3. **Inter-celebration gap.** A `Future.delayed(const Duration(milliseconds: 300))` is inserted after each `await push` call within the loop body (before the next iteration), gated by `if (!mounted || skipped) break`. The delay duration is extracted to a top-level constant `kCelebrationGapMs = 300` in `discovery_overlay.dart` so it can be overridden in tests.
+
+No new class, provider, or state object is introduced. The fix is local to `_pushDiscoveryOverlays()` in `scan_summary_screen.dart` and the constant in `discovery_overlay.dart`.
+
+**Consequences:**
+- For a user with 15 newly discovered countries, all 15 overlays are shown sequentially; total wait time is approximately 15 × (overlay duration + 300 ms).
+- Tests for `_pushDiscoveryOverlays()` must be updated to remove the 5-overlay cap expectation and to verify that all N overlays are shown.
+- M56-04 (audio) attaches to `DiscoveryOverlay.initState()` — the sequential loop guarantees only one overlay is mounted at a time, so audio cannot overlap by construction.
+- M56-05 (first-visited date) is additive to `DiscoveryOverlay` and does not affect the queue logic.
+
+---
+
+## ADR-109 — M56 Celebration Audio: `audioplayers` Package, App-Layer Only
+
+**Status:** Proposed
+
+**Context:** M56-04 requires a short audio effect to play when a country celebration (`DiscoveryOverlay`) is shown. No audio package currently exists in the project. The mute requirement states that audio must be silent when the device is muted (iOS silent switch / Android volume 0).
+
+Three candidate packages exist for Flutter audio:
+
+- `just_audio`: full-featured streaming player. Appropriate for music playback; has native background audio capabilities. Overkill for a single short SFX clip.
+- `audioplayers`: lightweight single-clip playback. Suitable for SFX. Respects the iOS `AVAudioSession` ambient category by default (plays through the mute switch? — no: ambient mode is silenced by the silent switch on iOS). Actively maintained.
+- `soundpool`: low-latency pool for short clips. Less widely adopted; API is less ergonomic for single-clip use.
+
+The mute constraint is the deciding factor. On iOS, `AVAudioSession.Category.ambient` is silenced by the hardware mute/silent switch — the correct behaviour for an in-app celebration sound. `audioplayers` defaults to ambient mode on iOS, satisfying the requirement without additional configuration.
+
+**Decision:**
+
+Add `audioplayers: ^6.0.0` (or latest stable at build time) to `apps/mobile_flutter/pubspec.yaml` under `dependencies`. Do not add it to any package — audio is an app-layer concern.
+
+A single bundled audio asset (`assets/audio/celebration.mp3`, ≤ 100 KB, duration < 2 s) is registered in `pubspec.yaml`. The file must be a short positive chime or pop; the specific clip is a Builder decision.
+
+`DiscoveryOverlay._DiscoveryOverlayState.initState()` creates an `AudioPlayer`, calls `player.play(AssetSource('audio/celebration.mp3'))`, and disposes the player in `dispose()`. No provider, no singleton, no shared player state. Each overlay instance owns its own short-lived player. Because ADR-108 guarantees that only one `DiscoveryOverlay` is mounted at a time, concurrent audio playback cannot occur by construction.
+
+No mute-detection code is written. `audioplayers` ambient mode on iOS and the system volume on Android provide the correct mute behaviour automatically.
+
+**Consequences:**
+- `audioplayers` adds a native dependency (iOS: AVFoundation; Android: MediaPlayer). The iOS `Podfile.lock` will update.
+- `DiscoveryOverlay` gains an `AudioPlayer` field — it must remain `StatefulWidget` (already is).
+- Widget tests for `DiscoveryOverlay` that run on the host (non-device) test environment must stub or ignore `AudioPlayer` initialisation. Tests should set `AudioPlayer.global.setLogLevel(LogLevel.none)` and wrap the play call in a try/catch to avoid `MissingPluginException` in host tests.
+- The Builder must verify the asset path is consistent in both `pubspec.yaml` and the `AssetSource` call.
+
+---
+
+## ADR-110 — M56 Incremental Scan State: `lastScanAt` is the Boundary Marker
+
+**Status:** Proposed
+
+**Context:** M56-13 requires that after the first full scan, subsequent scans process only newly added images. M56-14 adds a UI control for incremental vs full scan. M56-15 auto-triggers an incremental scan on app open.
+
+The scan pipeline already has partial infrastructure for this:
+
+- `ScanMetadata.lastScanAt` (nullable TEXT, ISO 8601) is stored in the Drift `scan_metadata` table (schema v8). It is written by `scan_screen.dart` after a scan completes.
+- `startPhotoScan({DateTime? sinceDate})` in `photo_scan_channel.dart` passes `sinceDate` to the Swift PhotoKit bridge, which filters `PHAsset.creationDate > sinceDate`. This is the incremental boundary (ADR-012).
+- The `photo_date_records` Drift table stores `assetId` per scanned photo (added in a prior migration), providing an alternative deduplication mechanism.
+
+**Decision:**
+
+`lastScanAt` in `ScanMetadata` is the sole scan boundary marker for incremental scans. Its semantics are:
+
+- `null` → no full scan has ever completed; incremental scan must not be offered or auto-triggered.
+- Non-null ISO 8601 string → the UTC timestamp at which the most recent scan (full or incremental) completed. The next incremental scan passes this value as `sinceDate` to `startPhotoScan`.
+
+**What constitutes "scanned"**: a photo is considered scanned if its `capturedAt` date is ≤ `lastScanAt` at the time the scan was initiated. Photos added to the library after `lastScanAt` are "new" and will be included in the next incremental scan. The PhotoKit `sinceDate` predicate uses asset `creationDate`; this matches `capturedAt` (which is derived from `PHAsset.creationDate`).
+
+**Persistence**: `lastScanAt` is updated in `ScanMetadata` at the end of every successful scan (full or incremental), to the UTC `DateTime.now()` captured immediately before the scan starts (pre-scan timestamp, not post-scan, to avoid a race where photos taken during the scan are silently skipped on the next incremental pass).
+
+**Full scan trigger**: when a full scan is requested (M56-14 or first-time scan), `sinceDate` is omitted from `startPhotoScan`. On completion, `lastScanAt` is written as normal. No additional state is needed to distinguish "full scan completed" from "incremental scan completed" — both update `lastScanAt`.
+
+**Duplicate detection**: because `sinceDate` filters on `PHAsset.creationDate`, and `lastScanAt` is set to the pre-scan timestamp, any photo processed in the prior scan cannot appear in the next incremental scan. The `assetId` deduplication in `photo_date_records` remains as a defence-in-depth guard against clock skew or edge cases.
+
+**Auto-trigger (M56-15)**: `AppLifecycleListener.onResume` (or `WidgetsBindingObserver.didChangeAppLifecycleState`) in `scan_screen.dart` checks `lastScanAt != null` and, if true, calls the incremental scan path. A boolean `_scanInProgress` guard prevents duplicate launches.
+
+**Consequences:**
+- No Drift schema migration is required — `lastScanAt` and `assetId` already exist.
+- `ScanMetadata` must expose a `hasCompletedFirstScan` getter: `lastScanAt != null`. This is used by M56-15 auto-trigger and M56-14 UI.
+- The Builder must verify that the pre-scan timestamp is captured before `startPhotoScan()` is awaited, not after.
+- `sinceDate` already flows through the Swift bridge; no native code changes are needed for the incremental path.
+- A full scan triggered from M56-14 clears no existing visit data — it re-processes all photos and merges results. Duplicate country detections are suppressed by the existing `upsert` semantics in `VisitRepository` and `TripRepository`.
+
+---
+
+## ADR-111 — M56 Pastel Region Colour Palette: Static Ordered List, Index-Mod Assignment
+
+**Status:** Proposed
+
+**Context:** M56-11 requires that regions in `CountryRegionMapScreen` are filled using a pastel colour palette with at least 12 distinct colours, cycling if a country has more than 12 regions, and with adjacent regions visually distinguishable where practical.
+
+The current implementation uses two hardcoded colours: amber `_kVisitedFill` for visited regions and dark navy `_kUnvisitedFill` for unvisited regions. The task replaces the visited-region fill with a per-region pastel colour.
+
+**Decision:**
+
+A static constant list `kRegionPastelPalette` of exactly 12 `Color` values is defined in `lib/features/map/country_region_map_screen.dart`. The colours are desaturated mid-tones chosen to:
+
+- Remain legible against the dark navy `_kOceanBackground`.
+- Avoid conflict with the amber brand colour used for the app's "visited" highlight state.
+- Be perceptually distinct from each other at typical map zoom levels.
+
+The 12 colours are assigned to regions by index: `kRegionPastelPalette[regionIndex % 12]`. `regionIndex` is the 0-based position of the region in the sorted list returned by `RegionRepository.loadByCountry(countryCode)`. Sorting is alphabetical by `regionCode` (ISO 3166-2), which is deterministic and stable across rebuilds.
+
+No graph-colouring algorithm is applied. Index-mod assignment does not guarantee that spatially adjacent regions receive different colours, but with 12 colours and typical region counts (≤ 30 for most countries), adjacent conflicts are rare and acceptable for an MVP pastel map.
+
+The exact 12 colour values are a Builder decision. The constraint is: each colour must have HSL lightness ≥ 0.60 (pastel range) and saturation ≤ 0.55, and all 12 must be visually distinct when rendered at ≥ 30×30 px.
+
+Unvisited regions retain the existing `_kUnvisitedFill` (dark navy). Only visited region fills change.
+
+**Consequences:**
+- `CountryRegionMapScreen` is the only file that changes for this task. No new file, no new provider.
+- `kRegionPastelPalette` is a top-level constant, accessible with `@visibleForTesting` for the widget test that verifies 12+ region countries produce 12 distinct fill colours.
+- If `RegionRepository.loadByCountry` returns regions in a non-deterministic order, the palette assignment will be unstable across rebuilds. The sort-by-`regionCode` step is therefore load-bearing and must be explicit in the implementation.
+- Selection state (tapped region label) must remain visually distinct from the pastel fills — the existing amber `MarkerLayer` label is unaffected.
+- The ADR does not define the 12 colour values — this is a Builder decision, constrained by the HSL bounds above.

@@ -1,5 +1,6 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -176,19 +177,20 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     }
   }
 
-  /// Pushes [DiscoveryOverlay] for each new country, up to 5. (ADR-084)
-  static const int _kMaxOverlays = 5;
-
+  /// Pushes [DiscoveryOverlay] for each new country sequentially. (ADR-084, ADR-108)
+  ///
+  /// All discovered countries are shown — no cap. A [kCelebrationGapMs] gap
+  /// is inserted between overlays (ADR-108). [onSkipAll] is null only on the
+  /// true final overlay.
   Future<void> _pushDiscoveryOverlays() async {
-    final codes = widget.newCodes.take(_kMaxOverlays).toList();
-    final overlayCount = codes.length;
-    // Use the real total so the overlay reads "1 of 12" not "1 of 5" when
-    // more countries were found than the overlay cap (BUG: showed 5 of 5
-    // even when 12+ countries were discovered).
-    final actualTotal = widget.newCodes.length;
+    final codes = widget.newCodes;
+    final total = codes.length;
+    final firstVisitedByCode = {
+      for (final c in widget.newCountries) c.countryCode: c.firstSeen,
+    };
     bool skipped = false;
 
-    for (var i = 0; i < overlayCount; i++) {
+    for (var i = 0; i < total; i++) {
       if (!mounted || skipped) break;
 
       await Navigator.of(context).push(
@@ -198,9 +200,10 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
             isoCode: codes[i],
             xpEarned: 50,
             currentIndex: i,
-            totalCount: actualTotal,
+            totalCount: total,
+            firstVisited: firstVisitedByCode[codes[i]],
             onDone: () => Navigator.of(context).pop(),
-            onSkipAll: i == overlayCount - 1
+            onSkipAll: i == total - 1
                 ? null
                 : () {
                     skipped = true;
@@ -209,6 +212,11 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
           ),
         ),
       );
+
+      // Insert gap between celebrations (ADR-108). Skip after last overlay.
+      if (mounted && !skipped && i < total - 1) {
+        await Future.delayed(const Duration(milliseconds: kCelebrationGapMs));
+      }
     }
 
     if (!mounted) return;
@@ -262,11 +270,41 @@ class _NewDiscoveriesState extends StatefulWidget {
   State<_NewDiscoveriesState> createState() => _NewDiscoveriesStateState();
 }
 
+/// Extracts up to 4 non-white fill colours from a bundled flag SVG.
+///
+/// Returns null when the asset cannot be loaded or no qualifying colours
+/// are found (caller falls back to theme colours).
+Future<List<Color>?> _flagColours(String isoCode) async {
+  try {
+    final svg = await rootBundle.loadString(
+        'assets/flags/svg/${isoCode.toLowerCase()}.svg');
+    final re = RegExp(r'fill="(#[0-9a-fA-F]{6})"');
+    final colours = re
+        .allMatches(svg)
+        .map((m) {
+          final hex = m.group(1)!.substring(1);
+          return Color(0xFF000000 | int.parse(hex, radix: 16));
+        })
+        .toSet()
+        .where((c) {
+          // Filter out white and near-white (lightness > 0.90).
+          final hsl = HSLColor.fromColor(c);
+          return hsl.lightness <= 0.90;
+        })
+        .take(4)
+        .toList();
+    return colours.length >= 2 ? colours : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
     with TickerProviderStateMixin {
   ConfettiController? _confettiController;
   AnimationController? _staggerController;
   List<Animation<double>>? _rowOpacities;
+  List<Color>? _confettiColors;
 
   @override
   void initState() {
@@ -275,6 +313,19 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
     // MediaQuery is available (ADR-055).
     WidgetsBinding.instance.addPostFrameCallback((_) => _initAnimations());
     _scheduleNotifications();
+    _loadConfettiColors();
+  }
+
+  /// Loads flag colours for up to the first 3 discovered countries (ADR-108).
+  Future<void> _loadConfettiColors() async {
+    final colors = <Color>[];
+    for (final code in widget.newCodes.take(3)) {
+      final flagColors = await _flagColours(code);
+      if (flagColors != null) colors.addAll(flagColors);
+    }
+    if (mounted && colors.isNotEmpty) {
+      setState(() => _confettiColors = colors);
+    }
   }
 
   Future<void> _scheduleNotifications() async {
@@ -389,7 +440,10 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
                   if (widget.newCodes.length >= 2)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: ScanRevealMiniMap(newCodes: widget.newCodes),
+                      child: ScanRevealMiniMap(
+                        newCodes: widget.newCodes,
+                        onDoubleTap: widget.onDone,
+                      ),
                     ),
                   _FlagTimelineList(
                     newCountries: widget.newCountries,
@@ -440,22 +494,24 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
             ),
           ],
         ),
-        // Confetti overlay — only added to tree when controller is active
+        // Confetti overlay — fills full stack area so particles can fall down
+        // the entire screen (ADR-108). IgnorePointer prevents gesture conflicts.
         if (_confettiController != null)
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController!,
-              blastDirectionality: BlastDirectionality.explosive,
-              emissionFrequency: 0.04,
-              gravity: 0.2,
-              shouldLoop: false,
-              colors: [
-                colorScheme.primary,
-                colorScheme.secondary,
-                Colors.amber[400]!,
-                Colors.amber[700]!,
-              ],
+          Positioned.fill(
+            child: IgnorePointer(
+              child: ConfettiWidget(
+                confettiController: _confettiController!,
+                blastDirectionality: BlastDirectionality.explosive,
+                emissionFrequency: 0.04,
+                gravity: 0.2,
+                shouldLoop: false,
+                colors: _confettiColors ?? [
+                  colorScheme.primary,
+                  colorScheme.secondary,
+                  Colors.amber[400]!,
+                  Colors.amber[700]!,
+                ],
+              ),
             ),
           ),
       ],
