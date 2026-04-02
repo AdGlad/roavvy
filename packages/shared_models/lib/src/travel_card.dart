@@ -8,6 +8,10 @@ enum CardTemplateType {
 
   /// Country "passport stamps" arranged on a leather-brown background.
   passport,
+
+  /// Dated travel log: trips listed chronologically with country names and
+  /// date ranges on a parchment background (ADR-104 / M52).
+  timeline,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries

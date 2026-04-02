@@ -2,7 +2,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'merch_product_browser_screen.dart';
+import 'merch_variant_lookup.dart';
 
 /// Post-purchase celebration screen shown after the user returns from Shopify
 /// checkout (ADR-074).

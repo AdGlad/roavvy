@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mobile_flutter/features/cards/card_branding_footer.dart';
 import 'package:mobile_flutter/features/cards/card_templates.dart';
+import 'package:mobile_flutter/features/cards/timeline_card.dart';
+import 'package:shared_models/shared_models.dart';
 
 Widget _wrap(Widget child) =>
     MaterialApp(home: Scaffold(body: SizedBox(width: 300, height: 200, child: child)));
@@ -17,8 +20,25 @@ void main() {
       await tester.pumpWidget(_wrap(
         const GridFlagsCard(countryCodes: ['FR', 'DE', 'JP', 'US', 'GB']),
       ));
-      expect(find.text('5'), findsOneWidget);
-      expect(find.text('countries visited'), findsOneWidget);
+      // Branding footer shows "{N} countries" (ADR-101)
+      expect(find.text('5 countries'), findsOneWidget);
+      expect(find.byType(CardBrandingFooter), findsOneWidget);
+    });
+
+    testWidgets('shows ROAVVY wordmark in branding footer', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(countryCodes: ['GB', 'FR']),
+      ));
+      expect(find.text('ROAVVY'), findsOneWidget);
+    });
+
+    testWidgets('shows dateLabel in footer when provided', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(
+            countryCodes: ['GB', 'FR'],
+            dateLabel: '2018\u20132024'),
+      ));
+      expect(find.text('2018\u20132024'), findsOneWidget);
     });
 
     testWidgets('shows overflow indicator with 50+ countries', (tester) async {
@@ -68,6 +88,14 @@ void main() {
       ));
       expect(find.byType(CustomPaint), findsWidgets);
     });
+
+    testWidgets('shows CardBrandingFooter with country count', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HeartFlagsCard(countryCodes: ['GB', 'FR', 'DE']),
+      ));
+      expect(find.byType(CardBrandingFooter), findsOneWidget);
+      expect(find.text('3 countries'), findsOneWidget);
+    });
   });
 
   group('PassportStampsCard', () {
@@ -103,6 +131,51 @@ void main() {
         const PassportStampsCard(countryCodes: ['GB', 'US']),
       ));
       expect(find.byType(PassportStampsCard), findsOneWidget);
+    });
+
+    testWidgets('shows CardBrandingFooter with country count', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const PassportStampsCard(
+            countryCodes: ['GB', 'FR'], trips: []),
+      ));
+      expect(find.byType(CardBrandingFooter), findsOneWidget);
+      expect(find.text('2 countries'), findsOneWidget);
+    });
+  });
+
+  group('TimelineCard', () {
+    testWidgets('renders with TRAVEL LOG header', (tester) async {
+      await tester.pumpWidget(_wrap(
+        TimelineCard(
+          trips: [
+            TripRecord(
+              id: 't1',
+              countryCode: 'GB',
+              startedOn: DateTime(2023, 3, 1),
+              endedOn: DateTime(2023, 5, 28),
+              photoCount: 1,
+              isManual: false,
+            ),
+          ],
+          countryCodes: const ['GB'],
+        ),
+      ));
+      expect(find.byType(TimelineCard), findsOneWidget);
+      expect(find.text('TRAVEL LOG'), findsOneWidget);
+    });
+
+    testWidgets('shows CardBrandingFooter', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const TimelineCard(trips: [], countryCodes: ['GB', 'FR']),
+      ));
+      expect(find.byType(CardBrandingFooter), findsOneWidget);
+    });
+
+    testWidgets('shows empty state when no trips', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const TimelineCard(trips: [], countryCodes: ['US']),
+      ));
+      expect(find.text('No trips in this date range'), findsOneWidget);
     });
   });
 }

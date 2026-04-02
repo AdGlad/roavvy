@@ -20,3 +20,5 @@ export 'src/trip_inference.dart';
 export 'src/region_visit.dart';
 export 'src/region.dart';
 export 'src/travel_card.dart';
+export 'src/artwork_confirmation.dart';
+export 'src/mockup_approval.dart';

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -11,7 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../cards/card_image_renderer.dart';
 import 'flag_grid_preview.dart';
 import 'merch_post_purchase_screen.dart';
-import 'merch_product_browser_screen.dart';
+import 'merch_variant_lookup.dart';
+import 'mockup_approval_screen.dart';
 
 // ── Variant lookup tables (sourced from docs/engineering/commerce_api_contracts.md) ──
 
@@ -71,13 +73,17 @@ const Map<(String, String), String> _posterGids = {
 /// Internal preview state for the two-stage checkout flow (ADR-073).
 enum _PreviewState { initial, loading, ready }
 
-/// Screen 3 of the commerce flow: variant selection + preview + checkout handoff.
+// DEPRECATED(M55): No longer in the primary commerce navigation path.
+// Use LocalMockupPreviewScreen. Scheduled for deletion in M56.
+
+/// Screen 3 of the commerce flow: variant selection + approval + checkout handoff.
 ///
-/// Two-stage flow (ADR-073):
-/// 1. User selects variant options → taps "Preview my design"
-/// 2. [createMerchCart] Firebase Function is called; generated flag grid image shown
-/// 3. "Complete checkout →" opens the cached [checkoutUrl] in SFSafariViewController
-/// 4. On app resume after browser dismissal, pushes [MerchPostPurchaseScreen] (ADR-074)
+/// Two-stage flow (ADR-073 / ADR-105):
+/// 1. User selects variant options → taps "Approve & buy"
+/// 2. [MockupApprovalScreen] captures explicit user consent; writes [MockupApproval] to Firestore
+/// 3. [createMerchCart] Firebase Function is called; generated flag grid image shown
+/// 4. "Complete checkout →" opens the cached [checkoutUrl] in SFSafariViewController
+/// 5. On app resume after browser dismissal, pushes [MerchPostPurchaseScreen] (ADR-074)
 class MerchVariantScreen extends StatefulWidget {
   const MerchVariantScreen({
     super.key,
@@ -85,6 +91,8 @@ class MerchVariantScreen extends StatefulWidget {
     required this.selectedCodes,
     this.cardId,
     this.initialTemplate = CardTemplateType.grid,
+    this.artworkConfirmationId,
+    this.artworkImageBytes,
   });
 
   final MerchProduct product;
@@ -94,6 +102,12 @@ class MerchVariantScreen extends StatefulWidget {
   final String? cardId;
   /// Card template to pre-select when the screen opens.
   final CardTemplateType initialTemplate;
+  /// Optional ArtworkConfirmation ID — included in the `createMerchCart`
+  /// payload to link the order to the user-approved artwork (ADR-103 / M51).
+  final String? artworkConfirmationId;
+  /// Rendered card artwork PNG from [ArtworkConfirmResult] — shown in
+  /// [MockupApprovalScreen] for the user to confirm (ADR-105 / M53).
+  final Uint8List? artworkImageBytes;
 
   @override
   State<MerchVariantScreen> createState() => _MerchVariantScreenState();
@@ -133,11 +147,13 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         CardTemplateType.grid => 'Grid',
         CardTemplateType.heart => 'Heart',
         CardTemplateType.passport => 'Passport',
+        CardTemplateType.timeline => 'Timeline',
       };
 
   static CardTemplateType _templateFromLabel(String label) => switch (label) {
         'Heart' => CardTemplateType.heart,
         'Passport' => CardTemplateType.passport,
+        'Timeline' => CardTemplateType.timeline,
         _ => CardTemplateType.grid,
       };
 
@@ -272,27 +288,52 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     }
   }
 
-  Future<void> _generatePreview() async {
+  /// Navigates to [MockupApprovalScreen] for explicit user consent before
+  /// cart creation (ADR-105 / M53). On approval, calls [_generatePreview].
+  Future<void> _navigateToApproval() async {
+    final result = await Navigator.of(context).push<MockupApprovalResult>(
+      MaterialPageRoute(
+        builder: (_) => MockupApprovalScreen(
+          artworkImageBytes: widget.artworkImageBytes,
+          artworkConfirmationId: widget.artworkConfirmationId,
+          templateType: _selectedTemplate,
+          variantId: _resolvedVariantGid,
+          placementType: _isTshirt ? _placement : null,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _generatePreview(mockupApprovalId: result.mockupApprovalId);
+  }
+
+  Future<void> _generatePreview({String? mockupApprovalId}) async {
     setState(() {
       _previewState = _PreviewState.loading;
       _error = null;
     });
 
     try {
-      // Render the selected card template to PNG bytes so the server mockup
-      // reflects what the user chose (ADR-099).
+      // Derive clientCardBase64 — use confirmed artwork bytes directly when
+      // the template is unchanged (ADR-106 / M54-G1). This avoids a needless
+      // re-render that loses trip data for Timeline cards, and ensures the
+      // print source of truth is pixel-identical to what the user approved.
       String? cardBase64;
-      try {
-        if (context.mounted) {
-          final bytes = await CardImageRenderer.render(
-            context,
-            _selectedTemplate,
-            codes: widget.selectedCodes,
-          );
-          cardBase64 = base64Encode(bytes);
+      if (widget.artworkImageBytes != null &&
+          _selectedTemplate == widget.initialTemplate) {
+        cardBase64 = base64Encode(widget.artworkImageBytes!);
+      } else {
+        try {
+          if (context.mounted) {
+            final result = await CardImageRenderer.render(
+              context,
+              _selectedTemplate,
+              codes: widget.selectedCodes,
+            );
+            cardBase64 = base64Encode(result.bytes);
+          }
+        } catch (_) {
+          // Rendering failure is non-fatal; server falls back to flag grid.
         }
-      } catch (_) {
-        // Rendering failure is non-fatal; server falls back to flag grid.
       }
 
       final callable =
@@ -302,6 +343,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         'selectedCountryCodes': widget.selectedCodes,
         'quantity': 1,
         if (widget.cardId != null) 'cardId': widget.cardId,
+        if (widget.artworkConfirmationId != null)
+          'artworkConfirmationId': widget.artworkConfirmationId,
+        if (mockupApprovalId != null) 'mockupApprovalId': mockupApprovalId,
         if (cardBase64 != null) 'clientCardBase64': cardBase64,
         if (_isTshirt) 'placement': _placement,
       });
@@ -446,8 +490,8 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     switch (_previewState) {
       case _PreviewState.initial:
         return FilledButton(
-          onPressed: _generatePreview,
-          child: const Text('Preview my design'),
+          onPressed: _navigateToApproval,
+          child: const Text('Approve & buy'),
         );
       case _PreviewState.loading:
         return FilledButton(
@@ -495,7 +539,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           // Card template picker (ADR-099)
           _SectionLabel('Card design'),
           _SegmentedPicker(
-            options: const ['Grid', 'Heart', 'Passport'],
+            options: const ['Grid', 'Heart', 'Passport', 'Timeline'],
             selected: _templateLabel(_selectedTemplate),
             onChanged: (v) => setState(() {
               _selectedTemplate = _templateFromLabel(v);

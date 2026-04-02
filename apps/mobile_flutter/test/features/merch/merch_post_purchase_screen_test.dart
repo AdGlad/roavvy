@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/merch/merch_post_purchase_screen.dart';
-import 'package:mobile_flutter/features/merch/merch_product_browser_screen.dart';
+import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: child);
 

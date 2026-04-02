@@ -68,6 +68,18 @@ export interface MerchConfig {
    * Defaults to 'front'. Not applicable for poster products.
    */
   placement: 'front' | 'back';
+  /**
+   * ID of the ArtworkConfirmation the user approved before selecting this product
+   * (M48: data foundation, ADR-100).
+   * Null for orders placed before M48 or via the legacy country-selection flow.
+   */
+  artworkConfirmationId: string | null;
+  /**
+   * ID of the MockupApproval record the user confirmed before checkout was
+   * initiated (M53, ADR-105).
+   * Null for orders placed before M53.
+   */
+  mockupApprovalId: string | null;
 }
 
 /** Request payload for createMerchCart onCall function */
@@ -90,6 +102,16 @@ export interface CreateMerchCartRequest {
    * Defaults to 'front' when absent. Ignored for poster products.
    */
   placement?: 'front' | 'back';
+  /**
+   * ID of the ArtworkConfirmation the user approved before product selection
+   * (M48, ADR-100). Optional — omitting it is valid for legacy callers.
+   */
+  artworkConfirmationId?: string;
+  /**
+   * ID of the MockupApproval record capturing user consent before checkout
+   * (M53, ADR-105). Optional — omitting it is valid for legacy callers.
+   */
+  mockupApprovalId?: string;
 }
 
 /** Response payload from createMerchCart */

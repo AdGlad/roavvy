@@ -1,18 +1,19 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'card_branding_footer.dart';
 import 'flag_tile_renderer.dart';
 import 'heart_layout_engine.dart';
 import 'paper_texture_painter.dart';
 import 'passport_layout_engine.dart';
 import 'passport_stamp_model.dart';
+import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
 // ── Shared constants ─────────────────────────────────────────────────────────
-
-const _kAspectRatio = 3.0 / 2.0;
 
 String _flag(String code) {
   if (code.length != 2) return '';
@@ -21,7 +22,20 @@ String _flag(String code) {
       String.fromCharCode(base + code.codeUnitAt(1) - 65);
 }
 
-const _kBrand = 'ROAVVY';
+// ── Grid tile-size helper (M50-C1) ────────────────────────────────────────────
+
+/// Adaptive tile size for [GridFlagsCard] (ADR-102).
+///
+/// `tileSize = clamp(floor(sqrt(canvasArea / n) * 0.85), 28, 90)`
+///
+/// Exposed with [@visibleForTesting] for unit testing without widget
+/// infrastructure.
+@visibleForTesting
+double gridTileSize(double canvasArea, int n) {
+  assert(n > 0, 'n must be > 0');
+  final raw = (math.sqrt(canvasArea / n) * 0.85).floorToDouble();
+  return raw.clamp(28.0, 90.0);
+}
 
 // ── GridFlagsCard ─────────────────────────────────────────────────────────────
 
@@ -30,9 +44,19 @@ const _kBrand = 'ROAVVY';
 /// Dark navy background with amber accent. Up to 40 flags shown; overflow
 /// shown as "+N more". Displays country count at the bottom.
 class GridFlagsCard extends StatelessWidget {
-  const GridFlagsCard({super.key, required this.countryCodes});
+  const GridFlagsCard({
+    super.key,
+    required this.countryCodes,
+    this.aspectRatio = 3.0 / 2.0,
+    this.dateLabel = '',
+  });
 
   final List<String> countryCodes;
+  final double aspectRatio;
+
+  /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
+  /// Empty string omits the date label from the branding footer (ADR-101).
+  final String dateLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -41,23 +65,12 @@ class GridFlagsCard extends StatelessWidget {
     final overflow = countryCodes.length - visible.length;
 
     return AspectRatio(
-      aspectRatio: _kAspectRatio,
+      aspectRatio: aspectRatio,
       child: Container(
         decoration: const BoxDecoration(color: Color(0xFF0D2137)),
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              _kBrand,
-              style: TextStyle(
-                color: Color(0xFFD4A017),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 8),
             Expanded(
               child: countryCodes.isEmpty
                   ? const Center(
@@ -67,45 +80,42 @@ class GridFlagsCard extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                     )
-                  : Wrap(
-                      spacing: 4,
-                      runSpacing: 2,
-                      children: [
-                        for (final code in visible)
-                          Text(_flag(code),
-                              style: const TextStyle(fontSize: 18)),
-                        if (overflow > 0)
-                          Text(
-                            '+$overflow',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Adaptive tile size (ADR-102 / M50-C1).
+                        final tileSize = gridTileSize(
+                          constraints.maxWidth * constraints.maxHeight,
+                          visible.length,
+                        );
+                        final overflowFontSize =
+                            math.max(10.0, tileSize * 0.5);
+                        return Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Wrap(
+                            spacing: 2,
+                            runSpacing: 2,
+                            children: [
+                              for (final code in visible)
+                                Text(_flag(code),
+                                    style: TextStyle(fontSize: tileSize)),
+                              if (overflow > 0)
+                                Text(
+                                  '+$overflow',
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: overflowFontSize,
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
+                        );
+                      },
                     ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  '${countryCodes.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Flexible(
-                  child: Text(
-                    'countries visited',
-                    style: TextStyle(color: Color(0xFFD4A017), fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            CardBrandingFooter(
+              countryCount: countryCodes.length,
+              dateLabel: dateLabel,
             ),
           ],
         ),
@@ -152,18 +162,25 @@ class HeartFlagsCard extends StatelessWidget {
     this.trips = const [],
     this.flagOrder = HeartFlagOrder.randomized,
     this.config = const HeartRenderConfig(),
+    this.aspectRatio = 3.0 / 2.0,
+    this.dateLabel = '',
   });
 
   final List<String> countryCodes;
   final List<TripRecord> trips;
   final HeartFlagOrder flagOrder;
   final HeartRenderConfig config;
+  final double aspectRatio;
+
+  /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
+  /// Empty string omits the date label from the branding footer (ADR-101).
+  final String dateLabel;
 
   @override
   Widget build(BuildContext context) {
     if (countryCodes.isEmpty) {
       return AspectRatio(
-        aspectRatio: _kAspectRatio,
+        aspectRatio: aspectRatio,
         child: Container(
           color: const Color(0xFF0D2137),
           child: const Center(
@@ -178,18 +195,34 @@ class HeartFlagsCard extends StatelessWidget {
     }
 
     return AspectRatio(
-      aspectRatio: _kAspectRatio,
+      aspectRatio: aspectRatio,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
-          return CustomPaint(
-            painter: _HeartPainter(
-              countryCodes: countryCodes,
-              trips: trips,
-              flagOrder: flagOrder,
-              config: config,
-              canvasSize: size,
-            ),
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _HeartPainter(
+                    countryCodes: countryCodes,
+                    trips: trips,
+                    flagOrder: flagOrder,
+                    config: config,
+                    canvasSize: size,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: CardBrandingFooter(
+                  countryCount: countryCodes.length,
+                  dateLabel: dateLabel,
+                  backgroundColor: const Color(0xCC0D2137),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -267,24 +300,6 @@ class _HeartPainter extends CustomPainter {
       canvas.restore();
     }
 
-    // 3. ROAVVY brand label.
-    _drawBrandLabel(canvas, size);
-  }
-
-  void _drawBrandLabel(Canvas canvas, Size size) {
-    final tp = TextPainter(
-      text: const TextSpan(
-        text: _kBrand,
-        style: TextStyle(
-          color: Color(0xB3FFFFFF), // white70
-          fontSize: 8,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(size.width - tp.width - 10, size.height - tp.height - 6));
   }
 
   @override
@@ -308,15 +323,35 @@ class PassportStampsCard extends StatelessWidget {
     super.key,
     required this.countryCodes,
     this.trips = const [],
+    this.entryOnly = false,
+    this.forPrint = false,
+    this.aspectRatio = 3.0 / 2.0,
+    this.dateLabel = '',
+    this.onWasForced,
   });
 
   final List<String> countryCodes;
   final List<TripRecord> trips;
+  final bool entryOnly;
+
+  /// When `true`, the layout engine uses a 3% safe-zone margin, disables edge
+  /// clipping, and applies an adaptive stamp radius (ADR-102 / M50-C2).
+  final bool forPrint;
+
+  final double aspectRatio;
+
+  /// Called once after the first layout when [forPrint] is `true`, with the
+  /// value of [PassportLayoutResult.wasForced] (ADR-103).
+  final ValueChanged<bool>? onWasForced;
+
+  /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
+  /// Empty string omits the date label from the branding footer (ADR-101).
+  final String dateLabel;
 
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
-      aspectRatio: _kAspectRatio,
+      aspectRatio: aspectRatio,
       child: countryCodes.isEmpty
           ? const _PassportEmptyState()
           : LayoutBuilder(
@@ -331,20 +366,20 @@ class PassportStampsCard extends StatelessWidget {
                         countryCodes: countryCodes,
                         trips: trips,
                         canvasSize: size,
+                        entryOnly: entryOnly,
+                        forPrint: forPrint,
+                        onWasForced: onWasForced,
                       ),
                     ),
-                    // ROAVVY watermark
+                    // Branding footer: wordmark + count + date label (ADR-101)
                     Positioned(
-                      bottom: 6,
-                      right: 10,
-                      child: Text(
-                        _kBrand,
-                        style: const TextStyle(
-                          color: Color(0xFF8B6914),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2,
-                        ),
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: CardBrandingFooter(
+                        countryCount: countryCodes.length,
+                        dateLabel: dateLabel,
+                        textColor: const Color(0xFF8B6914),
                       ),
                     ),
                   ],
@@ -377,37 +412,114 @@ class _PassportEmptyState extends StatelessWidget {
   }
 }
 
-class _PassportPagePainter extends StatelessWidget {
+class _PassportPagePainter extends StatefulWidget {
   const _PassportPagePainter({
     required this.countryCodes,
     required this.trips,
     required this.canvasSize,
+    this.entryOnly = false,
+    this.forPrint = false,
+    this.onWasForced,
   });
 
   final List<String> countryCodes;
   final List<TripRecord> trips;
   final Size canvasSize;
+  final bool entryOnly;
+  final bool forPrint;
+  final ValueChanged<bool>? onWasForced;
+
+  @override
+  State<_PassportPagePainter> createState() => _PassportPagePainterState();
+}
+
+class _PassportPagePainterState extends State<_PassportPagePainter> {
+  late List<StampData> _stamps;
+  bool _wasForced = false;
+  Map<String, StampAsset> _assets = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _applyLayoutResult(_computeLayoutResult());
+    _loadAssets();
+  }
+
+  @override
+  void didUpdateWidget(_PassportPagePainter old) {
+    super.didUpdateWidget(old);
+    if (!listEquals(old.countryCodes, widget.countryCodes) ||
+        !listEquals(old.trips, widget.trips) ||
+        old.canvasSize != widget.canvasSize ||
+        old.entryOnly != widget.entryOnly ||
+        old.forPrint != widget.forPrint) {
+      setState(() {
+        _applyLayoutResult(_computeLayoutResult());
+        _assets = const {};
+      });
+      _loadAssets();
+    }
+  }
+
+  void _applyLayoutResult(PassportLayoutResult result) {
+    _stamps = result.stamps;
+    _wasForced = result.wasForced;
+    // Notify caller of wasForced on first layout (ADR-103).
+    widget.onWasForced?.call(_wasForced);
+  }
+
+  PassportLayoutResult _computeLayoutResult() => PassportLayoutEngine.layout(
+        trips: widget.trips,
+        countryCodes: widget.countryCodes,
+        canvasSize: widget.canvasSize,
+        entryOnly: widget.entryOnly,
+        forPrint: widget.forPrint,
+      );
+
+  Future<void> _loadAssets() async {
+    // Capture the stamp list in case it changes while we await.
+    final stampsSnapshot = _stamps;
+    await StampAssetLoader.instance.ensureManifestLoaded();
+
+    final loaded = <String, StampAsset>{};
+    for (final stamp in stampsSnapshot) {
+      final key = StampAssetLoader.assetKey(stamp.countryCode, stamp.isEntry);
+      if (!loaded.containsKey(key)) {
+        final asset = await StampAssetLoader.instance.load(
+          stamp.countryCode,
+          stamp.isEntry,
+        );
+        if (asset != null) loaded[key] = asset;
+      }
+    }
+
+    if (mounted && loaded.isNotEmpty) {
+      setState(() => _assets = loaded);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final stamps = PassportLayoutEngine.layout(
-      trips: trips,
-      countryCodes: countryCodes,
-      canvasSize: canvasSize,
-    );
-
     return CustomPaint(
-      painter: _MultiStampPainter(stamps),
+      painter: _MultiStampPainter(_stamps, _assets),
     );
   }
 }
 
 /// Unified painter: draws parchment background then stamps with
 /// [BlendMode.multiply] so ink darkens the paper texture (ADR-097 Decision 9).
+///
+/// Stamps with a registered asset (PNG + JSON metadata) are rendered from the
+/// image file with a date text overlay. All others fall back to the procedural
+/// [StampPainter]. Both paths sit inside the same multiply saveLayer so the
+/// ink-on-parchment compositing is consistent.
 class _MultiStampPainter extends CustomPainter {
-  const _MultiStampPainter(this.stamps);
+  _MultiStampPainter(this.stamps, this.assets);
 
   final List<StampData> stamps;
+
+  /// Preloaded assets keyed by [StampAssetLoader.assetKey].
+  final Map<String, StampAsset> assets;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -428,7 +540,13 @@ class _MultiStampPainter extends CustomPainter {
         canvas.save();
         canvas.clipRect(stamp.edgeClip!);
       }
-      StampPainter(stamp).paint(canvas, size);
+      final key = StampAssetLoader.assetKey(stamp.countryCode, stamp.isEntry);
+      final asset = assets[key];
+      if (asset != null) {
+        _drawAssetStamp(canvas, stamp, asset);
+      } else {
+        StampPainter(stamp).paint(canvas, size);
+      }
       if (hasClip) {
         canvas.restore();
       }
@@ -444,6 +562,68 @@ class _MultiStampPainter extends CustomPainter {
     // 4. Vignette: subtle corner darkening (replaces PaperTexturePainter corner
     //    aging which was removed in M45)
     _drawVignette(canvas, size);
+  }
+
+  /// Renders a stamp from its PNG asset, scaled to the stamp's bounding box,
+  /// with the date string overlaid at the position specified in the metadata.
+  void _drawAssetStamp(Canvas canvas, StampData stamp, StampAsset asset) {
+    final meta = asset.metadata;
+    final baseRadius = 38.0 * stamp.scale;
+    final targetW = baseRadius * 2.8;
+    final targetH = targetW * (meta.imageHeight / meta.imageWidth);
+
+    canvas.save();
+    canvas.translate(stamp.center.dx, stamp.center.dy);
+    canvas.rotate(stamp.rotation);
+
+    // Draw the PNG — apply age opacity via paint alpha.
+    canvas.drawImageRect(
+      asset.image,
+      Rect.fromLTWH(0, 0, meta.imageWidth, meta.imageHeight),
+      Rect.fromCenter(center: Offset.zero, width: targetW, height: targetH),
+      Paint()..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity),
+    );
+
+    // Overlay the date string if present.
+    if (stamp.dateLabel != null && stamp.dateLabel!.isNotEmpty) {
+      _drawDateOverlay(canvas, stamp, meta, targetW, targetH);
+    }
+
+    canvas.restore();
+  }
+
+  /// Draws the date text at the position specified by [meta.dateSpec], scaled
+  /// from native image coordinates to the target stamp rect.
+  void _drawDateOverlay(
+    Canvas canvas,
+    StampData stamp,
+    StampMetadata meta,
+    double targetW,
+    double targetH,
+  ) {
+    final spec = meta.dateSpec;
+    final scaleX = targetW / meta.imageWidth;
+    final scaleY = targetH / meta.imageHeight;
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: stamp.dateLabel,
+        style: TextStyle(
+          color: stamp.inkColor.withValues(alpha: stamp.ageEffect.opacity),
+          fontSize: spec.fontSize * scaleY,
+          fontWeight: FontWeight.w700,
+          letterSpacing: spec.letterSpacing * scaleX,
+          fontFamily: 'Courier New',
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // spec.x/y are native-image-space centre coords; translate to the
+    // rotated canvas where the stamp centre is at Offset.zero.
+    final textLeft = spec.x * scaleX - targetW / 2 - tp.width / 2;
+    final textTop = spec.y * scaleY - targetH / 2 - tp.height / 2;
+    tp.paint(canvas, Offset(textLeft, textTop));
   }
 
   void _drawWavyCancelLines(Canvas canvas, Size size, int seed) {
@@ -503,5 +683,6 @@ class _MultiStampPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MultiStampPainter old) => old.stamps != stamps;
+  bool shouldRepaint(_MultiStampPainter old) =>
+      old.stamps != stamps || old.assets != assets;
 }

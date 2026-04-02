@@ -1,0 +1,24 @@
+{
+  "name": "abkhazia-ab-entry",
+  "png_asset": "abkhazia-ab-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}",
+    "date_format": "{{DATE_FORMAT}}"
+  },
+  "date": {
+    "x": 200.0,
+    "y": 133.5,
+    "rotation": 0.0,
+    "font_size": 32,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": 0.52,
+    "anchor": "middle",
+    "date_format": "dd MMM yy"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

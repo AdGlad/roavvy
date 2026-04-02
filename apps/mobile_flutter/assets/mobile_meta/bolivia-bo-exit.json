@@ -1,0 +1,24 @@
+{
+  "name": "bolivia-bo-exit",
+  "png_asset": "bolivia-bo-exit.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}",
+    "date_format": "{{DATE_FORMAT}}"
+  },
+  "date": {
+    "x": 195.0,
+    "y": 128.5,
+    "rotation": 0.0,
+    "font_size": 31,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": -1.48,
+    "anchor": "middle",
+    "date_format": "dd MMM yyyy"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

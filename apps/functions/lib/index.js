@@ -183,7 +183,7 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
     }
     const uid = request.auth.uid;
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, placement: rawPlacement } = request.data;
+    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, placement: rawPlacement, artworkConfirmationId, mockupApprovalId } = request.data;
     const placement = rawPlacement === 'back' ? 'back' : 'front';
     if (!variantId || typeof variantId !== 'string') {
         throw new https_1.HttpsError('invalid-argument', 'variantId is required.');
@@ -234,6 +234,10 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
         cardId: typeof cardId === 'string' ? cardId : null,
         // M47 field (ADR-099): print placement for t-shirt; defaults to 'front'
         placement,
+        // M48 field (ADR-100): links this order to the ArtworkConfirmation the user approved
+        artworkConfirmationId: typeof artworkConfirmationId === 'string' ? artworkConfirmationId : null,
+        // M53 field (ADR-105): links this order to the MockupApproval the user confirmed
+        mockupApprovalId: typeof mockupApprovalId === 'string' ? mockupApprovalId : null,
     };
     await configRef.set(configData);
     // ── Step 2 & 3: Generate preview + print PNGs ──────────────────────────
@@ -458,6 +462,29 @@ exports.shopifyOrderCreated = (0, https_1.onRequest)({ invoker: 'public' }, asyn
     const config = snap.docs[0].data();
     // Update order status
     await docRef.update({ shopifyOrderId, status: 'ordered' });
+    // ── Link purchase to ArtworkConfirmation (M48, ADR-100) ────────────────
+    // Non-blocking: failure here must not prevent the Printful order path.
+    if (config.artworkConfirmationId) {
+        try {
+            const confirmationSnap = await db
+                .collectionGroup('artwork_confirmations')
+                .where('confirmationId', '==', config.artworkConfirmationId)
+                .limit(1)
+                .get();
+            if (!confirmationSnap.empty) {
+                await confirmationSnap.docs[0].ref.update({
+                    status: 'purchase_linked',
+                    orderId: shopifyOrderId,
+                });
+            }
+            else {
+                console.warn(`[shopifyOrderCreated] ArtworkConfirmation not found: ${config.artworkConfirmationId}`);
+            }
+        }
+        catch (err) {
+            console.error(`[shopifyOrderCreated] Failed to link ArtworkConfirmation ${config.artworkConfirmationId}:`, err);
+        }
+    }
     // ── Validate / refresh print file ──────────────────────────────────────
     let printFileSignedUrl = config.printFileSignedUrl;
     if (config.designStatus === 'generation_error' ||

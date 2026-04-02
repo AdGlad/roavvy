@@ -6,10 +6,26 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import 'passport_stamp_model.dart';
 
+/// Result returned by [PassportLayoutEngine.layout].
+class PassportLayoutResult {
+  const PassportLayoutResult({
+    required this.stamps,
+    required this.wasForced,
+  });
+
+  /// The placed stamps for this layout.
+  final List<StampData> stamps;
+
+  /// `true` when [PassportLayoutEngine.layout] was called with `forPrint=true`
+  /// and forced `entryOnly=true` because the adaptive baseRadius would have
+  /// dropped below 20 px (ADR-102).
+  final bool wasForced;
+}
+
 /// Deterministic stamp placement engine for the passport card template.
 ///
-/// Produces a stable [List<StampData>] for any given set of trips/codes and
-/// canvas size. Same user → same layout across all devices and sessions.
+/// Produces a stable [PassportLayoutResult] for any given set of trips/codes
+/// and canvas size. Same user → same layout across all devices and sessions.
 /// (ADR-097)
 class PassportLayoutEngine {
   const PassportLayoutEngine._();
@@ -69,13 +85,23 @@ class PassportLayoutEngine {
   ///
   /// [seed] defaults to a hash of [countryCodes] so the layout is stable per
   /// user while still allowing callers to vary it (e.g. a shuffle button).
-  static List<StampData> layout({
+  ///
+  /// When [forPrint] is `true` the layout applies a 3% safe-zone margin (vs
+  /// the default 8%), disables all edge clipping, and uses a uniform adaptive
+  /// base radius (ADR-102). If the computed radius would drop below 20 and
+  /// [entryOnly] was not already set, [entryOnly] is forced and
+  /// [PassportLayoutResult.wasForced] will be `true`.
+  static PassportLayoutResult layout({
     required List<TripRecord> trips,
     required List<String> countryCodes,
     required Size canvasSize,
     int? seed,
+    bool entryOnly = false,
+    bool forPrint = false,
   }) {
-    if (countryCodes.isEmpty) return const [];
+    if (countryCodes.isEmpty) {
+      return const PassportLayoutResult(stamps: [], wasForced: false);
+    }
 
     final effectiveSeed = seed ?? countryCodes.join().hashCode;
     final rng = math.Random(effectiveSeed);
@@ -91,14 +117,31 @@ class PassportLayoutEngine {
     final totalCount =
         math.min(sortedTrips.length + extraCodes.length, _kMaxStamps);
 
+    // ── Print-safe mode setup (ADR-102) ──────────────────────────────────────
+    final marginFraction = forPrint ? 0.03 : 0.08;
+    final marginX = canvasSize.width * marginFraction;
+    final marginY = canvasSize.height * marginFraction;
+    final usableW = canvasSize.width - marginX * 2;
+    final usableH = canvasSize.height - marginY * 2;
+
+    // Determine baseRadius and wasForced for print mode.
+    double? forPrintBaseRadius;
+    bool wasForced = false;
+    if (forPrint && totalCount > 0) {
+      final shortSide = math.min(usableW, usableH);
+      final sqrtN = math.sqrt(totalCount);
+      final gridN = sqrtN.ceil().toDouble();
+      final unclamped = shortSide / (2.5 * gridN);
+      forPrintBaseRadius = unclamped.clamp(20.0, 38.0);
+      if (unclamped < 20.0 && !entryOnly) {
+        wasForced = true;
+        entryOnly = true;
+      }
+    }
+
     final stamps = <StampData>[];
     final placedCentres = <Offset>[];
     final placedRadii = <double>[];
-
-    final marginX = canvasSize.width * 0.08;
-    final marginY = canvasSize.height * 0.08;
-    final usableW = canvasSize.width - marginX * 2;
-    final usableH = canvasSize.height - marginY * 2;
 
     // Soft-grid cell occupancy tracking
     final cellOccupancy = List<int>.filled(_kGridCols * _kGridRows, 0);
@@ -123,8 +166,16 @@ class PassportLayoutEngine {
 
       // ADR-097: ±20° rotation (was ±12°)
       final rotation = (rng.nextDouble() * 2 - 1) * (20 * math.pi / 180);
-      final scale = 0.85 + rng.nextDouble() * 0.3; // 0.85 – 1.15
-      final baseRadius = 38.0 * scale;
+      // In print mode use uniform adaptive radius; otherwise random per-stamp.
+      final double scale;
+      final double baseRadius;
+      if (forPrint && forPrintBaseRadius != null) {
+        baseRadius = forPrintBaseRadius;
+        scale = baseRadius / 38.0;
+      } else {
+        scale = 0.85 + rng.nextDouble() * 0.3; // 0.85 – 1.15
+        baseRadius = 38.0 * scale;
+      }
 
       // Find a non-occluded placement using soft-grid weighting
       Offset? centre;
@@ -150,9 +201,10 @@ class PassportLayoutEngine {
         marginY + rng.nextDouble() * usableH,
       );
 
-      // 8% chance of edge clipping (partial stamp at page boundary)
+      // 8% chance of edge clipping (partial stamp at page boundary).
+      // Disabled in print mode — all stamps must be fully visible (ADR-102).
       Rect? edgeClip;
-      if (rng.nextDouble() < 0.08) {
+      if (!forPrint && rng.nextDouble() < 0.08) {
         edgeClip = _edgeClipRect(centre, baseRadius, canvasSize, rng);
       }
 
@@ -167,7 +219,7 @@ class PassportLayoutEngine {
           rotation: rotation,
           center: centre,
           scale: scale,
-          isEntry: stampIdx % 2 == 0,
+          isEntry: entryOnly || stampIdx % 2 == 0,
           countryName: kCountryNames[trip.countryCode] ?? trip.countryCode,
           edgeClip: edgeClip,
         );
@@ -193,7 +245,7 @@ class PassportLayoutEngine {
       stampIdx++;
     }
 
-    return stamps;
+    return PassportLayoutResult(stamps: stamps, wasForced: wasForced);
   }
 
   /// Reject placement if the centre is within 80% of any existing stamp radius.
