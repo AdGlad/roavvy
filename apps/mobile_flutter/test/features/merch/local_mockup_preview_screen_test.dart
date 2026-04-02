@@ -30,6 +30,8 @@ Widget _wrap(
 
 LocalMockupPreviewScreen _makeScreen({
   CardTemplateType template = CardTemplateType.grid,
+  double confirmedAspectRatio = 3.0 / 2.0,
+  bool confirmedEntryOnly = false,
 }) {
   return LocalMockupPreviewScreen(
     selectedCodes: const ['GB', 'FR'],
@@ -37,6 +39,8 @@ LocalMockupPreviewScreen _makeScreen({
     artworkImageBytes: _kFakeArtwork,
     artworkConfirmationId: 'ac-test-001',
     initialTemplate: template,
+    confirmedAspectRatio: confirmedAspectRatio,
+    confirmedEntryOnly: confirmedEntryOnly,
   );
 }
 

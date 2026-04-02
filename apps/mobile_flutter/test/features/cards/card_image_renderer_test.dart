@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/cards/card_image_renderer.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'package:mobile_flutter/features/cards/heart_layout_engine.dart';
+
 /// Renders [template] for [codes] inside a widget test environment.
 ///
 /// Uses a [MaterialApp] + [Scaffold] to provide the [Overlay] that
@@ -11,6 +13,10 @@ Future<CardRenderResult> _render(
   WidgetTester tester,
   CardTemplateType template, {
   List<String> codes = const ['GB', 'FR'],
+  bool entryOnly = false,
+  double cardAspectRatio = 3.0 / 2.0,
+  HeartFlagOrder heartOrder = HeartFlagOrder.alphabetical,
+  String dateLabel = '',
 }) async {
   BuildContext? ctx;
 
@@ -31,7 +37,15 @@ Future<CardRenderResult> _render(
 
   late CardRenderResult result;
   await tester.runAsync(() async {
-    final future = CardImageRenderer.render(ctx!, template, codes: codes);
+    final future = CardImageRenderer.render(
+      ctx!,
+      template,
+      codes: codes,
+      entryOnly: entryOnly,
+      cardAspectRatio: cardAspectRatio,
+      heartOrder: heartOrder,
+      dateLabel: dateLabel,
+    );
     // Pump two frames: one to build the OverlayEntry, one to fire the
     // post-frame callback that captures the RepaintBoundary.
     await tester.pump();
@@ -90,6 +104,52 @@ void main() {
           await _render(tester, CardTemplateType.grid, codes: ['GB', 'FR']);
       expect(result1.imageHash, equals(result2.imageHash),
           reason: 'Hash must be deterministic for identical inputs');
+    });
+
+    // ADR-112: new params are forwarded to template widgets.
+    testWidgets('render completes with entryOnly=true for passport template',
+        (tester) async {
+      final result = await _render(
+        tester,
+        CardTemplateType.passport,
+        codes: ['GB', 'FR'],
+        entryOnly: true,
+      );
+      expect(result.bytes, isNotEmpty);
+    });
+
+    testWidgets('render completes with portrait cardAspectRatio for grid',
+        (tester) async {
+      final result = await _render(
+        tester,
+        CardTemplateType.grid,
+        codes: ['GB', 'FR'],
+        cardAspectRatio: 2.0 / 3.0,
+      );
+      expect(result.bytes, isNotEmpty);
+    });
+
+    testWidgets(
+        'render completes with heartOrder=alphabetical for heart template',
+        (tester) async {
+      final result = await _render(
+        tester,
+        CardTemplateType.heart,
+        codes: ['GB', 'FR', 'DE'],
+        heartOrder: HeartFlagOrder.alphabetical,
+      );
+      expect(result.bytes, isNotEmpty);
+    });
+
+    testWidgets('render with dateLabel produces non-empty bytes',
+        (tester) async {
+      final result = await _render(
+        tester,
+        CardTemplateType.grid,
+        codes: ['GB', 'FR'],
+        dateLabel: '2018\u20132024',
+      );
+      expect(result.bytes, isNotEmpty);
     });
   });
 }

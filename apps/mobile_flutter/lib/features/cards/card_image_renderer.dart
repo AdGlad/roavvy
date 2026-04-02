@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_templates.dart';
+import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
 
 /// The result of a [CardImageRenderer.render] call.
@@ -54,6 +55,11 @@ class CardImageRenderer {
   /// `forPrint=true` (safe-zone margins, no edge clips, adaptive radius —
   /// ADR-102). [CardRenderResult.wasForced] will be `true` if the stamp count
   /// forced `entryOnly=true` (ADR-103).
+  ///
+  /// [entryOnly] — passed to [PassportStampsCard] (ADR-112).
+  /// [cardAspectRatio] — aspect ratio forwarded to all templates (ADR-112).
+  /// [heartOrder] — flag ordering for [HeartFlagsCard] (ADR-112).
+  /// [dateLabel] — date label forwarded to all templates (ADR-112).
   static Future<CardRenderResult> render(
     BuildContext context,
     CardTemplateType template, {
@@ -61,6 +67,10 @@ class CardImageRenderer {
     List<TripRecord> trips = const [],
     double pixelRatio = 3.0,
     bool forPrint = false,
+    bool entryOnly = false,
+    double cardAspectRatio = 3.0 / 2.0,
+    HeartFlagOrder heartOrder = HeartFlagOrder.randomized,
+    String dateLabel = '',
   }) async {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -84,6 +94,10 @@ class CardImageRenderer {
               trips,
               forPrint: forPrint,
               onWasForced: forPrint ? (v) { wasForced = v; } : null,
+              entryOnly: entryOnly,
+              cardAspectRatio: cardAspectRatio,
+              heartOrder: heartOrder,
+              dateLabel: dateLabel,
             ),
           ),
         ),
@@ -134,21 +148,43 @@ class CardImageRenderer {
     List<TripRecord> trips, {
     bool forPrint = false,
     ValueChanged<bool>? onWasForced,
+    bool entryOnly = false,
+    double cardAspectRatio = 3.0 / 2.0,
+    HeartFlagOrder heartOrder = HeartFlagOrder.randomized,
+    String dateLabel = '',
   }) {
     switch (template) {
       case CardTemplateType.grid:
-        return GridFlagsCard(countryCodes: codes);
+        return GridFlagsCard(
+          countryCodes: codes,
+          aspectRatio: cardAspectRatio,
+          dateLabel: dateLabel,
+        );
       case CardTemplateType.heart:
-        return HeartFlagsCard(countryCodes: codes);
+        return HeartFlagsCard(
+          countryCodes: codes,
+          trips: trips,
+          flagOrder: heartOrder,
+          aspectRatio: cardAspectRatio,
+          dateLabel: dateLabel,
+        );
       case CardTemplateType.passport:
         return PassportStampsCard(
           countryCodes: codes,
           trips: trips,
+          entryOnly: entryOnly,
           forPrint: forPrint,
           onWasForced: onWasForced,
+          aspectRatio: cardAspectRatio,
+          dateLabel: dateLabel,
         );
       case CardTemplateType.timeline:
-        return TimelineCard(countryCodes: codes, trips: trips);
+        return TimelineCard(
+          countryCodes: codes,
+          trips: trips,
+          aspectRatio: cardAspectRatio,
+          dateLabel: dateLabel,
+        );
     }
   }
 }

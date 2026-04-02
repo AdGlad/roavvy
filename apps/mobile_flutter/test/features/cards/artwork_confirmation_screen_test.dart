@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +7,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/cards/artwork_confirmation_screen.dart';
+import 'package:mobile_flutter/features/cards/card_image_renderer.dart';
 import 'package:shared_models/shared_models.dart';
+
+// Minimal valid 1×1 RGB PNG (69 bytes).
+final _kFakePng = Uint8List.fromList([
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1,
+  0, 0, 0, 1, 8, 2, 0, 0, 0, 144, 119, 83, 222, 0, 0, 0, 12, 73, 68, 65, 84,
+  120, 156, 99, 72, 153, 118, 2, 0, 3, 36, 1, 195, 32, 85, 100, 163, 0, 0, 0,
+  0, 73, 69, 78, 68, 174, 66, 96, 130,
+]);
 
 /// Minimal widget test harness for [ArtworkConfirmationScreen].
 ///
@@ -254,6 +265,60 @@ void main() {
         findsNothing,
         reason: 'wasForced notice must not appear for grid template',
       );
+    });
+  });
+
+  group('ArtworkConfirmationScreen — ADR-112 preRenderedResult', () {
+    testWidgets(
+        'when preRenderedResult provided, shows image immediately without loading',
+        (tester) async {
+      final preRender = CardRenderResult(
+        bytes: _kFakePng,
+        imageHash: 'a' * 64,
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          ArtworkConfirmationScreen(
+            templateType: CardTemplateType.grid,
+            countryCodes: const ['GB', 'FR'],
+            preRenderedResult: preRender,
+          ),
+        ),
+      );
+
+      // First frame — _rendering is false because preRenderedResult was set.
+      await tester.pump();
+
+      // No loading indicator — render was skipped.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets(
+        'when preRenderedResult provided, Confirm artwork button is enabled immediately',
+        (tester) async {
+      final preRender = CardRenderResult(
+        bytes: _kFakePng,
+        imageHash: 'b' * 64,
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          ArtworkConfirmationScreen(
+            templateType: CardTemplateType.grid,
+            countryCodes: const ['GB'],
+            preRenderedResult: preRender,
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Confirm artwork'),
+      );
+      expect(button.onPressed, isNotNull,
+          reason: 'Button must be enabled when preRenderedResult is set');
     });
   });
 

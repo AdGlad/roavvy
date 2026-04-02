@@ -21,3 +21,6 @@
 - [x] **M56-13** — Incremental scanning: process new images only after initial scan
 - [x] **M56-14** — Add user control for incremental scan vs full scan
 - [x] **M56-15** — Auto-run incremental scan on app open after first scan
+- [x] **M56-16** — Ensure selected card design image is used consistently through print and purchase flow (P1 bugfix)
+
+**Status:** ✅ Complete (2026-04-02)

@@ -323,12 +323,33 @@ After the first successful scan, the app automatically triggers an incremental s
 
 ---
 
+### M56-16 — Ensure selected card design image is used consistently through print and purchase flow (P1)
+
+**Problem statement:**
+When a user selects and configures a passport/card image in the Create Card flow, the image shown in `ArtworkConfirmationScreen` is re-generated from scratch rather than using the image the user was looking at. For non-deterministic templates (Heart/randomized, Passport with stamp scatter and rotation) and for templates with explicit user-controlled params (`entryOnly`, `aspectRatio`), the confirmed image differs from the selected image. Additionally, `CardImageRenderer` ignored `entryOnly`, `aspectRatio`, `heartOrder`, and `dateLabel` entirely, so every render call used defaults.
+
+**Desired outcome:**
+The exact image the user selected and configured in the Create Card flow is pre-rendered once and passed unchanged through the confirmation, mockup, and purchase screens. No silent re-generation occurs.
+
+**Acceptance criteria:**
+- [x] `CardImageRenderer.render()` accepts and threads `entryOnly`, `cardAspectRatio`, `heartOrder`, `dateLabel` to all template widgets
+- [x] Tapping "Print your card" pre-renders the card using all current state params before pushing `ArtworkConfirmationScreen`
+- [x] `ArtworkConfirmationScreen` accepts `preRenderedResult: CardRenderResult?` and skips re-render when provided
+- [x] `_CardParams` includes `heartOrder` so same-params shortcut (ADR-103) detects heart order changes
+- [x] `LocalMockupPreviewScreen` accepts `confirmedAspectRatio` and `confirmedEntryOnly`; template-change re-renders use `forPrint: true` for passport
+- [x] Print button shows a spinner while pre-rendering; both action buttons disabled during pre-render
+- [x] Fallback: if pre-render fails, screen falls back to in-screen render (no crash)
+- [x] `flutter analyze` clean
+
+---
+
 ## Notes
 
 - More tasks may be added to this milestone before Architect is invoked.
 - Tasks are ordered approximately by user-facing impact, not implementation order.
 - Tasks M56-13 through M56-15 form a logical group (incremental scanning) and should be scoped as a sub-group during architecture.
 - Tasks M56-01 through M56-07 relate to the celebration/scan flow and share state concerns — the queue mechanism (M56-03) likely affects both M56-04 (audio timing) and M56-05/M56-06 (navigation sequencing). Architect should evaluate dependencies.
+- M56-16 was added as a P1 bugfix after M56 was marked complete; it addresses a critical trust issue in the purchase flow.
 
 ---
 

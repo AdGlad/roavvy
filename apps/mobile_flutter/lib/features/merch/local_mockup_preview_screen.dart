@@ -48,6 +48,8 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     required this.artworkImageBytes,
     required this.artworkConfirmationId,
     this.initialTemplate = CardTemplateType.grid,
+    this.confirmedAspectRatio = 3.0 / 2.0,
+    this.confirmedEntryOnly = false,
     this.cardId,
   });
 
@@ -56,6 +58,15 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final Uint8List artworkImageBytes;
   final String artworkConfirmationId;
   final CardTemplateType initialTemplate;
+
+  /// Aspect ratio of the confirmed artwork (ADR-112). Used when re-rendering
+  /// after a template change so the new render matches the original dimensions.
+  final double confirmedAspectRatio;
+
+  /// Whether entry-only mode was active when artwork was confirmed (ADR-112).
+  /// Forwarded to re-renders only when the template does not change; a template
+  /// change always resets to entry+exit (false).
+  final bool confirmedEntryOnly;
 
   /// Optional TravelCard ID — threaded through to createMerchCart for order
   /// traceability (ADR-093).
@@ -260,11 +271,17 @@ class _LocalMockupPreviewScreenState
 
     try {
       if (!context.mounted) return;
+      // ADR-112: Pass forPrint for passport and preserve the confirmed aspect
+      // ratio so the re-render dimensions match the originally approved image.
+      // entryOnly is reset to false — a template change starts fresh.
       final result = await CardImageRenderer.render(
         context,
         newTemplate,
         codes: widget.selectedCodes,
         trips: widget.trips,
+        forPrint: newTemplate == CardTemplateType.passport,
+        entryOnly: false,
+        cardAspectRatio: widget.confirmedAspectRatio,
       );
       if (!mounted) return;
       final newBytes = result.bytes;

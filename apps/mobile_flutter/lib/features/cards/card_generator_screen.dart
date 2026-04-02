@@ -16,6 +16,7 @@ import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
 import 'artwork_confirmation_screen.dart';
 import 'artwork_confirmation_service.dart';
+import 'card_image_renderer.dart';
 import 'card_templates.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
@@ -36,6 +37,7 @@ class _CardParams {
     required this.countryCodes,
     required this.aspectRatio,
     required this.entryOnly,
+    required this.heartOrder,
     this.yearStart,
     this.yearEnd,
   });
@@ -44,6 +46,7 @@ class _CardParams {
   final List<String> countryCodes;
   final double aspectRatio;
   final bool entryOnly;
+  final HeartFlagOrder heartOrder;
   final int? yearStart;
   final int? yearEnd;
 
@@ -54,6 +57,7 @@ class _CardParams {
         listEquals(countryCodes, other.countryCodes) &&
         aspectRatio == other.aspectRatio &&
         entryOnly == other.entryOnly &&
+        heartOrder == other.heartOrder &&
         yearStart == other.yearStart &&
         yearEnd == other.yearEnd;
   }
@@ -61,7 +65,7 @@ class _CardParams {
   @override
   int get hashCode =>
       Object.hash(templateType, Object.hashAll(countryCodes), aspectRatio,
-          entryOnly, yearStart, yearEnd);
+          entryOnly, heartOrder, yearStart, yearEnd);
 }
 
 // ── Card generator screen ─────────────────────────────────────────────────────
@@ -85,6 +89,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   final _previewKey = GlobalKey();
   final _transformController = TransformationController();
   bool _sharing = false;
+  bool _printing = false;
 
   // M51 re-confirmation state (ADR-103)
   _CardParams? _lastConfirmedParams;
@@ -271,6 +276,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
               const SizedBox(height: 16),
               _ActionBar(
                 sharing: _sharing,
+                printing: _printing,
                 onShare: () => _onShare(context, displayedCodes),
                 onPrint: () => _onPrint(
                   context,
@@ -385,7 +391,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     RangeValues? effectiveRange,
     bool showDateSlider,
   ) {
-    if (_sharing) return;
+    if (_sharing || _printing) return;
     unawaited(_navigateToPrint(
       context, codes, trips, effectiveRange, showDateSlider));
   }
@@ -409,6 +415,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       countryCodes: codes,
       aspectRatio: _aspectRatio,
       entryOnly: _entryOnly,
+      heartOrder: _heartOrder,
       yearStart: yearStart,
       yearEnd: yearEnd,
     );
@@ -419,6 +426,34 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       if (!context.mounted) return;
       _goToProductBrowser(context, codes);
       return;
+    }
+
+    // ADR-112: Pre-render the card once, using the exact current state
+    // (entryOnly, aspectRatio, heartOrder, dateLabel), before pushing
+    // ArtworkConfirmationScreen. This ensures the user confirms and purchases
+    // exactly the image they selected — no silent re-render inside the
+    // confirmation screen.
+    setState(() => _printing = true);
+    CardRenderResult? preRender;
+    try {
+      if (!context.mounted) return;
+      final dateLabel = _computeDateLabel(trips);
+      preRender = await CardImageRenderer.render(
+        context,
+        _selected,
+        codes: codes,
+        trips: trips,
+        forPrint: _selected == CardTemplateType.passport,
+        entryOnly: _entryOnly,
+        cardAspectRatio: _aspectRatio,
+        heartOrder: _heartOrder,
+        dateLabel: dateLabel,
+      );
+    } catch (_) {
+      // Non-fatal: fall back to in-screen render inside ArtworkConfirmationScreen.
+      preRender = null;
+    } finally {
+      if (mounted) setState(() => _printing = false);
     }
 
     // Route through ArtworkConfirmationScreen
@@ -441,6 +476,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           aspectRatio: _aspectRatio,
           entryOnly: _entryOnly,
           showUpdatedBanner: showUpdatedBanner,
+          preRenderedResult: preRender,
         ),
       ),
     );
@@ -487,9 +523,11 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       unawaited(TravelCardService(FirebaseFirestore.instance).create(card));
     }
 
-    // M55-E: Push LocalMockupPreviewScreen (replaces MerchProductBrowserScreen).
+    // M55-E / ADR-112: Push LocalMockupPreviewScreen.
     // artworkImageBytes and artworkConfirmationId are always non-null here —
     // guarded by _navigateToPrint which sets them before calling this method.
+    // Pass confirmedAspectRatio and confirmedEntryOnly so any template-change
+    // re-render inside LocalMockupPreviewScreen uses consistent params.
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => LocalMockupPreviewScreen(
         selectedCodes: codes,
@@ -497,6 +535,8 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         artworkImageBytes: _artworkImageBytes!,
         artworkConfirmationId: _artworkConfirmationId!,
         initialTemplate: _selected,
+        confirmedAspectRatio: _aspectRatio,
+        confirmedEntryOnly: _entryOnly,
         cardId: cardId,
       ),
     ));
@@ -767,11 +807,13 @@ class _DateRangeRow extends StatelessWidget {
 class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.sharing,
+    required this.printing,
     required this.onShare,
     required this.onPrint,
   });
 
   final bool sharing;
+  final bool printing;
   final VoidCallback onShare;
   final VoidCallback onPrint;
 
@@ -784,7 +826,7 @@ class _ActionBar extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: sharing ? null : onShare,
+              onPressed: (sharing || printing) ? null : onShare,
               icon: sharing
                   ? const SizedBox(
                       width: 16,
@@ -799,8 +841,14 @@ class _ActionBar extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: sharing ? null : onPrint,
-              icon: const Icon(Icons.print_outlined),
+              onPressed: (sharing || printing) ? null : onPrint,
+              icon: printing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.print_outlined),
               label: const Text('Print your card'),
             ),
           ),

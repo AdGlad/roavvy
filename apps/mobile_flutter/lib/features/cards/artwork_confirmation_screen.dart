@@ -30,9 +30,15 @@ class ArtworkConfirmResult {
 /// Shows the rendered card artwork and asks the user to confirm before
 /// entering the product selection / purchase flow (ADR-103 / M51-E1).
 ///
-/// Renders the card at [forPrint] quality (passport only). On confirm, creates
-/// an [ArtworkConfirmation] in Firestore and pops with [ArtworkConfirmResult].
-/// On "Change something", pops without writing to Firestore.
+/// When [preRenderedResult] is provided (ADR-112), it is used directly and no
+/// re-render is triggered — this guarantees the user confirms and purchases
+/// exactly the image they configured in [CardGeneratorScreen].
+///
+/// When [preRenderedResult] is null, falls back to rendering via
+/// [CardImageRenderer] (used when pre-render fails).
+///
+/// On confirm, creates an [ArtworkConfirmation] in Firestore and pops with
+/// [ArtworkConfirmResult]. On "Change something", pops without writing.
 class ArtworkConfirmationScreen extends ConsumerStatefulWidget {
   const ArtworkConfirmationScreen({
     super.key,
@@ -44,6 +50,7 @@ class ArtworkConfirmationScreen extends ConsumerStatefulWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.entryOnly = false,
     this.showUpdatedBanner = false,
+    this.preRenderedResult,
   });
 
   final CardTemplateType templateType;
@@ -57,6 +64,12 @@ class ArtworkConfirmationScreen extends ConsumerStatefulWidget {
   /// When `true`, shows an amber banner informing the user that their artwork
   /// has been updated and they should confirm the new version (M51-E3).
   final bool showUpdatedBanner;
+
+  /// Pre-rendered result from [CardImageRenderer] produced in
+  /// [CardGeneratorScreen] before navigation (ADR-112). When non-null, the
+  /// screen skips its internal render and uses these bytes directly, ensuring
+  /// the confirmed image is pixel-identical to what the user selected.
+  final CardRenderResult? preRenderedResult;
 
   @override
   ConsumerState<ArtworkConfirmationScreen> createState() =>
@@ -72,7 +85,13 @@ class _ArtworkConfirmationScreenState
   @override
   void initState() {
     super.initState();
-    _startRender();
+    // ADR-112: Use pre-rendered result when provided; skip internal render.
+    if (widget.preRenderedResult != null) {
+      _result = widget.preRenderedResult;
+      _rendering = false;
+    } else {
+      _startRender();
+    }
   }
 
   Future<void> _startRender() async {
@@ -83,6 +102,8 @@ class _ArtworkConfirmationScreenState
         codes: widget.countryCodes,
         trips: widget.filteredTrips,
         forPrint: widget.templateType == CardTemplateType.passport,
+        entryOnly: widget.entryOnly,
+        cardAspectRatio: widget.aspectRatio,
       );
       if (mounted) {
         setState(() {

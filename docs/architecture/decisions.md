@@ -3797,3 +3797,33 @@ Unvisited regions retain the existing `_kUnvisitedFill` (dark navy). Only visite
 - If `RegionRepository.loadByCountry` returns regions in a non-deterministic order, the palette assignment will be unstable across rebuilds. The sort-by-`regionCode` step is therefore load-bearing and must be explicit in the implementation.
 - Selection state (tapped region label) must remain visually distinct from the pastel fills — the existing amber `MarkerLayer` label is unaffected.
 - The ADR does not define the 12 colour values — this is a Builder decision, constrained by the HSL bounds above.
+
+---
+
+## ADR-112 — M56 Card Design Image Consistency: Single Pre-Render and Deterministic Param Threading
+
+**Status:** Accepted
+
+**Context:** When a user selects and configures a card design in `CardGeneratorScreen` (template, orientation, year filter, entryOnly, heart order), tapping "Print your card" previously navigated to `ArtworkConfirmationScreen`, which triggered a fresh `CardImageRenderer.render()` call. For non-deterministic templates (Heart/randomized flag order, Passport with stamp scatter/rotation) and for templates with explicit user-controlled params (`entryOnly`, `aspectRatio`), this produced a different image than the one the user had been viewing and configuring. The user was confirming — and potentially purchasing — something different from what they selected.
+
+Additionally, `CardImageRenderer._cardWidget()` ignored `entryOnly`, `aspectRatio`, `heartOrder`, and `dateLabel` entirely, so every call to the renderer used defaults regardless of what was configured.
+
+**Decision:**
+
+1. **Extend `CardImageRenderer.render()` and `_cardWidget()`** to accept and thread `entryOnly`, `cardAspectRatio`, `heartOrder`, and `dateLabel` to all template widgets. This makes every render call parametrically deterministic for a given set of inputs.
+
+2. **Pre-render in `CardGeneratorScreen`**: when the user taps "Print your card", `_navigateToPrint()` calls `CardImageRenderer.render()` with the exact current state (`entryOnly`, `_aspectRatio`, `_heartOrder`, `dateLabel`) before pushing `ArtworkConfirmationScreen`. The `_printing` flag prevents double-taps and disables both action buttons during the render. On render failure, `preRender` is `null` and the flow falls back to in-screen rendering.
+
+3. **`ArtworkConfirmationScreen` accepts `preRenderedResult: CardRenderResult?`**: if non-null, the screen sets `_result` and `_rendering = false` in `initState` without calling `_startRender()`. The user sees and confirms exactly the image that was pre-rendered. If null (fallback path), `_startRender()` is called as before, now passing `entryOnly` and `cardAspectRatio` for correctness.
+
+4. **`LocalMockupPreviewScreen` receives `confirmedAspectRatio` and `confirmedEntryOnly`** from `CardGeneratorScreen`. When the user changes template inside the mockup screen, `_onTemplateChanged()` re-renders with `forPrint: true` for passport, `cardAspectRatio: widget.confirmedAspectRatio`, and `entryOnly: false` (template change resets to entry+exit).
+
+5. **`_CardParams` includes `heartOrder`** so the same-params re-confirmation shortcut (ADR-103) correctly detects when the heart order has changed and requires re-confirmation.
+
+**Consequences:**
+
+- The pre-render adds a brief loading delay when "Print your card" is tapped (spinner shown inside the button). For typical stamp counts on target devices this is sub-second.
+- Heart/randomized layouts are now deterministic within a single print flow: the pre-rendered layout is what gets confirmed. The user cannot see the "live" randomized layout and a "different" confirmation layout simultaneously.
+- `CardImageRenderer` public API gains four optional named parameters with sensible defaults; all existing call sites without these params continue to compile and produce equivalent output (defaults match prior implicit behaviour for grid).
+- Passport template re-renders inside `LocalMockupPreviewScreen` now correctly include print-safe margins.
+- The fallback path (pre-render throws) preserves the prior behaviour for robustness; no user-visible failure mode is introduced.
