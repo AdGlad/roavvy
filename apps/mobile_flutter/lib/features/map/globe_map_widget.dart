@@ -59,8 +59,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget> {
         // Single-finger drag: update rotation from focal point delta.
         final delta = d.focalPoint - _lastFocalPoint;
         _projection = _projection.copyWith(
-          rotLng: _projection.rotLng + delta.dx / 150.0,
-          rotLat: (_projection.rotLat - delta.dy / 150.0)
+          rotLng: _projection.rotLng - delta.dx / 150.0,
+          rotLat: (_projection.rotLat + delta.dy / 150.0)
               .clamp(-math.pi / 2, math.pi / 2),
         );
       }

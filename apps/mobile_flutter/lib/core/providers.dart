@@ -120,8 +120,8 @@ final countryTripCountsProvider = FutureProvider<Map<String, int>>((ref) async {
 /// Year filter for the timeline scrubber. null = show all time. (ADR-076)
 final yearFilterProvider = StateProvider<int?>((ref) => null);
 
-/// Whether the globe map is active. false = flat Mercator (default). (ADR-116)
-final globeModeProvider = StateProvider<bool>((ref) => false);
+/// Whether the globe map is active. true = globe (default). (ADR-116)
+final globeModeProvider = StateProvider<bool>((ref) => true);
 
 /// The earliest trip `startedOn` year across all trips; null if no trips exist.
 /// Used to compute the scrubber range in [TimelineScrubberBar]. (ADR-076)

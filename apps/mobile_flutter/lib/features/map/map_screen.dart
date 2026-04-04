@@ -293,7 +293,7 @@ class MapScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(20),
               child: IconButton(
                 icon: Icon(
-                  globeMode ? Icons.language : Icons.public,
+                  globeMode ? Icons.map_outlined : Icons.public,
                   color: Colors.white,
                 ),
                 tooltip: globeMode ? 'Switch to flat map' : 'Switch to globe',
