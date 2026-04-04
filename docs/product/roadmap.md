@@ -337,6 +337,16 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
+## Phase 19 — Globe Map
+
+**Goal:** Transform the flat Mercator world map into an interactive 3D globe. Drag to spin, pinch to zoom. All country visit states, colours, and tap interactions carry over unchanged. A toggle lets users switch between globe and flat modes.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M60 — Globe Map View | `GlobeMapWidget` with orthographic projection, rotation gestures, and country polygon rendering from existing data providers; flat/globe toggle | ✅ Complete |
+
+---
+
 ## Deferred / Not Planned
 
 - Android support (revisit after iOS App Store launch)

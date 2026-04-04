@@ -6,14 +6,21 @@ import 'product_mockup_specs.dart';
 
 /// [CustomPainter] that composites a card artwork image onto a product mockup.
 ///
-/// Rendering order:
-/// 1. Product background — [productImage] scaled to fill the canvas
-///    ([BoxFit.cover] semantics). Skipped (white fill) when [productImage] is
-///    null (poster variant — ADR-107 Decision 5).
-/// 2. Artwork — [artworkImage] scaled to fit inside the print area defined by
-///    [spec.printAreaNorm], centred ([BoxFit.contain] semantics).
-/// 3. Subtle inner shadow at the print area border (t-shirt only; skipped when
-///    [productImage] is null).
+/// Rendering order (t-shirt):
+/// 1. Shirt background — [productImage] cropped via [spec.srcRectNorm] (or full
+///    image when null) scaled to fill the canvas (BoxFit.cover semantics).
+/// 2. Artwork — [artworkImage] with [BlendMode.multiply], scaled to fit inside
+///    the print area defined by [spec.printAreaNorm] (BoxFit.contain, centred),
+///    clipped to the print area. Multiply makes white card background areas
+///    transparent so the shirt fabric shows through.
+/// 3. Shirt shading overlay — [productImage] drawn again at 0.25 opacity with
+///    [BlendMode.multiply], cropped to the print area only. This reapplies the
+///    fabric folds and shadows so the artwork looks embedded rather than pasted
+///    on top (ADR-115 Decision 2).
+///
+/// For posters ([productImage] == null):
+/// 1. White fill.
+/// 2. Artwork (full opacity, no shading overlay).
 ///
 /// A red debug border is drawn around the print area when [debugPrintArea] is
 /// true — useful during asset calibration (ADR-107 Risk 1).
@@ -31,7 +38,8 @@ class LocalMockupPainter extends CustomPainter {
   /// The product background image. Null for poster (renders white background).
   final ui.Image? productImage;
 
-  /// Spec describing the asset path and normalised print area.
+  /// Spec describing the asset path, normalised print area, and optional source
+  /// crop rectangle.
   final ProductMockupSpec spec;
 
   /// When true, draws a red border around [spec.printAreaNorm] for calibration.
@@ -46,29 +54,44 @@ class LocalMockupPainter extends CustomPainter {
       spec.printAreaNorm.height * size.height,
     );
 
-    // 1. Background layer.
     if (productImage != null) {
-      _paintImageFitCover(canvas, size, productImage!);
+      // 1. Shirt background (cropped to srcRectNorm if specified).
+      _paintShirtBackground(canvas, size, productImage!);
+
+      // 2. Artwork with BlendMode.multiply so white card background is
+      //    transparent (shows shirt fabric) and colours are embedded in the
+      //    fabric texture (ADR-115 Decision 2).
+      canvas.save();
+      canvas.clipRect(printPixels);
+      _paintImageContainInRect(
+        canvas,
+        printPixels,
+        artworkImage,
+        blendMode: ui.BlendMode.multiply,
+      );
+      canvas.restore();
+
+      // 3. Shirt shading overlay — reapplies fabric texture over artwork.
+      canvas.save();
+      canvas.clipRect(printPixels);
+      _paintShirtBackground(
+        canvas,
+        size,
+        productImage!,
+        opacity: 0.25,
+        blendMode: ui.BlendMode.multiply,
+      );
+      canvas.restore();
     } else {
-      // Poster: white background.
+      // Poster: white background, artwork at full opacity.
       canvas.drawRect(
         Offset.zero & size,
         Paint()..color = const ui.Color(0xFFFFFFFF),
       );
-    }
-
-    // 2. Artwork layer — BoxFit.contain inside print area.
-    canvas.save();
-    canvas.clipRect(printPixels);
-    _paintImageContainInRect(canvas, printPixels, artworkImage);
-    canvas.restore();
-
-    // 3. Inner shadow at print area border (t-shirt only).
-    if (productImage != null) {
-      final shadowPaint = Paint()
-        ..color = const ui.Color(0x1F000000) // ~12% black
-        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.inner, 3);
-      canvas.drawRect(printPixels, shadowPaint);
+      canvas.save();
+      canvas.clipRect(printPixels);
+      _paintImageContainInRect(canvas, printPixels, artworkImage);
+      canvas.restore();
     }
 
     // Debug: print area border.
@@ -83,26 +106,64 @@ class LocalMockupPainter extends CustomPainter {
     }
   }
 
-  /// Paints [image] scaled to fill [canvasSize] (BoxFit.cover).
-  void _paintImageFitCover(ui.Canvas canvas, ui.Size canvasSize, ui.Image image) {
+  /// Paints [image] scaled to fill [canvasSize] (BoxFit.cover), cropped to
+  /// [spec.srcRectNorm] if set. Supports [opacity] and [blendMode] for overlay
+  /// passes (ADR-115 Decision 2).
+  void _paintShirtBackground(
+    ui.Canvas canvas,
+    ui.Size canvasSize,
+    ui.Image image, {
+    double opacity = 1.0,
+    ui.BlendMode blendMode = ui.BlendMode.srcOver,
+  }) {
     final imgW = image.width.toDouble();
     final imgH = image.height.toDouble();
-    final scaleX = canvasSize.width / imgW;
-    final scaleY = canvasSize.height / imgH;
+
+    // Compute the source rectangle in pixel coordinates.
+    final Rect srcFullPixels;
+    if (spec.srcRectNorm != null) {
+      final n = spec.srcRectNorm!;
+      srcFullPixels = Rect.fromLTWH(
+        n.left * imgW,
+        n.top * imgH,
+        n.width * imgW,
+        n.height * imgH,
+      );
+    } else {
+      srcFullPixels = Rect.fromLTWH(0, 0, imgW, imgH);
+    }
+
+    // BoxFit.cover: scale so the cropped source fills the canvas entirely.
+    final srcW = srcFullPixels.width;
+    final srcH = srcFullPixels.height;
+    final scaleX = canvasSize.width / srcW;
+    final scaleY = canvasSize.height / srcH;
     final scale = scaleX > scaleY ? scaleX : scaleY;
 
-    final srcW = canvasSize.width / scale;
-    final srcH = canvasSize.height / scale;
-    final srcX = (imgW - srcW) / 2;
-    final srcY = (imgH - srcH) / 2;
+    final visW = canvasSize.width / scale;
+    final visH = canvasSize.height / scale;
+    final visX = srcFullPixels.left + (srcW - visW) / 2;
+    final visY = srcFullPixels.top + (srcH - visH) / 2;
 
-    final src = Rect.fromLTWH(srcX, srcY, srcW, srcH);
+    final src = Rect.fromLTWH(visX, visY, visW, visH);
     final dst = Offset.zero & canvasSize;
-    canvas.drawImageRect(image, src, dst, Paint());
+
+    final paint = Paint()
+      ..color = ui.Color.fromRGBO(255, 255, 255, opacity)
+      ..blendMode = blendMode;
+
+    canvas.drawImageRect(image, src, dst, paint);
   }
 
-  /// Paints [image] scaled to fit inside [rect] (BoxFit.contain, centred).
-  void _paintImageContainInRect(ui.Canvas canvas, Rect rect, ui.Image image) {
+  /// Paints [image] scaled to fit inside [rect] (BoxFit.contain, centred) at
+  /// the given [opacity] and [blendMode].
+  void _paintImageContainInRect(
+    ui.Canvas canvas,
+    Rect rect,
+    ui.Image image, {
+    double opacity = 1.0,
+    ui.BlendMode blendMode = ui.BlendMode.srcOver,
+  }) {
     final imgW = image.width.toDouble();
     final imgH = image.height.toDouble();
     final scaleX = rect.width / imgW;
@@ -116,7 +177,12 @@ class LocalMockupPainter extends CustomPainter {
 
     final src = Rect.fromLTWH(0, 0, imgW, imgH);
     final dst = Rect.fromLTWH(dstX, dstY, dstW, dstH);
-    canvas.drawImageRect(image, src, dst, Paint());
+
+    final paint = Paint()
+      ..color = ui.Color.fromRGBO(255, 255, 255, opacity)
+      ..blendMode = blendMode;
+
+    canvas.drawImageRect(image, src, dst, paint);
   }
 
   @override

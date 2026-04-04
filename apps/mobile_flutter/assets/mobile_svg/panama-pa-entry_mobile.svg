@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1455"
+    height="1023"
+    viewBox="0 0 1455 1023"
+    version="1.1">
+
+  <style>
+    .stamp-date {
+      font-family: 'Arial Narrow', Arial, sans-serif;
+      font-size: 48.0px;
+      fill: {{COLOR}};
+      letter-spacing: 2.0px;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+  </style>
+
+  <image
+      x="0"
+      y="0"
+      width="1455"
+      height="1023"
+      href="../mobile_png/panama-pa-entry.png" />
+
+  <text
+      class="stamp-date"
+      x="768.0"
+      y="512.0"
+      transform="rotate(0.0 768.0 512.0)">{{DATE}}</text>
+
+</svg>

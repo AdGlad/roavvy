@@ -569,7 +569,7 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 47 — Commerce Template & Placement
+## Milestone 47 — Commerce Template & Placement ✅ COMPLETE (2026-04-04)
 
 **Goal:** The merch purchase workflow correctly reflects the card template the user designed (Grid, Heart, or Passport), the selected colour variant drives the Printful mockup so the user sees the right coloured t-shirt, and the user can choose front or back placement for their design.
 
@@ -592,6 +592,94 @@ All sharing features are complete as of M12.
 - Android
 
 **In Progress. Tasks 163–168.**
+
+---
+
+## Milestone 60 — Globe Map View ✅ COMPLETE (2026-04-04)
+
+**Goal:** Replace the flat Mercator map with an interactive 3D globe using a `CustomPainter`-based orthographic projection renderer. Drag to rotate, pinch to zoom. Country colours, visit states, and tap-to-detail all carry over unchanged. A flat/globe toggle lets users switch modes without losing any existing functionality.
+
+**Phase:** Map Experience / Visual Quality
+
+**Architecture:** ADR-116 (to be written)
+
+**Scope — included:**
+- `GlobeMapWidget` — a new `StatefulWidget` backed by `CustomPainter` (`GlobePainter`) that renders country polygons from the existing `polygonsProvider` (`List<CountryPolygon>`) using orthographic projection
+- Orthographic projection math: 3D rotation matrix (`rotX`, `rotY`) applied to each polygon vertex (lat/lng → unit sphere → rotation → project to screen); vertices behind the globe (negative Z) clipped/culled
+- Gesture handling: horizontal drag → longitude rotation, vertical drag → latitude rotation (clamped to ±90°), two-finger pinch → zoom scale (1.0–8.0)
+- Country fill colours sourced from `countryVisualStateProvider` (same palette as flat map: visited, 1-away, unvisited, target)
+- Ocean background: filled circle in the existing navy `Color(0xFF0D2137)` with a subtle atmosphere rim
+- Country tap detection: inverse-project screen tap to lat/lng, then point-in-polygon lookup via the same `resolveCountry()` function used by the flat map
+- A toggle button on the map screen (globe icon ↔ flat icon) switches between `FlutterMap` and `GlobeMapWidget`; preference persisted with a Riverpod `StateProvider`
+- `GlobeMapWidget` accepts `onCountryTap(String isoCode)` callback so `CountryDetailSheet` and all downstream flows are unchanged
+- Existing overlays (`XpLevelBar`, `StatsStrip`, `TimelineScrubberBar`, `RovyBubble`, `TargetCountryLayer` equivalent) remain in the `Stack` above the globe widget
+- Initial rotation centres globe on the user's most-visited region (or 20°N, 0° default)
+
+**Scope — excluded:**
+- Replacing the flat map entirely — flat mode is retained; both modes are kept
+- Atmosphere glow, star-field background, city labels, night-side shading (future enhancement)
+- Region chips on the globe surface (`RegionChipsMarkerLayer`) — these remain flat-map only for now
+- `TargetCountryLayer` (breathing amber animation) on the globe — deferred
+- Country region map / trip map views (remain flat)
+- Android
+- Web
+
+**Dependencies:**
+- `polygonsProvider` already returns `List<CountryPolygon>` with raw lat/lng rings — no new data loading required
+- `countryVisualStateProvider` already maps ISO code → `CountryVisualState` colour
+- `resolveCountry()` already accepts a `LatLng` — reused for tap resolution on the globe
+- No new pub packages required; all projection math is pure Dart arithmetic
+
+**Risks:**
+1. **Performance with ~250 country polygons at 60 fps.** The painter will iterate all polygon vertices each frame. Mitigation: cull back-face polygons before painting (dot product check); simplify polygon vertex count at zoom < 3 using a pre-decimated geometry set (or skip every N-th vertex dynamically). Target: <8 ms per frame on an iPhone 12.
+2. **Antimeridian-crossing polygons** (Russia, USA, Fiji) split across ±180° longitude will render incorrectly if not handled. Mitigation: detect and split rings at the antimeridian before projecting; existing flat map already handles this via flutter_map — replicate the split logic in the globe renderer.
+3. **Point-in-polygon tap resolution accuracy** degrades near poles and at the antimeridian. Mitigation: use the existing `resolveCountry()` (works in lat/lng space after inverse projection) — the inverse projection is well-defined within the visible hemisphere.
+
+---
+
+## Milestone 59 — Photoreal Shirt Mockup Compositing ✅ COMPLETE (2026-04-03)
+
+**Goal:** Replace the M58 programmatic RGBA silhouettes with the provided `shirt-mockup-final.jpg` photoreal base image. Split the image left/right at render time to extract front and back views, then composite artwork using a 3-layer blend (shirt → artwork @ 0.92 opacity → shirt @ 0.25 multiply) so the design looks embedded into the fabric rather than pasted on top.
+
+**Phase:** Commerce / Visual Quality
+
+**Architecture:** ADR-115 (to be written)
+
+**Scope — included:**
+- Load `assets/mockups/shirt-mockup-final.jpg` (1600×1066 JPEG; left half = front, right half = back) as the single shirt base image
+- Add `srcRectNorm: Rect?` to `ProductMockupSpec`; all 10 t-shirt specs updated to point to the JPG with the correct half crop
+- Update `LocalMockupPainter` to support `srcRectNorm` cropping and implement 3-layer composite: shirt background → artwork (opacity 0.92) → shirt shading overlay (BlendMode.multiply, opacity 0.25)
+- Screen loads the JPG once and passes the single `ui.Image` to `_ShirtFlipView` for both front and back (no per-colour separate loads)
+- Calibrate `printAreaNorm` for each half against the new JPG geometry
+
+**Scope — excluded:**
+- Multiple shirt colour photo variants (deferred — use JPG as-is; colour swatch still affects Printful order)
+- Removing the colour swatch picker (UI unchanged; swatch changes order colour but not the preview photo)
+- Poster mockup changes
+- Android
+
+---
+
+## Milestone 58 — 2.5D T-Shirt Mockup Experience ✅ COMPLETE (2026-04-04)
+
+**Goal:** Replace the 600×800 placeholder shirt images in `LocalMockupPreviewScreen` with production-quality assets and rebuild the interaction into a near-full-screen 2.5D mockup: swipe to flip front/back with a perspective card-flip animation, pinch to zoom, and colour swatch picker.
+
+**Phase:** Commerce / Visual Quality
+
+**Architecture:** ADR-114 (to be written)
+
+**Scope — included:**
+- Production-quality RGBA t-shirt PNG assets (≥ 1200×1600, 5 colours × front/back = 10 images)
+- Full-screen mockup layout: mockup fills ~80% of screen, options in bottom sheet
+- 2.5D horizontal card-flip animation (`Matrix4.rotationY`) on swipe or Front/Back tap
+- Colour swatch picker (coloured circles instead of text chips)
+- Zoom + pan (`InteractiveViewer`, double-tap to reset)
+
+**Scope — excluded:**
+- Poster mockup improvements
+- True 3D / WebGL rendering
+- Android
+- Printful integration changes
 
 ---
 

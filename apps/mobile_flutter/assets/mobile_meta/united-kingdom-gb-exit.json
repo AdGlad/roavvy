@@ -1,0 +1,22 @@
+{
+  "name": "united-kingdom-gb-entry",
+  "png_asset": "united-kingdom-gb-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 768.0,
+    "y": 512.0,
+    "rotation": 0.0,
+    "font_size": 71.0,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": 2.0,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 1490,
+    "height": 1019
+  }
+}

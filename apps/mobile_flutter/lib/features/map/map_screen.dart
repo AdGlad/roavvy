@@ -20,6 +20,7 @@ import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import 'country_detail_sheet.dart';
 import 'country_polygon_layer.dart';
+import 'globe_map_widget.dart';
 import 'region_chips_marker_layer.dart';
 import 'region_progress_notifier.dart';
 import 'rovy_bubble.dart';
@@ -129,9 +130,26 @@ class MapScreen extends ConsumerWidget {
     final resolver = tapResolverOverride ?? resolveCountry;
     final code = resolver(point.latitude, point.longitude);
     if (code == null) return;
+    _showCountryDetail(context, ref, code, visitedByCode);
+  }
 
+  /// Shows [CountryDetailSheet] for a country tapped on the globe (ADR-116).
+  void _onGlobeTap(
+    BuildContext context,
+    WidgetRef ref,
+    String isoCode,
+    Map<String, EffectiveVisitedCountry> visitedByCode,
+  ) {
+    _showCountryDetail(context, ref, isoCode, visitedByCode);
+  }
+
+  void _showCountryDetail(
+    BuildContext context,
+    WidgetRef ref,
+    String code,
+    Map<String, EffectiveVisitedCountry> visitedByCode,
+  ) {
     final visit = visitedByCode[code];
-
     showModalBottomSheet<bool>(
       context: context,
       builder: (_) => CountryDetailSheet(
@@ -210,24 +228,32 @@ class MapScreen extends ConsumerWidget {
       }
     });
 
+    final globeMode = ref.watch(globeModeProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D2137), // dark navy ocean (ADR-080)
       body: Stack(
         children: [
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: const LatLng(20, 0),
-              initialZoom: 2,
-              backgroundColor: const Color(0xFF0D2137),
-              onTap: (pos, latlng) =>
-                  _onMapTap(context, ref, visitedByCode, pos, latlng),
+          if (globeMode)
+            GlobeMapWidget(
+              onCountryTap: (code) =>
+                  _onGlobeTap(context, ref, code, visitedByCode),
+            )
+          else
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: const LatLng(20, 0),
+                initialZoom: 2,
+                backgroundColor: const Color(0xFF0D2137),
+                onTap: (pos, latlng) =>
+                    _onMapTap(context, ref, visitedByCode, pos, latlng),
+              ),
+              children: const [
+                CountryPolygonLayer(),
+                TargetCountryLayer(),
+                RegionChipsMarkerLayer(),
+              ],
             ),
-            children: const [
-              CountryPolygonLayer(),
-              TargetCountryLayer(),
-              RegionChipsMarkerLayer(),
-            ],
-          ),
           const Align(
             alignment: Alignment.topCenter,
             child: XpLevelBar(),
@@ -256,6 +282,24 @@ class MapScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.only(bottom: 80),
               child: RovyBubble(),
+            ),
+          ),
+          // Globe / flat toggle (ADR-116).
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 8,
+            child: Material(
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(20),
+              child: IconButton(
+                icon: Icon(
+                  globeMode ? Icons.language : Icons.public,
+                  color: Colors.white,
+                ),
+                tooltip: globeMode ? 'Switch to flat map' : 'Switch to globe',
+                onPressed: () => ref.read(globeModeProvider.notifier).state =
+                    !ref.read(globeModeProvider),
+              ),
             ),
           ),
           Positioned(

@@ -3827,3 +3827,128 @@ Additionally, `CardImageRenderer._cardWidget()` ignored `entryOnly`, `aspectRati
 - `CardImageRenderer` public API gains four optional named parameters with sensible defaults; all existing call sites without these params continue to compile and produce equivalent output (defaults match prior implicit behaviour for grid).
 - Passport template re-renders inside `LocalMockupPreviewScreen` now correctly include print-safe margins.
 - The fallback path (pre-render throws) preserves the prior behaviour for robustness; no user-visible failure mode is introduced.
+
+---
+
+## ADR-113 — M57 Passport Stamp Density and Preview Consistency
+
+**Status:** Accepted
+
+**Context:** `PassportLayoutEngine` capped stamp output at 20, producing one stamp per trip with alternating entry/exit labels. Users with 50+ trips expected a distinct entry stamp and exit stamp per trip. Additionally, the live card preview in `CardGeneratorScreen` used `forPrint=false` and was unconstrained in width, while `CardImageRenderer` renders at exactly 340 logical pixels with `forPrint=true` — producing visually different stamp sizes, margins, and positions in the preview and confirmation screens.
+
+**Decision:**
+
+1. **Two stamps per trip (entry + exit):** `PassportLayoutEngine._buildEntries()` now emits two `_StampEntry` records per `TripRecord` when `entryOnly=false`: entry (date = `startedOn`) then exit (date = `endedOn`). `StampData.fromTrip()` gains an optional `stampDate` parameter to support this. When `entryOnly=true`, only the entry stamp is emitted (unchanged).
+
+2. **Cap raised to 200:** `_kMaxStamps` increased from 20 to 200. With 50 trips × 2, total stamps = 100 — well within the new cap.
+
+3. **Dynamic stamp radius:** `baseRadius = 38 × √(min(1, 20/n))` clamped to `[6, 38]` px. For ≤ 20 stamps this equals 38 px (unchanged). Beyond 20 the radius scales down smoothly so stamps remain individually visible while fitting the canvas. Per-stamp ±10% size variety is preserved in non-print mode.
+
+4. **Dynamic grid:** `gridCols` and `gridRows` scale with stamp count and canvas aspect ratio so cells distribute evenly across both landscape and portrait canvases.
+
+5. **Relaxed collision threshold:** Minimum placement distance lowered from 80% to 50% of combined radii, allowing organic overlapping at high stamp counts. Best-effort fallback is unchanged.
+
+6. **`wasForced` threshold lowered to 8 px** (consistent with the new 6 px minimum radius).
+
+7. **Preview consistency:** `CardGeneratorScreen._buildTemplate()` passes `forPrint=true` to `PassportStampsCard` so margin and radius logic match the renderer. The preview `InteractiveViewer` is wrapped in `ConstrainedBox(maxWidth: 340)` so `PassportLayoutEngine` receives the same canvas width as `CardImageRenderer`.
+
+**Consequences:**
+
+- Users with many trips now see all stamps — at visually smaller but readable sizes — rather than a silent 20-stamp cap.
+- Entry and exit stamps for the same trip show distinct dates (`startedOn` vs `endedOn`), making the passport metaphor more accurate.
+- The live preview and the "Confirm your artwork" image are now pixel-consistent for passport cards.
+- For cards with ≤ 20 trips, stamp size is unchanged (38 px); the visual difference is only apparent at higher trip counts.
+- The `_buildEntries` extraction makes the layout loop cleaner and removes the interleaved `tripIdx`/`codeIdx` coupling.
+
+---
+
+## ADR-114 — M58 2.5D T-Shirt Mockup: Asset Format, Flip Animation, and Screen Layout
+
+**Status:** Accepted
+
+**Context:** `LocalMockupPreviewScreen` uses ten 600×800 RGB PNG placeholder images for all shirt mockups. The mockup area shares screen space equally with an options panel, leaving insufficient room for the user to appreciate the design. Switching front/back requires tapping a text chip; there is no swipe gesture or flip animation; there is no zoom.
+
+**Decision:**
+
+1. **Asset format — RGBA PNG at 1200×1600.** Replace all ten `assets/mockups/tshirt_*.png` files with 1200×1600 RGBA (transparent alpha channel) images with a proper shirt silhouette shape. Transparent background allows the canvas background colour to show through the shirt edges without a rectangular cut-off artefact. The same aspect ratio (3:4) is preserved so `LocalMockupPainter`'s existing `BoxFit.cover` logic continues to work. `printAreaNorm` coordinates are recalibrated to the new layout.
+
+2. **Full-screen layout.** `LocalMockupPreviewScreen`'s body switches to a `Column` where the mockup `Expanded` widget takes all available space minus a fixed-height bottom bar (≈ 80 px) and the action button. Options are moved into a `DraggableScrollableSheet` anchored below the compact strip. The compact strip shows only the colour swatch row and a "More options" drag handle. This gives the mockup ~80% of the visible viewport. The `Approve / Complete` button remains outside the sheet so it is always reachable.
+
+3. **`_ShirtFlipView` StatefulWidget.** Extracted to own the `AnimationController` (duration 350 ms, `Curves.easeInOut`), `GestureDetector` (horizontal drag), and `Transform` widget. It accepts `frontShirt`, `backShirt`, `frontSpec`, `backSpec`, `frontArtwork`, `backArtwork`, `showFront`, and `onFlipped`. The perspective transform uses `Matrix4.rotationY(angle)` with `matrix.setEntry(3, 2, 0.001)`. At the 90° midpoint (`controller.value >= 0.5`) the displayed face swaps, so the correct shirt image appears as the card "comes around." `LocalMockupPreviewScreen` listens to `onFlipped` and updates `_placement` to keep `_resolvedVariantGid` (checkout) in sync.
+
+4. **Colour swatch picker.** The Colour `ChoiceChip` row is replaced with 32 px diameter filled `InkWell` circles. Selected swatch has a 2 px `colorScheme.primary` outline. The five hard-coded colour values (Black, White, Navy, Heather Grey, Red) are defined as constants in the screen file. Tapping a swatch calls the existing `_onVariantOptionChanged`.
+
+5. **Zoom + pan.** The mockup canvas inside `_ShirtFlipView` is wrapped in `InteractiveViewer` (`minScale: 1.0, maxScale: 4.0`). A `TransformationController` is owned by `_ShirtFlipView`; double-tap resets it to identity. The controller is reset (`_transformationController.value = Matrix4.identity()`) whenever `onFlipped` fires or the parent notifies a colour change via a `key` change.
+
+**Consequences:**
+
+- `LocalMockupPainter` is unchanged; the compositing logic works the same at any asset size because it normalises coordinates via `printAreaNorm`.
+- `ProductMockupSpecs.printAreaNorm` values must be re-calibrated for the new shirt layout; the debug overlay (`debugPrintArea: true`) can be used to verify calibration visually.
+- The `_ShirtFlipView` widget is private to `local_mockup_preview_screen.dart`; no new public API.
+- `MockupApprovalScreen` and `createMerchCart` are unchanged.
+- The `InteractiveViewer` reset-on-flip ensures users cannot get lost at high zoom when switching sides.
+
+---
+
+## ADR-115 — M59 Photoreal Shirt Mockup: Split-Image Source Cropping and 3-Layer Fabric Compositing
+
+**Status:** Accepted
+
+**Context:**
+M58 replaced 600×800 RGB placeholder images with programmatically generated 1200×1600 RGBA shirt silhouettes. While correctly shaped, these silhouettes lack photorealism — no fabric texture, no folds, no wrinkles. A single photoreal asset (`shirt-mockup-final.jpg`, 1600×1066) has been provided, with the front view on the left half and the back view on the right half.
+
+Two decisions are needed: (1) how to address front/back from a single source image, and (2) how to composite artwork so it looks embedded rather than pasted on top.
+
+**Decision 1 — Source cropping via `srcRectNorm` on `ProductMockupSpec`:**
+Add an optional `Rect? srcRectNorm` field to `ProductMockupSpec`. When set, `LocalMockupPainter` uses only that normalised sub-rectangle of the source image when drawing the shirt background. Front specs use `Rect.fromLTWH(0.0, 0.0, 0.5, 1.0)` (left half); back specs use `Rect.fromLTWH(0.5, 0.0, 0.5, 1.0)` (right half). Null means use the full image (backward compatible with the poster spec).
+
+This avoids splitting the image at load time (no extra `ui.Image` allocation) and keeps the entire cropping policy declarative in the spec.
+
+**Decision 2 — 3-layer fabric-embedding compositing in `LocalMockupPainter`:**
+Replace the single artwork layer + inner shadow with three layers:
+1. Shirt background (cropped via `srcRectNorm`, BoxFit.cover).
+2. Artwork at 0.92 opacity (BoxFit.contain inside print area), clipped to print area.
+3. Shirt shading overlay: the same shirt image drawn again, cropped to print area, at 0.25 opacity with `BlendMode.multiply`. This reapplies the fabric folds and shadows over the artwork, creating the "embedded" effect.
+
+The inner shadow from M58 is removed — the shading overlay subsumes it and looks more natural.
+
+**Decision 3 — Single JPG shared for all colour variants:**
+All five colour variants (Black, White, Navy, Heather Grey, Red) reference `shirt-mockup-final.jpg`. The colour swatch picker continues to function (it controls the Printful order colour), but the in-app preview shows the same photoreal shirt for all swatches. Per-colour photo assets are deferred to a future milestone.
+
+**Consequences:**
+- `ProductMockupSpec` gains one nullable field; all call sites are backward compatible.
+- `LocalMockupPainter.paint()` gains one additional `drawImageRect` call (the shading overlay); performance impact is negligible for a single `CustomPaint`.
+- The screen loads one image (the JPG) instead of two (front + back PNGs), halving asset load time.
+- The preview colour will not match the swatch selection until per-colour photo assets are added. This is a known limitation accepted for M59.
+
+---
+
+## ADR-116 — M60 Globe Map: Orthographic Projection, Antimeridian Handling, and Flat/Globe Toggle
+
+**Status:** Accepted
+
+**Context:**
+The world map is currently a flat Mercator projection rendered by `flutter_map`. The product requires a Google Earth-style interactive 3D globe. The map's polygon data (`List<CountryPolygon>` from `polygonsProvider`) is already independent of `flutter_map` — each `CountryPolygon` holds raw `(lat, lng)` vertices. All visual state logic (`countryVisualStatesProvider`, `countryTripCountsProvider`) is also renderer-agnostic. The flat map must be preserved as a fallback; both modes must coexist without regressions.
+
+**Decision 1 — Orthographic projection via pure-Dart `GlobeProjection`:**
+Use orthographic projection (no new packages). `GlobeProjection` stores `rotLat` and `rotLng` (radians) representing the camera orientation applied as a 3×3 rotation matrix. Each `(lat, lng)` is first converted to a unit 3D vector, rotated, then projected to screen by taking the X and Y components of the rotated vector (Z component is depth; negative Z = back face, culled). The globe radius at `scale=1.0` is `min(width, height) / 2`. Scale multiplies this radius and maps to `[0.8, 8.0]`.
+
+This approach requires no pub package additions and runs in pure Dart arithmetic — deterministic, testable, and performant for the ~250 polygon dataset.
+
+**Decision 2 — Antimeridian ring splitting in `GlobeProjection.splitAtAntimeridian`:**
+Polygons that cross ±180° longitude (Russia, USA, Fiji, Kiribati) must be split before projection, or they render as a horizontal line across the globe. `splitAtAntimeridian` detects consecutive vertex pairs that cross the antimeridian, inserts interpolated vertices at ±180°, and produces two sub-rings. The split runs once per polygon per paint call; for the ~250 polygon set this is negligible.
+
+**Decision 3 — `GlobeMapWidget` as a sibling to `FlutterMap`, toggled by `globeModeProvider`:**
+`GlobeMapWidget` is a `ConsumerStatefulWidget` with its own `GestureDetector` and `CustomPaint`. It accepts a single `onCountryTap` callback so `CountryDetailSheet` is reused without change. `MapScreen` conditionally renders either `FlutterMap` or `GlobeMapWidget` based on `globeModeProvider` (`StateProvider<bool>`). A positioned toggle button switches modes. `RegionChipsMarkerLayer` and `TargetCountryLayer` are flat-mode-only (no globe equivalents in M60).
+
+`globeModeProvider` is not persisted to `SharedPreferences` in M60 — it resets to flat on app restart. Persistence can be added in a future iteration if user research shows globe is the preferred default.
+
+**Decision 4 — Performance mitigation: centroid back-face culling:**
+Before iterating all vertices of a polygon, `GlobePainter` checks whether the centroid of its bounding box is visible (`GlobeProjection.isVisible`). If the centroid is on the back face, the polygon is skipped entirely. This culls ~50% of polygons at any given rotation with O(1) cost per polygon. Fine-grained per-vertex culling is not needed for this dataset.
+
+**Consequences:**
+- No new pub dependencies introduced.
+- `flutter_map` remains in the dependency tree (used in flat mode and all sub-screens: trip map, country region map, scan reveal mini-map).
+- `GlobeProjection` is pure Dart and fully unit-testable without Flutter widget infrastructure.
+- The flat/globe preference resets on app restart in M60; persistence is a one-line future addition.
+- Per-vertex polygon simplification at low zoom is deferred — the dataset is small enough that it is not needed for target performance.

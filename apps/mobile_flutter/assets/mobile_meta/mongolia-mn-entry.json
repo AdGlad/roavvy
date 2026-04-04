@@ -1,0 +1,21 @@
+{
+  "name": "mongolia-mn-entry",
+  "png_asset": "mongolia-mn-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 768.0,
+    "y": 512.0,
+    "rotation": 0.0,
+    "font_size": 48.0,
+    "font_family": "'Arial Narrow', Arial, sans-serif",
+    "letter_spacing": 2.0,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 1388,
+    "height": 1013
+  }
+}
