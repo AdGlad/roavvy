@@ -71,6 +71,10 @@ class CardImageRenderer {
     double cardAspectRatio = 3.0 / 2.0,
     HeartFlagOrder heartOrder = HeartFlagOrder.randomized,
     String dateLabel = '',
+    String? titleOverride,
+    Color? stampColor,
+    Color? dateColor,
+    bool transparentBackground = false,
   }) async {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -78,6 +82,16 @@ class CardImageRenderer {
 
     // Capture wasForced from PassportStampsCard.onWasForced callback (ADR-103).
     bool wasForced = false;
+
+    // ADR-112 fix: PassportStampsCard loads SVG stamp assets asynchronously in
+    // _PassportPagePainterState._loadAssets(). A single addPostFrameCallback
+    // fires after frame 1, before _loadAssets() has completed, so _assets is
+    // still empty and _MultiStampPainter falls back to the old procedural
+    // StampPainter. We wait for the onAssetsLoaded signal (fired after
+    // setState(_assets = loaded)) before scheduling the capture frame.
+    final assetsCompleter = template == CardTemplateType.passport
+        ? Completer<void>()
+        : null;
 
     entry = OverlayEntry(
       builder: (_) => Positioned(
@@ -98,6 +112,17 @@ class CardImageRenderer {
               cardAspectRatio: cardAspectRatio,
               heartOrder: heartOrder,
               dateLabel: dateLabel,
+              titleOverride: titleOverride,
+              stampColor: stampColor,
+              dateColor: dateColor,
+              transparentBackground: transparentBackground,
+              onAssetsLoaded: assetsCompleter != null
+                  ? () {
+                      if (!assetsCompleter.isCompleted) {
+                        assetsCompleter.complete();
+                      }
+                    }
+                  : null,
             ),
           ),
         ),
@@ -105,6 +130,16 @@ class CardImageRenderer {
     );
 
     Overlay.of(context).insert(entry);
+
+    // For passport: wait until SVG stamp assets have loaded and setState has
+    // been called before scheduling the capture callback. The next
+    // addPostFrameCallback will then fire after the rebuilt frame that contains
+    // the actual SVG stamps. Timeout guards against the widget being disposed
+    // before onAssetsLoaded fires (e.g. user navigates away).
+    if (assetsCompleter != null) {
+      await assetsCompleter.future
+          .timeout(const Duration(seconds: 10), onTimeout: () {});
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
@@ -152,7 +187,12 @@ class CardImageRenderer {
     double cardAspectRatio = 3.0 / 2.0,
     HeartFlagOrder heartOrder = HeartFlagOrder.randomized,
     String dateLabel = '',
-  }) {
+    String? titleOverride,
+    Color? stampColor,
+    Color? dateColor,
+    bool transparentBackground = false,
+    VoidCallback? onAssetsLoaded,
+    }) {
     switch (template) {
       case CardTemplateType.grid:
         return GridFlagsCard(
@@ -174,10 +214,16 @@ class CardImageRenderer {
           trips: trips,
           entryOnly: entryOnly,
           forPrint: forPrint,
-          onWasForced: onWasForced,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
+          stampColor: stampColor,
+          dateColor: dateColor,
+          transparentBackground: transparentBackground,
+          onWasForced: onWasForced,
+          onAssetsLoaded: onAssetsLoaded,
         );
+
       case CardTemplateType.timeline:
         return TimelineCard(
           countryCodes: codes,

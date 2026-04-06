@@ -1,0 +1,22 @@
+{
+  "name": "cape-verde-cv-entry",
+  "png_asset": "cape-verde-cv-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 176.0,
+    "y": 141.5,
+    "rotation": 0.0,
+    "font_size": 35,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": -0.48,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

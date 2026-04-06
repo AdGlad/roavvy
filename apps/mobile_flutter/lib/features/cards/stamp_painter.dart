@@ -189,7 +189,7 @@ class StampPainter extends CustomPainter {
         maxWidth: r * 1.72);
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, color, 5.0 * stamp.scale,
+          c, stamp.dateLabel!, stamp.dateColor, 5.0 * stamp.scale,
           o + Offset(0, r * 0.60));
     }
     StampTypographyPainter.drawCondensedLabel(
@@ -249,7 +249,7 @@ class StampPainter extends CustomPainter {
         maxWidth: r * 2.0);
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, color, 5.0 * stamp.scale,
+          c, stamp.dateLabel!, stamp.dateColor, 5.0 * stamp.scale,
           o - Offset(0, r * 0.24));
     }
     StampTypographyPainter.drawCondensedLabel(
@@ -328,7 +328,7 @@ class StampPainter extends CustomPainter {
         maxWidth: w * 0.90);
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, color, 4.5 * stamp.scale,
+          c, stamp.dateLabel!, stamp.dateColor, 4.5 * stamp.scale,
           o + Offset(0, h * 0.20));
     }
     StampTypographyPainter.drawCondensedLabel(
@@ -497,7 +497,7 @@ class StampPainter extends CustomPainter {
 
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, color, 5.5 * stamp.scale,
+          c, stamp.dateLabel!, stamp.dateColor, 5.0 * stamp.scale,
           o + Offset(0, r * 0.14));
     }
     StampTypographyPainter.drawCondensedLabel(

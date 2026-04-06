@@ -1,0 +1,22 @@
+{
+  "name": "american-samoa-as-exit",
+  "png_asset": "american-samoa-as-exit.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 213.0,
+    "y": 158.5,
+    "rotation": 0.0,
+    "font_size": 28,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": 0.52,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

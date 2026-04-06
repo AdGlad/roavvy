@@ -40,6 +40,10 @@ class _CardParams {
     required this.heartOrder,
     this.yearStart,
     this.yearEnd,
+    this.titleOverride,
+    this.stampColor,
+    this.dateColor,
+    this.transparentBackground = true,
   });
 
   final CardTemplateType templateType;
@@ -49,6 +53,10 @@ class _CardParams {
   final HeartFlagOrder heartOrder;
   final int? yearStart;
   final int? yearEnd;
+  final String? titleOverride;
+  final Color? stampColor;
+  final Color? dateColor;
+  final bool transparentBackground;
 
   @override
   bool operator ==(Object other) {
@@ -59,13 +67,27 @@ class _CardParams {
         entryOnly == other.entryOnly &&
         heartOrder == other.heartOrder &&
         yearStart == other.yearStart &&
-        yearEnd == other.yearEnd;
+        yearEnd == other.yearEnd &&
+        titleOverride == other.titleOverride &&
+        stampColor == other.stampColor &&
+        dateColor == other.dateColor &&
+        transparentBackground == other.transparentBackground;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(templateType, Object.hashAll(countryCodes), aspectRatio,
-          entryOnly, heartOrder, yearStart, yearEnd);
+  int get hashCode => Object.hash(
+        templateType,
+        Object.hashAll(countryCodes),
+        aspectRatio,
+        entryOnly,
+        heartOrder,
+        yearStart,
+        yearEnd,
+        titleOverride,
+        stampColor,
+        dateColor,
+        transparentBackground,
+      );
 }
 
 // ── Card generator screen ─────────────────────────────────────────────────────
@@ -83,8 +105,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   CardTemplateType _selected = CardTemplateType.grid;
   HeartFlagOrder _heartOrder = HeartFlagOrder.randomized;
   bool _entryOnly = false;
-  bool _portrait = false;
+  bool _portrait = true; // Default to Portrait (ADR-117)
   RangeValues? _yearSelection; // null = full range
+
+  // Passport customization (ADR-117)
+  String? _titleOverride;
+  Color? _stampColor;
+  Color? _dateColor;
+  bool _transparentBackground = true;
 
   final _previewKey = GlobalKey();
   final _transformController = TransformationController();
@@ -222,6 +250,20 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                     ),
                   ],
                 ),
+              if (_selected == CardTemplateType.passport)
+                _PassportCustomizer(
+                  titleOverride: _titleOverride,
+                  onTitleChanged: (v) => setState(() => _titleOverride = v),
+                  stampColor: _stampColor,
+                  onStampColorChanged: (c) => setState(() => _stampColor = c),
+                  dateColor: _dateColor,
+                  onDateColorChanged: (c) => setState(() => _dateColor = c),
+                  transparentBackground: _transparentBackground,
+                  onTransparentBackgroundChanged: (v) =>
+                      setState(() => _transparentBackground = v),
+                  countryCount: displayedCodes.length,
+                  dateLabel: _computeDateLabel(filteredTrips),
+                ),
               const SizedBox(height: 4),
               // Global controls: orientation
               _ChipRow(
@@ -257,17 +299,22 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
               ],
               const SizedBox(height: 8),
               // Card preview
+              // Constrained to 340 px max width so PassportLayoutEngine sees the
+              // same canvas dimensions as CardImageRenderer (ADR-113 / M57-02).
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Center(
-                    child: InteractiveViewer(
-                      transformationController: _transformController,
-                      minScale: 1.0,
-                      maxScale: 6.0,
-                      child: RepaintBoundary(
-                        key: _previewKey,
-                        child: _buildTemplate(displayedCodes, filteredTrips),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 340),
+                      child: InteractiveViewer(
+                        transformationController: _transformController,
+                        minScale: 1.0,
+                        maxScale: 6.0,
+                        child: RepaintBoundary(
+                          key: _previewKey,
+                          child: _buildTemplate(displayedCodes, filteredTrips),
+                        ),
                       ),
                     ),
                   ),
@@ -312,12 +359,20 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           dateLabel: dateLabel,
         );
       case CardTemplateType.passport:
+        // forPrint: true matches the CardImageRenderer render so the live
+        // preview is pixel-consistent with the Confirm Your Artwork image
+        // (ADR-113 / M57-02).
         return PassportStampsCard(
           countryCodes: codes,
           trips: trips,
           entryOnly: _entryOnly,
+          forPrint: true,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
+          titleOverride: _titleOverride,
+          stampColor: _stampColor,
+          dateColor: _dateColor,
+          transparentBackground: _transparentBackground,
         );
       case CardTemplateType.timeline:
         return TimelineCard(
@@ -418,6 +473,10 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       heartOrder: _heartOrder,
       yearStart: yearStart,
       yearEnd: yearEnd,
+      titleOverride: _titleOverride,
+      stampColor: _stampColor,
+      dateColor: _dateColor,
+      transparentBackground: _transparentBackground,
     );
 
     // M51-E3: same params — skip re-confirmation (ADR-103)
@@ -448,6 +507,10 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         cardAspectRatio: _aspectRatio,
         heartOrder: _heartOrder,
         dateLabel: dateLabel,
+        titleOverride: _titleOverride,
+        stampColor: _stampColor,
+        dateColor: _dateColor,
+        transparentBackground: _transparentBackground,
       );
     } catch (_) {
       // Non-fatal: fall back to in-screen render inside ArtworkConfirmationScreen.
@@ -477,6 +540,10 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           entryOnly: _entryOnly,
           showUpdatedBanner: showUpdatedBanner,
           preRenderedResult: preRender,
+          titleOverride: _titleOverride,
+          stampColor: _stampColor,
+          dateColor: _dateColor,
+          transparentBackground: _transparentBackground,
         ),
       ),
     );
@@ -538,6 +605,10 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         confirmedAspectRatio: _aspectRatio,
         confirmedEntryOnly: _entryOnly,
         cardId: cardId,
+        titleOverride: _titleOverride,
+        stampColor: _stampColor,
+        dateColor: _dateColor,
+        transparentBackground: _transparentBackground,
       ),
     ));
   }
@@ -798,6 +869,178 @@ class _DateRangeRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Passport customizer ────────────────────────────────────────────────────────
+
+class _PassportCustomizer extends StatelessWidget {
+  const _PassportCustomizer({
+    required this.titleOverride,
+    required this.onTitleChanged,
+    required this.stampColor,
+    required this.onStampColorChanged,
+    required this.dateColor,
+    required this.onDateColorChanged,
+    required this.transparentBackground,
+    required this.onTransparentBackgroundChanged,
+    required this.countryCount,
+    required this.dateLabel,
+  });
+
+  final String? titleOverride;
+  final ValueChanged<String?> onTitleChanged;
+  final Color? stampColor;
+  final ValueChanged<Color?> onStampColorChanged;
+  final Color? dateColor;
+  final ValueChanged<Color?> onDateColorChanged;
+  final bool transparentBackground;
+  final ValueChanged<bool> onTransparentBackgroundChanged;
+  final int countryCount;
+  final String dateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Title edit
+          TextField(
+            decoration: InputDecoration(
+              labelText: 'Card Title',
+              hintText: defaultTitle,
+              isDense: true,
+              prefixIcon: const Icon(Icons.edit, size: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.white24),
+              ),
+              suffixIcon: titleOverride != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => onTitleChanged(null),
+                    )
+                  : null,
+            ),
+            style: const TextStyle(fontSize: 13),
+            controller: TextEditingController(text: titleOverride)
+              ..selection = TextSelection.fromPosition(
+                  TextPosition(offset: (titleOverride ?? '').length)),
+            onChanged: (v) => onTitleChanged(v.isEmpty ? null : v),
+          ),
+          const SizedBox(height: 12),
+
+          // Color pickers
+          Row(
+            children: [
+              Expanded(
+                child: _ColorSection(
+                  label: 'STAMPS',
+                  selected: stampColor,
+                  onChanged: onStampColorChanged,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _ColorSection(
+                  label: 'DATES',
+                  selected: dateColor,
+                  onChanged: onDateColorChanged,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Background toggle
+          Row(
+            children: [
+              const Icon(Icons.layers_outlined, size: 14, color: Colors.white38),
+              const SizedBox(width: 6),
+              const Text('Tinted background',
+                  style: TextStyle(fontSize: 12, color: Colors.white60)),
+              const Spacer(),
+              Switch.adaptive(
+                value: !transparentBackground,
+                onChanged: (v) => onTransparentBackgroundChanged(!v),
+                activeColor: const Color(0xFFD4A017),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorSection extends StatelessWidget {
+  const _ColorSection(
+      {required this.label, required this.selected, required this.onChanged});
+
+  final String label;
+  final Color? selected;
+  final ValueChanged<Color?> onChanged;
+
+  static const _palette = [
+    null, // Multi-color (default)
+    Color(0xFF1565C0), // cobaltBlue
+    Color(0xFFB71C1C), // vividRed
+    Color(0xFF1B5E20), // deepGreen
+    Color(0xFF212121), // nearBlack
+    Color(0xFFBF360C), // burnedOrange
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white38,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1)),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 28,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _palette.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final color = _palette[i];
+              final isSelected = selected == color;
+
+              return GestureDetector(
+                onTap: () => onChanged(color),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: color ?? Colors.white10,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? Colors.white : Colors.white24,
+                      width: isSelected ? 2.0 : 1.0,
+                    ),
+                  ),
+                  child: color == null
+                      ? const Center(
+                          child: Icon(Icons.palette_outlined,
+                              size: 14, color: Colors.white70))
+                      : null,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -18,24 +18,43 @@ class PassportLayoutResult {
 
   /// `true` when [PassportLayoutEngine.layout] was called with `forPrint=true`
   /// and forced `entryOnly=true` because the adaptive baseRadius would have
-  /// dropped below 20 px (ADR-102).
+  /// dropped below 8 px (ADR-102 / ADR-113).
   final bool wasForced;
+}
+
+/// A single entry in the ordered stamp list built before layout.
+class _StampEntry {
+  const _StampEntry({
+    required this.trip,
+    required this.code,
+    required this.isEntry,
+  });
+
+  /// The trip this stamp belongs to, or `null` for bare-code stamps.
+  final TripRecord? trip;
+  final String code;
+  final bool isEntry;
 }
 
 /// Deterministic stamp placement engine for the passport card template.
 ///
 /// Produces a stable [PassportLayoutResult] for any given set of trips/codes
 /// and canvas size. Same user → same layout across all devices and sessions.
-/// (ADR-097)
+/// (ADR-097 / ADR-113)
 class PassportLayoutEngine {
   const PassportLayoutEngine._();
 
-  static const int _kMaxStamps = 20;
-  static const int _kMaxAttempts = 8;
+  // Maximum stamps rendered per card. Raised from 20 to accommodate one entry
+  // stamp and one exit stamp per trip (ADR-113).
+  static const int _kMaxStamps = 200;
+  static const int _kMaxAttempts = 12; // Increased from 6 for denser layout with safe zones
 
-  /// Grid cells for soft-grid clustering (3 columns × 4 rows = 12 cells).
-  static const int _kGridCols = 3;
-  static const int _kGridRows = 4;
+  // ── Safe Zones (ADR-117 Decision 1) ───────────────────────────────────────
+  // Title safe zone: Top 18% of height.
+  // Branding safe zone: Bottom-left 110x40 logical pixels.
+  static const double _kTitleSafeZoneHeightFraction = 0.18;
+  static const double _kBrandingSafeZoneWidth = 110.0;
+  static const double _kBrandingSafeZoneHeight = 40.0;
 
   // ── Category-balanced style pools (ADR-097 Decision 12) ───────────────────
   // Each code maps deterministically to a category (25% each), then to a style
@@ -81,14 +100,42 @@ class PassportLayoutEngine {
     return _otherStyles[hash % _otherStyles.length];
   }
 
+  /// Build the ordered stamp entry list from sorted trips and bare codes.
+  ///
+  /// When [entryOnly] is false, each trip produces two entries: entry
+  /// (date = startedOn) then exit (date = endedOn). When true, only the
+  /// entry stamp is produced. Bare [extraCodes] always produce a single entry.
+  static List<_StampEntry> _buildEntries(
+    List<TripRecord> sortedTrips,
+    List<String> extraCodes,
+    bool entryOnly,
+  ) {
+    final entries = <_StampEntry>[];
+    for (final trip in sortedTrips) {
+      entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: true));
+      if (!entryOnly) {
+        entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
+      }
+    }
+    for (final code in extraCodes) {
+      entries.add(_StampEntry(trip: null, code: code, isEntry: true));
+    }
+    return entries;
+  }
+
   /// Lay out stamps for [trips] and any bare [countryCodes] that have no trip.
   ///
+  /// Produces one entry stamp **and** one exit stamp per [TripRecord] when
+  /// [entryOnly] is false (ADR-113). Exit stamps use [TripRecord.endedOn] as
+  /// their date. Stamp radius scales down automatically as count grows so all
+  /// stamps remain individually visible even at 100+ counts.
+  ///
   /// [seed] defaults to a hash of [countryCodes] so the layout is stable per
-  /// user while still allowing callers to vary it (e.g. a shuffle button).
+  /// user while still allowing callers to vary it.
   ///
   /// When [forPrint] is `true` the layout applies a 3% safe-zone margin (vs
   /// the default 8%), disables all edge clipping, and uses a uniform adaptive
-  /// base radius (ADR-102). If the computed radius would drop below 20 and
+  /// base radius (ADR-102). If the computed radius would drop below 8 px and
   /// [entryOnly] was not already set, [entryOnly] is forced and
   /// [PassportLayoutResult.wasForced] will be `true`.
   static PassportLayoutResult layout({
@@ -106,7 +153,6 @@ class PassportLayoutEngine {
     final effectiveSeed = seed ?? countryCodes.join().hashCode;
     final rng = math.Random(effectiveSeed);
 
-    // Build ordered input list: trips sorted by startedOn, then trip-less codes
     final tripCodes = trips.map((t) => t.countryCode).toSet();
     final extraCodes =
         countryCodes.where((c) => !tripCodes.contains(c)).toList();
@@ -114,8 +160,9 @@ class PassportLayoutEngine {
     final sortedTrips = List<TripRecord>.from(trips)
       ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
-    final totalCount =
-        math.min(sortedTrips.length + extraCodes.length, _kMaxStamps);
+    // Build entry list and compute total count.
+    var entries = _buildEntries(sortedTrips, extraCodes, entryOnly);
+    int totalCount = math.min(entries.length, _kMaxStamps);
 
     // ── Print-safe mode setup (ADR-102) ──────────────────────────────────────
     final marginFraction = forPrint ? 0.03 : 0.08;
@@ -124,148 +171,189 @@ class PassportLayoutEngine {
     final usableW = canvasSize.width - marginX * 2;
     final usableH = canvasSize.height - marginY * 2;
 
-    // Determine baseRadius and wasForced for print mode.
+    // Dynamic base radius (ADR-113): full size (38 px) for ≤ 20 stamps, scales
+    // down smoothly as count grows — 38 × √(min(1, 20/n)) — clamped to [6, 38].
+    // This keeps stamps readable at any count while preserving the large-stamp
+    // aesthetic when the passport is only lightly visited.
+    final dynamicRadius = totalCount > 0
+        ? (38.0 * math.sqrt(math.min(1.0, 20.0 / totalCount))).clamp(6.0, 38.0)
+        : 38.0;
+
+    // Determine forPrint base radius and check wasForced (ADR-102 / ADR-113).
     double? forPrintBaseRadius;
     bool wasForced = false;
     if (forPrint && totalCount > 0) {
-      final shortSide = math.min(usableW, usableH);
-      final sqrtN = math.sqrt(totalCount);
-      final gridN = sqrtN.ceil().toDouble();
-      final unclamped = shortSide / (2.5 * gridN);
-      forPrintBaseRadius = unclamped.clamp(20.0, 38.0);
-      if (unclamped < 20.0 && !entryOnly) {
+      forPrintBaseRadius = dynamicRadius;
+      if (dynamicRadius < 8.0 && !entryOnly) {
         wasForced = true;
         entryOnly = true;
+        // Rebuild entries with forced entryOnly so count is halved.
+        entries = _buildEntries(sortedTrips, extraCodes, true);
+        totalCount = math.min(entries.length, _kMaxStamps);
+        // Recompute radius for the reduced count.
+        forPrintBaseRadius = totalCount > 0
+            ? (38.0 * math.sqrt(math.min(1.0, 20.0 / totalCount)))
+                .clamp(6.0, 38.0)
+            : 38.0;
       }
     }
+
+    // Dynamic grid: cell count scales with stamp count, preserving canvas
+    // aspect ratio so stamps distribute evenly in both landscape and portrait.
+    final canvasAspect = usableW / math.max(1.0, usableH);
+    final gridCols =
+        math.max(3, math.sqrt(totalCount.toDouble() * canvasAspect).ceil());
+    final gridRows =
+        math.max(4, (totalCount / gridCols).ceil() + 2);
+    final cellOccupancy = List<int>.filled(gridCols * gridRows, 0);
 
     final stamps = <StampData>[];
     final placedCentres = <Offset>[];
     final placedRadii = <double>[];
 
-    // Soft-grid cell occupancy tracking
-    final cellOccupancy = List<int>.filled(_kGridCols * _kGridRows, 0);
+    for (var stampIdx = 0; stampIdx < totalCount; stampIdx++) {
+      final entry = entries[stampIdx];
 
-    var tripIdx = 0;
-    var codeIdx = 0;
-    var stampIdx = 0;
+      final style = _styleForCode(entry.code);
+      final inkFamilyIndex = StampInkPalette.familyIndexForCode(entry.code);
+      final ageEffect = StampAgeEffect.fromWeightedRandom(rng.nextDouble());
 
-    while (stampIdx < totalCount) {
-      final isTripStamp = tripIdx < sortedTrips.length;
-      final code = isTripStamp
-          ? sortedTrips[tripIdx].countryCode
-          : extraCodes[codeIdx];
-
-      // Derive style from country code only — entry and exit of the same
-      // country always get the same stamp shape and colour (only the
-      // ENTRY/EXIT label text differs). Category-balanced to ensure variety.
-      final style = _styleForCode(code);
-      final inkFamilyIndex = StampInkPalette.familyIndexForCode(code);
-      final ageEffect =
-          StampAgeEffect.fromWeightedRandom(rng.nextDouble());
-
-      // ADR-097: ±20° rotation (was ±12°)
+      // ADR-097: ±20° rotation
       final rotation = (rng.nextDouble() * 2 - 1) * (20 * math.pi / 180);
-      // In print mode use uniform adaptive radius; otherwise random per-stamp.
+
+      // In print mode use uniform adaptive radius; otherwise ±10% variety.
       final double scale;
       final double baseRadius;
       if (forPrint && forPrintBaseRadius != null) {
         baseRadius = forPrintBaseRadius;
         scale = baseRadius / 38.0;
       } else {
-        scale = 0.85 + rng.nextDouble() * 0.3; // 0.85 – 1.15
-        baseRadius = 38.0 * scale;
+        final variety = 0.9 + rng.nextDouble() * 0.2;
+        baseRadius = (dynamicRadius * variety).clamp(6.0, 38.0);
+        scale = baseRadius / 38.0;
       }
 
-      // Find a non-occluded placement using soft-grid weighting
+      // Find a non-occluded placement using soft-grid weighting.
       Offset? centre;
       for (var attempt = 0; attempt < _kMaxAttempts; attempt++) {
         final candidateCell = _weightedCell(cellOccupancy, rng);
-        final cellW = usableW / _kGridCols;
-        final cellH = usableH / _kGridRows;
-        final cellCol = candidateCell % _kGridCols;
-        final cellRow = candidateCell ~/ _kGridCols;
+        final cellW = usableW / gridCols;
+        final cellH = usableH / gridRows;
+        final cellCol = candidateCell % gridCols;
+        final cellRow = candidateCell ~/ gridCols;
         final candidate = Offset(
           marginX + cellCol * cellW + rng.nextDouble() * cellW,
           marginY + cellRow * cellH + rng.nextDouble() * cellH,
         );
-        if (_acceptable(candidate, baseRadius, placedCentres, placedRadii)) {
+        if (_acceptable(candidate, baseRadius, placedCentres, placedRadii, canvasSize)) {
           centre = candidate;
           cellOccupancy[candidateCell]++;
           break;
         }
       }
-      // Accept best-effort on failure
-      centre ??= Offset(
-        marginX + rng.nextDouble() * usableW,
-        marginY + rng.nextDouble() * usableH,
-      );
+      // Best-effort fallback: overlap is acceptable for large counts (ADR-113),
+      // but safe zones are mandatory (ADR-117).
+      if (centre == null) {
+        for (var attempt = 0; attempt < 50; attempt++) {
+          final candidate = Offset(
+            marginX + rng.nextDouble() * usableW,
+            marginY + rng.nextDouble() * usableH,
+          );
+          if (_isInSafeZone(candidate, baseRadius, canvasSize)) continue;
+          centre = candidate;
+          break;
+        }
+      }
+      // Ultimate fallback: if still null (extreme density), pick center of canvas
+      // avoiding safe zones as much as possible.
+      centre ??= Offset(canvasSize.width * 0.5, canvasSize.height * 0.5);
 
-      // 8% chance of edge clipping (partial stamp at page boundary).
-      // Disabled in print mode — all stamps must be fully visible (ADR-102).
+      // 8% chance of edge clipping in normal mode; disabled in print (ADR-102).
       Rect? edgeClip;
       if (!forPrint && rng.nextDouble() < 0.08) {
         edgeClip = _edgeClipRect(centre, baseRadius, canvasSize, rng);
       }
 
       final StampData stamp;
-      if (isTripStamp) {
-        final trip = sortedTrips[tripIdx];
+      if (entry.trip != null) {
+        final trip = entry.trip!;
         stamp = StampData.fromTrip(
           trip,
+          stampDate: entry.isEntry ? trip.startedOn : trip.endedOn,
           style: style,
           inkFamilyIndex: inkFamilyIndex,
           ageEffect: ageEffect,
           rotation: rotation,
           center: centre,
           scale: scale,
-          isEntry: entryOnly || stampIdx % 2 == 0,
+          isEntry: entry.isEntry,
           countryName: kCountryNames[trip.countryCode] ?? trip.countryCode,
           edgeClip: edgeClip,
         );
-        tripIdx++;
       } else {
         stamp = StampData.fromCode(
-          code,
+          entry.code,
           style: style,
           inkFamilyIndex: inkFamilyIndex,
           ageEffect: ageEffect,
           rotation: rotation,
           center: centre,
           scale: scale,
-          countryName: kCountryNames[code] ?? code,
+          countryName: kCountryNames[entry.code] ?? entry.code,
           edgeClip: edgeClip,
         );
-        codeIdx++;
       }
 
       stamps.add(stamp);
       placedCentres.add(centre);
       placedRadii.add(baseRadius);
-      stampIdx++;
     }
 
     return PassportLayoutResult(stamps: stamps, wasForced: wasForced);
   }
 
-  /// Reject placement if the centre is within 80% of any existing stamp radius.
+  /// Reject placement if the new centre is within 50% of the combined radii of
+  /// any existing stamp. Relaxed from 80% to allow organic overlapping when
+  /// stamp counts are large (ADR-113).
+  ///
+  /// Safe zones (ADR-117) are mandatory even in fallback.
   static bool _acceptable(
     Offset candidate,
     double radius,
     List<Offset> centres,
     List<double> radii,
+    Size canvasSize,
   ) {
+    if (_isInSafeZone(candidate, radius, canvasSize)) return false;
+
     for (var i = 0; i < centres.length; i++) {
       final dist = (candidate - centres[i]).distance;
-      final minDist = (radius + radii[i]) * 0.8;
+      final minDist = (radius + radii[i]) * 0.5;
       if (dist < minDist) return false;
     }
     return true;
   }
 
+  /// Returns `true` if any part of a stamp with [radius] at [center] would
+  /// overlap the top (title) or bottom-left (branding) safe zones.
+  static bool _isInSafeZone(Offset center, double radius, Size canvasSize) {
+    // 1. Title Safe Zone (Top 18%)
+    if (center.dy - radius < canvasSize.height * _kTitleSafeZoneHeightFraction) {
+      return true;
+    }
+
+    // 2. Branding Safe Zone (Bottom-Left 110x40)
+    // We add a small buffer (4px) to ensure no visual tangent.
+    if (center.dx - radius < _kBrandingSafeZoneWidth + 4 &&
+        center.dy + radius > canvasSize.height - _kBrandingSafeZoneHeight - 4) {
+      return true;
+    }
+
+    return false;
+  }
+
   /// Soft-grid cell selection: probability ∝ 1/(1+occupancy).
   static int _weightedCell(List<int> occupancy, math.Random rng) {
-    // Compute unnormalised weights
     final weights =
         occupancy.map((o) => 1.0 / (1.0 + o)).toList();
     final total = weights.fold(0.0, (a, b) => a + b);
@@ -286,14 +374,13 @@ class PassportLayoutEngine {
     Size pageSize,
     math.Random rng,
   ) {
-    // Find the nearest edge
     final dLeft = centre.dx;
     final dRight = pageSize.width - centre.dx;
     final dTop = centre.dy;
     final dBottom = pageSize.height - centre.dy;
     final minD = [dLeft, dRight, dTop, dBottom].reduce(math.min);
 
-    final cropFraction = 0.10 + rng.nextDouble() * 0.15; // 10–25%
+    final cropFraction = 0.10 + rng.nextDouble() * 0.15;
     final cropAmount = radius * 2 * cropFraction;
 
     if (minD == dLeft) {

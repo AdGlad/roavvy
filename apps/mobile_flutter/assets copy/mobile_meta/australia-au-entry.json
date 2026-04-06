@@ -1,0 +1,22 @@
+{
+  "name": "australia-au-entry",
+  "png_asset": "australia-au-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 200.0,
+    "y": 120.5,
+    "rotation": 2.0,
+    "font_size": 29,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": 0.52,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

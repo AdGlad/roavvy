@@ -64,6 +64,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.confirmedAspectRatio = 3.0 / 2.0,
     this.confirmedEntryOnly = false,
     this.cardId,
+    this.titleOverride,
+    this.stampColor,
+    this.dateColor,
+    this.transparentBackground = false,
   });
 
   final List<String> selectedCodes;
@@ -82,6 +86,12 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// Optional TravelCard ID — threaded through to createMerchCart for order
   /// traceability (ADR-093).
   final String? cardId;
+
+  /// User customization fields (ADR-117)
+  final String? titleOverride;
+  final Color? stampColor;
+  final Color? dateColor;
+  final bool transparentBackground;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -310,8 +320,12 @@ class _LocalMockupPreviewScreenState
         codes: widget.selectedCodes,
         trips: widget.trips,
         forPrint: newTemplate == CardTemplateType.passport,
-        entryOnly: false,
+        entryOnly: widget.confirmedEntryOnly,
         cardAspectRatio: widget.confirmedAspectRatio,
+        titleOverride: widget.titleOverride,
+        stampColor: widget.stampColor,
+        dateColor: widget.dateColor,
+        transparentBackground: widget.transparentBackground,
       );
       if (!mounted) return;
       final newBytes = result.bytes;

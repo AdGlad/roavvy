@@ -1,0 +1,22 @@
+{
+  "name": "brazil-br-exit",
+  "png_asset": "brazil-br-exit.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 188.0,
+    "y": 117.5,
+    "rotation": 0.0,
+    "font_size": 50,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": -2.48,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

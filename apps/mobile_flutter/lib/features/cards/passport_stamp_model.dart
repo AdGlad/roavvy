@@ -168,12 +168,21 @@ class StampData {
     this.entryLabel = 'ARRIVAL',
     this.edgeClip,
     this.renderConfig = const StampRenderConfig(),
-  });
+    this.overrideInkColor,
+    this.overrideDateColor,
+    });
 
-  final String countryCode;
-  final String countryName;
+    final String countryCode;
+    final String countryName;
 
-  /// Stamp visual template (ADR-097: 12 styles replacing 4-shape StampShape).
+    /// Optional user-override ink colour (ADR-117 Decision 3).
+    final Color? overrideInkColor;
+
+    /// Optional user-override date colour (ADR-117 Decision 3).
+    final Color? overrideDateColor;
+
+    /// Stamp visual template (ADR-097: 12 styles replacing 4-shape StampShape).
+
   final StampStyle style;
 
   /// Index into [StampInkPalette._families] (0–5).
@@ -207,7 +216,9 @@ class StampData {
   final StampRenderConfig renderConfig;
 
   /// Ink colour, with saturation further reduced per age (ADR-097 Decision 4).
+  /// Respects optional user override (ADR-117).
   Color get inkColor {
+    if (overrideInkColor != null) return overrideInkColor!;
     final base = StampInkPalette.colorForFamily(inkFamilyIndex);
     if (ageEffect.shiftsToFaded) {
       // Blend 30% toward slateGrey (index 9) for aged/worn appearance
@@ -216,6 +227,9 @@ class StampData {
     }
     return base;
   }
+
+  /// Ink colour for the date text. Respects optional user override (ADR-117).
+  Color get dateColor => overrideDateColor ?? inkColor;
 
   /// Seed for deterministic procedural effects (noise, distortion, typography).
   int get seed => countryCode.hashCode ^ style.index;
@@ -272,8 +286,13 @@ class StampData {
   }
 
   /// Create a [StampData] from a [TripRecord].
+  ///
+  /// [stampDate] overrides the date shown on the stamp. Defaults to
+  /// [TripRecord.startedOn]. Pass [TripRecord.endedOn] for exit stamps so the
+  /// departure date is shown rather than the arrival date.
   factory StampData.fromTrip(
     TripRecord trip, {
+    DateTime? stampDate,
     required StampStyle style,
     required int inkFamilyIndex,
     required StampAgeEffect ageEffect,
@@ -289,6 +308,7 @@ class StampData {
     final label = isEntry
         ? nativeArrivalLabel(trip.countryCode)
         : nativeDepartureLabel(trip.countryCode);
+    final date = stampDate ?? trip.startedOn;
     return StampData(
       countryCode: trip.countryCode,
       countryName: countryName,
@@ -299,7 +319,7 @@ class StampData {
       center: center,
       scale: scale,
       isEntry: isEntry,
-      dateLabel: _formatDate(trip.startedOn, variant),
+      dateLabel: _formatDate(date, variant),
       entryLabel: label,
       edgeClip: edgeClip,
       renderConfig: renderConfig,

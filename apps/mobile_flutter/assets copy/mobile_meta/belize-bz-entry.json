@@ -1,0 +1,22 @@
+{
+  "name": "belize-bz-entry",
+  "png_asset": "belize-bz-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 220.0,
+    "y": 94.5,
+    "rotation": 0.0,
+    "font_size": 15,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": 0.52,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

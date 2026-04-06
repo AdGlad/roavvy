@@ -7,43 +7,57 @@ import 'merch_variant_lookup.dart';
 /// [assetPath] is the Flutter asset path (matches pubspec.yaml entry).
 /// [printAreaNorm] is the region in the image where the card artwork is
 /// composited, expressed in normalised 0.0–1.0 coordinates relative to
-/// the image dimensions (Rect.fromLTWH semantics: left, top, width, height).
+/// the effective image dimensions (Rect.fromLTWH semantics: left, top, width,
+/// height). When [srcRectNorm] is set, "effective image" means the cropped
+/// sub-rectangle; otherwise it means the full image.
 ///
-/// Print area coordinates were calibrated against the 600×800 placeholder
-/// images in assets/mockups/. Replace placeholders with production photography
-/// and re-calibrate before shipping (see ADR-107, Risk 1).
+/// [srcRectNorm] — optional source crop in normalised image coordinates. When
+/// non-null, only that sub-rectangle of [assetPath] is used when drawing the
+/// shirt background. Used to extract the front (left half) or back (right half)
+/// from a single split image (ADR-115).
 class ProductMockupSpec {
   const ProductMockupSpec({
     required this.assetPath,
     required this.printAreaNorm,
+    this.srcRectNorm,
   });
 
   final String assetPath;
 
   /// Print area in normalised image coordinates (0.0–1.0, Rect.fromLTWH).
+  /// Expressed relative to the effective (post-crop) image area.
   final Rect printAreaNorm;
+
+  /// Optional source crop (0.0–1.0, Rect.fromLTWH). When non-null, the painter
+  /// uses only this sub-rectangle of the asset image. Null means full image.
+  final Rect? srcRectNorm;
 }
 
 // ── Asset path constants ──────────────────────────────────────────────────────
 
-const _kTshirtBlackFront    = 'assets/mockups/tshirt_black_front.png';
-const _kTshirtBlackBack     = 'assets/mockups/tshirt_black_back.png';
-const _kTshirtWhiteFront    = 'assets/mockups/tshirt_white_front.png';
-const _kTshirtWhiteBack     = 'assets/mockups/tshirt_white_back.png';
-const _kTshirtNavyFront     = 'assets/mockups/tshirt_navy_front.png';
-const _kTshirtNavyBack      = 'assets/mockups/tshirt_navy_back.png';
-const _kTshirtHGFront       = 'assets/mockups/tshirt_heather_grey_front.png';
-const _kTshirtHGBack        = 'assets/mockups/tshirt_heather_grey_back.png';
-const _kTshirtRedFront      = 'assets/mockups/tshirt_red_front.png';
-const _kTshirtRedBack       = 'assets/mockups/tshirt_red_back.png';
-const _kPosterA4            = 'assets/mockups/poster_a4.png';
+/// Single photoreal shirt mockup (1600×1066 JPEG).
+/// Left half (x=0..799) = front view; right half (x=800..1599) = back view.
+/// All five colour variants share this asset (ADR-115 Decision 3).
+const _kShirtMockupFinal = 'assets/mockups/shirt-mockup-final.jpg';
+
+const _kPosterA4 = 'assets/mockups/poster_a4.png';
+
+// ── Source crop constants ─────────────────────────────────────────────────────
+
+/// Left half of the split mockup image (front view).
+const _kSrcFront = Rect.fromLTWH(0.0, 0.0, 0.5, 1.0);
+
+/// Right half of the split mockup image (back view).
+const _kSrcBack = Rect.fromLTWH(0.5, 0.0, 0.5, 1.0);
 
 // ── Print area constants ──────────────────────────────────────────────────────
 //
-// T-shirt chest area (front and back): centred, upper-mid region.
-// Calibrated against 600×800 placeholder: left=150px, top=160px, w=300px, h=320px
-// → normalised: left=0.25, top=0.20, width=0.50, height=0.40
-const _kTshirtPrintArea = Rect.fromLTWH(0.25, 0.20, 0.50, 0.40);
+// T-shirt print areas are expressed relative to each half-image (800×1066 px).
+// Calibrated against shirt-mockup-final.jpg (M59-01, ADR-115).
+//   Front chest: left=0.30, top=0.32, width=0.40, height=0.45
+//   Back:        left=0.30, top=0.30, width=0.40, height=0.45
+const _kTshirtFrontPrintArea = Rect.fromLTWH(0.30, 0.32, 0.40, 0.45);
+const _kTshirtBackPrintArea  = Rect.fromLTWH(0.30, 0.30, 0.40, 0.45);
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
 const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
@@ -62,47 +76,59 @@ const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
 /// For posters, [colour] and [placement] are ignored — there is a single spec
 /// regardless of paper type or size.
 abstract final class ProductMockupSpecs {
-  // T-shirt specs (colour × placement)
+  // T-shirt specs (colour × placement).
+  // All colour variants share shirt-mockup-final.jpg (ADR-115 Decision 3);
+  // colour swatch selection affects the Printful order colour, not the preview.
   static const _tshirtSpecs = <(String, String), ProductMockupSpec>{
     ('Black', 'front'): ProductMockupSpec(
-      assetPath: _kTshirtBlackFront,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtFrontPrintArea,
+      srcRectNorm: _kSrcFront,
     ),
     ('Black', 'back'): ProductMockupSpec(
-      assetPath: _kTshirtBlackBack,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtBackPrintArea,
+      srcRectNorm: _kSrcBack,
     ),
     ('White', 'front'): ProductMockupSpec(
-      assetPath: _kTshirtWhiteFront,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtFrontPrintArea,
+      srcRectNorm: _kSrcFront,
     ),
     ('White', 'back'): ProductMockupSpec(
-      assetPath: _kTshirtWhiteBack,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtBackPrintArea,
+      srcRectNorm: _kSrcBack,
     ),
     ('Navy', 'front'): ProductMockupSpec(
-      assetPath: _kTshirtNavyFront,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtFrontPrintArea,
+      srcRectNorm: _kSrcFront,
     ),
     ('Navy', 'back'): ProductMockupSpec(
-      assetPath: _kTshirtNavyBack,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtBackPrintArea,
+      srcRectNorm: _kSrcBack,
     ),
     ('Heather Grey', 'front'): ProductMockupSpec(
-      assetPath: _kTshirtHGFront,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtFrontPrintArea,
+      srcRectNorm: _kSrcFront,
     ),
     ('Heather Grey', 'back'): ProductMockupSpec(
-      assetPath: _kTshirtHGBack,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtBackPrintArea,
+      srcRectNorm: _kSrcBack,
     ),
     ('Red', 'front'): ProductMockupSpec(
-      assetPath: _kTshirtRedFront,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtFrontPrintArea,
+      srcRectNorm: _kSrcFront,
     ),
     ('Red', 'back'): ProductMockupSpec(
-      assetPath: _kTshirtRedBack,
-      printAreaNorm: _kTshirtPrintArea,
+      assetPath: _kShirtMockupFinal,
+      printAreaNorm: _kTshirtBackPrintArea,
+      srcRectNorm: _kSrcBack,
     ),
   };
 

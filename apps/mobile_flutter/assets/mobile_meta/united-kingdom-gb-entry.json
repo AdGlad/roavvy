@@ -3,22 +3,20 @@
   "png_asset": "united-kingdom-gb-entry.png",
   "placeholders": {
     "date": "{{DATE}}",
-    "color": "{{COLOR}}",
-    "date_format": "{{DATE_FORMAT}}"
+    "color": "{{COLOR}}"
   },
   "date": {
-    "x": 200.0,
-    "y": 133.5,
+    "x": 768.0,
+    "y": 512.0,
     "rotation": 0.0,
-    "font_size": 32,
+    "font_size": 71.0,
     "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
     "font_weight": 700,
-    "letter_spacing": 0.52,
-    "anchor": "middle",
-    "date_format": "dd MMM yyyy"
+    "letter_spacing": 2.0,
+    "anchor": "middle"
   },
   "image": {
-    "width": 400,
-    "height": 267
+    "width": 1490,
+    "height": 1019
   }
 }

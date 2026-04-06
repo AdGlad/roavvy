@@ -328,6 +328,11 @@ class PassportStampsCard extends StatelessWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.onWasForced,
+    this.onAssetsLoaded,
+    this.titleOverride,
+    this.stampColor,
+    this.dateColor,
+    this.transparentBackground = false,
   });
 
   final List<String> countryCodes;
@@ -348,6 +353,24 @@ class PassportStampsCard extends StatelessWidget {
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
 
+  /// Optional user-override for the main title (ADR-117).
+  final String? titleOverride;
+
+  /// Optional user-override for all stamp ink (ADR-117).
+  final Color? stampColor;
+
+  /// Optional user-override for all stamp date labels (ADR-117).
+  final Color? dateColor;
+
+  /// When `true`, the parchment background tint is removed (ADR-117).
+  final bool transparentBackground;
+
+  /// Called once the async SVG stamp asset load is complete (or determined to
+  /// be empty). Used by [CardImageRenderer] to know when it is safe to capture
+  /// the painted widget — capturing before this fires renders the fallback
+  /// procedural [StampPainter] instead of the SVG country stamps.
+  final VoidCallback? onAssetsLoaded;
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
@@ -358,31 +381,19 @@ class PassportStampsCard extends StatelessWidget {
               builder: (context, constraints) {
                 final size =
                     Size(constraints.maxWidth, constraints.maxHeight);
-                return Stack(
-                  children: [
-                    // Single unified painter: paper + stamps with BlendMode.multiply
-                    Positioned.fill(
-                      child: _PassportPagePainter(
-                        countryCodes: countryCodes,
-                        trips: trips,
-                        canvasSize: size,
-                        entryOnly: entryOnly,
-                        forPrint: forPrint,
-                        onWasForced: onWasForced,
-                      ),
-                    ),
-                    // Branding footer: wordmark + count + date label (ADR-101)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: CardBrandingFooter(
-                        countryCount: countryCodes.length,
-                        dateLabel: dateLabel,
-                        textColor: const Color(0xFF8B6914),
-                      ),
-                    ),
-                  ],
+                return _PassportPagePainter(
+                  countryCodes: countryCodes,
+                  trips: trips,
+                  canvasSize: size,
+                  entryOnly: entryOnly,
+                  forPrint: forPrint,
+                  onWasForced: onWasForced,
+                  onAssetsLoaded: onAssetsLoaded,
+                  dateLabel: dateLabel,
+                  titleOverride: titleOverride,
+                  stampColor: stampColor,
+                  dateColor: dateColor,
+                  transparentBackground: transparentBackground,
                 );
               },
             ),
@@ -420,6 +431,12 @@ class _PassportPagePainter extends StatefulWidget {
     this.entryOnly = false,
     this.forPrint = false,
     this.onWasForced,
+    this.onAssetsLoaded,
+    this.dateLabel = '',
+    this.titleOverride,
+    this.stampColor,
+    this.dateColor,
+    this.transparentBackground = false,
   });
 
   final List<String> countryCodes;
@@ -428,6 +445,14 @@ class _PassportPagePainter extends StatefulWidget {
   final bool entryOnly;
   final bool forPrint;
   final ValueChanged<bool>? onWasForced;
+  final String dateLabel;
+  final String? titleOverride;
+  final Color? stampColor;
+  final Color? dateColor;
+  final bool transparentBackground;
+
+  /// See [PassportStampsCard.onAssetsLoaded].
+  final VoidCallback? onAssetsLoaded;
 
   @override
   State<_PassportPagePainter> createState() => _PassportPagePainterState();
@@ -452,7 +477,9 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         !listEquals(old.trips, widget.trips) ||
         old.canvasSize != widget.canvasSize ||
         old.entryOnly != widget.entryOnly ||
-        old.forPrint != widget.forPrint) {
+        old.forPrint != widget.forPrint ||
+        old.stampColor != widget.stampColor ||
+        old.dateColor != widget.dateColor) {
       setState(() {
         _applyLayoutResult(_computeLayoutResult());
         _assets = const {};
@@ -493,15 +520,48 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
       }
     }
 
-    if (mounted && loaded.isNotEmpty) {
-      setState(() => _assets = loaded);
+    if (mounted) {
+      if (loaded.isNotEmpty) {
+        setState(() => _assets = loaded);
+      }
+      // Notify renderer that async loading is done (loaded or empty).
+      // Must fire after setState so the rebuild is scheduled before capture.
+      widget.onAssetsLoaded?.call();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Map override colors into stamps if provided (ADR-117)
+    final effectiveStamps = (widget.stampColor != null || widget.dateColor != null)
+        ? _stamps.map((s) => StampData(
+            countryCode: s.countryCode,
+            countryName: s.countryName,
+            style: s.style,
+            inkFamilyIndex: s.inkFamilyIndex,
+            ageEffect: s.ageEffect,
+            rotation: s.rotation,
+            center: s.center,
+            scale: s.scale,
+            isEntry: s.isEntry,
+            dateLabel: s.dateLabel,
+            entryLabel: s.entryLabel,
+            edgeClip: s.edgeClip,
+            renderConfig: s.renderConfig,
+            overrideInkColor: widget.stampColor,
+            overrideDateColor: widget.dateColor,
+          )).toList()
+        : _stamps;
+
     return CustomPaint(
-      painter: _MultiStampPainter(_stamps, _assets),
+      painter: _MultiStampPainter(
+        effectiveStamps,
+        _assets,
+        dateLabel: widget.dateLabel,
+        titleOverride: widget.titleOverride,
+        transparentBackground: widget.transparentBackground,
+        countryCount: widget.countryCodes.length,
+      ),
     );
   }
 }
@@ -514,18 +574,33 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
 /// [StampPainter]. Both paths sit inside the same multiply saveLayer so the
 /// ink-on-parchment compositing is consistent.
 class _MultiStampPainter extends CustomPainter {
-  _MultiStampPainter(this.stamps, this.assets);
+  _MultiStampPainter(
+    this.stamps,
+    this.assets, {
+    this.dateLabel = '',
+    this.titleOverride,
+    this.transparentBackground = false,
+    required this.countryCount,
+  });
 
   final List<StampData> stamps;
 
   /// Preloaded assets keyed by [StampAssetLoader.assetKey].
   final Map<String, StampAsset> assets;
 
+  final String dateLabel;
+  final String? titleOverride;
+  final bool transparentBackground;
+  final int countryCount;
+
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Paper texture background (drawn directly — not in saveLayer so it
     //    acts as the "destination" for the multiply blend)
-    const PaperTexturePainter().paint(canvas, size);
+    // Tint is removed if transparentBackground is true (ADR-117).
+    if (!transparentBackground) {
+      const PaperTexturePainter().paint(canvas, size);
+    }
 
     // 2. Open saveLayer with BlendMode.multiply: stamps multiply over paper
     canvas.saveLayer(
@@ -554,14 +629,92 @@ class _MultiStampPainter extends CustomPainter {
 
     canvas.restore(); // end BlendMode.multiply layer
 
-    // 3. Wavy cancel lines: 2–3 faint ink strokes crossing the page
+    // 3. Integrated Text Rendering: Title and Branding (ADR-117)
+    // Drawn AFTER saveLayer so they are not affected by multiply blend,
+    // ensuring pure white/black text if needed and no artifacts.
+    final textColor = const Color(0xFF8B6914);
+    _drawBranding(canvas, size, countryCount, dateLabel, textColor);
+    
+    final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
+    _drawTitle(canvas, size, titleOverride ?? defaultTitle, textColor);
+
+    // 4. Wavy cancel lines: 2–3 faint ink strokes crossing the page
     if (stamps.isNotEmpty) {
       _drawWavyCancelLines(canvas, size, stamps.first.seed);
     }
 
-    // 4. Vignette: subtle corner darkening (replaces PaperTexturePainter corner
+    // 5. Vignette: subtle corner darkening (replaces PaperTexturePainter corner
     //    aging which was removed in M45)
     _drawVignette(canvas, size);
+  }
+
+  void _drawBranding(Canvas canvas, Size size, int count, String date, Color color) {
+    const double fontSize = 9.0;
+    final tpRoavvy = TextPainter(
+      text: TextSpan(
+        text: 'ROAVVY',
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2,
+          decoration: TextDecoration.none,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final tpCount = TextPainter(
+      text: TextSpan(
+        text: '$count countries',
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          decoration: TextDecoration.none,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final y = size.height - tpRoavvy.height - 8;
+    tpRoavvy.paint(canvas, Offset(12, y));
+    tpCount.paint(canvas, Offset(12 + tpRoavvy.width + 8, y));
+
+    if (date.isNotEmpty) {
+      final tpDate = TextPainter(
+        text: TextSpan(
+          text: date,
+          style: TextStyle(
+            color: color,
+            fontSize: fontSize,
+            decoration: TextDecoration.none,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tpDate.paint(canvas, Offset(12 + tpRoavvy.width + 8 + tpCount.width + 6, y));
+    }
+  }
+
+  void _drawTitle(Canvas canvas, Size size, String title, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: title,
+        style: TextStyle(
+          color: color,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.none,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: size.width - 40);
+
+    final x = (size.width - tp.width) / 2;
+    // Positioned in the top safe zone (18% of height)
+    final y = (size.height * 0.18 - tp.height) / 2 + 4;
+    tp.paint(canvas, Offset(x, y));
   }
 
   /// Renders a stamp from its PNG asset, scaled to the stamp's bounding box,
@@ -609,7 +762,7 @@ class _MultiStampPainter extends CustomPainter {
       text: TextSpan(
         text: stamp.dateLabel,
         style: TextStyle(
-          color: stamp.inkColor.withValues(alpha: stamp.ageEffect.opacity),
+          color: stamp.dateColor.withValues(alpha: stamp.ageEffect.opacity),
           fontSize: spec.fontSize * scaleY,
           fontWeight: FontWeight.w700,
           letterSpacing: spec.letterSpacing * scaleX,

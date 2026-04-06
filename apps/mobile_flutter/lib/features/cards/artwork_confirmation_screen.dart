@@ -51,6 +51,10 @@ class ArtworkConfirmationScreen extends ConsumerStatefulWidget {
     this.entryOnly = false,
     this.showUpdatedBanner = false,
     this.preRenderedResult,
+    this.titleOverride,
+    this.stampColor,
+    this.dateColor,
+    this.transparentBackground = false,
   });
 
   final CardTemplateType templateType;
@@ -60,6 +64,12 @@ class ArtworkConfirmationScreen extends ConsumerStatefulWidget {
   final DateTime? dateRangeEnd;
   final double aspectRatio;
   final bool entryOnly;
+
+  /// Optional user customization fields (ADR-117)
+  final String? titleOverride;
+  final Color? stampColor;
+  final Color? dateColor;
+  final bool transparentBackground;
 
   /// When `true`, shows an amber banner informing the user that their artwork
   /// has been updated and they should confirm the new version (M51-E3).
@@ -104,6 +114,10 @@ class _ArtworkConfirmationScreenState
         forPrint: widget.templateType == CardTemplateType.passport,
         entryOnly: widget.entryOnly,
         cardAspectRatio: widget.aspectRatio,
+        titleOverride: widget.titleOverride,
+        stampColor: widget.stampColor,
+        dateColor: widget.dateColor,
+        transparentBackground: widget.transparentBackground,
       );
       if (mounted) {
         setState(() {

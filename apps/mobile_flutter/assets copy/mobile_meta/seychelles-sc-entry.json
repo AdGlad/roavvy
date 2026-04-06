@@ -1,0 +1,22 @@
+{
+  "name": "seychelles-sc-entry",
+  "png_asset": "seychelles-sc-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 199.0,
+    "y": 127.5,
+    "rotation": 0.0,
+    "font_size": 30,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": -2.48,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

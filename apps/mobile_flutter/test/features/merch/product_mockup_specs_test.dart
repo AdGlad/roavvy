@@ -44,17 +44,19 @@ void main() {
       expect(spec1.assetPath, equals(spec2.assetPath));
     });
 
-    test('specsFor tshirt Black/front returns correct asset path', () {
+    test('specsFor tshirt Black/front returns photoreal JPG asset (M59)', () {
       final spec = ProductMockupSpecs.specsFor(MerchProduct.tshirt,
           colour: 'Black', placement: 'front');
-      expect(spec.assetPath, 'assets/mockups/tshirt_black_front.png');
-      expect(spec.printAreaNorm, equals(const Rect.fromLTWH(0.25, 0.20, 0.50, 0.40)));
+      expect(spec.assetPath, 'assets/mockups/shirt-mockup-final.jpg');
+      expect(spec.printAreaNorm, equals(const Rect.fromLTWH(0.30, 0.32, 0.40, 0.45)));
+      expect(spec.srcRectNorm, equals(const Rect.fromLTWH(0.0, 0.0, 0.5, 1.0)));
     });
 
-    test('specsFor tshirt Heather Grey/back returns heather_grey_back asset', () {
+    test('specsFor tshirt Heather Grey/back uses same JPG asset (M59)', () {
       final spec = ProductMockupSpecs.specsFor(MerchProduct.tshirt,
           colour: 'Heather Grey', placement: 'back');
-      expect(spec.assetPath, 'assets/mockups/tshirt_heather_grey_back.png');
+      expect(spec.assetPath, 'assets/mockups/shirt-mockup-final.jpg');
+      expect(spec.srcRectNorm, equals(const Rect.fromLTWH(0.5, 0.0, 0.5, 1.0)));
     });
 
     test('specsFor throws ArgumentError for unknown tshirt combination', () {

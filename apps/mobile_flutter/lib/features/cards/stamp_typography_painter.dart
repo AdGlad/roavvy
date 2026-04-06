@@ -290,6 +290,7 @@ class StampTypographyPainter {
           // System sans-serif for stamp labels; Courier New for dates/serials
           fontFamily: monospace ? 'Courier New' : null,
           letterSpacing: letterSpacing,
+          decoration: TextDecoration.none,
         ),
       ),
       textDirection: TextDirection.ltr,

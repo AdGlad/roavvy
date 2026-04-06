@@ -14,16 +14,19 @@ import 'package:mobile_flutter/features/merch/product_mockup_specs.dart';
 
 void main() {
   group('M55-A — ProductMockupSpec construction', () {
-    test('const tshirt spec has correct asset path and print area', () {
+    test('const tshirt spec has correct asset path, print area, and srcRectNorm (M59)', () {
       const spec = ProductMockupSpec(
-        assetPath: 'assets/mockups/tshirt_black_front.png',
-        printAreaNorm: Rect.fromLTWH(0.25, 0.20, 0.50, 0.40),
+        assetPath: 'assets/mockups/shirt-mockup-final.jpg',
+        printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
+        srcRectNorm: Rect.fromLTWH(0.0, 0.0, 0.5, 1.0),
       );
-      expect(spec.assetPath, 'assets/mockups/tshirt_black_front.png');
-      expect(spec.printAreaNorm.left, closeTo(0.25, 0.001));
-      expect(spec.printAreaNorm.top, closeTo(0.20, 0.001));
-      expect(spec.printAreaNorm.width, closeTo(0.50, 0.001));
-      expect(spec.printAreaNorm.height, closeTo(0.40, 0.001));
+      expect(spec.assetPath, 'assets/mockups/shirt-mockup-final.jpg');
+      expect(spec.printAreaNorm.left, closeTo(0.30, 0.001));
+      expect(spec.printAreaNorm.top, closeTo(0.32, 0.001));
+      expect(spec.printAreaNorm.width, closeTo(0.40, 0.001));
+      expect(spec.printAreaNorm.height, closeTo(0.45, 0.001));
+      expect(spec.srcRectNorm, isNotNull);
+      expect(spec.srcRectNorm!.width, closeTo(0.5, 0.001));
     });
 
     test('const poster spec has near-full-area print area', () {
@@ -35,14 +38,16 @@ void main() {
       expect(spec.printAreaNorm.bottom, closeTo(0.95, 0.001));
     });
 
-    test('two specs with same fields are equal', () {
+    test('two specs with same fields are identical (const canonicalisation)', () {
       const spec1 = ProductMockupSpec(
-        assetPath: 'assets/mockups/tshirt_black_front.png',
-        printAreaNorm: Rect.fromLTWH(0.25, 0.20, 0.50, 0.40),
+        assetPath: 'assets/mockups/shirt-mockup-final.jpg',
+        printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
+        srcRectNorm: Rect.fromLTWH(0.0, 0.0, 0.5, 1.0),
       );
       const spec2 = ProductMockupSpec(
-        assetPath: 'assets/mockups/tshirt_black_front.png',
-        printAreaNorm: Rect.fromLTWH(0.25, 0.20, 0.50, 0.40),
+        assetPath: 'assets/mockups/shirt-mockup-final.jpg',
+        printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
+        srcRectNorm: Rect.fromLTWH(0.0, 0.0, 0.5, 1.0),
       );
       // Const identical instances are equal via identical().
       expect(identical(spec1, spec2), isTrue);

@@ -1,0 +1,22 @@
+{
+  "name": "belarus-by-entry",
+  "png_asset": "belarus-by-entry.png",
+  "placeholders": {
+    "date": "{{DATE}}",
+    "color": "{{COLOR}}"
+  },
+  "date": {
+    "x": 199.0,
+    "y": 129.5,
+    "rotation": 0.0,
+    "font_size": 32,
+    "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+    "font_weight": 700,
+    "letter_spacing": 0.52,
+    "anchor": "middle"
+  },
+  "image": {
+    "width": 400,
+    "height": 267
+  }
+}

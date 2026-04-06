@@ -1,13 +1,24 @@
-# M60 — Globe Map View
+# Current Task: Milestone 61 — Passport Card Refinement
 
-**Milestone:** 60
-**Phase:** Map Experience / Visual Quality
-**Status:** ✅ Complete (2026-04-04)
+**Status:** 🔄 In Progress
+**Started:** 2026-04-06
 
-## Tasks
+## Goal
+Refine and correct the Passport-style card generation and preview so that the design is consistent, visually strong, and reusable across screens.
 
-- [x] **M60-01** — `GlobeProjection` utility (pure Dart): orthographic projection, inverse, antimeridian split
-- [x] **M60-02** — `GlobePainter` CustomPainter: renders all country polygons on sphere with correct colours
-- [x] **M60-03** — `GlobeMapWidget` StatefulWidget: gesture-driven rotation/zoom, tap resolution
-- [x] **M60-04** — Globe/flat toggle in `MapScreen` + `globeModeProvider`
-- [x] **M60-05** — ADR-116 + unit tests for projection (18 tests, all pass)
+---
+
+## Task 169: Safe Zones & Layout
+**Objective:** Ensure stamps avoid the top (title) and bottom-left (branding) zones in `PassportLayoutEngine`.
+
+### Sub-tasks
+1. [ ] Analyze `PassportLayoutEngine.layout` for current exclusion zones.
+2. [ ] Define top safe zone (for title text).
+3. [ ] Define bottom-left safe zone (for Roavvy branding).
+4. [ ] Update layout algorithm to prevent stamp placement within these zones.
+5. [ ] Verify that stamps still overlap naturally and fill the remaining space.
+
+### Acceptance Criteria
+- [ ] Stamps never overlap the title area (top center).
+- [ ] Stamps never overlap the branding area (bottom-left).
+- [ ] Density remains high (stamps overlap each other).
