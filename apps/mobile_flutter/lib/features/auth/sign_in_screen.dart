@@ -5,6 +5,8 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/providers.dart';
 import 'apple_sign_in.dart' as apple;
+import 'facebook_sign_in.dart' as facebook;
+import 'google_sign_in.dart' as google;
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -96,6 +98,38 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await google.signInWithGoogle(repo: ref.read(visitRepositoryProvider));
+    } on FirebaseAuthException catch (_) {
+      if (mounted) setState(() => _error = 'Sign in failed. Try again.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Sign in failed. Try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await facebook.signInWithFacebook(repo: ref.read(visitRepositoryProvider));
+    } on FirebaseAuthException catch (_) {
+      if (mounted) setState(() => _error = 'Sign in failed. Try again.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Sign in failed. Try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _continueAnonymously() async {
     setState(() {
       _loading = true;
@@ -179,6 +213,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ElevatedButton(
                   onPressed: _signInWithApple,
                   child: const Text('Sign in with Apple'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: _signInWithGoogle,
+                  child: const Text('Sign in with Google'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: _signInWithFacebook,
+                  child: const Text('Sign in with Facebook'),
                 ),
                 const SizedBox(height: 12),
                 TextButton(

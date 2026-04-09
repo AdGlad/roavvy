@@ -1,13 +1,17 @@
 // M55-C/D — LocalMockupPreviewScreen widget tests
 
-import 'dart:typed_data';
-
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
+import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/features/merch/local_mockup_preview_screen.dart';
+import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart';
 import 'package:shared_models/shared_models.dart';
+
+RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 
 // Minimal valid 1×1 RGB PNG — generated with Python's zlib + struct (69 bytes).
 // Decodes successfully via ui.instantiateImageCodec in Flutter tests.
@@ -22,8 +26,12 @@ Widget _wrap(
   Widget child, {
   String? uid = 'test-uid',
 }) {
+  final db = _makeDb();
   return ProviderScope(
-    overrides: [currentUidProvider.overrideWith((ref) => uid)],
+    overrides: [
+      currentUidProvider.overrideWith((ref) => uid),
+      roavvyDatabaseProvider.overrideWithValue(db),
+    ],
     child: MaterialApp(home: child),
   );
 }
@@ -75,9 +83,13 @@ void main() {
     testWidgets('"Edit card design" pops (returns null) when tapped',
         (tester) async {
       final navigatorKey = GlobalKey<NavigatorState>();
+      final db = _makeDb();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [currentUidProvider.overrideWith((ref) => 'test-uid')],
+          overrides: [
+            currentUidProvider.overrideWith((ref) => 'test-uid'),
+            roavvyDatabaseProvider.overrideWithValue(db),
+          ],
           child: MaterialApp(
             navigatorKey: navigatorKey,
             home: Builder(
@@ -115,6 +127,10 @@ void main() {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
+      
+      await tester.tap(find.text('More'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('T-Shirt'), findsOneWidget);
       expect(find.text('Poster'), findsOneWidget);
@@ -124,6 +140,10 @@ void main() {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
+
+      await tester.tap(find.text('More'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Grid'), findsOneWidget);
       expect(find.text('Heart'), findsOneWidget);

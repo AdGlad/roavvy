@@ -179,7 +179,7 @@ class HeartLayoutEngine {
     final offsetY = (canvasSize.height - side) / 2;
 
     // Sort codes by the chosen ordering strategy.
-    final sorted = _sortCodes(codes, order, trips);
+    final sorted = sortCodes(codes, order, trips);
 
     List<HeartTilePosition>? result;
     var bandIndex = _bandIndexForCount(sorted.length);
@@ -250,7 +250,11 @@ class HeartLayoutEngine {
     return candidates.map((e) => e.$1).toList();
   }
 
-  static List<String> _sortCodes(
+  /// Sorts [codes] according to [order].
+  ///
+  /// Exposed as a public static so [CardEditorScreen] can apply the same
+  /// ordering to the Grid template (ADR-119).
+  static List<String> sortCodes(
       List<String> codes, HeartFlagOrder order, List<TripRecord> trips) {
     final sorted = List<String>.from(codes);
 

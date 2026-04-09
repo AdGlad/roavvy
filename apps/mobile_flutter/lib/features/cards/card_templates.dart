@@ -6,6 +6,7 @@ import 'package:shared_models/shared_models.dart';
 
 import 'card_branding_footer.dart';
 import 'flag_tile_renderer.dart';
+import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
 import 'paper_texture_painter.dart';
 import 'passport_layout_engine.dart';
@@ -13,105 +14,83 @@ import 'passport_stamp_model.dart';
 import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
-// ── Shared constants ─────────────────────────────────────────────────────────
-
-String _flag(String code) {
-  if (code.length != 2) return '';
-  const base = 0x1F1E6;
-  return String.fromCharCode(base + code.codeUnitAt(0) - 65) +
-      String.fromCharCode(base + code.codeUnitAt(1) - 65);
-}
-
-// ── Grid tile-size helper (M50-C1) ────────────────────────────────────────────
-
-/// Adaptive tile size for [GridFlagsCard] (ADR-102).
-///
-/// `tileSize = clamp(floor(sqrt(canvasArea / n) * 0.85), 28, 90)`
-///
-/// Exposed with [@visibleForTesting] for unit testing without widget
-/// infrastructure.
-@visibleForTesting
-double gridTileSize(double canvasArea, int n) {
-  assert(n > 0, 'n must be > 0');
-  final raw = (math.sqrt(canvasArea / n) * 0.85).floorToDouble();
-  return raw.clamp(28.0, 90.0);
-}
+// ── Adaptive grid sizing ──────────────────────────────────────────────────────
 
 // ── GridFlagsCard ─────────────────────────────────────────────────────────────
 
-/// Travel card template: flag emojis arranged in a flowing grid.
+/// Travel card template: real SVG flags arranged in a geometric grid.
 ///
-/// Dark navy background with amber accent. Up to 40 flags shown; overflow
-/// shown as "+N more". Displays country count at the bottom.
+/// Dark navy background. The grid calculates optimal dimensions using
+/// [GridMathEngine] to pack flags into the available space.
 class GridFlagsCard extends StatelessWidget {
   const GridFlagsCard({
     super.key,
     required this.countryCodes,
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
+    this.titleOverride,
   });
 
   final List<String> countryCodes;
   final double aspectRatio;
-
+  final String? titleOverride;
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
 
   @override
   Widget build(BuildContext context) {
-    const maxFlags = 40;
-    final visible = countryCodes.take(maxFlags).toList();
-    final overflow = countryCodes.length - visible.length;
+    if (countryCodes.isEmpty) {
+      return AspectRatio(
+        aspectRatio: aspectRatio,
+        child: Container(
+          color: const Color(0xFF0D2137),
+          child: const Center(
+            child: Text(
+              'Scan your photos\nto fill your card',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final effectiveTitle = titleOverride ?? '${countryCodes.length} Countries${dateLabel.isNotEmpty ? ' \u00B7 $dateLabel' : ''}';
 
     return AspectRatio(
       aspectRatio: aspectRatio,
       child: Container(
         decoration: const BoxDecoration(color: Color(0xFF0D2137)),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Text(
+                effectiveTitle.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
             Expanded(
-              child: countryCodes.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Scan your photos\nto fill your card',
-                        style: TextStyle(color: Colors.white54, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Adaptive tile size (ADR-102 / M50-C1).
-                        final tileSize = gridTileSize(
-                          constraints.maxWidth * constraints.maxHeight,
-                          visible.length,
-                        );
-                        final overflowFontSize =
-                            math.max(10.0, tileSize * 0.5);
-                        return Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Wrap(
-                            spacing: 2,
-                            runSpacing: 2,
-                            children: [
-                              for (final code in visible)
-                                Text(_flag(code),
-                                    style: TextStyle(fontSize: tileSize)),
-                              if (overflow > 0)
-                                Text(
-                                  '+$overflow',
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: overflowFontSize,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  return CustomPaint(
+                    size: size,
+                    painter: _GridPainter(
+                      countryCodes: countryCodes,
+                      canvasSize: size,
                     ),
+                  );
+                },
+              ),
             ),
             CardBrandingFooter(
               countryCount: countryCodes.length,
@@ -122,6 +101,77 @@ class GridFlagsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  _GridPainter({
+    required this.countryCodes,
+    required this.canvasSize,
+  });
+
+  final List<String> countryCodes;
+  final Size canvasSize;
+
+  static final _sharedCache = FlagImageCache();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (countryCodes.isEmpty) return;
+
+    // Use a slight padding around the grid
+    const padding = 8.0;
+    final availableWidth = size.width - padding * 2;
+    final availableHeight = size.height - padding * 2;
+
+    if (availableWidth <= 0 || availableHeight <= 0) return;
+
+    final layout = GridMathEngine.calculate(
+      width: availableWidth,
+      height: availableHeight,
+      itemCount: countryCodes.length,
+    );
+
+    if (layout.columns == 0 || layout.rows == 0) return;
+
+    final totalGridHeight = layout.itemHeight * layout.rows;
+    final startY = padding + (availableHeight - totalGridHeight) / 2.0;
+
+    int index = 0;
+    for (int r = 0; r < layout.rows; r++) {
+      int itemsInThisRow = layout.columns;
+      if (r == layout.rows - 1) {
+        itemsInThisRow = countryCodes.length - (r * layout.columns);
+      }
+
+      final rowWidth = layout.itemWidth * itemsInThisRow;
+      final startX = padding + (availableWidth - rowWidth) / 2.0;
+
+      for (int c = 0; c < itemsInThisRow; c++) {
+        final code = countryCodes[index];
+        final rect = Rect.fromLTWH(
+          startX + c * layout.itemWidth,
+          startY + r * layout.itemHeight,
+          layout.itemWidth,
+          layout.itemHeight,
+        );
+
+        final tile = HeartTilePosition(rect: rect, countryCode: code);
+        FlagTileRenderer.renderFromCache(
+          canvas,
+          tile,
+          _sharedCache,
+          cornerRadius: 2.0,
+          gapWidth: 2.0,
+        );
+
+        index++;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) =>
+      old.countryCodes != countryCodes || old.canvasSize != canvasSize;
 }
 
 // ── HeartRenderConfig ─────────────────────────────────────────────────────────
@@ -164,6 +214,7 @@ class HeartFlagsCard extends StatelessWidget {
     this.config = const HeartRenderConfig(),
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
+    this.titleOverride,
   });
 
   final List<String> countryCodes;
@@ -171,7 +222,7 @@ class HeartFlagsCard extends StatelessWidget {
   final HeartFlagOrder flagOrder;
   final HeartRenderConfig config;
   final double aspectRatio;
-
+  final String? titleOverride;
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
@@ -602,11 +653,20 @@ class _MultiStampPainter extends CustomPainter {
       const PaperTexturePainter().paint(canvas, size);
     }
 
-    // 2. Open saveLayer with BlendMode.multiply: stamps multiply over paper
-    canvas.saveLayer(
-      Offset.zero & size,
-      Paint()..blendMode = BlendMode.multiply,
-    );
+    // 2. Stamp compositing layer.
+    // BlendMode.multiply darkens the paper texture for a realistic ink effect,
+    // but requires a drawn background to work — multiplying over transparent
+    // pixels (RGB=0) produces 0 (invisible). When transparentBackground is true
+    // (white stamp mode) there is no paper, so use a plain save() instead to
+    // let stamps render normally (srcOver) onto the transparent canvas.
+    if (transparentBackground) {
+      canvas.save();
+    } else {
+      canvas.saveLayer(
+        Offset.zero & size,
+        Paint()..blendMode = BlendMode.multiply,
+      );
+    }
 
     for (final stamp in stamps) {
       // Apply edge clipping if set (partial stamp at page boundary)
@@ -638,14 +698,15 @@ class _MultiStampPainter extends CustomPainter {
     final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
     _drawTitle(canvas, size, titleOverride ?? defaultTitle, textColor);
 
-    // 4. Wavy cancel lines: 2–3 faint ink strokes crossing the page
-    if (stamps.isNotEmpty) {
-      _drawWavyCancelLines(canvas, size, stamps.first.seed);
+    // 4. Wavy cancel lines and vignette: paper-only effects.
+    // Skip when transparentBackground=true (POD / white-ink mode) — they are
+    // designed for parchment and appear as dark artifacts on a transparent canvas.
+    if (!transparentBackground) {
+      if (stamps.isNotEmpty) {
+        _drawWavyCancelLines(canvas, size, stamps.first.seed);
+      }
+      _drawVignette(canvas, size);
     }
-
-    // 5. Vignette: subtle corner darkening (replaces PaperTexturePainter corner
-    //    aging which was removed in M45)
-    _drawVignette(canvas, size);
   }
 
   void _drawBranding(Canvas canvas, Size size, int count, String date, Color color) {
@@ -729,12 +790,28 @@ class _MultiStampPainter extends CustomPainter {
     canvas.translate(stamp.center.dx, stamp.center.dy);
     canvas.rotate(stamp.rotation);
 
-    // Draw the PNG — apply age opacity via paint alpha.
+    // Draw the PNG.
+    // When an ink color override is set (black/white/palette modes), apply it
+    // via ColorFilter.srcIn which replaces all non-transparent pixels with the
+    // target color while preserving the alpha channel (shape, edges, anti-aliasing).
+    // Without an override (multicolor mode), draw with natural PNG colors.
+    final Paint imgPaint;
+    final inkOverride = stamp.overrideInkColor;
+    if (inkOverride != null) {
+      imgPaint = Paint()
+        ..colorFilter = ColorFilter.mode(
+          inkOverride.withValues(alpha: stamp.ageEffect.opacity),
+          BlendMode.srcIn,
+        );
+    } else {
+      imgPaint = Paint()
+        ..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity);
+    }
     canvas.drawImageRect(
       asset.image,
       Rect.fromLTWH(0, 0, meta.imageWidth, meta.imageHeight),
       Rect.fromCenter(center: Offset.zero, width: targetW, height: targetH),
-      Paint()..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity),
+      imgPaint,
     );
 
     // Overlay the date string if present.

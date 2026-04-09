@@ -39,7 +39,7 @@ enum MerchProduct {
   final String gid;
 }
 
-const tshirtColors = ['Black', 'White', 'Navy', 'Heather Grey', 'Red'];
+const tshirtColors = ['Black', 'White', 'Blue', 'Grey', 'Red'];
 const tshirtSizes = ['S', 'M', 'L', 'XL', '2XL'];
 const posterPapers = ['Enhanced Matte', 'Luster', 'Fine Art'];
 const posterSizes = ['12x18in', '18x24in', '24x36in', 'A3', 'A4'];
@@ -56,16 +56,16 @@ const Map<(String, String), String> tshirtGids = {
   ('White', 'L'): 'gid://shopify/ProductVariant/47577103696059',
   ('White', 'XL'): 'gid://shopify/ProductVariant/47577103728827',
   ('White', '2XL'): 'gid://shopify/ProductVariant/47577103761595',
-  ('Navy', 'S'): 'gid://shopify/ProductVariant/47577103794363',
-  ('Navy', 'M'): 'gid://shopify/ProductVariant/47577103827131',
-  ('Navy', 'L'): 'gid://shopify/ProductVariant/47577103859899',
-  ('Navy', 'XL'): 'gid://shopify/ProductVariant/47577103892667',
-  ('Navy', '2XL'): 'gid://shopify/ProductVariant/47577103925435',
-  ('Heather Grey', 'S'): 'gid://shopify/ProductVariant/47577103958203',
-  ('Heather Grey', 'M'): 'gid://shopify/ProductVariant/47577103990971',
-  ('Heather Grey', 'L'): 'gid://shopify/ProductVariant/47577104023739',
-  ('Heather Grey', 'XL'): 'gid://shopify/ProductVariant/47577104056507',
-  ('Heather Grey', '2XL'): 'gid://shopify/ProductVariant/47577104089275',
+  ('Blue', 'S'): 'gid://shopify/ProductVariant/47577103794363',
+  ('Blue', 'M'): 'gid://shopify/ProductVariant/47577103827131',
+  ('Blue', 'L'): 'gid://shopify/ProductVariant/47577103859899',
+  ('Blue', 'XL'): 'gid://shopify/ProductVariant/47577103892667',
+  ('Blue', '2XL'): 'gid://shopify/ProductVariant/47577103925435',
+  ('Grey', 'S'): 'gid://shopify/ProductVariant/47577103958203',
+  ('Grey', 'M'): 'gid://shopify/ProductVariant/47577103990971',
+  ('Grey', 'L'): 'gid://shopify/ProductVariant/47577104023739',
+  ('Grey', 'XL'): 'gid://shopify/ProductVariant/47577104056507',
+  ('Grey', '2XL'): 'gid://shopify/ProductVariant/47577104089275',
   ('Red', 'S'): 'gid://shopify/ProductVariant/47577104122043',
   ('Red', 'M'): 'gid://shopify/ProductVariant/47577104154811',
   ('Red', 'L'): 'gid://shopify/ProductVariant/47577104187579',

@@ -25,7 +25,7 @@ const _kThresholdShareEmoji = {
 ///
 /// [onCreateCard] is optional. When provided, a "Create a travel card" CTA
 /// is shown in the sheet. The callback should pop the sheet and navigate to
-/// [CardGeneratorScreen] (ADR-094).
+/// [CardTypePickerScreen] (ADR-094 / ADR-119).
 ///
 /// Mirrors the [showRegionDetailSheet] pattern (ADR-069).
 Future<void> showMilestoneCardSheet(
@@ -58,7 +58,7 @@ class MilestoneCardSheet extends StatelessWidget {
   final int threshold;
 
   /// Optional callback invoked when the user taps "Create a travel card".
-  /// Should pop the sheet and push [CardGeneratorScreen].
+  /// Should pop the sheet and push [CardTypePickerScreen].
   final VoidCallback? onCreateCard;
 
   @override

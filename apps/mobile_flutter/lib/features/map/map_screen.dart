@@ -14,7 +14,7 @@ import '../../core/providers.dart';
 import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
-import '../cards/card_generator_screen.dart';
+import '../cards/card_type_picker_screen.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
@@ -334,7 +334,7 @@ class MapScreen extends ConsumerWidget {
                     )));
                   } else if (action == _MapMenuAction.createCard) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const CardGeneratorScreen(),
+                      builder: (_) => const CardTypePickerScreen(),
                     ));
                   } else if (action == _MapMenuAction.shop) {
                     Navigator.of(context).push(MaterialPageRoute<void>(

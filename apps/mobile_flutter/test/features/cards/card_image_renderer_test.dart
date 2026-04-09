@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/cards/card_image_renderer.dart';
@@ -46,10 +48,18 @@ Future<CardRenderResult> _render(
       heartOrder: heartOrder,
       dateLabel: dateLabel,
     );
-    // Pump two frames: one to build the OverlayEntry, one to fire the
-    // post-frame callback that captures the RepaintBoundary.
-    await tester.pump();
-    await tester.pump();
+    // Pump frames until the render future resolves. Passport cards load SVG
+    // assets asynchronously via StampAssetLoader — the postFrameCallback that
+    // captures the RepaintBoundary is only registered AFTER onAssetsLoaded
+    // fires, so we must keep pumping until the capture is complete.
+    bool done = false;
+    unawaited(future.then(
+      (_) => done = true,
+      onError: (_) => done = true,
+    ));
+    for (int i = 0; i < 240 && !done; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     result = await future;
   });
 

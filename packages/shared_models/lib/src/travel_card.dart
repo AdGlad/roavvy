@@ -12,6 +12,10 @@ enum CardTemplateType {
   /// Dated travel log: trips listed chronologically with country names and
   /// date ranges on a parchment background (ADR-104 / M52).
   timeline,
+
+  /// Front chest ribbon: military-medal style grid of flags designed for the
+  /// front of merch like t-shirts (M62).
+  frontRibbon,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries
@@ -38,6 +42,7 @@ class TravelCard {
     required this.countryCodes,
     required this.countryCount,
     required this.createdAt,
+    this.titleOverride,
   });
 
   final String cardId;
@@ -46,6 +51,7 @@ class TravelCard {
   final List<String> countryCodes;
   final int countryCount;
   final DateTime createdAt;
+  final String? titleOverride;
 
   Map<String, dynamic> toFirestore() => {
         'cardId': cardId,
@@ -54,5 +60,21 @@ class TravelCard {
         'countryCodes': List<String>.from(countryCodes),
         'countryCount': countryCount,
         'createdAt': createdAt.toUtc().toIso8601String(),
+        if (titleOverride != null) 'titleOverride': titleOverride,
       };
+
+  factory TravelCard.fromFirestore(Map<String, dynamic> data) {
+    return TravelCard(
+      cardId: data['cardId'] as String,
+      userId: data['userId'] as String,
+      templateType: CardTemplateType.values.firstWhere(
+        (e) => e.name == data['templateType'],
+        orElse: () => CardTemplateType.grid,
+      ),
+      countryCodes: List<String>.from(data['countryCodes'] as List? ?? []),
+      countryCount: (data['countryCount'] as num?)?.toInt() ?? 0,
+      createdAt: DateTime.parse(data['createdAt'] as String).toLocal(),
+      titleOverride: data['titleOverride'] as String?,
+    );
+  }
 }

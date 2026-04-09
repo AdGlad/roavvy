@@ -254,6 +254,15 @@ The Flutter mobile app runs on a real iPhone with a complete navigation shell, o
   - `RegionBreakdownSheet` updated: each country `ExpansionTile` gains `trailing: IconButton(Icons.map_outlined)` that pops the sheet and pushes `CountryRegionMapScreen` via `Navigator.of(context)..pop()..push(...)`; expand-by-header-tap preserved
   - 7 new widget tests in `country_region_map_screen_test.dart`; 469 flutter tests passing (no regressions)
 
+- **Create Card UX Redesign (M62 — ADR-119)**:
+  - `CardTypePickerScreen` (`lib/features/cards/card_type_picker_screen.dart`) — `ConsumerWidget`; horizontal `ListView` carousel of 4 card-type tiles; each tile shows a live scaled-down preview of that card type using the user's actual data (via `FittedBox(fit: BoxFit.cover)` over the real template widget), type label, and tagline; tapping pushes `CardEditorScreen(templateType: type)`; empty state and loading indicator handled
+  - `CardEditorScreen` (`lib/features/cards/card_editor_screen.dart`) — `ConsumerStatefulWidget`; replaces `CardGeneratorScreen` as the active editing screen; receives `CardTemplateType` as constructor param; compact control strip: inline `TextField` for title + `IconButton.outlined` orientation toggle; Entry/Exit segmented toggle (passport only); `_SortOrderPicker` (Shuffle/By Date/A→Z/By Region) for Grid and Heart; `_PassportColorPicker` (Multicolor/Black/White) for Passport; conditional year range `RangeSlider`; `Expanded` card preview in `InteractiveViewer(maxScale: 6.0)`; side-by-side Share + Print action buttons at bottom
+  - `PassportColorMode` enum (multicolor, black, white) with extension `_PassportParams` mapping to `stampColor`, `dateColor`, `transparentBackground`; white mode wraps live preview in `ColoredBox(color: Colors.black)` so white stamps are visible; print render uses `transparentBackground: true` (white ink on transparent — ADR-117/ADR-119)
+  - `HeartLayoutEngine._sortCodes` promoted to `HeartLayoutEngine.sortCodes` (public static); `CardEditorScreen` applies this to `displayedCodes` before passing to `GridFlagsCard` so Grid has the same 4 sort-order options as Heart
+  - All 5 navigation entry points (`StatsScreen`, `LevelUpSheet`, `ScanSummaryScreen` ×2, `MapScreen`) updated to push `CardTypePickerScreen` instead of `CardGeneratorScreen`; no amber/gold text or underlines in editor UI (all controls use `theme.colorScheme.onSurface`)
+  - `_navigateToPrint` / `_goToProductBrowser` / `_onShare` logic ported from `CardGeneratorScreen` with identical `_CardParams` re-confirmation shortcut and `CardImageRenderer.render()` pre-render contract (ADR-103/ADR-112)
+  - 19 tests across `card_editor_screen_test.dart` + `card_type_picker_screen_test.dart`; `card_generator_heart_order_test.dart` migrated to test `CardEditorScreen`; `flutter analyze` clean; all existing card tests pass
+
 **`packages/country_lookup` — implemented and wired into the app:**
 - Offline GPS → ISO 3166-1 alpha-2 resolution via point-in-polygon lookup
 - Custom compact binary format (`ne_countries.bin`) with 1° grid spatial index — 1.2 MB, 233 countries, 1580 polygons

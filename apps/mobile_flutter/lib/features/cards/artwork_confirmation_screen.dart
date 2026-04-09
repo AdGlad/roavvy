@@ -304,10 +304,21 @@ class _ArtworkConfirmationScreenState
                           ],
                         )
                       : result != null
-                          ? Image.memory(
-                              result.bytes,
-                              fit: BoxFit.contain,
-                            )
+                          ? widget.transparentBackground
+                              // Transparent-background renders (white stamp mode):
+                              // wrap in a dark container so white stamps are
+                              // visible in the preview (ADR-119).
+                              ? ColoredBox(
+                                  color: Colors.black,
+                                  child: Image.memory(
+                                    result.bytes,
+                                    fit: BoxFit.contain,
+                                  ),
+                                )
+                              : Image.memory(
+                                  result.bytes,
+                                  fit: BoxFit.contain,
+                                )
                           : const Text(
                               'Could not render artwork.',
                               style: TextStyle(color: Colors.white54),

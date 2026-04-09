@@ -35,28 +35,31 @@ class ProductMockupSpec {
 
 // ── Asset path constants ──────────────────────────────────────────────────────
 
-/// Single photoreal shirt mockup (1600×1066 JPEG).
-/// Left half (x=0..799) = front view; right half (x=800..1599) = back view.
-/// All five colour variants share this asset (ADR-115 Decision 3).
-const _kShirtMockupFinal = 'assets/mockups/shirt-mockup-final.jpg';
-
 const _kPosterA4 = 'assets/mockups/poster_a4.png';
 
-// ── Source crop constants ─────────────────────────────────────────────────────
-
-/// Left half of the split mockup image (front view).
-const _kSrcFront = Rect.fromLTWH(0.0, 0.0, 0.5, 1.0);
-
-/// Right half of the split mockup image (back view).
-const _kSrcBack = Rect.fromLTWH(0.5, 0.0, 0.5, 1.0);
+// Per-colour t-shirt mockup JPEGs (front and back for each available colour).
+const _kTshirtFront = <String, String>{
+  'Black': 'assets/mockups/Black-tshirt-front.jpeg',
+  'White': 'assets/mockups/White-tshirt-front.jpg',
+  'Blue':  'assets/mockups/Blue-tshirt-front.jpeg',
+  'Grey':  'assets/mockups/Grey-tshirt-front.jpeg',
+  'Red':   'assets/mockups/Red-tshirt-front.jpeg',
+};
+const _kTshirtBack = <String, String>{
+  'Black': 'assets/mockups/Black-tshirt-back.jpeg',
+  'White': 'assets/mockups/White-tshirt-back.jpg',
+  'Blue':  'assets/mockups/Blue-tshirt-back.jpeg',
+  'Grey':  'assets/mockups/Grey-tshirt-back.jpeg',
+  'Red':   'assets/mockups/Red-tshirt-back.jpeg',
+};
 
 // ── Print area constants ──────────────────────────────────────────────────────
 //
-// T-shirt print areas are expressed relative to each half-image (800×1066 px).
-// Calibrated against shirt-mockup-final.jpg (M59-01, ADR-115).
-//   Front chest: left=0.30, top=0.32, width=0.40, height=0.45
+// T-shirt print areas are expressed relative to each image (800×1066 px).
+// Calibrated against the split shirt mockups (M59-01, ADR-115).
+//   Front chest: left=0.55, top=0.25, width=0.18, height=0.25 (left chest pocket area)
 //   Back:        left=0.30, top=0.30, width=0.40, height=0.45
-const _kTshirtFrontPrintArea = Rect.fromLTWH(0.30, 0.32, 0.40, 0.45);
+const _kTshirtFrontPrintArea = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
 const _kTshirtBackPrintArea  = Rect.fromLTWH(0.30, 0.30, 0.40, 0.45);
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
@@ -76,62 +79,6 @@ const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
 /// For posters, [colour] and [placement] are ignored — there is a single spec
 /// regardless of paper type or size.
 abstract final class ProductMockupSpecs {
-  // T-shirt specs (colour × placement).
-  // All colour variants share shirt-mockup-final.jpg (ADR-115 Decision 3);
-  // colour swatch selection affects the Printful order colour, not the preview.
-  static const _tshirtSpecs = <(String, String), ProductMockupSpec>{
-    ('Black', 'front'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtFrontPrintArea,
-      srcRectNorm: _kSrcFront,
-    ),
-    ('Black', 'back'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtBackPrintArea,
-      srcRectNorm: _kSrcBack,
-    ),
-    ('White', 'front'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtFrontPrintArea,
-      srcRectNorm: _kSrcFront,
-    ),
-    ('White', 'back'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtBackPrintArea,
-      srcRectNorm: _kSrcBack,
-    ),
-    ('Navy', 'front'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtFrontPrintArea,
-      srcRectNorm: _kSrcFront,
-    ),
-    ('Navy', 'back'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtBackPrintArea,
-      srcRectNorm: _kSrcBack,
-    ),
-    ('Heather Grey', 'front'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtFrontPrintArea,
-      srcRectNorm: _kSrcFront,
-    ),
-    ('Heather Grey', 'back'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtBackPrintArea,
-      srcRectNorm: _kSrcBack,
-    ),
-    ('Red', 'front'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtFrontPrintArea,
-      srcRectNorm: _kSrcFront,
-    ),
-    ('Red', 'back'): ProductMockupSpec(
-      assetPath: _kShirtMockupFinal,
-      printAreaNorm: _kTshirtBackPrintArea,
-      srcRectNorm: _kSrcBack,
-    ),
-  };
-
   static const _posterSpec = ProductMockupSpec(
     assetPath: _kPosterA4,
     printAreaNorm: _kPosterPrintArea,
@@ -148,13 +95,15 @@ abstract final class ProductMockupSpecs {
     String placement = 'front',
   }) {
     if (product == MerchProduct.poster) return _posterSpec;
-    final spec = _tshirtSpecs[(colour, placement)];
-    if (spec == null) {
+    final frontMap = placement == 'front' ? _kTshirtFront : _kTshirtBack;
+    final printArea = placement == 'front' ? _kTshirtFrontPrintArea : _kTshirtBackPrintArea;
+    final assetPath = frontMap[colour];
+    if (assetPath == null) {
       throw ArgumentError(
-        'No ProductMockupSpec registered for '
+        'No mockup asset registered for '
         'product=$product colour=$colour placement=$placement',
       );
     }
-    return spec;
+    return ProductMockupSpec(assetPath: assetPath, printAreaNorm: printArea);
   }
 }

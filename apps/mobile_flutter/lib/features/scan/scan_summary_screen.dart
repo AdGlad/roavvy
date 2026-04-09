@@ -12,7 +12,7 @@ import '../map/country_visual_state.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import '../merch/merch_country_selection_screen.dart';
-import '../cards/card_generator_screen.dart';
+import '../cards/card_type_picker_screen.dart';
 import 'achievement_unlock_sheet.dart';
 import 'level_up_sheet.dart';
 import 'milestone_card_sheet.dart';
@@ -117,7 +117,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
           Navigator.of(context).pop();
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => const CardGeneratorScreen(),
+              builder: (_) => const CardTypePickerScreen(),
             ),
           );
         },
@@ -464,7 +464,7 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
               child: TextButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const CardGeneratorScreen(),
+                    builder: (_) => const CardTypePickerScreen(),
                   ),
                 ),
                 child: const Text('Create a travel card →'),

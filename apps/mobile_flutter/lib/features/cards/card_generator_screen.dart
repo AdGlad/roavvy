@@ -18,6 +18,7 @@ import 'artwork_confirmation_screen.dart';
 import 'artwork_confirmation_service.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
+import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
 import 'stamp_preview_screen.dart';
@@ -250,10 +251,15 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                     ),
                   ],
                 ),
+              const SizedBox(height: 8),
+              _SharedTitleEditor(
+                titleOverride: _titleOverride,
+                onTitleChanged: (v) => setState(() => _titleOverride = v),
+                countryCount: displayedCodes.length,
+                dateLabel: _computeDateLabel(filteredTrips),
+              ),
               if (_selected == CardTemplateType.passport)
                 _PassportCustomizer(
-                  titleOverride: _titleOverride,
-                  onTitleChanged: (v) => setState(() => _titleOverride = v),
                   stampColor: _stampColor,
                   onStampColorChanged: (c) => setState(() => _stampColor = c),
                   dateColor: _dateColor,
@@ -261,8 +267,6 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                   transparentBackground: _transparentBackground,
                   onTransparentBackgroundChanged: (v) =>
                       setState(() => _transparentBackground = v),
-                  countryCount: displayedCodes.length,
-                  dateLabel: _computeDateLabel(filteredTrips),
                 ),
               const SizedBox(height: 4),
               // Global controls: orientation
@@ -349,6 +353,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           countryCodes: codes,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
+          titleOverride: _titleOverride,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -357,6 +362,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           flagOrder: _heartOrder,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
+          titleOverride: _titleOverride,
         );
       case CardTemplateType.passport:
         // forPrint: true matches the CardImageRenderer render so the live
@@ -380,6 +386,11 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           countryCodes: codes,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
+        );
+      case CardTemplateType.frontRibbon:
+        return FrontRibbonCard(
+          countryCodes: codes,
+          travelerLevel: 'Explorer',
         );
     }
   }
@@ -873,68 +884,77 @@ class _DateRangeRow extends StatelessWidget {
   }
 }
 
-// ── Passport customizer ────────────────────────────────────────────────────────
-
-class _PassportCustomizer extends StatelessWidget {
-  const _PassportCustomizer({
+class _SharedTitleEditor extends StatelessWidget {
+  const _SharedTitleEditor({
     required this.titleOverride,
     required this.onTitleChanged,
-    required this.stampColor,
-    required this.onStampColorChanged,
-    required this.dateColor,
-    required this.onDateColorChanged,
-    required this.transparentBackground,
-    required this.onTransparentBackgroundChanged,
     required this.countryCount,
     required this.dateLabel,
   });
 
   final String? titleOverride;
   final ValueChanged<String?> onTitleChanged;
-  final Color? stampColor;
-  final ValueChanged<Color?> onStampColorChanged;
-  final Color? dateColor;
-  final ValueChanged<Color?> onDateColorChanged;
-  final bool transparentBackground;
-  final ValueChanged<bool> onTransparentBackgroundChanged;
   final int countryCount;
   final String dateLabel;
 
   @override
   Widget build(BuildContext context) {
     final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: TextField(
+        decoration: InputDecoration(
+          labelText: 'Card Title',
+          hintText: defaultTitle,
+          isDense: true,
+          prefixIcon: const Icon(Icons.edit, size: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white24),
+          ),
+          suffixIcon: titleOverride != null
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => onTitleChanged(null),
+                )
+              : null,
+        ),
+        style: const TextStyle(fontSize: 13),
+        controller: TextEditingController(text: titleOverride)
+          ..selection = TextSelection.fromPosition(
+              TextPosition(offset: (titleOverride ?? '').length)),
+        onChanged: (v) => onTitleChanged(v.isEmpty ? null : v),
+      ),
+    );
+  }
+}
 
+// ── Passport customizer ────────────────────────────────────────────────────────
+
+class _PassportCustomizer extends StatelessWidget {
+  const _PassportCustomizer({
+    required this.stampColor,
+    required this.onStampColorChanged,
+    required this.dateColor,
+    required this.onDateColorChanged,
+    required this.transparentBackground,
+    required this.onTransparentBackgroundChanged,
+  });
+
+  final Color? stampColor;
+  final ValueChanged<Color?> onStampColorChanged;
+  final Color? dateColor;
+  final ValueChanged<Color?> onDateColorChanged;
+  final bool transparentBackground;
+  final ValueChanged<bool> onTransparentBackgroundChanged;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Title edit
-          TextField(
-            decoration: InputDecoration(
-              labelText: 'Card Title',
-              hintText: defaultTitle,
-              isDense: true,
-              prefixIcon: const Icon(Icons.edit, size: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.white24),
-              ),
-              suffixIcon: titleOverride != null
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () => onTitleChanged(null),
-                    )
-                  : null,
-            ),
-            style: const TextStyle(fontSize: 13),
-            controller: TextEditingController(text: titleOverride)
-              ..selection = TextSelection.fromPosition(
-                  TextPosition(offset: (titleOverride ?? '').length)),
-            onChanged: (v) => onTitleChanged(v.isEmpty ? null : v),
-          ),
-          const SizedBox(height: 12),
-
           // Color pickers
           Row(
             children: [

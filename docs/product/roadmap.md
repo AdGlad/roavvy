@@ -347,6 +347,16 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 
 ---
 
+## Phase 20 — Create Card UX Redesign
+
+**Goal:** Simplify and elevate the card creation experience. Replace the monolithic `CardGeneratorScreen` with a two-stage flow: a carousel type picker and a focused editor with a large live preview.
+
+| Milestone | Goal | Status |
+|---|---|---|
+| M62 — Create Card UX Redesign | `CardTypePickerScreen` carousel + `CardEditorScreen` with compact controls, sort-order picker (Grid/Heart), passport colour modes (White/Black/Multicolor), typography cleanup | ✅ Complete |
+
+---
+
 ## Deferred / Not Planned
 
 - Android support (revisit after iOS App Store launch)

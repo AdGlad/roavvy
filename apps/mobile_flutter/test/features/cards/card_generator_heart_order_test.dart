@@ -1,11 +1,16 @@
+// M62 migration — heart-order picker tests now use CardEditorScreen.
+//
+// These tests were originally written against CardGeneratorScreen (M37).
+// CardGeneratorScreen is no longer navigated to; the same behaviour
+// lives in CardEditorScreen (ADR-119).
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
-import 'package:mobile_flutter/features/cards/card_generator_screen.dart';
+import 'package:mobile_flutter/features/cards/card_editor_screen.dart';
 import 'package:shared_models/shared_models.dart';
 
-// Minimal providers override for widget tests.
 ProviderContainer _buildContainer({
   List<EffectiveVisitedCountry> visits = const [],
   List<TripRecord> trips = const [],
@@ -35,52 +40,55 @@ List<EffectiveVisitedCountry> _makeVisits(List<String> codes) => codes
     .toList();
 
 void main() {
-  group('CardGeneratorScreen heart-order picker', () {
-    testWidgets('order picker is not visible when grid template selected',
+  group('CardEditorScreen sort-order picker (migrated from CardGeneratorScreen)',
+      () {
+    testWidgets('sort picker is visible when grid template selected',
         (tester) async {
-      final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(const CardGeneratorScreen(), container));
+      final container =
+          _buildContainer(visits: _makeVisits(['GB', 'US']));
+      await tester.pumpWidget(_wrap(
+        const CardEditorScreen(templateType: CardTemplateType.grid),
+        container,
+      ));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      // Default template is grid — order picker should be absent.
-      expect(find.text('Shuffle'), findsNothing);
-      expect(find.text('By date'), findsNothing);
+      // Grid editor — sort picker is shown (unlike old CardGeneratorScreen default).
+      expect(find.text('Shuffle'), findsOneWidget);
+      expect(find.text('By Date'), findsOneWidget);
     });
 
-    testWidgets('order picker appears when heart template selected',
+    testWidgets('sort picker is visible when heart template selected',
         (tester) async {
-      final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(const CardGeneratorScreen(), container));
+      final container =
+          _buildContainer(visits: _makeVisits(['GB', 'US']));
+      await tester.pumpWidget(_wrap(
+        const CardEditorScreen(templateType: CardTemplateType.heart),
+        container,
+      ));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      // Tap "Heart" template tile.
-      await tester.tap(find.text('Heart'));
-      await tester.pump();
-
       expect(find.text('Shuffle'), findsOneWidget);
-      expect(find.text('By date'), findsOneWidget);
-      expect(find.text('A→Z'), findsOneWidget);
-      expect(find.text('By region'), findsOneWidget);
+      expect(find.text('By Date'), findsOneWidget);
+      expect(find.text('A \u2192 Z'), findsOneWidget);
+      expect(find.text('By Region'), findsOneWidget);
     });
 
-    testWidgets('order picker disappears when switching back to grid',
+    testWidgets('sort picker is absent for passport template',
         (tester) async {
-      final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(const CardGeneratorScreen(), container));
+      final container =
+          _buildContainer(visits: _makeVisits(['GB', 'US']));
+      await tester.pumpWidget(_wrap(
+        const CardEditorScreen(
+            templateType: CardTemplateType.passport),
+        container,
+      ));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      // Switch to heart.
-      await tester.tap(find.text('Heart'));
-      await tester.pump();
-      expect(find.text('Shuffle'), findsOneWidget);
-
-      // Switch back to grid.
-      await tester.tap(find.text('Grid'));
-      await tester.pump();
       expect(find.text('Shuffle'), findsNothing);
+      expect(find.text('By Date'), findsNothing);
     });
   });
 }

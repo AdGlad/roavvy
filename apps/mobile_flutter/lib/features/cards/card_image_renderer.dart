@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_templates.dart';
+import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
 
@@ -75,23 +76,65 @@ class CardImageRenderer {
     Color? stampColor,
     Color? dateColor,
     bool transparentBackground = false,
-  }) async {
+    String? travelerLevel,
+    Color? textColor,
+  }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
-    OverlayEntry? entry;
 
     // Capture wasForced from PassportStampsCard.onWasForced callback (ADR-103).
     bool wasForced = false;
 
     // ADR-112 fix: PassportStampsCard loads SVG stamp assets asynchronously in
-    // _PassportPagePainterState._loadAssets(). A single addPostFrameCallback
-    // fires after frame 1, before _loadAssets() has completed, so _assets is
-    // still empty and _MultiStampPainter falls back to the old procedural
-    // StampPainter. We wait for the onAssetsLoaded signal (fired after
-    // setState(_assets = loaded)) before scheduling the capture frame.
+    // _PassportPagePainterState._loadAssets(). We must not register the capture
+    // callback until onAssetsLoaded fires (after setState(_assets = loaded)),
+    // otherwise _MultiStampPainter falls back to procedural StampPainter.
+    //
+    // Critically, render() must NOT await assetsCompleter.future itself — that
+    // would block the caller's Future chain and prevent the caller from pumping
+    // the widget tree (e.g. in widget tests). Instead, we chain via .then() so
+    // render() returns completer.future immediately, letting the caller pump
+    // freely until the capture is complete.
     final assetsCompleter = template == CardTemplateType.passport
         ? Completer<void>()
         : null;
+
+    late OverlayEntry entry;
+
+    void doCapture() {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          final boundary = repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+          if (boundary == null) {
+            completer.completeError(
+                Exception('CardImageRenderer: render boundary not found'));
+            return;
+          }
+          final image = await boundary.toImage(pixelRatio: pixelRatio);
+          final byteData =
+              await image.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData == null) {
+            completer.completeError(
+                Exception('CardImageRenderer: failed to encode image'));
+            return;
+          }
+          final bytes = byteData.buffer.asUint8List();
+          final imageHash = sha256.convert(bytes).bytes
+              .map((b) => b.toRadixString(16).padLeft(2, '0'))
+              .join();
+          completer.complete(CardRenderResult(
+            bytes: bytes,
+            imageHash: imageHash,
+            wasForced: wasForced,
+          ));
+        } catch (e, st) {
+          completer.completeError(e, st);
+        } finally {
+          entry.remove();
+        }
+      });
+    }
 
     entry = OverlayEntry(
       builder: (_) => Positioned(
@@ -116,6 +159,8 @@ class CardImageRenderer {
               stampColor: stampColor,
               dateColor: dateColor,
               transparentBackground: transparentBackground,
+              travelerLevel: travelerLevel,
+              textColor: textColor,
               onAssetsLoaded: assetsCompleter != null
                   ? () {
                       if (!assetsCompleter.isCompleted) {
@@ -131,48 +176,16 @@ class CardImageRenderer {
 
     Overlay.of(context).insert(entry);
 
-    // For passport: wait until SVG stamp assets have loaded and setState has
-    // been called before scheduling the capture callback. The next
-    // addPostFrameCallback will then fire after the rebuilt frame that contains
-    // the actual SVG stamps. Timeout guards against the widget being disposed
-    // before onAssetsLoaded fires (e.g. user navigates away).
     if (assetsCompleter != null) {
-      await assetsCompleter.future
-          .timeout(const Duration(seconds: 10), onTimeout: () {});
+      // Schedule capture after SVG assets have loaded (or timed out).
+      // Timeout guards against the widget being disposed before onAssetsLoaded
+      // fires (e.g. user navigates away).
+      assetsCompleter.future
+          .timeout(const Duration(seconds: 10), onTimeout: () {})
+          .then((_) => doCapture());
+    } else {
+      doCapture();
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        final boundary = repaintKey.currentContext?.findRenderObject()
-            as RenderRepaintBoundary?;
-        if (boundary == null) {
-          completer.completeError(
-              Exception('CardImageRenderer: render boundary not found'));
-          return;
-        }
-        final image = await boundary.toImage(pixelRatio: pixelRatio);
-        final byteData =
-            await image.toByteData(format: ui.ImageByteFormat.png);
-        if (byteData == null) {
-          completer.completeError(
-              Exception('CardImageRenderer: failed to encode image'));
-          return;
-        }
-        final bytes = byteData.buffer.asUint8List();
-        final imageHash = sha256.convert(bytes).bytes
-            .map((b) => b.toRadixString(16).padLeft(2, '0'))
-            .join();
-        completer.complete(CardRenderResult(
-          bytes: bytes,
-          imageHash: imageHash,
-          wasForced: wasForced,
-        ));
-      } catch (e, st) {
-        completer.completeError(e, st);
-      } finally {
-        entry?.remove();
-      }
-    });
 
     return completer.future;
   }
@@ -191,9 +204,17 @@ class CardImageRenderer {
     Color? stampColor,
     Color? dateColor,
     bool transparentBackground = false,
+    String? travelerLevel,
+    Color? textColor,
     VoidCallback? onAssetsLoaded,
     }) {
     switch (template) {
+      case CardTemplateType.frontRibbon:
+        return FrontRibbonCard(
+          countryCodes: codes,
+          travelerLevel: travelerLevel ?? 'Explorer',
+          textColor: textColor ?? Colors.white,
+        );
       case CardTemplateType.grid:
         return GridFlagsCard(
           countryCodes: codes,

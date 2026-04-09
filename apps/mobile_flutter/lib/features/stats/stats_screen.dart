@@ -4,7 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
-import '../cards/card_generator_screen.dart';
+import '../cards/card_type_picker_screen.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../scan/achievement_unlock_sheet.dart';
 import 'countries_list_screen.dart';
@@ -113,7 +113,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const CardGeneratorScreen(),
+                        builder: (_) => const CardTypePickerScreen(),
                       ),
                     ),
                     icon: const Icon(Icons.style_outlined),

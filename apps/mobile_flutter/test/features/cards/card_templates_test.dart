@@ -41,13 +41,6 @@ void main() {
       expect(find.text('2018\u20132024'), findsOneWidget);
     });
 
-    testWidgets('shows overflow indicator with 50+ countries', (tester) async {
-      final codes = List.generate(50, (i) => String.fromCharCode(65 + i % 26) +
-          String.fromCharCode(65 + (i + 1) % 26));
-      await tester.pumpWidget(_wrap(GridFlagsCard(countryCodes: codes)));
-      // Should not throw; overflow shown as +N
-      expect(find.textContaining('+'), findsOneWidget);
-    });
   });
 
   group('HeartFlagsCard', () {
@@ -133,14 +126,6 @@ void main() {
       expect(find.byType(PassportStampsCard), findsOneWidget);
     });
 
-    testWidgets('shows CardBrandingFooter with country count', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const PassportStampsCard(
-            countryCodes: ['GB', 'FR'], trips: []),
-      ));
-      expect(find.byType(CardBrandingFooter), findsOneWidget);
-      expect(find.text('2 countries'), findsOneWidget);
-    });
   });
 
   group('TimelineCard', () {

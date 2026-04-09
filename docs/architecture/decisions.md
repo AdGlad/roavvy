@@ -3971,3 +3971,99 @@ The auto-generated title (e.g., "12 Countries · 2024") can be overridden by the
 - Visual density will be high and consistent because the same image is scaled rather than re-laid out.
 - Underline artifacts will be eliminated as standard `Text` widgets are replaced by `TextPainter.paint()` calls.
 
+---
+
+## ADR-118 — M61 Grid Card Upgrade: Shared Title State and SVG Layout Engine
+
+**Status:** Accepted
+
+**Context:**
+Milestone 61 replaces the emoji-based `GridFlagsCard` with a product-quality SVG flag layout. It must support landscape/portrait resizing, reactive updates when filters change, and allow the user to override the auto-generated title. The title override must apply to all card templates (Grid, Passport, Heart).
+
+**Decisions:**
+
+**1. Shared Title State in `TravelCard`:**
+The `TravelCard` domain model will gain a `String? titleOverride` property. This allows `CardGeneratorScreen` to present a unified `TextField` that updates the state. All card templates (`GridFlagsCard`, `PassportStampsCard`, `HeartFlagsCard`) will consume this overridden title instead of their own generated text when it is present.
+
+**2. Grid Math & Layout Engine:**
+The grid will dynamically calculate rows and columns to perfectly pack `N` flag images of aspect ratio 4:3 into the given bounding box `(W, H)`. It will minimize wasted space and gracefully handle varying aspect ratios (e.g. portrait vs. landscape constraints). Emojis and `LayoutBuilder` text sizing will be fully removed in favor of this geometric solver.
+
+**3. SVG Rendering via `FlagImageCache`:**
+The new `GridFlagsCard` will use the `FlagTileRenderer` and `FlagImageCache` developed in M46 for the Heart Card. This ensures high-performance, pixel-perfect SVG rendering for export.
+
+**Consequences:**
+- The `TravelCard` model schema must be updated (backward compatible serialization).
+- Existing `GridFlagsCard` tests will break as it moves from text rendering to custom image rendering.
+- Re-layout happens instantly when the container bounds change or when the country list is altered via the timeline filter.
+
+---
+
+## ADR-119 — M62 Front Chest Ribbon Design: Dual-Sided Merch Architecture
+
+**Status:** Accepted
+
+**Context:**
+Milestone 62 introduces a new standalone design specifically for the front chest of t-shirts: the "Front Chest Ribbon Design". It resembles a military medal ribbon, displaying Roavvy branding, exactly 8 flags per row, and the user's traveler status. Previously, the merch mockups showed the same card design (Grid, Heart, Passport, Timeline) on both sides or only supported one card layout.
+
+**Decisions:**
+
+**1. Dual-Image Mockup Architecture:**
+The `LocalMockupPreviewScreen` will now distinguish between the front and back artwork. 
+- The `backArtwork` will be the user's selected `TravelCard` (rendered as `_artworkImage`).
+- The `frontArtwork` will be a dynamically generated image of `CardTemplateType.frontRibbon`.
+- `CardImageRenderer` will be used to generate this front image asynchronously when the mockup screen initializes, applying the correct text color to contrast with the selected t-shirt color.
+
+**2. `FrontRibbonCard` Component & Layout Math:**
+A new `FrontRibbonCard` widget (and underlying `CustomPainter`) will be created. The layout engine for this design will strictly enforce exactly 8 flags per row, automatically scaling the flag tiles so the 8 tiles perfectly fill the 4-inch (conceptual) width. The background will be `Colors.transparent`.
+
+**3. Dynamic Text Color via Parent State:**
+The ribbon requires white text on dark shirts and black text on white shirts. The `LocalMockupPreviewScreen` will pass a `textColor` parameter (computed from the active `_colour` swatch) down to the `CardImageRenderer`, which passes it to the `FrontRibbonCard`.
+
+**4. Data Model Augmentation:**
+`CardTemplateType` gains `frontRibbon`. However, `frontRibbon` is not intended to be a standalone `TravelCard` saved to the database in the same way; rather, it is an automatic complement to t-shirt merch. The rendering parameters (e.g., `travelerLevel`) will be injected at render-time using the user's computed `XpState`.
+
+**Consequences:**
+- The print area for the front t-shirt mockup (`_kTshirtFrontPrintArea`) in `ProductMockupSpecs` must be recalibrated to reflect a small left-chest placement instead of a large center-chest placement.
+- Changing the shirt color triggers a re-render of the front ribbon to recalculate text contrast, adding slight latency during color swaps.
+- The `TravelCard` model does not need schema changes for this milestone beyond adding the enum value, as the ribbon configuration is derived at render-time.
+
+---
+
+## ADR-119 — M62 Create Card UX Redesign: Two-Stage Flow, Carousel Picker, and Standardised Editor
+
+**Status:** Accepted
+
+**Context:**
+`CardGeneratorScreen` stacks template chips, multiple option-chip rows, a title editor, passport colour pickers, orientation chips, and a year slider above a small constrained card preview. The visual hierarchy is flat, controls have equal weight, and the live preview is too small. Amber/gold text and underline styles that are appropriate inside the rendered card bleed into the editor UI, creating an inconsistent aesthetic. There is no "choose a style first" mental model.
+
+**Decision:**
+
+Split `CardGeneratorScreen` into two focused screens:
+
+**1. `CardTypePickerScreen`** — a full-screen horizontal carousel of card-type tiles. Each tile shows a live scaled-down preview of that card type using the user's actual data, plus the type name and a tagline. One tap navigates to `CardEditorScreen` with that type pre-selected. All existing entry points (`StatsScreen`, `LevelUpSheet`, `ScanSummaryScreen`, `MapScreen`, `MilestoneCardSheet`) push `CardTypePickerScreen` instead of `CardGeneratorScreen`.
+
+**2. `CardEditorScreen`** — receives `CardTemplateType` as a constructor parameter and hosts:
+- A compact control strip (inline title `TextField` + orientation `IconButton.outlined`).
+- An Entry/Exit segmented toggle (Passport only, shown below the strip).
+- A template-specific option row: Grid and Heart show a 4-option sort picker (Shuffle / By Date / A→Z / By Region); Passport shows a 3-option stamp-colour picker (Multicolor / Black / White).
+- A conditional year range slider (when trips span multiple years).
+- A maximally large live card preview in an `InteractiveViewer` (`Expanded`).
+- Share and Print action buttons fixed at the bottom.
+
+**Sort order for Grid:** `HeartLayoutEngine._sortCodes` is promoted to `HeartLayoutEngine.sortCodes` (public static). Grid applies this function to the displayed codes list before passing to `GridFlagsCard`, so the template widget remains stateless with respect to ordering.
+
+**Passport stamp colour modes (`PassportColorMode` enum, 3 values):**
+- `multicolor` → existing default (`stampColor = null`, parchment background).
+- `black` → `stampColor = Color(0xFF1A1A1A)`, `dateColor = Color(0xFF1A1A1A)`, parchment background.
+- `white` → `stampColor = Colors.white`, `dateColor = Colors.white`, `transparentBackground = true`; the editor wraps the preview in `ColoredBox(color: Colors.black)` so white stamps are visible. The print-time render also uses `transparentBackground = true` (white ink on transparent — reuses ADR-117 flag).
+
+**Typography:** No `TextDecoration.underline` and no amber/gold text appear anywhere on either editor screen. The amber accent is used only for a subtle selected-state border/fill on the sort-order and colour-mode chips.
+
+`CardGeneratorScreen` and its private widget classes remain in file but are no longer referenced from any navigation callsite. `ArtworkConfirmationScreen` and `LocalMockupPreviewScreen` are untouched; `CardEditorScreen` passes them the same pre-rendered bytes via the same `_CardParams` + `CardImageRenderer.render()` contract as `CardGeneratorScreen` did.
+
+**Consequences:**
+- Entry into the card flow is two taps minimum (picker → editor → action). This is intentional — the picker showcases templates and sets the "choose a style first" mental model.
+- `HeartFlagOrder` is now shared between Heart and Grid ordering — no new enum required.
+- `PassportColorMode` is a new enum scoped to `card_editor_screen.dart`; it is not added to `shared_models` because it is a pure UI concept.
+- Existing widget tests for `CardGeneratorScreen` are migrated to test `CardEditorScreen` directly; the `card_generator_heart_order_test.dart` file is replaced by a `card_editor_screen_test.dart` file.
+

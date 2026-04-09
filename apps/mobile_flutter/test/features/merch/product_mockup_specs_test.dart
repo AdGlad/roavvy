@@ -1,5 +1,3 @@
-// M55-A — ProductMockupSpecs registry unit tests
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart';
@@ -8,7 +6,7 @@ import 'package:mobile_flutter/features/merch/product_mockup_specs.dart';
 void main() {
   group('M55-A — ProductMockupSpecs registry', () {
     test('specsFor returns a spec for all tshirt colour × placement combos', () {
-      const colours = ['Black', 'White', 'Navy', 'Heather Grey', 'Red'];
+      const colours = ['Black', 'White', 'Blue', 'Grey', 'Red'];
       const placements = ['front', 'back'];
       for (final colour in colours) {
         for (final placement in placements) {
@@ -44,19 +42,19 @@ void main() {
       expect(spec1.assetPath, equals(spec2.assetPath));
     });
 
-    test('specsFor tshirt Black/front returns photoreal JPG asset (M59)', () {
+    test('specsFor tshirt Black/front returns per-colour front JPEG asset', () {
       final spec = ProductMockupSpecs.specsFor(MerchProduct.tshirt,
           colour: 'Black', placement: 'front');
-      expect(spec.assetPath, 'assets/mockups/shirt-mockup-final.jpg');
-      expect(spec.printAreaNorm, equals(const Rect.fromLTWH(0.30, 0.32, 0.40, 0.45)));
-      expect(spec.srcRectNorm, equals(const Rect.fromLTWH(0.0, 0.0, 0.5, 1.0)));
+      expect(spec.assetPath, 'assets/mockups/Black-tshirt-front.jpeg');
+      expect(spec.printAreaNorm, equals(const Rect.fromLTWH(0.55, 0.25, 0.18, 0.25)));
+      expect(spec.srcRectNorm, isNull);
     });
 
-    test('specsFor tshirt Heather Grey/back uses same JPG asset (M59)', () {
+    test('specsFor tshirt Grey/back uses per-colour back JPEG asset', () {
       final spec = ProductMockupSpecs.specsFor(MerchProduct.tshirt,
-          colour: 'Heather Grey', placement: 'back');
-      expect(spec.assetPath, 'assets/mockups/shirt-mockup-final.jpg');
-      expect(spec.srcRectNorm, equals(const Rect.fromLTWH(0.5, 0.0, 0.5, 1.0)));
+          colour: 'Grey', placement: 'back');
+      expect(spec.assetPath, 'assets/mockups/Grey-tshirt-back.jpeg');
+      expect(spec.srcRectNorm, isNull);
     });
 
     test('specsFor throws ArgumentError for unknown tshirt combination', () {
@@ -68,7 +66,7 @@ void main() {
     });
 
     test('printAreaNorm stays within unit square', () {
-      const colours = ['Black', 'White', 'Navy', 'Heather Grey', 'Red'];
+      const colours = ['Black', 'White', 'Blue', 'Grey', 'Red'];
       for (final colour in colours) {
         final spec = ProductMockupSpecs.specsFor(MerchProduct.tshirt,
             colour: colour, placement: 'front');

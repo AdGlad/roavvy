@@ -683,6 +683,24 @@ All sharing features are complete as of M12.
 
 ---
 
+## Milestone 61 — Grid Card Upgrade
+
+**Goal:** Upgrade the Grid Card from emoji flags to real flag images that fill the card area. Ensure it resizes correctly, handles portrait/landscape, updates if the number of years changes, and shares the title-editing feature with the passport card.
+
+**Phase:** Phase 15 — Visual Design Upgrade
+
+**Scope — included:**
+- Replace emoji-based `GridFlagsCard` with an SVG flag image-based grid (using existing SVG assets).
+- Adaptive sizing of flag images to perfectly fit the available hold area.
+- Re-layout gracefully upon orientation change (portrait vs. landscape).
+- Dynamic updates when the year count changes.
+- Shared title editing: centralise the editable title state so it can be applied to Grid, Passport, and Heart cards uniformly.
+
+**Scope — excluded:**
+- Web card generator changes
+
+---
+
 ## Deferred items (no milestone assigned)
 
 - Firestore pull / multi-device conflict resolution

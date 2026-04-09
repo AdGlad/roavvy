@@ -29,11 +29,11 @@ enum _MockupState { configuring, rerendering, approving, ready }
 // ── Colour swatch constants (M58-04) ─────────────────────────────────────────
 
 const _kSwatchColours = <String, Color>{
-  'Black':        Color(0xFF1A1A1A),
-  'White':        Color(0xFFF5F5F5),
-  'Navy':         Color(0xFF1A2C5B),
-  'Heather Grey': Color(0xFFB0B0B0),
-  'Red':          Color(0xFFCC1717),
+  'Black': Color(0xFF1A1A1A),
+  'White': Color(0xFFF5F5F5),
+  'Blue':  Color(0xFF1A2C5B),
+  'Grey':  Color(0xFFB0B0B0),
+  'Red':   Color(0xFFCC1717),
 };
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -122,6 +122,7 @@ class _LocalMockupPreviewScreenState
   ui.Image? _artworkImage;
   ui.Image? _frontShirtImage;
   ui.Image? _backShirtImage;
+  ui.Image? _frontRibbonImage;
 
   // ── Screen state machine ───────────────────────────────────────────────────
 
@@ -138,6 +139,13 @@ class _LocalMockupPreviewScreenState
 
   int _flipViewKey = 0;
 
+  // ── Artwork stamp variants ─────────────────────────────────────────────────
+  // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
+
+  final List<Uint8List?> _artworkVariants = List.filled(3, null);
+  int _artworkVariantIndex = 0;
+  bool _variantLoading = false;
+
   // ── Poll parameters ────────────────────────────────────────────────────────
 
   static const int _pollIntervalSeconds = 3;
@@ -146,6 +154,18 @@ class _LocalMockupPreviewScreenState
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   bool get _isTshirt => _product == MerchProduct.tshirt;
+
+  /// True when the current artwork variant uses a transparent background,
+  /// requiring [BlendMode.srcOver] in [LocalMockupPainter].
+  ///
+  /// Variants 1 (black stamps) and 2 (white stamps) always render on a
+  /// transparent background so no rectangular border appears on the shirt.
+  bool get _variantIsTransparent {
+    if (_artworkVariantIndex == 1) return true;
+    if (_artworkVariantIndex == 2) return true;
+    if (_artworkVariantIndex == 0 && widget.transparentBackground) return true;
+    return false;
+  }
 
   String get _resolvedVariantGid => resolveVariantGid(
         product: _product,
@@ -160,11 +180,15 @@ class _LocalMockupPreviewScreenState
     _template = widget.initialTemplate;
     _artworkBytes = widget.artworkImageBytes;
     _artworkConfirmationId = widget.artworkConfirmationId;
+    _artworkVariants[0] = widget.artworkImageBytes;
 
     WidgetsBinding.instance.addObserver(this);
 
     _decodeArtwork(_artworkBytes);
     _loadShirtImages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFrontRibbonImage();
+    });
   }
 
   @override
@@ -174,6 +198,7 @@ class _LocalMockupPreviewScreenState
     LocalMockupImageCache.instance.dispose();
     // Artwork image is decoded directly from bytes (not cached) — screen owns it.
     _artworkImage?.dispose();
+    _frontRibbonImage?.dispose();
     super.dispose();
   }
 
@@ -207,24 +232,59 @@ class _LocalMockupPreviewScreenState
       return;
     }
 
-    // Front and back specs share the same asset path for t-shirts (ADR-115).
-    final spec = ProductMockupSpecs.specsFor(
+    final frontSpec = ProductMockupSpecs.specsFor(
       _product,
       colour: _colour,
       placement: 'front',
     );
+    final backSpec = ProductMockupSpecs.specsFor(
+      _product,
+      colour: _colour,
+      placement: 'back',
+    );
 
     try {
-      final image = await LocalMockupImageCache.instance.load(spec.assetPath);
+      final frontImage = await LocalMockupImageCache.instance.load(frontSpec.assetPath);
+      final backImage = await LocalMockupImageCache.instance.load(backSpec.assetPath);
       if (!mounted) return;
       setState(() {
-        // Cache owns this image; both fields reference the same ui.Image.
-        _frontShirtImage = image;
-        _backShirtImage = image;
+        _frontShirtImage = frontImage;
+        _backShirtImage = backImage;
       });
     } catch (_) {
       // Non-fatal — painter handles null productImage gracefully.
     }
+  }
+
+  Future<void> _loadFrontRibbonImage() async {
+    if (!_isTshirt || !mounted) return;
+
+    final levelLabel = ref.read(xpNotifierProvider).levelLabel;
+    final isDark = _colour == 'Black' || _colour == 'Blue' || _colour == 'Red';
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    try {
+      final result = await CardImageRenderer.render(
+        context,
+        CardTemplateType.frontRibbon,
+        codes: widget.selectedCodes,
+        travelerLevel: levelLabel,
+        textColor: textColor,
+        pixelRatio: 4.0,
+      );
+      
+      final codec = await ui.instantiateImageCodec(result.bytes);
+      final frame = await codec.getNextFrame();
+      if (!mounted) {
+        frame.image.dispose();
+        return;
+      }
+      
+      setState(() {
+        _frontRibbonImage?.dispose();
+        _frontRibbonImage = frame.image;
+      });
+    } catch (_) {}
   }
 
   // ── App lifecycle (post-checkout poll) ────────────────────────────────────
@@ -336,6 +396,11 @@ class _LocalMockupPreviewScreenState
         _artworkBytes = newBytes;
         _artworkConfirmationId = null;
         _state = _MockupState.configuring;
+        // Reset artwork variants — new template needs fresh renders.
+        _artworkVariants[0] = newBytes;
+        _artworkVariants[1] = null;
+        _artworkVariants[2] = null;
+        _artworkVariantIndex = 0;
       });
     } catch (_) {
       if (!mounted) return;
@@ -348,6 +413,65 @@ class _LocalMockupPreviewScreenState
         _state = _MockupState.configuring;
       });
     }
+  }
+
+  // ── Artwork stamp variant cycling (swipe up) ───────────────────────────────
+
+  /// Labels shown briefly when the user swipes up to change stamp variant.
+  static const List<String> _kVariantLabels = [
+    'Original stamps',
+    'Black stamps',
+    'White stamps',
+  ];
+
+  Future<void> _onSwipeUp() async {
+    if (_variantLoading) return;
+    final nextIndex = (_artworkVariantIndex + 1) % 3;
+    if (_artworkVariants[nextIndex] != null) {
+      await _switchToVariant(nextIndex);
+    } else {
+      await _renderVariant(nextIndex);
+    }
+  }
+
+  Future<void> _renderVariant(int index) async {
+    setState(() => _variantLoading = true);
+    try {
+      if (!context.mounted) return;
+      final (Color? stampColor, bool transparentBg) = switch (index) {
+        1 => (const Color(0xFF000000), true),  // black stamps on transparent
+        2 => (null, true),
+        _ => (widget.stampColor, widget.transparentBackground),
+      };
+      final result = await CardImageRenderer.render(
+        context,
+        _template,
+        codes: widget.selectedCodes,
+        trips: widget.trips,
+        forPrint: _template == CardTemplateType.passport,
+        entryOnly: widget.confirmedEntryOnly,
+        cardAspectRatio: widget.confirmedAspectRatio,
+        titleOverride: widget.titleOverride,
+        stampColor: stampColor,
+        dateColor: widget.dateColor,
+        transparentBackground: transparentBg,
+      );
+      if (!mounted) return;
+      _artworkVariants[index] = result.bytes;
+      await _switchToVariant(index);
+    } finally {
+      if (mounted) setState(() => _variantLoading = false);
+    }
+  }
+
+  Future<void> _switchToVariant(int index) async {
+    final bytes = _artworkVariants[index]!;
+    await _decodeArtwork(bytes);
+    if (!mounted) return;
+    setState(() {
+      _artworkVariantIndex = index;
+      _artworkBytes = bytes;
+    });
   }
 
   // ── Colour / placement change handler ─────────────────────────────────────
@@ -367,14 +491,15 @@ class _LocalMockupPreviewScreenState
       // Reset flip view whenever shirt variant or placement changes.
       if (colourChanged || productChanged || placementChanged) _flipViewKey++;
     });
-    if (colourChanged || productChanged) _loadShirtImages();
+    if (colourChanged || productChanged) {
+      _loadShirtImages();
+      _loadFrontRibbonImage();
+    }
   }
 
   void _onFlipped(bool showFront) {
-    setState(() {
-      _placement = showFront ? 'front' : 'back';
-      _flipViewKey++;
-    });
+    // The user swiped to see the other side of the shirt. We no longer update
+    // `_placement` here, so the artwork stays on the originally selected side.
   }
 
   // ── Approval handler ───────────────────────────────────────────────────────
@@ -587,7 +712,7 @@ class _LocalMockupPreviewScreenState
       // _ShirtFlipView owns AnimationController + GestureDetector + zoom (M58-03/05).
       area = _ShirtFlipView(
         key: ValueKey(_flipViewKey),
-        frontArtwork: artworkImage,
+        frontArtwork: _frontRibbonImage,
         backArtwork: artworkImage,
         frontShirt: _frontShirtImage,
         backShirt: _backShirtImage,
@@ -595,6 +720,15 @@ class _LocalMockupPreviewScreenState
         backSpec: backSpec,
         showFront: _placement == 'front',
         onFlipped: _onFlipped,
+        artworkBlendMode: _variantIsTransparent
+            ? ui.BlendMode.srcOver
+            : ui.BlendMode.multiply,
+        onNextColour: () {
+          final idx =
+              (tshirtColors.indexOf(_colour) + 1) % tshirtColors.length;
+          _onVariantOptionChanged(colour: tshirtColors[idx]);
+        },
+        onSwipeUp: _onSwipeUp,
       );
     } else {
       // Poster: simple InteractiveViewer with edge-to-edge artwork.
@@ -610,6 +744,42 @@ class _LocalMockupPreviewScreenState
           ),
           child: const SizedBox.expand(),
         ),
+      );
+    }
+
+    // Stamp variant loading / indicator overlay.
+    if (_isTshirt && (_variantLoading || _artworkVariantIndex > 0)) {
+      area = Stack(
+        fit: StackFit.expand,
+        children: [
+          area,
+          if (_variantLoading)
+            Container(
+              color: Colors.black26,
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          else
+            Positioned(
+              bottom: 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _kVariantLabels[_artworkVariantIndex],
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
+        ],
       );
     }
 
@@ -835,6 +1005,7 @@ class _LocalMockupPreviewScreenState
         CardTemplateType.heart => 'Heart',
         CardTemplateType.passport => 'Passport',
         CardTemplateType.timeline => 'Timeline',
+        CardTemplateType.frontRibbon => 'Front Ribbon',
       };
 
   static CardTemplateType _templateFromLabel(String label) => switch (label) {
@@ -867,6 +1038,9 @@ class _ShirtFlipView extends StatefulWidget {
     required this.backSpec,
     required this.showFront,
     required this.onFlipped,
+    required this.artworkBlendMode,
+    this.onNextColour,
+    this.onSwipeUp,
   });
 
   final ui.Image? frontArtwork;
@@ -877,6 +1051,16 @@ class _ShirtFlipView extends StatefulWidget {
   final ProductMockupSpec backSpec;
   final bool showFront;
   final ValueChanged<bool> onFlipped;
+
+  /// Blend mode for the artwork layer (multiply for opaque, srcOver for
+  /// transparent-background renders).
+  final ui.BlendMode artworkBlendMode;
+
+  /// Called when the user swipes right-to-left to advance to the next colour.
+  final VoidCallback? onNextColour;
+
+  /// Called when the user swipes up to cycle stamp colour variants.
+  final VoidCallback? onSwipeUp;
 
   @override
   State<_ShirtFlipView> createState() => _ShirtFlipViewState();
@@ -890,8 +1074,9 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
   // true = showing front face; flips at the 90° midpoint.
   late bool _showingFront;
 
-  // Accumulates horizontal drag distance to determine flip direction.
+  // Accumulates drag distance to determine gesture direction.
   double _dragStart = 0;
+  double _verticalDragStart = 0;
 
   static const double _kSwipeThreshold = 40.0;
   static const Duration _kFlipDuration = Duration(milliseconds: 350);
@@ -932,7 +1117,10 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     _flipDirection = goToFront ? -1 : 1;
     _controller.forward(from: 0).then((_) {
       if (!mounted) return;
-      _controller.value = 0;
+      // Do NOT reset _controller.value here. Resetting to 0 would re-trigger
+      // _onAnimationTick at value=0, which snaps _showingFront back to the
+      // pre-flip state. The controller stays at 1.0; the next forward(from: 0)
+      // restarts cleanly from 0 with the new _flipDirection already set.
       widget.onFlipped(_showingFront);
     });
   }
@@ -944,10 +1132,26 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
   void _onHorizontalDragEnd(DragEndDetails d) {
     final delta = d.localPosition.dx - _dragStart;
     if (delta.abs() < _kSwipeThreshold) return;
-    // swipe right (delta > 0) → flip to back; swipe left → flip to front
-    final goToFront = delta < 0;
-    if (goToFront == _showingFront) return; // already on that face
-    _flipTo(goToFront);
+    if (delta < 0) {
+      // Right-to-left swipe: advance to next t-shirt colour.
+      widget.onNextColour?.call();
+    } else {
+      // Left-to-right swipe: flip to show the front.
+      if (_showingFront) return;
+      _flipTo(true);
+    }
+  }
+
+  void _onVerticalDragStart(DragStartDetails d) {
+    _verticalDragStart = d.localPosition.dy;
+  }
+
+  void _onVerticalDragEnd(DragEndDetails d) {
+    final delta = d.localPosition.dy - _verticalDragStart;
+    if (delta < -_kSwipeThreshold) {
+      // Upward swipe: cycle stamp colour variant.
+      widget.onSwipeUp?.call();
+    }
   }
 
   @override
@@ -955,6 +1159,8 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     return GestureDetector(
       onHorizontalDragStart: _onHorizontalDragStart,
       onHorizontalDragEnd: _onHorizontalDragEnd,
+      onVerticalDragStart: _onVerticalDragStart,
+      onVerticalDragEnd: _onVerticalDragEnd,
       onDoubleTap: () => _transformationController.value = Matrix4.identity(),
       child: AnimatedBuilder(
         animation: _controller,
@@ -980,19 +1186,21 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
   }
 
   Widget _buildCurrentFace() {
-    final artwork = _showingFront ? widget.frontArtwork : widget.backArtwork;
     final shirt = _showingFront ? widget.frontShirt : widget.backShirt;
     final spec = _showingFront ? widget.frontSpec : widget.backSpec;
-
-    if (artwork == null) {
-      return const SizedBox.expand();
-    }
+    // Artwork is only shown on the face that matches the placement button.
+    // Swiping to peek at the other side shows a blank shirt (no artwork pasted
+    // on whichever face happens to be animating).
+    final artwork = (_showingFront == widget.showFront)
+        ? (widget.showFront ? widget.frontArtwork : widget.backArtwork)
+        : null;
 
     return CustomPaint(
       painter: LocalMockupPainter(
         artworkImage: artwork,
         productImage: shirt,
         spec: spec,
+        artworkBlendMode: widget.artworkBlendMode,
       ),
       child: const SizedBox.expand(),
     );

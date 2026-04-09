@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../cards/card_generator_screen.dart';
+import '../cards/card_type_picker_screen.dart';
 
 /// Emoji shown per level label on the level-up sheet.
 const _kLevelEmoji = {
@@ -75,7 +75,7 @@ class LevelUpSheet extends StatelessWidget {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => const CardGeneratorScreen(),
+                      builder: (_) => const CardTypePickerScreen(),
                     ),
                   );
                 },

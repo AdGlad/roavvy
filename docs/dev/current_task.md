@@ -1,24 +1,19 @@
-# Current Task: Milestone 61 — Passport Card Refinement
+# Milestone 62 — Front Chest Ribbon Design
 
-**Status:** 🔄 In Progress
-**Started:** 2026-04-06
+**Status:** ✅ Complete
+**Started:** [Current Date]
 
 ## Goal
-Refine and correct the Passport-style card generation and preview so that the design is consistent, visually strong, and reusable across screens.
+Create a front chest design (approx. 4 inches wide) with Roavvy branding, a dynamic 8-flags-per-row grid, and centered traveler status.
 
 ---
 
-## Task 169: Safe Zones & Layout
-**Objective:** Ensure stamps avoid the top (title) and bottom-left (branding) zones in `PassportLayoutEngine`.
+## Tasks
 
-### Sub-tasks
-1. [ ] Analyze `PassportLayoutEngine.layout` for current exclusion zones.
-2. [ ] Define top safe zone (for title text).
-3. [ ] Define bottom-left safe zone (for Roavvy branding).
-4. [ ] Update layout algorithm to prevent stamp placement within these zones.
-5. [ ] Verify that stamps still overlap naturally and fill the remaining space.
-
-### Acceptance Criteria
-- [ ] Stamps never overlap the title area (top center).
-- [ ] Stamps never overlap the branding area (bottom-left).
-- [ ] Density remains high (stamps overlap each other).
+| Task | Description | Status |
+|---|---|---|
+| 1 | **Data Model & Template Enum** | ✅ Complete |
+| 2 | **FrontRibbonCard Widget & Layout Math** | ✅ Complete |
+| 3 | **Dynamic Image Generation** | ✅ Complete |
+| 4 | **Mockup Screen Integration** | ✅ Complete |
+| 5 | **Print Area Calibration** | ✅ Complete |
