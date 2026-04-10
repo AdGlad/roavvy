@@ -44,30 +44,57 @@ export interface MerchConfig {
     | 'print_file_error';
   /** Firebase Storage path for the web-optimised preview JPEG */
   previewStoragePath: string | null;
-  /** Firebase Storage path for the full-resolution print PNG */
-  printFileStoragePath: string | null;
-  /** Signed URL (7-day expiry) for the print PNG — sent to Printful */
-  printFileSignedUrl: string | null;
-  /** When the signed URL expires */
-  printFileExpiresAt: Timestamp | null;
+  /**
+   * @deprecated Use backPrintFileStoragePath. Kept for backward compat with old documents.
+   * Firebase Storage path for the full-resolution print PNG
+   */
+  printFileStoragePath?: string | null;
+  /**
+   * @deprecated Use backPrintFileSignedUrl. Kept for backward compat with old documents.
+   * Signed URL (7-day expiry) for the print PNG — sent to Printful
+   */
+  printFileSignedUrl?: string | null;
+  /**
+   * @deprecated Use backPrintFileExpiresAt. Kept for backward compat with old documents.
+   * When the signed URL expires
+   */
+  printFileExpiresAt?: Timestamp | null;
   /** Printful order ID set after shopifyOrderCreated successfully creates the order */
   printfulOrderId: string | null;
   /**
+   * @deprecated Use backMockupUrl. Kept for backward compat with old documents.
    * Photorealistic t-shirt mockup URL returned by Printful Mockup API (ADR-089).
-   * Null for poster products (not configured) or if mockup generation timed out.
-   * Set by createMerchCart after the Shopify cart is created.
    */
-  mockupUrl: string | null;
+  mockupUrl?: string | null;
   /**
    * ID of the TravelCard that originated this order (M38: print from card, ADR-093).
    * Null when the order was created from the country selection flow.
    */
   cardId: string | null;
   /**
-   * Print placement for t-shirt products (M47: front/back picker, ADR-099).
-   * Defaults to 'front'. Not applicable for poster products.
+   * @deprecated Placement is now always both front and back for t-shirts (M63).
+   * Kept for backward compat with old documents.
    */
-  placement: 'front' | 'back';
+  placement?: 'front' | 'back';
+
+  // ── M63: dual-placement print files ────────────────────────────────────────
+
+  /** Firebase Storage path for the front (left-chest ribbon) print PNG */
+  frontPrintFileStoragePath: string | null;
+  /** Signed URL (7-day expiry) for the front print PNG */
+  frontPrintFileSignedUrl: string | null;
+  /** When the front signed URL expires */
+  frontPrintFileExpiresAt: Timestamp | null;
+  /** Firebase Storage path for the back (full card artwork) print PNG */
+  backPrintFileStoragePath: string | null;
+  /** Signed URL (7-day expiry) for the back print PNG */
+  backPrintFileSignedUrl: string | null;
+  /** When the back signed URL expires */
+  backPrintFileExpiresAt: Timestamp | null;
+  /** Photorealistic mockup URL for the front placement */
+  frontMockupUrl: string | null;
+  /** Photorealistic mockup URL for the back placement */
+  backMockupUrl: string | null;
   /**
    * ID of the ArtworkConfirmation the user approved before selecting this product
    * (M48: data foundation, ADR-100).
@@ -90,18 +117,23 @@ export interface CreateMerchCartRequest {
   /** Optional: links this cart to a TravelCard (ADR-093) */
   cardId?: string;
   /**
-   * Base64-encoded PNG of the card rendered on the client (passport, heart,
-   * or grid). When present, the function uses this image as both the preview
-   * and print file instead of generating a server-side flag grid. This ensures
-   * the t-shirt mockup reflects the template the user actually designed.
+   * @deprecated Use backCardBase64. Legacy alias — treated as backCardBase64.
+   * Base64-encoded PNG of the card rendered on the client.
    * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
    */
   clientCardBase64?: string;
   /**
-   * Print placement for t-shirt products: 'front' or 'back' (M47, ADR-099).
-   * Defaults to 'front' when absent. Ignored for poster products.
+   * Base64-encoded PNG of the back (card artwork) rendered on the client.
+   * When present, used as the back print file and preview.
+   * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
    */
-  placement?: 'front' | 'back';
+  backCardBase64?: string;
+  /**
+   * Base64-encoded PNG of the front (left-chest ribbon) rendered on the client.
+   * When present and product is a t-shirt, composited onto the front print canvas.
+   * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
+   */
+  frontCardBase64?: string;
   /**
    * ID of the ArtworkConfirmation the user approved before product selection
    * (M48, ADR-100). Optional — omitting it is valid for legacy callers.
@@ -122,10 +154,15 @@ export interface CreateMerchCartResponse {
   /** Public URL of the generated preview image (Firebase Storage) */
   previewUrl: string;
   /**
+   * @deprecated Use backMockupUrl.
    * Photorealistic t-shirt mockup URL from Printful Mockup API (ADR-089).
    * Null for poster products or if mockup generation timed out / errored.
    */
   mockupUrl: string | null;
+  /** Photorealistic mockup URL for the front placement. Null for poster products. */
+  frontMockupUrl: string | null;
+  /** Photorealistic mockup URL for the back placement. Null for poster products. */
+  backMockupUrl: string | null;
 }
 
 /** Shopify Storefront cartCreate mutation response shape */

@@ -4067,3 +4067,78 @@ Split `CardGeneratorScreen` into two focused screens:
 - `PassportColorMode` is a new enum scoped to `card_editor_screen.dart`; it is not added to `shared_models` because it is a pure UI concept.
 - Existing widget tests for `CardGeneratorScreen` are migrated to test `CardEditorScreen` directly; the `card_generator_heart_order_test.dart` file is replaced by a `card_editor_screen_test.dart` file.
 
+---
+
+## ADR-120 — M63 Dual-Placement T-Shirt: Multi-File Print and Mockup Architecture
+
+**Status:** Accepted
+
+**Context:**
+M62 built a dual-image local mockup preview — front chest ribbon + back travel card — but the backend pipeline (`createMerchCart`, `shopifyOrderCreated`) still handles a single print file and single mockup URL. Specifically:
+
+1. `_onApprove()` sends only `clientCardBase64` (the back artwork); the front ribbon image is never uploaded.
+2. `createMerchCart` generates one print file and calls `generatePrintfulMockup` for one placement.
+3. `shopifyOrderCreated` submits one file with `type: 'default'` to Printful, discarding the back design.
+4. The mobile ready-state shows a single `mockupUrl` regardless of which side is displayed.
+
+This milestone extends the pipeline to handle both placements end-to-end.
+
+**Decisions:**
+
+**1. Dual print file storage: two files per order**
+
+`MerchConfig` gains `frontPrintFileStoragePath`, `frontPrintFileSignedUrl`, `frontPrintFileExpiresAt`, `backPrintFileStoragePath`, `backPrintFileSignedUrl`, `backPrintFileExpiresAt`, `frontMockupUrl`, `backMockupUrl`. The deprecated single-file fields (`printFileStoragePath`, `printFileSignedUrl`, `printFileExpiresAt`, `mockupUrl`, `placement`) are kept as optional fields for backward compatibility with existing Firestore documents. New orders always use the dual-file fields.
+
+**2. Request shape: `frontCardBase64` + `backCardBase64`**
+
+`CreateMerchCartRequest` gains `frontCardBase64?: string` (front ribbon PNG, base64) and `backCardBase64?: string` (back card PNG, base64). The existing `clientCardBase64` field is accepted as an alias for `backCardBase64` to avoid breaking any callers not yet updated. Both are subject to the existing 5.5M character guard.
+
+**3. Front ribbon canvas pre-composition (Option A)**
+
+Printful's DTG front placement covers the full print area (nominally ~12×16 inches). There is no native "chest-left" placement type in the Gildan 64000 catalog. To produce a small left-chest print:
+
+- The `createMerchCart` function receives the ribbon PNG (small, transparent background).
+- Using `sharp`, the function composites the ribbon onto a transparent `4500×5400` canvas at a defined left-chest offset (`_kRibbonOffsetLeft = 750, _kRibbonOffsetTop = 900`, equivalent to ~5 in from left, ~6 in from top at 150 DPI).
+- The ribbon is scaled to `_kRibbonWidthPx = 600` (4 in at 150 DPI) before compositing.
+- The composite is uploaded as `print_files/{configId}_front.png`.
+- These offset constants are exported as named values so they can be updated after test-order calibration without restructuring the code.
+
+Option B (Printful positioning parameters in file submission) was considered and rejected: the v2 orders API does not expose arbitrary file placement coordinates for DTG orders; placement is controlled by print area, not per-file offsets.
+
+**4. Single dual-placement Printful mockup task**
+
+`generatePrintfulMockup` is replaced by `generateDualPlacementMockups(variantId, frontUrl, backUrl)`. A single `POST /v2/mockup-tasks` request specifies both placements:
+```json
+"placements": [
+  { "placement": "front", "technique": "dtg", "layers": [{ "type": "file", "url": frontUrl }] },
+  { "placement": "back",  "technique": "dtg", "layers": [{ "type": "file", "url": backUrl  }] }
+]
+```
+The poll response includes mockups for both placements in `catalog_variant_mockups[].mockups`. Both are extracted and returned as `{ frontMockupUrl, backMockupUrl }`. This avoids two round-trip API calls and stays within the existing 20s polling window.
+
+**5. Printful order: explicit placement file types**
+
+`shopifyOrderCreated` submits:
+```json
+"files": [
+  { "url": "...", "type": "front" },
+  { "url": "...", "type": "back" }
+]
+```
+`type: 'default'` is no longer used for new orders. For legacy `MerchConfig` documents where `frontPrintFileStoragePath` is null, the function falls back to the prior single-file behavior (`type: 'default'` with `config.printFileStoragePath`). This ensures historical orders are not broken.
+
+**6. Mobile: `_frontRibbonBytes` stored alongside `_frontRibbonImage`**
+
+`LocalMockupPreviewScreen` stores `Uint8List? _frontRibbonBytes` from `CardRenderResult.bytes` when `_loadFrontRibbonImage()` runs. This avoids a redundant PNG re-encode from the decoded `ui.Image`. `_onApprove()` sends both `frontCardBase64` (from `_frontRibbonBytes`) and `backCardBase64` (from `_artworkBytes`). The `placement` field is removed from the callable payload (placement is now always both).
+
+**7. Ready-state flip-tracking**
+
+`LocalMockupPreviewScreen` adds `_frontMockupUrl`, `_backMockupUrl`, and `_showingFront`. `_onFlipped(bool showFront)` (previously a no-op) now calls `setState(() => _showingFront = showFront)`. The ready-state mockup image renders `_showingFront ? _frontMockupUrl : _backMockupUrl`, falling back to the local mockup when the URL is null.
+
+**Consequences:**
+- Storage cost doubles for t-shirt orders (two print files vs one). At current scale this is negligible.
+- `createMerchCart` Cloud Function timeout is unchanged (300s); dual print generation adds ~1s; dual mockup polling uses one task not two.
+- Old Firestore documents remain valid; `shopifyOrderCreated` backward compat guard is required indefinitely (documents are never rewritten).
+- `MockupApproval.placementType` is deprecated — new approvals omit it; existing records are unaffected.
+- Test-order calibration of `_kRibbonOffsetLeft` / `_kRibbonOffsetTop` is required after deployment; initial values are an informed estimate.
+
