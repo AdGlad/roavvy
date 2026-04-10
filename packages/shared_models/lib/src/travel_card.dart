@@ -12,6 +12,10 @@ enum CardTemplateType {
   /// Dated travel log: trips listed chronologically with country names and
   /// date ranges on a parchment background (ADR-104 / M52).
   timeline,
+
+  /// Front chest ribbon: military-medal style grid of flags designed for the
+  /// front of merch like t-shirts (M62).
+  frontRibbon,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries

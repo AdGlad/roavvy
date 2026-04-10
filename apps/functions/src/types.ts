@@ -44,30 +44,32 @@ export interface MerchConfig {
     | 'print_file_error';
   /** Firebase Storage path for the web-optimised preview JPEG */
   previewStoragePath: string | null;
-  /** Firebase Storage path for the full-resolution print PNG */
-  printFileStoragePath: string | null;
-  /** Signed URL (7-day expiry) for the print PNG — sent to Printful */
-  printFileSignedUrl: string | null;
+  /** Firebase Storage path for the full-resolution front print PNG */
+  frontPrintFileStoragePath: string | null;
+  /** Signed URL (7-day expiry) for the front print PNG — sent to Printful */
+  frontPrintFileSignedUrl: string | null;
+  /** Firebase Storage path for the full-resolution back print PNG */
+  backPrintFileStoragePath: string | null;
+  /** Signed URL (7-day expiry) for the back print PNG — sent to Printful */
+  backPrintFileSignedUrl: string | null;
   /** When the signed URL expires */
   printFileExpiresAt: Timestamp | null;
   /** Printful order ID set after shopifyOrderCreated successfully creates the order */
   printfulOrderId: string | null;
   /**
-   * Photorealistic t-shirt mockup URL returned by Printful Mockup API (ADR-089).
+   * Photorealistic front t-shirt mockup URL returned by Printful Mockup API (ADR-120).
    * Null for poster products (not configured) or if mockup generation timed out.
-   * Set by createMerchCart after the Shopify cart is created.
    */
-  mockupUrl: string | null;
+  frontMockupUrl: string | null;
+  /**
+   * Photorealistic back t-shirt mockup URL returned by Printful Mockup API (ADR-120).
+   */
+  backMockupUrl: string | null;
   /**
    * ID of the TravelCard that originated this order (M38: print from card, ADR-093).
    * Null when the order was created from the country selection flow.
    */
   cardId: string | null;
-  /**
-   * Print placement for t-shirt products (M47: front/back picker, ADR-099).
-   * Defaults to 'front'. Not applicable for poster products.
-   */
-  placement: 'front' | 'back';
   /**
    * ID of the ArtworkConfirmation the user approved before selecting this product
    * (M48: data foundation, ADR-100).
@@ -90,18 +92,20 @@ export interface CreateMerchCartRequest {
   /** Optional: links this cart to a TravelCard (ADR-093) */
   cardId?: string;
   /**
-   * Base64-encoded PNG of the card rendered on the client (passport, heart,
-   * or grid). When present, the function uses this image as both the preview
-   * and print file instead of generating a server-side flag grid. This ensures
-   * the t-shirt mockup reflects the template the user actually designed.
-   * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
+   * Deprecated in M63: Base64-encoded PNG of the card rendered on the client.
+   * Replaced by frontImageBase64 and backImageBase64.
    */
   clientCardBase64?: string;
   /**
-   * Print placement for t-shirt products: 'front' or 'back' (M47, ADR-099).
-   * Defaults to 'front' when absent. Ignored for poster products.
+   * Base64-encoded PNG of the front design rendered on the client (M63).
+   * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
    */
-  placement?: 'front' | 'back';
+  frontImageBase64?: string;
+  /**
+   * Base64-encoded PNG of the back design rendered on the client (M63).
+   * Rejected if length exceeds 5,500,000 characters (~4 MB decoded).
+   */
+  backImageBase64?: string;
   /**
    * ID of the ArtworkConfirmation the user approved before product selection
    * (M48, ADR-100). Optional — omitting it is valid for legacy callers.
@@ -122,10 +126,14 @@ export interface CreateMerchCartResponse {
   /** Public URL of the generated preview image (Firebase Storage) */
   previewUrl: string;
   /**
-   * Photorealistic t-shirt mockup URL from Printful Mockup API (ADR-089).
+   * Photorealistic front t-shirt mockup URL from Printful Mockup API (ADR-120).
    * Null for poster products or if mockup generation timed out / errored.
    */
-  mockupUrl: string | null;
+  frontMockupUrl: string | null;
+  /**
+   * Photorealistic back t-shirt mockup URL from Printful Mockup API (ADR-120).
+   */
+  backMockupUrl: string | null;
 }
 
 /** Shopify Storefront cartCreate mutation response shape */

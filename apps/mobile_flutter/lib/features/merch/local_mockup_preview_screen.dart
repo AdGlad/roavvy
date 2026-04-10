@@ -122,6 +122,8 @@ class _LocalMockupPreviewScreenState
   ui.Image? _artworkImage;
   ui.Image? _frontShirtImage;
   ui.Image? _backShirtImage;
+  ui.Image? _frontRibbonImage;
+  Uint8List? _frontRibbonBytes;
 
   // ── Screen state machine ───────────────────────────────────────────────────
 
@@ -130,7 +132,8 @@ class _LocalMockupPreviewScreenState
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
   String? _checkoutUrl;
-  String? _mockupUrl;
+  String? _frontMockupUrl;
+  String? _backMockupUrl;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
 
@@ -165,6 +168,9 @@ class _LocalMockupPreviewScreenState
 
     _decodeArtwork(_artworkBytes);
     _loadShirtImages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFrontRibbonImage();
+    });
   }
 
   @override
@@ -174,6 +180,7 @@ class _LocalMockupPreviewScreenState
     LocalMockupImageCache.instance.dispose();
     // Artwork image is decoded directly from bytes (not cached) — screen owns it.
     _artworkImage?.dispose();
+    _frontRibbonImage?.dispose();
     super.dispose();
   }
 
@@ -207,24 +214,60 @@ class _LocalMockupPreviewScreenState
       return;
     }
 
-    // Front and back specs share the same asset path for t-shirts (ADR-115).
-    final spec = ProductMockupSpecs.specsFor(
+    final frontSpec = ProductMockupSpecs.specsFor(
       _product,
       colour: _colour,
       placement: 'front',
     );
+    final backSpec = ProductMockupSpecs.specsFor(
+      _product,
+      colour: _colour,
+      placement: 'back',
+    );
 
     try {
-      final image = await LocalMockupImageCache.instance.load(spec.assetPath);
+      final frontImage = await LocalMockupImageCache.instance.load(frontSpec.assetPath);
+      final backImage = await LocalMockupImageCache.instance.load(backSpec.assetPath);
       if (!mounted) return;
       setState(() {
-        // Cache owns this image; both fields reference the same ui.Image.
-        _frontShirtImage = image;
-        _backShirtImage = image;
+        _frontShirtImage = frontImage;
+        _backShirtImage = backImage;
       });
     } catch (_) {
       // Non-fatal — painter handles null productImage gracefully.
     }
+  }
+
+  Future<void> _loadFrontRibbonImage() async {
+    if (!_isTshirt || !mounted) return;
+
+    final levelLabel = ref.read(xpNotifierProvider).levelLabel;
+    final isDark = _colour == 'Black' || _colour == 'Navy' || _colour == 'Red';
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    try {
+      final result = await CardImageRenderer.render(
+        context,
+        CardTemplateType.frontRibbon,
+        codes: widget.selectedCodes,
+        travelerLevel: levelLabel,
+        textColor: textColor,
+        pixelRatio: 4.0,
+      );
+      
+      final codec = await ui.instantiateImageCodec(result.bytes);
+      final frame = await codec.getNextFrame();
+      if (!mounted) {
+        frame.image.dispose();
+        return;
+      }
+      
+      setState(() {
+        _frontRibbonImage?.dispose();
+        _frontRibbonImage = frame.image;
+        _frontRibbonBytes = result.bytes;
+      });
+    } catch (_) {}
   }
 
   // ── App lifecycle (post-checkout poll) ────────────────────────────────────
@@ -371,10 +414,7 @@ class _LocalMockupPreviewScreenState
   }
 
   void _onFlipped(bool showFront) {
-    setState(() {
-      _placement = showFront ? 'front' : 'back';
-      _flipViewKey++;
-    });
+    // Empty to preserve originally selected placement side for artwork
   }
 
   // ── Approval handler ───────────────────────────────────────────────────────
@@ -443,12 +483,13 @@ class _LocalMockupPreviewScreenState
         if (widget.cardId != null) 'cardId': widget.cardId,
         'artworkConfirmationId': confirmationId,
         'mockupApprovalId': approvalId,
-        'clientCardBase64': base64Encode(_artworkBytes),
-        if (_isTshirt) 'placement': _placement,
+        if (_isTshirt && _frontRibbonBytes != null) 'frontImageBase64': base64Encode(_frontRibbonBytes!),
+        'backImageBase64': base64Encode(_artworkBytes),
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
-      final mockupUrl = result.data['mockupUrl'] as String?;
+      final frontMockupUrl = result.data['frontMockupUrl'] as String?;
+      final backMockupUrl = result.data['backMockupUrl'] as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
@@ -459,7 +500,8 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.ready;
         _checkoutUrl = checkoutUrl;
-        _mockupUrl = mockupUrl;
+        _frontMockupUrl = frontMockupUrl;
+        _backMockupUrl = backMockupUrl;
         _merchConfigId = merchConfigId;
       });
     } on FirebaseFunctionsException catch (e) {
@@ -542,11 +584,13 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildMockupArea(ThemeData theme) {
     final isReady = _state == _MockupState.ready;
+    final activeMockupUrl = _placement == 'front' ? _frontMockupUrl : _backMockupUrl;
 
-    if (isReady && _mockupUrl != null) {
+    if (isReady && activeMockupUrl != null) {
       // ready state: Printful photorealistic mockup.
       return Image.network(
-        _mockupUrl!,
+        activeMockupUrl,
+        key: ValueKey(activeMockupUrl),
         fit: BoxFit.contain,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -835,6 +879,7 @@ class _LocalMockupPreviewScreenState
         CardTemplateType.heart => 'Heart',
         CardTemplateType.passport => 'Passport',
         CardTemplateType.timeline => 'Timeline',
+        CardTemplateType.frontRibbon => 'Front Ribbon',
       };
 
   static CardTemplateType _templateFromLabel(String label) => switch (label) {

@@ -3971,3 +3971,126 @@ The auto-generated title (e.g., "12 Countries · 2024") can be overridden by the
 - Visual density will be high and consistent because the same image is scaled rather than re-laid out.
 - Underline artifacts will be eliminated as standard `Text` widgets are replaced by `TextPainter.paint()` calls.
 
+---
+
+## ADR-118 — M61 GridMathEngine: aspect-ratio-aware tile sizing
+
+**Status:** Accepted
+
+**Context:**
+`gridTileSize(double canvasArea, int n)` computes tile size as `sqrt(area / n) * 0.85`, clamped to [28, 90] px. This formula uses total canvas area, which means portrait (2:3) and landscape (3:2) cards with the same flag count produce identical tile sizes but different grid geometries — portrait gets too many columns for its width, or too few rows for its height, leaving blank space or causing overflow. The formula also has no concept of `cols`, so the grid always wraps based on available width at render time, producing non-deterministic layouts when the card is rendered at different widths.
+
+**Decision:**
+Replace `gridTileSize()` with `gridLayout(Size canvasSize, int n) → GridLayout` in a new `grid_math_engine.dart` file.
+
+`GridLayout` is a value type: `{int cols, int rows, double tileSize, int overflow}`.
+
+Algorithm:
+1. If `n == 0` or canvas has zero area, return `GridLayout.empty`.
+2. `cols = max(1, (sqrt(n * canvasSize.width / canvasSize.height)).ceil())`
+3. `tileSize = (canvasSize.width / cols).clampDouble(28.0, 90.0)`
+4. `rows = (n / cols).ceil()`
+5. `overflow = max(0, n - 40)` (max 40 tiles displayed, same as before)
+
+`gridTileSize()` in `card_templates.dart` is kept as a thin delegate to `gridLayout()` for backward compatibility with any tests that call it directly.
+
+`GridMathEngine` is a library-private name; `gridLayout()` is the public function; the file is annotated `@visibleForTesting` on the function for direct test access.
+
+**Consequences:**
+- Portrait and landscape orientations now produce different `cols` values for the same flag count, correctly filling the card area.
+- `GridFlagsCard` can use `gridLayout()` with the actual `BoxConstraints` size from `LayoutBuilder`, giving a fully deterministic layout at any render width.
+- `grid_tile_size_test.dart` is superseded by `grid_math_engine_test.dart` and deleted.
+- No change to the maximum-40-flags cap or overflow indicator.
+
+---
+
+## ADR-119 — M61 GridFlagsCard: SVG flag images via shared FlagImageCache
+
+**Status:** Accepted
+
+**Context:**
+`GridFlagsCard` currently renders flags as emoji text via `FlagTileRenderer._drawEmoji()`. Emoji flags vary wildly across OS versions and devices, and print poorly. `HeartFlagsCard` already renders real SVG flag images via `FlagTileRenderer.loadSvgToCache()` + `FlagTileRenderer.renderFromCache()` using a static shared `FlagImageCache`. The SVG assets and renderer are already bundled (from M46). `GridFlagsCard` should use the same infrastructure.
+
+Two sub-problems exist:
+1. `GridFlagsCard` is a `StatelessWidget` — it cannot hold async state or trigger reloads on code changes.
+2. `CardImageRenderer.render()` has an `assetsCompleter` gate only for the passport template — off-screen rendering for grid would capture the emoji fallback before SVGs load.
+
+**Decision:**
+
+**1. `GridFlagsCard` becomes a `StatefulWidget`:**
+- State holds a `static final FlagImageCache _sharedCache = FlagImageCache()` (mirrors `_HeartPainter._sharedCache`).
+- `initState()` calls `_loadImages()` which fires `FlagTileRenderer.loadSvgToCache()` for each code at the current tile size; on each completion it calls `setState()` to repaint.
+- `didUpdateWidget()` calls `_loadImages()` if `countryCodes` or aspect ratio changed.
+- A `VoidCallback? onAssetsLoaded` constructor parameter is added; it is called once all codes have loaded (or are already cached), mirroring `PassportStampsCard.onAssetsLoaded`.
+- Rendering uses `LayoutBuilder` → `gridLayout()` → `CustomPaint` with a new `_GridPainter` that calls `FlagTileRenderer.renderFromCache()` per tile. Emoji fallback is provided automatically by `renderFromCache()` when the cache miss occurs.
+
+**2. `CardImageRenderer.render()` gates grid capture on `onAssetsLoaded`:**
+- A `Completer<void>? assetsCompleter` is created for `CardTemplateType.grid` in the same way it is created for `CardTemplateType.passport`.
+- `_cardWidget()` passes `onAssetsLoaded` to `GridFlagsCard` when the completer is non-null.
+- `render()` awaits `assetsCompleter.future.timeout(const Duration(seconds: 10))` before scheduling the capture frame, same as passport.
+
+**Consequences:**
+- Grid card always shows real SVG flag images in rendered PNGs (no emoji in print output).
+- `FlagImageCache` is shared across `GridFlagsCard` instances; SVGs loaded for the heart card are reused by the grid card at the same tile size, and vice versa.
+- The 10-second timeout in `CardImageRenderer` is the safety valve if an SVG fails to decode; a partial (emoji-fallback) image is captured rather than hanging indefinitely.
+- `GridFlagsCard` widget tests must use `tester.pumpAndSettle()` or pump multiple frames to allow async image loads.
+
+---
+
+## ADR-120 — M61 Shared editable title across Grid, Heart, and Passport templates
+
+**Status:** Accepted
+
+**Context:**
+`_CardGeneratorScreenState` holds `String? _titleOverride` and `_CardParams` includes `titleOverride` in its equality check. However, `_titleOverride` is only displayed in the UI when the passport template is selected (`_PassportCustomizer` widget), and only forwarded to `PassportStampsCard` in `_cardWidget()`. Grid and Heart cards have no `titleOverride` parameter and no editing UI.
+
+The M61 backlog scope says: "Shared title editing: centralise the editable title state so it can be applied to Grid, Passport, and Heart cards uniformly."
+
+**Decision:**
+
+**1. Extract `_TitleEditor` from `_PassportCustomizer`:**
+The title `TextField` portion of `_PassportCustomizer` is extracted into a private `_TitleEditor` stateless widget accepting `{String? titleOverride, ValueChanged<String?> onTitleChanged, int countryCount, String dateLabel}`. `_PassportCustomizer` is updated to embed `_TitleEditor` at its top. The stamp/date color pickers and background toggle remain inside `_PassportCustomizer` unchanged (passport-only controls).
+
+**2. Show `_TitleEditor` for all three editable templates:**
+The template-controls section of `CardGeneratorScreen` shows `_TitleEditor` for `CardTemplateType.grid`, `CardTemplateType.heart`, and `CardTemplateType.passport`. `_titleOverride` state is shared — switching templates preserves the user's entered title (one title, not per-template).
+
+**3. `GridFlagsCard` and `HeartFlagsCard` gain `titleOverride: String?`:**
+When non-null, `titleOverride` is passed to `CardBrandingFooter` as a new optional `customLabel: String?` parameter. `CardBrandingFooter` renders `customLabel` in place of the `"{N} countries"` default when `customLabel` is non-null and non-empty.
+
+**4. `CardImageRenderer._cardWidget()` forwards `titleOverride` to all templates:**
+Grid and Heart branches in `_cardWidget()` now pass `titleOverride` to their respective widgets. `_CardParams` already includes `titleOverride` in equality — no change needed there.
+
+**Consequences:**
+- `CardBrandingFooter` gains one nullable parameter (`customLabel`); all existing call sites pass no argument (default null) and are unaffected.
+- `_PassportCustomizer` becomes slightly shorter; `_TitleEditor` is a net-new private widget.
+- A single shared `_titleOverride` value covers all three templates — if the user switches from Grid to Heart, their title is preserved. This is the intended UX ("shared title").
+- `CardImageRenderer` now correctly embeds the user's title in Grid and Heart off-screen renders, making the confirmed artwork match the on-screen preview.
+
+---
+
+## ADR-120 — M63 Sync Front + Back T-Shirt Images with Shopify + Printful
+
+**Status:** Accepted
+
+**Context:**
+Milestone 63 requires the merch flow to fully support sending **both** a front chest ribbon design and a back travel card design to Printful for t-shirt orders. Currently, only a single image is supported, and there are bugs where Printful ignores the selected shirt size and color (defaulting to white).
+
+**Decisions:**
+
+**1. Dual-Placement Request Model:**
+- The backend `CreateMerchCartRequest` will accept `frontImageBase64` and `backImageBase64`, deprecating `clientCardBase64`.
+- `MerchConfig` will store two storage paths and URLs for front and back print files.
+- The `generatePrintfulMockup` function will send an array of multiple `placements` (`front` and `back`) to Printful's `/v2/mockup-tasks` endpoint, returning an object with `frontMockupUrl` and `backMockupUrl`.
+- The Printful Order creation (`POST /v2/orders` in `shopifyOrderCreated`) will send both placements in the line item configuration.
+
+**2. Printful Variant ID Fix:**
+- The bug causing white shirts and incorrect sizes is due to incorrect or missing `printfulVariantId` mappings. `apps/functions/src/printDimensions.ts` must be updated with the exact Printful variant IDs for all 25 size/color combinations of the selected t-shirt product (e.g., Gildan 64000).
+
+**3. Mobile Mockup UX:**
+- `LocalMockupPreviewScreen` will decode both `frontMockupUrl` and `backMockupUrl` from `CreateMerchCartResponse`.
+- The `_ShirtFlipView` will display the respective mockup URL based on the current flip side (front or back).
+
+**Consequences:**
+- The payload size for `CreateMerchCartRequest` will increase due to two Base64 images.
+- Printful API integration will be more complex but correctly handle two-sided printing.
+- Manual verification of Printful variant IDs is required.

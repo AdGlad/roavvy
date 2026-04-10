@@ -1,24 +1,19 @@
-# Current Task: Milestone 61 — Passport Card Refinement
+# Milestone 63 — Sync Front + Back T-Shirt Images with Shopify + Printful
 
-**Status:** 🔄 In Progress
-**Started:** 2026-04-06
+**Status:** ✅ Complete
+**Started:** [Current Date]
 
 ## Goal
-Refine and correct the Passport-style card generation and preview so that the design is consistent, visually strong, and reusable across screens.
+Update the merch flow to fully support sending **both** a front chest ribbon design and a back travel card design to Printful for t-shirt orders.
 
 ---
 
-## Task 169: Safe Zones & Layout
-**Objective:** Ensure stamps avoid the top (title) and bottom-left (branding) zones in `PassportLayoutEngine`.
+## Tasks
 
-### Sub-tasks
-1. [ ] Analyze `PassportLayoutEngine.layout` for current exclusion zones.
-2. [ ] Define top safe zone (for title text).
-3. [ ] Define bottom-left safe zone (for Roavvy branding).
-4. [ ] Update layout algorithm to prevent stamp placement within these zones.
-5. [ ] Verify that stamps still overlap naturally and fill the remaining space.
-
-### Acceptance Criteria
-- [ ] Stamps never overlap the title area (top center).
-- [ ] Stamps never overlap the branding area (bottom-left).
-- [ ] Density remains high (stamps overlap each other).
+| Task | Description | Status |
+|---|---|---|
+| 1 | **RCA & Mapping (Manual)** | ✅ Complete |
+| 2 | **Backend API Contracts** | ✅ Complete |
+| 3 | **Backend Logic** | ✅ Complete |
+| 4 | **Printful Integration** | ✅ Complete |
+| 5 | **Mobile Integration** | ✅ Complete |

@@ -250,6 +250,15 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                     ),
                   ],
                 ),
+              // Title editor for all three editable templates (ADR-120)
+              if (_selected == CardTemplateType.grid ||
+                  _selected == CardTemplateType.heart)
+                _TitleEditor(
+                  titleOverride: _titleOverride,
+                  onTitleChanged: (v) => setState(() => _titleOverride = v),
+                  countryCount: displayedCodes.length,
+                  dateLabel: _computeDateLabel(filteredTrips),
+                ),
               if (_selected == CardTemplateType.passport)
                 _PassportCustomizer(
                   titleOverride: _titleOverride,
@@ -344,6 +353,8 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   Widget _buildTemplate(List<String> codes, List<TripRecord> trips) {
     final dateLabel = _computeDateLabel(trips);
     switch (_selected) {
+      case CardTemplateType.frontRibbon:
+        return const SizedBox.shrink(); // Not editable directly via this screen
       case CardTemplateType.grid:
         return GridFlagsCard(
           countryCodes: codes,
@@ -875,6 +886,55 @@ class _DateRangeRow extends StatelessWidget {
 
 // ── Passport customizer ────────────────────────────────────────────────────────
 
+/// Reusable card title editor (ADR-120).
+///
+/// Extracted from [_PassportCustomizer] so that Grid and Heart templates can
+/// show the same title-override UI without duplicating logic.
+class _TitleEditor extends StatelessWidget {
+  const _TitleEditor({
+    required this.titleOverride,
+    required this.onTitleChanged,
+    required this.countryCount,
+    required this.dateLabel,
+  });
+
+  final String? titleOverride;
+  final ValueChanged<String?> onTitleChanged;
+  final int countryCount;
+  final String dateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+      child: TextField(
+        decoration: InputDecoration(
+          labelText: 'Card Title',
+          hintText: defaultTitle,
+          isDense: true,
+          prefixIcon: const Icon(Icons.edit, size: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white24),
+          ),
+          suffixIcon: titleOverride != null
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => onTitleChanged(null),
+                )
+              : null,
+        ),
+        style: const TextStyle(fontSize: 13),
+        controller: TextEditingController(text: titleOverride)
+          ..selection = TextSelection.fromPosition(
+              TextPosition(offset: (titleOverride ?? '').length)),
+        onChanged: (v) => onTitleChanged(v.isEmpty ? null : v),
+      ),
+    );
+  }
+}
+
 class _PassportCustomizer extends StatelessWidget {
   const _PassportCustomizer({
     required this.titleOverride,
@@ -902,36 +962,17 @@ class _PassportCustomizer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Title edit
-          TextField(
-            decoration: InputDecoration(
-              labelText: 'Card Title',
-              hintText: defaultTitle,
-              isDense: true,
-              prefixIcon: const Icon(Icons.edit, size: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.white24),
-              ),
-              suffixIcon: titleOverride != null
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () => onTitleChanged(null),
-                    )
-                  : null,
-            ),
-            style: const TextStyle(fontSize: 13),
-            controller: TextEditingController(text: titleOverride)
-              ..selection = TextSelection.fromPosition(
-                  TextPosition(offset: (titleOverride ?? '').length)),
-            onChanged: (v) => onTitleChanged(v.isEmpty ? null : v),
+          // Title edit (shared widget, ADR-120)
+          _TitleEditor(
+            titleOverride: titleOverride,
+            onTitleChanged: onTitleChanged,
+            countryCount: countryCount,
+            dateLabel: dateLabel,
           ),
           const SizedBox(height: 12),
 

@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_templates.dart';
+import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
 
@@ -75,6 +76,13 @@ class CardImageRenderer {
     Color? stampColor,
     Color? dateColor,
     bool transparentBackground = false,
+    String? travelerLevel,
+    Color? textColor,
+    /// Maximum time to wait for async SVG assets to load before capturing.
+    ///
+    /// Defaults to 10 seconds. Override in widget tests to [Duration.zero] so
+    /// the capture proceeds immediately with emoji fallbacks (ADR-119).
+    @visibleForTesting Duration assetsTimeout = const Duration(seconds: 10),
   }) async {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -83,15 +91,17 @@ class CardImageRenderer {
     // Capture wasForced from PassportStampsCard.onWasForced callback (ADR-103).
     bool wasForced = false;
 
-    // ADR-112 fix: PassportStampsCard loads SVG stamp assets asynchronously in
-    // _PassportPagePainterState._loadAssets(). A single addPostFrameCallback
-    // fires after frame 1, before _loadAssets() has completed, so _assets is
-    // still empty and _MultiStampPainter falls back to the old procedural
-    // StampPainter. We wait for the onAssetsLoaded signal (fired after
-    // setState(_assets = loaded)) before scheduling the capture frame.
-    final assetsCompleter = template == CardTemplateType.passport
-        ? Completer<void>()
-        : null;
+    // ADR-112/ADR-119: Both passport and grid templates load SVG assets
+    // asynchronously. For passport, _PassportPagePainterState._loadAssets()
+    // fires onAssetsLoaded after stamp SVGs are decoded. For grid,
+    // _GridFlagsCardState._loadImages() fires onAssetsLoaded after flag SVGs
+    // are decoded. We wait for this signal before scheduling the capture frame
+    // so the off-screen PNG contains real images rather than emoji fallbacks.
+    final assetsCompleter =
+        (template == CardTemplateType.passport ||
+                template == CardTemplateType.grid)
+            ? Completer<void>()
+            : null;
 
     entry = OverlayEntry(
       builder: (_) => Positioned(
@@ -116,6 +126,8 @@ class CardImageRenderer {
               stampColor: stampColor,
               dateColor: dateColor,
               transparentBackground: transparentBackground,
+              travelerLevel: travelerLevel,
+              textColor: textColor,
               onAssetsLoaded: assetsCompleter != null
                   ? () {
                       if (!assetsCompleter.isCompleted) {
@@ -136,9 +148,9 @@ class CardImageRenderer {
     // addPostFrameCallback will then fire after the rebuilt frame that contains
     // the actual SVG stamps. Timeout guards against the widget being disposed
     // before onAssetsLoaded fires (e.g. user navigates away).
-    if (assetsCompleter != null) {
+    if (assetsCompleter != null && assetsTimeout > Duration.zero) {
       await assetsCompleter.future
-          .timeout(const Duration(seconds: 10), onTimeout: () {});
+          .timeout(assetsTimeout, onTimeout: () {});
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -191,14 +203,24 @@ class CardImageRenderer {
     Color? stampColor,
     Color? dateColor,
     bool transparentBackground = false,
+    String? travelerLevel,
+    Color? textColor,
     VoidCallback? onAssetsLoaded,
     }) {
     switch (template) {
+      case CardTemplateType.frontRibbon:
+        return FrontRibbonCard(
+          countryCodes: codes,
+          travelerLevel: travelerLevel ?? 'Explorer',
+          textColor: textColor ?? Colors.white,
+        );
       case CardTemplateType.grid:
         return GridFlagsCard(
           countryCodes: codes,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
+          onAssetsLoaded: onAssetsLoaded,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -207,6 +229,7 @@ class CardImageRenderer {
           flagOrder: heartOrder,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

@@ -45,8 +45,70 @@ void main() {
       final codes = List.generate(50, (i) => String.fromCharCode(65 + i % 26) +
           String.fromCharCode(65 + (i + 1) % 26));
       await tester.pumpWidget(_wrap(GridFlagsCard(countryCodes: codes)));
-      // Should not throw; overflow shown as +N
-      expect(find.textContaining('+'), findsOneWidget);
+      // Overflow indicator is drawn on canvas by _GridPainter (not a Text widget).
+      // Verify no exception is thrown and CustomPaint is present.
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CustomPaint), findsWidgets);
+    });
+
+    testWidgets('uses CustomPaint for non-empty state', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(countryCodes: ['FR', 'DE', 'JP']),
+      ));
+      expect(find.byType(CustomPaint), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('titleOverride shown in branding footer (ADR-120)', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(
+          countryCodes: ['GB', 'FR'],
+          dateLabel: '2024',
+          titleOverride: 'My Grid Card',
+        ),
+      ));
+      expect(find.text('My Grid Card'), findsOneWidget);
+      // Default count text must not appear when titleOverride is set.
+      expect(find.text('2 countries'), findsNothing);
+    });
+
+    testWidgets('no crash when switching portrait to landscape', (tester) async {
+      // Simulate portrait → landscape by changing the wrapping SizedBox dimensions.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 200,
+              height: 300,
+              child: GridFlagsCard(
+                countryCodes: const ['FR', 'DE', 'JP', 'US', 'GB'],
+                aspectRatio: 200 / 300,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CustomPaint), findsWidgets);
+
+      // Switch to landscape dimensions.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              height: 200,
+              child: GridFlagsCard(
+                countryCodes: const ['FR', 'DE', 'JP', 'US', 'GB'],
+                aspectRatio: 300 / 200,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CustomPaint), findsWidgets);
     });
   });
 
@@ -96,6 +158,18 @@ void main() {
       expect(find.byType(CardBrandingFooter), findsOneWidget);
       expect(find.text('3 countries'), findsOneWidget);
     });
+
+    testWidgets('titleOverride shown in branding footer (ADR-120)', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HeartFlagsCard(
+          countryCodes: ['GB', 'FR'],
+          dateLabel: '2024',
+          titleOverride: 'My Heart Card',
+        ),
+      ));
+      expect(find.text('My Heart Card'), findsOneWidget);
+      expect(find.text('2 countries'), findsNothing);
+    });
   });
 
   group('PassportStampsCard', () {
@@ -133,13 +207,15 @@ void main() {
       expect(find.byType(PassportStampsCard), findsOneWidget);
     });
 
-    testWidgets('shows CardBrandingFooter with country count', (tester) async {
+    testWidgets('renders without exception for 2 countries', (tester) async {
+      // PassportStampsCard draws branding on canvas via CustomPainter (ADR-117),
+      // not as a CardBrandingFooter widget — so we just verify no exception.
       await tester.pumpWidget(_wrap(
         const PassportStampsCard(
             countryCodes: ['GB', 'FR'], trips: []),
       ));
-      expect(find.byType(CardBrandingFooter), findsOneWidget);
-      expect(find.text('2 countries'), findsOneWidget);
+      expect(find.byType(PassportStampsCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

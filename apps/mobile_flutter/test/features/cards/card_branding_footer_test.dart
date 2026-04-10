@@ -61,5 +61,29 @@ void main() {
       );
       expect(find.text('42 countries'), findsOneWidget);
     });
+
+    testWidgets('customLabel replaces auto "{N} countries" text (ADR-120)',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(const CardBrandingFooter(
+          countryCount: 5,
+          dateLabel: '',
+          customLabel: 'My Travels',
+        )),
+      );
+      expect(find.text('My Travels'), findsOneWidget);
+      expect(find.text('5 countries'), findsNothing);
+    });
+
+    testWidgets('null customLabel falls back to auto count text', (tester) async {
+      await tester.pumpWidget(
+        _wrap(const CardBrandingFooter(
+          countryCount: 3,
+          dateLabel: '',
+          customLabel: null,
+        )),
+      );
+      expect(find.text('3 countries'), findsOneWidget);
+    });
   });
 }

@@ -2,10 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_branding_footer.dart';
 import 'flag_tile_renderer.dart';
+import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
 import 'paper_texture_painter.dart';
 import 'passport_layout_engine.dart';
@@ -22,33 +24,36 @@ String _flag(String code) {
       String.fromCharCode(base + code.codeUnitAt(1) - 65);
 }
 
-// ── Grid tile-size helper (M50-C1) ────────────────────────────────────────────
+// ── Grid tile-size helper (ADR-102 / ADR-118) ─────────────────────────────────
 
-/// Adaptive tile size for [GridFlagsCard] (ADR-102).
+/// Backward-compatible delegate to [gridLayout] (ADR-118).
 ///
-/// `tileSize = clamp(floor(sqrt(canvasArea / n) * 0.85), 28, 90)`
-///
-/// Exposed with [@visibleForTesting] for unit testing without widget
-/// infrastructure.
+/// Retained for any callers that use the old `(canvasArea, n)` signature.
+/// New code should call [gridLayout] directly.
 @visibleForTesting
 double gridTileSize(double canvasArea, int n) {
   assert(n > 0, 'n must be > 0');
-  final raw = (math.sqrt(canvasArea / n) * 0.85).floorToDouble();
-  return raw.clamp(28.0, 90.0);
+  // Approximate a square canvas from the area so the delegate is meaningful.
+  final side = math.sqrt(canvasArea);
+  return gridLayout(Size(side, side), n).tileSize;
 }
 
 // ── GridFlagsCard ─────────────────────────────────────────────────────────────
 
-/// Travel card template: flag emojis arranged in a flowing grid.
+/// Travel card template: real SVG flag images arranged in an adaptive grid
+/// (ADR-118, ADR-119).
 ///
 /// Dark navy background with amber accent. Up to 40 flags shown; overflow
-/// shown as "+N more". Displays country count at the bottom.
-class GridFlagsCard extends StatelessWidget {
+/// shown as "+N more". Loads SVG images asynchronously and repaints as each
+/// image arrives; emoji is shown as a fallback while loading.
+class GridFlagsCard extends StatefulWidget {
   const GridFlagsCard({
     super.key,
     required this.countryCodes,
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
+    this.titleOverride,
+    this.onAssetsLoaded,
   });
 
   final List<String> countryCodes;
@@ -58,21 +63,80 @@ class GridFlagsCard extends StatelessWidget {
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
 
+  /// Optional user-supplied title; replaces the auto `"{N} countries"` label
+  /// in [CardBrandingFooter] when non-null (ADR-120).
+  final String? titleOverride;
+
+  /// Called once all visible flag SVGs have been loaded into the cache.
+  /// Used by [CardImageRenderer] to gate off-screen capture (ADR-119).
+  final VoidCallback? onAssetsLoaded;
+
+  @override
+  State<GridFlagsCard> createState() => _GridFlagsCardState();
+}
+
+class _GridFlagsCardState extends State<GridFlagsCard> {
+  // Shared across all GridFlagsCard instances (ADR-119).
+  static final _sharedCache = FlagImageCache();
+
+  // Last tile size at which images were loaded; reset on code change to
+  // force a reload at the new tile size after orientation change.
+  double _lastTileSize = 0;
+
+  @override
+  void didUpdateWidget(GridFlagsCard old) {
+    super.didUpdateWidget(old);
+    if (!listEquals(widget.countryCodes, old.countryCodes)) {
+      // New codes: reset so LayoutBuilder triggers a reload next frame.
+      _lastTileSize = 0;
+    }
+  }
+
+  /// Loads SVG images for [codes] at [tileSize] into [_sharedCache].
+  ///
+  /// Calls [setState] on each completion to repaint with the newly cached
+  /// image, and calls [onAssetsLoaded] once all codes are in the cache.
+  void _loadImages(List<String> codes, double tileSize) {
+    if (codes.isEmpty) {
+      widget.onAssetsLoaded?.call();
+      return;
+    }
+    final toLoad = codes
+        .toSet()
+        .where((c) => _sharedCache.get(c, tileSize) == null)
+        .toList();
+    if (toLoad.isEmpty) {
+      widget.onAssetsLoaded?.call();
+      return;
+    }
+    var loaded = 0;
+    final total = toLoad.length;
+    for (final code in toLoad) {
+      FlagTileRenderer.loadSvgToCache(code, tileSize, _sharedCache)
+          .then((_) {
+        if (!mounted) return;
+        loaded++;
+        setState(() {});
+        if (loaded >= total) widget.onAssetsLoaded?.call();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const maxFlags = 40;
-    final visible = countryCodes.take(maxFlags).toList();
-    final overflow = countryCodes.length - visible.length;
+    final visible = widget.countryCodes.take(maxFlags).toList();
+    final overflow = widget.countryCodes.length - visible.length;
 
     return AspectRatio(
-      aspectRatio: aspectRatio,
+      aspectRatio: widget.aspectRatio,
       child: Container(
         decoration: const BoxDecoration(color: Color(0xFF0D2137)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: countryCodes.isEmpty
+              child: visible.isEmpty
                   ? const Center(
                       child: Text(
                         'Scan your photos\nto fill your card',
@@ -82,46 +146,137 @@ class GridFlagsCard extends StatelessWidget {
                     )
                   : LayoutBuilder(
                       builder: (context, constraints) {
-                        // Adaptive tile size (ADR-102 / M50-C1).
-                        final tileSize = gridTileSize(
-                          constraints.maxWidth * constraints.maxHeight,
+                        final layout = gridLayout(
+                          Size(constraints.maxWidth, constraints.maxHeight),
                           visible.length,
                         );
-                        final overflowFontSize =
-                            math.max(10.0, tileSize * 0.5);
-                        return Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Wrap(
-                            spacing: 2,
-                            runSpacing: 2,
-                            children: [
-                              for (final code in visible)
-                                Text(_flag(code),
-                                    style: TextStyle(fontSize: tileSize)),
-                              if (overflow > 0)
-                                Text(
-                                  '+$overflow',
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: overflowFontSize,
-                                  ),
-                                ),
-                            ],
+                        // Trigger SVG loading when tile size first becomes
+                        // known or changes (e.g. orientation switch).
+                        if (layout.tileSize != _lastTileSize) {
+                          _lastTileSize = layout.tileSize;
+                          SchedulerBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _loadImages(visible, layout.tileSize);
+                          });
+                        }
+                        return CustomPaint(
+                          painter: _GridPainter(
+                            codes: visible,
+                            layout: layout,
+                            cache: _sharedCache,
+                            overflow: overflow,
                           ),
                         );
                       },
                     ),
             ),
             CardBrandingFooter(
-              countryCount: countryCodes.length,
-              dateLabel: dateLabel,
+              countryCount: widget.countryCodes.length,
+              dateLabel: widget.dateLabel,
+              customLabel: widget.titleOverride,
             ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Paints a rectangular grid of flag tiles using [FlagTileRenderer].
+///
+/// Shows real SVG images from [cache] when available; falls back to emoji.
+class _GridPainter extends CustomPainter {
+  const _GridPainter({
+    required this.codes,
+    required this.layout,
+    required this.cache,
+    required this.overflow,
+  });
+
+  final List<String> codes;
+  final GridLayout layout;
+  final FlagImageCache cache;
+  final int overflow;
+
+  static const _padding = 16.0;
+  static const _gap = 2.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (layout.cols == 0) return;
+    final tileSize = layout.tileSize;
+
+    for (var i = 0; i < codes.length; i++) {
+      final col = i % layout.cols;
+      final row = i ~/ layout.cols;
+      final rect = _tileRect(col, row, tileSize);
+
+      final image = cache.get(codes[i], tileSize);
+      if (image != null) {
+        FlagTileRenderer.drawImage(canvas, image, rect, cornerRadius: 2.0);
+      } else {
+        _drawEmoji(canvas, codes[i], rect);
+      }
+    }
+
+    if (overflow > 0) {
+      // The overflow indicator occupies the slot after the last visible flag.
+      final col = codes.length % layout.cols;
+      final row = codes.length ~/ layout.cols;
+      _drawOverflowText(canvas, overflow, _tileRect(col, row, tileSize));
+    }
+  }
+
+  Rect _tileRect(int col, int row, double tileSize) => Rect.fromLTWH(
+        _padding + col * (tileSize + _gap),
+        _padding + row * (tileSize + _gap),
+        tileSize,
+        tileSize,
+      );
+
+  void _drawEmoji(Canvas canvas, String code, Rect rect) {
+    final emoji = _flag(code);
+    if (emoji.isEmpty) return;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: emoji,
+        style: TextStyle(fontSize: rect.width * 0.7),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(
+      canvas,
+      Offset(
+        rect.left + (rect.width - tp.width) / 2,
+        rect.top + (rect.height - tp.height) / 2,
+      ),
+    );
+  }
+
+  void _drawOverflowText(Canvas canvas, int count, Rect rect) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '+$count',
+        style: TextStyle(
+          color: Colors.white54,
+          fontSize: math.max(10.0, layout.tileSize * 0.5),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(
+      canvas,
+      Offset(
+        rect.left + (rect.width - tp.width) / 2,
+        rect.top + (rect.height - tp.height) / 2,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) =>
+      codes != old.codes ||
+      layout.tileSize != old.layout.tileSize ||
+      cache != old.cache;
 }
 
 // ── HeartRenderConfig ─────────────────────────────────────────────────────────
@@ -164,6 +319,7 @@ class HeartFlagsCard extends StatelessWidget {
     this.config = const HeartRenderConfig(),
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
+    this.titleOverride,
   });
 
   final List<String> countryCodes;
@@ -175,6 +331,10 @@ class HeartFlagsCard extends StatelessWidget {
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
+
+  /// Optional user-supplied title; replaces the auto `"{N} countries"` label
+  /// in [CardBrandingFooter] when non-null (ADR-120).
+  final String? titleOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +380,7 @@ class HeartFlagsCard extends StatelessWidget {
                   countryCount: countryCodes.length,
                   dateLabel: dateLabel,
                   backgroundColor: const Color(0xCC0D2137),
+                  customLabel: titleOverride,
                 ),
               ),
             ],

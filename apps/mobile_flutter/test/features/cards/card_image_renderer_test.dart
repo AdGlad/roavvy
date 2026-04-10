@@ -45,9 +45,12 @@ Future<CardRenderResult> _render(
       cardAspectRatio: cardAspectRatio,
       heartOrder: heartOrder,
       dateLabel: dateLabel,
+      // Skip the SVG asset-load wait so the capture fires immediately with
+      // emoji fallbacks. Avoids hanging on picture.toImage() in test env.
+      assetsTimeout: Duration.zero,
     );
-    // Pump two frames: one to build the OverlayEntry, one to fire the
-    // post-frame callback that captures the RepaintBoundary.
+    // Two frames: one to build the OverlayEntry, one to fire the capture
+    // postFrameCallback (assetsTimeout=zero skips the assets wait).
     await tester.pump();
     await tester.pump();
     result = await future;

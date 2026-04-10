@@ -148,6 +148,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         CardTemplateType.heart => 'Heart',
         CardTemplateType.passport => 'Passport',
         CardTemplateType.timeline => 'Timeline',
+        CardTemplateType.frontRibbon => 'Front Ribbon',
       };
 
   static CardTemplateType _templateFromLabel(String label) => switch (label) {
