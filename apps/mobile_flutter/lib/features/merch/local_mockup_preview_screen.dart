@@ -123,6 +123,7 @@ class _LocalMockupPreviewScreenState
   ui.Image? _frontShirtImage;
   ui.Image? _backShirtImage;
   ui.Image? _frontRibbonImage;
+  Uint8List? _frontRibbonBytes;
 
   // ── Screen state machine ───────────────────────────────────────────────────
 
@@ -131,7 +132,9 @@ class _LocalMockupPreviewScreenState
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
   String? _checkoutUrl;
-  String? _mockupUrl;
+  String? _frontMockupUrl;
+  String? _backMockupUrl;
+  bool _showingFront = true;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
 
@@ -272,15 +275,16 @@ class _LocalMockupPreviewScreenState
         textColor: textColor,
         pixelRatio: 4.0,
       );
-      
+
       final codec = await ui.instantiateImageCodec(result.bytes);
       final frame = await codec.getNextFrame();
       if (!mounted) {
         frame.image.dispose();
         return;
       }
-      
+
       setState(() {
+        _frontRibbonBytes = result.bytes;
         _frontRibbonImage?.dispose();
         _frontRibbonImage = frame.image;
       });
@@ -498,8 +502,7 @@ class _LocalMockupPreviewScreenState
   }
 
   void _onFlipped(bool showFront) {
-    // The user swiped to see the other side of the shirt. We no longer update
-    // `_placement` here, so the artwork stays on the originally selected side.
+    setState(() => _showingFront = showFront);
   }
 
   // ── Approval handler ───────────────────────────────────────────────────────
@@ -568,12 +571,14 @@ class _LocalMockupPreviewScreenState
         if (widget.cardId != null) 'cardId': widget.cardId,
         'artworkConfirmationId': confirmationId,
         'mockupApprovalId': approvalId,
-        'clientCardBase64': base64Encode(_artworkBytes),
-        if (_isTshirt) 'placement': _placement,
+        'backCardBase64': base64Encode(_artworkBytes),
+        if (_isTshirt && _frontRibbonBytes != null)
+          'frontCardBase64': base64Encode(_frontRibbonBytes!),
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
-      final mockupUrl = result.data['mockupUrl'] as String?;
+      final frontMockupUrl = result.data['frontMockupUrl'] as String?;
+      final backMockupUrl  = result.data['backMockupUrl']  as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
@@ -583,8 +588,9 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
       setState(() {
         _state = _MockupState.ready;
+        _frontMockupUrl = frontMockupUrl;
+        _backMockupUrl  = backMockupUrl;
         _checkoutUrl = checkoutUrl;
-        _mockupUrl = mockupUrl;
         _merchConfigId = merchConfigId;
       });
     } on FirebaseFunctionsException catch (e) {
@@ -668,18 +674,21 @@ class _LocalMockupPreviewScreenState
   Widget _buildMockupArea(ThemeData theme) {
     final isReady = _state == _MockupState.ready;
 
-    if (isReady && _mockupUrl != null) {
-      // ready state: Printful photorealistic mockup.
-      return Image.network(
-        _mockupUrl!,
-        fit: BoxFit.contain,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return _buildLocalMockupArea(theme);
-        },
-        errorBuilder: (context, error, stack) =>
-            _buildLocalMockupArea(theme),
-      );
+    if (isReady) {
+      final activeMockupUrl = _showingFront ? _frontMockupUrl : _backMockupUrl;
+      if (activeMockupUrl != null) {
+        // ready state: Printful photorealistic mockup.
+        return Image.network(
+          activeMockupUrl,
+          fit: BoxFit.contain,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return _buildLocalMockupArea(theme);
+          },
+          errorBuilder: (context, error, stack) =>
+              _buildLocalMockupArea(theme),
+        );
+      }
     }
 
     return _buildLocalMockupArea(theme);

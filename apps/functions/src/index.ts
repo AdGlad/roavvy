@@ -22,24 +22,25 @@ const db = getFirestore();
 // ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
 
 /**
- * Calls the Printful v2 Mockup API and polls until the requested placement
- * mockup is ready. Returns the mockup image URL or null on timeout / error.
+ * Calls the Printful v2 Mockup API with BOTH front and back placements in a
+ * single request and polls until both mockups are ready.
+ * Returns { frontMockupUrl, backMockupUrl } — either may be null on error.
  *
- * Non-blocking: the caller catches errors and proceeds with null.
+ * Non-blocking: the caller catches errors and proceeds with nulls.
  * Max wait: 10 attempts × 2s = 20 s.
  */
-async function generatePrintfulMockup(
+async function generateDualPlacementMockups(
   printfulVariantId: number,
-  printFileUrl: string,
-  placement: 'front' | 'back' = 'front'
-): Promise<string | null> {
+  frontFileUrl: string,
+  backFileUrl: string
+): Promise<{ frontMockupUrl: string | null; backMockupUrl: string | null }> {
   const apiKey = process.env['PRINTFUL_API_KEY'];
   if (!apiKey) {
     console.error('[mockup] PRINTFUL_API_KEY not set — skipping mockup');
-    return null;
+    return { frontMockupUrl: null, backMockupUrl: null };
   }
 
-  // Submit task.
+  // Submit task with both placements in a single request.
   // Verified v2 request shape 2026-03-24:
   // products[].source = "catalog", catalog_product_id = 12 (Gildan 64000),
   // placements[].technique = "dtg"
@@ -56,11 +57,8 @@ async function generatePrintfulMockup(
           catalog_product_id: 12, // Gildan 64000 Unisex Softstyle T-Shirt
           catalog_variant_id: printfulVariantId,
           placements: [
-            {
-              placement: placement,
-              technique: 'dtg',
-              layers: [{ type: 'file', url: printFileUrl }],
-            },
+            { placement: 'front', technique: 'dtg', layers: [{ type: 'file', url: frontFileUrl }] },
+            { placement: 'back',  technique: 'dtg', layers: [{ type: 'file', url: backFileUrl }]  },
           ],
         },
       ],
@@ -70,7 +68,7 @@ async function generatePrintfulMockup(
   if (!createRes.ok) {
     const body = await createRes.text();
     console.error(`[mockup] Create task failed ${createRes.status}: ${body}`);
-    return null;
+    return { frontMockupUrl: null, backMockupUrl: null };
   }
 
   const createData = (await createRes.json()) as {
@@ -79,7 +77,7 @@ async function generatePrintfulMockup(
   const taskId = createData.data?.[0]?.id;
   if (!taskId) {
     console.error('[mockup] No task id in create response', JSON.stringify(createData));
-    return null;
+    return { frontMockupUrl: null, backMockupUrl: null };
   }
 
   // Poll for result. Poll URL: GET /v2/mockup-tasks?id={taskId}
@@ -96,7 +94,7 @@ async function generatePrintfulMockup(
 
     if (!pollRes.ok) {
       console.error(`[mockup] Poll failed ${pollRes.status}`);
-      return null;
+      return { frontMockupUrl: null, backMockupUrl: null };
     }
 
     const pollData = (await pollRes.json()) as {
@@ -130,22 +128,24 @@ async function generatePrintfulMockup(
           type: typeof v.catalog_variant_id,
         })),
       });
-      const mockup = matched?.mockups.find((m) => m.placement === placement);
-      if (mockup) return mockup.mockup_url;
-      console.error('[mockup] Completed but no placement found', placement, JSON.stringify(task));
-      return null;
+      const frontMockup = matched?.mockups.find((m) => m.placement === 'front');
+      const backMockup  = matched?.mockups.find((m) => m.placement === 'back');
+      return {
+        frontMockupUrl: frontMockup?.mockup_url ?? null,
+        backMockupUrl:  backMockup?.mockup_url  ?? null,
+      };
     }
 
     if (status === 'failed') {
       console.error('[mockup] Printful reported failed status for task', taskId);
-      return null;
+      return { frontMockupUrl: null, backMockupUrl: null };
     }
 
     // status === 'pending' — continue polling
   }
 
   console.error('[mockup] Timeout waiting for Printful mockup task', taskId);
-  return null;
+  return { frontMockupUrl: null, backMockupUrl: null };
 }
 
 // ── createMerchCart ───────────────────────────────────────────────────────────
@@ -196,8 +196,10 @@ export const createMerchCart = onCall<
     const uid = request.auth.uid;
 
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, placement: rawPlacement, artworkConfirmationId, mockupApprovalId } = request.data;
-    const placement: 'front' | 'back' = rawPlacement === 'back' ? 'back' : 'front';
+    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontCardBase64, backCardBase64, artworkConfirmationId, mockupApprovalId } = request.data;
+    // Legacy clientCardBase64 is treated as an alias for backCardBase64.
+    const backBase64 = backCardBase64 ?? clientCardBase64;
+    const frontBase64 = frontCardBase64;
     if (!variantId || typeof variantId !== 'string') {
       throw new HttpsError('invalid-argument', 'variantId is required.');
     }
@@ -213,8 +215,11 @@ export const createMerchCart = onCall<
     if (typeof quantity !== 'number' || quantity < 1) {
       throw new HttpsError('invalid-argument', 'quantity must be at least 1.');
     }
-    if (typeof clientCardBase64 === 'string' && clientCardBase64.length > 5_500_000) {
+    if (typeof backBase64 === 'string' && backBase64.length > 5_500_000) {
       throw new HttpsError('invalid-argument', 'Card image too large.');
+    }
+    if (typeof frontBase64 === 'string' && frontBase64.length > 5_500_000) {
+      throw new HttpsError('invalid-argument', 'Front ribbon image too large.');
     }
 
     // Look up print dimensions for this variant
@@ -248,40 +253,62 @@ export const createMerchCart = onCall<
       templateId: 'flag_grid_v1',
       designStatus: 'pending',
       previewStoragePath: null,
+      // deprecated single-file fields — kept for old document compat
       printFileStoragePath: null,
       printFileSignedUrl: null,
       printFileExpiresAt: null,
       printfulOrderId: null,
-      // M34 field
+      // deprecated mockupUrl — kept for old code compat
       mockupUrl: null,
       // M38 field (ADR-093): links this order to the originating TravelCard, if any
       cardId: typeof cardId === 'string' ? cardId : null,
-      // M47 field (ADR-099): print placement for t-shirt; defaults to 'front'
-      placement,
+      // deprecated placement field — kept for old document compat (M63: always both for t-shirts)
+      placement: 'front',
       // M48 field (ADR-100): links this order to the ArtworkConfirmation the user approved
       artworkConfirmationId: typeof artworkConfirmationId === 'string' ? artworkConfirmationId : null,
       // M53 field (ADR-105): links this order to the MockupApproval the user confirmed
       mockupApprovalId: typeof mockupApprovalId === 'string' ? mockupApprovalId : null,
+      // M63 fields: dual-placement print files
+      frontPrintFileStoragePath: null,
+      frontPrintFileSignedUrl: null,
+      frontPrintFileExpiresAt: null,
+      backPrintFileStoragePath: null,
+      backPrintFileSignedUrl: null,
+      backPrintFileExpiresAt: null,
+      frontMockupUrl: null,
+      backMockupUrl: null,
     };
     await configRef.set(configData);
 
     // ── Step 2 & 3: Generate preview + print PNGs ──────────────────────────
     const bucket = getStorage().bucket();
     const previewPath = `previews/${configId}.jpg`;
-    const printPath = `print_files/${configId}.png`;
+    const backPath = `print_files/${configId}_back.png`;
     let previewUrl: string;
-    let printFileSignedUrl: string;
+    let backSignedUrl: string;
+    let backExpiresAt: Date;
+    let frontPrintBuf: Buffer | null = null;
+    let frontSignedUrl: string | null = null;
+    let frontExpiresAt: Date | null = null;
+    let frontPath: string | null = null;
+
+    // Front ribbon left-chest position on 4500×5400 DTG canvas (150 DPI).
+    // Ribbon is scaled to 600 px wide (~4 in) and placed at left-chest.
+    // These values are calibration estimates; update after first test order.
+    const RIBBON_WIDTH_PX = 600;
+    const RIBBON_OFFSET_LEFT_PX = 750;   // ~5 in from left edge
+    const RIBBON_OFFSET_TOP_PX  = 900;   // ~6 in from top edge
 
     try {
       const sharp = (await import('sharp')).default;
       let previewJpeg: Buffer;
-      let printBuf: Buffer;
+      let backPrintBuf: Buffer;
 
-      if (typeof clientCardBase64 === 'string' && clientCardBase64.length > 0) {
+      if (typeof backBase64 === 'string' && backBase64.length > 0) {
         // Use the client-rendered card image (passport, heart, or grid) so the
         // t-shirt mockup matches what the user designed rather than always the
         // flag grid.
-        const clientBuf = Buffer.from(clientCardBase64, 'base64');
+        const clientBuf = Buffer.from(backBase64, 'base64');
         const bgColour = printDims.backgroundColor === 'transparent'
           ? { r: 0, g: 0, b: 0, alpha: 0 }
           : { r: 255, g: 255, b: 255, alpha: 1 };
@@ -291,7 +318,7 @@ export const createMerchCart = onCall<
           .toFormat('jpeg', { quality: 80 })
           .toBuffer();
 
-        printBuf = await sharp(clientBuf)
+        backPrintBuf = await sharp(clientBuf)
           .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
           .toFormat('png')
           .toBuffer();
@@ -309,7 +336,7 @@ export const createMerchCart = onCall<
           .toFormat('jpeg', { quality: 80 })
           .toBuffer();
 
-        printBuf = await generateFlagGrid({
+        backPrintBuf = await generateFlagGrid({
           templateId: 'flag_grid_v1',
           selectedCountryCodes,
           widthPx: printDims.widthPx,
@@ -317,6 +344,27 @@ export const createMerchCart = onCall<
           dpi: printDims.dpi,
           backgroundColor: printDims.backgroundColor,
         });
+      }
+
+      // Generate front print file from frontBase64 (only for t-shirts with a front ribbon)
+      if (typeof frontBase64 === 'string' && frontBase64.length > 0 && printDims.widthPx > 0) {
+        const ribbonBuf = Buffer.from(frontBase64, 'base64');
+        const resizedRibbon = await sharp(ribbonBuf)
+          .resize(RIBBON_WIDTH_PX, null, { fit: 'inside' })
+          .png()
+          .toBuffer();
+
+        frontPrintBuf = await sharp({
+          create: {
+            width: printDims.widthPx,
+            height: printDims.heightPx,
+            channels: 4,
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
+          },
+        })
+          .composite([{ input: resizedRibbon, left: RIBBON_OFFSET_LEFT_PX, top: RIBBON_OFFSET_TOP_PX }])
+          .png()
+          .toBuffer();
       }
 
       // Upload preview (public read)
@@ -327,27 +375,52 @@ export const createMerchCart = onCall<
       });
       previewUrl = previewFile.publicUrl();
 
-      // Upload print file (private — signed URL only)
-      const printFile = bucket.file(printPath);
-      await printFile.save(printBuf, {
+      // Upload back print file (private — signed URL only)
+      const backFile = bucket.file(backPath);
+      await backFile.save(backPrintBuf, {
         metadata: { contentType: 'image/png' },
       });
 
-      // Generate 7-day signed URL
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const [signedUrl] = await printFile.getSignedUrl({
+      // Generate 7-day signed URL for back file
+      backExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const [backUrl] = await backFile.getSignedUrl({
         action: 'read',
-        expires: expiresAt,
+        expires: backExpiresAt,
       });
-      printFileSignedUrl = signedUrl;
+      backSignedUrl = backUrl;
+
+      // Upload front print file if generated
+      if (frontPrintBuf) {
+        frontPath = `print_files/${configId}_front.png`;
+        const frontFile = bucket.file(frontPath);
+        await frontFile.save(frontPrintBuf, {
+          metadata: { contentType: 'image/png' },
+        });
+        frontExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const [fUrl] = await frontFile.getSignedUrl({
+          action: 'read',
+          expires: frontExpiresAt,
+        });
+        frontSignedUrl = fUrl;
+      }
 
       // Update MerchConfig: files_ready
       await configRef.update({
         designStatus: 'files_ready',
         previewStoragePath: previewPath,
-        printFileStoragePath: printPath,
-        printFileSignedUrl,
-        printFileExpiresAt: Timestamp.fromDate(expiresAt),
+        backPrintFileStoragePath: backPath,
+        backPrintFileSignedUrl: backSignedUrl,
+        backPrintFileExpiresAt: Timestamp.fromDate(backExpiresAt),
+        // front fields only if front file was generated
+        ...(frontPrintBuf && frontPath && frontSignedUrl && frontExpiresAt ? {
+          frontPrintFileStoragePath: frontPath,
+          frontPrintFileSignedUrl: frontSignedUrl,
+          frontPrintFileExpiresAt: Timestamp.fromDate(frontExpiresAt),
+        } : {}),
+        // deprecated back fields — keep pointing to back file so old webhook code still works
+        printFileStoragePath: backPath,
+        printFileSignedUrl: backSignedUrl,
+        printFileExpiresAt: Timestamp.fromDate(backExpiresAt),
       });
     } catch (err) {
       await configRef.update({ designStatus: 'generation_error' });
@@ -412,18 +485,21 @@ export const createMerchCart = onCall<
     // Update MerchConfig with cart ID
     await configRef.update({ shopifyCartId: cart.id, status: 'cart_created' });
 
-    // ── Step 5: Generate Printful mockup (non-blocking) ────────────────────
+    // ── Step 5: Generate Printful mockups (non-blocking) ───────────────────
     // Skip for poster variants (printfulVariantId === 0 = not configured).
-    let mockupUrl: string | null = null;
+    let frontMockupUrl: string | null = null;
+    let backMockupUrl: string | null = null;
     const printfulVariantId = PRINTFUL_VARIANT_IDS[variantId] ?? 0;
 
-    if (printfulVariantId !== 0) {
+    if (printfulVariantId !== 0 && backSignedUrl) {
       try {
-        mockupUrl = await generatePrintfulMockup(
+        const mockups = await generateDualPlacementMockups(
           printfulVariantId,
-          printFileSignedUrl,
-          placement
+          frontSignedUrl ?? '',  // empty string if no front file (poster products)
+          backSignedUrl
         );
+        frontMockupUrl = mockups.frontMockupUrl;
+        backMockupUrl = mockups.backMockupUrl;
       } catch (err) {
         // Mockup failure must never block checkout.
         console.error(
@@ -433,16 +509,20 @@ export const createMerchCart = onCall<
       }
     }
 
-    if (mockupUrl) {
-      await configRef.update({ mockupUrl });
-    }
+    await configRef.update({
+      frontMockupUrl: frontMockupUrl ?? null,
+      backMockupUrl: backMockupUrl ?? null,
+      mockupUrl: backMockupUrl ?? null,  // deprecated field for old code compat
+    });
 
     return {
       checkoutUrl: cart.checkoutUrl,
       cartId: cart.id,
       merchConfigId: configId,
       previewUrl,
-      mockupUrl,
+      mockupUrl: backMockupUrl ?? null,      // deprecated
+      frontMockupUrl: frontMockupUrl ?? null,
+      backMockupUrl: backMockupUrl ?? null,
     };
   }
 );
@@ -653,6 +733,37 @@ export const shopifyOrderCreated = onRequest(
         }
       : {};
 
+    // Determine which files to send to Printful
+    const isSingleFileOrder = !config.frontPrintFileStoragePath;
+    let printfulFiles: Array<{ url: string; type: string }>;
+
+    if (isSingleFileOrder) {
+      // Backward compat: old single-file order
+      printfulFiles = [{ url: printFileSignedUrl, type: 'default' }];
+    } else {
+      // New dual-file order
+      let frontSignedUrlForOrder = config.frontPrintFileSignedUrl;
+      // Refresh front URL if expiring within 1 hour
+      if (config.frontPrintFileExpiresAt) {
+        const expiresMs = config.frontPrintFileExpiresAt.toDate().getTime();
+        if (expiresMs - Date.now() < 60 * 60 * 1000) {
+          frontSignedUrlForOrder = await _refreshSignedUrl(docRef, config.frontPrintFileStoragePath!);
+        }
+      }
+      if (!frontSignedUrlForOrder) {
+        // Front URL missing despite storage path being set — fall back to single-file.
+        console.warn(
+          `[shopifyOrderCreated] frontPrintFileSignedUrl missing for ${merchConfigId} — falling back to single-file order`
+        );
+        printfulFiles = [{ url: printFileSignedUrl, type: 'default' }];
+      } else {
+        printfulFiles = [
+          { url: frontSignedUrlForOrder, type: 'front' },
+          { url: printFileSignedUrl,     type: 'back'  },
+        ];
+      }
+    }
+
     try {
       const printfulRes = await fetch('https://api.printful.com/v2/orders', {
         method: 'POST',
@@ -667,7 +778,7 @@ export const shopifyOrderCreated = onRequest(
             {
               variant_id: printfulVariantId,
               quantity: config.quantity,
-              files: [{ url: printFileSignedUrl, type: 'default' }],
+              files: printfulFiles,
             },
           ],
         }),
