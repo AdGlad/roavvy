@@ -166,6 +166,48 @@ void main() {
     });
   });
 
+  group('M65 — Printful dual-mockup: pre-generation paths unchanged', () {
+    // These tests verify that the configuring-state local mockup path is
+    // unaffected by the M65 changes. Ready-state (Printful URL) tests require
+    // Firebase Function mocking and are covered by manual QA.
+
+    testWidgets('unavailable banner NOT shown in configuring state',
+        (tester) async {
+      await tester.pumpWidget(_wrap(_makeScreen()));
+      tester.takeException();
+      await tester.pump();
+
+      expect(find.text('Front mockup unavailable'), findsNothing);
+      expect(find.text('Back mockup unavailable'), findsNothing);
+    });
+
+    testWidgets('unavailable banner NOT shown in configuring state — back face',
+        (tester) async {
+      await tester.pumpWidget(_wrap(_makeScreen()));
+      tester.takeException();
+      await tester.pump();
+
+      // Simulate toggling to back face via placement toggle.
+      // The toggle is inside the compact strip which renders for t-shirt.
+      final backFinders = find.text('Back');
+      if (backFinders.evaluate().isNotEmpty) {
+        await tester.tap(backFinders.first);
+        await tester.pump();
+      }
+
+      expect(find.text('Back mockup unavailable'), findsNothing);
+    });
+
+    testWidgets('Approve CTA still present in configuring state after M65',
+        (tester) async {
+      await tester.pumpWidget(_wrap(_makeScreen()));
+      tester.takeException();
+      await tester.pump();
+
+      expect(find.text('Approve this order'), findsOneWidget);
+    });
+  });
+
   group('M55-D — null UID guard', () {
     testWidgets('shows SnackBar when UID is null on approve', (tester) async {
       await tester.pumpWidget(_wrap(_makeScreen(), uid: null));

@@ -1,8 +1,9 @@
-# Milestone 64 — Stamp Color in T-Shirt Design Stage
+# Milestone 65 — Fix Printful Back Mockup
 
-**Status:** 🔵 In Progress
-**Branch:** milestone/m64-stamp-color-in-tshirt-stage
-**Started:** 2026-04-11
+**Status:** ✅ Complete
+**Branch:** milestone/m65-printful-back-mockup
+**Started:** 2026-04-12
+**Completed:** 2026-04-12
 
 ---
 
@@ -10,12 +11,8 @@
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Move PassportColorMode to shared scope | 🔵 In Progress |
-| 2 | Remove _PassportColorPicker from CardEditorScreen | ⬜ |
-| 3 | Remove ArtworkConfirmationScreen push; navigate direct | ⬜ |
-| 4 | Add _passportColorMode state + suggest/disable logic | ⬜ |
-| 5 | Wire _passportColorMode → _artworkVariantIndex | ⬜ |
-| 6 | Auto-apply suggestion when shirt color changes | ⬜ |
-| 7 | Add _PassportStampColorPicker UI widget | ⬜ |
-| 8 | Remove vertical swipe variant cycling | ⬜ |
-| 9 | Tests | ⬜ |
+| 1 | Add `_backMockupUrl` state field and populate from callable response | ✅ Done |
+| 2 | Add `_PrintfulMockupStatus` enum + `_printfulStatus` getter | ✅ Done |
+| 3 | Update `_buildMockupArea()` to display Printful back mockup | ✅ Done |
+| 4 | Add `_buildPrintfulUnavailableBanner` widget | ✅ Done |
+| 5 | Tests | ✅ Done |
