@@ -1,14 +1,8 @@
-# Milestone 63 — Dual-Placement T-Shirt: Front + Back Print + Mockup Sync
+# Milestone 64 — Stamp Color in T-Shirt Design Stage
 
-**Status:** ✅ Complete
-**Branch:** milestone/m63-dual-placement-tshirt
-**Completed:** 2026-04-11
-
----
-
-## Goal
-
-The t-shirt purchase flow uses both front chest ribbon and back travel card images through the full pipeline: upload, Printful mockup, fulfillment order, and mobile display.
+**Status:** 🔵 In Progress
+**Branch:** milestone/m64-stamp-color-in-tshirt-stage
+**Started:** 2026-04-11
 
 ---
 
@@ -16,12 +10,12 @@ The t-shirt purchase flow uses both front chest ribbon and back travel card imag
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Verify Printful catalog variant IDs (manual) | ⏳ Pending manual verification |
-| 2 | Update MerchConfig types + request/response interfaces | ✅ Complete |
-| 3 | Update generatePrintfulMockup → generateDualPlacementMockups | ✅ Complete |
-| 4 | Update createMerchCart for dual print files | ✅ Complete |
-| 5 | Front ribbon canvas compositing logic | ✅ Complete |
-| 6 | Update shopifyOrderCreated for dual-file Printful orders | ✅ Complete |
-| 7 | Store _frontRibbonBytes in LocalMockupPreviewScreen | ✅ Complete |
-| 8 | Update _onApprove() to send both images | ✅ Complete |
-| 9 | Update ready-state mockup display | ✅ Complete |
+| 1 | Move PassportColorMode to shared scope | 🔵 In Progress |
+| 2 | Remove _PassportColorPicker from CardEditorScreen | ⬜ |
+| 3 | Remove ArtworkConfirmationScreen push; navigate direct | ⬜ |
+| 4 | Add _passportColorMode state + suggest/disable logic | ⬜ |
+| 5 | Wire _passportColorMode → _artworkVariantIndex | ⬜ |
+| 6 | Auto-apply suggestion when shirt color changes | ⬜ |
+| 7 | Add _PassportStampColorPicker UI widget | ⬜ |
+| 8 | Remove vertical swipe variant cycling | ⬜ |
+| 9 | Tests | ⬜ |

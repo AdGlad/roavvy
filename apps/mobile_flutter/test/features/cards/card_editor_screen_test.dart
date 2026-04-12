@@ -105,7 +105,7 @@ void main() {
   });
 
   group('CardEditorScreen — passport controls', () {
-    testWidgets('colour picker is visible for passport template',
+    testWidgets('stamp colour picker is NOT shown in card editor (moved to merch screen, M64)',
         (tester) async {
       final container =
           _buildContainer(visits: _makeVisits(['GB', 'US']));
@@ -117,23 +117,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Multicolor'), findsOneWidget);
-      expect(find.text('Black'), findsOneWidget);
-      expect(find.text('White'), findsOneWidget);
-    });
-
-    testWidgets('colour picker is hidden for grid template',
-        (tester) async {
-      final container =
-          _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(
-        const CardEditorScreen(templateType: CardTemplateType.grid),
-        container,
-      ));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
-
+      // Colour picker has moved to LocalMockupPreviewScreen (M64).
       expect(find.text('Multicolor'), findsNothing);
+      expect(find.text('White'), findsNothing);
     });
 
     testWidgets('entry/exit toggle is visible for passport',
