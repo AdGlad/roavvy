@@ -47,7 +47,7 @@ class PassportLayoutEngine {
   // Maximum stamps rendered per card. Raised from 20 to accommodate one entry
   // stamp and one exit stamp per trip (ADR-113).
   static const int _kMaxStamps = 200;
-  static const int _kMaxAttempts = 12; // Increased from 6 for denser layout with safe zones
+
 
   // ── Safe Zones (ADR-117 Decision 1) ───────────────────────────────────────
   // Title safe zone: Top 18% of height.
@@ -171,13 +171,12 @@ class PassportLayoutEngine {
     final usableW = canvasSize.width - marginX * 2;
     final usableH = canvasSize.height - marginY * 2;
 
-    // Dynamic base radius (ADR-113): full size (38 px) for ≤ 20 stamps, scales
-    // down smoothly as count grows — 38 × √(min(1, 20/n)) — clamped to [6, 38].
-    // This keeps stamps readable at any count while preserving the large-stamp
-    // aesthetic when the passport is only lightly visited.
+    // Dynamic base radius: full size (56 px) for ≤ 20 stamps, scales down
+    // smoothly as count grows — 56 × √(min(1, 20/n)) — clamped to [6, 56].
+    // Raised from 38 → 56 so stamps fill the available space when count is low.
     final dynamicRadius = totalCount > 0
-        ? (38.0 * math.sqrt(math.min(1.0, 20.0 / totalCount))).clamp(6.0, 38.0)
-        : 38.0;
+        ? (56.0 * math.sqrt(math.min(1.0, 20.0 / totalCount))).clamp(6.0, 56.0)
+        : 56.0;
 
     // Determine forPrint base radius and check wasForced (ADR-102 / ADR-113).
     double? forPrintBaseRadius;
@@ -192,20 +191,20 @@ class PassportLayoutEngine {
         totalCount = math.min(entries.length, _kMaxStamps);
         // Recompute radius for the reduced count.
         forPrintBaseRadius = totalCount > 0
-            ? (38.0 * math.sqrt(math.min(1.0, 20.0 / totalCount)))
-                .clamp(6.0, 38.0)
-            : 38.0;
+            ? (56.0 * math.sqrt(math.min(1.0, 20.0 / totalCount)))
+                .clamp(6.0, 56.0)
+            : 56.0;
       }
     }
 
-    // Dynamic grid: cell count scales with stamp count, preserving canvas
-    // aspect ratio so stamps distribute evenly in both landscape and portrait.
+    // Grid: size to fit all stamps exactly (ceil so every stamp gets a cell).
+    // Sequential assignment (not weighted-random) guarantees even coverage with
+    // no large gaps. Jitter within each cell keeps the layout organic.
     final canvasAspect = usableW / math.max(1.0, usableH);
     final gridCols =
-        math.max(3, math.sqrt(totalCount.toDouble() * canvasAspect).ceil());
+        math.max(2, math.sqrt(totalCount.toDouble() * canvasAspect).ceil());
     final gridRows =
-        math.max(4, (totalCount / gridCols).ceil() + 2);
-    final cellOccupancy = List<int>.filled(gridCols * gridRows, 0);
+        math.max(2, (totalCount / gridCols).ceil());
 
     final stamps = <StampData>[];
     final placedCentres = <Offset>[];
@@ -233,40 +232,37 @@ class PassportLayoutEngine {
         scale = baseRadius / 38.0;
       }
 
-      // Find a non-occluded placement using soft-grid weighting.
-      Offset? centre;
-      for (var attempt = 0; attempt < _kMaxAttempts; attempt++) {
-        final candidateCell = _weightedCell(cellOccupancy, rng);
-        final cellW = usableW / gridCols;
-        final cellH = usableH / gridRows;
-        final cellCol = candidateCell % gridCols;
-        final cellRow = candidateCell ~/ gridCols;
-        final candidate = Offset(
-          marginX + cellCol * cellW + rng.nextDouble() * cellW,
-          marginY + cellRow * cellH + rng.nextDouble() * cellH,
-        );
-        if (_acceptable(candidate, baseRadius, placedCentres, placedRadii, canvasSize)) {
-          centre = candidate;
-          cellOccupancy[candidateCell]++;
-          break;
-        }
+      // Sequential grid assignment: each stamp gets its own cell, guaranteeing
+      // even coverage with no large gaps. Jitter within ±40% of cell dims keeps
+      // the layout organic. Safe zones are enforced via clamping.
+      final cellW = usableW / gridCols;
+      // Usable height starts below the title safe zone.
+      final safeStartY =
+          math.max(marginY, canvasSize.height * _kTitleSafeZoneHeightFraction);
+      final availableH = (canvasSize.height - marginY) - safeStartY;
+      final cellH = math.max(1.0, availableH / gridRows);
+      final cellCol = stampIdx % gridCols;
+      final cellRow = stampIdx ~/ gridCols;
+
+      // Jitter ±40% of cell half-dimensions for a natural, scattered look.
+      final jitterX = (rng.nextDouble() - 0.5) * cellW * 0.8;
+      final jitterY = (rng.nextDouble() - 0.5) * cellH * 0.8;
+
+      final rawCentre = Offset(
+        marginX + (cellCol + 0.5) * cellW + jitterX,
+        safeStartY + (cellRow + 0.5) * cellH + jitterY,
+      );
+
+      // Clamp to keep stamps inside usable area and clear of safe zones.
+      Offset? centre = Offset(
+        rawCentre.dx.clamp(marginX + baseRadius, canvasSize.width - marginX - baseRadius),
+        rawCentre.dy.clamp(safeStartY + baseRadius, canvasSize.height - marginY - baseRadius),
+      );
+
+      // If clamped into a safe zone, nudge towards usable centre.
+      if (_isInSafeZone(centre, baseRadius, canvasSize)) {
+        centre = Offset(centre.dx, safeStartY + availableH * 0.5);
       }
-      // Best-effort fallback: overlap is acceptable for large counts (ADR-113),
-      // but safe zones are mandatory (ADR-117).
-      if (centre == null) {
-        for (var attempt = 0; attempt < 50; attempt++) {
-          final candidate = Offset(
-            marginX + rng.nextDouble() * usableW,
-            marginY + rng.nextDouble() * usableH,
-          );
-          if (_isInSafeZone(candidate, baseRadius, canvasSize)) continue;
-          centre = candidate;
-          break;
-        }
-      }
-      // Ultimate fallback: if still null (extreme density), pick center of canvas
-      // avoiding safe zones as much as possible.
-      centre ??= Offset(canvasSize.width * 0.5, canvasSize.height * 0.5);
 
       // 8% chance of edge clipping in normal mode; disabled in print (ADR-102).
       Rect? edgeClip;
@@ -312,28 +308,6 @@ class PassportLayoutEngine {
     return PassportLayoutResult(stamps: stamps, wasForced: wasForced);
   }
 
-  /// Reject placement if the new centre is within 50% of the combined radii of
-  /// any existing stamp. Relaxed from 80% to allow organic overlapping when
-  /// stamp counts are large (ADR-113).
-  ///
-  /// Safe zones (ADR-117) are mandatory even in fallback.
-  static bool _acceptable(
-    Offset candidate,
-    double radius,
-    List<Offset> centres,
-    List<double> radii,
-    Size canvasSize,
-  ) {
-    if (_isInSafeZone(candidate, radius, canvasSize)) return false;
-
-    for (var i = 0; i < centres.length; i++) {
-      final dist = (candidate - centres[i]).distance;
-      final minDist = (radius + radii[i]) * 0.5;
-      if (dist < minDist) return false;
-    }
-    return true;
-  }
-
   /// Returns `true` if any part of a stamp with [radius] at [center] would
   /// overlap the top (title) or bottom-left (branding) safe zones.
   static bool _isInSafeZone(Offset center, double radius, Size canvasSize) {
@@ -350,20 +324,6 @@ class PassportLayoutEngine {
     }
 
     return false;
-  }
-
-  /// Soft-grid cell selection: probability ∝ 1/(1+occupancy).
-  static int _weightedCell(List<int> occupancy, math.Random rng) {
-    final weights =
-        occupancy.map((o) => 1.0 / (1.0 + o)).toList();
-    final total = weights.fold(0.0, (a, b) => a + b);
-    final pick = rng.nextDouble() * total;
-    var cumulative = 0.0;
-    for (var i = 0; i < weights.length; i++) {
-      cumulative += weights[i];
-      if (pick <= cumulative) return i;
-    }
-    return occupancy.length - 1;
   }
 
   /// Create an edge-clip rect that cuts 10–25% of the stamp's bounding box

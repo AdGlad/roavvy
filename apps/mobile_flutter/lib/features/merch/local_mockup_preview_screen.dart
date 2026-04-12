@@ -134,7 +134,6 @@ class _LocalMockupPreviewScreenState
 
   String? _checkoutUrl;
   String? _frontMockupUrl;
-  String? _backMockupUrl;
   bool _showingFront = true;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
@@ -166,9 +165,10 @@ class _LocalMockupPreviewScreenState
   /// True when the current artwork variant uses a transparent background,
   /// requiring [BlendMode.srcOver] in [LocalMockupPainter].
   ///
-  /// Variants 1 (black stamps) and 2 (white stamps) always render on a
-  /// transparent background so no rectangular border appears on the shirt.
+  /// For t-shirts all variants are always transparent (no parchment border
+  /// visible on fabric). For posters, only variants 1 & 2 are transparent.
   bool get _variantIsTransparent {
+    if (_isTshirt) return true;
     if (_artworkVariantIndex == 1) return true;
     if (_artworkVariantIndex == 2) return true;
     if (_artworkVariantIndex == 0 && widget.transparentBackground) return true;
@@ -215,7 +215,14 @@ class _LocalMockupPreviewScreenState
     _decodeArtwork(_artworkBytes);
     _loadShirtImages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadFrontRibbonImage();
+      if (!mounted) return;
+      _loadFrontRibbonImage();
+      // Immediately render the suggested stamp color for the initial shirt
+      // colour so the user sees the correct variant on first entry (e.g. white
+      // stamps on a black shirt) without having to tap a color chip manually.
+      if (_isTshirt && _template == CardTemplateType.passport) {
+        unawaited(_setPassportColorMode(_passportColorMode));
+      }
     });
   }
 
@@ -457,10 +464,13 @@ class _LocalMockupPreviewScreenState
     setState(() => _variantLoading = true);
     try {
       if (!context.mounted) return;
+      // For t-shirts all variants are transparent (no parchment border on fabric).
+      // Index 2 (white) must pass Colors.white explicitly — null falls back to
+      // the original stamp colours, not white.
       final (Color? stampColor, bool transparentBg) = switch (index) {
-        1 => (const Color(0xFF000000), true),  // black stamps on transparent
-        2 => (null, true),
-        _ => (widget.stampColor, widget.transparentBackground),
+        1 => (const Color(0xFF000000), true),            // black stamps
+        2 => (Colors.white, true),                       // white stamps (explicit)
+        _ => (widget.stampColor, _isTshirt || widget.transparentBackground),  // multicolor
       };
       final result = await CardImageRenderer.render(
         context,
@@ -468,7 +478,8 @@ class _LocalMockupPreviewScreenState
         codes: widget.selectedCodes,
         trips: widget.trips,
         forPrint: _template == CardTemplateType.passport,
-        entryOnly: widget.confirmedEntryOnly,
+        // T-shirts always show entry + exit stamps regardless of card-editor setting.
+        entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
         cardAspectRatio: widget.confirmedAspectRatio,
         titleOverride: widget.titleOverride,
         stampColor: stampColor,
@@ -616,11 +627,7 @@ class _LocalMockupPreviewScreenState
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
       final frontMockupUrl = result.data['frontMockupUrl'] as String?;
-      final backMockupUrl  = result.data['backMockupUrl']  as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
-
-      // ignore: avoid_print
-      print('[mockup] front=$frontMockupUrl back=$backMockupUrl');
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('No checkout URL returned.');
@@ -630,7 +637,6 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.ready;
         _frontMockupUrl = frontMockupUrl;
-        _backMockupUrl  = backMockupUrl;
         _checkoutUrl = checkoutUrl;
         _merchConfigId = merchConfigId;
       });
@@ -721,17 +727,20 @@ class _LocalMockupPreviewScreenState
     final isReady = _state == _MockupState.ready;
 
     if (isReady) {
-      // Prefer the requested side; fall back to the other if unavailable.
-      final activeMockupUrl = _showingFront
-          ? (_frontMockupUrl ?? _backMockupUrl)
-          : (_backMockupUrl ?? _frontMockupUrl);
-      if (activeMockupUrl != null) {
-        // ready state: Printful photorealistic mockup with pinch-to-zoom.
+      // Back side: Printful only returns front-facing images for both placements
+      // (the back design is invisible in a front-view mockup). Use the local
+      // flip-view mockup for the back so the design is actually visible.
+      if (!_showingFront) {
+        return _buildLocalMockupArea(theme, showFrontOverride: false);
+      }
+
+      // Front side: show Printful photorealistic mockup with pinch-to-zoom.
+      if (_frontMockupUrl != null) {
         return InteractiveViewer(
           minScale: 1.0,
           maxScale: 5.0,
           child: Image.network(
-            activeMockupUrl,
+            _frontMockupUrl!,
             fit: BoxFit.contain,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
@@ -747,7 +756,7 @@ class _LocalMockupPreviewScreenState
     return _buildLocalMockupArea(theme);
   }
 
-  Widget _buildLocalMockupArea(ThemeData theme) {
+  Widget _buildLocalMockupArea(ThemeData theme, {bool? showFrontOverride}) {
     final artworkImage = _artworkImage;
 
     if (artworkImage == null) {
@@ -760,6 +769,7 @@ class _LocalMockupPreviewScreenState
     Widget area;
 
     if (_isTshirt) {
+      final showFront = showFrontOverride ?? (_placement == 'front');
       final frontSpec = ProductMockupSpecs.specsFor(
         _product,
         colour: _colour,
@@ -773,14 +783,14 @@ class _LocalMockupPreviewScreenState
 
       // _ShirtFlipView owns AnimationController + GestureDetector + zoom (M58-03/05).
       area = _ShirtFlipView(
-        key: ValueKey(_flipViewKey),
+        key: ValueKey('${_flipViewKey}_$showFront'),
         frontArtwork: _frontRibbonImage,
         backArtwork: artworkImage,
         frontShirt: _frontShirtImage,
         backShirt: _backShirtImage,
         frontSpec: frontSpec,
         backSpec: backSpec,
-        showFront: _placement == 'front',
+        showFront: showFront,
         onFlipped: _onFlipped,
         artworkBlendMode: _variantIsTransparent
             ? ui.BlendMode.srcOver
@@ -1116,8 +1126,9 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildBottomBar() {
     if (_state == _MockupState.ready) {
-      final hasBothMockups =
-          _isTshirt && _frontMockupUrl != null && _backMockupUrl != null;
+      // Show toggle whenever we have a front Printful mockup — back uses the
+      // local flip-view (Printful back URL is a front-facing image, design invisible).
+      final hasBothMockups = _isTshirt && _frontMockupUrl != null;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1361,12 +1372,19 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
         ? (widget.showFront ? widget.frontArtwork : widget.backArtwork)
         : null;
 
+    // The front ribbon is always rendered on a transparent canvas (no
+    // background fill in _RibbonPainter), so it must always composite with
+    // srcOver. The back card varies — use the caller-supplied blend mode.
+    final blendMode = _showingFront
+        ? ui.BlendMode.srcOver
+        : widget.artworkBlendMode;
+
     return CustomPaint(
       painter: LocalMockupPainter(
         artworkImage: artwork,
         productImage: shirt,
         spec: spec,
-        artworkBlendMode: widget.artworkBlendMode,
+        artworkBlendMode: blendMode,
       ),
       child: const SizedBox.expand(),
     );
@@ -1389,14 +1407,19 @@ class _ApprovingView extends StatefulWidget {
 class _ApprovingViewState extends State<_ApprovingView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  late final Animation<double> _swing;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
+    // Swing the hanger ±12° like it's sliding on a rail.
+    _swing = Tween<double>(begin: -0.033, end: 0.033).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -1413,14 +1436,9 @@ class _ApprovingViewState extends State<_ApprovingView>
       children: [
         // Dimmed shirt — keeps context of what was approved.
         Opacity(opacity: 0.3, child: widget.shirt),
-        // Pulsing scrim that rhythmically dims/brightens like a print head pass.
-        AnimatedBuilder(
-          animation: _ctrl,
-          builder: (_, __) => ColoredBox(
-            color: theme.colorScheme.surface.withValues(
-              alpha: 0.52 + _ctrl.value * 0.18,
-            ),
-          ),
+        // Steady semi-transparent scrim.
+        ColoredBox(
+          color: theme.colorScheme.surface.withValues(alpha: 0.60),
         ),
         // Icon + copy centred over the shirt.
         Padding(
@@ -1428,16 +1446,16 @@ class _ApprovingViewState extends State<_ApprovingView>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedBuilder(
-                animation: _ctrl,
-                builder: (_, __) => Icon(
+              // Coat-hanger icon swinging on a rail.
+              RotationTransition(
+                turns: _swing,
+                child: Icon(
                   Icons.checkroom_outlined,
-                  size: 64,
-                  color: theme.colorScheme.primary
-                      .withValues(alpha: 0.55 + _ctrl.value * 0.45),
+                  size: 72,
+                  color: theme.colorScheme.primary,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               Text(
                 'Nearly there\u2026',
                 style: theme.textTheme.headlineSmall?.copyWith(
