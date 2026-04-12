@@ -4225,3 +4225,33 @@ The hidden vertical swipe gesture that previously cycled through stamp color var
 - Non-passport templates and poster products are unaffected.
 - `_CardParams` loses `passportColorMode`; existing re-confirmation shortcut logic is unaffected (field simply not compared).
 - `ArtworkConfirmationScreen` class is retained but no longer reachable via the passport→merch path. It may still be used by other potential entry points in future.
+
+---
+
+## ADR-116 — M60 Globe Map Orthographic Projection and Gesture Navigation
+
+**Status:** Accepted
+
+**Context:**
+The app provides a flat 2D country/region map, but we introduced a 3D orthographic globe view (`GlobeMapWidget`) for M60 to enhance visual delight. The interaction mechanics of panning a 3D globe using a 2D screen coordinate system need to feel intuitive.
+
+**Decisions:**
+
+**1. Pure-Dart Orthographic Projection**
+- We use a pure-Dart `GlobeProjection` class that mathematically transforms lat/lng pairs to screen `Offset`s based on a rotation matrix (`rotLat`, `rotLng`) and scale.
+- We do not use WebGL or heavy 3D rendering engines; `CustomPainter` draws projected polygons natively.
+
+**2. Gesture Mapping (Pan / Spin Direction)**
+- A standard map pan feels like "dragging the paper under your finger." A 3D object spin feels like "pushing the surface."
+- **Up / Down (Latitude):** Moving the finger *up* the screen pushes the globe *up* (tilting the north pole away), effectively scrolling the view South. This means `rotLat` subtracts the vertical delta (`- delta.dy`).
+- **Left / Right (Longitude):** Moving the finger *left* on the screen drags the globe *left* (spinning it East-to-West), effectively moving the view East. To achieve this, `rotLng` adds the horizontal delta (`+ delta.dx`).
+- This mixed polarity (`- delta.dy` for latitude, `+ delta.dx` for longitude) creates the most natural, expected physical interaction for the user when spinning the globe.
+- **Do not reverse these directions.** They have been explicitly tuned and approved by the user.
+
+**3. Antimeridian Handling**
+- Rings that cross the antimeridian (±180° longitude) are detected and split mathematically by the projection layer to prevent polygon rendering anomalies (where a country stretching from 179° to -179° would draw across the entire globe face).
+
+**Consequences:**
+- Zero dependency on heavy mapping SDKs.
+- Polygons and styling exactly match the 2D flat map because they consume the same Riverpod data models.
+- Gestures feel like spinning a physical globe rather than dragging a 2D map.
