@@ -701,6 +701,22 @@ All sharing features are complete as of M12.
 
 ---
 
+## Milestone 66 — Heart Card Redesign (Flag-Based Layout)
+
+**Goal:** Redesign the Heart Card so that it is a transparent heart-shaped image filled with real flag SVGs (no emojis). It must have zero gaps between flags, dynamically scale flags to fill the area via a binary-search grid packing, maintain visually dense composition, and be print-ready (no background bleed). Edge flags must be at least 80% visible.
+
+**Scope — included:**
+- Modify `HeartLayoutEngine` to support a dynamic binary-search grid sizing algorithm for gapless edge-to-edge packing.
+- Adjust `_kCoverageThreshold` and `gapWidth` to enforce an 80% visibility rule with no gaps.
+- Update `_HeartPainter` to draw on a transparent canvas and apply a perfect heart clipping mask over the entire tiled area.
+- Enhance `FlagTileRenderer` to handle `BoxFit.cover` properly, removing the emoji fallback.
+- Support a single-country ($N=1$) exact fill fast path.
+
+**Scope — excluded:**
+- Web card generator changes
+
+---
+
 ## Deferred items (no milestone assigned)
 
 - Firestore pull / multi-device conflict resolution
