@@ -31,7 +31,7 @@ const db = getFirestore();
  */
 async function generateDualPlacementMockups(
   printfulVariantId: number,
-  frontFileUrl: string,
+  frontFileUrl: string | null,
   backFileUrl: string
 ): Promise<{ frontMockupUrl: string | null; backMockupUrl: string | null }> {
   const apiKey = process.env['PRINTFUL_API_KEY'];
@@ -41,9 +41,13 @@ async function generateDualPlacementMockups(
   }
 
   // Submit task with both placements in a single request.
-  // Verified v2 request shape 2026-03-24:
-  // products[].source = "catalog", catalog_product_id = 12 (Gildan 64000),
-  // placements[].technique = "dtg"
+  // v2 request shape verified 2026-04-12:
+  // - catalog_variant_ids is an ARRAY (singular catalog_variant_id is silently ignored)
+  // - products[].source = "catalog", catalog_product_id = 12 (Gildan 64000)
+  // - placements[].technique = "dtg"
+  // NOTE: Do NOT pass mockup_style_ids — it restricts which variants Printful
+  // will generate mockups for, causing it to fall back to variant 473 (White/S)
+  // when the requested variant (e.g. Black/L=536) isn't supported by those styles.
   const createRes = await fetch('https://api.printful.com/v2/mockup-tasks', {
     method: 'POST',
     headers: {
@@ -54,10 +58,10 @@ async function generateDualPlacementMockups(
       products: [
         {
           source: 'catalog',
-          catalog_product_id: 12, // Gildan 64000 Unisex Softstyle T-Shirt
-          catalog_variant_id: printfulVariantId,
+          catalog_product_id: 12, // Gildan 64000 Unisex Softstyle T-Shirt with Tear Away
+          catalog_variant_ids: [printfulVariantId],   // must be array — singular field ignored
           placements: [
-            { placement: 'front', technique: 'dtg', layers: [{ type: 'file', url: frontFileUrl }] },
+            ...(frontFileUrl ? [{ placement: 'front', technique: 'dtg', layers: [{ type: 'file', url: frontFileUrl }] }] : []),
             { placement: 'back',  technique: 'dtg', layers: [{ type: 'file', url: backFileUrl }]  },
           ],
         },
@@ -80,9 +84,29 @@ async function generateDualPlacementMockups(
     return { frontMockupUrl: null, backMockupUrl: null };
   }
 
+  // Diagnostic: fetch and log available mockup styles for product 12.
+  // Used to identify back-view style IDs (back mockup shows front-facing image
+  // by default because Printful uses a front-view template for all placements).
+  try {
+    const stylesRes = await fetch('https://api.printful.com/v2/catalog-products/12/mockup-styles', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (stylesRes.ok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stylesData = (await stylesRes.json()) as { data?: Array<any> };
+      logger.info('product12_mockup_styles', {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        styles: (stylesData.data ?? []).map((s: any) => ({
+          id: s.id, name: s.name, placement: s.placement,
+        })),
+      });
+    }
+  } catch { /* non-blocking diagnostic */ }
+
   // Poll for result. Poll URL: GET /v2/mockup-tasks?id={taskId}
-  const maxAttempts = 10;
-  const intervalMs = 2000;
+  // Black/grey variants take longer on Printful's end — use 25×3s = 75 s max.
+  const maxAttempts = 25;
+  const intervalMs = 3000;
 
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
@@ -118,21 +142,36 @@ async function generateDualPlacementMockups(
       const matched =
         variantMockups.find((vm) => Number(vm.catalog_variant_id) === printfulVariantId) ??
         variantMockups[0];
-      // BUG-001 diagnostic: confirms Number() coercion and placement match.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matchedRaw = matched as any;
+      // Printful v2 API may use either `mockups` or `placements` as the array
+      // field name inside catalog_variant_mockups entries. Try both.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockupItems: Array<any> =
+        (Array.isArray(matchedRaw?.mockups) ? matchedRaw.mockups : null) ??
+        (Array.isArray(matchedRaw?.placements) ? matchedRaw.placements : null) ??
+        [];
+      const frontMockup = mockupItems.find((m) => m.placement === 'front');
+      const backMockup  = mockupItems.find((m) => m.placement === 'back');
+      const resolvedFront = frontMockup?.mockup_url ?? frontMockup?.url ?? null;
+      const resolvedBack  = backMockup?.mockup_url  ?? backMockup?.url  ?? null;
       logger.info('mockup_variant_match', {
         requestedVariantId: printfulVariantId,
         foundVariantId: matched?.catalog_variant_id ?? null,
-        foundType: typeof matched?.catalog_variant_id,
         allVariantIds: variantMockups.map((v) => ({
           id: v.catalog_variant_id,
           type: typeof v.catalog_variant_id,
         })),
+        matchedKeys: matchedRaw ? Object.keys(matchedRaw) : null,
+        mockupItemsCount: mockupItems.length,
+        mockupItemPlacements: mockupItems.map((m) => m?.placement ?? Object.keys(m ?? {})),
+        mockupItemKeys: mockupItems.map((m) => Object.keys(m ?? {})),
+        resolvedFrontUrl: resolvedFront,
+        resolvedBackUrl: resolvedBack,
       });
-      const frontMockup = matched?.mockups.find((m) => m.placement === 'front');
-      const backMockup  = matched?.mockups.find((m) => m.placement === 'back');
       return {
-        frontMockupUrl: frontMockup?.mockup_url ?? null,
-        backMockupUrl:  backMockup?.mockup_url  ?? null,
+        frontMockupUrl: resolvedFront,
+        backMockupUrl:  resolvedBack,
       };
     }
 
@@ -293,11 +332,15 @@ export const createMerchCart = onCall<
     let frontPath: string | null = null;
 
     // Front ribbon left-chest position on 4500×5400 DTG canvas (150 DPI).
-    // Ribbon is scaled to 600 px wide (~4 in) and placed at left-chest.
-    // These values are calibration estimates; update after first test order.
-    const RIBBON_WIDTH_PX = 600;
-    const RIBBON_OFFSET_LEFT_PX = 750;   // ~5 in from left edge
-    const RIBBON_OFFSET_TOP_PX  = 900;   // ~6 in from top edge
+    // Calibrated 2026-04-12 to match the local mockup spec (product_mockup_specs.dart):
+    //   local front print area: left=0.55, top=0.25, width=0.18, height=0.25 (800×1066 image)
+    //   => DTG canvas center x ≈ (0.55 + 0.18/2) × 4500 = 2880 px
+    //   => DTG canvas top    y ≈ 0.25 × 5400 = 1350 px
+    // Ribbon width doubled to 1200 px (8 in) per user calibration.
+    // Left edge = center − width/2 = 2880 − 600 = 2280 px.
+    const RIBBON_WIDTH_PX = 1200;
+    const RIBBON_OFFSET_LEFT_PX = 3000;  // wearer's left chest (viewer's right)
+    const RIBBON_OFFSET_TOP_PX  = 1350;  // ~9 in from top edge
 
     try {
       const sharp = (await import('sharp')).default;
@@ -495,7 +538,7 @@ export const createMerchCart = onCall<
       try {
         const mockups = await generateDualPlacementMockups(
           printfulVariantId,
-          frontSignedUrl ?? '',  // empty string if no front file (poster products)
+          frontSignedUrl,   // null if no front print file — omits front placement from request
           backSignedUrl
         );
         frontMockupUrl = mockups.frontMockupUrl;

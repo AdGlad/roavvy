@@ -18,6 +18,7 @@ import '../cards/card_image_renderer.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
 import 'merch_post_purchase_screen.dart';
+import 'merch_stamp_color.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
 import 'product_mockup_specs.dart';
@@ -59,7 +60,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     required this.selectedCodes,
     required this.trips,
     required this.artworkImageBytes,
-    required this.artworkConfirmationId,
+    this.artworkConfirmationId,
     this.initialTemplate = CardTemplateType.grid,
     this.confirmedAspectRatio = 3.0 / 2.0,
     this.confirmedEntryOnly = false,
@@ -73,7 +74,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final List<String> selectedCodes;
   final List<TripRecord> trips;
   final Uint8List artworkImageBytes;
-  final String artworkConfirmationId;
+  final String? artworkConfirmationId;
   final CardTemplateType initialTemplate;
 
   /// Aspect ratio of the confirmed artwork (ADR-112). Used when re-rendering
@@ -142,6 +143,10 @@ class _LocalMockupPreviewScreenState
 
   int _flipViewKey = 0;
 
+  // ── Passport stamp colour mode (M64) ──────────────────────────────────────
+
+  PassportColorMode _passportColorMode = PassportColorMode.black;
+
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
 
@@ -177,6 +182,25 @@ class _LocalMockupPreviewScreenState
         paper: _posterPaper,
       );
 
+  // ── Stamp colour helpers (M64) ─────────────────────────────────────────────
+
+  PassportColorMode _suggestStampColor(String shirtColour) => switch (shirtColour) {
+    'Black'        => PassportColorMode.white,
+    'White'        => PassportColorMode.black,
+    'Navy'         => PassportColorMode.white,
+    'Heather Grey' => PassportColorMode.black,
+    'Red'          => PassportColorMode.white,
+    _              => PassportColorMode.black,
+  };
+
+  Set<PassportColorMode> _disabledStampColors(String shirtColour) => switch (shirtColour) {
+    'Black'        => {PassportColorMode.black, PassportColorMode.multicolor},
+    'White'        => {PassportColorMode.white},
+    'Navy'         => {PassportColorMode.black, PassportColorMode.multicolor},
+    'Red'          => {PassportColorMode.multicolor},
+    _              => {},
+  };
+
   @override
   void initState() {
     super.initState();
@@ -184,6 +208,7 @@ class _LocalMockupPreviewScreenState
     _artworkBytes = widget.artworkImageBytes;
     _artworkConfirmationId = widget.artworkConfirmationId;
     _artworkVariants[0] = widget.artworkImageBytes;
+    _passportColorMode = _suggestStampColor(_colour);
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -428,16 +453,6 @@ class _LocalMockupPreviewScreenState
     'White stamps',
   ];
 
-  Future<void> _onSwipeUp() async {
-    if (_variantLoading) return;
-    final nextIndex = (_artworkVariantIndex + 1) % 3;
-    if (_artworkVariants[nextIndex] != null) {
-      await _switchToVariant(nextIndex);
-    } else {
-      await _renderVariant(nextIndex);
-    }
-  }
-
   Future<void> _renderVariant(int index) async {
     setState(() => _variantLoading = true);
     try {
@@ -478,6 +493,22 @@ class _LocalMockupPreviewScreenState
     });
   }
 
+  // ── Passport stamp colour selection (M64) ──────────────────────────────────
+
+  Future<void> _setPassportColorMode(PassportColorMode mode) async {
+    setState(() => _passportColorMode = mode);
+    final idx = switch (mode) {
+      PassportColorMode.multicolor => 0,
+      PassportColorMode.black      => 1,
+      PassportColorMode.white      => 2,
+    };
+    if (_artworkVariants[idx] != null) {
+      await _switchToVariant(idx);
+    } else {
+      await _renderVariant(idx);
+    }
+  }
+
   // ── Colour / placement change handler ─────────────────────────────────────
 
   void _onVariantOptionChanged({
@@ -498,6 +529,10 @@ class _LocalMockupPreviewScreenState
     if (colourChanged || productChanged) {
       _loadShirtImages();
       _loadFrontRibbonImage();
+    }
+    if (colourChanged && _isTshirt && _template == CardTemplateType.passport) {
+      // colour is non-null: colourChanged = colour != null && colour != _colour
+      unawaited(_setPassportColorMode(_suggestStampColor(colour)));
     }
   }
 
@@ -537,8 +572,11 @@ class _LocalMockupPreviewScreenState
           status: ArtworkConfirmationStatus.confirmed,
         );
 
-        unawaited(ArtworkConfirmationService(FirebaseFirestore.instance)
-            .archive(uid, widget.artworkConfirmationId));
+        final priorConfirmationId = widget.artworkConfirmationId;
+        if (priorConfirmationId != null) {
+          unawaited(ArtworkConfirmationService(FirebaseFirestore.instance)
+              .archive(uid, priorConfirmationId));
+        }
 
         confirmationId = await ArtworkConfirmationService(
                 FirebaseFirestore.instance)
@@ -580,6 +618,9 @@ class _LocalMockupPreviewScreenState
       final frontMockupUrl = result.data['frontMockupUrl'] as String?;
       final backMockupUrl  = result.data['backMockupUrl']  as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
+
+      // ignore: avoid_print
+      print('[mockup] front=$frontMockupUrl back=$backMockupUrl');
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
         throw Exception('No checkout URL returned.');
@@ -672,21 +713,33 @@ class _LocalMockupPreviewScreenState
   // ── Mockup area ────────────────────────────────────────────────────────────
 
   Widget _buildMockupArea(ThemeData theme) {
+    // During approving: show the animated "preparing" overlay over the shirt.
+    if (_state == _MockupState.approving) {
+      return _ApprovingView(shirt: _buildLocalMockupArea(theme));
+    }
+
     final isReady = _state == _MockupState.ready;
 
     if (isReady) {
-      final activeMockupUrl = _showingFront ? _frontMockupUrl : _backMockupUrl;
+      // Prefer the requested side; fall back to the other if unavailable.
+      final activeMockupUrl = _showingFront
+          ? (_frontMockupUrl ?? _backMockupUrl)
+          : (_backMockupUrl ?? _frontMockupUrl);
       if (activeMockupUrl != null) {
-        // ready state: Printful photorealistic mockup.
-        return Image.network(
-          activeMockupUrl,
-          fit: BoxFit.contain,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return _buildLocalMockupArea(theme);
-          },
-          errorBuilder: (context, error, stack) =>
-              _buildLocalMockupArea(theme),
+        // ready state: Printful photorealistic mockup with pinch-to-zoom.
+        return InteractiveViewer(
+          minScale: 1.0,
+          maxScale: 5.0,
+          child: Image.network(
+            activeMockupUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return _buildLocalMockupArea(theme);
+            },
+            errorBuilder: (context, error, stack) =>
+                _buildLocalMockupArea(theme),
+          ),
         );
       }
     }
@@ -737,7 +790,7 @@ class _LocalMockupPreviewScreenState
               (tshirtColors.indexOf(_colour) + 1) % tshirtColors.length;
           _onVariantOptionChanged(colour: tshirtColors[idx]);
         },
-        onSwipeUp: _onSwipeUp,
+        onSwipeUp: null,
       );
     } else {
       // Poster: simple InteractiveViewer with edge-to-edge artwork.
@@ -809,6 +862,90 @@ class _LocalMockupPreviewScreenState
     return area;
   }
 
+  // ── Stamp colour picker (M64) ──────────────────────────────────────────────
+
+  Widget _buildStampColorPicker() {
+    final disabled = _disabledStampColors(_colour);
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+
+    Widget chip(PassportColorMode mode, String label, Color? swatch) {
+      final isSelected = _passportColorMode == mode;
+      final isDisabled = disabled.contains(mode);
+      return GestureDetector(
+        onTap: isDisabled ? null : () => unawaited(_setPassportColorMode(mode)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isDisabled
+                  ? onSurface.withValues(alpha: 0.1)
+                  : isSelected
+                      ? onSurface.withValues(alpha: 0.7)
+                      : onSurface.withValues(alpha: 0.2),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+            borderRadius: BorderRadius.circular(6),
+            color: isSelected
+                ? onSurface.withValues(alpha: 0.1)
+                : Colors.transparent,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: swatch ?? Colors.transparent,
+                  border: Border.all(
+                    color: onSurface.withValues(alpha: isDisabled ? 0.15 : 0.3),
+                  ),
+                ),
+                child: swatch == null
+                    ? Icon(Icons.palette_outlined,
+                        size: 8,
+                        color: isDisabled
+                            ? Colors.white24
+                            : Colors.white70)
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDisabled
+                      ? onSurface.withValues(alpha: 0.25)
+                      : isSelected
+                          ? onSurface.withValues(alpha: 0.9)
+                          : onSurface.withValues(alpha: 0.55),
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          chip(PassportColorMode.multicolor, 'Multicolor', null),
+          const SizedBox(width: 8),
+          chip(PassportColorMode.black, 'Black', const Color(0xFF1A1A1A)),
+          const SizedBox(width: 8),
+          chip(PassportColorMode.white, 'White', Colors.white),
+        ],
+      ),
+    );
+  }
+
   // ── Compact strip (M58-02) ─────────────────────────────────────────────────
 
   /// Compact bottom strip with colour swatches + More options handle.
@@ -821,43 +958,53 @@ class _LocalMockupPreviewScreenState
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Front/Back toggle chips (moved from options panel)
-          _PlacementToggle(
-            placement: _placement,
-            onFront: () => _onVariantOptionChanged(placement: 'front'),
-            onBack: () => _onVariantOptionChanged(placement: 'back'),
-          ),
-          const SizedBox(width: 12),
-          // Colour swatches (M58-04)
-          Expanded(
-            child: _ColourSwatchRow(
-              selected: _colour,
-              onChanged: (c) => _onVariantOptionChanged(colour: c),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // More options drag handle
-          GestureDetector(
-            onTap: () => _showOptionsSheet(theme),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.tune,
-                      size: 20, color: theme.colorScheme.onSurfaceVariant),
-                  Text(
-                    'More',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+          Row(
+            children: [
+              // Front/Back toggle chips (moved from options panel)
+              _PlacementToggle(
+                placement: _placement,
+                onFront: () => _onVariantOptionChanged(placement: 'front'),
+                onBack: () => _onVariantOptionChanged(placement: 'back'),
               ),
-            ),
+              const SizedBox(width: 12),
+              // Colour swatches (M58-04)
+              Expanded(
+                child: _ColourSwatchRow(
+                  selected: _colour,
+                  onChanged: (c) => _onVariantOptionChanged(colour: c),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // More options drag handle
+              GestureDetector(
+                onTap: () => _showOptionsSheet(theme),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.tune,
+                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                      Text(
+                        'More',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (_isTshirt && _template == CardTemplateType.passport) ...[
+            const SizedBox(height: 4),
+            _buildStampColorPicker(),
+          ],
         ],
       ),
     );
@@ -969,13 +1116,28 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildBottomBar() {
     if (_state == _MockupState.ready) {
-      return Row(
+      final hasBothMockups =
+          _isTshirt && _frontMockupUrl != null && _backMockupUrl != null;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: FilledButton(
-              onPressed: _completeCheckout,
-              child: const Text('Complete order →'),
+          if (hasBothMockups) ...[
+            _PlacementToggle(
+              placement: _showingFront ? 'front' : 'back',
+              onFront: () => setState(() => _showingFront = true),
+              onBack: () => setState(() => _showingFront = false),
             ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _completeCheckout,
+                  child: const Text('Complete order →'),
+                ),
+              ),
+            ],
           ),
         ],
       );
@@ -991,18 +1153,13 @@ class _LocalMockupPreviewScreenState
         Expanded(
           child: FilledButton(
             onPressed: _state == _MockupState.configuring ? _onApprove : null,
-            child: _state == _MockupState.approving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : Text(
-                    _templateChanged
-                        ? 'Confirm updated design'
-                        : 'Approve this order',
-                  ),
+            child: Text(
+              _state == _MockupState.approving
+                  ? 'Preparing your order\u2026'
+                  : (_templateChanged
+                      ? 'Confirm updated design'
+                      : 'Approve this order'),
+            ),
           ),
         ),
       ],
@@ -1212,6 +1369,95 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
         artworkBlendMode: widget.artworkBlendMode,
       ),
       child: const SizedBox.expand(),
+    );
+  }
+}
+
+// ── Approving overlay ─────────────────────────────────────────────────────────
+
+/// Full-area overlay shown while the Firebase Function processes the order.
+/// Keeps the local shirt visible at low opacity so the user retains context of
+/// what they approved, while a pulsing animation + copy reassures them.
+class _ApprovingView extends StatefulWidget {
+  const _ApprovingView({required this.shirt});
+  final Widget shirt;
+
+  @override
+  State<_ApprovingView> createState() => _ApprovingViewState();
+}
+
+class _ApprovingViewState extends State<_ApprovingView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Dimmed shirt — keeps context of what was approved.
+        Opacity(opacity: 0.3, child: widget.shirt),
+        // Pulsing scrim that rhythmically dims/brightens like a print head pass.
+        AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) => ColoredBox(
+            color: theme.colorScheme.surface.withValues(
+              alpha: 0.52 + _ctrl.value * 0.18,
+            ),
+          ),
+        ),
+        // Icon + copy centred over the shirt.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedBuilder(
+                animation: _ctrl,
+                builder: (_, __) => Icon(
+                  Icons.checkroom_outlined,
+                  size: 64,
+                  color: theme.colorScheme.primary
+                      .withValues(alpha: 0.55 + _ctrl.value * 0.45),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Nearly there\u2026',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your t\u2011shirt design will be\nconfirmed shortly.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

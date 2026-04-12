@@ -14,35 +14,12 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
-import 'artwork_confirmation_screen.dart';
-import 'artwork_confirmation_service.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
 import 'travel_card_service.dart';
-
-// ── Passport colour mode ───────────────────────────────────────────────────────
-
-/// Stamp colour mode for the Passport card template (ADR-119).
-enum PassportColorMode { multicolor, black, white }
-
-extension _PassportParams on PassportColorMode {
-  Color? get stampColor => switch (this) {
-        PassportColorMode.multicolor => null,
-        PassportColorMode.black => const Color(0xFF1A1A1A),
-        PassportColorMode.white => Colors.white,
-      };
-
-  Color? get dateColor => switch (this) {
-        PassportColorMode.multicolor => null,
-        PassportColorMode.black => const Color(0xFF1A1A1A),
-        PassportColorMode.white => Colors.white,
-      };
-
-  bool get transparentBackground => this == PassportColorMode.white;
-}
 
 // ── Card param snapshot (re-confirmation guard) ────────────────────────────────
 
@@ -55,7 +32,6 @@ class _CardParams {
     required this.aspectRatio,
     required this.entryOnly,
     required this.order,
-    required this.passportColorMode,
     this.yearStart,
     this.yearEnd,
     this.titleOverride,
@@ -66,7 +42,6 @@ class _CardParams {
   final double aspectRatio;
   final bool entryOnly;
   final HeartFlagOrder order;
-  final PassportColorMode passportColorMode;
   final int? yearStart;
   final int? yearEnd;
   final String? titleOverride;
@@ -79,7 +54,6 @@ class _CardParams {
         aspectRatio == other.aspectRatio &&
         entryOnly == other.entryOnly &&
         order == other.order &&
-        passportColorMode == other.passportColorMode &&
         yearStart == other.yearStart &&
         yearEnd == other.yearEnd &&
         titleOverride == other.titleOverride;
@@ -92,7 +66,6 @@ class _CardParams {
         aspectRatio,
         entryOnly,
         order,
-        passportColorMode,
         yearStart,
         yearEnd,
         titleOverride,
@@ -123,13 +96,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   RangeValues? _yearSelection;
   late TextEditingController _titleController;
   String? _titleOverride;
-  PassportColorMode _passportColorMode = PassportColorMode.multicolor;
   bool _sharing = false;
   bool _printing = false;
 
-  // Confirmation state (ADR-103)
+  // Render cache (ADR-103)
   _CardParams? _lastConfirmedParams;
-  String? _artworkConfirmationId;
   Uint8List? _artworkImageBytes;
   List<TripRecord>? _lastConfirmedTrips;
 
@@ -268,14 +239,6 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   onChanged: (o) => setState(() => _order = o),
                 ),
               ],
-              // ── Stamp colour (Passport) ────────────────────────────────
-              if (widget.templateType == CardTemplateType.passport) ...[
-                const SizedBox(height: 4),
-                _PassportColorPicker(
-                  mode: _passportColorMode,
-                  onChanged: (m) => setState(() => _passportColorMode = m),
-                ),
-              ],
               // ── Year range slider ──────────────────────────────────────
               if (showDateSlider && effectiveRange != null) ...[
                 const SizedBox(height: 4),
@@ -346,18 +309,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   ) {
     final template = _buildTemplate(displayedCodes, filteredTrips, dateLabel);
 
-    // White stamp mode: wrap the card in a black container so white stamps are
-    // visible. RepaintBoundary sits OUTSIDE the black container so that the
-    // share capture includes the black background (share = visible on any
-    // surface). Print uses CardImageRenderer with transparentBackground: true,
-    // so the POD product receives white ink on transparent (ADR-119).
-    final child =
-        (widget.templateType == CardTemplateType.passport &&
-                _passportColorMode == PassportColorMode.white)
-            ? ColoredBox(color: Colors.black, child: template)
-            : template;
-
-    return RepaintBoundary(key: _previewKey, child: child);
+    return RepaintBoundary(key: _previewKey, child: template);
   }
 
   Widget _buildTemplate(
@@ -394,10 +346,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
-          stampColor: _passportColorMode.stampColor,
-          dateColor: _passportColorMode.dateColor,
-          transparentBackground:
-              _passportColorMode.transparentBackground,
+          stampColor: null,
+          dateColor: null,
+          transparentBackground: false,
         );
       case CardTemplateType.timeline:
         return TimelineCard(
@@ -511,21 +462,20 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       aspectRatio: _aspectRatio,
       entryOnly: _entryOnly,
       order: _order,
-      passportColorMode: _passportColorMode,
       yearStart: yearStart,
       yearEnd: yearEnd,
       titleOverride: _titleOverride,
     );
 
-    // Same params → skip re-confirmation (ADR-103).
+    // Same params → skip re-render (ADR-103).
     if (currentParams == _lastConfirmedParams &&
-        _artworkConfirmationId != null) {
+        _artworkImageBytes != null) {
       if (!context.mounted) return;
       _goToProductBrowser(context, codes);
       return;
     }
 
-    // Pre-render card before pushing ArtworkConfirmationScreen (ADR-112).
+    // Pre-render card before pushing LocalMockupPreviewScreen (ADR-112).
     setState(() => _printing = true);
     CardRenderResult? preRender;
     try {
@@ -542,9 +492,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         heartOrder: _order,
         dateLabel: dateLabel,
         titleOverride: _titleOverride,
-        stampColor: _passportColorMode.stampColor,
-        dateColor: _passportColorMode.dateColor,
-        transparentBackground: _passportColorMode.transparentBackground,
+        stampColor: null,
+        dateColor: null,
+        transparentBackground: false,
       );
     } catch (_) {
       preRender = null;
@@ -552,53 +502,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       if (mounted) setState(() => _printing = false);
     }
 
-    final showUpdatedBanner = _artworkConfirmationId != null;
-    final dateRangeStart =
-        yearStart != null ? DateTime(yearStart) : null;
-    final dateRangeEnd =
-        yearEnd != null ? DateTime(yearEnd, 12, 31) : null;
-
-    if (!context.mounted) return;
-    final result = await Navigator.of(context)
-        .push<ArtworkConfirmResult?>(
-      MaterialPageRoute(
-        builder: (_) => ArtworkConfirmationScreen(
-          templateType: widget.templateType,
-          countryCodes: codes,
-          filteredTrips: trips,
-          dateRangeStart: dateRangeStart,
-          dateRangeEnd: dateRangeEnd,
-          aspectRatio: _aspectRatio,
-          entryOnly: _entryOnly,
-          showUpdatedBanner: showUpdatedBanner,
-          preRenderedResult: preRender,
-          titleOverride: _titleOverride,
-          stampColor: _passportColorMode.stampColor,
-          dateColor: _passportColorMode.dateColor,
-          transparentBackground:
-              _passportColorMode.transparentBackground,
-        ),
-      ),
-    );
-
-    if (result == null || !mounted) return;
-
-    // Archive superseded confirmation (ADR-106).
-    final priorId = _artworkConfirmationId;
-    if (priorId != null && priorId != result.confirmationId) {
-      final uid = ref.read(currentUidProvider);
-      if (uid != null) {
-        unawaited(
-          ArtworkConfirmationService(FirebaseFirestore.instance)
-              .archive(uid, priorId),
-        );
-      }
-    }
+    if (preRender == null || !context.mounted) return;
 
     setState(() {
       _lastConfirmedParams = currentParams;
-      _artworkConfirmationId = result.confirmationId;
-      _artworkImageBytes = result.bytes;
+      _artworkImageBytes = preRender!.bytes;
       _lastConfirmedTrips = trips;
     });
 
@@ -628,16 +536,15 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         selectedCodes: codes,
         trips: _lastConfirmedTrips ?? const [],
         artworkImageBytes: _artworkImageBytes!,
-        artworkConfirmationId: _artworkConfirmationId!,
+        artworkConfirmationId: null,
         initialTemplate: widget.templateType,
         confirmedAspectRatio: _aspectRatio,
         confirmedEntryOnly: _entryOnly,
         cardId: cardId,
         titleOverride: _titleOverride,
-        stampColor: _passportColorMode.stampColor,
-        dateColor: _passportColorMode.dateColor,
-        transparentBackground:
-            _passportColorMode.transparentBackground,
+        stampColor: null,
+        dateColor: null,
+        transparentBackground: false,
       ),
     ));
   }
@@ -863,126 +770,6 @@ class _SortChip extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: selected
-                    ? onSurface.withValues(alpha: 0.9)
-                    : onSurface.withValues(alpha: 0.55),
-                fontWeight: selected
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Passport colour picker ────────────────────────────────────────────────────
-
-class _PassportColorPicker extends StatelessWidget {
-  const _PassportColorPicker({
-    required this.mode,
-    required this.onChanged,
-  });
-
-  final PassportColorMode mode;
-  final ValueChanged<PassportColorMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          _ColorModeButton(
-            label: 'Multicolor',
-            swatch: null,
-            mode: PassportColorMode.multicolor,
-            selected: mode == PassportColorMode.multicolor,
-            onTap: () => onChanged(PassportColorMode.multicolor),
-          ),
-          const SizedBox(width: 8),
-          _ColorModeButton(
-            label: 'Black',
-            swatch: const Color(0xFF1A1A1A),
-            mode: PassportColorMode.black,
-            selected: mode == PassportColorMode.black,
-            onTap: () => onChanged(PassportColorMode.black),
-          ),
-          const SizedBox(width: 8),
-          _ColorModeButton(
-            label: 'White',
-            swatch: Colors.white,
-            mode: PassportColorMode.white,
-            selected: mode == PassportColorMode.white,
-            onTap: () => onChanged(PassportColorMode.white),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ColorModeButton extends StatelessWidget {
-  const _ColorModeButton({
-    required this.label,
-    required this.swatch,
-    required this.mode,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final Color? swatch; // null → rainbow/multicolor indicator
-  final PassportColorMode mode;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: selected
-                ? onSurface.withValues(alpha: 0.7)
-                : onSurface.withValues(alpha: 0.2),
-            width: selected ? 1.5 : 1.0,
-          ),
-          borderRadius: BorderRadius.circular(6),
-          color: selected
-              ? onSurface.withValues(alpha: 0.1)
-              : Colors.transparent,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: swatch ?? Colors.transparent,
-                border: Border.all(
-                  color: onSurface.withValues(alpha: 0.3),
-                ),
-              ),
-              child: swatch == null
-                  ? const Icon(Icons.palette_outlined,
-                      size: 8, color: Colors.white70)
-                  : null,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
                 color: selected
                     ? onSurface.withValues(alpha: 0.9)
                     : onSurface.withValues(alpha: 0.55),

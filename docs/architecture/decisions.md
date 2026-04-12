@@ -4142,3 +4142,63 @@ The poll response includes mockups for both placements in `catalog_variant_mocku
 - `MockupApproval.placementType` is deprecated — new approvals omit it; existing records are unaffected.
 - Test-order calibration of `_kRibbonOffsetLeft` / `_kRibbonOffsetTop` is required after deployment; initial values are an informed estimate.
 
+
+---
+
+## ADR-121 — M64 Stamp Color Selection Moved to T-Shirt Design Stage
+
+**Status:** Accepted
+
+**Context:**
+`CardEditorScreen` showed a `_PassportColorPicker` (multicolor / black / white) before the user had chosen a shirt color. The user then confirmed artwork at `ArtworkConfirmationScreen` before entering the t-shirt designer. This sequence made bad combinations (white stamps on white shirt; parchment patch on black shirt) possible and meant the approval was given before the full design context was visible.
+
+**Decisions:**
+
+**1. Remove `_PassportColorPicker` from `CardEditorScreen`**
+The stamp color picker is removed from the card creation stage entirely. `CardEditorScreen` renders passport cards with `stampColor: null` (multicolor default). The `passportColorMode` field is removed from `_CardParams`. Layout-affecting fields (entry/exit, title, year range) remain unchanged.
+
+**2. Skip `ArtworkConfirmationScreen` in the passport→merch path**
+`CardEditorScreen._onPrint()` navigates directly to `LocalMockupPreviewScreen` with `artworkConfirmationId: null`. The `ArtworkConfirmation` Firestore record is created inline inside `_onApprove()` — this path already exists and is already tested. The `ArtworkConfirmation` will now carry the correct final `stampColor`/`dateColor`/`transparentBackground` values rather than a premature upfront choice.
+
+**3. `PassportColorMode` moves to `lib/features/merch/merch_stamp_color.dart`**
+The enum and its extension (`stampColor`, `dateColor`, `transparentBackground`) are moved to a file shared between `card_editor_screen.dart` (if it still needs the type for any reason) and `local_mockup_preview_screen.dart`. This avoids a dependency from `merch` on `cards`.
+
+**4. Stamp color selection added to `LocalMockupPreviewScreen` (passport + t-shirt only)**
+A `PassportColorMode _passportColorMode` field is added to screen state. A `_PassportStampColorPicker` chip row appears below the shirt colour swatches when `_isTshirt && _template == CardTemplateType.passport`. The picker is hidden for all other templates and for poster products.
+
+**5. Auto-suggest and hard-disable rules**
+
+Suggest (applied whenever shirt color changes):
+- Black → white stamps
+- White → black stamps
+- Navy → white stamps
+- Heather Grey → black stamps
+- Red → white stamps
+
+Hard-disabled combos (chip greyed, non-tappable):
+- Black shirt: black stamps, multicolor disabled
+- White shirt: white stamps disabled
+- Navy shirt: black stamps, multicolor disabled
+- Red shirt: multicolor disabled
+- Heather Grey: nothing disabled
+
+Rationale: `multicolor` uses a parchment background — a rectangular patch that looks bad on dark shirts. `white` stamps on a white shirt are invisible. `black` stamps on black/navy are near-invisible.
+
+**6. `_passportColorMode` wires to `_artworkVariantIndex`**
+The existing `_artworkVariants[3]` mechanism is reused:
+- `multicolor → index 0` (initial multicolor render from `widget.artworkImageBytes`)
+- `black → index 1` (re-rendered with `stampColor: Color(0xFF1A1A1A), transparentBackground: true`)
+- `white → index 2` (re-rendered with `stampColor: Colors.white, transparentBackground: true`)
+
+Layout is deterministic (same seed = same stamp positions), so re-rendering with a different color produces identical stamp placement — only the ink color changes.
+
+**7. Vertical swipe variant cycling removed**
+The hidden vertical swipe gesture that previously cycled through stamp color variants is removed. The explicit picker UI replaces it.
+
+**Consequences:**
+- The passport card creation stage is simpler (no color decision required there).
+- `ArtworkConfirmation` is always created with the correct final stamp color.
+- White-on-white and other visually invalid combos are prevented at the UI level.
+- Non-passport templates and poster products are unaffected.
+- `_CardParams` loses `passportColorMode`; existing re-confirmation shortcut logic is unaffected (field simply not compared).
+- `ArtworkConfirmationScreen` class is retained but no longer reachable via the passport→merch path. It may still be used by other potential entry points in future.

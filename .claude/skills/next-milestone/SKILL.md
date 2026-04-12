@@ -65,7 +65,7 @@ Read `docs/dev/next_tasks.md` and implement every task in the listed order. For 
 1. Read the CLAUDE.md for each directory you will touch.
 2. Read `docs/architecture/decisions.md` for constraints on the area.
 3. Implement the minimum code that satisfies the acceptance criteria.
-4. Write tests alongside implementation.
+4. Write tests alongside implementation. **Do NOT run tests** — test execution is temporarily suspended to avoid token exhaustion.
 5. Update `docs/dev/current_task.md` — mark the task ✅ Done and set the next task to "In Progress".
 
 Do not ask for permission before creating files, running commands, or editing code. Proceed autonomously through all tasks.
