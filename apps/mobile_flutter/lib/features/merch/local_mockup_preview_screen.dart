@@ -27,6 +27,9 @@ import 'product_mockup_specs.dart';
 
 enum _MockupState { configuring, rerendering, approving, ready }
 
+/// Which Printful mockup URLs are available after generation completes.
+enum _PrintfulMockupStatus { pending, frontOnly, backOnly, both, neither }
+
 // ── Colour swatch constants (M58-04) ─────────────────────────────────────────
 
 const _kSwatchColours = <String, Color>{
@@ -134,6 +137,7 @@ class _LocalMockupPreviewScreenState
 
   String? _checkoutUrl;
   String? _frontMockupUrl;
+  String? _backMockupUrl;
   bool _showingFront = true;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
@@ -627,6 +631,7 @@ class _LocalMockupPreviewScreenState
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
       final frontMockupUrl = result.data['frontMockupUrl'] as String?;
+      final backMockupUrl = result.data['backMockupUrl'] as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
@@ -637,6 +642,7 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.ready;
         _frontMockupUrl = frontMockupUrl;
+        _backMockupUrl = backMockupUrl;
         _checkoutUrl = checkoutUrl;
         _merchConfigId = merchConfigId;
       });
@@ -716,6 +722,18 @@ class _LocalMockupPreviewScreenState
     );
   }
 
+  // ── Printful mockup status ─────────────────────────────────────────────────
+
+  _PrintfulMockupStatus get _printfulStatus {
+    if (_state != _MockupState.ready) return _PrintfulMockupStatus.pending;
+    final hasFront = _frontMockupUrl != null;
+    final hasBack = _backMockupUrl != null;
+    if (hasFront && hasBack) return _PrintfulMockupStatus.both;
+    if (hasFront) return _PrintfulMockupStatus.frontOnly;
+    if (hasBack) return _PrintfulMockupStatus.backOnly;
+    return _PrintfulMockupStatus.neither;
+  }
+
   // ── Mockup area ────────────────────────────────────────────────────────────
 
   Widget _buildMockupArea(ThemeData theme) {
@@ -724,36 +742,61 @@ class _LocalMockupPreviewScreenState
       return _ApprovingView(shirt: _buildLocalMockupArea(theme));
     }
 
-    final isReady = _state == _MockupState.ready;
+    final status = _printfulStatus;
+    if (status != _PrintfulMockupStatus.pending) {
+      final url = _showingFront ? _frontMockupUrl : _backMockupUrl;
 
-    if (isReady) {
-      // Back side: Printful only returns front-facing images for both placements
-      // (the back design is invisible in a front-view mockup). Use the local
-      // flip-view mockup for the back so the design is actually visible.
-      if (!_showingFront) {
-        return _buildLocalMockupArea(theme, showFrontOverride: false);
-      }
-
-      // Front side: show Printful photorealistic mockup with pinch-to-zoom.
-      if (_frontMockupUrl != null) {
+      if (url != null) {
+        // Printful mockup available for this face — show with pinch-to-zoom.
         return InteractiveViewer(
           minScale: 1.0,
           maxScale: 5.0,
           child: Image.network(
-            _frontMockupUrl!,
+            url,
             fit: BoxFit.contain,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
-              return _buildLocalMockupArea(theme);
+              return _buildLocalMockupArea(theme,
+                  showFrontOverride: _showingFront);
             },
             errorBuilder: (context, error, stack) =>
-                _buildLocalMockupArea(theme),
+                _buildPrintfulUnavailableBanner(_showingFront),
           ),
         );
       }
+
+      // Printful generation completed but this face's URL is missing.
+      return _buildPrintfulUnavailableBanner(_showingFront);
     }
 
+    // Pre-generation: local mockup is the preview.
     return _buildLocalMockupArea(theme);
+  }
+
+  /// Shown when Printful generation completed but the URL for [isFront] is null
+  /// or failed to load. Explicit signal — never silently shows local mockup.
+  Widget _buildPrintfulUnavailableBanner(bool isFront) {
+    final face = isFront ? 'Front' : 'Back';
+    return Container(
+      color: const Color(0xFFF2F2F2),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.image_not_supported_outlined,
+                size: 40, color: Color(0xFF9E9E9E)),
+            const SizedBox(height: 12),
+            Text(
+              '$face mockup unavailable',
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF9E9E9E),
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildLocalMockupArea(ThemeData theme, {bool? showFrontOverride}) {
