@@ -105,13 +105,29 @@ class PassportLayoutEngine {
   /// When [entryOnly] is false, each trip produces two entries: entry
   /// (date = startedOn) then exit (date = endedOn). When true, only the
   /// entry stamp is produced. Bare [extraCodes] always produce a single entry.
+  ///
+  /// Trips are deduplicated by (countryCode, startDate) before processing.
+  /// The photo scanner can produce multiple TripRecords for the same country
+  /// on the same day (e.g. Geneva and Zurich both mapping to CH on the same
+  /// transit day). Without deduplication, entry+exit mode doubles the stamp
+  /// count for each duplicate, flooding the card with redundant same-date
+  /// stamps. The earliest trip per (code, date) is kept.
   static List<_StampEntry> _buildEntries(
     List<TripRecord> sortedTrips,
     List<String> extraCodes,
     bool entryOnly,
   ) {
-    final entries = <_StampEntry>[];
+    // Deduplicate: keep one trip per (countryCode, calendar date).
+    final seen = <String>{};
+    final deduped = <TripRecord>[];
     for (final trip in sortedTrips) {
+      final d = trip.startedOn;
+      final key = '${trip.countryCode}:${d.year}-${d.month}-${d.day}';
+      if (seen.add(key)) deduped.add(trip);
+    }
+
+    final entries = <_StampEntry>[];
+    for (final trip in deduped) {
       entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: true));
       if (!entryOnly) {
         entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
