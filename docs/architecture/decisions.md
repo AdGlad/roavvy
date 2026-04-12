@@ -4,6 +4,29 @@ Lightweight ADRs for Roavvy. Each decision records **what** was chosen, **why**,
 
 ---
 
+## ADR-122 — M65 Printful Dual-Mockup Client: Store and Display Both Placement URLs
+
+**Status:** Accepted
+
+**Context:**
+The Cloud Function `generateDualPlacementMockups()` already requests both `front` and `back` Printful placements, polls until both are ready, and returns `{ frontMockupUrl, backMockupUrl }` in the callable response. `LocalMockupPreviewScreen` discards `backMockupUrl` — it only stores `_frontMockupUrl`. When the user toggles to Back, the code unconditionally falls through to the local mockup painter, silently mixing a Printful-rendered front with a local back even after generation completes.
+
+**Decision:**
+1. `LocalMockupPreviewScreen` stores both `String? _frontMockupUrl` and `String? _backMockupUrl` as screen state.
+2. After `createMerchCart` resolves, both fields are populated from the callable response.
+3. `_buildMockupArea()` selects the Printful URL for whichever face is active (`_showingFront` → `_frontMockupUrl`; back → `_backMockupUrl`) and shows it when non-null.
+4. A new `_PrintfulMockupFace` enum (`frontReady`, `backReady`, `bothReady`, `frontOnly`, `backOnly`, `neither`) drives explicit status display — no silent mixing.
+5. If one URL is null after generation, a visible inline banner ("Front mockup unavailable" / "Back mockup unavailable") replaces the local fallback for that face. The local mockup is only shown pre-generation.
+6. Pre-generation local mockups remain unchanged — they are acceptable previews before Printful results arrive.
+
+**Consequences:**
+- User sees both Printful-rendered mockups before purchase — matching the actual print result.
+- Failure on one side is surfaced explicitly, not hidden behind a local image.
+- No Cloud Function changes required — all changes are in `local_mockup_preview_screen.dart`.
+- The deprecated `mockupUrl` field from the Cloud Function response can continue to be ignored.
+
+---
+
 ## ADR-001 — iOS-first mobile app in Flutter with a Swift platform bridge
 
 **Status:** Accepted

@@ -4,6 +4,39 @@ Tracked bugs found during development or testing. Add new bugs at the top.
 
 ---
 
+## BUG-004 — Rescan after history deletion skips celebrations and real-time list
+
+**Status:** Open
+**Milestone:** Post-M64 / scan flow polish
+**Severity:** Medium — broken UX expectation; the first-scan experience is a key emotional moment and it does not repeat on rescan
+
+**Description:**
+When a user deletes their travel history and triggers a full rescan ("Regenerate"), the minimap is displayed but the app does not show:
+- The celebration animation/confetti that plays on a genuine first scan
+- The country discovery notifications that appear as countries are detected
+- The growing real-time list of discovered countries that builds up progressively during the scan
+
+The rescan appears to the app as a subsequent scan rather than a first-time scan, so the celebratory onboarding path is bypassed.
+
+**Steps to reproduce:**
+1. Complete an initial scan (so celebrations play correctly).
+2. Delete all travel history (reset / clear data).
+3. Trigger a full rescan.
+4. Observe: the minimap updates but there are no celebration animations, no per-country notifications, and no animated growing list.
+
+**Expected:** After deleting history and rescanning, the user experiences the same celebrations, discovery notifications, and real-time growing list as on the very first scan — because from their perspective it is a fresh start.
+**Actual:** The minimap appears but the scan completes silently with none of the first-scan celebration UX.
+
+**Fix suggestion:**
+The scan flow likely gates celebrations on a "first scan ever" flag (e.g. a local preference or a Firestore field). When history is deleted, this flag should be reset so the next scan is treated as a first-time scan. Investigate the condition that triggers the celebration/notification path and ensure it re-fires whenever the trip count transitions from zero to non-zero, regardless of whether the user has scanned before.
+
+**Files to investigate:**
+- `apps/mobile_flutter/lib/features/scan/` — scan state management and completion handler
+- Any provider or local preference that tracks "has scanned before" / first-scan state
+- The component responsible for triggering celebration animations and country discovery notifications
+
+---
+
 ## BUG-003 — Card preview in CardGeneratorScreen is not visually impressive
 
 **Status:** Open
