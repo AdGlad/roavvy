@@ -255,12 +255,13 @@ class HeartLayoutEngine {
   /// Exposed as a public static so [CardEditorScreen] can apply the same
   /// ordering to the Grid template (ADR-119).
   static List<String> sortCodes(
-      List<String> codes, HeartFlagOrder order, List<TripRecord> trips) {
+      List<String> codes, HeartFlagOrder order, List<TripRecord> trips,
+      {int shuffleSeed = 0}) {
     final sorted = List<String>.from(codes);
 
     switch (order) {
       case HeartFlagOrder.randomized:
-        final seed = codes.join().hashCode;
+        final seed = codes.join().hashCode ^ shuffleSeed;
         sorted.shuffle(math.Random(seed));
 
       case HeartFlagOrder.alphabetical:

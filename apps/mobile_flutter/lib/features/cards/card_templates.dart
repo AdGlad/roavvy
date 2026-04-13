@@ -31,6 +31,8 @@ class GridFlagsCard extends StatefulWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.titleOverride,
+    this.transparentBackground = false,
+    this.onAssetsLoaded,
   });
 
   final List<String> countryCodes;
@@ -41,6 +43,15 @@ class GridFlagsCard extends StatefulWidget {
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
 
+  /// When `true`, renders with a transparent background instead of the default
+  /// dark navy. Used by [CardImageRenderer] for t-shirt compositing (ADR-123).
+  final bool transparentBackground;
+
+  /// Called once when all SVG flag assets have finished loading into the shared
+  /// cache. Used by [CardImageRenderer] to delay PNG capture until SVGs are
+  /// ready (ADR-123).
+  final VoidCallback? onAssetsLoaded;
+
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
 }
@@ -49,6 +60,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   // ValueNotifier is a ChangeNotifier subclass that can be incremented from any
   // class without needing to call the protected notifyListeners() (ADR-123).
   final _repaintNotifier = ValueNotifier<int>(0);
+  bool _preloadStarted = false;
+  bool _onAssetsLoadedFired = false;
 
   @override
   void dispose() {
@@ -56,27 +69,53 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     super.dispose();
   }
 
-  /// Schedules async SVG loading for all visible country codes at [tileSize].
-  /// Cache hits and codes without SVG assets are skipped.
-  void _preloadSvgs(double tileSize) {
-    if (tileSize <= 0) return;
-    for (final code in widget.countryCodes) {
-      if (!FlagTileRenderer.hasSvg(code)) continue;
-      if (_GridPainter._sharedCache.get(code, tileSize) != null) continue;
-      FlagTileRenderer.loadSvgToCache(code, tileSize, _GridPainter._sharedCache)
+  /// Schedules async SVG loading for all country codes at [tileWidth].
+  /// Fires [widget.onAssetsLoaded] exactly once when all pending loads complete
+  /// (or immediately if nothing needs loading). Cache hits are skipped.
+  /// Guards against being called multiple times from [LayoutBuilder].
+  void _preloadSvgs(double tileWidth) {
+    if (tileWidth <= 0 || _preloadStarted) return;
+    _preloadStarted = true;
+
+    final toLoad = widget.countryCodes
+        .where((code) =>
+            FlagTileRenderer.hasSvg(code) &&
+            _GridPainter._sharedCache.get(code, tileWidth) == null)
+        .toList();
+
+    if (toLoad.isEmpty) {
+      _fireOnAssetsLoaded();
+      return;
+    }
+
+    var remaining = toLoad.length;
+    for (final code in toLoad) {
+      FlagTileRenderer.loadSvgToCache(code, tileWidth, _GridPainter._sharedCache)
           .then((img) {
         if (mounted && img != null) _repaintNotifier.value++;
+        remaining--;
+        if (remaining == 0) _fireOnAssetsLoaded();
       });
     }
   }
 
+  void _fireOnAssetsLoaded() {
+    if (_onAssetsLoadedFired) return;
+    _onAssetsLoadedFired = true;
+    widget.onAssetsLoaded?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bgColor = widget.transparentBackground
+        ? Colors.transparent
+        : const Color(0xFF0D2137);
+
     if (widget.countryCodes.isEmpty) {
       return AspectRatio(
         aspectRatio: widget.aspectRatio,
         child: Container(
-          color: const Color(0xFF0D2137),
+          color: bgColor,
           child: const Center(
             child: Text(
               'Scan your photos\nto fill your card',
@@ -95,7 +134,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: Container(
-        decoration: const BoxDecoration(color: Color(0xFF0D2137)),
+        decoration: BoxDecoration(color: bgColor),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -109,6 +148,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2,
+                  decoration: TextDecoration.none,
                 ),
               ),
             ),
@@ -116,13 +156,15 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  const padding = 8.0;
                   final layout = GridMathEngine.calculate(
-                    width: size.width - padding * 2,
-                    height: size.height - padding * 2,
+                    width: size.width,
+                    height: size.height,
                     itemCount: widget.countryCodes.length,
                   );
-                  _preloadSvgs(layout.itemWidth);
+                  final tileWidth = layout.columns > 0
+                      ? size.width / layout.columns
+                      : 0.0;
+                  _preloadSvgs(tileWidth);
                   return CustomPaint(
                     size: size,
                     painter: _GridPainter(
@@ -162,42 +204,33 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (countryCodes.isEmpty) return;
-
-    // Use a slight padding around the grid
-    const padding = 8.0;
-    final availableWidth = size.width - padding * 2;
-    final availableHeight = size.height - padding * 2;
-
-    if (availableWidth <= 0 || availableHeight <= 0) return;
+    if (size.width <= 0 || size.height <= 0) return;
 
     final layout = GridMathEngine.calculate(
-      width: availableWidth,
-      height: availableHeight,
+      width: size.width,
+      height: size.height,
       itemCount: countryCodes.length,
     );
 
     if (layout.columns == 0 || layout.rows == 0) return;
 
-    final totalGridHeight = layout.itemHeight * layout.rows;
-    final startY = padding + (availableHeight - totalGridHeight) / 2.0;
+    // Stretch tiles to fill the canvas with no gaps (ADR-123).
+    final tileWidth = size.width / layout.columns;
+    final tileHeight = size.height / layout.rows;
 
     int index = 0;
     for (int r = 0; r < layout.rows; r++) {
-      int itemsInThisRow = layout.columns;
-      if (r == layout.rows - 1) {
-        itemsInThisRow = countryCodes.length - (r * layout.columns);
-      }
-
-      final rowWidth = layout.itemWidth * itemsInThisRow;
-      final startX = padding + (availableWidth - rowWidth) / 2.0;
+      final itemsInThisRow = r == layout.rows - 1
+          ? countryCodes.length - (r * layout.columns)
+          : layout.columns;
 
       for (int c = 0; c < itemsInThisRow; c++) {
         final code = countryCodes[index];
         final rect = Rect.fromLTWH(
-          startX + c * layout.itemWidth,
-          startY + r * layout.itemHeight,
-          layout.itemWidth,
-          layout.itemHeight,
+          c * tileWidth,
+          r * tileHeight,
+          tileWidth,
+          tileHeight,
         );
 
         final tile = HeartTilePosition(rect: rect, countryCode: code);
@@ -205,8 +238,8 @@ class _GridPainter extends CustomPainter {
           canvas,
           tile,
           _sharedCache,
-          cornerRadius: 2.0,
-          gapWidth: 2.0,
+          cornerRadius: 0.0,
+          gapWidth: 0.0,
         );
 
         index++;

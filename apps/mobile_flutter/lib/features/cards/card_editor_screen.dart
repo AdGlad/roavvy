@@ -91,6 +91,7 @@ class CardEditorScreen extends ConsumerStatefulWidget {
 
 class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   HeartFlagOrder _order = HeartFlagOrder.randomized;
+  int _gridShuffleSeed = 0;
   bool _entryOnly = false;
   bool _portrait = true;
   RangeValues? _yearSelection;
@@ -236,7 +237,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 const SizedBox(height: 4),
                 _SortOrderPicker(
                   order: _order,
-                  onChanged: (o) => setState(() => _order = o),
+                  onChanged: (o) => setState(() {
+                    if (widget.templateType == CardTemplateType.grid &&
+                        o == HeartFlagOrder.randomized) {
+                      _gridShuffleSeed++;
+                    }
+                    _order = o;
+                  }),
                 ),
               ],
               // ── Year range slider ──────────────────────────────────────
@@ -320,8 +327,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     switch (widget.templateType) {
       case CardTemplateType.grid:
         // Apply sort order to codes before passing to the stateless widget.
-        final sortedCodes =
-            HeartLayoutEngine.sortCodes(codes, _order, trips);
+        final sortedCodes = HeartLayoutEngine.sortCodes(
+            codes, _order, trips, shuffleSeed: _gridShuffleSeed);
         return GridFlagsCard(
           countryCodes: sortedCodes,
           aspectRatio: _aspectRatio,
@@ -481,10 +488,15 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     try {
       if (!context.mounted) return;
       final dateLabel = _computeDateLabel(trips);
+      // For Grid, pass sorted codes so the rendered image matches the preview.
+      final renderCodes = widget.templateType == CardTemplateType.grid
+          ? HeartLayoutEngine.sortCodes(codes, _order, trips,
+              shuffleSeed: _gridShuffleSeed)
+          : codes;
       preRender = await CardImageRenderer.render(
         context,
         widget.templateType,
-        codes: codes,
+        codes: renderCodes,
         trips: trips,
         forPrint: widget.templateType == CardTemplateType.passport,
         entryOnly: _entryOnly,
@@ -494,7 +506,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         titleOverride: _titleOverride,
         stampColor: null,
         dateColor: null,
-        transparentBackground: false,
+        transparentBackground: widget.templateType == CardTemplateType.grid,
       );
     } catch (_) {
       preRender = null;
@@ -544,7 +556,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         titleOverride: _titleOverride,
         stampColor: null,
         dateColor: null,
-        transparentBackground: false,
+        transparentBackground: widget.templateType == CardTemplateType.grid,
       ),
     ));
   }
