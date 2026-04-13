@@ -21,8 +21,10 @@ import 'stamp_painter.dart';
 /// Travel card template: real SVG flags arranged in a geometric grid.
 ///
 /// Dark navy background. The grid calculates optimal dimensions using
-/// [GridMathEngine] to pack flags into the available space.
-class GridFlagsCard extends StatelessWidget {
+/// [GridMathEngine] to pack flags into the available space. SVG flag images
+/// are loaded asynchronously; emoji fallbacks are shown on first render
+/// (ADR-123).
+class GridFlagsCard extends StatefulWidget {
   const GridFlagsCard({
     super.key,
     required this.countryCodes,
@@ -34,15 +36,45 @@ class GridFlagsCard extends StatelessWidget {
   final List<String> countryCodes;
   final double aspectRatio;
   final String? titleOverride;
+
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
 
   @override
+  State<GridFlagsCard> createState() => _GridFlagsCardState();
+}
+
+class _GridFlagsCardState extends State<GridFlagsCard> {
+  // ValueNotifier is a ChangeNotifier subclass that can be incremented from any
+  // class without needing to call the protected notifyListeners() (ADR-123).
+  final _repaintNotifier = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _repaintNotifier.dispose();
+    super.dispose();
+  }
+
+  /// Schedules async SVG loading for all visible country codes at [tileSize].
+  /// Cache hits and codes without SVG assets are skipped.
+  void _preloadSvgs(double tileSize) {
+    if (tileSize <= 0) return;
+    for (final code in widget.countryCodes) {
+      if (!FlagTileRenderer.hasSvg(code)) continue;
+      if (_GridPainter._sharedCache.get(code, tileSize) != null) continue;
+      FlagTileRenderer.loadSvgToCache(code, tileSize, _GridPainter._sharedCache)
+          .then((img) {
+        if (mounted && img != null) _repaintNotifier.value++;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (countryCodes.isEmpty) {
+    if (widget.countryCodes.isEmpty) {
       return AspectRatio(
-        aspectRatio: aspectRatio,
+        aspectRatio: widget.aspectRatio,
         child: Container(
           color: const Color(0xFF0D2137),
           child: const Center(
@@ -56,10 +88,12 @@ class GridFlagsCard extends StatelessWidget {
       );
     }
 
-    final effectiveTitle = titleOverride ?? '${countryCodes.length} Countries${dateLabel.isNotEmpty ? ' \u00B7 $dateLabel' : ''}';
+    final effectiveTitle = widget.titleOverride ??
+        '${widget.countryCodes.length} Countries'
+            '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
     return AspectRatio(
-      aspectRatio: aspectRatio,
+      aspectRatio: widget.aspectRatio,
       child: Container(
         decoration: const BoxDecoration(color: Color(0xFF0D2137)),
         child: Column(
@@ -82,19 +116,27 @@ class GridFlagsCard extends StatelessWidget {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final size = Size(constraints.maxWidth, constraints.maxHeight);
+                  const padding = 8.0;
+                  final layout = GridMathEngine.calculate(
+                    width: size.width - padding * 2,
+                    height: size.height - padding * 2,
+                    itemCount: widget.countryCodes.length,
+                  );
+                  _preloadSvgs(layout.itemWidth);
                   return CustomPaint(
                     size: size,
                     painter: _GridPainter(
-                      countryCodes: countryCodes,
+                      countryCodes: widget.countryCodes,
                       canvasSize: size,
+                      repaintNotifier: _repaintNotifier,
                     ),
                   );
                 },
               ),
             ),
             CardBrandingFooter(
-              countryCount: countryCodes.length,
-              dateLabel: dateLabel,
+              countryCount: widget.countryCodes.length,
+              dateLabel: widget.dateLabel,
             ),
           ],
         ),
@@ -107,11 +149,14 @@ class _GridPainter extends CustomPainter {
   _GridPainter({
     required this.countryCodes,
     required this.canvasSize,
-  });
+    required ValueNotifier<int> repaintNotifier,
+  }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
   final Size canvasSize;
 
+  // Shared across all _GridPainter instances and accessible from
+  // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
 
   @override
@@ -205,7 +250,10 @@ class HeartRenderConfig {
 /// The heart shape is formed by the flag tiles themselves, clipped at the heart
 /// boundary with at least 66% of each tile visible. Uses the parametric heart
 /// equation `(x²+y²−1)³−x²y³≤0` (ADR-098).
-class HeartFlagsCard extends StatelessWidget {
+///
+/// SVG flag images are loaded asynchronously; emoji fallbacks are shown on
+/// first render (ADR-123).
+class HeartFlagsCard extends StatefulWidget {
   const HeartFlagsCard({
     super.key,
     required this.countryCodes,
@@ -223,15 +271,53 @@ class HeartFlagsCard extends StatelessWidget {
   final HeartRenderConfig config;
   final double aspectRatio;
   final String? titleOverride;
+
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
 
   @override
+  State<HeartFlagsCard> createState() => _HeartFlagsCardState();
+}
+
+class _HeartFlagsCardState extends State<HeartFlagsCard> {
+  // ValueNotifier is a ChangeNotifier subclass that can be incremented from any
+  // class without needing to call the protected notifyListeners() (ADR-123).
+  final _repaintNotifier = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _repaintNotifier.dispose();
+    super.dispose();
+  }
+
+  /// Schedules async SVG loading for all tiles produced by [HeartLayoutEngine]
+  /// at [canvasSize]. Skips codes already in cache and codes without SVG assets.
+  void _preloadSvgsForSize(Size canvasSize) {
+    final tiles = HeartLayoutEngine.layout(
+      widget.countryCodes,
+      canvasSize,
+      order: widget.flagOrder,
+      trips: widget.trips,
+    );
+    for (final tile in tiles) {
+      final code = tile.countryCode;
+      final tileSize = tile.rect.width;
+      if (tileSize <= 0) continue;
+      if (!FlagTileRenderer.hasSvg(code)) continue;
+      if (_HeartPainter._sharedCache.get(code, tileSize) != null) continue;
+      FlagTileRenderer.loadSvgToCache(code, tileSize, _HeartPainter._sharedCache)
+          .then((img) {
+        if (mounted && img != null) _repaintNotifier.value++;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (countryCodes.isEmpty) {
+    if (widget.countryCodes.isEmpty) {
       return AspectRatio(
-        aspectRatio: aspectRatio,
+        aspectRatio: widget.aspectRatio,
         child: Container(
           color: const Color(0xFF0D2137),
           child: const Center(
@@ -246,20 +332,23 @@ class HeartFlagsCard extends StatelessWidget {
     }
 
     return AspectRatio(
-      aspectRatio: aspectRatio,
+      aspectRatio: widget.aspectRatio,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
+          _preloadSvgsForSize(size);
           return Stack(
             children: [
               Positioned.fill(
                 child: CustomPaint(
                   painter: _HeartPainter(
-                    countryCodes: countryCodes,
-                    trips: trips,
-                    flagOrder: flagOrder,
-                    config: config,
+                    countryCodes: widget.countryCodes,
+                    trips: widget.trips,
+                    flagOrder: widget.flagOrder,
+                    config: widget.config,
                     canvasSize: size,
+                    repaintNotifier: _repaintNotifier,
+                    titleOverride: widget.titleOverride,
                   ),
                 ),
               ),
@@ -268,8 +357,8 @@ class HeartFlagsCard extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: CardBrandingFooter(
-                  countryCount: countryCodes.length,
-                  dateLabel: dateLabel,
+                  countryCount: widget.countryCodes.length,
+                  dateLabel: widget.dateLabel,
                   backgroundColor: const Color(0xCC0D2137),
                 ),
               ),
@@ -289,15 +378,19 @@ class _HeartPainter extends CustomPainter {
     required this.flagOrder,
     required this.config,
     required this.canvasSize,
-  });
+    required ValueNotifier<int> repaintNotifier,
+    this.titleOverride,
+  }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
   final List<TripRecord> trips;
   final HeartFlagOrder flagOrder;
   final HeartRenderConfig config;
   final Size canvasSize;
+  final String? titleOverride;
 
-  // Shared cache across all painters in the same card preview.
+  // Shared across all _HeartPainter instances and accessible from
+  // _HeartFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
 
   @override
@@ -307,6 +400,11 @@ class _HeartPainter extends CustomPainter {
       Offset.zero & size,
       Paint()..color = const Color(0xFF0D2137),
     );
+
+    // Draw title text BEFORE heart clip so it is not masked (ADR-123).
+    if (titleOverride != null && titleOverride!.isNotEmpty) {
+      _drawTitle(canvas, size, titleOverride!);
+    }
 
     final tiles = HeartLayoutEngine.layout(
       countryCodes,
@@ -350,14 +448,33 @@ class _HeartPainter extends CustomPainter {
       );
       canvas.restore();
     }
+  }
 
+  void _drawTitle(Canvas canvas, Size size, String title) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.none,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: size.width - 32);
+
+    final x = (size.width - tp.width) / 2;
+    tp.paint(canvas, const Offset(0, 8) + Offset(x, 0));
   }
 
   @override
   bool shouldRepaint(_HeartPainter old) =>
       old.countryCodes != countryCodes ||
       old.flagOrder != flagOrder ||
-      old.canvasSize != canvasSize;
+      old.canvasSize != canvasSize ||
+      old.titleOverride != titleOverride;
 }
 
 // ── PassportStampsCard ────────────────────────────────────────────────────────

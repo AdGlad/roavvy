@@ -220,6 +220,7 @@ class CardImageRenderer {
           countryCodes: codes,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -228,6 +229,7 @@ class CardImageRenderer {
           flagOrder: heartOrder,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

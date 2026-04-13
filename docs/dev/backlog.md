@@ -683,18 +683,20 @@ All sharing features are complete as of M12.
 
 ---
 
-## Milestone 61 — Grid Card Upgrade
+## Milestone 67 — Grid Card Upgrade ✅ COMPLETE (2026-04-13)
 
-**Goal:** Upgrade the Grid Card from emoji flags to real flag images that fill the card area. Ensure it resizes correctly, handles portrait/landscape, updates if the number of years changes, and shares the title-editing feature with the passport card.
+**Goal:** SVG flag images replace emoji fallbacks in GridFlagsCard and HeartFlagsCard via async preloading; titleOverride wired to HeartFlagsCard canvas rendering; CardImageRenderer passes title to all templates.
 
 **Phase:** Phase 15 — Visual Design Upgrade
 
-**Scope — included:**
-- Replace emoji-based `GridFlagsCard` with an SVG flag image-based grid (using existing SVG assets).
-- Adaptive sizing of flag images to perfectly fit the available hold area.
-- Re-layout gracefully upon orientation change (portrait vs. landscape).
-- Dynamic updates when the year count changes.
-- Shared title editing: centralise the editable title state so it can be applied to Grid, Passport, and Heart cards uniformly.
+**Delivered:**
+- `GridFlagsCard` and `HeartFlagsCard` converted to `StatefulWidget`; `ValueNotifier<int>` repaint notifier owned by state
+- `_preloadSvgs` / `_preloadSvgsForSize` schedule `FlagTileRenderer.loadSvgToCache()` for each code after layout is known; emoji fallback shown on first frame, SVG images after async load (ADR-123)
+- `_HeartPainter` gains `titleOverride` param and `_drawTitle()` — drawn before heart clip path
+- `CardImageRenderer._cardWidget()` now passes `titleOverride` to Grid and Heart templates
+- 4 new widget tests in `card_templates_test.dart`
+
+**Note:** Originally numbered M61 in backlog; renumbered to M67 to avoid conflict with completed M61 (Passport Card Refinement) in current_state.md.
 
 **Scope — excluded:**
 - Web card generator changes

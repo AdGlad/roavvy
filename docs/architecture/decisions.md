@@ -4,6 +4,25 @@ Lightweight ADRs for Roavvy. Each decision records **what** was chosen, **why**,
 
 ---
 
+## ADR-123 — M67 Grid and Heart SVG Flag Loading: ChangeNotifier-Based Async Repaint
+
+**Status:** Accepted
+
+**Context:**
+`GridFlagsCard` and `HeartFlagsCard` use `FlagTileRenderer.renderFromCache()` inside `CustomPainter.paint()`, which falls back to emoji flags when the cache is empty. No code in the app calls `FlagTileRenderer.loadSvgToCache()`, so both cards always display emoji flags, never real SVG images.
+
+**Decision:**
+Convert both `GridFlagsCard` and `HeartFlagsCard` to `StatefulWidget`. Each state class owns a `ChangeNotifier _repaintNotifier` passed as `repaint:` to its inner `CustomPainter`. After the first layout (from `LayoutBuilder`), the state triggers async SVG preloading for all visible country codes at the computed tile size. When a load completes, it calls `_repaintNotifier.notifyListeners()`, causing the painter to repaint with the newly cached SVG image.
+
+**Consequences:**
+- Initial render shows emoji flags (graceful fallback). SVG images replace them after async loading (~100–400ms on device).
+- Static `_sharedCache` persists across widget rebuilds and between card types, so SVGs loaded for the grid are reused by the heart card and vice versa.
+- Duplicate load requests are prevented by checking `cache.get()` before scheduling `loadSvgToCache()`.
+- `_repaintNotifier` is disposed in `State.dispose()` to avoid memory leaks.
+- No changes to `FlagTileRenderer` or `FlagImageCache` — existing API is sufficient.
+
+---
+
 ## ADR-122 — M65 Printful Dual-Mockup Client: Store and Display Both Placement URLs
 
 **Status:** Accepted

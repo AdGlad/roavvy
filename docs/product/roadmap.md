@@ -296,6 +296,7 @@ A **trip** is a contiguous cluster of photos taken in the same country within a 
 | M44 — Passport Stamp Card: Authentic Stamp Renderer | Replace widget-based stamps with `CustomPainter` — 4 stamp shapes, procedural paper texture, real trip dates, ENTRY/EXIT labels, deterministic layout engine | ✅ Complete |
 | M45 — Passport Stamp Realism Upgrade | Ink simulation, pressure distortion, 12 stamp styles, authentic typography, aging effects, rare artefacts — see ADR-097 | ✅ Complete |
 | M46 — Flag Heart: True Heart-Mask Layout Engine | Replace gradient+emoji heart with a geometric heart composed of real SVG flag tiles — dynamic grid density, 66% visibility rule, multi-resolution export — see ADR-098 | ✅ Complete |
+| M67 — Grid Card Upgrade | SVG preloading for Grid and Heart cards via `ValueNotifier` repaint; `titleOverride` wired to HeartFlagsCard canvas; `CardImageRenderer` passes title to all templates — see ADR-123 | ✅ Complete |
 
 ---
 
