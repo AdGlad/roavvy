@@ -9,6 +9,7 @@ import UIKit
     // Stored as properties so ARC doesn't release channels after setup returns.
     private var photoMethodChannel: FlutterMethodChannel?
     private var photoEventChannel: FlutterEventChannel?
+    private var aiTitlePlugin: AnyObject? // holds AiTitlePlugin on iOS 26+
 
     override func application(
         _ application: UIApplication,
@@ -49,6 +50,11 @@ import UIKit
         )
         eventChannel.setStreamHandler(self)
         photoEventChannel = eventChannel
+
+        // AI title generation channel (ADR-124).
+        if #available(iOS 26.0, *) {
+            aiTitlePlugin = AiTitlePlugin.register(with: messenger)
+        }
     }
 
     // MARK: - Permission
