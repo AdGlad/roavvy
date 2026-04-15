@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
 import 'card_image_renderer.dart';
@@ -19,6 +20,8 @@ import 'card_templates.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
+import 'title_generation/title_generation_models.dart';
+import 'title_generation/title_generation_provider.dart';
 import 'travel_card_service.dart';
 
 // ── Card param snapshot (re-confirmation guard) ────────────────────────────────
@@ -96,6 +99,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   RangeValues? _yearSelection;
   late TextEditingController _titleController;
   String? _titleOverride;
+  bool _isTitleGenerating = false;
+  bool _autoGenerateFired = false;
   bool _sharing = false;
   bool _printing = false;
 
@@ -138,6 +143,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     final tripsAsync = ref.watch(tripListProvider);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text(_typeName(widget.templateType))),
       body: visitsAsync.when(
         loading: () =>
@@ -204,6 +210,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
               '${displayedCodes.length} Countries'
               '${dateLabel.isNotEmpty ? ' \u00B7 $dateLabel' : ''}';
 
+          // Auto-generate title on first load when no override is set.
+          if (!_autoGenerateFired && _titleOverride == null) {
+            _autoGenerateFired = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _generateTitle(displayedCodes, filteredTrips, effectiveRange);
+            });
+          }
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -213,23 +227,20 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 titleOverride: _titleOverride,
                 defaultTitle: defaultTitle,
                 portrait: _portrait,
+                isTitleGenerating: _isTitleGenerating,
                 onTitleChanged: (v) =>
                     setState(() => _titleOverride = v.isEmpty ? null : v),
                 onTitleCleared: () {
                   setState(() => _titleOverride = null);
                   _titleController.clear();
                 },
+                onGenerateTitle: () =>
+                    _generateTitle(displayedCodes, filteredTrips, effectiveRange),
                 onOrientationToggle: () => setState(() {
                   _portrait = !_portrait;
                   _resetZoom();
                 }),
               ),
-              // ── Passport: entry/exit toggle ────────────────────────────
-              if (widget.templateType == CardTemplateType.passport)
-                _EntryExitToggle(
-                  entryOnly: _entryOnly,
-                  onChanged: (v) => setState(() => _entryOnly = v),
-                ),
               // ── Sort order (Grid + Heart) ──────────────────────────────
               if (widget.templateType == CardTemplateType.grid ||
                   widget.templateType == CardTemplateType.heart) ...[
@@ -249,6 +260,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   countryCount: displayedCodes.length,
                   onChanged: (v) =>
                       setState(() => _yearSelection = v),
+                  onChangeEnd: (v) => _generateTitle(
+                    displayedCodes,
+                    filteredTrips,
+                    v,
+                  ),
                 ),
               ],
               const SizedBox(height: 8),
@@ -298,6 +314,62 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         },
       ),
     );
+  }
+
+  // ── AI title generation ─────────────────────────────────────────────────────
+
+  Future<void> _generateTitle(
+    List<String> codes,
+    List<TripRecord> trips,
+    RangeValues? effectiveRange,
+  ) async {
+    if (_isTitleGenerating) return;
+    setState(() => _isTitleGenerating = true);
+
+    // Use slider range directly so the title reflects what the user selected,
+    // not just which trip years happen to fall inside the range.
+    final int? startYear;
+    final int? endYear;
+    if (effectiveRange != null) {
+      startYear = effectiveRange.start.round();
+      final end = effectiveRange.end.round();
+      endYear = end != startYear ? end : null;
+    } else if (trips.isNotEmpty) {
+      startYear = trips.map((t) => t.startedOn.year).reduce(math.min);
+      final end = trips.map((t) => t.startedOn.year).reduce(math.max);
+      endYear = end != startYear ? end : null;
+    } else {
+      startYear = null;
+      endYear = null;
+    }
+
+    final request = TitleGenerationRequest(
+      countryCodes: codes,
+      countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
+      regionNames: codes
+          .map((c) => kCountryContinent[c])
+          .whereType<String>()
+          .toSet()
+          .toList(),
+      startYear: startYear,
+      endYear: endYear,
+      cardType: widget.templateType,
+    );
+
+    try {
+      final result =
+          await ref.read(titleGenerationServiceProvider).generate(request);
+      debugPrint('[TitleGen] source=${result.source} title="${result.title}"');
+      if (mounted) {
+        setState(() {
+          _titleOverride = result.title;
+          _isTitleGenerating = false;
+        });
+        _titleController.text = result.title;
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isTitleGenerating = false);
+    }
   }
 
   // ── Template builder ────────────────────────────────────────────────────────
@@ -558,8 +630,10 @@ class _ControlStrip extends StatelessWidget {
     required this.titleOverride,
     required this.defaultTitle,
     required this.portrait,
+    required this.isTitleGenerating,
     required this.onTitleChanged,
     required this.onTitleCleared,
+    required this.onGenerateTitle,
     required this.onOrientationToggle,
   });
 
@@ -567,8 +641,10 @@ class _ControlStrip extends StatelessWidget {
   final String? titleOverride;
   final String defaultTitle;
   final bool portrait;
+  final bool isTitleGenerating;
   final ValueChanged<String> onTitleChanged;
   final VoidCallback onTitleCleared;
+  final VoidCallback onGenerateTitle;
   final VoidCallback onOrientationToggle;
 
   @override
@@ -577,6 +653,15 @@ class _ControlStrip extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: Row(
         children: [
+          // Auto-generate button
+          IconButton(
+            onPressed: isTitleGenerating ? null : onGenerateTitle,
+            icon: const Icon(Icons.auto_awesome, size: 18),
+            tooltip: 'Generate title',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          const SizedBox(width: 4),
           Expanded(
             child: SizedBox(
               height: 38,
@@ -597,13 +682,22 @@ class _ControlStrip extends StatelessWidget {
                     borderSide:
                         const BorderSide(color: Colors.white24),
                   ),
-                  suffixIcon: titleOverride != null
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: onTitleCleared,
-                          padding: EdgeInsets.zero,
+                  suffixIcon: isTitleGenerating
+                      ? const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         )
-                      : null,
+                      : titleOverride != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: onTitleCleared,
+                              padding: EdgeInsets.zero,
+                            )
+                          : null,
                 ),
                 style: const TextStyle(fontSize: 13),
                 onChanged: onTitleChanged,
@@ -627,41 +721,6 @@ class _ControlStrip extends StatelessWidget {
               minimumSize: const Size(38, 38),
             ),
             tooltip: portrait ? 'Switch to landscape' : 'Switch to portrait',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Entry/Exit toggle (Passport only) ─────────────────────────────────────────
-
-class _EntryExitToggle extends StatelessWidget {
-  const _EntryExitToggle({
-    required this.entryOnly,
-    required this.onChanged,
-  });
-
-  final bool entryOnly;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToggleChip(
-            label: 'Entry + Exit',
-            selected: !entryOnly,
-            onTap: () => onChanged(false),
-          ),
-          const SizedBox(width: 8),
-          _ToggleChip(
-            label: 'Entry only',
-            selected: entryOnly,
-            onTap: () => onChanged(true),
           ),
         ],
       ),
@@ -785,56 +844,6 @@ class _SortChip extends StatelessWidget {
   }
 }
 
-// ── Generic toggle chip ────────────────────────────────────────────────────────
-
-class _ToggleChip extends StatelessWidget {
-  const _ToggleChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: selected
-                ? onSurface.withValues(alpha: 0.7)
-                : onSurface.withValues(alpha: 0.2),
-            width: selected ? 1.5 : 1.0,
-          ),
-          borderRadius: BorderRadius.circular(6),
-          color: selected
-              ? onSurface.withValues(alpha: 0.1)
-              : Colors.transparent,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: selected
-                ? onSurface.withValues(alpha: 0.9)
-                : onSurface.withValues(alpha: 0.55),
-            fontWeight:
-                selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── Year slider ────────────────────────────────────────────────────────────────
 
 class _YearSlider extends StatelessWidget {
@@ -844,6 +853,7 @@ class _YearSlider extends StatelessWidget {
     required this.values,
     required this.countryCount,
     required this.onChanged,
+    this.onChangeEnd,
   });
 
   final double yearMin;
@@ -851,6 +861,7 @@ class _YearSlider extends StatelessWidget {
   final RangeValues values;
   final int countryCount;
   final ValueChanged<RangeValues> onChanged;
+  final ValueChanged<RangeValues>? onChangeEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -896,6 +907,7 @@ class _YearSlider extends StatelessWidget {
             labels: RangeLabels(
                 startYear.toString(), endYear.toString()),
             onChanged: onChanged,
+            onChangeEnd: onChangeEnd,
           ),
         ],
       ),
