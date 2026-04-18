@@ -6,17 +6,17 @@
     "color": "{{COLOR}}"
   },
   "date": {
-    "x": 768.0,
-    "y": 512.0,
+    "x": 276.5,
+    "y": 185.0221,
     "rotation": 0.0,
-    "font_size": 71.0,
+    "font_size": 34.7786,
     "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
     "font_weight": 700,
-    "letter_spacing": 2.0,
+    "letter_spacing": 1.3587,
     "anchor": "middle"
   },
   "image": {
-    "width": 1490,
-    "height": 1019
+    "width": 553,
+    "height": 377
   }
 }

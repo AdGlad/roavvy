@@ -1,8 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:country_lookup/country_lookup.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/material.dart';
 
+import 'country_centroids.dart';
 import 'country_visual_state.dart';
 import 'globe_projection.dart';
 
@@ -42,18 +43,27 @@ Color _depthFillColor(int tripCount) {
 /// 1. Ocean fill circle.
 /// 2. Country polygon fills + borders (back-face culled by centroid).
 /// 3. Atmosphere rim stroke.
+/// 4. Optional highlight halo on [highlightedCode] (celebration — ADR-123).
 class GlobePainter extends CustomPainter {
   const GlobePainter({
     required this.polygons,
     required this.visualStates,
     required this.tripCounts,
     required this.projection,
+    this.highlightedCode,
+    this.pulseValue = 0.0,
   });
 
   final List<CountryPolygon> polygons;
   final Map<String, CountryVisualState> visualStates;
   final Map<String, int> tripCounts;
   final GlobeProjection projection;
+
+  /// ISO code of country to render a celebration halo on, or null for none.
+  final String? highlightedCode;
+
+  /// Animation value 0.0–1.0 driving the halo opacity and size. 0.0 = hidden.
+  final double pulseValue;
 
   static const _kSuppressed = {'AQ'};
   static const _kStrokeWidth = 0.3;
@@ -99,6 +109,26 @@ class GlobePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
+
+    // 4. Celebration halo — drawn on top of everything (ADR-123).
+    if (highlightedCode != null && pulseValue > 0.0) {
+      final centroid = kCountryCentroids[highlightedCode];
+      if (centroid != null) {
+        final haloCenter =
+            projection.project(centroid.$1, centroid.$2, size);
+        if (haloCenter != null) {
+          final haloRadius =
+              r * 0.06 * (1.0 + pulseValue * 0.5);
+          canvas.drawCircle(
+            haloCenter,
+            haloRadius,
+            Paint()
+              ..color =
+                  Colors.white.withValues(alpha: pulseValue * 0.35),
+          );
+        }
+      }
+    }
   }
 
   void _paintRing(
@@ -169,5 +199,7 @@ class GlobePainter extends CustomPainter {
       !identical(projection, old.projection) ||
       !identical(visualStates, old.visualStates) ||
       !identical(tripCounts, old.tripCounts) ||
-      !identical(polygons, old.polygons);
+      !identical(polygons, old.polygons) ||
+      highlightedCode != old.highlightedCode ||
+      pulseValue != old.pulseValue;
 }

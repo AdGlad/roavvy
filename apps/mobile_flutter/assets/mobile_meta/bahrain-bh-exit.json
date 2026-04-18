@@ -7,18 +7,18 @@
     "date_format": "{{DATE_FORMAT}}"
   },
   "date": {
-    "x": 197.0,
-    "y": 137.5,
+    "x": 122.14,
+    "y": 127.7154,
     "rotation": 0.0,
-    "font_size": 26,
+    "font_size": 24.1498,
     "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
     "font_weight": 700,
-    "letter_spacing": 0.52,
+    "letter_spacing": 0.3224,
     "anchor": "middle",
     "date_format": "dd MMM yyyy"
   },
   "image": {
-    "width": 400,
-    "height": 267
+    "width": 248,
+    "height": 248
   }
 }

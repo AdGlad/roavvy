@@ -52,7 +52,7 @@ class PassportLayoutEngine {
   // ── Safe Zones (ADR-117 Decision 1) ───────────────────────────────────────
   // Title safe zone: Top 18% of height.
   // Branding safe zone: Bottom-left 110x40 logical pixels.
-  static const double _kTitleSafeZoneHeightFraction = 0.18;
+  static const double _kTitleSafeZoneHeightFraction = 0.09;
   static const double _kBrandingSafeZoneWidth = 110.0;
   static const double _kBrandingSafeZoneHeight = 40.0;
 
@@ -106,6 +106,10 @@ class PassportLayoutEngine {
   /// (date = startedOn) then exit (date = endedOn). When true, only the
   /// entry stamp is produced. Bare [extraCodes] always produce a single entry.
   ///
+  /// All entry stamps are placed before all exit stamps. This puts each group
+  /// in a separate half of the grid so paired stamps for the same country land
+  /// far apart rather than in adjacent cells.
+  ///
   /// Trips are deduplicated by (countryCode, startDate) before processing.
   /// The photo scanner can produce multiple TripRecords for the same country
   /// on the same day (e.g. Geneva and Zurich both mapping to CH on the same
@@ -126,17 +130,20 @@ class PassportLayoutEngine {
       if (seen.add(key)) deduped.add(trip);
     }
 
+    // Collect entries and exits separately so all entries occupy the first
+    // half of the grid and exits the second half, keeping pairs far apart.
     final entries = <_StampEntry>[];
+    final exits = <_StampEntry>[];
     for (final trip in deduped) {
       entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: true));
       if (!entryOnly) {
-        entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
+        exits.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
       }
     }
     for (final code in extraCodes) {
       entries.add(_StampEntry(trip: null, code: code, isEntry: true));
     }
-    return entries;
+    return [...entries, ...exits];
   }
 
   /// Lay out stamps for [trips] and any bare [countryCodes] that have no trip.
@@ -213,14 +220,24 @@ class PassportLayoutEngine {
       }
     }
 
+    // Stamp-available area: below the title safe zone, above the bottom margin.
+    final safeStartY =
+        math.max(marginY, canvasSize.height * _kTitleSafeZoneHeightFraction);
+    final availableH = (canvasSize.height - marginY) - safeStartY;
+
     // Grid: size to fit all stamps exactly (ceil so every stamp gets a cell).
     // Sequential assignment (not weighted-random) guarantees even coverage with
     // no large gaps. Jitter within each cell keeps the layout organic.
-    final canvasAspect = usableW / math.max(1.0, usableH);
-    final gridCols =
-        math.max(2, math.sqrt(totalCount.toDouble() * canvasAspect).ceil());
+    //
+    // Compute gridRows first using the actual stamp-area aspect ratio (which
+    // excludes the title safe zone). On portrait canvases this produces more
+    // rows than columns, distributing stamps across the full portrait height
+    // rather than clustering them in a few wide rows near the centre.
+    final stampAreaAspect = usableW / math.max(1.0, availableH);
     final gridRows =
-        math.max(2, (totalCount / gridCols).ceil());
+        math.max(2, math.sqrt(totalCount.toDouble() / stampAreaAspect).ceil());
+    final gridCols =
+        math.max(2, (totalCount / gridRows).ceil());
 
     final stamps = <StampData>[];
     final placedCentres = <Offset>[];
@@ -249,41 +266,43 @@ class PassportLayoutEngine {
       }
 
       // Sequential grid assignment: each stamp gets its own cell, guaranteeing
-      // even coverage with no large gaps. Jitter within ±40% of cell dims keeps
-      // the layout organic. Safe zones are enforced via clamping.
+      // even coverage with no large gaps. Jitter within ±30% of cell dims keeps
+      // the layout organic while limiting excessive overlap.
       final cellW = usableW / gridCols;
-      // Usable height starts below the title safe zone.
-      final safeStartY =
-          math.max(marginY, canvasSize.height * _kTitleSafeZoneHeightFraction);
-      final availableH = (canvasSize.height - marginY) - safeStartY;
       final cellH = math.max(1.0, availableH / gridRows);
       final cellCol = stampIdx % gridCols;
       final cellRow = stampIdx ~/ gridCols;
 
-      // Jitter ±40% of cell half-dimensions for a natural, scattered look.
-      final jitterX = (rng.nextDouble() - 0.5) * cellW * 0.8;
-      final jitterY = (rng.nextDouble() - 0.5) * cellH * 0.8;
+      // Jitter ±30% of cell dimensions for a natural, scattered look. Stamps
+      // are 25% smaller than before so the extra spread no longer causes
+      // excessive overlap.
+      final jitterX = (rng.nextDouble() - 0.5) * cellW * 0.6;
+      final jitterY = (rng.nextDouble() - 0.5) * cellH * 0.6;
 
       final rawCentre = Offset(
         marginX + (cellCol + 0.5) * cellW + jitterX,
         safeStartY + (cellRow + 0.5) * cellH + jitterY,
       );
 
+      // Stamps render at targetW = baseRadius * 2.1, so they extend
+      // baseRadius * 1.05 from their centre. Use this half-width for clamping
+      // so stamps fit fully inside the portrait boundary.
+      final halfStampW = baseRadius * 1.05;
       // Clamp to keep stamps inside usable area and clear of safe zones.
       Offset? centre = Offset(
-        rawCentre.dx.clamp(marginX + baseRadius, canvasSize.width - marginX - baseRadius),
-        rawCentre.dy.clamp(safeStartY + baseRadius, canvasSize.height - marginY - baseRadius),
+        rawCentre.dx.clamp(marginX + halfStampW, canvasSize.width - marginX - halfStampW),
+        rawCentre.dy.clamp(safeStartY + halfStampW, canvasSize.height - marginY - halfStampW),
       );
 
       // If clamped into a safe zone, nudge towards usable centre.
-      if (_isInSafeZone(centre, baseRadius, canvasSize)) {
+      if (_isInSafeZone(centre, halfStampW, canvasSize)) {
         centre = Offset(centre.dx, safeStartY + availableH * 0.5);
       }
 
       // 8% chance of edge clipping in normal mode; disabled in print (ADR-102).
       Rect? edgeClip;
       if (!forPrint && rng.nextDouble() < 0.08) {
-        edgeClip = _edgeClipRect(centre, baseRadius, canvasSize, rng);
+        edgeClip = _edgeClipRect(centre, halfStampW, canvasSize, rng);
       }
 
       final StampData stamp;

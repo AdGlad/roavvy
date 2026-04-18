@@ -44,6 +44,7 @@ class StampMetadata {
     required this.imageWidth,
     required this.imageHeight,
     required this.dateSpec,
+    this.visualScale = 1.0,
   });
 
   final String name;
@@ -60,6 +61,13 @@ class StampMetadata {
   /// Spec for the date text overlay.
   final StampDateSpec dateSpec;
 
+  /// Optional visual size multiplier (default 1.0).
+  ///
+  /// Set this in the JSON file (`"visual_scale": 1.2`) to compensate for
+  /// stamps whose PNG assets have more whitespace/padding than others, so
+  /// that all stamps appear at a broadly similar visual size on the card.
+  final double visualScale;
+
   factory StampMetadata.fromJson(Map<String, dynamic> json) {
     final image = json['image'] as Map<String, dynamic>;
     return StampMetadata(
@@ -68,6 +76,9 @@ class StampMetadata {
       imageWidth: (image['width'] as num).toDouble(),
       imageHeight: (image['height'] as num).toDouble(),
       dateSpec: StampDateSpec.fromJson(json['date'] as Map<String, dynamic>),
+      visualScale: json.containsKey('visual_scale')
+          ? (json['visual_scale'] as num).toDouble()
+          : 1.0,
     );
   }
 }

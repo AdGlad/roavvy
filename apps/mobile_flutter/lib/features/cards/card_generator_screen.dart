@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
 import 'artwork_confirmation_screen.dart';
@@ -108,6 +109,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   bool _entryOnly = false;
   bool _portrait = true; // Default to Portrait (ADR-117)
   RangeValues? _yearSelection; // null = full range
+
+  // Country-level deselection: codes in this set are excluded from the card.
+  Set<String> _deselectedCodes = {};
 
   // Passport customization (ADR-117)
   String? _titleOverride;
@@ -215,6 +219,20 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                 ..sort())
               : allCodes;
 
+          // Country-level filter: exclude any codes the user has deselected.
+          final activeDeselected =
+              _deselectedCodes.intersection(displayedCodes.toSet());
+          final selectedCodes = activeDeselected.isEmpty
+              ? displayedCodes
+              : displayedCodes
+                  .where((c) => !activeDeselected.contains(c))
+                  .toList();
+          final selectedTrips = activeDeselected.isEmpty
+              ? filteredTrips
+              : filteredTrips
+                  .where((t) => !activeDeselected.contains(t.countryCode))
+                  .toList();
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -255,8 +273,8 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
               _SharedTitleEditor(
                 titleOverride: _titleOverride,
                 onTitleChanged: (v) => setState(() => _titleOverride = v),
-                countryCount: displayedCodes.length,
-                dateLabel: _computeDateLabel(filteredTrips),
+                countryCount: selectedCodes.length,
+                dateLabel: _computeDateLabel(selectedTrips),
               ),
               if (_selected == CardTemplateType.passport)
                 _PassportCustomizer(
@@ -297,8 +315,30 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                   yearMin: yearMin,
                   yearMax: yearMax,
                   values: effectiveRange,
-                  countryCount: displayedCodes.length,
-                  onChanged: (v) => setState(() => _yearSelection = v),
+                  countryCount: selectedCodes.length,
+                  onChanged: (v) => setState(() {
+                    _yearSelection = v;
+                    _deselectedCodes = {}; // reset per-country filter on year change
+                  }),
+                ),
+              ],
+              // Per-country toggle: shown whenever there are 2+ countries.
+              if (displayedCodes.length > 1) ...[
+                const SizedBox(height: 6),
+                _CountryChipSelector(
+                  codes: displayedCodes,
+                  deselected: activeDeselected,
+                  onToggle: (code) {
+                    setState(() {
+                      if (_deselectedCodes.contains(code)) {
+                        _deselectedCodes = Set.of(_deselectedCodes)..remove(code);
+                      } else if (selectedCodes.length > 1) {
+                        // Prevent removing the last selected country.
+                        _deselectedCodes = {..._deselectedCodes, code};
+                      }
+                    });
+                  },
+                  onReset: () => setState(() => _deselectedCodes = {}),
                 ),
               ],
               const SizedBox(height: 8),
@@ -317,7 +357,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                         maxScale: 6.0,
                         child: RepaintBoundary(
                           key: _previewKey,
-                          child: _buildTemplate(displayedCodes, filteredTrips),
+                          child: _buildTemplate(selectedCodes, selectedTrips),
                         ),
                       ),
                     ),
@@ -328,11 +368,11 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
               _ActionBar(
                 sharing: _sharing,
                 printing: _printing,
-                onShare: () => _onShare(context, displayedCodes),
+                onShare: () => _onShare(context, selectedCodes),
                 onPrint: () => _onPrint(
                   context,
-                  displayedCodes,
-                  filteredTrips,
+                  selectedCodes,
+                  selectedTrips,
                   effectiveRange,
                   showDateSlider,
                 ),
@@ -1062,6 +1102,132 @@ class _ColorSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ── Country chip selector ──────────────────────────────────────────────────────
+
+/// Horizontal scrollable row of country chips; tap to include/exclude a country.
+///
+/// [codes] is the full list for the current year range (source of truth).
+/// [deselected] is the subset currently toggled off.
+/// All countries are selected by default; the last selected country cannot be
+/// removed (caller enforces this in [onToggle]).
+class _CountryChipSelector extends StatelessWidget {
+  const _CountryChipSelector({
+    required this.codes,
+    required this.deselected,
+    required this.onToggle,
+    required this.onReset,
+  });
+
+  final List<String> codes;
+  final Set<String> deselected;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCount = codes.where((c) => !deselected.contains(c)).length;
+    final hasDeselected = deselected.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.place_outlined, size: 13, color: Colors.white38),
+              const SizedBox(width: 5),
+              Text(
+                hasDeselected
+                    ? '$activeCount of ${codes.length} countries'
+                    : '${codes.length} countries',
+                style: const TextStyle(fontSize: 11, color: Colors.white60),
+              ),
+              if (hasDeselected) ...[
+                const Spacer(),
+                GestureDetector(
+                  onTap: onReset,
+                  child: const Text(
+                    'Reset',
+                    style: TextStyle(fontSize: 11, color: _kAmber),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: codes.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, i) {
+                final code = codes[i];
+                final isSelected = !deselected.contains(code);
+                return GestureDetector(
+                  onTap: () => onToggle(code),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected ? _kAmber : Colors.white24,
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      color: isSelected
+                          ? _kAmber.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                    ),
+                    child: Opacity(
+                      opacity: isSelected ? 1.0 : 0.4,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _flagEmoji(code),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _shortName(code),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Converts an ISO 3166-1 alpha-2 code to the corresponding flag emoji.
+  /// Returns 🌍 for non-standard codes (e.g. 'XX').
+  static String _flagEmoji(String code) {
+    if (code.length != 2) return '\u{1F30D}';
+    final up = code.toUpperCase();
+    final a = up.codeUnitAt(0) - 65 + 0x1F1E6;
+    final b = up.codeUnitAt(1) - 65 + 0x1F1E6;
+    // Regional indicator symbols only cover A–Z (0x1F1E6–0x1F1FF).
+    if (a < 0x1F1E6 || a > 0x1F1FF || b < 0x1F1E6 || b > 0x1F1FF) {
+      return '\u{1F30D}';
+    }
+    return String.fromCharCode(a) + String.fromCharCode(b);
+  }
+
+  static String _shortName(String code) {
+    final name = kCountryNames[code] ?? code;
+    return name.length > 11 ? '${name.substring(0, 9)}\u2026' : name;
   }
 }
 

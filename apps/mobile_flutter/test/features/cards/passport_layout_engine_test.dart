@@ -77,6 +77,26 @@ void main() {
       }
     });
 
+    test('stamp edges fit within canvas boundaries (halfStampW clamp)', () {
+      // Stamps render at baseRadius * 2.8 wide. The layout must clamp centres
+      // so that stamp edges (centre ± baseRadius * 1.4) stay inside the canvas.
+      final result = PassportLayoutEngine.layout(
+        trips: [],
+        countryCodes: _codes5,
+        canvasSize: _size,
+        seed: 0,
+      );
+      final marginX = _size.width * 0.08;
+      final marginY = _size.height * 0.08;
+      for (final stamp in result.stamps) {
+        final halfW = 38.0 * stamp.scale * 1.4; // baseRadius * 1.4
+        expect(stamp.center.dx - halfW, greaterThanOrEqualTo(marginX - 1),
+            reason: 'left edge of stamp must not overflow left margin');
+        expect(stamp.center.dx + halfW, lessThanOrEqualTo(_size.width - marginX + 1),
+            reason: 'right edge of stamp must not overflow right margin');
+      }
+    });
+
     test('no two stamps have identical centres', () {
       final result = PassportLayoutEngine.layout(
         trips: [],
@@ -88,7 +108,8 @@ void main() {
       expect(centres.length, result.stamps.length);
     });
 
-    test('caps at 20 stamps for large input', () {
+    test('renders all stamps up to the 200-stamp cap (ADR-113)', () {
+      // _kMaxStamps was raised from 20 to 200 to support entry+exit pairs.
       final codes = List.generate(30, (i) {
         final c = String.fromCharCode(65 + i % 26);
         return '$c${String.fromCharCode(65 + (i + 1) % 26)}';
@@ -98,7 +119,8 @@ void main() {
         countryCodes: codes,
         canvasSize: _size,
       );
-      expect(result.stamps.length, lessThanOrEqualTo(20));
+      expect(result.stamps.length, codes.length);
+      expect(result.stamps.length, lessThanOrEqualTo(200));
     });
 
     test('trip stamps and code-only stamps both have non-null date labels', () {
@@ -119,10 +141,9 @@ void main() {
       expect(deStamp.dateLabel, isNotNull);
     });
 
-    test('alternates entry/exit labels using native language per country', () {
-      // ADR-097 Decision 7: entry/exit labels use the country's native language
-      // (e.g. 'ARRIVÉE' for FR, 'EINREISE' for DE). The layout engine passes
-      // isEntry=true for even stamp indices and isEntry=false for odd.
+    test('entry stamps placed before exit stamps (separation layout)', () {
+      // All entry stamps are grouped first, then all exit stamps. This places
+      // paired stamps in opposite halves of the grid for visual separation.
       final trips = [
         _trip('FR', DateTime(2021, 1, 1)),
         _trip('DE', DateTime(2021, 6, 1)),
@@ -134,15 +155,20 @@ void main() {
         canvasSize: _size,
         seed: 0,
       );
-      // Even index → isEntry=true → native arrival label (non-empty)
-      // Odd index  → isEntry=false → native departure label (non-empty)
-      for (var i = 0; i < result.stamps.length; i++) {
-        expect(result.stamps[i].entryLabel, isNotEmpty);
+      // All stamps must have a non-empty entry/exit label.
+      for (final stamp in result.stamps) {
+        expect(stamp.entryLabel, isNotEmpty);
       }
-      // Verify the alternation pattern: even = entry stamp, odd = exit stamp
-      expect(result.stamps[0].isEntry, isTrue);
-      expect(result.stamps[1].isEntry, isFalse);
-      if (result.stamps.length > 2) expect(result.stamps[2].isEntry, isTrue);
+      // First half = entries, second half = exits.
+      final entryCount = trips.length; // one entry per trip
+      for (var i = 0; i < entryCount; i++) {
+        expect(result.stamps[i].isEntry, isTrue,
+            reason: 'stamp $i should be an entry stamp');
+      }
+      for (var i = entryCount; i < result.stamps.length; i++) {
+        expect(result.stamps[i].isEntry, isFalse,
+            reason: 'stamp $i should be an exit stamp');
+      }
     });
   });
 

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
+import 'package:image/image.dart' as img;
 
 // --- CONFIGURATION ---
 const String basePath = '/Users/adglad/git/roavvy/apps/mobile_flutter/assets';
@@ -52,6 +53,7 @@ class StampMetadata {
   final int imgWidth;
   final int imgHeight;
   final String dateFormat;
+  final double? fileSizeKB;
 
   StampMetadata({
     required this.name,
@@ -68,9 +70,10 @@ class StampMetadata {
     required this.imgWidth,
     required this.imgHeight,
     required this.dateFormat,
+    this.fileSizeKB,
   });
 
-  factory StampMetadata.fromJson(Map<String, dynamic> json) {
+  factory StampMetadata.fromJson(Map<String, dynamic> json, {double? fileSizeKB}) {
     final date = json['date'] as Map<String, dynamic>;
     final image = json['image'] as Map<String, dynamic>;
     return StampMetadata(
@@ -88,6 +91,7 @@ class StampMetadata {
       imgWidth: (image['width'] as num).toInt(),
       imgHeight: (image['height'] as num).toInt(),
       dateFormat: date['date_format'] ?? 'dd MMM yyyy',
+      fileSizeKB: fileSizeKB,
     );
   }
 
@@ -96,8 +100,12 @@ class StampMetadata {
     double? y,
     double? rotation,
     int? fontSize,
+    String? fontFamily,
     double? letterSpacing,
     String? dateFormat,
+    int? imgWidth,
+    int? imgHeight,
+    double? fileSizeKB,
   }) {
     final newJson = Map<String, dynamic>.from(rawJson);
     final newDate = Map<String, dynamic>.from(newJson['date']);
@@ -105,11 +113,17 @@ class StampMetadata {
     if (y != null) newDate['y'] = y;
     if (rotation != null) newDate['rotation'] = rotation;
     if (fontSize != null) newDate['font_size'] = fontSize;
+    if (fontFamily != null) newDate['font_family'] = fontFamily;
     if (letterSpacing != null) newDate['letter_spacing'] = letterSpacing;
     if (dateFormat != null) newDate['date_format'] = dateFormat;
     newJson['date'] = newDate;
 
-    return StampMetadata.fromJson(newJson);
+    final newImage = Map<String, dynamic>.from(newJson['image']);
+    if (imgWidth != null) newImage['width'] = imgWidth;
+    if (imgHeight != null) newImage['height'] = imgHeight;
+    newJson['image'] = newImage;
+
+    return StampMetadata.fromJson(newJson, fileSizeKB: fileSizeKB ?? this.fileSizeKB);
   }
 
   String toFormattedJson() {
@@ -158,7 +172,15 @@ class MetadataNotifier extends StateNotifier<StampMetadata?> {
     final file = File(p.join(metaPath, '$assetName.json'));
     if (await file.exists()) {
       final content = await file.readAsString();
-      state = StampMetadata.fromJson(jsonDecode(content));
+      final meta = StampMetadata.fromJson(jsonDecode(content));
+      
+      final pngFile = File(p.join(pngPath, meta.pngAsset));
+      double? sizeKB;
+      if (await pngFile.exists()) {
+        sizeKB = (await pngFile.length()) / 1024.0;
+      }
+      
+      state = meta.copyWith(fileSizeKB: sizeKB);
       _hasChanges = false;
     }
   }
@@ -169,11 +191,96 @@ class MetadataNotifier extends StateNotifier<StampMetadata?> {
   }
 
   Future<void> save() async {
-    if (state == null) return;
-    final file = File(p.join(metaPath, '${state!.name}.json'));
+    if (state == null || assetName == null) return;
+    final file = File(p.join(metaPath, '$assetName.json'));
     await file.writeAsString(state!.toFormattedJson());
     _hasChanges = false;
     state = state; // trigger rebuild
+  }
+
+  Future<void> cropToContent() async {
+    if (state == null) return;
+    
+    final meta = state!;
+    final file = File(p.join(pngPath, meta.pngAsset));
+    if (!await file.exists()) return;
+    
+    final bytes = await file.readAsBytes();
+    final decoded = img.decodePng(bytes);
+    if (decoded == null) return;
+
+    int minX = decoded.width;
+    int minY = decoded.height;
+    int maxX = 0;
+    int maxY = 0;
+    bool hasContent = false;
+
+    for (int y = 0; y < decoded.height; y++) {
+      for (int x = 0; x < decoded.width; x++) {
+        final pixel = decoded.getPixel(x, y);
+        if (pixel.a > 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          hasContent = true;
+        }
+      }
+    }
+
+    if (!hasContent) return; // Image is fully transparent
+
+    final newWidth = maxX - minX + 1;
+    final newHeight = maxY - minY + 1;
+
+    // Only crop if dimensions actually changed
+    if (newWidth < decoded.width || newHeight < decoded.height) {
+      final cropped = img.copyCrop(decoded, x: minX, y: minY, width: newWidth, height: newHeight);
+      final newBytes = img.encodePng(cropped);
+      await file.writeAsBytes(newBytes);
+
+      // Update offsets
+      state = meta.copyWith(
+        x: meta.x - minX,
+        y: meta.y - minY,
+        imgWidth: newWidth,
+        imgHeight: newHeight,
+        fileSizeKB: newBytes.length / 1024.0,
+      );
+      _hasChanges = true;
+    }
+  }
+
+  Future<void> scaleImage(double factor) async {
+    if (state == null) return;
+    
+    final meta = state!;
+    final file = File(p.join(pngPath, meta.pngAsset));
+    if (!await file.exists()) return;
+    
+    final bytes = await file.readAsBytes();
+    final decoded = img.decodePng(bytes);
+    if (decoded == null) return;
+
+    final newWidth = (decoded.width * factor).round();
+    final newHeight = (decoded.height * factor).round();
+
+    if (newWidth <= 0 || newHeight <= 0) return;
+
+    final resized = img.copyResize(decoded, width: newWidth, height: newHeight, interpolation: img.Interpolation.linear);
+    final newBytes = img.encodePng(resized);
+    await file.writeAsBytes(newBytes);
+
+    state = meta.copyWith(
+      x: meta.x * factor,
+      y: meta.y * factor,
+      imgWidth: newWidth,
+      imgHeight: newHeight,
+      fontSize: (meta.fontSize * factor).round(),
+      letterSpacing: meta.letterSpacing * factor,
+      fileSizeKB: newBytes.length / 1024.0,
+    );
+    _hasChanges = true;
   }
 }
 
@@ -295,6 +402,7 @@ class StampPreview extends ConsumerStatefulWidget {
 class _StampPreviewState extends ConsumerState<StampPreview> {
   double _zoom = 1.0;
   Color _previewColor = Colors.blue;
+  String _bgType = 'White'; // 'White', 'Black', 'Checkerboard'
 
   @override
   Widget build(BuildContext context) {
@@ -341,8 +449,48 @@ class _StampPreviewState extends ConsumerState<StampPreview> {
                   .toList(),
               onChanged: (v) => setState(() => _previewColor = v!),
             ),
-            const SizedBox(width: 8),
-            Text('Preview Date (from ${meta.dateFormat}): '),
+            const SizedBox(width: 16),
+            const Text('BG: '),
+            DropdownButton<String>(
+              value: _bgType,
+              items: ['White', 'Black', 'Checkerboard']
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12))))
+                  .toList(),
+              onChanged: (v) => setState(() => _bgType = v!),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.crop, size: 16),
+              label: const Text('Crop to Content'),
+              onPressed: () => ref.read(currentMetadataProvider.notifier).cropToContent(),
+            ),
+            const SizedBox(width: 16),
+            PopupMenuButton<double>(
+              tooltip: 'Resize Image',
+              onSelected: (factor) => ref.read(currentMetadataProvider.notifier).scaleImage(factor),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 0.75, child: Text('Scale to 75%')),
+                const PopupMenuItem(value: 0.50, child: Text('Scale to 50%')),
+                const PopupMenuItem(value: 0.25, child: Text('Scale to 25%')),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.compress, size: 16),
+                    SizedBox(width: 6),
+                    Text('Resize'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text('Preview Date: '),
             Text(previewDate, style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 8),
           ],
@@ -357,15 +505,21 @@ class _StampPreviewState extends ConsumerState<StampPreview> {
                 child: Container(
                   margin: const EdgeInsets.all(40),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.white12),
+                    color: _bgType == 'Black' ? Colors.black : (_bgType == 'White' ? Colors.white : Colors.transparent),
+                    border: Border.all(color: Colors.grey.shade700),
                     boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black45)],
                   ),
                   child: Stack(
                     children: [
+                      if (_bgType == 'Checkerboard')
+                        Positioned.fill(
+                          child: CustomPaint(painter: CheckerboardPainter()),
+                        ),
+                      
                       // Background Image
                       Image.file(
                         pngFile,
+                        key: ValueKey('${pngFile.path}_${meta.imgWidth}_${meta.imgHeight}'), // force refresh on crop
                         width: meta.imgWidth * _zoom,
                         height: meta.imgHeight * _zoom,
                         fit: BoxFit.contain,
@@ -453,6 +607,13 @@ class MetadataEditorPanel extends ConsumerWidget {
             style: const TextStyle(fontSize: 12),
             onChanged: (v) => ref.read(currentMetadataProvider.notifier).update(meta.copyWith(dateFormat: v)),
           ),
+          const SizedBox(height: 8),
+          const Text('Font Family', style: TextStyle(fontSize: 12)),
+          TextField(
+            controller: TextEditingController(text: meta.fontFamily)..selection = TextSelection.collapsed(offset: meta.fontFamily.length),
+            style: const TextStyle(fontSize: 12),
+            onChanged: (v) => ref.read(currentMetadataProvider.notifier).update(meta.copyWith(fontFamily: v)),
+          ),
           const Divider(),
           const Text('Raw JSON', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
@@ -469,7 +630,21 @@ class MetadataEditorPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text('Linked Files:', style: Theme.of(context).textTheme.labelSmall),
-          Text('PNG: ${meta.pngAsset}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('PNG: ${meta.pngAsset}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              if (meta.fileSizeKB != null)
+                Text(
+                  '${meta.fileSizeKB!.toStringAsFixed(1)} KB',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: meta.fileSizeKB! > 100 ? Colors.redAccent : Colors.greenAccent,
+                  ),
+                ),
+            ],
+          ),
           Text('SVG: ${meta.name}_mobile.svg', style: const TextStyle(fontSize: 10, color: Colors.grey)),
         ],
       ),
@@ -512,4 +687,26 @@ class _NumericControl extends StatelessWidget {
       ),
     );
   }
+}
+
+class CheckerboardPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double squareSize = 20.0;
+    final paintLight = Paint()..color = const Color(0xFFCCCCCC);
+    final paintDark = Paint()..color = const Color(0xFF999999);
+
+    for (double y = 0; y < size.height; y += squareSize) {
+      for (double x = 0; x < size.width; x += squareSize) {
+        final isEven = ((x / squareSize).floor() + (y / squareSize).floor()) % 2 == 0;
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, squareSize, squareSize),
+          isEven ? paintLight : paintDark,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

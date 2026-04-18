@@ -10,17 +10,19 @@ void main() {
 
   const channel = MethodChannel('roavvy/ai_title');
 
+  // Year fields intentionally absent from request (ADR-125).
   final request = TitleGenerationRequest(
     countryCodes: const ['JP'],
     countryNames: const ['Japan'],
     regionNames: const ['Asia'],
-    startYear: 2024,
     cardType: CardTemplateType.grid,
   );
 
   late IosOnDeviceTitleGenerator generator;
+  MethodCall? capturedCall;
 
   setUp(() {
+    capturedCall = null;
     generator = IosOnDeviceTitleGenerator(fallback: RuleBasedTitleGenerator());
   });
 
@@ -31,8 +33,39 @@ void main() {
 
   void setHandler(Future<Object?> Function(MethodCall) handler) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, handler);
+        .setMockMethodCallHandler(channel, (call) async {
+      capturedCall = call;
+      return handler(call);
+    });
   }
+
+  // ── Channel args contract (ADR-125) ───────────────────────────────────────
+
+  test('channel args do not contain startYear', () async {
+    setHandler((_) async => 'Land of the Rising Sun');
+    await generator.generate(request);
+    final args = capturedCall!.arguments as Map;
+    expect(args.containsKey('startYear'), isFalse,
+        reason: 'startYear must not be sent to AI (ADR-125)');
+  });
+
+  test('channel args do not contain endYear', () async {
+    setHandler((_) async => 'Cherry Blossom Road');
+    await generator.generate(request);
+    final args = capturedCall!.arguments as Map;
+    expect(args.containsKey('endYear'), isFalse,
+        reason: 'endYear must not be sent to AI (ADR-125)');
+  });
+
+  test('channel args contain regionNames', () async {
+    setHandler((_) async => 'Asian Escape');
+    await generator.generate(request);
+    final args = capturedCall!.arguments as Map;
+    expect(args.containsKey('regionNames'), isTrue);
+    expect(args['regionNames'], contains('Asia'));
+  });
+
+  // ── Fallback behaviour ────────────────────────────────────────────────────
 
   test('PlatformException → TitleSource.fallback', () async {
     setHandler((_) async => throw PlatformException(code: 'AI_UNAVAILABLE'));
@@ -54,10 +87,12 @@ void main() {
     expect(result.source, TitleSource.fallback);
   });
 
+  // ── Success path ──────────────────────────────────────────────────────────
+
   test('non-empty response → TitleSource.ai with trimmed title', () async {
-    setHandler((_) async => '  Japan 2024  ');
+    setHandler((_) async => '  Rising Sun  ');
     final result = await generator.generate(request);
     expect(result.source, TitleSource.ai);
-    expect(result.title, 'Japan 2024');
+    expect(result.title, 'Rising Sun');
   });
 }
