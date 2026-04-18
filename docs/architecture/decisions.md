@@ -4,6 +4,55 @@ Lightweight ADRs for Roavvy. Each decision records **what** was chosen, **why**,
 
 ---
 
+## ADR-126 — M72 Country Celebration Carousel: Single-Route Multi-Country Flow
+
+**Status:** Accepted
+
+**Context:**
+`ScanSummaryScreen._pushDiscoveryOverlays()` (ADR-084, ADR-108) pushed one `DiscoveryOverlay` route per new country using a `for` loop with `await Navigator.push(...)`. This produced three bugs:
+1. **Double-pop blank screen** — `DiscoveryOverlay._handleSkipAll()` called both `widget.onSkipAll()` (which called `Navigator.pop()`) and then `Navigator.pop()` again, removing `ScanSummaryScreen` from the stack.
+2. **Scan-summary flicker** — The 300ms `kCelebrationGapMs` delay between pushes left `ScanSummaryScreen` visible momentarily between each country, causing visible flicker.
+3. **N-deep navigation stack** — 13 countries = 13 `MaterialPageRoute`s; back gesture would unwind through all of them.
+
+**Decision:**
+1. **`CountryCelebrationCarousel`** — a new single-route widget that hosts all country celebrations inside a `PageView.builder`. One push, one pop, no intermediate Navigator involvement per country.
+2. **Single-country path unchanged** — `DiscoveryOverlay` is retained for single-discovery scans.
+3. **Skip All fixed** — In `CountryCelebrationCarousel`, "Skip all" calls `widget.onDone()` directly (which pops the carousel route). In the retained `DiscoveryOverlay`, `_handleSkipAll` no longer calls `Navigator.pop()` — that responsibility belongs solely to the `onSkipAll` callback supplied by the caller.
+4. **Globe animation simplified** — Phase 1 reduced from 1.5 rotations (540°) to 1/3 rotation (120°) eastward using `easeOut`. Phase 2 uses `Curves.easeInOutCubic` for premium deceleration. Total duration 2800ms (was 3000ms). Target longitude always normalised to travel eastward from the spin-end.
+5. **Dot progress indicator** — For ≤10 countries: animated pill dots with the active dot stretching to 16px. For >10: "N of M" text.
+
+**Consequences:**
+- The `kCelebrationGapMs` constant in `discovery_overlay.dart` is no longer used in the multi-country path but is retained for documentation.
+- Navigation history for multi-country celebrations is now flat: only the carousel route is in the stack.
+- Per-page globe animation restarts when the user swipes back to a previous page (globe settles immediately; no re-trigger). Acceptable for the use case.
+- `ScanSummaryScreen` no longer needs `firstVisited` values to be non-null — `firstVisitedByCode` is `Map<String, DateTime?>`.
+
+---
+
+## ADR-123 — M69 Celebration Globe: Animated Globe Inside DiscoveryOverlay
+
+**Status:** Accepted
+
+**Context:**
+`DiscoveryOverlay` (ADR-084, ADR-108) was a static amber-gradient screen with a flag emoji, country name, XP, first-visited date, and CTA buttons. The M69 milestone spec requires a premium 5-second celebration that includes a 3D globe animating toward the discovered country and national-colour confetti.
+
+**Decision:**
+1. **Reuse `GlobeProjection` + `GlobePainter`** (ADR-116) inside a new `CelebrationGlobeWidget` rather than introducing a third-party 3D library. The existing projection math is fully capable of the required animation.
+2. **`CelebrationGlobeWidget`** is a `ConsumerStatefulWidget` with two `AnimationController`s: a 3-second main controller split into three phases (fast spin → travel to centroid → hold), and an 800ms repeating pulse controller. Works inside `MaterialPageRoute` because `ProviderScope` is at the app root.
+3. **`GlobePainter`** gains two optional params (`highlightedCode`, `pulseValue`) that draw a white halo on the highlighted country's centroid. Backwards compatible — existing callsites pass neither param.
+4. **`DiscoveryOverlay`** becomes a `ConsumerStatefulWidget`. Layout: globe (260px) → flag emoji + country name + XP → first-visited → CTA. Confetti fires 2.2s after mount (after globe settles) using flag colours from `lib/core/flag_colours.dart`.
+5. **`lib/core/flag_colours.dart`** — the private `_flagColours()` function is extracted from `scan_summary_screen.dart` into a shared public utility so both the summary screen and `DiscoveryOverlay` can load SVG flag colours.
+6. **`lib/features/map/country_centroids.dart`** — `const Map<String, (double, double)>` of ISO code → approximate centroid (lat, lng). No network calls.
+
+**Consequences:**
+- No new third-party packages required.
+- `DiscoveryOverlay` is now a `ConsumerWidget`; it reads `polygonsProvider`, `countryVisualStatesProvider`, `countryTripCountsProvider`.
+- Reduce-motion: `CelebrationGlobeWidget` jumps to final state; confetti still fires.
+- Countries with no centroid entry show pulse at the default globe orientation.
+- `GlobePainter` `shouldRepaint` is slightly more expensive (two extra comparisons).
+
+---
+
 ## ADR-122 — M65 Printful Dual-Mockup Client: Store and Display Both Placement URLs
 
 **Status:** Accepted
@@ -4255,3 +4304,35 @@ The app provides a flat 2D country/region map, but we introduced a 3D orthograph
 - Zero dependency on heavy mapping SDKs.
 - Polygons and styling exactly match the 2D flat map because they consume the same Riverpod data models.
 - Gestures feel like spinning a physical globe rather than dragging a 2D map.
+
+
+## ADR-125 — M70 Passport Stamp UX: Portrait Lock, Shuffle Seed, Year-Free Titles
+
+**Status:** Accepted
+
+**Context:**
+The passport stamp card editor had three UX problems:
+1. The landscape/portrait orientation toggle applied to all card templates including passport, adding unnecessary complexity with little value — passport stamps read naturally in portrait only.
+2. Users had no way to explore different stamp arrangements; the layout was always deterministic (hash of country codes), making it feel static.
+3. Title generation — both AI and rule-based fallback — included year information in the output, duplicating the date label that already appears on the card.
+
+**Decisions:**
+
+**1. Passport card fixed to portrait**
+The orientation `IconButton` in `_ControlStrip` is conditionally hidden when `templateType == CardTemplateType.passport`. `initState` forces `_portrait = true` when the template is passport, preventing landscape state being inherited from a previous session. The orientation toggle remains fully functional for Grid, Heart, Timeline, and FrontRibbon templates.
+
+**2. Stamp shuffle via nullable seed**
+`PassportStampsCard` gains a nullable `int? seed` parameter (constructor remains `const`). The seed threads through `_PassportPagePainter` → `PassportLayoutEngine.layout(seed:)`, which already supported this via `effectiveSeed = seed ?? countryCodes.join().hashCode`. `_CardEditorScreenState` holds `_stampLayoutSeed` (initially `null` = deterministic default). A `Icons.shuffle_rounded` `IconButton.outlined` in `_ControlStrip` — visible only for passport template — fires `setState(() => _stampLayoutSeed = Random().nextInt(0x7FFFFFFF))`. The seed is session-persistent: navigating away and back resets it only if `initState` is called again (i.e. the screen is fully removed from the tree).
+
+**3. Year removed from title generation**
+- `_generateTitle()` in `CardEditorScreen` no longer computes `startYear`/`endYear` or passes them to `TitleGenerationRequest`. The year computation block is deleted.
+- `ios_title_channel.dart` no longer sends `startYear` / `endYear` in the method channel args map.
+- `AiTitlePlugin.swift` no longer reads `startYear`/`endYear`. The prompt is rewritten to: request 2–4 words, explicitly forbid years and colons, and provide region context instead. System instructions reinforce playful/human tone. Post-processing strips `"`, `'`, `:` and collapses whitespace.
+- `RuleBasedTitleGenerator` removes `_yearSuffix()` entirely. Sub-region clusters expanded from 4 to 16 (Nordic Wander, Baltic Loop, British Isles, Iberian Road, Alpine Escape, Benelux, Mediterranean Escape, Southern Europe, Balkan Trail, East Asia, Southeast Asia, Indian Subcontinent, Indian Ocean, Pacific Islands, Central America, Caribbean Hop). Continent labels updated to more evocative alternatives (Euro Wander, Asian Escape, etc.).
+
+**Consequences:**
+- Portrait-only passport reduces test surface and eliminates a class of layout bugs.
+- Shuffle is fast (pure Dart, synchronous seed change → `setState`); layouts are visually distinct across the `0x7FFFFFFF` seed space.
+- Titles never include years; the card's date label (e.g. "2018–2024") is the sole year reference.
+- `TitleGenerationRequest.startYear` / `.endYear` fields are retained on the model for potential future use but are no longer populated at the call site.
+- Post-processing in Swift is additive (strip-only); it cannot introduce regressions in the AI path.

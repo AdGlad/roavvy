@@ -130,8 +130,10 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
   }
 
   void _handleSkipAll() {
+    // onSkipAll is responsible for popping this route (set by ScanSummaryScreen).
+    // Do NOT call Navigator.pop() here — that would cause a double-pop and
+    // remove ScanSummaryScreen, leaving the app on a blank screen (ADR-126).
     widget.onSkipAll?.call();
-    Navigator.of(context).pop();
   }
 
   @override
