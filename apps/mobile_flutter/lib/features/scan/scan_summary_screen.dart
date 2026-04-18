@@ -1,11 +1,11 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/continent_emoji.dart';
 import '../../core/country_names.dart';
+import '../../core/flag_colours.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
 import '../map/country_visual_state.dart';
@@ -270,34 +270,6 @@ class _NewDiscoveriesState extends StatefulWidget {
   State<_NewDiscoveriesState> createState() => _NewDiscoveriesStateState();
 }
 
-/// Extracts up to 4 non-white fill colours from a bundled flag SVG.
-///
-/// Returns null when the asset cannot be loaded or no qualifying colours
-/// are found (caller falls back to theme colours).
-Future<List<Color>?> _flagColours(String isoCode) async {
-  try {
-    final svg = await rootBundle.loadString(
-        'assets/flags/svg/${isoCode.toLowerCase()}.svg');
-    final re = RegExp(r'fill="(#[0-9a-fA-F]{6})"');
-    final colours = re
-        .allMatches(svg)
-        .map((m) {
-          final hex = m.group(1)!.substring(1);
-          return Color(0xFF000000 | int.parse(hex, radix: 16));
-        })
-        .toSet()
-        .where((c) {
-          // Filter out white and near-white (lightness > 0.90).
-          final hsl = HSLColor.fromColor(c);
-          return hsl.lightness <= 0.90;
-        })
-        .take(4)
-        .toList();
-    return colours.length >= 2 ? colours : null;
-  } catch (_) {
-    return null;
-  }
-}
 
 class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
     with TickerProviderStateMixin {
@@ -320,7 +292,7 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
   Future<void> _loadConfettiColors() async {
     final colors = <Color>[];
     for (final code in widget.newCodes.take(3)) {
-      final flagColors = await _flagColours(code);
+      final flagColors = await flagColours(code);
       if (flagColors != null) colors.addAll(flagColors);
     }
     if (mounted && colors.isNotEmpty) {

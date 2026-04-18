@@ -1,9 +1,13 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/country_names.dart';
+import '../../core/flag_colours.dart';
+import 'celebration_globe_widget.dart';
 
 /// Gap inserted between sequential country celebrations (ADR-108).
 const int kCelebrationGapMs = 300;
@@ -17,17 +21,20 @@ String _flagEmoji(String code) {
       String.fromCharCode(base + code.codeUnitAt(1));
 }
 
-/// Full-screen discovery moment shown after a scan finds new countries.
+/// Full-screen discovery moment shown after a scan finds new countries (ADR-123).
 ///
-/// When [totalCount] > 1, shows "Country N of M" below the flag and the
-/// primary CTA reads "Next →" (all but the last) or "Done" (last).
+/// Embeds an animated [CelebrationGlobeWidget] (spin → travel → pulse) in the
+/// top half of the screen. Confetti fires with national flag colours ~2.2s
+/// after the screen opens (after the globe settles).
+///
+/// When [totalCount] > 1, shows "Country N of M" and "Next →" / "Done" CTAs.
 /// A "Skip all" button is shown on every overlay when [totalCount] > 1.
 ///
 /// The [onDone] callback is invoked when the user taps the primary CTA on
 /// the last overlay or taps "Done". [onSkipAll] is invoked when the user
 /// taps "Skip all" or navigates back. Callers use these callbacks to control
 /// navigation rather than relying on [popUntil] (ADR-084).
-class DiscoveryOverlay extends StatefulWidget {
+class DiscoveryOverlay extends ConsumerStatefulWidget {
   const DiscoveryOverlay({
     super.key,
     required this.isoCode,
@@ -66,20 +73,35 @@ class DiscoveryOverlay extends StatefulWidget {
   bool get _isLast => currentIndex == totalCount - 1;
 
   @override
-  State<DiscoveryOverlay> createState() => _DiscoveryOverlayState();
+  ConsumerState<DiscoveryOverlay> createState() => _DiscoveryOverlayState();
 }
 
-class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
+class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
   late final AudioPlayer _audioPlayer;
+  late final ConfettiController _confettiController;
+  List<Color> _confettiColors = const [Colors.amber, Colors.orange];
 
   @override
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
+    _confettiController =
+        ConfettiController(duration: const Duration(milliseconds: 3000));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        HapticFeedback.heavyImpact();
-        _playCelebrationAudio();
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+      _playCelebrationAudio();
+      // Fire confetti after the globe settles (~2.2s into the 3s animation).
+      Future.delayed(const Duration(milliseconds: 2200), () {
+        if (mounted) _confettiController.play();
+      });
+    });
+
+    // Load flag colours asynchronously; update confetti when ready.
+    flagColours(widget.isoCode).then((colors) {
+      if (mounted && colors != null) {
+        setState(() => _confettiColors = colors);
       }
     });
   }
@@ -95,6 +117,7 @@ class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
   @override
   void dispose() {
     _audioPlayer.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -118,100 +141,121 @@ class _DiscoveryOverlayState extends State<DiscoveryOverlay> {
     final isMulti = widget.totalCount > 1;
 
     return Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFFFB300), Color(0xFFFF6F00)],
+      body: Stack(
+        children: [
+          // Background gradient.
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFFB300), Color(0xFFFF6F00)],
+              ),
             ),
-          ),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Skip all — top right, only in multi-country sequences.
-                if (isMulti && widget.onSkipAll != null)
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: TextButton(
-                      onPressed: _handleSkipAll,
-                      child: const Text(
-                        'Skip all',
-                        style: TextStyle(color: Colors.white70),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Skip all — top right, only in multi-country sequences.
+                  if (isMulti && widget.onSkipAll != null)
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: TextButton(
+                        onPressed: _handleSkipAll,
+                        child: const Text(
+                          'Skip all',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                       ),
+                    )
+                  else
+                    const SizedBox(height: 44),
+                  // Animated globe — the centrepiece of the celebration.
+                  CelebrationGlobeWidget(isoCode: widget.isoCode),
+                  const SizedBox(height: 16),
+                  // Sequence indicator.
+                  if (isMulti) ...[
+                    Text(
+                      'Country ${widget.currentIndex + 1} of ${widget.totalCount}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                  )
-                else
-                  const SizedBox(height: 44), // maintain consistent top spacing
-                const Spacer(),
-                // Sequence indicator
-                if (isMulti)
+                    const SizedBox(height: 8),
+                  ],
                   Text(
-                    'Country ${widget.currentIndex + 1} of ${widget.totalCount}',
+                    flag,
+                    style: const TextStyle(fontSize: 56),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'You discovered $countryName!',
                     style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                if (isMulti) const SizedBox(height: 12),
-                Text(
-                  flag,
-                  style: const TextStyle(fontSize: 64),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'You discovered $countryName!',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '+${widget.xpEarned} XP',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (widget.firstVisited != null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'First visited: ${_firstVisitedFmt.format(widget.firstVisited!)}',
+                    '+${widget.xpEarned} XP',
                     style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
+                      fontSize: 18,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                ],
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                  child: FilledButton(
-                    onPressed: _handlePrimary,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFFFF6F00),
+                  if (widget.firstVisited != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'First visited: ${_firstVisitedFmt.format(widget.firstVisited!)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    child: Text(
-                      widget._isLast
-                          ? (widget.totalCount == 1 ? 'Explore your map' : 'Done')
-                          : 'Next →',
+                  ],
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    child: FilledButton(
+                      onPressed: _handlePrimary,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFFFF6F00),
+                      ),
+                      child: Text(
+                        widget._isLast
+                            ? (widget.totalCount == 1
+                                ? 'Explore your map'
+                                : 'Done')
+                            : 'Next →',
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
+          // Confetti overlay — fires with national flag colours after globe settles.
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              emissionFrequency: 0.04,
+              gravity: 0.2,
+              colors: _confettiColors,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

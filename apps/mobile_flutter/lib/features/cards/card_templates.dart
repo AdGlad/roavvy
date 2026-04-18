@@ -384,6 +384,7 @@ class PassportStampsCard extends StatelessWidget {
     this.stampColor,
     this.dateColor,
     this.transparentBackground = false,
+    this.seed,
   });
 
   final List<String> countryCodes;
@@ -422,6 +423,11 @@ class PassportStampsCard extends StatelessWidget {
   /// procedural [StampPainter] instead of the SVG country stamps.
   final VoidCallback? onAssetsLoaded;
 
+  /// Optional layout seed. When non-null, overrides the deterministic hash
+  /// default so that each Shuffle button press produces a visually different
+  /// arrangement (ADR-125).
+  final int? seed;
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
@@ -445,6 +451,7 @@ class PassportStampsCard extends StatelessWidget {
                   stampColor: stampColor,
                   dateColor: dateColor,
                   transparentBackground: transparentBackground,
+                  seed: seed,
                 );
               },
             ),
@@ -488,6 +495,7 @@ class _PassportPagePainter extends StatefulWidget {
     this.stampColor,
     this.dateColor,
     this.transparentBackground = false,
+    this.seed,
   });
 
   final List<String> countryCodes;
@@ -501,6 +509,7 @@ class _PassportPagePainter extends StatefulWidget {
   final Color? stampColor;
   final Color? dateColor;
   final bool transparentBackground;
+  final int? seed;
 
   /// See [PassportStampsCard.onAssetsLoaded].
   final VoidCallback? onAssetsLoaded;
@@ -530,7 +539,8 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         old.entryOnly != widget.entryOnly ||
         old.forPrint != widget.forPrint ||
         old.stampColor != widget.stampColor ||
-        old.dateColor != widget.dateColor) {
+        old.dateColor != widget.dateColor ||
+        old.seed != widget.seed) {
       setState(() {
         _applyLayoutResult(_computeLayoutResult());
         _assets = const {};
@@ -552,6 +562,7 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         canvasSize: widget.canvasSize,
         entryOnly: widget.entryOnly,
         forPrint: widget.forPrint,
+        seed: widget.seed,
       );
 
   Future<void> _loadAssets() async {
@@ -698,13 +709,9 @@ class _MultiStampPainter extends CustomPainter {
     final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
     _drawTitle(canvas, size, titleOverride ?? defaultTitle, textColor);
 
-    // 4. Wavy cancel lines and vignette: paper-only effects.
-    // Skip when transparentBackground=true (POD / white-ink mode) — they are
-    // designed for parchment and appear as dark artifacts on a transparent canvas.
+    // 4. Vignette: paper-only effect.
+    // Skip when transparentBackground=true (POD / white-ink mode).
     if (!transparentBackground) {
-      if (stamps.isNotEmpty) {
-        _drawWavyCancelLines(canvas, size, stamps.first.seed);
-      }
       _drawVignette(canvas, size);
     }
   }
@@ -773,8 +780,8 @@ class _MultiStampPainter extends CustomPainter {
     )..layout(maxWidth: size.width - 40);
 
     final x = (size.width - tp.width) / 2;
-    // Positioned in the top safe zone (18% of height)
-    final y = (size.height * 0.18 - tp.height) / 2 + 4;
+    // Pinned near the very top with a small fixed margin.
+    const y = 10.0;
     tp.paint(canvas, Offset(x, y));
   }
 
@@ -783,7 +790,9 @@ class _MultiStampPainter extends CustomPainter {
   void _drawAssetStamp(Canvas canvas, StampData stamp, StampAsset asset) {
     final meta = asset.metadata;
     final baseRadius = 38.0 * stamp.scale;
-    final targetW = baseRadius * 2.8;
+    // meta.visualScale lets the JSON override apparent size to compensate for
+    // stamps whose PNG assets have more whitespace than others (default 1.0).
+    final targetW = baseRadius * 2.1 * meta.visualScale;
     final targetH = targetW * (meta.imageHeight / meta.imageWidth);
 
     canvas.save();

@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:confetti/confetti.dart';
 import 'package:country_lookup/country_lookup.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:region_lookup/region_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,11 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import '../cards/card_templates.dart';
+import '../map/country_centroids.dart';
+import '../map/country_visual_state.dart';
+import '../map/globe_painter.dart';
+import '../map/globe_projection.dart';
 import '../xp/xp_event.dart';
 import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
@@ -453,9 +457,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               ),
             ),
           );
-        } else {
+        } else if (scanResult is _NothingNew) {
+          // No new countries but user has existing visits — go to map.
           widget.onScanComplete?.call();
         }
+        // else: effective.isEmpty — no geotagged photos found at all.
+        // Stay on scan screen; _EmptyResultsHint is shown when !_scanning.
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -546,9 +553,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   const SizedBox(height: 24),
                   if (_error != null) _ErrorView(message: _error!),
                   if (_scanning)
-                    _ScanningView(
-                      progress: _scanProgress,
-                      liveNewCodes: List.unmodifiable(_liveNewCodes),
+                    Expanded(
+                      child: _ScanningView(
+                        progress: _scanProgress,
+                        liveNewCodes: List.unmodifiable(_liveNewCodes),
+                      ),
                     ),
                   if (!_scanning) ...[
                     if (_lastScanStats != null)
@@ -794,7 +803,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     if (_burstCooldown?.isActive == true) return;
     _confettiCtrl?.play();
     _burstCount++;
-    _burstCooldown = Timer(const Duration(milliseconds: 500), () {});
+    _burstCooldown = Timer(const Duration(seconds: 8), () {});
   }
 
   @override
@@ -820,27 +829,35 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const LinearProgressIndicator(value: null),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
-            const SizedBox(height: 4),
-            const Text('Detecting visited countries'),
-            const SizedBox(height: 12),
-            _ScanLiveMap(liveNewCodes: widget.liveNewCodes),
-            if (widget.liveNewCodes.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Countries found',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+            // Animated globe — replaces flat mini-map.
+            _ScanGlobeWidget(liveNewCodes: widget.liveNewCodes),
+            const SizedBox(height: 8),
+            // Two-panel: country list (left) | passport preview (right).
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _LiveCountryList(
+                      liveNewCodes: widget.liveNewCodes,
+                      reduceMotion: reduceMotion,
+                    ),
+                  ),
+                  Container(width: 1, color: theme.dividerColor),
+                  Expanded(
+                    child: _ScanPassportPreview(
+                      liveNewCodes: widget.liveNewCodes,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              // Newest first.
-              for (final code in widget.liveNewCodes.reversed)
-                _LiveCountryRow(isoCode: code, reduceMotion: reduceMotion),
-            ],
+            ),
           ],
         ),
         // Toast overlay
@@ -855,7 +872,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
             ),
           ),
         // Confetti — skip when reduce-motion is enabled
-        if (_confettiCtrl != null && !MediaQuery.disableAnimationsOf(context))
+        if (_confettiCtrl != null && !reduceMotion)
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
@@ -863,7 +880,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               blastDirectionality: BlastDirectionality.explosive,
               emissionFrequency: 0.6,
               numberOfParticles: 8,
-              gravity: 0.3,
+              gravity: 0.1,
               shouldLoop: false,
               colors: [
                 colorScheme.primary,
@@ -914,98 +931,291 @@ class _DiscoveryToastBanner extends StatelessWidget {
   }
 }
 
-// ── Inline scan world map ─────────────────────────────────────────────────────
+// ── Animated globe for scan-in-progress screen ────────────────────────────────
 
-class _ScanLiveMap extends ConsumerStatefulWidget {
-  const _ScanLiveMap({required this.liveNewCodes});
+/// Spinning globe widget shown during scanning.
+///
+/// When [liveNewCodes] grows by one, the globe smoothly animates to that
+/// country's centroid and zooms in so the full country is visible. The newest
+/// country is rendered as [CountryVisualState.newlyDiscovered] (bright gold);
+/// all previously found countries are [CountryVisualState.visited] (depth gold).
+/// A soft pulsing halo sits over the newest country's centroid.
+class _ScanGlobeWidget extends ConsumerStatefulWidget {
+  const _ScanGlobeWidget({required this.liveNewCodes});
   final List<String> liveNewCodes;
 
   @override
-  ConsumerState<_ScanLiveMap> createState() => _ScanLiveMapState();
+  ConsumerState<_ScanGlobeWidget> createState() => _ScanGlobeWidgetState();
 }
 
-class _ScanLiveMapState extends ConsumerState<_ScanLiveMap> {
-  final _mapController = MapController();
-  Timer? _debounceTimer;
-  String? _pendingCode;
+class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
+    with TickerProviderStateMixin {
+  // Current rendered projection.
+  GlobeProjection _projection = const GlobeProjection(scale: 1.0);
+
+  // Animation driving globe travel to a new country.
+  AnimationController? _travelCtrl;
+  Animation<double>? _travelAnim;
+
+  // Animation that zooms back out after arriving at a country.
+  AnimationController? _zoomOutCtrl;
+
+  // Slow idle spin when no country update is in flight.
+  late final AnimationController _spinCtrl;
+
+  // Pulse halo for the newest country.
+  late final AnimationController _pulseCtrl;
+
+  // Projection at the start of the last travel animation.
+  GlobeProjection _fromProjection = const GlobeProjection(scale: 1.0);
+  // Target projection for the current travel animation.
+  GlobeProjection _toProjection = const GlobeProjection(scale: 1.0);
+
+  // ISO code of the country currently highlighted (newest).
+  String? _highlightedCode;
 
   @override
-  void didUpdateWidget(_ScanLiveMap oldWidget) {
+  void initState() {
+    super.initState();
+    _spinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_ScanGlobeWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.liveNewCodes.length > oldWidget.liveNewCodes.length) {
-      _scheduleCamera(widget.liveNewCodes.last);
+      _travelTo(widget.liveNewCodes.last);
     }
   }
 
-  void _scheduleCamera(String code) {
-    _pendingCode = code;
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
-      if (!mounted || _pendingCode == null) return;
-      final polygons = ref.read(polygonsProvider);
-      final matches = polygons.where((p) => p.isoCode == _pendingCode).toList();
-      if (matches.isEmpty) return;
-      final allPoints = [
-        for (final p in matches)
-          for (final (lat, lng) in p.vertices) LatLng(lat, lng),
-      ];
-      if (allPoints.isEmpty) return;
-      final bounds = LatLngBounds.fromPoints(allPoints);
-      _mapController.fitCamera(
-        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(24)),
-      );
-      _pendingCode = null;
+  void _travelTo(String code) {
+    final centroid = kCountryCentroids[code];
+    final targetLat = centroid != null ? centroid.$1 * math.pi / 180.0 : 0.0;
+    final targetLng = centroid != null ? centroid.$2 * math.pi / 180.0 : 0.0;
+
+    const zoomInScale = 1.4;
+    final departureScale = _projection.scale;
+
+    // Cancel any in-progress zoom-out before starting a new travel.
+    _zoomOutCtrl?.dispose();
+    _zoomOutCtrl = null;
+
+    _fromProjection = _projection;
+    final dLng = _angularDelta(_fromProjection.rotLng, -targetLng);
+    // rotLat = +targetLat (positive) centres the country vertically.
+    // rotLng targets -targetLng via the shortest arc.
+    _toProjection = GlobeProjection(
+      rotLat: targetLat,
+      rotLng: _fromProjection.rotLng + dLng,
+      scale: zoomInScale,
+    );
+
+    _travelCtrl?.dispose();
+    _travelCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _travelAnim = CurvedAnimation(
+      parent: _travelCtrl!,
+      curve: Curves.easeInOut,
+    );
+
+    _travelCtrl!.addListener(() {
+      if (!mounted) return;
+      final t = _travelAnim!.value;
+      setState(() {
+        _projection = GlobeProjection(
+          rotLat: _lerpDouble(_fromProjection.rotLat, _toProjection.rotLat, t),
+          rotLng: _lerpDouble(_fromProjection.rotLng, _toProjection.rotLng, t),
+          scale: _lerpDouble(departureScale, zoomInScale, t),
+        );
+      });
     });
+
+    _travelCtrl!.addStatusListener((status) {
+      if (status != AnimationStatus.completed) return;
+      setState(() => _projection = _toProjection);
+
+      // Phase 2: zoom back out to normal scale.
+      final lockedLat = _toProjection.rotLat;
+      final lockedLng = _toProjection.rotLng;
+      _zoomOutCtrl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 800),
+      );
+      final zoomAnim = CurvedAnimation(
+        parent: _zoomOutCtrl!,
+        curve: Curves.easeOut,
+      );
+      _zoomOutCtrl!.addListener(() {
+        if (!mounted) return;
+        setState(() {
+          _projection = GlobeProjection(
+            rotLat: lockedLat,
+            rotLng: lockedLng,
+            scale: _lerpDouble(zoomInScale, 1.0, zoomAnim.value),
+          );
+        });
+      });
+      _zoomOutCtrl!.addStatusListener((s) {
+        if (s == AnimationStatus.completed && mounted) {
+          setState(() {
+            _projection = GlobeProjection(
+              rotLat: lockedLat,
+              rotLng: lockedLng,
+              scale: 1.0,
+            );
+          });
+        }
+      });
+      _zoomOutCtrl!.forward();
+    });
+
+    setState(() => _highlightedCode = code);
+    _travelCtrl!.forward();
   }
+
+  /// Angular delta from [from] to [to], clamped to [−π, π].
+  double _angularDelta(double from, double to) {
+    var d = to - from;
+    while (d > math.pi) {
+      d -= 2 * math.pi;
+    }
+    while (d < -math.pi) {
+      d += 2 * math.pi;
+    }
+    return d;
+  }
+
+  double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
-    _mapController.dispose();
+    _travelCtrl?.dispose();
+    _zoomOutCtrl?.dispose();
+    _spinCtrl.dispose();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final polygons = ref.watch(polygonsProvider);
-    if (polygons.isEmpty) return const SizedBox.shrink();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    final discoveredSet = widget.liveNewCodes.toSet();
+    // Build visual states: newest = newlyDiscovered; rest = visited.
+    final visualStates = <String, CountryVisualState>{};
+    for (final code in widget.liveNewCodes) {
+      visualStates[code] = CountryVisualState.visited;
+    }
+    if (_highlightedCode != null) {
+      visualStates[_highlightedCode!] = CountryVisualState.newlyDiscovered;
+    }
 
-    final unvisitedPolygons = polygons
-        .where((p) => !discoveredSet.contains(p.isoCode))
-        .map((p) => Polygon(
-              points: [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
-              color: const Color(0xFF1E3A5F),
-            ))
-        .toList();
+    return AnimatedBuilder(
+      animation: Listenable.merge([_spinCtrl, _pulseCtrl]),
+      builder: (context, _) {
+        // Compute inside builder so values update every animation tick.
+        final isIdle = (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
+            (_zoomOutCtrl == null || !_zoomOutCtrl!.isAnimating);
+        final displayProjection = (isIdle && !reduceMotion)
+            ? GlobeProjection(
+                rotLat: _projection.rotLat,
+                rotLng: _projection.rotLng + _spinCtrl.value * 0.3,
+                scale: _projection.scale,
+              )
+            : _projection;
+        final pulseValue = reduceMotion ? 0.0 : _pulseCtrl.value;
 
-    final visitedPolygons = polygons
-        .where((p) => discoveredSet.contains(p.isoCode))
-        .map((p) => Polygon(
-              points: [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
-              color: const Color(0xFFD4A017),
-            ))
-        .toList();
-
-    return SizedBox(
-      height: 220,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: FlutterMap(
-          mapController: _mapController,
-          options: const MapOptions(
-            initialCenter: LatLng(20, 0),
-            initialZoom: 1.5,
-            interactionOptions: InteractionOptions(flags: 0),
+        return SizedBox(
+          height: 260,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CustomPaint(
+              painter: GlobePainter(
+                polygons: polygons,
+                visualStates: visualStates,
+                tripCounts: const {},
+                projection: displayProjection,
+                highlightedCode: _highlightedCode,
+                pulseValue: pulseValue,
+              ),
+              child: const SizedBox.expand(),
+            ),
           ),
-          children: [
-            ColoredBox(color: const Color(0xFF0D2137)),
-            PolygonLayer(polygons: unvisitedPolygons),
-            PolygonLayer(polygons: visitedPolygons),
-          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Left panel: growing country list ─────────────────────────────────────────
+
+class _LiveCountryList extends StatelessWidget {
+  const _LiveCountryList({
+    required this.liveNewCodes,
+    required this.reduceMotion,
+  });
+  final List<String> liveNewCodes;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    if (liveNewCodes.isEmpty) {
+      return const Center(
+        child: Text(
+          'Countries will appear here\u2026',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+          textAlign: TextAlign.center,
         ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      itemCount: liveNewCodes.length,
+      itemBuilder: (context, i) => _LiveCountryRow(
+        isoCode: liveNewCodes[i],
+        reduceMotion: reduceMotion,
       ),
+    );
+  }
+}
+
+// ── Right panel: live passport stamp preview ──────────────────────────────────
+
+class _ScanPassportPreview extends StatelessWidget {
+  const _ScanPassportPreview({required this.liveNewCodes});
+  final List<String> liveNewCodes;
+
+  @override
+  Widget build(BuildContext context) {
+    if (liveNewCodes.isEmpty) {
+      return const Center(
+        child: Text(
+          'Stamp preview',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        final ratio = (h > 0 && h.isFinite) ? w / h : 3.0 / 2.0;
+        return PassportStampsCard(
+          countryCodes: liveNewCodes,
+          aspectRatio: ratio,
+          trips: const [],
+          entryOnly: true,
+        );
+      },
     );
   }
 }

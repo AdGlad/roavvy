@@ -18,15 +18,14 @@ class IosOnDeviceTitleGenerator implements TitleGenerationService {
   @override
   Future<TitleGenerationResult> generate(TitleGenerationRequest request) async {
     try {
+      // Year fields are intentionally omitted — titles must not include years
+      // (ADR-125). The Swift plugin no longer reads startYear / endYear.
       final response = await _channel.invokeMethod<String>(
         'generateTitle',
         {
           'countryCodes': request.countryCodes,
           'countryNames': request.countryNames,
           'regionNames': request.regionNames,
-          if (request.startYear != null) 'startYear': request.startYear,
-          if (request.endYear != null) 'endYear': request.endYear,
-          'cardType': request.cardType.name,
         },
       );
 

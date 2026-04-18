@@ -94,8 +94,9 @@ class CardEditorScreen extends ConsumerStatefulWidget {
 
 class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   HeartFlagOrder _order = HeartFlagOrder.randomized;
-  bool _entryOnly = false;
+  final bool _entryOnly = false;
   bool _portrait = true;
+  int? _stampLayoutSeed; // null = deterministic hash default (passport only)
   RangeValues? _yearSelection;
   late TextEditingController _titleController;
   String? _titleOverride;
@@ -116,6 +117,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   void initState() {
     super.initState();
     _titleController = TextEditingController();
+    // Passport card is always portrait — prevent inheriting landscape state.
+    if (widget.templateType == CardTemplateType.passport) {
+      _portrait = true;
+    }
   }
 
   @override
@@ -228,6 +233,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 defaultTitle: defaultTitle,
                 portrait: _portrait,
                 isTitleGenerating: _isTitleGenerating,
+                showOrientationToggle:
+                    widget.templateType != CardTemplateType.passport,
+                showShuffleButton:
+                    widget.templateType == CardTemplateType.passport,
                 onTitleChanged: (v) =>
                     setState(() => _titleOverride = v.isEmpty ? null : v),
                 onTitleCleared: () {
@@ -240,6 +249,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   _portrait = !_portrait;
                   _resetZoom();
                 }),
+                onShuffleStamps: () => setState(
+                  () => _stampLayoutSeed =
+                      math.Random().nextInt(0x7FFFFFFF),
+                ),
               ),
               // ── Sort order (Grid + Heart) ──────────────────────────────
               if (widget.templateType == CardTemplateType.grid ||
@@ -326,23 +339,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     if (_isTitleGenerating) return;
     setState(() => _isTitleGenerating = true);
 
-    // Use slider range directly so the title reflects what the user selected,
-    // not just which trip years happen to fall inside the range.
-    final int? startYear;
-    final int? endYear;
-    if (effectiveRange != null) {
-      startYear = effectiveRange.start.round();
-      final end = effectiveRange.end.round();
-      endYear = end != startYear ? end : null;
-    } else if (trips.isNotEmpty) {
-      startYear = trips.map((t) => t.startedOn.year).reduce(math.min);
-      final end = trips.map((t) => t.startedOn.year).reduce(math.max);
-      endYear = end != startYear ? end : null;
-    } else {
-      startYear = null;
-      endYear = null;
-    }
-
+    // Year is intentionally excluded from the request — the card's date label
+    // already shows the year range; titles must not repeat it (ADR-125).
     final request = TitleGenerationRequest(
       countryCodes: codes,
       countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
@@ -351,8 +349,6 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           .whereType<String>()
           .toSet()
           .toList(),
-      startYear: startYear,
-      endYear: endYear,
       cardType: widget.templateType,
     );
 
@@ -421,6 +417,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           stampColor: null,
           dateColor: null,
           transparentBackground: false,
+          seed: _stampLayoutSeed,
         );
       case CardTemplateType.timeline:
         return TimelineCard(
@@ -631,10 +628,13 @@ class _ControlStrip extends StatelessWidget {
     required this.defaultTitle,
     required this.portrait,
     required this.isTitleGenerating,
+    required this.showOrientationToggle,
+    required this.showShuffleButton,
     required this.onTitleChanged,
     required this.onTitleCleared,
     required this.onGenerateTitle,
     required this.onOrientationToggle,
+    required this.onShuffleStamps,
   });
 
   final TextEditingController titleController;
@@ -642,10 +642,13 @@ class _ControlStrip extends StatelessWidget {
   final String defaultTitle;
   final bool portrait;
   final bool isTitleGenerating;
+  final bool showOrientationToggle;
+  final bool showShuffleButton;
   final ValueChanged<String> onTitleChanged;
   final VoidCallback onTitleCleared;
   final VoidCallback onGenerateTitle;
   final VoidCallback onOrientationToggle;
+  final VoidCallback onShuffleStamps;
 
   @override
   Widget build(BuildContext context) {
@@ -704,24 +707,41 @@ class _ControlStrip extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton.outlined(
-            onPressed: onOrientationToggle,
-            icon: Icon(
-              portrait
-                  ? Icons.stay_current_portrait
-                  : Icons.stay_current_landscape,
-              size: 20,
+          if (showShuffleButton) ...[
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              onPressed: onShuffleStamps,
+              icon: const Icon(Icons.shuffle_rounded, size: 20),
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.all(8),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                side: const BorderSide(color: Colors.white24),
+                minimumSize: const Size(38, 38),
+              ),
+              tooltip: 'Shuffle stamp layout',
             ),
-            style: IconButton.styleFrom(
-              padding: const EdgeInsets.all(8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-              side: const BorderSide(color: Colors.white24),
-              minimumSize: const Size(38, 38),
+          ],
+          if (showOrientationToggle) ...[
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              onPressed: onOrientationToggle,
+              icon: Icon(
+                portrait
+                    ? Icons.stay_current_portrait
+                    : Icons.stay_current_landscape,
+                size: 20,
+              ),
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.all(8),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                side: const BorderSide(color: Colors.white24),
+                minimumSize: const Size(38, 38),
+              ),
+              tooltip: portrait ? 'Switch to landscape' : 'Switch to portrait',
             ),
-            tooltip: portrait ? 'Switch to landscape' : 'Switch to portrait',
-          ),
+          ],
         ],
       ),
     );

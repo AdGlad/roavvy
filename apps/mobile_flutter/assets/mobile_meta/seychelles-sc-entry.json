@@ -3,22 +3,20 @@
   "png_asset": "seychelles-sc-entry.png",
   "placeholders": {
     "date": "{{DATE}}",
-    "color": "{{COLOR}}",
-    "date_format": "{{DATE_FORMAT}}"
+    "color": "{{COLOR}}"
   },
   "date": {
-    "x": 199.0,
-    "y": 127.5,
+    "x": 373.9,
+    "y": 396.6,
     "rotation": 0.0,
-    "font_size": 30,
+    "font_size": 75,
     "font_family": "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
     "font_weight": 700,
-    "letter_spacing": -2.48,
-    "anchor": "middle",
-    "date_format": "dd MMM yyyy"
+    "letter_spacing": 1.2,
+    "anchor": "middle"
   },
   "image": {
-    "width": 400,
-    "height": 267
+    "width": 780,
+    "height": 782
   }
 }
