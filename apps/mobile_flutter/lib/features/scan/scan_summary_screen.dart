@@ -9,6 +9,7 @@ import '../../core/flag_colours.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
 import '../map/country_visual_state.dart';
+import '../map/country_celebration_carousel.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import '../merch/merch_country_selection_screen.dart';
@@ -177,46 +178,45 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     }
   }
 
-  /// Pushes [DiscoveryOverlay] for each new country sequentially. (ADR-084, ADR-108)
+  /// Launches the country celebration flow for all new countries (ADR-126).
   ///
-  /// All discovered countries are shown — no cap. A [kCelebrationGapMs] gap
-  /// is inserted between overlays (ADR-108). [onSkipAll] is null only on the
-  /// true final overlay.
+  /// For a single discovery, [DiscoveryOverlay] is used (single-country path).
+  /// For multiple discoveries, [CountryCelebrationCarousel] is pushed as a
+  /// single route — eliminating the repeated push/pop stack and the flicker
+  /// back to this screen between countries (ADR-084, ADR-108 superseded by
+  /// ADR-126 for the multi-country path).
   Future<void> _pushDiscoveryOverlays() async {
     final codes = widget.newCodes;
-    final total = codes.length;
     final firstVisitedByCode = {
       for (final c in widget.newCountries) c.countryCode: c.firstSeen,
     };
-    bool skipped = false;
 
-    for (var i = 0; i < total; i++) {
-      if (!mounted || skipped) break;
-
+    if (codes.length == 1) {
+      // Single-country path: retain DiscoveryOverlay (simpler, no carousel).
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           settings: const RouteSettings(name: DiscoveryOverlay.routeName),
           builder: (_) => DiscoveryOverlay(
-            isoCode: codes[i],
+            isoCode: codes.first,
             xpEarned: 50,
-            currentIndex: i,
-            totalCount: total,
-            firstVisited: firstVisitedByCode[codes[i]],
+            firstVisited: firstVisitedByCode[codes.first],
             onDone: () => Navigator.of(context).pop(),
-            onSkipAll: i == total - 1
-                ? null
-                : () {
-                    skipped = true;
-                    Navigator.of(context).pop();
-                  },
           ),
         ),
       );
-
-      // Insert gap between celebrations (ADR-108). Skip after last overlay.
-      if (mounted && !skipped && i < total - 1) {
-        await Future.delayed(const Duration(milliseconds: kCelebrationGapMs));
-      }
+    } else {
+      // Multi-country path: single carousel push, no intermediate navigation.
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          settings:
+              const RouteSettings(name: CountryCelebrationCarousel.routeName),
+          builder: (_) => CountryCelebrationCarousel(
+            codes: codes,
+            firstVisitedByCode: firstVisitedByCode,
+            onDone: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
     }
 
     if (!mounted) return;
