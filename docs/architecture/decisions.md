@@ -4,7 +4,7 @@ Lightweight ADRs for Roavvy. Each decision records **what** was chosen, **why**,
 
 ---
 
-## ADR-123 — M67 Grid and Heart SVG Flag Loading: ChangeNotifier-Based Async Repaint
+## ADR-124 — M67 Grid and Heart SVG Flag Loading: ChangeNotifier-Based Async Repaint
 
 **Status:** Accepted
 
