@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_branding_footer.dart';
@@ -14,7 +15,28 @@ import 'passport_stamp_model.dart';
 import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
-// ── Adaptive grid sizing ──────────────────────────────────────────────────────
+// ── Shared constants ─────────────────────────────────────────────────────────
+
+String _flag(String code) {
+  if (code.length != 2) return '';
+  const base = 0x1F1E6;
+  return String.fromCharCode(base + code.codeUnitAt(0) - 65) +
+      String.fromCharCode(base + code.codeUnitAt(1) - 65);
+}
+
+// ── Grid tile-size helper (ADR-102 / ADR-118) ─────────────────────────────────
+
+/// Backward-compatible delegate to [gridLayout] (ADR-118).
+///
+/// Retained for any callers that use the old `(canvasArea, n)` signature.
+/// New code should call [gridLayout] directly.
+@visibleForTesting
+double gridTileSize(double canvasArea, int n) {
+  assert(n > 0, 'n must be > 0');
+  // Approximate a square canvas from the area so the delegate is meaningful.
+  final side = math.sqrt(canvasArea);
+  return gridLayout(Size(side, side), n).tileSize;
+}
 
 // ── GridFlagsCard ─────────────────────────────────────────────────────────────
 
@@ -156,13 +178,12 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final layout = GridMathEngine.calculate(
-                    width: size.width,
-                    height: size.height,
-                    itemCount: widget.countryCodes.length,
+                  final layout = gridLayout(
+                    size,
+                    widget.countryCodes.length,
                   );
-                  final tileWidth = layout.columns > 0
-                      ? size.width / layout.columns
+                  final tileWidth = layout.cols > 0
+                      ? size.width / layout.cols
                       : 0.0;
                   _preloadSvgs(tileWidth);
                   return CustomPaint(
@@ -179,6 +200,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
             CardBrandingFooter(
               countryCount: widget.countryCodes.length,
               dateLabel: widget.dateLabel,
+              customLabel: widget.titleOverride,
             ),
           ],
         ),
@@ -206,23 +228,22 @@ class _GridPainter extends CustomPainter {
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final layout = GridMathEngine.calculate(
-      width: size.width,
-      height: size.height,
-      itemCount: countryCodes.length,
+    final layout = gridLayout(
+      size,
+      countryCodes.length,
     );
 
-    if (layout.columns == 0 || layout.rows == 0) return;
+    if (layout.cols == 0 || layout.rows == 0) return;
 
     // Stretch tiles to fill the canvas with no gaps (ADR-123).
-    final tileWidth = size.width / layout.columns;
+    final tileWidth = size.width / layout.cols;
     final tileHeight = size.height / layout.rows;
 
     int index = 0;
     for (int r = 0; r < layout.rows; r++) {
       final itemsInThisRow = r == layout.rows - 1
-          ? countryCodes.length - (r * layout.columns)
-          : layout.columns;
+          ? countryCodes.length - (r * layout.cols)
+          : layout.cols;
 
       for (int c = 0; c < itemsInThisRow; c++) {
         final code = countryCodes[index];
@@ -303,11 +324,14 @@ class HeartFlagsCard extends StatefulWidget {
   final HeartFlagOrder flagOrder;
   final HeartRenderConfig config;
   final double aspectRatio;
-  final String? titleOverride;
 
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
   final String dateLabel;
+
+  /// Optional user-supplied title; replaces the auto `"{N} countries"` label
+  /// in [CardBrandingFooter] when non-null (ADR-120).
+  final String? titleOverride;
 
   @override
   State<HeartFlagsCard> createState() => _HeartFlagsCardState();
@@ -393,6 +417,7 @@ class _HeartFlagsCardState extends State<HeartFlagsCard> {
                   countryCount: widget.countryCodes.length,
                   dateLabel: widget.dateLabel,
                   backgroundColor: const Color(0xCC0D2137),
+                  customLabel: widget.titleOverride,
                 ),
               ),
             ],
@@ -855,7 +880,7 @@ class _MultiStampPainter extends CustomPainter {
     // ensuring pure white/black text if needed and no artifacts.
     final textColor = const Color(0xFF8B6914);
     _drawBranding(canvas, size, countryCount, dateLabel, textColor);
-    
+
     final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
     _drawTitle(canvas, size, titleOverride ?? defaultTitle, textColor);
 

@@ -41,30 +41,75 @@ void main() {
       expect(find.text('2018\u20132024'), findsOneWidget);
     });
 
-    testWidgets('shows titleOverride in header when provided', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const GridFlagsCard(
-          countryCodes: ['GB', 'FR'],
-          titleOverride: 'My Adventures',
-        ),
-      ));
-      expect(find.text('MY ADVENTURES'), findsOneWidget);
-    });
-
-    testWidgets('shows default title (country count) when titleOverride is null', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const GridFlagsCard(countryCodes: ['GB', 'FR']),
-      ));
-      expect(find.text('2 COUNTRIES'), findsOneWidget);
+    testWidgets('shows overflow indicator with 50+ countries', (tester) async {
+      final codes = List.generate(50, (i) => String.fromCharCode(65 + i % 26) +
+          String.fromCharCode(65 + (i + 1) % 26));
+      await tester.pumpWidget(_wrap(GridFlagsCard(countryCodes: codes)));
+      // Overflow indicator is drawn on canvas by _GridPainter (not a Text widget).
+      // Verify no exception is thrown and CustomPaint is present.
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CustomPaint), findsWidgets);
     });
 
     testWidgets('uses CustomPaint for non-empty state', (tester) async {
       await tester.pumpWidget(_wrap(
-        const GridFlagsCard(countryCodes: ['GB', 'FR', 'JP']),
+        const GridFlagsCard(countryCodes: ['FR', 'DE', 'JP']),
       ));
       expect(find.byType(CustomPaint), findsWidgets);
+      expect(tester.takeException(), isNull);
     });
 
+    testWidgets('titleOverride shown in branding footer (ADR-120)', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(
+          countryCodes: ['GB', 'FR'],
+          dateLabel: '2024',
+          titleOverride: 'My Grid Card',
+        ),
+      ));
+      expect(find.text('My Grid Card'), findsOneWidget);
+      // Default count text must not appear when titleOverride is set.
+      expect(find.text('2 countries'), findsNothing);
+    });
+
+    testWidgets('no crash when switching portrait to landscape', (tester) async {
+      // Simulate portrait → landscape by changing the wrapping SizedBox dimensions.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 200,
+              height: 300,
+              child: GridFlagsCard(
+                countryCodes: const ['FR', 'DE', 'JP', 'US', 'GB'],
+                aspectRatio: 200 / 300,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CustomPaint), findsWidgets);
+
+      // Switch to landscape dimensions.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              height: 200,
+              child: GridFlagsCard(
+                countryCodes: const ['FR', 'DE', 'JP', 'US', 'GB'],
+                aspectRatio: 300 / 200,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CustomPaint), findsWidgets);
+    });
   });
 
   group('HeartFlagsCard', () {
@@ -114,23 +159,16 @@ void main() {
       expect(find.text('3 countries'), findsOneWidget);
     });
 
-    testWidgets('renders without exception when titleOverride is provided', (tester) async {
+    testWidgets('titleOverride shown in branding footer (ADR-120)', (tester) async {
       await tester.pumpWidget(_wrap(
         const HeartFlagsCard(
           countryCodes: ['GB', 'FR'],
+          dateLabel: '2024',
           titleOverride: 'My Heart Card',
         ),
       ));
-      expect(find.byType(HeartFlagsCard), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('renders without exception when titleOverride is null', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const HeartFlagsCard(countryCodes: ['GB', 'FR']),
-      ));
-      expect(find.byType(HeartFlagsCard), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      expect(find.text('My Heart Card'), findsOneWidget);
+      expect(find.text('2 countries'), findsNothing);
     });
   });
 
@@ -169,6 +207,16 @@ void main() {
       expect(find.byType(PassportStampsCard), findsOneWidget);
     });
 
+    testWidgets('renders without exception for 2 countries', (tester) async {
+      // PassportStampsCard draws branding on canvas via CustomPainter (ADR-117),
+      // not as a CardBrandingFooter widget — so we just verify no exception.
+      await tester.pumpWidget(_wrap(
+        const PassportStampsCard(
+            countryCodes: ['GB', 'FR'], trips: []),
+      ));
+      expect(find.byType(PassportStampsCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('TimelineCard', () {

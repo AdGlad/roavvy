@@ -299,7 +299,7 @@ class _LocalMockupPreviewScreenState
     if (!_isTshirt || !mounted) return;
 
     final levelLabel = ref.read(xpNotifierProvider).levelLabel;
-    final isDark = _colour == 'Black' || _colour == 'Blue' || _colour == 'Red';
+    final isDark = _colour == 'Black' || _colour == 'Navy' || _colour == 'Red';
     final textColor = isDark ? Colors.white : Colors.black;
 
     try {
@@ -624,9 +624,9 @@ class _LocalMockupPreviewScreenState
         if (widget.cardId != null) 'cardId': widget.cardId,
         'artworkConfirmationId': confirmationId,
         'mockupApprovalId': approvalId,
-        'backCardBase64': base64Encode(_artworkBytes),
+        'backImageBase64': base64Encode(_artworkBytes),
         if (_isTshirt && _frontRibbonBytes != null)
-          'frontCardBase64': base64Encode(_frontRibbonBytes!),
+          'frontImageBase64': base64Encode(_frontRibbonBytes!),
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
@@ -740,6 +740,24 @@ class _LocalMockupPreviewScreenState
     // During approving: show the animated "preparing" overlay over the shirt.
     if (_state == _MockupState.approving) {
       return _ApprovingView(shirt: _buildLocalMockupArea(theme));
+    }
+
+    final isReady = _state == _MockupState.ready;
+    final activeMockupUrl = _showingFront ? _frontMockupUrl : _backMockupUrl;
+
+    if (isReady && activeMockupUrl != null) {
+      // ready state: Printful photorealistic mockup.
+      return Image.network(
+        activeMockupUrl,
+        key: ValueKey(activeMockupUrl),
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return _buildLocalMockupArea(theme);
+        },
+        errorBuilder: (context, error, stack) =>
+            _buildLocalMockupArea(theme),
+      );
     }
 
     final status = _printfulStatus;
