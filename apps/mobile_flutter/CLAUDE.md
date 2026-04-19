@@ -1,51 +1,44 @@
-# apps/mobile_flutter — CLAUDE.md
+# apps/mobile_flutter
 
-## Purpose
-
-The Flutter mobile app. iOS-first. Bridges to Swift PhotoKit via a platform channel to scan photo metadata without uploading images. Handles offline country detection, local persistence, Firebase sync, and user-facing features (map, achievements, sharing).
+Flutter (Dart) + Swift PhotoKit bridge. iOS-first.
 
 ## Stack
 
-- **Flutter** (Dart) — UI, state management, business logic
-- **Swift / PhotoKit** — native photo library access (iOS)
-- **Firebase Auth** — anonymous auth, optional sign-in
-- **Cloud Firestore** — sync of derived metadata only
-- **`packages/country_lookup`** — offline GPS → country resolution
-- **`packages/shared_models`** — shared data types
+| Layer | Tech |
+|---|---|
+| UI / state | Flutter + Riverpod (providers alongside feature, not in global folder) |
+| Persistence | Drift SQLite (source of truth) |
+| Native bridge | Swift MethodChannel + EventChannel (`roavvy/photo_scan`) |
+| Sync | Cloud Firestore (derived metadata only) |
+| Auth | Firebase Auth (anonymous → Apple Sign-In upgrade) |
+| Country lookup | `packages/country_lookup` (offline, bundled asset) |
+| Region lookup | `packages/region_lookup` (offline, bundled binary) |
 
-## Key Rules
+## Hard rules
 
-1. **Never pass photo binary data through the platform channel.** Only GPS coordinates, timestamps, and asset identifiers.
-2. **Request photo permissions lazily** — only when the user initiates a scan, never on app launch.
-3. **All Firestore writes are derived metadata only** — no filenames, no thumbnails, no EXIF beyond GPS and date.
-4. **Offline-first state**: the app must be fully usable (read, browse, edit) without a network connection. Sync happens opportunistically.
-5. **User edits are the source of truth.** Store edits locally first; sync to Firestore as a secondary step.
+1. Platform channel carries only `{lat, lng, capturedAt, assetId}` — never photo binary data.
+2. Photo permission requested lazily (on user-initiated scan only).
+3. Firestore writes: `{countryCode, firstSeen, lastSeen}` + achievement state + share tokens only.
+4. App must be fully usable offline (read, browse, edit). Sync is opportunistic.
+5. User edits (add/remove) written to Drift first; Firestore is secondary.
 
-## Directory Conventions (once scaffolded)
+## Structure
 
 ```
 lib/
-  features/          Feature-first organisation (scan, map, achievements, sharing)
-  core/              App-wide services, routing, theme
-  data/              Repository layer, local DB, Firestore adapters
+  features/   Feature-first (scan, map, cards, achievements, merch, …)
+  core/       Routing, theme, providers.dart, services
+  data/       Repository layer, Firestore adapters
 ios/
   Runner/
-    PhotoScanPlugin/ Swift platform channel implementation
+    PhotoScanPlugin/   Swift EventChannel implementation
+    AiTitlePlugin.swift
 ```
-
-## State Management
-
-Use Riverpod. Providers live alongside their feature, not in a global `providers/` folder.
 
 ## Testing
 
-- Unit tests for all repository and domain logic.
-- Widget tests for any non-trivial UI component.
+- Unit tests for all repository + domain logic.
+- Widget tests for non-trivial UI.
+- Integration tests for scan flow (mock platform channel).
 - No golden tests unless explicitly requested.
-- Integration tests for the scan flow (mock the platform channel).
-
-## Related Docs
-
-- [Mobile Scan Flow](../../docs/architecture/mobile_scan_flow.md)
-- [Privacy Principles](../../docs/architecture/privacy_principles.md)
-- [Offline Strategy](../../docs/architecture/offline_strategy.md)
+- Run: `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt`
