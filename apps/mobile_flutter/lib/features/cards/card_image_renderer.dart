@@ -95,9 +95,10 @@ class CardImageRenderer {
     // the widget tree (e.g. in widget tests). Instead, we chain via .then() so
     // render() returns completer.future immediately, letting the caller pump
     // freely until the capture is complete.
-    final assetsCompleter = template == CardTemplateType.passport
-        ? Completer<void>()
-        : null;
+    final assetsCompleter =
+        (template == CardTemplateType.passport || template == CardTemplateType.grid)
+            ? Completer<void>()
+            : null;
 
     late OverlayEntry entry;
 
@@ -220,6 +221,9 @@ class CardImageRenderer {
           countryCodes: codes,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
+          transparentBackground: transparentBackground,
+          onAssetsLoaded: onAssetsLoaded,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -228,6 +232,7 @@ class CardImageRenderer {
           flagOrder: heartOrder,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

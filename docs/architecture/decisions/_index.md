@@ -128,5 +128,6 @@
 | 121 | M64 Stamp Color Selection Moved to T-Shirt Design Stage | Accepted | Remove color picker from editor; `PassportColorMode` in merch layer; auto-suggest rules |
 | 122 | M65 Printful Dual-Mockup Client: Store and Display Both Placement URLs | Accepted | `_frontMockupUrl` + `_backMockupUrl`; explicit status enum; no silent mixing |
 | 123 | M69 Celebration Globe: Animated Globe Inside DiscoveryOverlay | Accepted | `CelebrationGlobeWidget` with `GlobeProjection`; no third-party 3D lib |
+| 124 | M67 Grid and Heart SVG Flag Loading: ChangeNotifier-Based Async Repaint | Accepted | `StatefulWidget` + `ChangeNotifier repaint:`; async `loadSvgToCache()`; emoji fallback on first frame |
 | 125 | M70 Passport Stamp UX: Portrait Lock, Shuffle Seed, Year-Free Titles | Accepted | Portrait-only passport; nullable shuffle seed; year removed from title generation |
 | 126 | M72 Country Celebration Carousel: Single-Route Multi-Country Flow | Accepted | `CountryCelebrationCarousel` replaces N-deep nav stack; dot progress indicator |

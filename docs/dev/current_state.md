@@ -10,7 +10,7 @@
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
 | Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; achievement gallery |
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |
-| Travel cards | ✅ | Grid, Heart, Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70) |
+| Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70) |
 | Sharing | ✅ | Share sheet; `/share/[token]` web page; token revocation |
 | Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup; `LocalMockupPainter`; Shopify checkout; post-purchase poll |
 | Commerce (web) | ✅ | `/shop` public landing; auth-aware CTA; web checkout in M28 (not started) |

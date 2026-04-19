@@ -41,6 +41,30 @@ void main() {
       expect(find.text('2018\u20132024'), findsOneWidget);
     });
 
+    testWidgets('shows titleOverride in header when provided', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(
+          countryCodes: ['GB', 'FR'],
+          titleOverride: 'My Adventures',
+        ),
+      ));
+      expect(find.text('MY ADVENTURES'), findsOneWidget);
+    });
+
+    testWidgets('shows default title (country count) when titleOverride is null', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(countryCodes: ['GB', 'FR']),
+      ));
+      expect(find.text('2 COUNTRIES'), findsOneWidget);
+    });
+
+    testWidgets('uses CustomPaint for non-empty state', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const GridFlagsCard(countryCodes: ['GB', 'FR', 'JP']),
+      ));
+      expect(find.byType(CustomPaint), findsWidgets);
+    });
+
   });
 
   group('HeartFlagsCard', () {
@@ -88,6 +112,25 @@ void main() {
       ));
       expect(find.byType(CardBrandingFooter), findsOneWidget);
       expect(find.text('3 countries'), findsOneWidget);
+    });
+
+    testWidgets('renders without exception when titleOverride is provided', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HeartFlagsCard(
+          countryCodes: ['GB', 'FR'],
+          titleOverride: 'My Heart Card',
+        ),
+      ));
+      expect(find.byType(HeartFlagsCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders without exception when titleOverride is null', (tester) async {
+      await tester.pumpWidget(_wrap(
+        const HeartFlagsCard(countryCodes: ['GB', 'FR']),
+      ));
+      expect(find.byType(HeartFlagsCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 
