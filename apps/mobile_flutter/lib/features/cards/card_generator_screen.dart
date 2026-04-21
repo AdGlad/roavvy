@@ -124,6 +124,10 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   bool _sharing = false;
   bool _printing = false;
 
+  // All-time country codes cached from the last build, used when navigating to
+  // LocalMockupPreviewScreen to support the front-ribbon mode toggle (M74-T5).
+  List<String> _cachedAllCodes = const [];
+
   // M51 re-confirmation state (ADR-103)
   _CardParams? _lastConfirmedParams;
   String? _artworkConfirmationId;
@@ -182,6 +186,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           }
 
           final allCodes = visits.map((v) => v.countryCode).toList()..sort();
+          _cachedAllCodes = allCodes; // cache for _goToProductBrowser callback
           final allTrips = tripsAsync.valueOrNull
                   ?.where((t) => allCodes.contains(t.countryCode))
                   .toList() ??
@@ -649,6 +654,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => LocalMockupPreviewScreen(
         selectedCodes: codes,
+        allCodes: _cachedAllCodes,
         trips: _lastConfirmedTrips ?? const [],
         artworkImageBytes: _artworkImageBytes!,
         artworkConfirmationId: _artworkConfirmationId!,

@@ -130,20 +130,21 @@ class PassportLayoutEngine {
       if (seen.add(key)) deduped.add(trip);
     }
 
-    // Collect entries and exits separately so all entries occupy the first
-    // half of the grid and exits the second half, keeping pairs far apart.
-    final entries = <_StampEntry>[];
-    final exits = <_StampEntry>[];
+    // Interleave entry and exit stamps per trip so they are evenly distributed
+    // across the stamp list. The caller shuffles the final list, so the order
+    // here only matters for keeping entry/exit of the same trip close in the
+    // source list (which randomisation naturally spreads apart).
+    final result = <_StampEntry>[];
     for (final trip in deduped) {
-      entries.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: true));
+      result.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: true));
       if (!entryOnly) {
-        exits.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
+        result.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
       }
     }
     for (final code in extraCodes) {
-      entries.add(_StampEntry(trip: null, code: code, isEntry: true));
+      result.add(_StampEntry(trip: null, code: code, isEntry: true));
     }
-    return [...entries, ...exits];
+    return result;
   }
 
   /// Lay out stamps for [trips] and any bare [countryCodes] that have no trip.
@@ -183,8 +184,10 @@ class PassportLayoutEngine {
     final sortedTrips = List<TripRecord>.from(trips)
       ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
-    // Build entry list and compute total count.
-    var entries = _buildEntries(sortedTrips, extraCodes, entryOnly);
+    // Build entry list, then shuffle with the seeded RNG so stamps are
+    // distributed randomly across the grid (no entry-top / exit-bottom bias).
+    var entries = _buildEntries(sortedTrips, extraCodes, entryOnly)
+      ..shuffle(rng);
     int totalCount = math.min(entries.length, _kMaxStamps);
 
     // ── Print-safe mode setup (ADR-102) ──────────────────────────────────────
@@ -210,7 +213,8 @@ class PassportLayoutEngine {
         wasForced = true;
         entryOnly = true;
         // Rebuild entries with forced entryOnly so count is halved.
-        entries = _buildEntries(sortedTrips, extraCodes, true);
+        entries = _buildEntries(sortedTrips, extraCodes, true)
+          ..shuffle(rng);
         totalCount = math.min(entries.length, _kMaxStamps);
         // Recompute radius for the reduced count.
         forPrintBaseRadius = totalCount > 0

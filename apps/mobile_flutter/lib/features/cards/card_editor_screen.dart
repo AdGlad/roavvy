@@ -99,6 +99,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   bool _portrait = true;
   int? _stampLayoutSeed; // null = deterministic hash default (passport only)
   RangeValues? _yearSelection;
+  /// Country codes manually deselected by the user. Cleared when year range changes.
+  Set<String> _manuallyDeselectedCodes = {};
   late TextEditingController _titleController;
   String? _titleOverride;
   bool _isTitleGenerating = false;
@@ -211,16 +213,26 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                     ..sort())
               : allCodes;
 
-          final dateLabel = _computeDateLabel(filteredTrips);
+          // Country multi-select: effectiveCodes = displayedCodes minus
+          // any codes the user has manually deselected (M74-T3).
+          final effectiveCodes = displayedCodes
+              .where((c) => !_manuallyDeselectedCodes.contains(c))
+              .toList();
+          // Trips for the effective code set.
+          final effectiveTrips = filteredTrips
+              .where((t) => effectiveCodes.contains(t.countryCode))
+              .toList();
+
+          final dateLabel = _computeDateLabel(effectiveTrips);
           final defaultTitle =
-              '${displayedCodes.length} Countries'
+              '${effectiveCodes.length} Countries'
               '${dateLabel.isNotEmpty ? ' \u00B7 $dateLabel' : ''}';
 
           // Auto-generate title on first load when no override is set.
           if (!_autoGenerateFired && _titleOverride == null) {
             _autoGenerateFired = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _generateTitle(displayedCodes, filteredTrips, effectiveRange);
+              _generateTitle(effectiveCodes, effectiveTrips, effectiveRange);
             });
           }
 
@@ -245,7 +257,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   _titleController.clear();
                 },
                 onGenerateTitle: () =>
-                    _generateTitle(displayedCodes, filteredTrips, effectiveRange),
+                    _generateTitle(effectiveCodes, effectiveTrips, effectiveRange),
                 onOrientationToggle: () => setState(() {
                   _portrait = !_portrait;
                   _resetZoom();
@@ -277,14 +289,44 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   yearMin: yearMin,
                   yearMax: yearMax,
                   values: effectiveRange,
-                  countryCount: displayedCodes.length,
-                  onChanged: (v) =>
-                      setState(() => _yearSelection = v),
+                  countryCount: effectiveCodes.length,
+                  onChanged: (v) => setState(() {
+                    _yearSelection = v;
+                    // Clear manual deselections when year range changes so all
+                    // countries in the new range start selected.
+                    _manuallyDeselectedCodes = {};
+                  }),
                   onChangeEnd: (v) => _generateTitle(
-                    displayedCodes,
-                    filteredTrips,
+                    effectiveCodes,
+                    effectiveTrips,
                     v,
                   ),
+                ),
+              ],
+              // ── Country filter chips ───────────────────────────────────
+              if (displayedCodes.length > 1) ...[
+                const SizedBox(height: 4),
+                _CountryFilterRow(
+                  availableCodes: displayedCodes,
+                  deselectedCodes: _manuallyDeselectedCodes,
+                  onToggle: (code) {
+                    setState(() {
+                      if (_manuallyDeselectedCodes.contains(code)) {
+                        _manuallyDeselectedCodes = {..._manuallyDeselectedCodes}..remove(code);
+                      } else {
+                        // Prevent deselecting the last country.
+                        if (effectiveCodes.length > 1) {
+                          _manuallyDeselectedCodes = {..._manuallyDeselectedCodes, code};
+                        }
+                      }
+                    });
+                    // Regenerate title to reflect new selection (M74-T4).
+                    _generateTitle(
+                      displayedCodes.where((c) => !_manuallyDeselectedCodes.contains(c)).toList(),
+                      filteredTrips.where((t) => !_manuallyDeselectedCodes.contains(t.countryCode)).toList(),
+                      effectiveRange,
+                    );
+                  },
                 ),
               ],
               const SizedBox(height: 8),
@@ -303,8 +345,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                         minScale: 1.0,
                         maxScale: 6.0,
                         child: _buildCardPreview(
-                          displayedCodes,
-                          filteredTrips,
+                          effectiveCodes,
+                          effectiveTrips,
                           dateLabel,
                         ),
                       ),
@@ -318,11 +360,12 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 sharing: _sharing,
                 printing: _printing,
                 onShare: () =>
-                    _onShare(context, displayedCodes, filteredTrips, dateLabel),
+                    _onShare(context, effectiveCodes, effectiveTrips, dateLabel),
                 onPrint: () => _onPrint(
                   context,
-                  displayedCodes,
-                  filteredTrips,
+                  effectiveCodes,
+                  allCodes,
+                  effectiveTrips,
                   effectiveRange,
                   showDateSlider,
                 ),
@@ -509,18 +552,20 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   void _onPrint(
     BuildContext context,
     List<String> codes,
+    List<String> allCodes,
     List<TripRecord> trips,
     RangeValues? effectiveRange,
     bool showDateSlider,
   ) {
     if (_sharing || _printing) return;
     unawaited(
-        _navigateToPrint(context, codes, trips, effectiveRange, showDateSlider));
+        _navigateToPrint(context, codes, allCodes, trips, effectiveRange, showDateSlider));
   }
 
   Future<void> _navigateToPrint(
     BuildContext context,
     List<String> codes,
+    List<String> allCodes,
     List<TripRecord> trips,
     RangeValues? effectiveRange,
     bool showDateSlider,
@@ -547,7 +592,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     if (currentParams == _lastConfirmedParams &&
         _artworkImageBytes != null) {
       if (!context.mounted) return;
-      _goToProductBrowser(context, codes);
+      _goToProductBrowser(context, codes, allCodes);
       return;
     }
 
@@ -592,10 +637,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     });
 
     if (!context.mounted) return;
-    _goToProductBrowser(context, codes);
+    _goToProductBrowser(context, codes, allCodes);
   }
 
-  void _goToProductBrowser(BuildContext context, List<String> codes) {
+  void _goToProductBrowser(BuildContext context, List<String> codes, List<String> allCodes) {
     final uid = ref.read(currentUidProvider);
     String? cardId;
     if (uid != null) {
@@ -615,6 +660,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => LocalMockupPreviewScreen(
         selectedCodes: codes,
+        allCodes: allCodes,
         trips: _lastConfirmedTrips ?? const [],
         artworkImageBytes: _artworkImageBytes!,
         artworkConfirmationId: null,
@@ -630,6 +676,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     ));
   }
 }
+
+const _kAmber = Color(0xFFD4A017);
 
 // ── Control strip ──────────────────────────────────────────────────────────────
 
@@ -995,6 +1043,110 @@ class _ActionBar extends StatelessWidget {
                     )
                   : const Icon(Icons.print_outlined),
               label: const Text('Print'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Country filter row (M74-T3) ────────────────────────────────────────────────
+
+class _CountryFilterRow extends StatelessWidget {
+  const _CountryFilterRow({
+    required this.availableCodes,
+    required this.deselectedCodes,
+    required this.onToggle,
+  });
+
+  final List<String> availableCodes;
+  final Set<String> deselectedCodes;
+  final ValueChanged<String> onToggle;
+
+  static String _flagEmoji(String code) {
+    if (code.length != 2) return '\u{1F30D}';
+    final up = code.toUpperCase();
+    final a = up.codeUnitAt(0) - 65 + 0x1F1E6;
+    final b = up.codeUnitAt(1) - 65 + 0x1F1E6;
+    if (a < 0x1F1E6 || a > 0x1F1FF || b < 0x1F1E6 || b > 0x1F1FF) {
+      return '\u{1F30D}';
+    }
+    return String.fromCharCode(a) + String.fromCharCode(b);
+  }
+
+  static String _shortName(String code) {
+    final name = kCountryNames[code] ?? code;
+    return name.length > 11 ? '${name.substring(0, 9)}\u2026' : name;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCount = availableCodes.where((c) => !deselectedCodes.contains(c)).length;
+    final hasDeselected = deselectedCodes.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.place_outlined, size: 13, color: Colors.white38),
+              const SizedBox(width: 5),
+              Text(
+                hasDeselected
+                    ? '$activeCount of ${availableCodes.length} countries'
+                    : '${availableCodes.length} countries',
+                style: const TextStyle(fontSize: 11, color: Colors.white60),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: availableCodes.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, i) {
+                final code = availableCodes[i];
+                final isSelected = !deselectedCodes.contains(code);
+                return GestureDetector(
+                  onTap: () => onToggle(code),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected ? _kAmber : Colors.white24,
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      color: isSelected
+                          ? _kAmber.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                    ),
+                    child: Opacity(
+                      opacity: isSelected ? 1.0 : 0.4,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _flagEmoji(code),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _shortName(code),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

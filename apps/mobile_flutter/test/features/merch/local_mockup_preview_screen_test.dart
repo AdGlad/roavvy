@@ -43,6 +43,7 @@ LocalMockupPreviewScreen _makeScreen({
 }) {
   return LocalMockupPreviewScreen(
     selectedCodes: const ['GB', 'FR'],
+    allCodes: const ['GB', 'FR'],
     trips: const [],
     artworkImageBytes: _kFakeArtwork,
     artworkConfirmationId: 'ac-test-001',
