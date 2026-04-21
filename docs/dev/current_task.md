@@ -1,23 +1,28 @@
-# Active Task: M73 — Mockup Fidelity: Strict Printful-Only Purchase Flow
-Branch: milestone/m73-mockup-fidelity
+# Active Task: M74 — Passport Stamp Randomisation, Country Selection & T-Shirt Fixes
+Branch: milestone/m74-passport-stamp-country-control
 
 ## Goal
-After approval, the user sees only Printful-generated mockups for every required face, and cannot proceed to checkout unless all required mockups are present.
+Improve Passport Stamp and T-Shirt design experience: randomised stamp placement, country
+include/exclude within year range, dynamic title, front ribbon independence, and fix the
+critical front/back toggle regression from M73.
 
 ## Scope
-In: Restore Printful placement IDs; restore back mockup display; remove local fallback from ready state; plain-shirt view for none positions; strict checkout gate; error state; cloud function logging.
-Out: Card templates, scan, map, web, poster, shopifyOrderCreated.
+In: stamp layout randomisation; country multi-select on card editor; dynamic title; front
+ribbon all/selected mode; fix front/back toggle in local mockup.
+Out: Printful API changes; card templates; poster; web; scan; map.
 
 ## Tasks
-- [x] T1 — Restore Printful placement IDs + logging — `apps/functions/src/index.ts`
-- [x] T2 — Restore _backMockupUrl field + response reading — `local_mockup_preview_screen.dart`
-- [x] T3 — Rewrite ready-state display (no local fallback) — `local_mockup_preview_screen.dart`
-- [x] T4 — Add _buildPlainShirtView helper — `local_mockup_preview_screen.dart`
-- [x] T5 — Add _buildMockupErrorState + strict checkout gate — `local_mockup_preview_screen.dart`
-- [x] T6 — Rebuilt + deployed cloud function ✅ Complete (2026-04-21)
+- [x] T1 — Fix front/back toggle regression — `local_mockup_preview_screen.dart`
+- [x] T2 — Randomise stamp placement (remove entry/exit top-bottom bias) — `passport_layout_engine.dart`
+- [x] T3 — Country multi-select in card editor — `card_editor_screen.dart`
+- [x] T4 — Dynamic title update from country selection — `card_editor_screen.dart`
+- [x] T5 — Front ribbon mode: all-time vs year-selection — `local_mockup_preview_screen.dart` + `card_editor_screen.dart`
+
+## ✅ Complete (2026-04-21)
 
 ## Risks
 | Risk | Mitigation |
 |---|---|
-| front_left/front_right may not exist on Printful product 12 | Strict error state surfaces failure; logging reveals API response |
-| back comment "front-facing photo" was wrong | Revert — back placement mockup shows back of shirt |
+| Stamp shuffle breaks determinism expected by tests | Same seed used for shuffle; layout is still deterministic, just different |
+| Country deselect + title re-render causes jank | Title generation called per-toggle; AI call is async and doesn't block UI |
+| `allCodes` param changes LocalMockupPreviewScreen constructor | Updated both call sites (card_editor_screen + card_generator_screen) + test |

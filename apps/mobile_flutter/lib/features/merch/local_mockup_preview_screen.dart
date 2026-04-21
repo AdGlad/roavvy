@@ -58,6 +58,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   const LocalMockupPreviewScreen({
     super.key,
     required this.selectedCodes,
+    required this.allCodes,
     required this.trips,
     required this.artworkImageBytes,
     this.artworkConfirmationId,
@@ -72,6 +73,12 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   });
 
   final List<String> selectedCodes;
+
+  /// All-time country codes (not year-filtered). Used when the front ribbon
+  /// mode is set to 'all countries' so the ribbon shows the user's full
+  /// collection regardless of the card's year filter.
+  final List<String> allCodes;
+
   final List<TripRecord> trips;
   final Uint8List artworkImageBytes;
   final String? artworkConfirmationId;
@@ -147,9 +154,19 @@ class _LocalMockupPreviewScreenState
 
   int _flipViewKey = 0;
 
+  // ── Which face is visible in the local mockup (configuring state only) ────
+  // Driven by _onFlipped; reset when placement options change.
+  bool _showingFront = true;
+
   // ── Passport stamp colour mode (M64) ──────────────────────────────────────
 
   PassportColorMode _passportColorMode = PassportColorMode.black;
+
+  // ── Front ribbon mode (M74) ───────────────────────────────────────────────
+  // 'all'      → ribbon uses all-time countries (widget.allCodes)
+  // 'selected' → ribbon uses year-filtered selection (widget.selectedCodes)
+  // Only visible when allCodes differs from selectedCodes.
+  String _frontRibbonMode = 'selected';
 
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
@@ -302,12 +319,16 @@ class _LocalMockupPreviewScreenState
     final levelLabel = ref.read(xpNotifierProvider).levelLabel;
     final isDark = _colour == 'Black' || _colour == 'Navy' || _colour == 'Red';
     final textColor = isDark ? Colors.white : Colors.black;
+    // Use all-time codes when the user has selected 'all' ribbon mode.
+    final ribbonCodes = _frontRibbonMode == 'all'
+        ? widget.allCodes
+        : widget.selectedCodes;
 
     try {
       final result = await CardImageRenderer.render(
         context,
         CardTemplateType.frontRibbon,
-        codes: widget.selectedCodes,
+        codes: ribbonCodes,
         travelerLevel: levelLabel,
         textColor: textColor,
         pixelRatio: 4.0,
@@ -543,6 +564,8 @@ class _LocalMockupPreviewScreenState
       if (frontPosition != null) _frontPosition = frontPosition;
       if (backPosition != null) _backPosition = backPosition;
       if (colourChanged || productChanged || frontChanged || backChanged) _flipViewKey++;
+      // Sync the visible face when placement changes.
+      if (frontChanged) _showingFront = _frontPosition != 'none';
     });
     if (colourChanged || productChanged) {
       _loadShirtImages();
@@ -554,8 +577,9 @@ class _LocalMockupPreviewScreenState
   }
 
   void _onFlipped(bool showFront) {
-    // No longer used to drive ready-state display (Printful Collage shows both sides).
-    // Kept as the required callback for _ShirtFlipView in the configuring state.
+    // Tracks which face is visible in the local mockup so _buildCurrentFace
+    // can supply the correct artwork (back artwork when showFront=false).
+    setState(() => _showingFront = showFront);
   }
 
   // ── Approval handler ───────────────────────────────────────────────────────
@@ -848,7 +872,7 @@ class _LocalMockupPreviewScreenState
     Widget area;
 
     if (_isTshirt) {
-      final showFront = showFrontOverride ?? (_frontPosition != 'none');
+      final showFront = showFrontOverride ?? _showingFront;
       final frontSpec = ProductMockupSpecs.specsFor(
         _product,
         colour: _colour,
@@ -1183,6 +1207,21 @@ class _LocalMockupPreviewScreenState
                   });
                 },
               ),
+              // Ribbon mode toggle — only shown when a year filter is active,
+              // i.e. selectedCodes is a subset of allCodes.
+              if (widget.allCodes.length != widget.selectedCodes.length) ...[
+                const SizedBox(height: 8),
+                _SectionLabel('Ribbon countries'),
+                _SegmentedPicker(
+                  options: const ['Year selection', 'All time'],
+                  selected: _frontRibbonMode == 'all' ? 'All time' : 'Year selection',
+                  onChanged: (v) {
+                    Navigator.of(ctx).pop();
+                    setState(() => _frontRibbonMode = v == 'All time' ? 'all' : 'selected');
+                    _loadFrontRibbonImage();
+                  },
+                ),
+              ],
               const SizedBox(height: 12),
               _SectionLabel('Back design'),
               _SegmentedPicker(
