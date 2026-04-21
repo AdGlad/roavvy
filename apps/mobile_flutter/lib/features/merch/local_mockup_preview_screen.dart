@@ -27,9 +27,6 @@ import 'product_mockup_specs.dart';
 
 enum _MockupState { configuring, rerendering, approving, ready }
 
-/// Which Printful mockup URLs are available after generation completes.
-enum _PrintfulMockupStatus { pending, frontOnly, backOnly, both, neither }
-
 // ── Colour swatch constants (M58-04) ─────────────────────────────────────────
 
 const _kSwatchColours = <String, Color>{
@@ -112,7 +109,12 @@ class _LocalMockupPreviewScreenState
   String _tshirtSize = tshirtSizes[2]; // 'L'
   String _posterPaper = posterPapers.first; // 'Enhanced Matte'
   String _posterSize = posterSizes.first; // '12x18in'
-  String _placement = 'front';
+  // 'left_chest' | 'center' | 'right_chest' | 'none'
+  // Default 'center' → Printful placement 'front' (confirmed working for product 12).
+  // 'left_chest'/'right_chest' → 'front_left'/'front_right' — validity unconfirmed.
+  String _frontPosition = 'center';
+  // 'center' | 'none'
+  String _backPosition = 'center';
 
   // ── Card / artwork state ───────────────────────────────────────────────────
 
@@ -136,9 +138,8 @@ class _LocalMockupPreviewScreenState
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
   String? _checkoutUrl;
-  String? _frontMockupUrl;
-  String? _backMockupUrl;
-  bool _showingFront = true;
+  /// Combined front+back collage mockup URL from Printful (style 24458).
+  String? _mockupUrl;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
 
@@ -528,31 +529,33 @@ class _LocalMockupPreviewScreenState
 
   void _onVariantOptionChanged({
     String? colour,
-    String? placement,
+    String? frontPosition,
+    String? backPosition,
     MerchProduct? product,
   }) {
     final colourChanged = colour != null && colour != _colour;
-    final placementChanged = placement != null && placement != _placement;
+    final frontChanged = frontPosition != null && frontPosition != _frontPosition;
+    final backChanged = backPosition != null && backPosition != _backPosition;
     final productChanged = product != null && product != _product;
     setState(() {
       if (product != null) _product = product;
       if (colour != null) _colour = colour;
-      if (placement != null) _placement = placement;
-      // Reset flip view whenever shirt variant or placement changes.
-      if (colourChanged || productChanged || placementChanged) _flipViewKey++;
+      if (frontPosition != null) _frontPosition = frontPosition;
+      if (backPosition != null) _backPosition = backPosition;
+      if (colourChanged || productChanged || frontChanged || backChanged) _flipViewKey++;
     });
     if (colourChanged || productChanged) {
       _loadShirtImages();
       _loadFrontRibbonImage();
     }
     if (colourChanged && _isTshirt && _template == CardTemplateType.passport) {
-      // colour is non-null: colourChanged = colour != null && colour != _colour
       unawaited(_setPassportColorMode(_suggestStampColor(colour)));
     }
   }
 
   void _onFlipped(bool showFront) {
-    setState(() => _showingFront = showFront);
+    // No longer used to drive ready-state display (Printful Collage shows both sides).
+    // Kept as the required callback for _ShirtFlipView in the configuring state.
   }
 
   // ── Approval handler ───────────────────────────────────────────────────────
@@ -560,18 +563,31 @@ class _LocalMockupPreviewScreenState
   Future<void> _onApprove() async {
     final uid = ref.read(currentUidProvider);
     if (uid == null) {
+      debugPrint('[mockup] ❌ approve blocked — user not signed in');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please sign in to continue')),
       );
       return;
     }
 
+    debugPrint('[mockup] ── approve started ──────────────────────────────');
+    debugPrint('[mockup]   uid=$uid');
+    debugPrint('[mockup]   product=${_product.name}  colour=$_colour  size=$_tshirtSize');
+    debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
+    debugPrint('[mockup]   variant=$_resolvedVariantGid');
+    debugPrint('[mockup]   artworkBytes=${_artworkBytes.length}B');
+    debugPrint('[mockup]   frontRibbonBytes=${_frontRibbonBytes?.length ?? 0}B');
+    debugPrint('[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}');
+
     setState(() => _state = _MockupState.approving);
 
     try {
+      // ── Step 1: artwork confirmation ────────────────────────────────────────
       String? confirmationId = _artworkConfirmationId;
       if (confirmationId == null) {
+        debugPrint('[mockup] step 1: creating artwork confirmation');
         final imageHash = sha256.convert(_artworkBytes).toString();
+        debugPrint('[mockup]   imageHash=$imageHash');
         final newConfirmation = ArtworkConfirmation(
           confirmationId: 'ac-${DateTime.now().microsecondsSinceEpoch}',
           userId: uid,
@@ -589,6 +605,7 @@ class _LocalMockupPreviewScreenState
 
         final priorConfirmationId = widget.artworkConfirmationId;
         if (priorConfirmationId != null) {
+          debugPrint('[mockup]   archiving prior confirmation: $priorConfirmationId');
           unawaited(ArtworkConfirmationService(FirebaseFirestore.instance)
               .archive(uid, priorConfirmationId));
         }
@@ -596,11 +613,16 @@ class _LocalMockupPreviewScreenState
         confirmationId = await ArtworkConfirmationService(
                 FirebaseFirestore.instance)
             .create(newConfirmation);
+        debugPrint('[mockup]   confirmationId=$confirmationId ✓');
 
         if (!mounted) return;
         setState(() => _artworkConfirmationId = confirmationId);
+      } else {
+        debugPrint('[mockup] step 1: reusing existing confirmationId=$confirmationId');
       }
 
+      // ── Step 2: mockup approval record ─────────────────────────────────────
+      debugPrint('[mockup] step 2: creating mockup approval');
       final approvalId = 'ma-${DateTime.now().microsecondsSinceEpoch}';
       final approval = MockupApproval(
         mockupApprovalId: approvalId,
@@ -608,15 +630,26 @@ class _LocalMockupPreviewScreenState
         artworkConfirmationId: confirmationId,
         templateType: _template,
         variantId: _resolvedVariantGid,
-        placementType: _isTshirt ? _placement : null,
+        placementType: _isTshirt ? 'front:$_frontPosition,back:$_backPosition' : null,
         confirmedAt: DateTime.now().toUtc(),
       );
       await MockupApprovalService(FirebaseFirestore.instance).create(approval);
+      debugPrint('[mockup]   approvalId=$approvalId ✓');
 
       if (!mounted) return;
 
+      // ── Step 3: call createMerchCart ────────────────────────────────────────
+      final sendFrontImage = _isTshirt && _frontPosition != 'none' && _frontRibbonBytes != null;
+      final sendBackImage  = _backPosition != 'none';
+      debugPrint('[mockup] step 3: calling createMerchCart');
+      debugPrint('[mockup]   sendFrontImage=$sendFrontImage (${_frontRibbonBytes?.length ?? 0}B)');
+      debugPrint('[mockup]   sendBackImage=$sendBackImage (${_artworkBytes.length}B)');
+      debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
+      debugPrint('[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId');
+
       final callable =
           FirebaseFunctions.instance.httpsCallable('createMerchCart');
+      final sw = Stopwatch()..start();
       final result = await callable.call<Map<String, dynamic>>({
         'variantId': _resolvedVariantGid,
         'selectedCountryCodes': widget.selectedCodes,
@@ -624,29 +657,43 @@ class _LocalMockupPreviewScreenState
         if (widget.cardId != null) 'cardId': widget.cardId,
         'artworkConfirmationId': confirmationId,
         'mockupApprovalId': approvalId,
-        'backImageBase64': base64Encode(_artworkBytes),
-        if (_isTshirt && _frontRibbonBytes != null)
-          'frontImageBase64': base64Encode(_frontRibbonBytes!),
+        if (sendBackImage)  'backImageBase64':  base64Encode(_artworkBytes),
+        if (sendFrontImage) 'frontImageBase64': base64Encode(_frontRibbonBytes!),
+        if (_isTshirt) 'frontPosition': _frontPosition,
+        if (_isTshirt) 'backPosition':  _backPosition,
       });
+      sw.stop();
+      debugPrint('[mockup]   call completed in ${sw.elapsedMilliseconds}ms');
 
-      final checkoutUrl = result.data['checkoutUrl'] as String?;
-      final frontMockupUrl = result.data['frontMockupUrl'] as String?;
-      final backMockupUrl = result.data['backMockupUrl'] as String?;
-      final merchConfigId = result.data['merchConfigId'] as String?;
+      // ── Step 4: parse response ──────────────────────────────────────────────
+      final checkoutUrl   = result.data['checkoutUrl']   as String?;
+      final mockupUrl     = result.data['frontMockupUrl'] as String?;
+      final backMockupUrl = result.data['backMockupUrl']  as String?;
+      final merchConfigId = result.data['merchConfigId']  as String?;
+      debugPrint('[mockup] step 4: response received');
+      debugPrint('[mockup]   checkoutUrl=${checkoutUrl != null ? "✓ present" : "✗ null"}');
+      debugPrint('[mockup]   frontMockupUrl=${mockupUrl != null ? "✓ $mockupUrl" : "✗ null"}');
+      debugPrint('[mockup]   backMockupUrl=${backMockupUrl != null ? "✓ $backMockupUrl" : "✗ null (expected for collage style)"}');
+      debugPrint('[mockup]   merchConfigId=$merchConfigId');
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
+        debugPrint('[mockup] ❌ no checkoutUrl in response — aborting');
         throw Exception('No checkout URL returned.');
       }
 
+      debugPrint('[mockup] ✓ ready — mockupUrl=${mockupUrl != null ? "present" : "null (will show error state)"}');
       if (!mounted) return;
       setState(() {
-        _state = _MockupState.ready;
-        _frontMockupUrl = frontMockupUrl;
-        _backMockupUrl = backMockupUrl;
-        _checkoutUrl = checkoutUrl;
+        _state         = _MockupState.ready;
+        _mockupUrl     = mockupUrl;
+        _checkoutUrl   = checkoutUrl;
         _merchConfigId = merchConfigId;
       });
     } on FirebaseFunctionsException catch (e) {
+      debugPrint('[mockup] ❌ FirebaseFunctionsException');
+      debugPrint('[mockup]   code=${e.code}');
+      debugPrint('[mockup]   message=${e.message}');
+      debugPrint('[mockup]   details=${e.details}');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -658,13 +705,16 @@ class _LocalMockupPreviewScreenState
         ),
       );
       setState(() => _state = _MockupState.configuring);
-    } on SocketException {
+    } on SocketException catch (e) {
+      debugPrint('[mockup] ❌ SocketException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No internet connection')),
       );
       setState(() => _state = _MockupState.configuring);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[mockup] ❌ unexpected error: $e');
+      debugPrint('[mockup]   $stack');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An error occurred. Please try again.')),
@@ -722,18 +772,6 @@ class _LocalMockupPreviewScreenState
     );
   }
 
-  // ── Printful mockup status ─────────────────────────────────────────────────
-
-  _PrintfulMockupStatus get _printfulStatus {
-    if (_state != _MockupState.ready) return _PrintfulMockupStatus.pending;
-    final hasFront = _frontMockupUrl != null;
-    final hasBack = _backMockupUrl != null;
-    if (hasFront && hasBack) return _PrintfulMockupStatus.both;
-    if (hasFront) return _PrintfulMockupStatus.frontOnly;
-    if (hasBack) return _PrintfulMockupStatus.backOnly;
-    return _PrintfulMockupStatus.neither;
-  }
-
   // ── Mockup area ────────────────────────────────────────────────────────────
 
   Widget _buildMockupArea(ThemeData theme) {
@@ -742,74 +780,54 @@ class _LocalMockupPreviewScreenState
       return _ApprovingView(shirt: _buildLocalMockupArea(theme));
     }
 
-    final isReady = _state == _MockupState.ready;
-    final activeMockupUrl = _showingFront ? _frontMockupUrl : _backMockupUrl;
-
-    if (isReady && activeMockupUrl != null) {
-      // ready state: Printful photorealistic mockup.
-      return Image.network(
-        activeMockupUrl,
-        key: ValueKey(activeMockupUrl),
-        fit: BoxFit.contain,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return _buildLocalMockupArea(theme);
-        },
-        errorBuilder: (context, error, stack) =>
-            _buildLocalMockupArea(theme),
-      );
-    }
-
-    final status = _printfulStatus;
-    if (status != _PrintfulMockupStatus.pending) {
-      final url = _showingFront ? _frontMockupUrl : _backMockupUrl;
-
+    if (_state == _MockupState.ready) {
+      final url = _mockupUrl;
       if (url != null) {
-        // Printful mockup available for this face — show with pinch-to-zoom.
+        // Show the Printful Collage combined front+back mockup with pinch-to-zoom.
         return InteractiveViewer(
           minScale: 1.0,
           maxScale: 5.0,
           child: Image.network(
             url,
+            key: ValueKey(url),
             fit: BoxFit.contain,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
-              return _buildLocalMockupArea(theme,
-                  showFrontOverride: _showingFront);
+              return _buildLocalMockupArea(theme);
             },
-            errorBuilder: (context, error, stack) =>
-                _buildPrintfulUnavailableBanner(_showingFront),
+            errorBuilder: (context, error, stack) => _buildMockupErrorState(),
           ),
         );
       }
-
-      // Printful generation completed but this face's URL is missing.
-      return _buildPrintfulUnavailableBanner(_showingFront);
+      // Printful generation completed but URL is missing — hard error.
+      return _buildMockupErrorState();
     }
 
     // Pre-generation: local mockup is the preview.
     return _buildLocalMockupArea(theme);
   }
 
-  /// Shown when Printful generation completed but the URL for [isFront] is null
-  /// or failed to load. Explicit signal — never silently shows local mockup.
-  Widget _buildPrintfulUnavailableBanner(bool isFront) {
-    final face = isFront ? 'Front' : 'Back';
+  /// Error state shown when Printful returned no mockup URL.
+  Widget _buildMockupErrorState() {
     return Container(
       color: const Color(0xFFF2F2F2),
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.image_not_supported_outlined,
-                size: 40, color: Color(0xFF9E9E9E)),
-            const SizedBox(height: 12),
+            Icon(Icons.error_outline, size: 40, color: Color(0xFFE53935)),
+            SizedBox(height: 12),
             Text(
-              '$face mockup unavailable',
-              style: const TextStyle(
+              'Mockup unavailable',
+              style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF9E9E9E),
                   fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Cannot proceed to checkout',
+              style: TextStyle(fontSize: 12, color: Color(0xFFE53935)),
             ),
           ],
         ),
@@ -830,11 +848,12 @@ class _LocalMockupPreviewScreenState
     Widget area;
 
     if (_isTshirt) {
-      final showFront = showFrontOverride ?? (_placement == 'front');
+      final showFront = showFrontOverride ?? (_frontPosition != 'none');
       final frontSpec = ProductMockupSpecs.specsFor(
         _product,
         colour: _colour,
         placement: 'front',
+        frontPosition: _frontPosition,
       );
       final backSpec = ProductMockupSpecs.specsFor(
         _product,
@@ -845,8 +864,8 @@ class _LocalMockupPreviewScreenState
       // _ShirtFlipView owns AnimationController + GestureDetector + zoom (M58-03/05).
       area = _ShirtFlipView(
         key: ValueKey('${_flipViewKey}_$showFront'),
-        frontArtwork: _frontRibbonImage,
-        backArtwork: artworkImage,
+        frontArtwork: _frontPosition != 'none' ? _frontRibbonImage : null,
+        backArtwork: _backPosition != 'none' ? artworkImage : null,
         frontShirt: _frontShirtImage,
         backShirt: _backShirtImage,
         frontSpec: frontSpec,
@@ -1035,13 +1054,6 @@ class _LocalMockupPreviewScreenState
         children: [
           Row(
             children: [
-              // Front/Back toggle chips (moved from options panel)
-              _PlacementToggle(
-                placement: _placement,
-                onFront: () => _onVariantOptionChanged(placement: 'front'),
-                onBack: () => _onVariantOptionChanged(placement: 'back'),
-              ),
-              const SizedBox(width: 12),
               // Colour swatches (M58-04)
               Expanded(
                 child: _ColourSwatchRow(
@@ -1152,13 +1164,33 @@ class _LocalMockupPreviewScreenState
                 onChanged: (v) => setState(() => _tshirtSize = v),
               ),
               const SizedBox(height: 12),
-              _SectionLabel('Placement'),
+              _SectionLabel('Front design'),
               _SegmentedPicker(
-                options: const ['Front', 'Back'],
-                selected: _placement == 'front' ? 'Front' : 'Back',
+                options: const ['Left', 'Center', 'Right', 'None'],
+                selected: switch (_frontPosition) {
+                  'center'      => 'Center',
+                  'right_chest' => 'Right',
+                  'none'        => 'None',
+                  _             => 'Left',
+                },
                 onChanged: (v) {
                   Navigator.of(ctx).pop();
-                  _onVariantOptionChanged(placement: v.toLowerCase());
+                  _onVariantOptionChanged(frontPosition: switch (v) {
+                    'Center' => 'center',
+                    'Right'  => 'right_chest',
+                    'None'   => 'none',
+                    _        => 'left_chest',
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _SectionLabel('Back design'),
+              _SegmentedPicker(
+                options: const ['Center', 'None'],
+                selected: _backPosition == 'none' ? 'None' : 'Center',
+                onChanged: (v) {
+                  Navigator.of(ctx).pop();
+                  _onVariantOptionChanged(backPosition: v == 'None' ? 'none' : 'center');
                 },
               ),
             ] else ...[
@@ -1187,29 +1219,13 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildBottomBar() {
     if (_state == _MockupState.ready) {
-      // Show toggle whenever we have a front Printful mockup — back uses the
-      // local flip-view (Printful back URL is a front-facing image, design invisible).
-      final hasBothMockups = _isTshirt && _frontMockupUrl != null;
-      return Column(
-        mainAxisSize: MainAxisSize.min,
+      return Row(
         children: [
-          if (hasBothMockups) ...[
-            _PlacementToggle(
-              placement: _showingFront ? 'front' : 'back',
-              onFront: () => setState(() => _showingFront = true),
-              onBack: () => setState(() => _showingFront = false),
+          Expanded(
+            child: FilledButton(
+              onPressed: _mockupUrl != null ? _completeCheckout : null,
+              child: const Text('Complete order →'),
             ),
-            const SizedBox(height: 8),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: _completeCheckout,
-                  child: const Text('Complete order →'),
-                ),
-              ),
-            ],
           ),
         ],
       );
@@ -1537,83 +1553,6 @@ class _ApprovingViewState extends State<_ApprovingView>
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Placement toggle ──────────────────────────────────────────────────────────
-
-class _PlacementToggle extends StatelessWidget {
-  const _PlacementToggle({
-    required this.placement,
-    required this.onFront,
-    required this.onBack,
-  });
-
-  final String placement;
-  final VoidCallback onFront;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToggleOption(
-            label: 'Front',
-            selected: placement == 'front',
-            onTap: onFront,
-          ),
-          _ToggleOption(
-            label: 'Back',
-            selected: placement == 'back',
-            onTap: onBack,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToggleOption extends StatelessWidget {
-  const _ToggleOption({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: selected
-                ? theme.colorScheme.onPrimary
-                : theme.colorScheme.onSurfaceVariant,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
     );
   }
 }

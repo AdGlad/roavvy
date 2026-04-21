@@ -57,10 +57,17 @@ const _kTshirtBack = <String, String>{
 //
 // T-shirt print areas are expressed relative to each image (800×1066 px).
 // Calibrated against the split shirt mockups (M59-01, ADR-115).
-//   Front chest: left=0.55, top=0.25, width=0.18, height=0.25 (left chest pocket area)
-//   Back:        left=0.30, top=0.30, width=0.40, height=0.45
-const _kTshirtFrontPrintArea = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
-const _kTshirtBackPrintArea  = Rect.fromLTWH(0.30, 0.30, 0.40, 0.45);
+//   Front left-chest  (wearer's left = viewer's right):
+//     left=0.55, top=0.25, width=0.18, height=0.25
+//   Front center:
+//     left=0.25, top=0.22, width=0.50, height=0.40
+//   Front right-chest (wearer's right = viewer's left):
+//     left=0.27, top=0.25, width=0.18, height=0.25
+//   Back: left=0.30, top=0.30, width=0.40, height=0.45
+const _kTshirtFrontLeftChestArea  = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
+const _kTshirtFrontCenterArea     = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
+const _kTshirtFrontRightChestArea = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
+const _kTshirtBackPrintArea       = Rect.fromLTWH(0.30, 0.30, 0.40, 0.45);
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
 const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
@@ -85,24 +92,37 @@ abstract final class ProductMockupSpecs {
   );
 
   /// Returns the [ProductMockupSpec] for the given [product], [colour], and
-  /// [placement]. For [MerchProduct.poster], [colour] and [placement] are
-  /// ignored.
+  /// face. For [MerchProduct.poster], [colour] and [placement] are ignored.
+  ///
+  /// [placement] is `'front'` or `'back'`.
+  /// [frontPosition] controls the print area when [placement] is `'front'`:
+  ///   `'left_chest'` (default), `'center'`, or `'right_chest'`.
   ///
   /// Throws [ArgumentError] if no spec is registered for the combination.
   static ProductMockupSpec specsFor(
     MerchProduct product, {
     String colour = 'Black',
     String placement = 'front',
+    String frontPosition = 'left_chest',
   }) {
     if (product == MerchProduct.poster) return _posterSpec;
-    final frontMap = placement == 'front' ? _kTshirtFront : _kTshirtBack;
-    final printArea = placement == 'front' ? _kTshirtFrontPrintArea : _kTshirtBackPrintArea;
-    final assetPath = frontMap[colour];
+    final isFront = placement == 'front';
+    final assetPath = (isFront ? _kTshirtFront : _kTshirtBack)[colour];
     if (assetPath == null) {
       throw ArgumentError(
         'No mockup asset registered for '
         'product=$product colour=$colour placement=$placement',
       );
+    }
+    final Rect printArea;
+    if (isFront) {
+      printArea = switch (frontPosition) {
+        'center'      => _kTshirtFrontCenterArea,
+        'right_chest' => _kTshirtFrontRightChestArea,
+        _             => _kTshirtFrontLeftChestArea, // 'left_chest' + default
+      };
+    } else {
+      printArea = _kTshirtBackPrintArea;
     }
     return ProductMockupSpec(assetPath: assetPath, printAreaNorm: printArea);
   }

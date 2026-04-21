@@ -116,6 +116,17 @@ export interface CreateMerchCartRequest {
    * (M53, ADR-105). Optional — omitting it is valid for legacy callers.
    */
   mockupApprovalId?: string;
+  /**
+   * Where the front design is placed on the shirt.
+   * 'left_chest' | 'center' | 'right_chest' | 'none'.
+   * Defaults to 'center' when omitted. Ignored for non-t-shirt variants.
+   */
+  frontPosition?: string;
+  /**
+   * Whether the back of the shirt has a design.
+   * 'center' | 'none'. Defaults to 'center' when omitted.
+   */
+  backPosition?: string;
 }
 
 /** Response payload from createMerchCart */

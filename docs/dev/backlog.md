@@ -719,6 +719,32 @@ All sharing features are complete as of M12.
 
 ---
 
+## Milestone 70 — Passport Stamp UX Cleanup + Title Generation Improvements ✅ COMPLETE (2026-04-18)
+
+**Goal:** Lock passport card to portrait, add stamp shuffle button, remove years from titles, improve AI prompt quality and fallback generator.
+
+**Delivered:** Orientation toggle hidden for passport (portrait-locked); `PassportStampsCard` seed param + Shuffle button; year removed from title request + AI prompt + fallback; sub-regions expanded 4→16; continent labels updated; ADR-125.
+
+---
+
+## Milestone 69 — Enhanced Country Discovery Celebration ✅ COMPLETE (2026-04-16)
+
+**Goal:** Transform `DiscoveryOverlay` into a premium ~5-second celebration moment with an animated globe (spin → travel to country → pulse), per-country national-color confetti, and coordinated timing. Existing queue, audio, haptics, and button structure are preserved.
+
+**Scope — included:**
+- Extract `_flagColours()` to `lib/core/flag_colours.dart`
+- `lib/features/map/country_centroids.dart` — ISO → (lat, lng) centroid table
+- `GlobePainter` `highlightedCode` + `pulseValue` extension
+- `CelebrationGlobeWidget` — 3-phase animated globe (`ConsumerStatefulWidget`)
+- `DiscoveryOverlay` — embed globe + confetti (upgrade to `ConsumerStatefulWidget`)
+- ADR-123
+- Tests
+
+**Scope — excluded:**
+- Changes to map screen, scan screen, or post-scan summary confetti
+
+---
+
 ## Deferred items (no milestone assigned)
 
 - Firestore pull / multi-device conflict resolution
