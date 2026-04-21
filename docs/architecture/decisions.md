@@ -4355,3 +4355,49 @@ The orientation `IconButton` in `_ControlStrip` is conditionally hidden when `te
 - Titles never include years; the card's date label (e.g. "2018–2024") is the sole year reference.
 - `TitleGenerationRequest.startYear` / `.endYear` fields are retained on the model for potential future use but are no longer populated at the call site.
 - Post-processing in Swift is additive (strip-only); it cannot introduce regressions in the AI path.
+
+---
+
+## ADR-126 — M73 Mockup Fidelity: Printful-Only Post-Approval Display
+
+**Status:** Accepted
+
+**Context:**
+The t-shirt purchase flow shows mockups after the user approves their design. Prior to M73:
+- The back face was displayed using `LocalMockupPainter` (user's card composited onto a local shirt asset) rather than Printful's generated mockup URL.
+- The Printful placement ID was hardcoded to `'front'` for all front positions, ignoring left/center/right selections.
+- `_backMockupUrl` was removed from Flutter state in an earlier session, breaking back Printful display.
+- For `front=none` / `back=none`, the ready state called `_buildLocalMockupArea` (which composites card art), showing a misleading preview.
+- There was no validation preventing checkout when required Printful mockups were absent.
+
+**Decisions:**
+
+**1. Printful-only ready state**
+After approval (`_state == ready`), `_buildMockupArea` must not call `_buildLocalMockupArea` under any circumstances. The two post-approval views are:
+- *Printful mockup* (`Image.network`) when a URL is present.
+- *Plain shirt asset* (`Image.asset`) when the position is `none` — no compositing, just the bundled shirt JPEG for the selected colour.
+This is accurate: a `none` position means no print on that face; the plain shirt JPEG correctly represents what Printful will produce.
+
+**2. Restored back mockup**
+`_backMockupUrl` is re-added as a Flutter state field. The cloud function already returns `backMockupUrl`; the Flutter side must store and display it. The earlier comment "Printful's back mockup URL is a front-facing photo" was incorrect — `placement: 'back'` generates a rear-view shirt mockup showing the back design.
+
+**3. Printful placement IDs per position**
+- `left_chest` → Printful placement `'front_left'`
+- `center` → Printful placement `'front'`
+- `right_chest` → Printful placement `'front_right'`
+If Printful does not support `front_left`/`front_right` for the requested product variant, the mockup URL will be null and the strict gate (see below) will surface this as an error rather than silently substituting a local render.
+
+**4. Strict checkout gate**
+Checkout (`Complete order →`) is only enabled when `_allMockupsReady`:
+- `frontPosition == 'none' || _frontMockupUrl != null`
+- `backPosition == 'none' || _backMockupUrl != null`
+A dedicated `_buildMockupErrorState` widget is shown for the missing face, with a clear message. The user may tap "Try again" to re-enter the configuring state and re-submit.
+
+**5. Front/back toggle always visible in ready state**
+The `_PlacementToggle` in the bottom bar is shown for all t-shirts in the ready state, not gated on `hasBothMockups`. This allows inspection of both faces regardless of which mockups succeeded.
+
+**Consequences:**
+- Users only ever see exactly what Printful will produce.
+- A Printful API failure surfaces as an explicit error rather than a misleading local preview.
+- `front_left`/`front_right` placement support depends on Printful product configuration; if unsupported, the user sees an error and cannot place an order until a supported position is selected.
+- `_buildLocalMockupArea` remains available for the pre-approval (configuring/rerendering) phases only.

@@ -30,7 +30,8 @@ const db = getFirestore();
 async function generatePrintfulMockup(
   printfulVariantId: number,
   frontPrintFileUrl: string | null,
-  backPrintFileUrl: string | null
+  backPrintFileUrl: string | null,
+  frontPosition = 'center',
 ): Promise<{ frontMockupUrl: string | null; backMockupUrl: string | null }> {
   const apiKey = process.env['PRINTFUL_API_KEY'];
   if (!apiKey) {
@@ -54,9 +55,19 @@ async function generatePrintfulMockup(
     });
   }
 
+  console.log('[mockup] approved selections:', {
+    frontPosition,
+    frontFile: frontPrintFileUrl ? 'present' : 'none',
+    backFile: backPrintFileUrl ? 'present' : 'none',
+    variantId: printfulVariantId,
+  });
+
   if (placements.length === 0) {
+    console.log('[mockup] no placements — skipping Printful request');
     return { frontMockupUrl: null, backMockupUrl: null };
   }
+
+  console.log('[mockup] Printful request placements:', JSON.stringify(placements.map((p) => ({ placement: p.placement }))));
 
   // Submit task.
   const createRes = await fetch('https://api.printful.com/v2/mockup-tasks', {
@@ -70,8 +81,13 @@ async function generatePrintfulMockup(
         {
           source: 'catalog',
           catalog_product_id: 12, // Gildan 64000 Unisex Softstyle T-Shirt
-          catalog_variant_id: printfulVariantId,
+          // catalog_variant_ids must be an ARRAY — the singular catalog_variant_id
+          // field is silently ignored by Printful v2 (verified 2026-04-12).
+          catalog_variant_ids: [printfulVariantId],
           placements,
+          // Request only the Collage "Front and Back" combined image (style 24458).
+          // This gives a single image showing both sides — no separate front/back needed.
+          mockup_style_ids: [24458],
         },
       ],
     }),
@@ -93,8 +109,9 @@ async function generatePrintfulMockup(
   }
 
   // Poll for result. Poll URL: GET /v2/mockup-tasks?id={taskId}
-  const maxAttempts = 10;
-  const intervalMs = 2000;
+  // Dark variants (Black, Navy) take longer on Printful's end — use 25×3s = 75s max.
+  const maxAttempts = 25;
+  const intervalMs = 3000;
 
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
@@ -109,28 +126,37 @@ async function generatePrintfulMockup(
       return { frontMockupUrl: null, backMockupUrl: null };
     }
 
-    const pollData = (await pollRes.json()) as {
-      data?: Array<{
-        status?: string;
-        catalog_variant_mockups?: Array<{
-          catalog_variant_id: number;
-          mockups: Array<{ placement: string; mockup_url: string }>;
-        }>;
-      }>;
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pollData = (await pollRes.json()) as { data?: Array<any> };
 
     const task = pollData.data?.[0];
     const status = task?.status;
 
     if (status === 'completed') {
-      const variantMockups = task?.catalog_variant_mockups ?? [];
+      const variantMockups: Array<any> = task?.catalog_variant_mockups ?? [];
       const matched =
-        variantMockups.find((vm) => Number(vm.catalog_variant_id) === printfulVariantId) ??
+        variantMockups.find((vm) => Number(vm?.catalog_variant_id) === printfulVariantId) ??
         variantMockups[0];
-      
-      const frontMockupUrl = matched?.mockups.find((m) => m.placement === 'front')?.mockup_url ?? null;
-      const backMockupUrl = matched?.mockups.find((m) => m.placement === 'back')?.mockup_url ?? null;
-      return { frontMockupUrl, backMockupUrl };
+      // Printful v2 may use either `mockups` or `placements` as the array field
+      // name inside catalog_variant_mockups entries — try both.
+      const mockupItems: Array<any> =
+        (Array.isArray(matched?.mockups) ? matched.mockups : null) ??
+        (Array.isArray(matched?.placements) ? matched.placements : null) ??
+        [];
+      // We requested only style 24458 (Collage — Front and Back combined).
+      // Find by mockup_style_id first, then fall back to first available URL.
+      const collageItem =
+        mockupItems.find((m) => m?.mockup_style_id === 24458) ??
+        mockupItems[0] ??
+        null;
+      const mockupUrl = collageItem?.mockup_url ?? null;
+      console.log('[mockup] Printful response:', {
+        mockupUrl: mockupUrl ?? 'null',
+        styleId: collageItem?.mockup_style_id ?? 'unknown',
+        allItems: mockupItems.map((m) => ({ style: m?.mockup_style_id, placement: m?.placement })),
+      });
+      // Return as frontMockupUrl; backMockupUrl is unused with the combined collage style.
+      return { frontMockupUrl: mockupUrl, backMockupUrl: null };
     }
 
     if (status === 'failed') {
@@ -193,7 +219,11 @@ export const createMerchCart = onCall<
     const uid = request.auth.uid;
 
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId } = request.data;
+    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition } = request.data;
+    // 'left_chest' | 'center' | 'right_chest' | 'none' — defaults to 'center'
+    const effectiveFrontPosition: string = (typeof frontPosition === 'string' && frontPosition.length > 0) ? frontPosition : 'center';
+    // 'center' | 'none' — defaults to 'center'
+    const effectiveBackPosition: string = (typeof backPosition === 'string' && backPosition.length > 0) ? backPosition : 'center';
     if (!variantId || typeof variantId !== 'string') {
       throw new HttpsError('invalid-argument', 'variantId is required.');
     }
@@ -288,10 +318,41 @@ export const createMerchCart = onCall<
       // Process front image if provided
       if (typeof frontImageBase64 === 'string' && frontImageBase64.length > 0) {
         const clientBuf = Buffer.from(frontImageBase64, 'base64');
-        frontPrintBuf = await sharp(clientBuf)
+        const designBuf = await sharp(clientBuf)
           .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
           .toFormat('png')
           .toBuffer();
+
+        if (effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'right_chest') {
+          // Pre-composite the design onto a full print-area canvas at the correct chest position.
+          // This avoids Printful's aspect-ratio check on the `position` layer field.
+          // Canvas = full print area (4500×5400px). Design is scaled to ~1/4 width and
+          // placed upper-right (left_chest = wearer's left) or upper-left (right_chest).
+          const canvasW = printDims.widthPx;    // 4500
+          const canvasH = printDims.heightPx;   // 5400
+          const maxW = Math.round(canvasW * 0.29);  // ~3.5" at 375dpi
+          const maxH = Math.round(canvasH * 0.30);  // ~4.8"
+          const top  = Math.round(canvasH * 0.07);  // ~1" from top
+          const left = effectiveFrontPosition === 'left_chest'
+            ? Math.round(canvasW * 0.58)   // right side — wearer's left
+            : Math.round(canvasW * 0.13);  // left side  — wearer's right
+
+          const resized = await sharp(designBuf)
+            .resize(maxW, maxH, { fit: 'inside' })
+            .toBuffer();
+          const { width: rw = maxW } = await sharp(resized).metadata();
+
+          frontPrintBuf = await sharp({
+            create: { width: canvasW, height: canvasH, channels: 4,
+                      background: { r: 0, g: 0, b: 0, alpha: 0 } },
+          })
+            .composite([{ input: resized, top, left: left + Math.round((maxW - rw) / 2) }])
+            .png()
+            .toBuffer();
+          console.log(`[print] composited ${effectiveFrontPosition} design onto ${canvasW}×${canvasH} canvas at top=${top} left=${left}`);
+        } else {
+          frontPrintBuf = designBuf;
+        }
       }
 
       // Process back image if provided
@@ -310,8 +371,9 @@ export const createMerchCart = onCall<
           .toBuffer();
       }
 
-      // Fallback: Server-side flag grid generation
-      if (!frontPrintBuf && !backPrintBuf) {
+      // Fallback: Server-side flag grid generation (only if back design is wanted
+      // but no image was provided — e.g. legacy callers without base64 images).
+      if (!frontPrintBuf && !backPrintBuf && effectiveBackPosition !== 'none') {
         const previewPng = await generateFlagGrid({
           templateId: 'flag_grid_v1',
           selectedCountryCodes,
@@ -452,7 +514,8 @@ export const createMerchCart = onCall<
         const mockups = await generatePrintfulMockup(
           printfulVariantId,
           frontPrintFileSignedUrl,
-          backPrintFileSignedUrl
+          backPrintFileSignedUrl,
+          effectiveFrontPosition,
         );
         frontMockupUrl = mockups.frontMockupUrl;
         backMockupUrl = mockups.backMockupUrl;
