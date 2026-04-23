@@ -2,6 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.457696483088-lhks9rku65vtvvc3vbr8mmtu30j0opv4</string>
+				<string>fb999349465850439</string>
+			</array>
+		</dict>
+	</array>
+	<key>FacebookAppID</key>
+	<string>999349465850439</string>
+	<key>FacebookClientToken</key>
+	<string>0ac2eee8af8a198f16fd070bcc8314a3</string>
+	<key>FacebookDisplayName</key>
+	<string>Roavvy</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -43,40 +61,18 @@
 	<string>Main</string>
 	<!-- URL schemes for OAuth providers. Fill in values from Firebase Console /
 	     Meta Developer Portal after enabling each sign-in method. -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<!-- Google Sign-In: REVERSED_CLIENT_ID from GoogleService-Info.plist
-		     (present after enabling Google Sign-In in Firebase Console). -->
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
-			</array>
-		</dict>
-		<!-- Facebook Sign-In: fb{APP_ID} from Meta Developer Portal. -->
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>fbREPLACE_WITH_FACEBOOK_APP_ID</string>
-			</array>
-		</dict>
-	</array>
+	<!-- CFBundleURLTypes removed for TestFlight -->
 	<!-- Facebook SDK configuration. Fill in after creating app in Meta Developer Portal. -->
-	<key>FacebookAppID</key>
-	<string>REPLACE_WITH_FACEBOOK_APP_ID</string>
-	<key>FacebookClientToken</key>
-	<string>REPLACE_WITH_FACEBOOK_CLIENT_TOKEN</string>
-	<key>FacebookDisplayName</key>
-	<string>Roavvy</string>
+	<!-- FacebookAppID temporarily removed -->
+	<!-- FacebookClientToken temporarily removed -->
+	<!-- FacebookDisplayName temporarily removed -->
 	<!-- Required so the Facebook SDK can check if the FB app is installed. -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>fbapi</string>
 		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

@@ -5,5 +5,22 @@
   "functions": {
     "source": "apps/functions",
     "runtime": "nodejs22"
+  },
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "supportEmail": "triparific@gmail.com",
+        "oAuthBrandDisplayName": "Roavvy"
+      },
+      "facebookSignIn": {
+        "appId": "999349465850439",
+        "appSecret": "ca7b2b31cb7489fbe43a530155b17742"
+      },
+      "appleSignIn": {
+        "teamId": "464B835ES8",
+        "keyId": "4HD5B3UH76",
+        "serviceId": "com.roavvy.prod"
+      }
+    }
   }
 }

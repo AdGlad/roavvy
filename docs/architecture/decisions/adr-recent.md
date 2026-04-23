@@ -1,4 +1,56 @@
-<!-- Recent ADRs (ADR-100 to ADR-126). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-127). Load when introducing new patterns. -->
+
+## ADR-127 — M75 Inline T-Shirt Config Panel: Remove "More" Modal
+
+**Status:** Accepted
+
+**Context:**
+`LocalMockupPreviewScreen` split product configuration across two surfaces:
+1. `_buildCompactStrip` — compact strip below the mockup showing colour swatches + Flip + "More" button.
+2. `_showOptionsSheet` — a `DraggableScrollableSheet` modal opened by "More", containing: Product,
+   Card design, Colour (duplicate of strip), Size, Front design, Back design, Ribbon mode.
+
+This caused three UX problems: (a) users must navigate away to configure core options; (b) Colour
+appears twice (strip and modal), creating confusion; (c) the experience feels fragmented and
+non-premium compared to an Apple Store-quality product page.
+
+**Decision:**
+1. **Delete `_buildCompactStrip` and `_showOptionsSheet`** entirely. No references remain.
+2. **Add `_buildInlineConfigPanel`** — a `ConstrainedBox(maxHeight: 280)` + `SingleChildScrollView`
+   containing a `Column` of labelled sections. Always visible below the mockup. Never hidden.
+3. **Section order (t-shirt only):** Colour row (with Flip button in header) → Size →
+   Front design → Back design → Ribbon mode (conditional) → Stamp colour (conditional,
+   passport template only).
+4. **No Product type section. No Card design section. No poster path changes.** The panel is
+   t-shirt configuration only; poster and card design remain outside scope of this milestone.
+5. **Flip button** moves from `_buildCompactStrip` into the Colour section header row (right-aligned).
+   Colour is the most-changed option so grouping Flip there is natural.
+6. **Passport stamp colour picker** (`_buildStampColorPicker`) moves from `_buildCompactStrip`
+   into the inline panel, shown conditionally when `_template == CardTemplateType.passport && _isTshirt`.
+7. **Existing components reused unchanged:** `_ColourSwatchRow`, `_SegmentedPicker`, `_SectionLabel`,
+   `_buildStampColorPicker`. Only layout/wiring changes.
+8. **Body layout** becomes:
+   ```dart
+   Column(children: [
+     Expanded(child: _buildMockupArea(theme)),          // mockup fills available space
+     if (_templateChanged && ...) _InlineReconfirmationBanner(),
+     if (_state != _MockupState.ready) _buildInlineConfigPanel(theme),
+   ])
+   ```
+9. **`_hiddenPanel` pattern not used** — a `DraggableScrollableSheet` with a minimum snap would
+   recreate the same "hidden navigation" problem. The panel is always fully visible.
+
+**Consequences:**
+- Single source of truth for every config option — no duplication possible.
+- Panel height is capped at 280 logical pixels; on small devices sections below the fold are
+  reachable by scrolling the panel (not navigating away).
+- `_buildCompactStrip` callers in tests must be updated to assert the new panel structure.
+- Poster path is unchanged — poster users still use whatever options remain after the strip
+  removal. Poster-specific config is out of scope for this milestone.
+- The `_showOptionsSheet` → `Navigator.of(ctx).pop()` calls that dismissed the sheet before
+  applying option changes are removed; options apply immediately via `setState` (live preview).
+
+---
 
 ## ADR-126 — M72 Country Celebration Carousel: Single-Route Multi-Country Flow
 

@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/features/merch/local_mockup_preview_screen.dart';
-import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart';
 import 'package:shared_models/shared_models.dart';
 
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
@@ -123,34 +122,6 @@ void main() {
       expect(find.byType(LocalMockupPreviewScreen), findsNothing);
     });
 
-    testWidgets('product picker shows T-Shirt and Poster options',
-        (tester) async {
-      await tester.pumpWidget(_wrap(_makeScreen()));
-      tester.takeException();
-      await tester.pump();
-      
-      await tester.tap(find.text('More'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text('T-Shirt'), findsOneWidget);
-      expect(find.text('Poster'), findsOneWidget);
-    });
-
-    testWidgets('card design picker shows all 4 templates', (tester) async {
-      await tester.pumpWidget(_wrap(_makeScreen()));
-      tester.takeException();
-      await tester.pump();
-
-      await tester.tap(find.text('More'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text('Grid'), findsOneWidget);
-      expect(find.text('Heart'), findsOneWidget);
-      expect(find.text('Passport'), findsOneWidget);
-      expect(find.text('Timeline'), findsOneWidget);
-    });
   });
 
   group('M55-C — inline re-confirmation banner', () {
