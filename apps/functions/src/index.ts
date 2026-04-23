@@ -33,6 +33,9 @@ async function generatePrintfulMockup(
   backPrintFileUrl: string | null,
   frontPosition = 'center',
 ): Promise<{ frontMockupUrl: string | null; backMockupUrl: string | null }> {
+  const t0 = Date.now();
+  const elapsed = () => `+${Date.now() - t0}ms`;
+
   const apiKey = process.env['PRINTFUL_API_KEY'];
   if (!apiKey) {
     console.error('[mockup] PRINTFUL_API_KEY not set — skipping mockup');
@@ -55,10 +58,9 @@ async function generatePrintfulMockup(
     });
   }
 
-  console.log('[mockup] approved selections:', {
+  console.log('[mockup] starting Printful mockup generation', {
     frontPosition,
-    frontFile: frontPrintFileUrl ? 'present' : 'none',
-    backFile: backPrintFileUrl ? 'present' : 'none',
+    placements: placements.map((p) => p.placement),
     variantId: printfulVariantId,
   });
 
@@ -67,9 +69,8 @@ async function generatePrintfulMockup(
     return { frontMockupUrl: null, backMockupUrl: null };
   }
 
-  console.log('[mockup] Printful request placements:', JSON.stringify(placements.map((p) => ({ placement: p.placement }))));
-
   // Submit task.
+  console.log(`[mockup] ${elapsed()} submitting task to Printful`);
   const createRes = await fetch('https://api.printful.com/v2/mockup-tasks', {
     method: 'POST',
     headers: {
@@ -95,7 +96,7 @@ async function generatePrintfulMockup(
 
   if (!createRes.ok) {
     const body = await createRes.text();
-    console.error(`[mockup] Create task failed ${createRes.status}: ${body}`);
+    console.error(`[mockup] ${elapsed()} task submit failed ${createRes.status}: ${body}`);
     return { frontMockupUrl: null, backMockupUrl: null };
   }
 
@@ -104,12 +105,12 @@ async function generatePrintfulMockup(
   };
   const taskId = createData.data?.[0]?.id;
   if (!taskId) {
-    console.error('[mockup] No task id in create response', JSON.stringify(createData));
+    console.error(`[mockup] ${elapsed()} no task id in create response`, JSON.stringify(createData));
     return { frontMockupUrl: null, backMockupUrl: null };
   }
+  console.log(`[mockup] ${elapsed()} task submitted — taskId=${taskId}, polling...`);
 
   // Poll for result. Poll URL: GET /v2/mockup-tasks?id={taskId}
-  // Dark variants (Black, Navy) take longer on Printful's end — use 25×3s = 75s max.
   const maxAttempts = 25;
   const intervalMs = 3000;
 
@@ -122,7 +123,7 @@ async function generatePrintfulMockup(
     );
 
     if (!pollRes.ok) {
-      console.error(`[mockup] Poll failed ${pollRes.status}`);
+      console.error(`[mockup] ${elapsed()} poll[${i}] failed ${pollRes.status}`);
       return { frontMockupUrl: null, backMockupUrl: null };
     }
 
@@ -131,6 +132,7 @@ async function generatePrintfulMockup(
 
     const task = pollData.data?.[0];
     const status = task?.status;
+    console.log(`[mockup] ${elapsed()} poll[${i}] status=${status ?? 'unknown'}`);
 
     if (status === 'completed') {
       const variantMockups: Array<any> = task?.catalog_variant_mockups ?? [];
@@ -150,24 +152,20 @@ async function generatePrintfulMockup(
         mockupItems[0] ??
         null;
       const mockupUrl = collageItem?.mockup_url ?? null;
-      console.log('[mockup] Printful response:', {
-        mockupUrl: mockupUrl ?? 'null',
-        styleId: collageItem?.mockup_style_id ?? 'unknown',
-        allItems: mockupItems.map((m) => ({ style: m?.mockup_style_id, placement: m?.placement })),
-      });
+      console.log(`[mockup] ${elapsed()} completed — url=${mockupUrl ?? 'null'} styleId=${collageItem?.mockup_style_id ?? 'unknown'}`);
       // Return as frontMockupUrl; backMockupUrl is unused with the combined collage style.
       return { frontMockupUrl: mockupUrl, backMockupUrl: null };
     }
 
     if (status === 'failed') {
-      console.error('[mockup] Printful reported failed status for task', taskId);
+      console.error(`[mockup] ${elapsed()} Printful reported failed for taskId=${taskId}`);
       return { frontMockupUrl: null, backMockupUrl: null };
     }
 
     // status === 'pending' — continue polling
   }
 
-  console.error('[mockup] Timeout waiting for Printful mockup task', taskId);
+  console.error(`[mockup] ${elapsed()} timed out after ${maxAttempts} polls for taskId=${taskId}`);
   return { frontMockupUrl: null, backMockupUrl: null };
 }
 
@@ -212,11 +210,15 @@ export const createMerchCart = onCall<
 >(
   { timeoutSeconds: 300, memory: '2GiB' },
   async (request) => {
+    const fnT0 = Date.now();
+    const fnElapsed = () => `+${Date.now() - fnT0}ms`;
+
     // Auth check
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
     }
     const uid = request.auth.uid;
+    console.log(`[cart] ${fnElapsed()} auth ok uid=${uid}`);
 
     // Input validation
     const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition } = request.data;
@@ -255,6 +257,8 @@ export const createMerchCart = onCall<
         `Unknown variantId: ${variantId}`
       );
     }
+
+    console.log(`[cart] ${fnElapsed()} validation ok variantId=${variantId} front=${effectiveFrontPosition} back=${effectiveBackPosition} backBase64Len=${resolvedBackBase64?.length ?? 0} frontBase64Len=${frontImageBase64?.length ?? 0}`);
 
     // ── Step 1: Write initial MerchConfig ──────────────────────────────────
     const configRef = db
@@ -295,6 +299,7 @@ export const createMerchCart = onCall<
       mockupApprovalId: typeof mockupApprovalId === 'string' ? mockupApprovalId : null,
     };
     await configRef.set(configData);
+    console.log(`[cart] ${fnElapsed()} step1 done — configId=${configId}`);
 
     // ── Step 2 & 3: Generate preview + print PNGs ──────────────────────────
     const bucket = getStorage().bucket();
@@ -306,73 +311,100 @@ export const createMerchCart = onCall<
     let backPrintFileSignedUrl: string | null = null;
 
     try {
+      console.log(`[cart] ${fnElapsed()} step2 start — image processing`);
       const sharp = (await import('sharp')).default;
-      let previewJpeg: Buffer | null = null;
-      let frontPrintBuf: Buffer | null = null;
-      let backPrintBuf: Buffer | null = null;
-
       const bgColour = printDims.backgroundColor === 'transparent'
         ? { r: 0, g: 0, b: 0, alpha: 0 }
         : { r: 255, g: 255, b: 255, alpha: 1 };
 
-      // Process front image if provided
-      if (typeof frontImageBase64 === 'string' && frontImageBase64.length > 0) {
-        const clientBuf = Buffer.from(frontImageBase64, 'base64');
-        const designBuf = await sharp(clientBuf)
-          .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
-          .toFormat('png')
-          .toBuffer();
-
-        if (effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'right_chest') {
-          // Pre-composite the design onto a full print-area canvas at the correct chest position.
-          // This avoids Printful's aspect-ratio check on the `position` layer field.
-          // Canvas = full print area (4500×5400px). Design is scaled to ~1/4 width and
-          // placed upper-right (left_chest = wearer's left) or upper-left (right_chest).
-          const canvasW = printDims.widthPx;    // 4500
-          const canvasH = printDims.heightPx;   // 5400
-          const maxW = Math.round(canvasW * 0.29);  // ~3.5" at 375dpi
-          const maxH = Math.round(canvasH * 0.30);  // ~4.8"
-          const top  = Math.round(canvasH * 0.07);  // ~1" from top
-          const left = effectiveFrontPosition === 'left_chest'
-            ? Math.round(canvasW * 0.58)   // right side — wearer's left
-            : Math.round(canvasW * 0.13);  // left side  — wearer's right
-
-          const resized = await sharp(designBuf)
-            .resize(maxW, maxH, { fit: 'inside' })
+      // Process front and back images in parallel — they are independent.
+      const [frontPrintBuf, backResult] = await Promise.all([
+        // ── Front image ────────────────────────────────────────────────────
+        (async (): Promise<Buffer | null> => {
+          if (typeof frontImageBase64 !== 'string' || frontImageBase64.length === 0) return null;
+          const clientBuf = Buffer.from(frontImageBase64, 'base64');
+          const designBuf = await sharp(clientBuf)
+            .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
+            .toFormat('png')
             .toBuffer();
-          const { width: rw = maxW } = await sharp(resized).metadata();
 
-          frontPrintBuf = await sharp({
-            create: { width: canvasW, height: canvasH, channels: 4,
-                      background: { r: 0, g: 0, b: 0, alpha: 0 } },
-          })
-            .composite([{ input: resized, top, left: left + Math.round((maxW - rw) / 2) }])
-            .png()
-            .toBuffer();
-          console.log(`[print] composited ${effectiveFrontPosition} design onto ${canvasW}×${canvasH} canvas at top=${top} left=${left}`);
-        } else {
-          frontPrintBuf = designBuf;
-        }
-      }
+          if (effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'right_chest') {
+            // Pre-composite the design onto a full print-area canvas at the correct chest
+            // position. This avoids Printful's aspect-ratio check on the `position` layer field.
+            const canvasW = printDims.widthPx;
+            const canvasH = printDims.heightPx;
+            const maxW = Math.round(canvasW * 0.29);
+            const maxH = Math.round(canvasH * 0.30);
+            const top = Math.round(canvasH * 0.07);
+            const left = effectiveFrontPosition === 'left_chest'
+              ? Math.round(canvasW * 0.58)
+              : Math.round(canvasW * 0.13);
+            const resized = await sharp(designBuf).resize(maxW, maxH, { fit: 'inside' }).toBuffer();
+            const { width: rw = maxW } = await sharp(resized).metadata();
+            const composited = await sharp({
+              create: { width: canvasW, height: canvasH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+            })
+              .composite([{ input: resized, top, left: left + Math.round((maxW - rw) / 2) }])
+              .png()
+              .toBuffer();
+            console.log(`[print] composited ${effectiveFrontPosition} onto ${canvasW}×${canvasH} at top=${top} left=${left}`);
+            return composited;
+          }
+          return designBuf;
+        })(),
 
-      // Process back image if provided
-      if (typeof resolvedBackBase64 === 'string' && resolvedBackBase64.length > 0) {
-        const clientBuf = Buffer.from(resolvedBackBase64, 'base64');
-        
-        // Preview generated from the back card (primary design)
-        previewJpeg = await sharp(clientBuf)
-          .resize(800, 600, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
-          .toFormat('jpeg', { quality: 80 })
-          .toBuffer();
+        // ── Back image (also generates preview JPEG) ───────────────────────
+        (async (): Promise<{ backPrintBuf: Buffer; previewJpeg: Buffer } | null> => {
+          if (typeof resolvedBackBase64 !== 'string' || resolvedBackBase64.length === 0) return null;
+          const clientBuf = Buffer.from(resolvedBackBase64, 'base64');
+          const inputMeta = await sharp(clientBuf).metadata();
+          console.log(`[cart] back input: ${inputMeta.width}×${inputMeta.height} → print canvas: ${printDims.widthPx}×${printDims.heightPx}`);
+          // Resize to preview and print dimensions in parallel from the same input.
+          // Explicit position:'centre' ensures consistent centring across Sharp versions.
+          const [previewJpeg, backPrintBuf] = await Promise.all([
+            sharp(clientBuf)
+              .resize(800, 600, { fit: 'contain', position: 'centre', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+              .toFormat('jpeg', { quality: 80 })
+              .toBuffer(),
+            (async () => {
+              // Scale the artwork to fit within 65 % of the canvas in each
+              // dimension, then composite it centred on the full canvas.
+              // This guarantees the design sits in the centre of the shirt back
+              // with breathing room above/below regardless of card aspect ratio.
+              // Without the cap a portrait card fills the full canvas height
+              // (top=0) and appears to start at the collar.
+              const maxW = Math.round(printDims.widthPx  * 0.65);
+              const maxH = Math.round(printDims.heightPx * 0.65);
+              const scaled = await sharp(clientBuf)
+                .resize(maxW, maxH, { fit: 'inside' })
+                .png()
+                .toBuffer();
+              const scaledMeta = await sharp(scaled).metadata();
+              const left = Math.round((printDims.widthPx  - (scaledMeta.width  ?? 0)) / 2);
+              const top  = Math.round((printDims.heightPx - (scaledMeta.height ?? 0)) / 2);
+              console.log(`[cart] back: input=${inputMeta.width}×${inputMeta.height} → scaled=${scaledMeta.width}×${scaledMeta.height} → composite left=${left} top=${top} on ${printDims.widthPx}×${printDims.heightPx}`);
+              return sharp({
+                create: {
+                  width: printDims.widthPx,
+                  height: printDims.heightPx,
+                  channels: 4,
+                  background: { r: 0, g: 0, b: 0, alpha: 0 },
+                },
+              })
+                .composite([{ input: scaled, left, top }])
+                .png()
+                .toBuffer();
+            })(),
+          ]);
+          return { backPrintBuf, previewJpeg };
+        })(),
+      ]);
 
-        backPrintBuf = await sharp(clientBuf)
-          .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
-          .toFormat('png')
-          .toBuffer();
-      }
+      let backPrintBuf: Buffer | null = backResult?.backPrintBuf ?? null;
+      let previewJpeg: Buffer | null = backResult?.previewJpeg ?? null;
+      console.log(`[cart] ${fnElapsed()} step2 done — image processing (front=${frontPrintBuf ? `${frontPrintBuf.length}B` : 'none'} back=${backPrintBuf ? `${backPrintBuf.length}B` : 'none'})`);
 
-      // Fallback: Server-side flag grid generation (only if back design is wanted
-      // but no image was provided — e.g. legacy callers without base64 images).
+      // Fallback: server-side flag grid when no client images supplied.
       if (!frontPrintBuf && !backPrintBuf && effectiveBackPosition !== 'none') {
         const previewPng = await generateFlagGrid({
           templateId: 'flag_grid_v1',
@@ -382,10 +414,7 @@ export const createMerchCart = onCall<
           dpi: 96,
           backgroundColor: 'white',
         });
-        previewJpeg = await sharp(previewPng)
-          .toFormat('jpeg', { quality: 80 })
-          .toBuffer();
-
+        previewJpeg = await sharp(previewPng).toFormat('jpeg', { quality: 80 }).toBuffer();
         backPrintBuf = await generateFlagGrid({
           templateId: 'flag_grid_v1',
           selectedCountryCodes,
@@ -396,39 +425,45 @@ export const createMerchCart = onCall<
         });
       }
 
-      // Upload preview (public read)
+      // Edge case: no back image — generate preview from front design.
       if (!previewJpeg && frontPrintBuf) {
-        // Edge case: no back image, generate preview from front image
         previewJpeg = await sharp(frontPrintBuf)
           .resize(800, 600, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
           .toFormat('jpeg', { quality: 80 })
           .toBuffer();
       }
-      
-      const previewFile = bucket.file(previewPath);
-      await previewFile.save(previewJpeg!, {
-        metadata: { contentType: 'image/jpeg' },
-        public: true,
-      });
-      previewUrl = previewFile.publicUrl();
 
+      // Upload preview + print files in parallel.
+      console.log(`[cart] ${fnElapsed()} step3 start — uploads`);
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const [uploadedPreviewUrl, resolvedFrontSignedUrl, resolvedBackSignedUrl] = await Promise.all([
+        (async () => {
+          const f = bucket.file(previewPath);
+          await f.save(previewJpeg!, { metadata: { contentType: 'image/jpeg' }, public: true });
+          return f.publicUrl();
+        })(),
+        frontPrintBuf
+          ? (async () => {
+              const f = bucket.file(frontPrintPath);
+              await f.save(frontPrintBuf!, { metadata: { contentType: 'image/png' } });
+              const [url] = await f.getSignedUrl({ action: 'read', expires: expiresAt });
+              return url;
+            })()
+          : Promise.resolve(null as string | null),
+        backPrintBuf
+          ? (async () => {
+              const f = bucket.file(backPrintPath);
+              await f.save(backPrintBuf!, { metadata: { contentType: 'image/png' } });
+              const [url] = await f.getSignedUrl({ action: 'read', expires: expiresAt });
+              return url;
+            })()
+          : Promise.resolve(null as string | null),
+      ]);
 
-      // Upload front print file (private)
-      if (frontPrintBuf) {
-        const frontPrintFile = bucket.file(frontPrintPath);
-        await frontPrintFile.save(frontPrintBuf, { metadata: { contentType: 'image/png' } });
-        const [signedUrl] = await frontPrintFile.getSignedUrl({ action: 'read', expires: expiresAt });
-        frontPrintFileSignedUrl = signedUrl;
-      }
-
-      // Upload back print file (private)
-      if (backPrintBuf) {
-        const backPrintFile = bucket.file(backPrintPath);
-        await backPrintFile.save(backPrintBuf, { metadata: { contentType: 'image/png' } });
-        const [signedUrl] = await backPrintFile.getSignedUrl({ action: 'read', expires: expiresAt });
-        backPrintFileSignedUrl = signedUrl;
-      }
+      previewUrl = uploadedPreviewUrl;
+      frontPrintFileSignedUrl = resolvedFrontSignedUrl;
+      backPrintFileSignedUrl = resolvedBackSignedUrl;
+      console.log(`[cart] ${fnElapsed()} step3 done — uploads complete`);
 
       // Update MerchConfig: files_ready
       await configRef.update({
@@ -450,6 +485,7 @@ export const createMerchCart = onCall<
     }
 
     // ── Step 4: Create Shopify cart ────────────────────────────────────────
+    console.log(`[cart] ${fnElapsed()} step4 start — Shopify cart`);
     const storefrontToken = process.env['SHOPIFY_STOREFRONT_TOKEN'];
     const storeDomain = process.env['SHOPIFY_STORE_DOMAIN'];
     if (!storefrontToken || !storeDomain) {
@@ -502,43 +538,38 @@ export const createMerchCart = onCall<
 
     // Update MerchConfig with cart ID
     await configRef.update({ shopifyCartId: cart.id, status: 'cart_created' });
+    console.log(`[cart] ${fnElapsed()} step4 done — cart created cartId=${cart.id}`);
 
-    // ── Step 5: Generate Printful mockup (non-blocking) ────────────────────
-    // Skip for poster variants (printfulVariantId === 0 = not configured).
-    let frontMockupUrl: string | null = null;
-    let backMockupUrl: string | null = null;
+    // ── Step 5: Generate Printful mockup (background — does not block response) ─
+    // The promise updates Firestore when complete; the client polls for the URL.
+    // Skipped for poster variants (printfulVariantId === 0 = not configured).
     const printfulVariantId = PRINTFUL_VARIANT_IDS[variantId] ?? 0;
-
     if (printfulVariantId !== 0) {
-      try {
-        const mockups = await generatePrintfulMockup(
-          printfulVariantId,
-          frontPrintFileSignedUrl,
-          backPrintFileSignedUrl,
-          effectiveFrontPosition,
-        );
-        frontMockupUrl = mockups.frontMockupUrl;
-        backMockupUrl = mockups.backMockupUrl;
-      } catch (err) {
-        // Mockup failure must never block checkout.
-        console.error(
-          `[createMerchCart] Mockup generation threw for ${configId}:`,
-          err
-        );
-      }
+      void generatePrintfulMockup(
+        printfulVariantId,
+        frontPrintFileSignedUrl,
+        backPrintFileSignedUrl,
+        effectiveFrontPosition,
+      )
+        .then(({ frontMockupUrl, backMockupUrl }) => {
+          if (frontMockupUrl || backMockupUrl) {
+            void configRef.update({ frontMockupUrl, backMockupUrl });
+          }
+        })
+        .catch((err: unknown) => {
+          console.error(`[createMerchCart] Background mockup failed for ${configId}:`, err);
+        });
     }
 
-    if (frontMockupUrl || backMockupUrl) {
-      await configRef.update({ frontMockupUrl, backMockupUrl });
-    }
-
+    // Return immediately — mockup URL will appear in Firestore when ready.
+    console.log(`[cart] ${fnElapsed()} returning to client (mockup generating in background)`);
     return {
       checkoutUrl: cart.checkoutUrl,
       cartId: cart.id,
       merchConfigId: configId,
       previewUrl,
-      frontMockupUrl,
-      backMockupUrl,
+      frontMockupUrl: null,
+      backMockupUrl: null,
     };
   }
 );

@@ -1,10 +1,10 @@
 import Flutter
 import UIKit
-import NaturalLanguage
+import FoundationModels
 
 @available(iOS 26.0, *)
 public class AiTitlePlugin: NSObject {
-    
+
     public static func register(with messenger: FlutterBinaryMessenger) -> AiTitlePlugin {
         let channel = FlutterMethodChannel(name: "roavvy/ai_title", binaryMessenger: messenger)
         let instance = AiTitlePlugin()
@@ -13,75 +13,119 @@ public class AiTitlePlugin: NSObject {
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        if call.method == "generateTitle" {
-            guard let args = call.arguments as? [String: Any] else {
-                result(FlutterError(code: "INVALID_ARGS", message: "Missing arguments", details: nil))
-                return
-            }
-            
-            let countryNames = args["countryNames"] as? [String] ?? []
-            let startYear = args["startYear"] as? Int
-            let endYear = args["endYear"] as? Int
-            let cardType = args["cardType"] as? String ?? "general"
-            
-            Task {
-                await generateTitleWithAppleIntelligence(
-                    countries: countryNames,
-                    startYear: startYear,
-                    endYear: endYear,
-                    cardType: cardType,
-                    result: result
-                )
-            }
-        } else {
+        guard call.method == "generateTitle" else {
             result(FlutterMethodNotImplemented)
+            return
+        }
+        guard let args = call.arguments as? [String: Any] else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Missing arguments", details: nil))
+            return
+        }
+
+        let countryNames = args["countryNames"] as? [String] ?? []
+        let regionNames  = args["regionNames"]  as? [String] ?? []
+
+        Task {
+            await generateTitle(
+                countries: countryNames,
+                regions:   regionNames,
+                result:    result
+            )
         }
     }
-    
-    private func generateTitleWithAppleIntelligence(countries: [String], startYear: Int?, endYear: Int?, cardType: String, result: @escaping FlutterResult) async {
-        do {
-            // Using the iOS 26+ Generative Language API
-            // Construct the prompt based on the provided travel data
-            var prompt = "Generate a short, catchy, and emotional title for a travel \(cardType) card."
-            if !countries.isEmpty {
-                prompt += " The destinations include \(countries.joined(separator: ", "))."
-            }
-            if let start = startYear, let end = endYear {
-                if start == end {
-                    prompt += " The trip happened in \(start)."
-                } else {
-                    prompt += " The trips spanned from \(start) to \(end)."
-                }
-            } else if let start = startYear {
-                prompt += " The trip started in \(start)."
-            }
-            prompt += " Reply with ONLY the title text, max 5 words. Do not use quotes."
-            
-            // Fictitious/Real iOS 26+ SDK for on-device generative language modeling
-            // as per user instructions that the SDK is available.
-            let model = try NLGenerativeLanguageModel(systemPrompt: "You are a witty, concise travel title generator. Return ONLY the title text, max 5 words.")
-            
-            // Keep fallback logic:
-            // Model may still not be available on all devices (e.g., storage constraints, older Neural Engines).
-            guard model.isAvailableOnDevice else {
-                DispatchQueue.main.async {
-                    // Returning nil or error triggers the Dart layer fallback (RuleBasedTitleGenerator)
-                    result(FlutterError(code: "MODEL_UNAVAILABLE", message: "On-device AI model not downloaded or supported.", details: nil))
-                }
-                return
-            }
-            
-            // Perform actual on-device generation
-            let response = try await model.generateText(for: prompt)
-            let title = response.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\"", with: "")
-            
+
+    private func generateTitle(
+        countries: [String],
+        regions:   [String],
+        result:    @escaping FlutterResult
+    ) async {
+        // Check model availability before allocating a session.
+        let availability = SystemLanguageModel.default.availability
+        guard availability == .available else {
             DispatchQueue.main.async {
-                result(title)
+                result(FlutterError(
+                    code: "AI_UNAVAILABLE",
+                    message: "On-device model not available: \(availability)",
+                    details: nil
+                ))
+            }
+            return
+        }
+
+        do {
+            // Build region hint (e.g. "Europe, Asia") — max 3 regions to keep
+            // the prompt short and focused (ADR-125).
+            let regionHint = regions.prefix(3).joined(separator: ", ")
+            let multipleCountries = countries.count > 1
+
+            var prompt = "Write a short, playful, human-sounding travel title."
+            if !countries.isEmpty {
+                let listed = countries.prefix(8).joined(separator: ", ")
+                prompt += " Countries visited: \(listed)."
+            }
+            if !regionHint.isEmpty {
+                prompt += " Region: \(regionHint)."
+            }
+            if multipleCountries {
+                prompt += " Do NOT use a single country name or region name as the title — create a thematic phrase."
+            }
+            prompt += " Rules: 2 to 4 words only. No year. No colon. No numbered list. No preamble. Output ONLY the title."
+
+            let session = LanguageModelSession(
+                instructions: "You generate short, witty travel card titles. Output ONLY the title — 2 to 4 words, nothing else. No numbered lists. No preamble like 'Sure' or 'Here is'. Never include a year, a colon, or quotation marks. Never use clichés like 'My Travels'. Sound playful and human."
+            )   
+
+            let response = try await session.respond(to: prompt)
+
+            // Post-process: take only the first non-empty line, strip list
+            // prefixes and preamble artefacts, then collapse whitespace.
+            let firstLine = response.content
+                .components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .first { !$0.isEmpty } ?? ""
+
+            // Strip numbered/bulleted prefixes: "1. ", "1) ", "- ", "* "
+            let prefixPattern = try? NSRegularExpression(pattern: #"^[\d]+[.)]\s*|^[-*]\s+"#)
+            let withoutPrefix: String
+            if let re = prefixPattern {
+                let range = NSRange(firstLine.startIndex..., in: firstLine)
+                withoutPrefix = re.stringByReplacingMatches(
+                    in: firstLine, range: range, withTemplate: "")
+            } else {
+                withoutPrefix = firstLine
+            }
+
+            // Strip preamble phrases (case-insensitive).
+            let preambles = ["Sure, ", "Sure! ", "Here is ", "Here's ", "Title: ", "Title:"]
+            var stripped = withoutPrefix
+            for p in preambles {
+                if stripped.lowercased().hasPrefix(p.lowercased()) {
+                    stripped = String(stripped.dropFirst(p.count))
+                }
+            }
+
+            let title = stripped
+                .replacingOccurrences(of: "\"", with: "")
+                .replacingOccurrences(of: "'", with: "")
+                .replacingOccurrences(of: ":", with: "")
+                .components(separatedBy: .whitespaces)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+
+            DispatchQueue.main.async {
+                result(title.isEmpty
+                    ? FlutterError(code: "EMPTY_RESPONSE",
+                                   message: "Model returned empty string",
+                                   details: nil)
+                    : title)
             }
         } catch {
             DispatchQueue.main.async {
-                // Any error falls back to the Dart layer RuleBasedTitleGenerator
-                result(FlutterError(code: "GENERATION_FAILED", message: error.localizedDescription, details: nil))
+                result(FlutterError(
+                    code: "GENERATION_FAILED",
+                    message: error.localizedDescription,
+                    details: nil
+                ))
             }
         }
     }

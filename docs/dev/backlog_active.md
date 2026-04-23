@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M75 — Inline T-Shirt Config UX (Remove "More" Tab) ← CURRENT
+**Goal:** Remove the "More" bottom sheet; bring all product configuration inline on the main
+Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium Apple-quality UX.
+**Phase:** 16 — Commerce UX Polish
+**Scope in:** `local_mockup_preview_screen.dart` only — layout refactor + widget removal/addition.
+**Scope out:** Printful API; card templates; card editor; web; scan; map.
+**Status:** ✅ Complete (2026-04-22).
+
+---
+
 ### M61 — Grid Card Upgrade
 **Goal:** Replace emoji flags with real SVG flag images; adaptive tile sizing; portrait/landscape re-layout; shared editable title state across Grid/Passport/Heart.
 **Phase:** 15 — Visual Design Upgrade

@@ -197,12 +197,21 @@ class PassportLayoutEngine {
     final usableW = canvasSize.width - marginX * 2;
     final usableH = canvasSize.height - marginY * 2;
 
-    // Dynamic base radius: full size (56 px) for ≤ 20 stamps, scales down
-    // smoothly as count grows — 56 × √(min(1, 20/n)) — clamped to [6, 56].
-    // Raised from 38 → 56 so stamps fill the available space when count is low.
+    // Dynamic base radius: scales continuously with stamp count in both
+    // directions — 56 × √(20/n) — clamped to [6, 100].
+    //
+    // The previous formula used min(1, 20/n), which capped growth at n≤20 and
+    // kept all small counts at exactly 56 px. That meant country-selection
+    // filtering (e.g. 12 → 2 stamps) produced no visible size change.
+    // Removing the min() lets the formula grow above 56 px for small counts:
+    //   n=2 → 56×√10 ≈ 177 → 100 px (ceiling)
+    //   n=5 → 56×√4  = 112 → 100 px
+    //   n=10 → 56×√2 ≈  79 px
+    //   n=20 → 56×√1 =  56 px (unchanged)
+    //   n=40 → 56×√0.5 ≈ 40 px (unchanged)
     final dynamicRadius = totalCount > 0
-        ? (56.0 * math.sqrt(math.min(1.0, 20.0 / totalCount))).clamp(6.0, 56.0)
-        : 56.0;
+        ? (56.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
+        : 100.0;
 
     // Determine forPrint base radius and check wasForced (ADR-102 / ADR-113).
     double? forPrintBaseRadius;
@@ -218,9 +227,8 @@ class PassportLayoutEngine {
         totalCount = math.min(entries.length, _kMaxStamps);
         // Recompute radius for the reduced count.
         forPrintBaseRadius = totalCount > 0
-            ? (56.0 * math.sqrt(math.min(1.0, 20.0 / totalCount)))
-                .clamp(6.0, 56.0)
-            : 56.0;
+            ? (56.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
+            : 100.0;
       }
     }
 
@@ -237,11 +245,15 @@ class PassportLayoutEngine {
     // excludes the title safe zone). On portrait canvases this produces more
     // rows than columns, distributing stamps across the full portrait height
     // rather than clustering them in a few wide rows near the centre.
+    //
+    // Grid floor is 1 (not 2) so that very small counts (1–3 stamps) get a
+    // single-column or single-row grid that spans the full canvas height rather
+    // than clustering all stamps in one quadrant of a forced 2×2 grid.
     final stampAreaAspect = usableW / math.max(1.0, availableH);
     final gridRows =
-        math.max(2, math.sqrt(totalCount.toDouble() / stampAreaAspect).ceil());
+        math.max(1, math.sqrt(totalCount.toDouble() / stampAreaAspect).ceil());
     final gridCols =
-        math.max(2, (totalCount / gridRows).ceil());
+        math.max(1, (totalCount / gridRows).ceil());
 
     final stamps = <StampData>[];
     final placedCentres = <Offset>[];

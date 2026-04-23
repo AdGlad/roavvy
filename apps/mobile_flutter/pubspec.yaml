@@ -95,6 +95,7 @@ flutter:
     - assets/flags/svg/
     - assets/mobile_meta/
     - assets/mobile_png/
+    - assets/audio/
     - assets/mobile_svg/
     - assets/mockups/
     - assets/onboarding/

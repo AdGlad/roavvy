@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreLocation
 import Flutter
 import Photos
@@ -16,8 +17,27 @@ import UIKit
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
+        configureAudioSession()
         setupChannels()
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    }
+
+    // MARK: - Audio session
+
+    /// Configures AVAudioSession so celebration sounds play even when the
+    /// device ringer switch is off. `.playback` with `.mixWithOthers` lets
+    /// our sounds layer over background music without interrupting it.
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(
+                .playback,
+                mode: .default,
+                options: .mixWithOthers
+            )
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // Non-critical — audio simply falls back to system defaults.
+        }
     }
 
     // MARK: - Channel setup

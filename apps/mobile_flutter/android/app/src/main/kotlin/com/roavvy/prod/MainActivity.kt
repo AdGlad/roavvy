@@ -1,4 +1,4 @@
-package com.example.mobile_flutter
+package com.roavvy.prod
 
 import io.flutter.embedding.android.FlutterActivity
 

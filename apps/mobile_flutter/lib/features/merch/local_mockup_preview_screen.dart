@@ -128,7 +128,7 @@ class _LocalMockupPreviewScreenState
   late CardTemplateType _template;
   late Uint8List _artworkBytes;
   String? _artworkConfirmationId;
-  bool _templateChanged = false;
+  String? _mockupApprovalId;
 
   // ── Decoded images ─────────────────────────────────────────────────────────
 
@@ -141,6 +141,9 @@ class _LocalMockupPreviewScreenState
   // ── Screen state machine ───────────────────────────────────────────────────
 
   _MockupState _state = _MockupState.configuring;
+
+  /// Non-null during a retry attempt; displayed in [_ApprovingView].
+  String? _retryMessage;
 
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
@@ -179,6 +182,15 @@ class _LocalMockupPreviewScreenState
 
   static const int _pollIntervalSeconds = 3;
   static const int _pollMaxAttempts = 10;
+
+  // ── Mockup generation parameters ───────────────────────────────────────────
+
+  static const int _kMaxRetries = 1;
+  // 30 s — function now returns after cart creation (~5–10 s); mockup is async.
+  static const Duration _kCallTimeout = Duration(seconds: 30);
+  // Mockup URL is written to Firestore by the server after cart creation.
+  static const int _kMockupPollIntervalSeconds = 3;
+  static const int _kMockupPollMaxAttempts = 20; // up to 60 s
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -402,6 +414,37 @@ class _LocalMockupPreviewScreenState
     _showOrderProcessingFallback();
   }
 
+  // ── Mockup URL polling (post-approve) ─────────────────────────────────────
+
+  /// Polls Firestore for [frontMockupUrl] after [_onApprove] returns.
+  /// The server generates the mockup in the background and writes the URL to
+  /// the MerchConfig document once Printful completes — typically 10–30 s.
+  Future<void> _startMockupPolling(String configId, String uid) async {
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('merch_configs')
+        .doc(configId);
+
+    for (int attempt = 0; attempt < _kMockupPollMaxAttempts; attempt++) {
+      await Future<void>.delayed(
+          const Duration(seconds: _kMockupPollIntervalSeconds));
+      if (!mounted) return;
+      try {
+        final snap = await docRef.get();
+        final url = snap.data()?['frontMockupUrl'] as String?;
+        if (url != null && url.isNotEmpty) {
+          debugPrint('[mockup] poll: frontMockupUrl arrived on attempt $attempt');
+          setState(() => _mockupUrl = url);
+          return;
+        }
+      } catch (_) {
+        // Network error — continue polling.
+      }
+    }
+    debugPrint('[mockup] poll: mockupUrl did not arrive within ${_kMockupPollMaxAttempts * _kMockupPollIntervalSeconds}s');
+  }
+
   void _showOrderProcessingFallback() {
     showDialog<void>(
       context: context,
@@ -423,58 +466,6 @@ class _LocalMockupPreviewScreenState
         ],
       ),
     );
-  }
-
-  // ── Template change handler ────────────────────────────────────────────────
-
-  Future<void> _onTemplateChanged(CardTemplateType newTemplate) async {
-    if (newTemplate == _template) return;
-    setState(() {
-      _state = _MockupState.rerendering;
-      _templateChanged = true;
-    });
-
-    try {
-      if (!context.mounted) return;
-      final result = await CardImageRenderer.render(
-        context,
-        newTemplate,
-        codes: widget.selectedCodes,
-        trips: widget.trips,
-        forPrint: newTemplate == CardTemplateType.passport,
-        entryOnly: widget.confirmedEntryOnly,
-        cardAspectRatio: widget.confirmedAspectRatio,
-        titleOverride: widget.titleOverride,
-        stampColor: widget.stampColor,
-        dateColor: widget.dateColor,
-        transparentBackground: widget.transparentBackground,
-      );
-      if (!mounted) return;
-      final newBytes = result.bytes;
-      await _decodeArtwork(newBytes);
-      if (!mounted) return;
-      setState(() {
-        _template = newTemplate;
-        _artworkBytes = newBytes;
-        _artworkConfirmationId = null;
-        _state = _MockupState.configuring;
-        // Reset artwork variants — new template needs fresh renders.
-        _artworkVariants[0] = newBytes;
-        _artworkVariants[1] = null;
-        _artworkVariants[2] = null;
-        _artworkVariantIndex = 0;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Couldn't re-render design, using previous version")),
-      );
-      setState(() {
-        _template = newTemplate;
-        _state = _MockupState.configuring;
-      });
-    }
   }
 
   // ── Artwork stamp variant cycling (swipe up) ───────────────────────────────
@@ -576,6 +567,28 @@ class _LocalMockupPreviewScreenState
     }
   }
 
+  // ── Upload helpers ─────────────────────────────────────────────────────────
+
+  /// Downscales [pngBytes] to [maxWidth] pixels wide before upload.
+  ///
+  /// The server resizes to print dimensions (4500×5400) regardless, so sending
+  /// full device-resolution PNG wastes bandwidth. Transparent PNG is preserved —
+  /// no JPEG conversion. Reduces the back-artwork payload from ~1.7 MB base64
+  /// to ~400 KB.
+  static const int _kUploadMaxWidth = 600;
+
+  Future<Uint8List> _resizeForUpload(Uint8List pngBytes) async {
+    final codec = await ui.instantiateImageCodec(
+      pngBytes,
+      targetWidth: _kUploadMaxWidth,
+    );
+    final frame = await codec.getNextFrame();
+    final byteData =
+        await frame.image.toByteData(format: ui.ImageByteFormat.png);
+    frame.image.dispose();
+    return byteData!.buffer.asUint8List();
+  }
+
   void _onFlipped(bool showFront) {
     // Tracks which face is visible in the local mockup so _buildCurrentFace
     // can supply the correct artwork (back artwork when showFront=false).
@@ -603,7 +616,10 @@ class _LocalMockupPreviewScreenState
     debugPrint('[mockup]   frontRibbonBytes=${_frontRibbonBytes?.length ?? 0}B');
     debugPrint('[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}');
 
-    setState(() => _state = _MockupState.approving);
+    setState(() {
+      _state = _MockupState.approving;
+      _retryMessage = null;
+    });
 
     try {
       // ── Step 1: artwork confirmation ────────────────────────────────────────
@@ -646,75 +662,151 @@ class _LocalMockupPreviewScreenState
       }
 
       // ── Step 2: mockup approval record ─────────────────────────────────────
-      debugPrint('[mockup] step 2: creating mockup approval');
-      final approvalId = 'ma-${DateTime.now().microsecondsSinceEpoch}';
-      final approval = MockupApproval(
-        mockupApprovalId: approvalId,
-        userId: uid,
-        artworkConfirmationId: confirmationId,
-        templateType: _template,
-        variantId: _resolvedVariantGid,
-        placementType: _isTshirt ? 'front:$_frontPosition,back:$_backPosition' : null,
-        confirmedAt: DateTime.now().toUtc(),
-      );
-      await MockupApprovalService(FirebaseFirestore.instance).create(approval);
-      debugPrint('[mockup]   approvalId=$approvalId ✓');
+      // Cached so re-taps after an error reuse the same record rather than
+      // creating duplicates.
+      debugPrint('[mockup] step 2: mockup approval');
+      if (_mockupApprovalId == null) {
+        final newApprovalId = 'ma-${DateTime.now().microsecondsSinceEpoch}';
+        final approval = MockupApproval(
+          mockupApprovalId: newApprovalId,
+          userId: uid,
+          artworkConfirmationId: confirmationId,
+          templateType: _template,
+          variantId: _resolvedVariantGid,
+          placementType: _isTshirt ? 'front:$_frontPosition,back:$_backPosition' : null,
+          confirmedAt: DateTime.now().toUtc(),
+        );
+        await MockupApprovalService(FirebaseFirestore.instance).create(approval);
+        if (!mounted) return;
+        setState(() => _mockupApprovalId = newApprovalId);
+        debugPrint('[mockup]   approvalId=$newApprovalId ✓ (created)');
+      } else {
+        debugPrint('[mockup]   approvalId=$_mockupApprovalId ✓ (reused)');
+      }
+      final approvalId = _mockupApprovalId!;
 
       if (!mounted) return;
 
-      // ── Step 3: call createMerchCart ────────────────────────────────────────
+      // ── Step 3: call createMerchCart (with retry) ──────────────────────────
       final sendFrontImage = _isTshirt && _frontPosition != 'none' && _frontRibbonBytes != null;
       final sendBackImage  = _backPosition != 'none';
-      debugPrint('[mockup] step 3: calling createMerchCart');
-      debugPrint('[mockup]   sendFrontImage=$sendFrontImage (${_frontRibbonBytes?.length ?? 0}B)');
-      debugPrint('[mockup]   sendBackImage=$sendBackImage (${_artworkBytes.length}B)');
+      // Resize images for upload — the server upscales to print dimensions anyway.
+      // Reduces the back-artwork payload from ~1.7 MB to ~400 KB (transparent PNG preserved).
+      final encSw = Stopwatch()..start();
+      final uploadBackBytes  = sendBackImage  ? await _resizeForUpload(_artworkBytes)       : null;
+      final uploadFrontBytes = sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!)  : null;
+      final backImageBase64  = uploadBackBytes  != null ? base64Encode(uploadBackBytes)  : null;
+      final frontImageBase64 = uploadFrontBytes != null ? base64Encode(uploadFrontBytes) : null;
+      encSw.stop();
+      debugPrint('[mockup] step 3: calling createMerchCart (max retries: $_kMaxRetries)');
+      debugPrint('[mockup]   resize+encode took ${encSw.elapsedMilliseconds}ms');
+      debugPrint('[mockup]   sendFrontImage=$sendFrontImage raw=${_frontRibbonBytes?.length ?? 0}B → upload=${uploadFrontBytes?.length ?? 0}B b64=${frontImageBase64?.length ?? 0}B');
+      debugPrint('[mockup]   sendBackImage=$sendBackImage raw=${_artworkBytes.length}B → upload=${uploadBackBytes?.length ?? 0}B b64=${backImageBase64?.length ?? 0}B');
+      debugPrint('[mockup]   total payload ~${((frontImageBase64?.length ?? 0) + (backImageBase64?.length ?? 0)) ~/ 1024}KB');
       debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
       debugPrint('[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId');
 
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('createMerchCart');
-      final sw = Stopwatch()..start();
-      final result = await callable.call<Map<String, dynamic>>({
-        'variantId': _resolvedVariantGid,
-        'selectedCountryCodes': widget.selectedCodes,
-        'quantity': 1,
-        if (widget.cardId != null) 'cardId': widget.cardId,
-        'artworkConfirmationId': confirmationId,
-        'mockupApprovalId': approvalId,
-        if (sendBackImage)  'backImageBase64':  base64Encode(_artworkBytes),
-        if (sendFrontImage) 'frontImageBase64': base64Encode(_frontRibbonBytes!),
-        if (_isTshirt) 'frontPosition': _frontPosition,
-        if (_isTshirt) 'backPosition':  _backPosition,
-      });
-      sw.stop();
-      debugPrint('[mockup]   call completed in ${sw.elapsedMilliseconds}ms');
+      Object? lastCallError;
+      bool callSucceeded = false;
 
-      // ── Step 4: parse response ──────────────────────────────────────────────
-      final checkoutUrl   = result.data['checkoutUrl']   as String?;
-      final mockupUrl     = result.data['frontMockupUrl'] as String?;
-      final backMockupUrl = result.data['backMockupUrl']  as String?;
-      final merchConfigId = result.data['merchConfigId']  as String?;
-      debugPrint('[mockup] step 4: response received');
-      debugPrint('[mockup]   checkoutUrl=${checkoutUrl != null ? "✓ present" : "✗ null"}');
-      debugPrint('[mockup]   frontMockupUrl=${mockupUrl != null ? "✓ $mockupUrl" : "✗ null"}');
-      debugPrint('[mockup]   backMockupUrl=${backMockupUrl != null ? "✓ $backMockupUrl" : "✗ null (expected for collage style)"}');
-      debugPrint('[mockup]   merchConfigId=$merchConfigId');
+      for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+        if (attempt > 0) {
+          debugPrint('[mockup]   retry attempt $attempt/$_kMaxRetries after error: $lastCallError');
+          if (!mounted) return;
+          setState(() => _retryMessage = 'Having trouble generating your mockup. Retrying\u2026');
+          await Future.delayed(const Duration(seconds: 2));
+          if (!mounted) return;
+        }
 
-      if (checkoutUrl == null || checkoutUrl.isEmpty) {
-        debugPrint('[mockup] ❌ no checkoutUrl in response — aborting');
-        throw Exception('No checkout URL returned.');
+        try {
+          final callable =
+              FirebaseFunctions.instance.httpsCallable('createMerchCart');
+          final sw = Stopwatch()..start();
+          final result = await callable
+              .call<Map<String, dynamic>>({
+                'variantId': _resolvedVariantGid,
+                'selectedCountryCodes': widget.selectedCodes,
+                'quantity': 1,
+                if (widget.cardId != null) 'cardId': widget.cardId,
+                'artworkConfirmationId': confirmationId,
+                'mockupApprovalId': approvalId,
+                if (backImageBase64  != null) 'backImageBase64':  backImageBase64,
+                if (frontImageBase64 != null) 'frontImageBase64': frontImageBase64,
+                if (_isTshirt) 'frontPosition': _frontPosition,
+                if (_isTshirt) 'backPosition':  _backPosition,
+              })
+              .timeout(_kCallTimeout);
+          sw.stop();
+          debugPrint('[mockup]   call completed in ${sw.elapsedMilliseconds}ms (attempt $attempt)');
+
+          // ── Step 4: parse response ────────────────────────────────────────
+          final checkoutUrl   = result.data['checkoutUrl']   as String?;
+          final mockupUrl     = result.data['frontMockupUrl'] as String?;
+          final backMockupUrl = result.data['backMockupUrl']  as String?;
+          final merchConfigId = result.data['merchConfigId']  as String?;
+          debugPrint('[mockup] step 4: response received');
+          debugPrint('[mockup]   checkoutUrl=${checkoutUrl != null ? "✓ present" : "✗ null"}');
+          debugPrint('[mockup]   frontMockupUrl=${mockupUrl != null ? "✓ $mockupUrl" : "✗ null"}');
+          debugPrint('[mockup]   backMockupUrl=${backMockupUrl != null ? "✓ $backMockupUrl" : "✗ null (expected for collage style)"}');
+          debugPrint('[mockup]   merchConfigId=$merchConfigId');
+
+          if (checkoutUrl == null || checkoutUrl.isEmpty) {
+            debugPrint('[mockup] ❌ no checkoutUrl in response — retrying');
+            lastCallError = Exception('No checkout URL returned.');
+            continue;
+          }
+
+          // mockupUrl may be null — the server generates it in the background.
+          // We poll Firestore for it after transitioning to ready state.
+          debugPrint('[mockup] ✓ ready — checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (will poll)"}');
+          if (!mounted) return;
+          setState(() {
+            _state         = _MockupState.ready;
+            _retryMessage  = null;
+            _mockupUrl     = mockupUrl;
+            _checkoutUrl   = checkoutUrl;
+            _merchConfigId = merchConfigId;
+          });
+          if ((mockupUrl == null || mockupUrl.isEmpty) && merchConfigId != null) {
+            unawaited(_startMockupPolling(merchConfigId, uid));
+          }
+          callSucceeded = true;
+          break;
+
+        } on TimeoutException catch (e) {
+          debugPrint('[mockup] ❌ TimeoutException on attempt $attempt: $e');
+          lastCallError = e;
+          // retryable — continue loop
+        } on FirebaseFunctionsException catch (e) {
+          debugPrint('[mockup] ❌ FirebaseFunctionsException on attempt $attempt: code=${e.code} msg=${e.message}');
+          if (e.code == 'unavailable' ||
+              e.code == 'internal' ||
+              e.code == 'deadline-exceeded') {
+            lastCallError = e;
+            // retryable — continue loop
+          } else {
+            // Non-retryable (invalid-argument, not-found, etc.) — fail immediately.
+            rethrow;
+          }
+        } on SocketException catch (e) {
+          debugPrint('[mockup] ❌ SocketException on attempt $attempt: $e');
+          lastCallError = e;
+          // retryable — continue loop
+        }
       }
 
-      debugPrint('[mockup] ✓ ready — mockupUrl=${mockupUrl != null ? "present" : "null (will show error state)"}');
-      if (!mounted) return;
-      setState(() {
-        _state         = _MockupState.ready;
-        _mockupUrl     = mockupUrl;
-        _checkoutUrl   = checkoutUrl;
-        _merchConfigId = merchConfigId;
-      });
+      // If the loop completed without success, surface the last error.
+      if (!callSucceeded) {
+        final err = lastCallError;
+        if (err is FirebaseFunctionsException) throw err;
+        if (err is SocketException) throw err;
+        // Default: treat as timeout.
+        throw TimeoutException(
+            'Mockup generation did not complete after retries.', _kCallTimeout);
+      }
+
     } on FirebaseFunctionsException catch (e) {
-      debugPrint('[mockup] ❌ FirebaseFunctionsException');
+      debugPrint('[mockup] ❌ FirebaseFunctionsException (final)');
       debugPrint('[mockup]   code=${e.code}');
       debugPrint('[mockup]   message=${e.message}');
       debugPrint('[mockup]   details=${e.details}');
@@ -723,27 +815,40 @@ class _LocalMockupPreviewScreenState
         SnackBar(
           content: Text(
             e.code == 'unavailable'
-                ? 'An internet connection is required.'
+                ? 'We couldn\'t generate your mockup. Please check your connection and try again.'
                 : e.message ?? 'An error occurred. Please try again.',
           ),
         ),
       );
-      setState(() => _state = _MockupState.configuring);
+      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
     } on SocketException catch (e) {
-      debugPrint('[mockup] ❌ SocketException: $e');
+      debugPrint('[mockup] ❌ SocketException (final): $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No internet connection')),
+        const SnackBar(content: Text('No internet connection. Please try again.')),
       );
-      setState(() => _state = _MockupState.configuring);
+      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
+    } on TimeoutException catch (e) {
+      debugPrint('[mockup] ❌ TimeoutException (final): $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'We couldn\'t generate your mockup right now. This may be due to a poor connection. Please try again later.'),
+        ),
+      );
+      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
     } catch (e, stack) {
       debugPrint('[mockup] ❌ unexpected error: $e');
       debugPrint('[mockup]   $stack');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An error occurred. Please try again.')),
+        const SnackBar(
+          content: Text(
+              'We couldn\'t generate your mockup right now. Please try again later.'),
+        ),
       );
-      setState(() => _state = _MockupState.configuring);
+      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
     }
   }
 
@@ -767,7 +872,21 @@ class _LocalMockupPreviewScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return PopScope(
+      // Block system back while the cloud function is in flight so the user
+      // cannot abandon a request that may still complete and charge them.
+      canPop: _state != _MockupState.approving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Please stay on this screen while your mockup is being prepared.'),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text('Design your ${_isTshirt ? 'T-Shirt' : 'Poster'}'),
       ),
@@ -778,13 +897,9 @@ class _LocalMockupPreviewScreenState
             child: _buildMockupArea(theme),
           ),
 
-          // ── Inline re-confirmation banner ────────────────────────────────
-          if (_templateChanged && _state == _MockupState.configuring)
-            _InlineReconfirmationBanner(),
-
-          // ── Compact bottom strip (M58-02) ────────────────────────────────
+          // ── Inline config panel (M75) ─────────────────────────────────
           if (_state != _MockupState.ready && _isTshirt)
-            _buildCompactStrip(theme),
+            _buildInlineConfigPanel(theme),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -793,7 +908,8 @@ class _LocalMockupPreviewScreenState
           child: _buildBottomBar(),
         ),
       ),
-    );
+    ),   // end Scaffold
+    );   // end PopScope
   }
 
   // ── Mockup area ────────────────────────────────────────────────────────────
@@ -801,7 +917,11 @@ class _LocalMockupPreviewScreenState
   Widget _buildMockupArea(ThemeData theme) {
     // During approving: show the animated "preparing" overlay over the shirt.
     if (_state == _MockupState.approving) {
-      return _ApprovingView(shirt: _buildLocalMockupArea(theme));
+      return _ApprovingView(
+        shirt: _buildLocalMockupArea(theme),
+        retryMessage: _retryMessage,
+        isTshirt: _isTshirt,
+      );
     }
 
     if (_state == _MockupState.ready) {
@@ -819,44 +939,54 @@ class _LocalMockupPreviewScreenState
               if (progress == null) return child;
               return _buildLocalMockupArea(theme);
             },
-            errorBuilder: (context, error, stack) => _buildMockupErrorState(),
+            errorBuilder: (context, error, stack) => _buildLocalMockupArea(theme),
           ),
         );
       }
-      // Printful generation completed but URL is missing — hard error.
-      return _buildMockupErrorState();
+      // Mockup not yet available — show local preview with a loading overlay
+      // while Firestore polling waits for the server to complete generation.
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildLocalMockupArea(theme),
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Generating photorealistic preview\u2026',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
     // Pre-generation: local mockup is the preview.
     return _buildLocalMockupArea(theme);
-  }
-
-  /// Error state shown when Printful returned no mockup URL.
-  Widget _buildMockupErrorState() {
-    return Container(
-      color: const Color(0xFFF2F2F2),
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 40, color: Color(0xFFE53935)),
-            SizedBox(height: 12),
-            Text(
-              'Mockup unavailable',
-              style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF9E9E9E),
-                  fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Cannot proceed to checkout',
-              style: TextStyle(fontSize: 12, color: Color(0xFFE53935)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildLocalMockupArea(ThemeData theme, {bool? showFrontOverride}) {
@@ -1047,7 +1177,7 @@ class _LocalMockupPreviewScreenState
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
       child: Row(
         children: [
           chip(PassportColorMode.multicolor, 'Multicolor', null),
@@ -1060,10 +1190,13 @@ class _LocalMockupPreviewScreenState
     );
   }
 
-  // ── Compact strip (M58-02) ─────────────────────────────────────────────────
+  // ── Inline config panel (ADR-127 / M75) ────────────────────────────────────
 
-  /// Compact bottom strip with colour swatches + More options handle.
-  Widget _buildCompactStrip(ThemeData theme) {
+  /// Always-visible t-shirt configuration panel below the mockup.
+  ///
+  /// Replaces _buildCompactStrip + _showOptionsSheet. All t-shirt options are
+  /// inline — no modals, no hidden navigation, no duplicate controls.
+  Widget _buildInlineConfigPanel(ThemeData theme) {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -1071,33 +1204,32 @@ class _LocalMockupPreviewScreenState
           top: BorderSide(color: theme.dividerColor, width: 0.5),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Colour swatches (M58-04)
-              Expanded(
-                child: _ColourSwatchRow(
-                  selected: _colour,
-                  onChanged: (c) => _onVariantOptionChanged(colour: c),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // More options drag handle
-              GestureDetector(
-                onTap: () => _showOptionsSheet(theme),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
+      constraints: const BoxConstraints(maxHeight: 280),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Colour + Flip ─────────────────────────────────────────────
+            Row(
+              children: [
+                Text('Colour', style: theme.textTheme.labelLarge),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _showingFront = !_showingFront;
+                    _flipViewKey++;
+                  }),
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.tune,
-                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                      Icon(Icons.flip,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
                       Text(
-                        'More',
+                        _showingFront ? 'View back' : 'View front',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -1105,149 +1237,71 @@ class _LocalMockupPreviewScreenState
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
-          if (_isTshirt && _template == CardTemplateType.passport) ...[
-            const SizedBox(height: 4),
-            _buildStampColorPicker(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // ── Options bottom sheet (M58-02) ──────────────────────────────────────────
-
-  void _showOptionsSheet(ThemeData theme) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (ctx, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: theme.dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+              ],
             ),
-            _SectionLabel('Product'),
+            const SizedBox(height: 6),
+            _ColourSwatchRow(
+              selected: _colour,
+              onChanged: (c) => _onVariantOptionChanged(colour: c),
+            ),
+            if (_template == CardTemplateType.passport)
+              _buildStampColorPicker(),
+            const SizedBox(height: 12),
+
+            // ── Size ──────────────────────────────────────────────────────
+            const _SectionLabel('Size'),
             _SegmentedPicker(
-              options: const ['T-Shirt', 'Poster'],
-              selected: _isTshirt ? 'T-Shirt' : 'Poster',
-              onChanged: (v) {
-                Navigator.of(ctx).pop();
-                _onVariantOptionChanged(
-                  product:
-                      v == 'T-Shirt' ? MerchProduct.tshirt : MerchProduct.poster,
-                );
-              },
+              options: tshirtSizes,
+              selected: _tshirtSize,
+              onChanged: (v) => setState(() => _tshirtSize = v),
             ),
             const SizedBox(height: 12),
-            _SectionLabel('Card design'),
+
+            // ── Front design ──────────────────────────────────────────────
+            const _SectionLabel('Front design'),
             _SegmentedPicker(
-              options: const ['Grid', 'Heart', 'Passport', 'Timeline'],
-              selected: _templateLabel(_template),
-              onChanged: (v) {
-                Navigator.of(ctx).pop();
-                _onTemplateChanged(_templateFromLabel(v));
+              options: const ['Left', 'Center', 'Right', 'None'],
+              selected: switch (_frontPosition) {
+                'center'      => 'Center',
+                'right_chest' => 'Right',
+                'none'        => 'None',
+                _             => 'Left',
               },
+              onChanged: (v) => _onVariantOptionChanged(
+                frontPosition: switch (v) {
+                  'Center' => 'center',
+                  'Right'  => 'right_chest',
+                  'None'   => 'none',
+                  _        => 'left_chest',
+                },
+              ),
             ),
-            if (_isTshirt) ...[
+
+            // ── Ribbon countries (conditional) ────────────────────────────
+            if (widget.allCodes.length != widget.selectedCodes.length) ...[
               const SizedBox(height: 12),
-              _SectionLabel('Colour'),
-              _ColourSwatchRow(
-                selected: _colour,
-                onChanged: (c) => setState(() {
-                  final changed = c != _colour;
-                  _colour = c;
-                  if (changed) {
-                    _flipViewKey++;
-                    _loadShirtImages();
-                  }
-                }),
-              ),
-              const SizedBox(height: 12),
-              _SectionLabel('Size'),
+              const _SectionLabel('Ribbon countries'),
               _SegmentedPicker(
-                options: tshirtSizes,
-                selected: _tshirtSize,
-                onChanged: (v) => setState(() => _tshirtSize = v),
-              ),
-              const SizedBox(height: 12),
-              _SectionLabel('Front design'),
-              _SegmentedPicker(
-                options: const ['Left', 'Center', 'Right', 'None'],
-                selected: switch (_frontPosition) {
-                  'center'      => 'Center',
-                  'right_chest' => 'Right',
-                  'none'        => 'None',
-                  _             => 'Left',
-                },
+                options: const ['Year selection', 'All time'],
+                selected:
+                    _frontRibbonMode == 'all' ? 'All time' : 'Year selection',
                 onChanged: (v) {
-                  Navigator.of(ctx).pop();
-                  _onVariantOptionChanged(frontPosition: switch (v) {
-                    'Center' => 'center',
-                    'Right'  => 'right_chest',
-                    'None'   => 'none',
-                    _        => 'left_chest',
-                  });
+                  setState(() =>
+                      _frontRibbonMode = v == 'All time' ? 'all' : 'selected');
+                  _loadFrontRibbonImage();
                 },
-              ),
-              // Ribbon mode toggle — only shown when a year filter is active,
-              // i.e. selectedCodes is a subset of allCodes.
-              if (widget.allCodes.length != widget.selectedCodes.length) ...[
-                const SizedBox(height: 8),
-                _SectionLabel('Ribbon countries'),
-                _SegmentedPicker(
-                  options: const ['Year selection', 'All time'],
-                  selected: _frontRibbonMode == 'all' ? 'All time' : 'Year selection',
-                  onChanged: (v) {
-                    Navigator.of(ctx).pop();
-                    setState(() => _frontRibbonMode = v == 'All time' ? 'all' : 'selected');
-                    _loadFrontRibbonImage();
-                  },
-                ),
-              ],
-              const SizedBox(height: 12),
-              _SectionLabel('Back design'),
-              _SegmentedPicker(
-                options: const ['Center', 'None'],
-                selected: _backPosition == 'none' ? 'None' : 'Center',
-                onChanged: (v) {
-                  Navigator.of(ctx).pop();
-                  _onVariantOptionChanged(backPosition: v == 'None' ? 'none' : 'center');
-                },
-              ),
-            ] else ...[
-              const SizedBox(height: 12),
-              _SectionLabel('Paper'),
-              _SegmentedPicker(
-                options: posterPapers,
-                selected: _posterPaper,
-                onChanged: (v) => setState(() => _posterPaper = v),
-              ),
-              const SizedBox(height: 12),
-              _SectionLabel('Size'),
-              _SegmentedPicker(
-                options: posterSizes,
-                selected: _posterSize,
-                onChanged: (v) => setState(() => _posterSize = v),
               ),
             ],
+
+            const SizedBox(height: 12),
+            // ── Back design ───────────────────────────────────────────────
+            const _SectionLabel('Back design'),
+            _SegmentedPicker(
+              options: const ['Center', 'None'],
+              selected: _backPosition == 'none' ? 'None' : 'Center',
+              onChanged: (v) => _onVariantOptionChanged(
+                  backPosition: v == 'None' ? 'none' : 'center'),
+            ),
           ],
         ),
       ),
@@ -1262,7 +1316,7 @@ class _LocalMockupPreviewScreenState
         children: [
           Expanded(
             child: FilledButton(
-              onPressed: _mockupUrl != null ? _completeCheckout : null,
+              onPressed: _completeCheckout,
               child: const Text('Complete order →'),
             ),
           ),
@@ -1283,9 +1337,7 @@ class _LocalMockupPreviewScreenState
             child: Text(
               _state == _MockupState.approving
                   ? 'Preparing your order\u2026'
-                  : (_templateChanged
-                      ? 'Confirm updated design'
-                      : 'Approve this order'),
+                  : 'Approve this order',
             ),
           ),
         ),
@@ -1293,20 +1345,6 @@ class _LocalMockupPreviewScreenState
     );
   }
 
-  static String _templateLabel(CardTemplateType t) => switch (t) {
-        CardTemplateType.grid => 'Grid',
-        CardTemplateType.heart => 'Heart',
-        CardTemplateType.passport => 'Passport',
-        CardTemplateType.timeline => 'Timeline',
-        CardTemplateType.frontRibbon => 'Front Ribbon',
-      };
-
-  static CardTemplateType _templateFromLabel(String label) => switch (label) {
-        'Heart' => CardTemplateType.heart,
-        'Passport' => CardTemplateType.passport,
-        'Timeline' => CardTemplateType.timeline,
-        _ => CardTemplateType.grid,
-      };
 }
 
 // ── _ShirtFlipView (M58-03 / M58-05) ─────────────────────────────────────────
@@ -1513,34 +1551,69 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
 /// Keeps the local shirt visible at low opacity so the user retains context of
 /// what they approved, while a pulsing animation + copy reassures them.
 class _ApprovingView extends StatefulWidget {
-  const _ApprovingView({required this.shirt});
+  const _ApprovingView({
+    required this.shirt,
+    required this.isTshirt,
+    this.retryMessage,
+  });
   final Widget shirt;
+  final bool isTshirt;
+
+  /// Non-null when a retry is in progress; overrides the subtitle copy.
+  final String? retryMessage;
 
   @override
   State<_ApprovingView> createState() => _ApprovingViewState();
 }
 
 class _ApprovingViewState extends State<_ApprovingView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
+    with TickerProviderStateMixin {
+  late final AnimationController _swingCtrl;
   late final Animation<double> _swing;
+
+  // Simulated progress: 0 → 0.9 over 25 s (easeOut), stalls at 90 % until the
+  // API responds and the overlay is removed. Resets to 0 on each retry.
+  late AnimationController _progressCtrl;
+  late Animation<double> _progress;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
+    _swingCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    // Swing the hanger ±12° like it's sliding on a rail.
     _swing = Tween<double>(begin: -0.033, end: 0.033).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _swingCtrl, curve: Curves.easeInOut),
     );
+    _startProgress();
+  }
+
+  void _startProgress() {
+    _progressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 25),
+    );
+    _progress = Tween<double>(begin: 0.0, end: 0.9).animate(
+      CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOut),
+    );
+    _progressCtrl.forward();
+  }
+
+  @override
+  void didUpdateWidget(_ApprovingView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset the progress bar at the start of each retry attempt.
+    if (oldWidget.retryMessage == null && widget.retryMessage != null) {
+      _progressCtrl.dispose();
+      _startProgress();
+    }
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _swingCtrl.dispose();
+    _progressCtrl.dispose();
     super.dispose();
   }
 
@@ -1573,21 +1646,51 @@ class _ApprovingViewState extends State<_ApprovingView>
               ),
               const SizedBox(height: 28),
               Text(
-                'Nearly there\u2026',
+                'Creating your mockup\u2026',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                'Your t\u2011shirt design will be\nconfirmed shortly.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.5,
+              const SizedBox(height: 16),
+              // Simulated progress bar — fills to ~90 % over 25 s, then stalls
+              // until the API responds. Resets to 0 on each retry.
+              AnimatedBuilder(
+                animation: _progress,
+                builder: (context, _) => LinearProgressIndicator(
+                  value: _progress.value,
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
+              const SizedBox(height: 14),
+              if (widget.retryMessage != null)
+                Text(
+                  widget.retryMessage!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                    height: 1.5,
+                  ),
+                )
+              else ...[
+                Text(
+                  'This usually takes about 20 seconds.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Please stay on this screen while\nwe prepare your preview.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1661,31 +1764,6 @@ class _ColourSwatchRow extends StatelessWidget {
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-}
-
-// ── Inline re-confirmation banner ─────────────────────────────────────────────
-
-class _InlineReconfirmationBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.amber.shade100,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_rounded,
-              size: 18, color: Colors.amber),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Design changed — please confirm this is correct before ordering',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
       ),
     );
   }
