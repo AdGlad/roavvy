@@ -44,8 +44,12 @@ async function generatePrintfulMockup(
 
   const placements = [];
   if (frontPrintFileUrl) {
+    // M76 (ADR-128): use named 'left_chest' placement for left-chest designs so Printful
+    // renders the mockup as a chest badge rather than a full-front print.
+    // All other positions use 'front' (the default full print area).
+    const frontPlacementName = frontPosition === 'left_chest' ? 'left_chest' : 'front';
     placements.push({
-      placement: 'front',
+      placement: frontPlacementName,
       technique: 'dtg',
       layers: [{ type: 'file', url: frontPrintFileUrl }],
     });
@@ -60,7 +64,7 @@ async function generatePrintfulMockup(
 
   console.log('[mockup] starting Printful mockup generation', {
     frontPosition,
-    placements: placements.map((p) => p.placement),
+    resolvedPlacements: placements.map((p) => p.placement),
     variantId: printfulVariantId,
   });
 
@@ -297,6 +301,8 @@ export const createMerchCart = onCall<
       artworkConfirmationId: typeof artworkConfirmationId === 'string' ? artworkConfirmationId : null,
       // M53 field (ADR-105): links this order to the MockupApproval the user confirmed
       mockupApprovalId: typeof mockupApprovalId === 'string' ? mockupApprovalId : null,
+      // M76 field (ADR-128): front placement so shopifyOrderCreated can use the correct Printful placement
+      frontPosition: effectiveFrontPosition,
     };
     await configRef.set(configData);
     console.log(`[cart] ${fnElapsed()} step1 done — configId=${configId}`);
@@ -328,17 +334,29 @@ export const createMerchCart = onCall<
             .toFormat('png')
             .toBuffer();
 
-          if (effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'right_chest') {
-            // Pre-composite the design onto a full print-area canvas at the correct chest
-            // position. This avoids Printful's aspect-ratio check on the `position` layer field.
+          if (effectiveFrontPosition === 'left_chest') {
+            // M76 (ADR-128): named `left_chest` placement — send a small chest-area PNG.
+            // Printful positions the file within the chest area automatically when given
+            // placement: 'left_chest'. Sending the full composited canvas would compress
+            // the entire 4500×5400px canvas into the chest area, making the design wrong.
+            const canvasW = printDims.widthPx;
+            const canvasH = printDims.heightPx;
+            const maxW = Math.round(canvasW * 0.29);
+            const maxH = Math.round(canvasH * 0.30);
+            const chestBuf = await sharp(designBuf).resize(maxW, maxH, { fit: 'inside' }).png().toBuffer();
+            const chestMeta = await sharp(chestBuf).metadata();
+            console.log(`[print] left_chest small PNG ${chestMeta.width}×${chestMeta.height} (max ${maxW}×${maxH})`);
+            return chestBuf;
+          }
+          if (effectiveFrontPosition === 'right_chest') {
+            // right_chest: keep pre-composite onto full canvas — 'right_chest' is not a
+            // confirmed DTG named placement for product 12 (ADR-128).
             const canvasW = printDims.widthPx;
             const canvasH = printDims.heightPx;
             const maxW = Math.round(canvasW * 0.29);
             const maxH = Math.round(canvasH * 0.30);
             const top = Math.round(canvasH * 0.07);
-            const left = effectiveFrontPosition === 'left_chest'
-              ? Math.round(canvasW * 0.58)
-              : Math.round(canvasW * 0.13);
+            const left = Math.round(canvasW * 0.13);
             const resized = await sharp(designBuf).resize(maxW, maxH, { fit: 'inside' }).toBuffer();
             const { width: rw = maxW } = await sharp(resized).metadata();
             const composited = await sharp({
@@ -347,7 +365,7 @@ export const createMerchCart = onCall<
               .composite([{ input: resized, top, left: left + Math.round((maxW - rw) / 2) }])
               .png()
               .toBuffer();
-            console.log(`[print] composited ${effectiveFrontPosition} onto ${canvasW}×${canvasH} at top=${top} left=${left}`);
+            console.log(`[print] composited right_chest onto ${canvasW}×${canvasH} at top=${top} left=${left}`);
             return composited;
           }
           return designBuf;
@@ -792,7 +810,15 @@ export const shopifyOrderCreated = onRequest(
 
     const files = [];
     if (frontPrintFileSignedUrl) {
-      files.push({ url: frontPrintFileSignedUrl, type: 'default' }); // Printful 'default' = front
+      // M76 (ADR-128): use named 'left_chest' placement for left-chest orders so the
+      // production print matches the mockup. Pre-M76 configs have frontPosition=null,
+      // which falls through to 'default' (center front) — safe backwards-compatible default.
+      // NOTE: 'placement' field verified against Printful v2 Orders API 2026-04-23.
+      if (config.frontPosition === 'left_chest') {
+        files.push({ url: frontPrintFileSignedUrl, placement: 'left_chest' });
+      } else {
+        files.push({ url: frontPrintFileSignedUrl, type: 'default' }); // Printful 'default' = front
+      }
     }
     if (backPrintFileSignedUrl) {
       files.push({ url: backPrintFileSignedUrl, type: 'back' });

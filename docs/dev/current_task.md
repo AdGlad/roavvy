@@ -1,51 +1,34 @@
-# Active Task: M75 — Inline T-Shirt Config UX (Remove "More" Tab)
-Branch: milestone/m75-inline-tshirt-config
+# Active Task: M76 — Named Printful Placement for Left Chest Designs
+Branch: milestone/m76-printful-front-placement
 
 ## Goal
-Remove the "More" bottom sheet from the Design Your T-Shirt screen and bring all
-product configuration inline — visible, scrollable, and immediately interactive
-on the main screen. No hidden navigation. No duplicate controls.
+Use Printful's named `left_chest` placement for left-chest t-shirt designs so the
+Printful photorealistic mockup accurately shows a small chest badge instead of a
+full-front canvas with content in the corner.
 
 ## Scope
-In: `local_mockup_preview_screen.dart` layout + widget refactor; remove `_showOptionsSheet`
-    and `_buildCompactStrip`; add `_buildInlineConfigPanel`; poster path gets same treatment.
-Out: Printful API; card templates; card editor; web; scan; map; new packages.
-
-## UX Direction (ADR-127)
-- Mockup: `Expanded` (fills available space above config panel).
-- Config panel: t-shirt only. `ConstrainedBox(maxHeight: 280)` + `SingleChildScrollView` —
-  always visible, scrollable for overflow. Never hidden behind navigation.
-- Sections: Colour + Flip button row, Size, Front design, Back design,
-  Ribbon mode (conditional), Stamp colour (conditional, passport template only).
-- No Product type section. No Card design section. No poster path changes.
-- Colour swatches stay circle-swatch style (M58-04). Flip button moves into colour section header.
-- Stamp colour picker (M64) moves from compact strip into panel (conditional).
-- `_SegmentedPicker` and `_ColourSwatchRow` reused unchanged.
-- No modal, no navigation, no "More" button, no duplicate colour picker.
+In: `apps/functions/src/index.ts`, `apps/functions/src/types.ts` — mockup generation,
+    print file generation, Orders API call, MerchConfig type.
+Out: `right_chest` (keeps pre-composite; not a standard DTG named placement), mobile app,
+     local mockup painter, card editor, web, Shopify, packages.
 
 ## Tasks
-- [x] T1 — Delete `_buildCompactStrip` and `_showOptionsSheet` (and callers)
-- [x] T2 — Build `_buildInlineConfigPanel`: t-shirt sections only — Colour+Flip, Size, Front design, Back design, Ribbon (conditional), Stamp colour (conditional)
-- [x] T3 — Update `build()` body layout: Expanded(mockup) + inline panel
-- [x] T4 — Move Flip button into colour section header row of the panel
-- [x] T5 — Move passport stamp colour picker (`_buildStampColorPicker`) into panel (conditional on template)
-- [x] T6 — `flutter analyze` clean; removed outdated tests; deleted dead code (`_onTemplateChanged`, `_templateChanged`, `_InlineReconfirmationBanner`)
+- [x] T1 — Add `frontPosition` to `MerchConfig` type and persist in `createMerchCart`
+- [x] T2 — Update left_chest print file generation: small chest PNG, not composited canvas
+- [x] T3 — Update `generatePrintfulMockup` to use `placement: 'left_chest'` for left_chest
+- [x] T4 — Update `shopifyOrderCreated` Orders API call to use `placement: 'left_chest'`
+- [x] T5 — Compile JS output and update docs
 
-## ✅ Complete (2026-04-22)
-
-## Acceptance Criteria
-- "More" button is gone
-- No duplicate colour controls
-- All product config visible inline on main screen
-- Preview updates instantly on every config change
-- Flip front/back accessible without opening any modal
-- `flutter analyze` reports no new issues
-- All existing tests pass
+## ✅ Complete (2026-04-23)
 
 ## Risks
 | Risk | Mitigation |
 |---|---|
-| Config panel too tall on small phones | `ConstrainedBox(maxHeight: 280)` + scroll |
-| Poster path breaks (no shirt) | Panel conditioned on `_isTshirt` per-section |
-| Stamp colour picker lost | Moved to panel; shown only when `_template == passport && _isTshirt` |
-| `_buildCompactStrip` referenced in tests | Update tests to expect new panel layout |
+| Printful rejects `left_chest` DTG for product 12 | Manual verification prerequisite (T0); mockup returns null on reject (non-blocking) |
+| Collage style 24458 doesn't render left_chest correctly | Fallback: first available mockup item |
+| Orders API `placement` field format differs from mockup API | Use `type: 'left_chest'` as fallback; note in code |
+| right_chest kept as pre-composite | Accepted; document clearly in code |
+
+## Production prerequisite
+Before deploying: call `GET /v2/catalog/products/12/placements` with PRINTFUL_API_KEY
+and confirm `left_chest` appears with `technique: 'dtg'`. If absent, revert T2–T4.

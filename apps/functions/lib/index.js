@@ -63,8 +63,12 @@ async function generatePrintfulMockup(printfulVariantId, frontPrintFileUrl, back
     }
     const placements = [];
     if (frontPrintFileUrl) {
+        // M76 (ADR-128): use named 'left_chest' placement for left-chest designs so Printful
+        // renders the mockup as a chest badge rather than a full-front print.
+        // All other positions use 'front' (the default full print area).
+        const frontPlacementName = frontPosition === 'left_chest' ? 'left_chest' : 'front';
         placements.push({
-            placement: 'front',
+            placement: frontPlacementName,
             technique: 'dtg',
             layers: [{ type: 'file', url: frontPrintFileUrl }],
         });
@@ -78,7 +82,7 @@ async function generatePrintfulMockup(printfulVariantId, frontPrintFileUrl, back
     }
     console.log('[mockup] starting Printful mockup generation', {
         frontPosition,
-        placements: placements.map((p) => p.placement),
+        resolvedPlacements: placements.map((p) => p.placement),
         variantId: printfulVariantId,
     });
     if (placements.length === 0) {
@@ -271,6 +275,8 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
         artworkConfirmationId: typeof artworkConfirmationId === 'string' ? artworkConfirmationId : null,
         // M53 field (ADR-105): links this order to the MockupApproval the user confirmed
         mockupApprovalId: typeof mockupApprovalId === 'string' ? mockupApprovalId : null,
+        // M76 field (ADR-128): front placement so shopifyOrderCreated can use the correct Printful placement
+        frontPosition: effectiveFrontPosition,
     };
     await configRef.set(configData);
     console.log(`[cart] ${fnElapsed()} step1 done — configId=${configId}`);
@@ -299,17 +305,29 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
                     .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
                     .toFormat('png')
                     .toBuffer();
-                if (effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'right_chest') {
-                    // Pre-composite the design onto a full print-area canvas at the correct chest
-                    // position. This avoids Printful's aspect-ratio check on the `position` layer field.
+                if (effectiveFrontPosition === 'left_chest') {
+                    // M76 (ADR-128): named `left_chest` placement — send a small chest-area PNG.
+                    // Printful positions the file within the chest area automatically when given
+                    // placement: 'left_chest'. Sending the full composited canvas would compress
+                    // the entire 4500×5400px canvas into the chest area, making the design wrong.
+                    const canvasW = printDims.widthPx;
+                    const canvasH = printDims.heightPx;
+                    const maxW = Math.round(canvasW * 0.29);
+                    const maxH = Math.round(canvasH * 0.30);
+                    const chestBuf = await sharp(designBuf).resize(maxW, maxH, { fit: 'inside' }).png().toBuffer();
+                    const chestMeta = await sharp(chestBuf).metadata();
+                    console.log(`[print] left_chest small PNG ${chestMeta.width}×${chestMeta.height} (max ${maxW}×${maxH})`);
+                    return chestBuf;
+                }
+                if (effectiveFrontPosition === 'right_chest') {
+                    // right_chest: keep pre-composite onto full canvas — 'right_chest' is not a
+                    // confirmed DTG named placement for product 12 (ADR-128).
                     const canvasW = printDims.widthPx;
                     const canvasH = printDims.heightPx;
                     const maxW = Math.round(canvasW * 0.29);
                     const maxH = Math.round(canvasH * 0.30);
                     const top = Math.round(canvasH * 0.07);
-                    const left = effectiveFrontPosition === 'left_chest'
-                        ? Math.round(canvasW * 0.58)
-                        : Math.round(canvasW * 0.13);
+                    const left = Math.round(canvasW * 0.13);
                     const resized = await sharp(designBuf).resize(maxW, maxH, { fit: 'inside' }).toBuffer();
                     const { width: rw = maxW } = await sharp(resized).metadata();
                     const composited = await sharp({
@@ -318,7 +336,7 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
                         .composite([{ input: resized, top, left: left + Math.round((maxW - rw) / 2) }])
                         .png()
                         .toBuffer();
-                    console.log(`[print] composited ${effectiveFrontPosition} onto ${canvasW}×${canvasH} at top=${top} left=${left}`);
+                    console.log(`[print] composited right_chest onto ${canvasW}×${canvasH} at top=${top} left=${left}`);
                     return composited;
                 }
                 return designBuf;
@@ -328,16 +346,44 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
                 if (typeof resolvedBackBase64 !== 'string' || resolvedBackBase64.length === 0)
                     return null;
                 const clientBuf = Buffer.from(resolvedBackBase64, 'base64');
+                const inputMeta = await sharp(clientBuf).metadata();
+                console.log(`[cart] back input: ${inputMeta.width}×${inputMeta.height} → print canvas: ${printDims.widthPx}×${printDims.heightPx}`);
                 // Resize to preview and print dimensions in parallel from the same input.
+                // Explicit position:'centre' ensures consistent centring across Sharp versions.
                 const [previewJpeg, backPrintBuf] = await Promise.all([
                     sharp(clientBuf)
-                        .resize(800, 600, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                        .resize(800, 600, { fit: 'contain', position: 'centre', background: { r: 255, g: 255, b: 255, alpha: 1 } })
                         .toFormat('jpeg', { quality: 80 })
                         .toBuffer(),
-                    sharp(clientBuf)
-                        .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
-                        .toFormat('png')
-                        .toBuffer(),
+                    (async () => {
+                        // Scale the artwork to fit within 65 % of the canvas in each
+                        // dimension, then composite it centred on the full canvas.
+                        // This guarantees the design sits in the centre of the shirt back
+                        // with breathing room above/below regardless of card aspect ratio.
+                        // Without the cap a portrait card fills the full canvas height
+                        // (top=0) and appears to start at the collar.
+                        const maxW = Math.round(printDims.widthPx * 0.65);
+                        const maxH = Math.round(printDims.heightPx * 0.65);
+                        const scaled = await sharp(clientBuf)
+                            .resize(maxW, maxH, { fit: 'inside' })
+                            .png()
+                            .toBuffer();
+                        const scaledMeta = await sharp(scaled).metadata();
+                        const left = Math.round((printDims.widthPx - (scaledMeta.width ?? 0)) / 2);
+                        const top = Math.round((printDims.heightPx - (scaledMeta.height ?? 0)) / 2);
+                        console.log(`[cart] back: input=${inputMeta.width}×${inputMeta.height} → scaled=${scaledMeta.width}×${scaledMeta.height} → composite left=${left} top=${top} on ${printDims.widthPx}×${printDims.heightPx}`);
+                        return sharp({
+                            create: {
+                                width: printDims.widthPx,
+                                height: printDims.heightPx,
+                                channels: 4,
+                                background: { r: 0, g: 0, b: 0, alpha: 0 },
+                            },
+                        })
+                            .composite([{ input: scaled, left, top }])
+                            .png()
+                            .toBuffer();
+                    })(),
                 ]);
                 return { backPrintBuf, previewJpeg };
             })(),
@@ -642,7 +688,16 @@ exports.shopifyOrderCreated = (0, https_1.onRequest)({ invoker: 'public' }, asyn
         : {};
     const files = [];
     if (frontPrintFileSignedUrl) {
-        files.push({ url: frontPrintFileSignedUrl, type: 'default' }); // Printful 'default' = front
+        // M76 (ADR-128): use named 'left_chest' placement for left-chest orders so the
+        // production print matches the mockup. Pre-M76 configs have frontPosition=null,
+        // which falls through to 'default' (center front) — safe backwards-compatible default.
+        // NOTE: 'placement' field verified against Printful v2 Orders API 2026-04-23.
+        if (config.frontPosition === 'left_chest') {
+            files.push({ url: frontPrintFileSignedUrl, placement: 'left_chest' });
+        }
+        else {
+            files.push({ url: frontPrintFileSignedUrl, type: 'default' }); // Printful 'default' = front
+        }
     }
     if (backPrintFileSignedUrl) {
         files.push({ url: backPrintFileSignedUrl, type: 'back' });

@@ -82,6 +82,12 @@ export interface MerchConfig {
    * Null for orders placed before M53.
    */
   mockupApprovalId: string | null;
+  /**
+   * Where the front design is placed on the shirt (M76, ADR-128).
+   * 'left_chest' | 'center' | 'right_chest' | 'none'.
+   * Null for orders placed before M76 — treated as 'center' by shopifyOrderCreated.
+   */
+  frontPosition: string | null;
 }
 
 /** Request payload for createMerchCart onCall function */
