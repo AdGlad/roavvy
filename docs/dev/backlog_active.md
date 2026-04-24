@@ -7,7 +7,16 @@
 
 ## Next up (mobile-first order)
 
-### M75 — Inline T-Shirt Config UX (Remove "More" Tab) ← CURRENT
+### M77 — Incremental Scan Redesign ← CURRENT
+**Goal:** Globe pre-populated with known countries, country list shows existing visits from scan start, assetId-based dedup for robustness, instant visual feedback on auto-scan.
+**Phase:** 16 — Scan UX
+**Scope in:** `scan_screen.dart`, `visit_repository.dart` only.
+**Scope out:** Firestore, web, card editor, merch, packages, map screen.
+**Status:** In progress (2026-04-24).
+
+---
+
+### M75 — Inline T-Shirt Config UX (Remove "More" Tab)
 **Goal:** Remove the "More" bottom sheet; bring all product configuration inline on the main
 Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium Apple-quality UX.
 **Phase:** 16 — Commerce UX Polish

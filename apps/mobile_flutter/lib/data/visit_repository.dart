@@ -339,6 +339,21 @@ class VisitRepository {
     });
   }
 
+  /// Returns all non-null PHAsset local identifiers stored in
+  /// `photo_date_records`, across all countries, as a Set.
+  ///
+  /// Used by [ScanScreen] at scan-start to build a dedup filter: photos whose
+  /// [PhotoRecord.assetId] is already in this set are skipped before batch
+  /// resolution, making incremental scans robust to restored backups and
+  /// iCloud imports (ADR-129). Asset IDs are stored locally only — never sent
+  /// to Firestore (ADR-060). Loads once per scan; safe to hold in memory.
+  Future<Set<String>> loadAllKnownAssetIds() async {
+    final rows = await (_db.select(_db.photoDateRecords)
+          ..where((t) => t.assetId.isNotNull()))
+        .get();
+    return {for (final r in rows) r.assetId!};
+  }
+
   /// Returns all non-null PHAsset local identifiers for [countryCode].
   ///
   /// Used by the photo gallery to load thumbnails from the on-device photo

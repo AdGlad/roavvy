@@ -1,4 +1,82 @@
+<<<<<<< HEAD
 <!-- Recent ADRs (ADR-100 to ADR-128). Load when introducing new patterns. -->
+=======
+<!-- Recent ADRs (ADR-100 to ADR-130). Load when introducing new patterns. -->
+
+## ADR-130 — M77 Scan Screen Pre-load: Globe and Country List Show Existing Visits
+
+**Status:** Accepted
+
+**Context:**
+When a user opens the scan screen and a scan starts (including the automatic incremental scan on
+app open), the globe widget (`_ScanGlobeWidget`) and the country list (`_LiveCountryList`) both
+start empty — they only receive `_liveNewCodes` (countries found for the first time during the
+current scan). For a user who already has 30+ countries, the globe is dark and the country list
+shows "Countries will appear here…" for 2–5 seconds until the first batch arrives. This is
+confusing: it looks like history has been lost.
+
+The existing `_effectiveVisits` list is already loaded before scanning starts (in `_loadPersisted`)
+so the data is available at zero extra cost.
+
+**Decision:**
+1. **Pass `existingCodes` to `_ScanningView`** — a `List<String>` derived from `_effectiveVisits`
+   before the scan starts. It is snapshot once (unmodifiable) so mid-scan edits don't affect it.
+2. **Globe pre-population:** `_ScanGlobeWidget` receives `existingCodes`. Before any `_liveNewCodes`
+   arrive, it renders existing countries as `CountryVisualState.visited` (muted gold). When a new
+   code arrives in `_liveNewCodes`, it is rendered as `CountryVisualState.newlyDiscovered` (bright)
+   and the globe animates to it. `existingCodes` countries do NOT trigger travel animation.
+3. **Country list pre-population:** `_LiveCountryList` receives `existingCodes`. It renders them
+   as a muted "already visited" group at the top of the list, with no slide-in animation (they are
+   not new). The `_liveNewCodes` section shows below, animated as before.
+4. **No new data loading** — `existingCodes` is derived from `_effectiveVisits` which is already
+   in memory. This adds zero latency.
+5. **Full-scan behaviour:** Same logic applies. The pre-populated list shows historical countries;
+   the globe only animates to genuinely new discoveries (`_liveNewCodes`).
+
+**Consequences:**
+- Globe is never empty when the user has prior visits.
+- Country list shows context immediately; no "Countries will appear here…" flash.
+- `_ScanGlobeWidget` and `_LiveCountryList` each gain one extra positional parameter.
+- Visual distinction required: existing countries use a muted text style / opacity in the list.
+
+---
+
+## ADR-129 — M77 AssetId-Based Incremental Scan Deduplication
+
+**Status:** Accepted
+
+**Context:**
+The incremental scan filters photos by `creationDate > sinceDate` (the timestamp filter, ADR-022).
+This correctly handles the common case (new photos added since last scan). However:
+- Restored iPhone backups may deliver photos with old creation dates that post-date `sinceDate` but
+  whose GPS data has already been processed (they will be double-counted as new).
+- iCloud Photos imports or "Add to Library" from other devices can surface already-processed photos.
+- The timestamp filter is the primary guard; this ADR adds a secondary guard using the `assetId`
+  (PHAsset.localIdentifier) that is already stored in `photo_date_records.asset_id` (schema v9).
+
+**Decision:**
+1. **`VisitRepository.loadAllKnownAssetIds()`** — new method that SELECTs all non-null `asset_id`
+   values from `photo_date_records` into a `Set<String>`. Called once at the start of `_scan()`.
+2. **Filter in `_scan()` before `_resolveBatch`:** For each `ScanBatchEvent`, filter the
+   `event.photos` list:
+   - If `photo.assetId != null && knownAssetIds.contains(photo.assetId)` → skip (already processed).
+   - If `photo.assetId == null` OR `!knownAssetIds.contains(photo.assetId)` → include.
+3. **One load, not per-batch:** `knownAssetIds` is loaded once before the stream loop. It is
+   intentionally a snapshot — photos processed in later batches of the same scan do not need
+   to be added to it (the timestamp filter already covers same-scan duplicates).
+4. **No Firestore involvement** — `asset_id` is a local-only field (ADR-060). This filter is
+   entirely on-device using only Drift SQLite.
+5. **No change to the Swift bridge** — it continues to send `assetId` as it does today.
+
+**Consequences:**
+- Incremental scans are robust to restored backups and iCloud imports.
+- `VisitRepository` gains one new read method; no schema change needed (field already exists).
+- Small memory overhead: `Set<String>` of PHAsset UUIDs (~36 bytes each × photo count).
+- For a user with 10,000 geotagged photos the Set is ~360 KB — acceptable.
+- Null-assetId photos (older SQLite rows or devices that don't send assetId) are never filtered.
+
+---
+>>>>>>> milestone/m77-incremental-scan-redesign
 
 ## ADR-128 — M76 Named Printful Placement for Left Chest Designs
 

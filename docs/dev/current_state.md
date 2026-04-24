@@ -1,10 +1,10 @@
-# Roavvy — Current State (updated M76, 2026-04-23)
+# Roavvy — Current State (updated M77, 2026-04-24)
 
 ## What is built
 
 | Feature area | Status | Notes |
 |---|---|---|
-| Photo scan | ✅ | PhotoKit bridge; GPS → country (offline, `country_lookup`); incremental scan; real-time discovery feed |
+| Photo scan | ✅ | PhotoKit bridge; GPS → country (offline, `country_lookup`); incremental scan; real-time discovery feed; globe + list pre-populated with existing countries; assetId-based dedup (M77) |
 | World map | ✅ | `flutter_map`; dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states) |
 | Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet |
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
