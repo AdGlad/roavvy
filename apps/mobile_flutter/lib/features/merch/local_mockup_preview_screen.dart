@@ -148,8 +148,10 @@ class _LocalMockupPreviewScreenState
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
   String? _checkoutUrl;
-  /// Combined front+back collage mockup URL from Printful (style 24458).
+  /// Front mockup URL from Printful (front or chest placement view).
   String? _mockupUrl;
+  /// Back mockup URL from Printful (back placement view — separate from front).
+  String? _backMockupUrl;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
 
@@ -416,9 +418,9 @@ class _LocalMockupPreviewScreenState
 
   // ── Mockup URL polling (post-approve) ─────────────────────────────────────
 
-  /// Polls Firestore for [frontMockupUrl] after [_onApprove] returns.
-  /// The server generates the mockup in the background and writes the URL to
-  /// the MerchConfig document once Printful completes — typically 10–30 s.
+  /// Polls Firestore for front and back mockup URLs after [_onApprove] returns.
+  /// The server generates mockups in the background and writes the URLs to the
+  /// MerchConfig document once Printful completes — typically 10–30 s.
   Future<void> _startMockupPolling(String configId, String uid) async {
     final docRef = FirebaseFirestore.instance
         .collection('users')
@@ -432,10 +434,15 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
       try {
         final snap = await docRef.get();
-        final url = snap.data()?['frontMockupUrl'] as String?;
-        if (url != null && url.isNotEmpty) {
-          debugPrint('[mockup] poll: frontMockupUrl arrived on attempt $attempt');
-          setState(() => _mockupUrl = url);
+        final data = snap.data();
+        final frontUrl = data?['frontMockupUrl'] as String?;
+        final backUrl  = data?['backMockupUrl']  as String?;
+        if (frontUrl != null && frontUrl.isNotEmpty) {
+          debugPrint('[mockup] poll: mockups arrived on attempt $attempt (front=✓ back=${backUrl != null ? "✓" : "null"})');
+          setState(() {
+            _mockupUrl     = frontUrl;
+            _backMockupUrl = backUrl;
+          });
           return;
         }
       } catch (_) {
@@ -764,6 +771,7 @@ class _LocalMockupPreviewScreenState
             _state         = _MockupState.ready;
             _retryMessage  = null;
             _mockupUrl     = mockupUrl;
+            _backMockupUrl = backMockupUrl;
             _checkoutUrl   = checkoutUrl;
             _merchConfigId = merchConfigId;
           });
@@ -925,23 +933,20 @@ class _LocalMockupPreviewScreenState
     }
 
     if (_state == _MockupState.ready) {
-      final url = _mockupUrl;
-      if (url != null) {
-        // Show the Printful Collage combined front+back mockup with pinch-to-zoom.
-        return InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: Image.network(
-            url,
-            key: ValueKey(url),
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return _buildLocalMockupArea(theme);
-            },
-            errorBuilder: (context, error, stack) => _buildLocalMockupArea(theme),
-          ),
-        );
+      final frontUrl = _mockupUrl;
+      final backUrl  = _backMockupUrl;
+      if (frontUrl != null || backUrl != null) {
+        // Show separate front / back Printful mockups with swipe navigation.
+        // If only one side is available, show it without the page indicator.
+        final urls = [
+          if (frontUrl != null) frontUrl,
+          if (backUrl  != null) backUrl,
+        ];
+        final labels = [
+          if (frontUrl != null) 'Front',
+          if (backUrl  != null) 'Back',
+        ];
+        return _MockupPageView(urls: urls, labels: labels, fallback: _buildLocalMockupArea(theme));
       }
       // Mockup not yet available — show local preview with a loading overlay
       // while Firestore polling waits for the server to complete generation.
@@ -1812,6 +1817,113 @@ class _SegmentedPicker extends StatelessWidget {
           selectedColor: theme.colorScheme.primaryContainer,
         );
       }).toList(),
+    );
+  }
+}
+
+/// Swipeable front/back Printful mockup viewer.
+/// Shows [urls] as pages with a label pill (e.g. "Front" / "Back") and dot
+/// indicators. Pinch-to-zoom works per page.
+class _MockupPageView extends StatefulWidget {
+  const _MockupPageView({
+    required this.urls,
+    required this.labels,
+    required this.fallback,
+  });
+
+  final List<String> urls;
+  final List<String> labels;
+  final Widget fallback;
+
+  @override
+  State<_MockupPageView> createState() => _MockupPageViewState();
+}
+
+class _MockupPageViewState extends State<_MockupPageView> {
+  int _page = 0;
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _controller,
+          itemCount: widget.urls.length,
+          onPageChanged: (i) => setState(() => _page = i),
+          itemBuilder: (context, i) {
+            return InteractiveViewer(
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.network(
+                widget.urls[i],
+                key: ValueKey(widget.urls[i]),
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return widget.fallback;
+                },
+                errorBuilder: (context, error, stack) => widget.fallback,
+              ),
+            );
+          },
+        ),
+        // Label pill (e.g. "Front" / "Back")
+        if (widget.labels.isNotEmpty)
+          Positioned(
+            top: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  widget.labels[_page],
+                  style: theme.textTheme.labelMedium?.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        // Dot indicators (only when more than one page)
+        if (widget.urls.length > 1)
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.urls.length, (i) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: _page == i ? 8 : 6,
+                  height: _page == i ? 8 : 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _page == i ? Colors.white : Colors.white54,
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
     );
   }
 }
