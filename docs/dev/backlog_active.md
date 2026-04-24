@@ -7,6 +7,25 @@
 
 ## Next up (mobile-first order)
 
+### M77 — Incremental Scan Redesign ← CURRENT
+**Goal:** Globe pre-populated with known countries, country list shows existing visits from scan start, assetId-based dedup for robustness, instant visual feedback on auto-scan.
+**Phase:** 16 — Scan UX
+**Scope in:** `scan_screen.dart`, `visit_repository.dart` only.
+**Scope out:** Firestore, web, card editor, merch, packages, map screen.
+**Status:** In progress (2026-04-24).
+
+---
+
+### M75 — Inline T-Shirt Config UX (Remove "More" Tab)
+**Goal:** Remove the "More" bottom sheet; bring all product configuration inline on the main
+Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium Apple-quality UX.
+**Phase:** 16 — Commerce UX Polish
+**Scope in:** `local_mockup_preview_screen.dart` only — layout refactor + widget removal/addition.
+**Scope out:** Printful API; card templates; card editor; web; scan; map.
+**Status:** ✅ Complete (2026-04-22).
+
+---
+
 ### M61 — Grid Card Upgrade
 **Goal:** Replace emoji flags with real SVG flag images; adaptive tile sizing; portrait/landscape re-layout; shared editable title state across Grid/Passport/Heart.
 **Phase:** 15 — Visual Design Upgrade

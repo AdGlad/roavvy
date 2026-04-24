@@ -1,28 +1,25 @@
-# Active Task: M74 — Passport Stamp Randomisation, Country Selection & T-Shirt Fixes
-Branch: milestone/m74-passport-stamp-country-control
+# Active Task: M77 — Incremental Scan Redesign
+Branch: milestone/m77-incremental-scan-redesign
 
 ## Goal
-Improve Passport Stamp and T-Shirt design experience: randomised stamp placement, country
-include/exclude within year range, dynamic title, front ribbon independence, and fix the
-critical front/back toggle regression from M73.
+Make the scan screen immediately useful: globe pre-populated with known countries, country list shows existing visits from the start, assetId-based dedup for robustness, instant visual feedback on auto-scan.
 
 ## Scope
-In: stamp layout randomisation; country multi-select on card editor; dynamic title; front
-ribbon all/selected mode; fix front/back toggle in local mockup.
-Out: Printful API changes; card templates; poster; web; scan; map.
+In: `lib/features/scan/scan_screen.dart`, `lib/data/visit_repository.dart`
+Out: Firestore, web, card editor, merch, packages, map screen, any other feature
 
 ## Tasks
-- [x] T1 — Fix front/back toggle regression — `local_mockup_preview_screen.dart`
-- [x] T2 — Randomise stamp placement (remove entry/exit top-bottom bias) — `passport_layout_engine.dart`
-- [x] T3 — Country multi-select in card editor — `card_editor_screen.dart`
-- [x] T4 — Dynamic title update from country selection — `card_editor_screen.dart`
-- [x] T5 — Front ribbon mode: all-time vs year-selection — `local_mockup_preview_screen.dart` + `card_editor_screen.dart`
+- [x] T1 — Pre-populate scan globe with existing countries
+- [x] T2 — Show existing + new in scan country list
+- [x] T3 — AssetId-based incremental deduplication (+ tests)
+- [x] T4 — Auto-scan progress indicator
+- [x] T5 — Verify/fix full-scan globe: only animate to new countries
 
-## ✅ Complete (2026-04-21)
+## ✅ Complete (2026-04-24)
 
 ## Risks
 | Risk | Mitigation |
 |---|---|
-| Stamp shuffle breaks determinism expected by tests | Same seed used for shuffle; layout is still deterministic, just different |
-| Country deselect + title re-render causes jank | Title generation called per-toggle; AI call is async and doesn't block UI |
-| `allCodes` param changes LocalMockupPreviewScreen constructor | Updated both call sites (card_editor_screen + card_generator_screen) + test |
+| Large `knownAssetIds` Set memory usage | Loaded once, Set<String> only — no coordinates or photo data |
+| `existingCodes` list mutation during scan | Pass as unmodifiable copy before scan starts |
+| Filtering null assetId photos | Explicit null check: `assetId == null` photos always pass through |

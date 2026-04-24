@@ -1,10 +1,10 @@
-# Roavvy — Current State (updated M73, 2026-04-21)
+# Roavvy — Current State (updated M77, 2026-04-24)
 
 ## What is built
 
 | Feature area | Status | Notes |
 |---|---|---|
-| Photo scan | ✅ | PhotoKit bridge; GPS → country (offline, `country_lookup`); incremental scan; real-time discovery feed |
+| Photo scan | ✅ | PhotoKit bridge; GPS → country (offline, `country_lookup`); incremental scan; real-time discovery feed; globe + list pre-populated with existing countries; assetId-based dedup (M77) |
 | World map | ✅ | `flutter_map`; dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states) |
 | Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet |
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
@@ -12,7 +12,7 @@
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |
 | Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70) |
 | Sharing | ✅ | Share sheet; `/share/[token]` web page; token revocation |
-| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); strict checkout gate; Shopify checkout; post-purchase poll |
+| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; Shopify checkout; post-purchase poll |
 | Commerce (web) | ✅ | `/shop` public landing; auth-aware CTA; web checkout in M28 (not started) |
 | Firebase | ✅ | Anonymous auth; Apple Sign-In; Firestore sync (visits, trips, achievements, merch configs) |
 | Web app | ✅ | `/sign-in`, `/sign-up`, `/map`, `/shop`, `/share/[token]`, `/privacy` |

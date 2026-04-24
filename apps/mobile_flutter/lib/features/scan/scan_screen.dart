@@ -215,6 +215,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// Updated live during the scan loop. (ADR-083)
   final List<String> _liveNewCodes = [];
 
+  /// Snapshot of existing country codes taken at scan start (T1/T2, ADR-130).
+  /// Passed to [_ScanningView] so globe and list pre-populate immediately.
+  /// Unmodifiable; derived from [_effectiveVisits] before scanning begins.
+  List<String> _existingCodesAtScanStart = const [];
+
   @override
   void initState() {
     super.initState();
@@ -296,15 +301,27 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     // Snapshot before scan starts to diff new countries afterwards (ADR-024).
     final preScanCodes = _effectiveVisits.map((v) => v.countryCode).toSet();
 
+    // T1/T2 (ADR-130): capture existing codes for globe + list pre-population.
+    // Unmodifiable copy so mid-scan user edits don't mutate the snapshot.
+    final existingCodesSnapshot =
+        List<String>.unmodifiable(preScanCodes.toList());
+
     setState(() {
       _scanning = true;
       _error = null;
       _scanProgress = const _ScanProgress(processed: 0);
       _scanResult = null;
       _liveNewCodes.clear();
+      // T1/T2: expose snapshot to build() immediately (T4: pill shown now).
+      _existingCodesAtScanStart = existingCodesSnapshot;
     });
 
     try {
+      // T3 (ADR-129): load all known assetIds once before the batch loop.
+      // Photos whose assetId is already recorded are skipped — makes
+      // incremental scans robust to restored backups and iCloud imports.
+      final knownAssetIds = await _repo.loadAllKnownAssetIds();
+
       // Read persisted timestamp for incremental scan (ADR-022, ADR-110).
       // null → full scan (first launch or after clearAll).
       final lastScanAt = await _repo.loadLastScanAt();
@@ -326,16 +343,26 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           : startPhotoScan(limit: 100000, sinceDate: sinceDate);
       await for (final event in scanStream) {
         if (event is ScanBatchEvent) {
-          final batchResult = await _resolveBatch(event.photos);
+          // T3 (ADR-129): filter out photos already recorded by assetId.
+          // Photos with null assetId always pass through (no data loss).
+          final filteredPhotos = event.photos
+              .where((p) =>
+                  p.assetId == null || !knownAssetIds.contains(p.assetId))
+              .toList();
+          final batchResult = await _resolveBatch(filteredPhotos);
           for (final entry in batchResult.accum.entries) {
             final existing = accum[entry.key];
             accum[entry.key] =
                 existing == null ? entry.value : existing.merge(entry.value);
           }
           allPhotoDates.addAll(batchResult.photoDates);
+          // Progress counts the raw batch size (pre-filter) so the number
+          // reflects photos inspected, not just new ones resolved.
           totalProcessed += event.photos.length;
 
-          // Detect countries found for the first time this scan (ADR-083).
+          // T5 (ADR-130): only codes NOT in preScanCodes are genuinely new.
+          // The guard !preScanCodes.contains(code) ensures full-scan and
+          // incremental-scan both animate the globe only to new discoveries.
           for (final code in batchResult.accum.keys) {
             if (!preScanCodes.contains(code) && !_liveNewCodes.contains(code)) {
               _liveNewCodes.add(code);
@@ -471,6 +498,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         setState(() {
           _scanning = false;
           _scanProgress = null;
+          _existingCodesAtScanStart = const [];
         });
       }
     }
@@ -552,11 +580,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   ),
                   const SizedBox(height: 24),
                   if (_error != null) _ErrorView(message: _error!),
+                  // T4: show scanning pill immediately before first batch
+                  // (processed == 0 means scan started but no batch yet).
+                  if (_scanning && (_scanProgress?.processed ?? 0) == 0 && _effectiveVisits.isNotEmpty)
+                    const _ScanningPill(),
                   if (_scanning)
                     Expanded(
                       child: _ScanningView(
                         progress: _scanProgress,
                         liveNewCodes: List.unmodifiable(_liveNewCodes),
+                        existingCodes: _existingCodesAtScanStart,
                       ),
                     ),
                   if (!_scanning) ...[
@@ -732,13 +765,21 @@ class _RestrictedPanel extends StatelessWidget {
 // ── _ScanningView (Tasks 146, 147, 148 — M43) ─────────────────────────────────
 
 class _ScanningView extends ConsumerStatefulWidget {
-  const _ScanningView({this.progress, this.liveNewCodes = const []});
+  const _ScanningView({
+    this.progress,
+    this.liveNewCodes = const [],
+    this.existingCodes = const [],
+  });
 
   final _ScanProgress? progress;
 
   /// ISO codes of countries found for the first time during this scan.
   /// Updated in real time as each batch is processed. (ADR-083)
   final List<String> liveNewCodes;
+
+  /// ISO codes of countries already known before this scan started (ADR-130).
+  /// Used to pre-populate the globe and country list immediately.
+  final List<String> existingCodes;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -836,7 +877,10 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
             ),
             const SizedBox(height: 8),
             // Animated globe — replaces flat mini-map.
-            _ScanGlobeWidget(liveNewCodes: widget.liveNewCodes),
+            _ScanGlobeWidget(
+              liveNewCodes: widget.liveNewCodes,
+              existingCodes: widget.existingCodes,
+            ),
             const SizedBox(height: 8),
             // Two-panel: country list (left) | passport preview (right).
             Expanded(
@@ -846,6 +890,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
                   Expanded(
                     child: _LiveCountryList(
                       liveNewCodes: widget.liveNewCodes,
+                      existingCodes: widget.existingCodes,
                       reduceMotion: reduceMotion,
                     ),
                   ),
@@ -895,6 +940,56 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   }
 }
 
+// ── Scanning pill (T4, ADR-130) ───────────────────────────────────────────────
+
+/// Subtle "Scanning your library…" pill shown immediately when an auto-scan
+/// starts (before the first batch arrives). Gives instant visual feedback
+/// so the user knows scanning is in progress even before the globe populates.
+class _ScanningPill extends StatelessWidget {
+  const _ScanningPill();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Scanning your library\u2026',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Discovery toast banner ────────────────────────────────────────────────────
 
 class _DiscoveryToastBanner extends StatelessWidget {
@@ -940,9 +1035,19 @@ class _DiscoveryToastBanner extends StatelessWidget {
 /// country is rendered as [CountryVisualState.newlyDiscovered] (bright gold);
 /// all previously found countries are [CountryVisualState.visited] (depth gold).
 /// A soft pulsing halo sits over the newest country's centroid.
+///
+/// [existingCodes] are countries known before this scan; they are shown in
+/// [CountryVisualState.visited] from the start with no animation (ADR-130).
 class _ScanGlobeWidget extends ConsumerStatefulWidget {
-  const _ScanGlobeWidget({required this.liveNewCodes});
+  const _ScanGlobeWidget({
+    required this.liveNewCodes,
+    this.existingCodes = const [],
+  });
   final List<String> liveNewCodes;
+
+  /// ISO codes already known before this scan. Pre-populate the globe without
+  /// triggering travel animations (ADR-130).
+  final List<String> existingCodes;
 
   @override
   ConsumerState<_ScanGlobeWidget> createState() => _ScanGlobeWidgetState();
@@ -1110,8 +1215,14 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
     final polygons = ref.watch(polygonsProvider);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    // Build visual states: newest = newlyDiscovered; rest = visited.
+    // Build visual states (ADR-130):
+    // - existingCodes (known before scan) → visited (muted gold), no animation.
+    // - liveNewCodes (found this scan)    → visited, upgraded to newlyDiscovered
+    //   for the highlighted (most recent) code.
     final visualStates = <String, CountryVisualState>{};
+    for (final code in widget.existingCodes) {
+      visualStates[code] = CountryVisualState.visited;
+    }
     for (final code in widget.liveNewCodes) {
       visualStates[code] = CountryVisualState.visited;
     }
@@ -1162,13 +1273,22 @@ class _LiveCountryList extends StatelessWidget {
   const _LiveCountryList({
     required this.liveNewCodes,
     required this.reduceMotion,
+    this.existingCodes = const [],
   });
   final List<String> liveNewCodes;
   final bool reduceMotion;
 
+  /// ISO codes already known before this scan (ADR-130). Shown in a muted
+  /// "already visited" style without animation. Rendered above new discoveries.
+  final List<String> existingCodes;
+
   @override
   Widget build(BuildContext context) {
-    if (liveNewCodes.isEmpty) {
+    final theme = Theme.of(context);
+    final hasExisting = existingCodes.isNotEmpty;
+    final hasNew = liveNewCodes.isNotEmpty;
+
+    if (!hasExisting && !hasNew) {
       return const Center(
         child: Text(
           'Countries will appear here\u2026',
@@ -1177,13 +1297,41 @@ class _LiveCountryList extends StatelessWidget {
         ),
       );
     }
-    return ListView.builder(
+
+    return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      itemCount: liveNewCodes.length,
-      itemBuilder: (context, i) => _LiveCountryRow(
-        isoCode: liveNewCodes[i],
-        reduceMotion: reduceMotion,
-      ),
+      children: [
+        // Existing countries — muted, no animation.
+        for (final code in existingCodes)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                Text(
+                  _flagEmoji(code),
+                  style: const TextStyle(fontSize: 20, color: Colors.grey),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    kCountryNames[code] ?? code,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Divider between sections when both are populated.
+        if (hasExisting && hasNew)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Divider(height: 1),
+          ),
+        // New discoveries — animated slide-in.
+        for (final code in liveNewCodes)
+          _LiveCountryRow(isoCode: code, reduceMotion: reduceMotion),
+      ],
     );
   }
 }
