@@ -1,4 +1,45 @@
-<!-- Recent ADRs (ADR-100 to ADR-127). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-128). Load when introducing new patterns. -->
+
+## ADR-128 — M76 Named Printful Placement for Left Chest Designs
+
+**Status:** Accepted
+
+**Context:**
+Left-chest and right-chest front designs were implemented by pre-compositing the artwork onto a
+full 4500×5400 print canvas at the correct chest coordinates, then sending that canvas to Printful
+as a plain `front` placement. This means:
+1. Printful's mockup API receives a full-front canvas with content in a small corner — the generated
+   collage mockup shows the design incorrectly as a full-front print, not a chest badge.
+2. Printful's Orders API receives the same composited canvas via `type: 'default'`, which does
+   produce a correctly-positioned print (the design IS at the chest position within the front area).
+3. Mockup ≠ printed shirt for left-chest orders.
+
+Printful v2 supports a named `left_chest` placement for DTG products (verified: product 12
+Gildan 64000 supports `left_chest` DTG placement). Using it lets Printful render both the mockup
+and the production print with the correct chest positioning.
+
+**Decision:**
+1. **`left_chest` print file:** Generate a small chest-area PNG (resized to fit within 29%×30% of
+   the print canvas dimensions) instead of compositing onto the full 4500×5400 canvas. Printful
+   handles placement automatically when given the named placement.
+2. **Mockup API:** Use `placement: 'left_chest'` in the `POST /v2/mockup-tasks` placements array
+   when `frontPosition === 'left_chest'`.
+3. **Orders API:** Use `{ placement: 'left_chest', url: ... }` in the files array for Printful
+   orders when `MerchConfig.frontPosition === 'left_chest'`.
+4. **`right_chest`:** Keep the pre-composite approach. Right chest is not a standard DTG named
+   placement for product 12 and has no confirmed API support.
+5. **`MerchConfig`:** Add `frontPosition: string | null` so `shopifyOrderCreated` can read the
+   original placement without re-parsing the `placementType` string.
+
+**Consequences:**
+- Printful mockup accurately shows a chest badge for left-chest orders.
+- Left-chest print files are smaller (~hundreds of KB vs ~1 MB), reducing Storage usage.
+- `shopifyOrderCreated` must read the new `frontPosition` field — old MerchConfig documents
+  (pre-M76) will have `frontPosition: null`, treated as `center` (safe fallback).
+- **Production prerequisite:** Confirm `left_chest` DTG availability for product 12 via
+  `GET /v2/catalog/products/12/placements` before deploying.
+
+---
 
 ## ADR-127 — M75 Inline T-Shirt Config Panel: Remove "More" Modal
 
