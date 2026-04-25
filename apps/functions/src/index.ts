@@ -20,17 +20,39 @@ const db = getFirestore();
 
 // ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
 
+// Printful v1 print area for Gildan 64000 DTG (product 12): 1800×2400 px = 12"×16" @ 150 DPI.
+// position coords derived from print canvas (4500×5400): scale W×0.4, H×0.4444.
+const MOCKUP_AREA_W = 1800;
+const MOCKUP_AREA_H = 2400;
+
+type MockupPosition = {
+  area_width: number; area_height: number;
+  width: number; height: number;
+  top: number; left: number;
+};
+
+/** Fills the entire front print area (center placement). */
+const FRONT_FULL_POSITION: MockupPosition = {
+  area_width: MOCKUP_AREA_W, area_height: MOCKUP_AREA_H,
+  width: MOCKUP_AREA_W, height: MOCKUP_AREA_H,
+  top: 0, left: 0,
+};
+
 /**
- * Calls the Printful v2 Mockup API and polls until the requested placement
- * mockup is ready. Returns the mockup image URL or null on timeout / error.
- *
- * Non-blocking: the caller catches errors and proceeds with null.
- * Max wait: 10 attempts × 2s = 20 s.
+ * Left chest (wearer's left = viewer's right) within the 1800×2400 front print area.
+ * Scaled from print canvas coords: top=0.07H, left=0.58W, width=0.29W.
+ * Scale factors: W×(1800/4500)=0.4, H×(2400/5400)=0.4444.
  */
+const LEFT_CHEST_POSITION: MockupPosition = {
+  area_width: MOCKUP_AREA_W, area_height: MOCKUP_AREA_H,
+  width: 522, height: 522,
+  top: 168, left: 1044,
+};
+
 /**
  * Generates photorealistic front and back t-shirt mockups using the Printful v1
- * Mockup Generator API. Uses explicit `position` params to fill the full print
- * area — the v2 API had no position control, causing designs to appear small.
+ * Mockup Generator API. Uses the `position` field (OpenAPI spec: GenerationTaskFilePosition)
+ * to place the design within the print area — supports full-front and chest placements.
  *
  * Returns separate frontMockupUrl and backMockupUrl (not a combined collage).
  */
@@ -49,23 +71,23 @@ async function generatePrintfulMockup(
     return { frontMockupUrl: null, backMockupUrl: null };
   }
 
-  // Printful v1 print area reference frame for Gildan 64000 DTG (product 12).
-  // Position values are relative — filling area_width×area_height makes the
-  // design occupy the entire printable area on the shirt.
-  const AREA_W = 1800;
-  const AREA_H = 2400;
-  const maxPosition = { area_width: AREA_W, area_height: AREA_H, width: AREA_W, height: AREA_H, top: 0, left: 0 };
+  // Select front position based on placement. The v1 mockup generator only supports
+  // 'front' as the placement name; position.{top,left,width,height} controls where
+  // within the 1800×2400 print area the image is rendered (per OpenAPI spec).
+  //
+  // left_chest: small chest PNG + chest-area position (design placed via position field).
+  // right_chest + center: full composited canvas + full-area position (design baked in).
+  const frontFilePosition: MockupPosition =
+    frontPosition === 'left_chest' ? LEFT_CHEST_POSITION : FRONT_FULL_POSITION;
 
-  type V1File = { placement: string; image_url: string; position: typeof maxPosition };
+  type V1File = { placement: string; image_url: string; position: MockupPosition };
   const files: V1File[] = [];
 
   if (frontPrintFileUrl) {
-    // M76 (ADR-128): use named 'left_chest' for chest designs.
-    const frontPlacementName = frontPosition === 'left_chest' ? 'left_chest' : 'front';
-    files.push({ placement: frontPlacementName, image_url: frontPrintFileUrl, position: maxPosition });
+    files.push({ placement: 'front', image_url: frontPrintFileUrl, position: frontFilePosition });
   }
   if (backPrintFileUrl) {
-    files.push({ placement: 'back', image_url: backPrintFileUrl, position: maxPosition });
+    files.push({ placement: 'back', image_url: backPrintFileUrl, position: FRONT_FULL_POSITION });
   }
 
   if (files.length === 0) {
@@ -543,6 +565,9 @@ export const createMerchCart = onCall<
     if (printfulVariantId !== 0) {
       void generatePrintfulMockup(
         printfulVariantId,
+        // The v1 API position field places the image at the correct area within the
+        // print area — no compositing needed. frontPrintFileSignedUrl is the design
+        // PNG (small chest image for left/right_chest, full canvas for center).
         frontPrintFileSignedUrl,
         backPrintFileSignedUrl,
         effectiveFrontPosition,

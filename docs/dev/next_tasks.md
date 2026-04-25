@@ -1,27 +1,96 @@
-# M77 — Incremental Scan Redesign: Task List
+# M78 — Unified Scan Experience: Task List
 
-## T1 — Pre-populate scan globe with existing countries
+## Goal
+Initial, Incremental, and Full scan all share the same screen, layout, and animation pipeline.
+The globe + country list + passport stamp preview is the permanent home view of the scan tab:
+pre-populated with existing data at rest, live-updating as batches arrive during a scan.
+
+## Scope
+In:  `lib/features/scan/scan_screen.dart` only.
+Out: Firestore, web, card editor, merch, packages, map screen, any other feature.
+
+---
+
+## T1 — Always-visible scan home view
 **File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** `_ScanGlobeWidget` receives `existingCodes` (from `_effectiveVisits`) and renders them in a muted visual state on the globe from scan start.
-**AC:** When scan starts (before any batch completes), the globe shows all previously-known countries in `CountryVisualState.visited` (muted gold). Newly discovered countries from `_liveNewCodes` animate on top as `CountryVisualState.newlyDiscovered`.
+**Deliverable:** `_ScanningView` shown at all times when user has data (or scanning),
+not only during active scan. Remove `_VisitList` / `_StatsCard` idle layout.
 
-## T2 — Show existing + new in scan country list
+**Changes:**
+- Add `isScanning` param to `_ScanningView`. Show `LinearProgressIndicator` + progress
+  text only when `isScanning == true`; hide them at rest.
+- In `_ScanScreenState.build()`: replace the `if (_scanning)/_ScanningView / if (!_scanning)/...`
+  split with a single always-on `_ScanningView` block when
+  `_effectiveVisits.isNotEmpty || _scanning`. Keep `_NoScanYetHint` for first-run (no data).
+- Move scan button + mode toggle above the persistent view (compact header, stays visible).
+- Keep `_ScanningPill` for the zero-batch lag window (unchanged).
+- Keep `_EmptyResultsHint` for the no-geotagged-photos path (unchanged).
+
+**Acceptance criteria:**
+- Opening scan tab after first scan shows globe + country list + stamp preview immediately.
+- Progress bar and count text only appear while `_scanning == true`.
+- Scan button remains tappable at top while globe is visible.
+
+---
+
+## T2 — Passport stamp preview pre-populated with existing countries
 **File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** `_ScanningView` / `_LiveCountryList` receives `existingCodes` and shows them in a muted style above new discoveries. No empty list flash at scan start.
-**AC:** Left panel shows existing countries (grey, no animation) at scan start. New countries from `_liveNewCodes` appear below with the existing animated slide-in. The "Countries will appear here…" placeholder is removed.
+**Deliverable:** `_ScanPassportPreview` shows all visited countries (existing + newly found),
+not just discoveries from the current scan run.
 
-## T3 — AssetId-based incremental deduplication
-**File:** `lib/features/scan/scan_screen.dart`, `lib/data/visit_repository.dart`
-**Deliverable:** Add `loadAllKnownAssetIds()` to `VisitRepository`. In `_scan()`, load the set before the stream starts, then filter each batch's `PhotoRecord` list to skip records whose `assetId` is already known.
-**AC:** Photos with a previously-seen `assetId` are skipped before `_resolveBatch` is called. Photos with `assetId == null` are always processed (no data loss). `Set<String>` is loaded once before the batch loop.
-**Tests:** Unit tests in `test/features/scan/asset_id_dedup_test.dart` covering: null assetId passes through, known assetId is filtered, unknown assetId passes through.
+**Changes:**
+- Add `existingCodes` param to `_ScanPassportPreview`.
+- Pass `[...existingCodes, ...liveNewCodes]` as `countryCodes` to `PassportStampsCard`.
 
-## T4 — Auto-scan progress indicator
+**Acceptance criteria:**
+- On scan start, stamp panel immediately shows all previously visited stamps.
+- New stamps appear alongside existing ones as scan runs.
+
+---
+
+## T3 — ScanSummaryScreen for NothingNew outcome
 **File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** Add a "Scanning your library…" pill shown immediately when `_scanning == true && _scanProgress?.processed == 0` so auto-scan has instant visual feedback.
-**AC:** As soon as the auto-scan fires on app open, a "Scanning your library…" pill appears within one frame. It disappears when the first batch arrives (`processed > 0`).
+**Deliverable:** When a scan completes with no new countries, push `ScanSummaryScreen`
+(State B — "All up to date") instead of silently navigating to map.
 
-## T5 — Verify/fix full-scan globe: only animate to new countries
+**Changes:**
+- In `_scan()`, replace the `_NothingNew` branch (calls `widget.onScanComplete?.call()`)
+  with a push to `ScanSummaryScreen(newCountries: const [], newCodes: const [],
+  newAchievementIds: const [], lastScanAt: preScanTimestamp, onDone: ...)`.
+
+**Acceptance criteria:**
+- Incremental scan with no new finds shows "All up to date" summary, then returns to map.
+- Full scan with no new finds shows same summary.
+
+---
+
+## T4 — Remove dead widgets
 **File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** Confirm `_liveNewCodes` only contains codes NOT in `preScanCodes`. Add clarifying comment to the guard `!preScanCodes.contains(code)` in `_scan()`.
-**AC:** Full scan does not animate the globe to countries the user already had. Guard is confirmed correct.
+**Deliverable:** Delete widgets replaced by the unified view.
+
+**Remove:** `_VisitList`, `_StatsCard`, `_StatRow`, `_NothingNewView`, `_NewCountriesView`
+**Keep:**   `_NoScanYetHint`, `_EmptyResultsHint`, `_ScanningPill`, `_ErrorView`
+
+**Acceptance criteria:**
+- File compiles; `flutter analyze` clean.
+- No references to removed widgets remain.
+
+---
+
+## T5 — Update tests
+**File:** `test/features/scan/scan_screen_incremental_test.dart`
+**Deliverable:** Tests updated for new always-visible layout. New test: `_NothingNew` triggers
+navigation to `ScanSummaryScreen`.
+
+**Acceptance criteria:**
+- Tests compile and reflect new widget structure.
+- A test verifies `ScanSummaryScreen` is pushed on NothingNew outcome.
+
+---
+
+## Risks
+| Risk | Mitigation |
+|---|---|
+| `PassportStampsCard` layout overflow with many stamps | Uses existing grid logic; no new risk |
+| `_ScanningView` always visible causes layout overflow | Wrap in `Expanded` same as scanning path |
+| Tests reference removed widgets | Update finders to match new structure |
