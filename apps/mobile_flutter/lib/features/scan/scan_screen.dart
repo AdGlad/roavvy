@@ -198,11 +198,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   PhotoPermissionStatus? _permission;
   bool _loading = true;
   bool _scanning = false;
-  ScanStats? _lastScanStats;
   List<EffectiveVisitedCountry> _effectiveVisits = [];
   String? _error;
   _ScanProgress? _scanProgress;
-  _ScanResult? _scanResult;
+
+  /// UTC timestamp of the last completed scan, or null if never scanned.
+  /// Loaded in [_loadPersisted]; displayed near scan controls.
+  DateTime? _lastScanAt;
 
   /// True after the first successful scan has completed (ADR-110).
   /// Set in [_loadPersisted]; used to gate scan-mode controls and auto-scan.
@@ -233,27 +235,25 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   Future<void> _loadPersisted() async {
     try {
       final visits = await _repo.loadEffective();
-      final hasFirstScan = await _repo.hasCompletedFirstScan();
+      final lastScanAt = await _repo.loadLastScanAt();
       if (!mounted) return;
       setState(() {
         _effectiveVisits = visits;
-        _hasCompletedFirstScan = hasFirstScan;
+        _hasCompletedFirstScan = lastScanAt != null;
+        _lastScanAt = lastScanAt;
         _loading = false;
       });
 
-      // M56-15: auto-run incremental scan on app open after first scan.
-      // requestPhotoPermission returns current status without a dialog when
-      // the user has already made a permission decision.
-      if (hasFirstScan && !_scanning) {
+      // Check permission status silently so the scan button reflects current
+      // access without showing a dialog (M78: auto-scan removed — user must
+      // explicitly choose Incremental or Full and tap the button).
+      if (lastScanAt != null) {
         try {
           final permission = await requestPhotoPermission();
           if (!mounted) return;
           setState(() => _permission = permission);
-          if (permission.canScan) {
-            _scan(); // fire-and-forget incremental auto-scan (ADR-110)
-          }
         } catch (_) {
-          // Permission check failed — skip auto-scan silently.
+          // Permission check failed — button stays disabled.
         }
       }
     } catch (e) {
@@ -310,7 +310,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _scanning = true;
       _error = null;
       _scanProgress = const _ScanProgress(processed: 0);
-      _scanResult = null;
       _liveNewCodes.clear();
       // T1/T2: expose snapshot to build() immediately (T4: pill shown now).
       _existingCodesAtScanStart = existingCodesSnapshot;
@@ -335,7 +334,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       final accum = <String, CountryAccum>{};
       final allPhotoDates = <PhotoDateRecord>[];
-      ScanDoneEvent? doneEvent;
       var totalProcessed = 0;
 
       final scanStream = widget.scanStarter != null
@@ -375,13 +373,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               // _liveNewCodes is updated in-place; setState triggers rebuild.
             });
           }
-        } else if (event is ScanDoneEvent) {
-          doneEvent = event;
         }
       }
 
-      final resolveSuccesses =
-          accum.values.fold(0, (sum, a) => sum + a.photoCount);
       final inferred = accum.entries
           .map((e) => InferredCountryVisit(
                 countryCode: e.key,
@@ -392,7 +386,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               ))
           .toList();
 
-      await _repo.clearAndSaveAllInferred(inferred);
+      // Full scan rebuilds inferred from scratch; incremental upsert-merges
+      // so that countries from before lastScanAt are preserved.
+      if (_forceFullScan || sinceDate == null) {
+        await _repo.clearAndSaveAllInferred(inferred);
+      } else {
+        await _repo.saveAllInferred(inferred);
+      }
       await _repo.savePhotoDates(allPhotoDates);
       // M56-13: persist pre-scan timestamp (ADR-110).
       await _repo.saveLastScanAt(preScanTimestamp);
@@ -418,12 +418,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       if (uid != null) {
         unawaited(_syncService.flushDirty(uid, _repo, achievementRepo: _achievementRepo, tripRepo: _tripRepo));
       }
-      final stats = ScanStats(
-        inspected: doneEvent?.inspected ?? 0,
-        withLocation: doneEvent?.withLocation ?? 0,
-        geocodeSuccesses: resolveSuccesses,
-      );
-
       // Compute result summary when geotagged photos were found (ADR-024).
       _ScanResult? scanResult;
       if (effective.isNotEmpty) {
@@ -434,10 +428,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       if (mounted) {
         setState(() {
-          _lastScanStats = stats;
           _effectiveVisits = effective;
-          _scanResult = scanResult;
-          _hasCompletedFirstScan = true; // M56-15: reveal scan mode toggle
+          _hasCompletedFirstScan = true;
+          _lastScanAt = preScanTimestamp;
         });
         ref.invalidate(effectiveVisitsProvider);
         ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
@@ -485,8 +478,23 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             ),
           );
         } else if (scanResult is _NothingNew) {
-          // No new countries but user has existing visits — go to map.
-          widget.onScanComplete?.call();
+          // M78: All scan outcomes go through ScanSummaryScreen (T3).
+          // State B ("All up to date") handles milestone/level-up checks + Rovy message.
+          final nav = Navigator.of(context);
+          await nav.push(
+            MaterialPageRoute<void>(
+              builder: (_) => ScanSummaryScreen(
+                newCountries: const [],
+                newAchievementIds: newlyUnlockedIds.toList(),
+                newCodes: const [],
+                lastScanAt: preScanTimestamp,
+                onDone: () {
+                  nav.pop();
+                  widget.onScanComplete?.call();
+                },
+              ),
+            ),
+          );
         }
         // else: effective.isEmpty — no geotagged photos found at all.
         // Stay on scan screen; _EmptyResultsHint is shown when !_scanning.
@@ -502,6 +510,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         });
       }
     }
+  }
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  static String _fmtDate(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.day} ${_months[local.month - 1]}';
   }
 
   Future<void> _openReview() async {
@@ -552,70 +570,60 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     onOpenSettings: _openSettings,
                   ),
                   const SizedBox(height: 12),
-                  // M56-14: scan mode selector — only after first scan.
-                  if (_hasCompletedFirstScan && !_scanning)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SegmentedButton<bool>(
-                        segments: const [
-                          ButtonSegment(
-                            value: false,
-                            label: Text('Incremental scan'),
-                            icon: Icon(Icons.update),
-                          ),
-                          ButtonSegment(
-                            value: true,
-                            label: Text('Full scan'),
-                            icon: Icon(Icons.refresh),
-                          ),
-                        ],
-                        selected: {_forceFullScan},
-                        onSelectionChanged: (s) =>
-                            setState(() => _forceFullScan = s.first),
-                      ),
+                  // Scan mode selector — only visible after the first scan.
+                  if (_hasCompletedFirstScan) ...[
+                    SegmentedButton<bool>(
+                      segments: [
+                        ButtonSegment(
+                          value: false,
+                          label: Text(_lastScanAt != null
+                              ? 'New photos (since ${_fmtDate(_lastScanAt!)})'
+                              : 'New photos'),
+                          icon: const Icon(Icons.update),
+                        ),
+                        const ButtonSegment(
+                          value: true,
+                          label: Text('All photos'),
+                          icon: Icon(Icons.refresh),
+                        ),
+                      ],
+                      selected: {_forceFullScan},
+                      onSelectionChanged: _scanning
+                          ? null
+                          : (s) => setState(() => _forceFullScan = s.first),
                     ),
+                    const SizedBox(height: 8),
+                  ],
                   FilledButton.tonal(
                     onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
                     child: const Text('Scan my photo library'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   if (_error != null) _ErrorView(message: _error!),
-                  // T4: show scanning pill immediately before first batch
-                  // (processed == 0 means scan started but no batch yet).
+                  // Scanning pill: shown immediately when scan starts before first batch arrives.
                   if (_scanning && (_scanProgress?.processed ?? 0) == 0 && _effectiveVisits.isNotEmpty)
                     const _ScanningPill(),
-                  if (_scanning)
+                  // M78: Unified persistent view — globe + country list + stamps always visible
+                  // when the user has data. _ScanningView controls its own progress indicator
+                  // via isScanning; existingCodes drives pre-population at rest.
+                  if (_effectiveVisits.isNotEmpty || _scanning)
                     Expanded(
                       child: _ScanningView(
                         progress: _scanProgress,
                         liveNewCodes: List.unmodifiable(_liveNewCodes),
-                        existingCodes: _existingCodesAtScanStart,
+                        existingCodes: _scanning
+                            ? _existingCodesAtScanStart
+                            : _effectiveVisits.map((v) => v.countryCode).toList(),
+                        isScanning: _scanning,
                       ),
-                    ),
-                  if (!_scanning) ...[
-                    if (_lastScanStats != null)
-                      _StatsCard(
-                        stats: _lastScanStats!,
-                        countryCount: _effectiveVisits.length,
-                      ),
-                    if (_scanResult != null) ...[
-                      const SizedBox(height: 16),
-                      switch (_scanResult!) {
-                        _NothingNew() => const _NothingNewView(),
-                        _NewCountriesFound(:final newCodes) =>
-                          _NewCountriesView(newCodes: newCodes),
-                      },
-                    ],
-                    if (_effectiveVisits.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Expanded(child: _VisitList(visits: _effectiveVisits)),
-                    ] else if (_lastScanStats != null) ...[
-                      const SizedBox(height: 16),
-                      const _EmptyResultsHint(),
-                    ] else if (_effectiveVisits.isEmpty && _lastScanStats == null) ...[
-                      const SizedBox(height: 16),
-                      const _NoScanYetHint(),
-                    ],
+                    )
+                  // No data yet paths:
+                  else if (_hasCompletedFirstScan) ...[
+                    const SizedBox(height: 16),
+                    const _EmptyResultsHint(),
+                  ] else ...[
+                    const SizedBox(height: 16),
+                    const _NoScanYetHint(),
                   ],
                 ],
               ),
@@ -769,6 +777,7 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.progress,
     this.liveNewCodes = const [],
     this.existingCodes = const [],
+    this.isScanning = false,
   });
 
   final _ScanProgress? progress;
@@ -780,6 +789,10 @@ class _ScanningView extends ConsumerStatefulWidget {
   /// ISO codes of countries already known before this scan started (ADR-130).
   /// Used to pre-populate the globe and country list immediately.
   final List<String> existingCodes;
+
+  /// Whether a scan is currently in progress. Controls progress indicator
+  /// and count text visibility — false at rest (M78).
+  final bool isScanning;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -869,14 +882,16 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const LinearProgressIndicator(value: null),
-            const SizedBox(height: 6),
-            Text(
-              processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            // Animated globe — replaces flat mini-map.
+            if (widget.isScanning) ...[
+              const LinearProgressIndicator(value: null),
+              const SizedBox(height: 6),
+              Text(
+                processed > 0 ? '$processed photos processed\u2026' : 'Starting scan\u2026',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+            ],
+            // Animated globe — always visible (M78).
             _ScanGlobeWidget(
               liveNewCodes: widget.liveNewCodes,
               existingCodes: widget.existingCodes,
@@ -898,6 +913,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
                   Expanded(
                     child: _ScanPassportPreview(
                       liveNewCodes: widget.liveNewCodes,
+                      existingCodes: widget.existingCodes,
                     ),
                   ),
                 ],
@@ -1339,12 +1355,20 @@ class _LiveCountryList extends StatelessWidget {
 // ── Right panel: live passport stamp preview ──────────────────────────────────
 
 class _ScanPassportPreview extends StatelessWidget {
-  const _ScanPassportPreview({required this.liveNewCodes});
+  const _ScanPassportPreview({
+    required this.liveNewCodes,
+    this.existingCodes = const [],
+  });
   final List<String> liveNewCodes;
+
+  /// Countries already visited before this scan — shown in stamp grid
+  /// alongside newly discovered ones (M78, T2).
+  final List<String> existingCodes;
 
   @override
   Widget build(BuildContext context) {
-    if (liveNewCodes.isEmpty) {
+    final allCodes = [...existingCodes, ...liveNewCodes];
+    if (allCodes.isEmpty) {
       return const Center(
         child: Text(
           'Stamp preview',
@@ -1358,7 +1382,7 @@ class _ScanPassportPreview extends StatelessWidget {
         final h = constraints.maxHeight;
         final ratio = (h > 0 && h.isFinite) ? w / h : 3.0 / 2.0;
         return PassportStampsCard(
-          countryCodes: liveNewCodes,
+          countryCodes: allCodes,
           aspectRatio: ratio,
           trips: const [],
           entryOnly: true,
@@ -1455,112 +1479,6 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.stats, required this.countryCount});
-  final ScanStats stats;
-  final int countryCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Last scan', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            _StatRow(label: 'Photos scanned', value: '${stats.inspected}'),
-            _StatRow(label: 'With location', value: '${stats.withLocation}'),
-            _StatRow(label: 'Countries detected', value: '$countryCount'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          Text(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VisitList extends StatelessWidget {
-  const _VisitList({required this.visits});
-  final List<EffectiveVisitedCountry> visits;
-
-  @override
-  Widget build(BuildContext context) {
-    final sorted = [...visits]
-      ..sort((a, b) => a.countryCode.compareTo(b.countryCode));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              '${sorted.length} ${sorted.length == 1 ? 'country' : 'countries'} visited',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.separated(
-            itemCount: sorted.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final v = sorted[i];
-              final name = kCountryNames[v.countryCode] ?? v.countryCode;
-              return ListTile(
-                title: Text(name),
-                subtitle: Text(
-                  v.countryCode,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (v.photoCount > 0)
-                      Text(
-                        '${v.photoCount} photo${v.photoCount == 1 ? '' : 's'}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    if (!v.hasPhotoEvidence) ...[
-                      const SizedBox(width: 6),
-                      const Icon(Icons.person, size: 14, color: Colors.grey),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _NoScanYetHint extends StatelessWidget {
   const _NoScanYetHint();
@@ -1593,37 +1511,3 @@ class _EmptyResultsHint extends StatelessWidget {
   }
 }
 
-class _NothingNewView extends StatelessWidget {
-  const _NothingNewView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        "You're up to date",
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
-      ),
-    );
-  }
-}
-
-class _NewCountriesView extends StatelessWidget {
-  const _NewCountriesView({required this.newCodes});
-  final List<String> newCodes;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = newCodes.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$count new ${count == 1 ? 'country' : 'countries'} detected',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        const SizedBox(height: 4),
-        ...newCodes.map((code) => Text(kCountryNames[code] ?? code)),
-      ],
-    );
-  }
-}

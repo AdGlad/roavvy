@@ -1,25 +1,19 @@
-# Active Task: M77 — Incremental Scan Redesign
-Branch: milestone/m77-incremental-scan-redesign
+# Active Task: M78 — Unified Scan Experience
+Branch: milestone/m78-unified-scan-experience
 
 ## Goal
-Make the scan screen immediately useful: globe pre-populated with known countries, country list shows existing visits from the start, assetId-based dedup for robustness, instant visual feedback on auto-scan.
+One scan UX for all modes: always-visible globe + country list + passport stamps,
+pre-populated at rest, live-animated during scan. All scan outcomes navigate through ScanSummaryScreen.
 
 ## Scope
-In: `lib/features/scan/scan_screen.dart`, `lib/data/visit_repository.dart`
+In: `lib/features/scan/scan_screen.dart`, `test/features/scan/scan_screen_incremental_test.dart`
 Out: Firestore, web, card editor, merch, packages, map screen, any other feature
 
 ## Tasks
-- [x] T1 — Pre-populate scan globe with existing countries
-- [x] T2 — Show existing + new in scan country list
-- [x] T3 — AssetId-based incremental deduplication (+ tests)
-- [x] T4 — Auto-scan progress indicator
-- [x] T5 — Verify/fix full-scan globe: only animate to new countries
+- [x] T1 — Always-visible scan home view (remove idle/scanning split)
+- [x] T2 — Passport stamp preview pre-populated with existing countries
+- [x] T3 — ScanSummaryScreen for NothingNew scan outcome
+- [x] T4 — Remove dead widgets (_VisitList, _StatsCard, _StatRow, _NothingNewView, _NewCountriesView)
+- [x] T5 — Verify analyze clean; existing repo + summary screen tests unaffected
 
-## ✅ Complete (2026-04-24)
-
-## Risks
-| Risk | Mitigation |
-|---|---|
-| Large `knownAssetIds` Set memory usage | Loaded once, Set<String> only — no coordinates or photo data |
-| `existingCodes` list mutation during scan | Pass as unmodifiable copy before scan starts |
-| Filtering null assetId photos | Explicit null check: `assetId == null` photos always pass through |
+## Status: Complete (2026-04-24)

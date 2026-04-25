@@ -112,9 +112,15 @@ extension AppDelegate: FlutterStreamHandler {
     ) -> FlutterError? {
         let args = arguments as? [String: Any]
         let limit = args?["limit"] as? Int ?? 2000
-        // sinceDate: ISO 8601 string. nil = full scan; non-nil = incremental rescan.
-        let sinceDate: Date? = (args?["sinceDate"] as? String)
-            .flatMap { ISO8601DateFormatter().date(from: $0) }
+        // sinceDate: ISO 8601 string from Dart's DateTime.toIso8601String().
+        // Dart always emits microseconds (e.g. "2026-04-24T10:30:00.123456Z"),
+        // so we must enable .withFractionalSeconds; without it the default
+        // ISO8601DateFormatter returns nil and every scan falls back to full.
+        let sinceDate: Date? = (args?["sinceDate"] as? String).flatMap { raw in
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return fmt.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+        }
         startScan(limit: limit, sinceDate: sinceDate, sink: events)
         return nil
     }
