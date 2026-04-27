@@ -397,3 +397,68 @@ class _AchievementCard extends StatelessWidget {
     );
   }
 }
+
+// ── Standalone Achievements screen ────────────────────────────────────────────
+
+/// Full-screen achievement gallery. Pushed from the map stats strip (M86).
+///
+/// Wraps [_AchievementGrid] in a proper [Scaffold] so it renders correctly
+/// when navigated to outside the Stats tab context.
+class AchievementsScreen extends StatefulWidget {
+  const AchievementsScreen({super.key});
+
+  @override
+  State<AchievementsScreen> createState() => _AchievementsScreenState();
+}
+
+class _AchievementsScreenState extends State<AchievementsScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return const _AchievementsScreenBody();
+  }
+}
+
+class _AchievementsScreenBody extends ConsumerStatefulWidget {
+  const _AchievementsScreenBody();
+
+  @override
+  ConsumerState<_AchievementsScreenBody> createState() =>
+      _AchievementsScreenBodyState();
+}
+
+class _AchievementsScreenBodyState
+    extends ConsumerState<_AchievementsScreenBody> {
+  late final Future<List<UnlockedAchievementRow>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ref.read(achievementRepositoryProvider).loadAllRows();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: FutureBuilder<List<UnlockedAchievementRow>>(
+        future: _future,
+        builder: (context, snapshot) {
+          final rows = snapshot.data ?? const [];
+          final unlockedById = {
+            for (final r in rows) r.achievementId: r.unlockedAt,
+          };
+          return CustomScrollView(
+            slivers: [
+              const SliverAppBar(
+                title: Text('Achievements'),
+                floating: true,
+                snap: true,
+              ),
+              _AchievementGrid(unlockedById: unlockedById),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}

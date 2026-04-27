@@ -46,6 +46,9 @@ class _CardParams {
     this.stampColor,
     this.dateColor,
     this.transparentBackground = true,
+    this.stampSeed,
+    this.stampSizeMultiplier = 1.0,
+    this.stampJitterFactor = 0.4,
   });
 
   final CardTemplateType templateType;
@@ -59,6 +62,9 @@ class _CardParams {
   final Color? stampColor;
   final Color? dateColor;
   final bool transparentBackground;
+  final int? stampSeed;
+  final double stampSizeMultiplier;
+  final double stampJitterFactor;
 
   @override
   bool operator ==(Object other) {
@@ -73,7 +79,10 @@ class _CardParams {
         titleOverride == other.titleOverride &&
         stampColor == other.stampColor &&
         dateColor == other.dateColor &&
-        transparentBackground == other.transparentBackground;
+        transparentBackground == other.transparentBackground &&
+        stampSeed == other.stampSeed &&
+        stampSizeMultiplier == other.stampSizeMultiplier &&
+        stampJitterFactor == other.stampJitterFactor;
   }
 
   @override
@@ -89,6 +98,9 @@ class _CardParams {
         stampColor,
         dateColor,
         transparentBackground,
+        stampSeed,
+        stampSizeMultiplier,
+        stampJitterFactor,
       );
 }
 
@@ -118,6 +130,11 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   Color? _stampColor;
   Color? _dateColor;
   bool _transparentBackground = true;
+
+  // Passport stamp layout controls (M75)
+  int? _stampSeed;
+  double _stampSizeMultiplier = 1.0;
+  double _stampJitterFactor = 0.4;
 
   final _previewKey = GlobalKey();
   final _transformController = TransformationController();
@@ -241,129 +258,167 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
-              _TemplatePicker(
-                selected: _selected,
-                onChanged: (t) => setState(() {
-                  _selected = t;
-                  if (t != CardTemplateType.heart) {
-                    _heartOrder = HeartFlagOrder.randomized;
-                  }
-                  _resetZoom();
-                }),
-              ),
-              const SizedBox(height: 8),
-              // Template-specific controls
-              if (_selected == CardTemplateType.heart)
-                _HeartOrderPicker(
-                  selected: _heartOrder,
-                  onChanged: (o) => setState(() => _heartOrder = o),
-                ),
-              if (_selected == CardTemplateType.passport)
-                _ChipRow(
-                  children: [
-                    _OptionChip(
-                      label: 'Entry + Exit',
-                      selected: !_entryOnly,
-                      onTap: () => setState(() => _entryOnly = false),
-                    ),
-                    _OptionChip(
-                      label: 'Entry only',
-                      selected: _entryOnly,
-                      onTap: () => setState(() => _entryOnly = true),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 8),
-              _SharedTitleEditor(
-                titleOverride: _titleOverride,
-                onTitleChanged: (v) => setState(() => _titleOverride = v),
-                countryCount: selectedCodes.length,
-                dateLabel: _computeDateLabel(selectedTrips),
-              ),
-              if (_selected == CardTemplateType.passport)
-                _PassportCustomizer(
-                  stampColor: _stampColor,
-                  onStampColorChanged: (c) => setState(() => _stampColor = c),
-                  dateColor: _dateColor,
-                  onDateColorChanged: (c) => setState(() => _dateColor = c),
-                  transparentBackground: _transparentBackground,
-                  onTransparentBackgroundChanged: (v) =>
-                      setState(() => _transparentBackground = v),
-                ),
-              const SizedBox(height: 4),
-              // Global controls: orientation
-              _ChipRow(
-                children: [
-                  _OptionChip(
-                    label: 'Landscape',
-                    selected: !_portrait,
-                    onTap: () => setState(() {
-                      _portrait = false;
-                      _resetZoom();
-                    }),
+              // ── Scrollable controls ─────────────────────────────────────────
+              // Wrapped in Flexible so controls scroll when they exceed available
+              // space (e.g. passport template with all options visible).
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      _TemplatePicker(
+                        selected: _selected,
+                        onChanged: (t) => setState(() {
+                          _selected = t;
+                          if (t != CardTemplateType.heart) {
+                            _heartOrder = HeartFlagOrder.randomized;
+                          }
+                          _resetZoom();
+                        }),
+                      ),
+                      const SizedBox(height: 8),
+                      // Template-specific controls
+                      if (_selected == CardTemplateType.heart)
+                        _HeartOrderPicker(
+                          selected: _heartOrder,
+                          onChanged: (o) => setState(() => _heartOrder = o),
+                        ),
+                      if (_selected == CardTemplateType.passport)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                          child: Row(
+                            children: [
+                              _OptionChip(
+                                label: 'Entry + Exit',
+                                selected: !_entryOnly,
+                                onTap: () => setState(() => _entryOnly = false),
+                              ),
+                              const SizedBox(width: 8),
+                              _OptionChip(
+                                label: 'Entry only',
+                                selected: _entryOnly,
+                                onTap: () => setState(() => _entryOnly = true),
+                              ),
+                              const Spacer(),
+                              FilledButton.icon(
+                                icon: const Icon(Icons.shuffle_rounded, size: 16),
+                                label: const Text('Shuffle'),
+                                onPressed: () => setState(() =>
+                                    _stampSeed = DateTime.now().millisecondsSinceEpoch),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _kAmber,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  textStyle: const TextStyle(
+                                      fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      _SharedTitleEditor(
+                        titleOverride: _titleOverride,
+                        onTitleChanged: (v) => setState(() => _titleOverride = v),
+                        countryCount: selectedCodes.length,
+                        dateLabel: _computeDateLabel(selectedTrips),
+                      ),
+                      if (_selected == CardTemplateType.passport)
+                        _PassportCustomizer(
+                          stampColor: _stampColor,
+                          onStampColorChanged: (c) => setState(() => _stampColor = c),
+                          dateColor: _dateColor,
+                          onDateColorChanged: (c) => setState(() => _dateColor = c),
+                          transparentBackground: _transparentBackground,
+                          onTransparentBackgroundChanged: (v) =>
+                              setState(() => _transparentBackground = v),
+                          stampSizeMultiplier: _stampSizeMultiplier,
+                          onStampSizeChanged: (v) =>
+                              setState(() => _stampSizeMultiplier = v),
+                          stampJitterFactor: _stampJitterFactor,
+                          onStampJitterChanged: (v) =>
+                              setState(() => _stampJitterFactor = v),
+                        ),
+                      const SizedBox(height: 4),
+                      // Global controls: orientation
+                      _ChipRow(
+                        children: [
+                          _OptionChip(
+                            label: 'Landscape',
+                            selected: !_portrait,
+                            onTap: () => setState(() {
+                              _portrait = false;
+                              _resetZoom();
+                            }),
+                          ),
+                          _OptionChip(
+                            label: 'Portrait',
+                            selected: _portrait,
+                            onTap: () => setState(() {
+                              _portrait = true;
+                              _resetZoom();
+                            }),
+                          ),
+                        ],
+                      ),
+                      // Date range slider (only when trips span multiple years)
+                      if (showDateSlider && effectiveRange != null) ...[
+                        const SizedBox(height: 4),
+                        _DateRangeRow(
+                          yearMin: yearMin,
+                          yearMax: yearMax,
+                          values: effectiveRange,
+                          countryCount: selectedCodes.length,
+                          onChanged: (v) => setState(() {
+                            _yearSelection = v;
+                            _deselectedCodes = {}; // reset per-country filter on year change
+                          }),
+                        ),
+                      ],
+                      // Per-country toggle: shown whenever there are 2+ countries.
+                      if (displayedCodes.length > 1) ...[
+                        const SizedBox(height: 6),
+                        _CountryChipSelector(
+                          codes: displayedCodes,
+                          deselected: activeDeselected,
+                          onToggle: (code) {
+                            setState(() {
+                              if (_deselectedCodes.contains(code)) {
+                                _deselectedCodes = Set.of(_deselectedCodes)..remove(code);
+                              } else if (selectedCodes.length > 1) {
+                                // Prevent removing the last selected country.
+                                _deselectedCodes = {..._deselectedCodes, code};
+                              }
+                            });
+                          },
+                          onReset: () => setState(() => _deselectedCodes = {}),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
                   ),
-                  _OptionChip(
-                    label: 'Portrait',
-                    selected: _portrait,
-                    onTap: () => setState(() {
-                      _portrait = true;
-                      _resetZoom();
-                    }),
-                  ),
-                ],
+                ),
               ),
-              // Date range slider (only when trips span multiple years)
-              if (showDateSlider && effectiveRange != null) ...[
-                const SizedBox(height: 4),
-                _DateRangeRow(
-                  yearMin: yearMin,
-                  yearMax: yearMax,
-                  values: effectiveRange,
-                  countryCount: selectedCodes.length,
-                  onChanged: (v) => setState(() {
-                    _yearSelection = v;
-                    _deselectedCodes = {}; // reset per-country filter on year change
-                  }),
-                ),
-              ],
-              // Per-country toggle: shown whenever there are 2+ countries.
-              if (displayedCodes.length > 1) ...[
-                const SizedBox(height: 6),
-                _CountryChipSelector(
-                  codes: displayedCodes,
-                  deselected: activeDeselected,
-                  onToggle: (code) {
-                    setState(() {
-                      if (_deselectedCodes.contains(code)) {
-                        _deselectedCodes = Set.of(_deselectedCodes)..remove(code);
-                      } else if (selectedCodes.length > 1) {
-                        // Prevent removing the last selected country.
-                        _deselectedCodes = {..._deselectedCodes, code};
-                      }
-                    });
-                  },
-                  onReset: () => setState(() => _deselectedCodes = {}),
-                ),
-              ],
-              const SizedBox(height: 8),
-              // Card preview
+
+              // ── Card preview ────────────────────────────────────────────────
               // Constrained to 340 px max width so PassportLayoutEngine sees the
               // same canvas dimensions as CardImageRenderer (ADR-113 / M57-02).
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 340),
-                      child: InteractiveViewer(
-                        transformationController: _transformController,
-                        minScale: 1.0,
-                        maxScale: 6.0,
-                        child: RepaintBoundary(
-                          key: _previewKey,
-                          child: _buildTemplate(selectedCodes, selectedTrips),
-                        ),
+              // Max height 300 px prevents portrait cards from consuming the full
+              // screen and leaving no room for the action bar.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 340, maxHeight: 300),
+                    child: InteractiveViewer(
+                      transformationController: _transformController,
+                      minScale: 1.0,
+                      maxScale: 6.0,
+                      child: RepaintBoundary(
+                        key: _previewKey,
+                        child: _buildTemplate(selectedCodes, selectedTrips),
                       ),
                     ),
                   ),
@@ -424,6 +479,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           stampColor: _stampColor,
           dateColor: _dateColor,
           transparentBackground: _transparentBackground,
+          seed: _stampSeed,
+          sizeMultiplier: _stampSizeMultiplier,
+          jitterFactor: _stampJitterFactor,
         );
       case CardTemplateType.timeline:
         return TimelineCard(
@@ -533,6 +591,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       stampColor: _stampColor,
       dateColor: _dateColor,
       transparentBackground: _transparentBackground,
+      stampSeed: _stampSeed,
+      stampSizeMultiplier: _stampSizeMultiplier,
+      stampJitterFactor: _stampJitterFactor,
     );
 
     // M51-E3: same params — skip re-confirmation (ADR-103)
@@ -567,6 +628,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         stampColor: _stampColor,
         dateColor: _dateColor,
         transparentBackground: _transparentBackground,
+        stampSeed: _stampSeed,
+        stampSizeMultiplier: _stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
       );
     } catch (_) {
       // Non-fatal: fall back to in-screen render inside ArtworkConfirmationScreen.
@@ -985,6 +1049,10 @@ class _PassportCustomizer extends StatelessWidget {
     required this.onDateColorChanged,
     required this.transparentBackground,
     required this.onTransparentBackgroundChanged,
+    required this.stampSizeMultiplier,
+    required this.onStampSizeChanged,
+    required this.stampJitterFactor,
+    required this.onStampJitterChanged,
   });
 
   final Color? stampColor;
@@ -993,6 +1061,10 @@ class _PassportCustomizer extends StatelessWidget {
   final ValueChanged<Color?> onDateColorChanged;
   final bool transparentBackground;
   final ValueChanged<bool> onTransparentBackgroundChanged;
+  final double stampSizeMultiplier;
+  final ValueChanged<double> onStampSizeChanged;
+  final double stampJitterFactor;
+  final ValueChanged<double> onStampJitterChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1022,6 +1094,76 @@ class _PassportCustomizer extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+
+          // Stamp size slider
+          Row(
+            children: [
+              const Icon(Icons.photo_size_select_small, size: 14, color: Colors.white38),
+              const SizedBox(width: 6),
+              const Text('Stamp size',
+                  style: TextStyle(fontSize: 12, color: Colors.white60)),
+              const Spacer(),
+              Text(
+                stampSizeMultiplier == 1.0
+                    ? 'Default'
+                    : stampSizeMultiplier < 1.0
+                        ? 'Smaller'
+                        : 'Larger',
+                style: const TextStyle(fontSize: 11, color: Colors.white38),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: _kAmber,
+              thumbColor: _kAmber,
+              inactiveTrackColor: Colors.white12,
+              overlayColor: _kAmber.withValues(alpha: 0.15),
+              trackHeight: 2,
+            ),
+            child: Slider(
+              value: stampSizeMultiplier,
+              min: 0.5,
+              max: 1.8,
+              divisions: 13,
+              onChanged: onStampSizeChanged,
+            ),
+          ),
+
+          // Scatter slider
+          Row(
+            children: [
+              const Icon(Icons.scatter_plot_outlined, size: 14, color: Colors.white38),
+              const SizedBox(width: 6),
+              const Text('Scatter',
+                  style: TextStyle(fontSize: 12, color: Colors.white60)),
+              const Spacer(),
+              Text(
+                stampJitterFactor < 0.2
+                    ? 'Grid'
+                    : stampJitterFactor > 0.6
+                        ? 'Scattered'
+                        : 'Natural',
+                style: const TextStyle(fontSize: 11, color: Colors.white38),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: _kAmber,
+              thumbColor: _kAmber,
+              inactiveTrackColor: Colors.white12,
+              overlayColor: _kAmber.withValues(alpha: 0.15),
+              trackHeight: 2,
+            ),
+            child: Slider(
+              value: stampJitterFactor,
+              min: 0.0,
+              max: 0.8,
+              divisions: 8,
+              onChanged: onStampJitterChanged,
+            ),
+          ),
 
           // Background toggle
           Row(

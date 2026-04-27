@@ -20,6 +20,7 @@ import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import 'country_detail_sheet.dart';
 import 'country_polygon_layer.dart';
+import 'country_centroids.dart';
 import 'globe_map_widget.dart';
 import 'region_chips_marker_layer.dart';
 import 'region_progress_notifier.dart';
@@ -270,6 +271,10 @@ class MapScreen extends ConsumerWidget {
                         ref.read(scanNudgeDismissedProvider.notifier).state =
                             true,
                   ),
+                if (globeMode && visitedByCode.isNotEmpty)
+                  _VisitedCountryFlagStrip(
+                    visits: visitsAsync.valueOrNull ?? const [],
+                  ),
                 const TimelineScrubberBar(),
                 const StatsStrip(),
               ],
@@ -497,6 +502,70 @@ enum _MapMenuAction {
   privacyAccount,
   signOut,
   filterByYear,
+}
+
+// ── Visited country flag strip ─────────────────────────────────────────────────
+
+/// Horizontal scrollable strip of emoji flags for visited countries (M86).
+///
+/// Shown above the timeline scrubber when the globe is active. Tapping a flag
+/// writes the country's centroid to [globeTargetProvider], which [GlobeMapWidget]
+/// animates to over 900 ms.
+class _VisitedCountryFlagStrip extends ConsumerWidget {
+  const _VisitedCountryFlagStrip({required this.visits});
+
+  /// All effective visits; sorted here by [firstSeen] ascending (earliest first).
+  final List<EffectiveVisitedCountry> visits;
+
+  static String _flag(String iso) {
+    if (iso.length != 2) return '';
+    const base = 0x1F1E6;
+    return String.fromCharCode(base + iso.codeUnitAt(0) - 65) +
+        String.fromCharCode(base + iso.codeUnitAt(1) - 65);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sort by firstSeen ascending; null dates (manually added) go to the end.
+    final sorted = [...visits]..sort((a, b) {
+        final fa = a.firstSeen;
+        final fb = b.firstSeen;
+        if (fa == null && fb == null) return 0;
+        if (fa == null) return 1;
+        if (fb == null) return -1;
+        return fa.compareTo(fb);
+      });
+
+    return SizedBox(
+      height: 44,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        itemCount: sorted.length,
+        itemBuilder: (context, index) {
+          final code = sorted[index].countryCode;
+          final centroid = kCountryCentroids[code];
+          return Tooltip(
+            message: code,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: centroid == null
+                  ? null
+                  : () => ref.read(globeTargetProvider.notifier).state =
+                      (centroid.$1, centroid.$2),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Text(
+                  _flag(code),
+                  style: const TextStyle(fontSize: 22),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 // ── Empty state ────────────────────────────────────────────────────────────────

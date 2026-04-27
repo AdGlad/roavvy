@@ -1,4 +1,36 @@
-<!-- Recent ADRs (ADR-100 to ADR-131). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-132). Load when introducing new patterns. -->
+
+## ADR-132 — M86 Globe Auto-Rotation and External Navigation via globeTargetProvider
+
+**Status:** Accepted
+
+**Context:**
+M86 adds two dynamic behaviours to `GlobeMapWidget`: (1) a slow continuous east→west auto-rotation
+to make the map feel alive, and (2) snap-to-country animation driven by external widgets (the
+country flag strip). Both require the globe to accept commands from outside its own gesture
+handling, and both must co-exist without interfering with each other or with user drags.
+
+**Decision:**
+- **Auto-rotation**: Use a `Ticker` (via `TickerProviderStateMixin`) that increments `_projection.rotLng`
+  by −0.0015 rad/frame (~5°/sec). The ticker pauses when `_isInteracting` is true (set in
+  `onScaleStart`) and resumes 2 s after `onScaleEnd` via a `Timer`. If a snap animation is
+  running, the ticker also pauses. Large gaps between ticks (>120 ms) are discarded to prevent
+  jump-frames on resume.
+- **Snap animation**: An `AnimationController` (`_snapController`, 900 ms, `easeInOut`) linearly
+  interpolates `rotLng` and `rotLat` from current to target. Target is set by external code via
+  `globeTargetProvider` (a `StateProvider<(double lat, double lng)?>` in `providers.dart`).
+  `GlobeMapWidget.build` uses `ref.listen(globeTargetProvider, ...)` to detect changes and call
+  `_animateTo`, then resets the provider to null via `addPostFrameCallback`.
+- **Shortest-path longitude**: `_animateTo` normalises the `rotLng` difference to [−π, π] to
+  always spin the globe the short way around.
+
+**Consequences:**
+- `GlobeMapWidget` is now a `TickerProviderStateMixin` widget (was plain `ConsumerStatefulWidget`).
+- `onScaleEnd` is newly handled (previously absent) to gate the interaction-pause timer.
+- `globeTargetProvider` lives in `core/providers.dart`; any widget with a `WidgetRef` can
+  command the globe without holding a reference to the widget itself.
+
+---
 
 ## ADR-130 — M77 Scan Screen Pre-load: Globe and Country List Show Existing Visits
 

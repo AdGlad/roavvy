@@ -1,11 +1,11 @@
-# Roavvy — Current State (updated M78, 2026-04-24)
+# Roavvy — Current State (updated M86, 2026-04-27)
 
 ## What is built
 
 | Feature area | Status | Notes |
 |---|---|---|
 | Photo scan | ✅ | PhotoKit bridge; GPS → country (offline, `country_lookup`); unified scan UX (M78): always-visible globe + country list + passport stamps pre-populated at rest, live-animated during scan; all scan outcomes navigate through ScanSummaryScreen; assetId-based dedup (M77) |
-| World map | ✅ | `flutter_map`; dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states) |
+| World map | ✅ | `flutter_map`; globe (auto-rotating east→west, snap-to-country via flag strip, M86); dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states); tappable stats strip → Countries/Achievements screens (M86); tappable XP level → progression sheet (M86) |
 | Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet |
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
 | Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; achievement gallery |
@@ -26,6 +26,7 @@
 - M31: Web password reset flow
 - M61: Grid Card real-flag SVG upgrade (currently emoji-based)
 - M66: Heart Card gapless SVG repack
+- M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
 - Social / friends features
 - iPad layout (iPhone-only target)
 - Sound effects (separate milestone)

@@ -43,7 +43,7 @@ class CardBrandingFooter extends StatelessWidget {
     final countText =
         (customLabel != null && customLabel!.isNotEmpty)
             ? customLabel!
-            : '$countryCount countries';
+            : '$countryCount ${countryCount == 1 ? 'country' : 'countries'}';
     return Container(
       color: backgroundColor,
       padding: const EdgeInsets.fromLTRB(10, 3, 10, 5),

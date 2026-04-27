@@ -9,11 +9,11 @@ import 'globe_projection.dart';
 
 // ── Colour constants (mirror country_polygon_layer.dart — ADR-116) ─────────────
 
-const _kOcean = Color(0xFF0D2137);
-const _kAtmosphere = Color(0xFF2A4F7A);
+const _kOcean = Color(0xFF1B3A5C);      // lighter navy ocean (M86)
+const _kAtmosphere = Color(0xFF3A6A9A); // lighter atmosphere rim (M86)
 
-const _kUnvisitedFill = Color(0xFF1E3A5F);
-const _kUnvisitedBorder = Color(0xFF2A4F7A);
+const _kUnvisitedFill = Color(0xFF2D5280);   // mid-navy — visible against ocean (M86)
+const _kUnvisitedBorder = Color(0xFF3D6490);
 
 const _kVisitedBorder = Color(0xFFFFD700);
 const _kReviewedFill = Color(0xFFC8860A);

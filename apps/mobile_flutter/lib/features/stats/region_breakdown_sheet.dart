@@ -5,7 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../../core/region_names.dart';
-import '../map/country_region_map_screen.dart';
+import '../map/country_region_globe_screen.dart';
 
 /// Converts an ISO 3166-1 alpha-2 code to its flag emoji.
 String _flag(String code) {
@@ -152,7 +152,7 @@ class _RegionList extends ConsumerWidget {
                   nav.push(
                     MaterialPageRoute<void>(
                       builder: (_) =>
-                          CountryRegionMapScreen(countryCode: code),
+                          CountryRegionGlobeScreen(countryCode: code),
                     ),
                   );
                 },

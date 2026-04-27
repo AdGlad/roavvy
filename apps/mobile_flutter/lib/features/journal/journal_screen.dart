@@ -4,7 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
-import '../map/trip_map_screen.dart';
+import '../map/country_region_globe_screen.dart';
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -302,7 +302,11 @@ class _TripTile extends StatelessWidget {
   void _openSheet(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => TripMapScreen(trip: trip),
+        builder: (_) => CountryRegionGlobeScreen(
+          countryCode: trip.countryCode,
+          tripFilter: trip,
+          subtitle: _dateRange(trip.startedOn, trip.endedOn),
+        ),
       ),
     );
   }

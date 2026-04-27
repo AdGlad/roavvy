@@ -560,6 +560,8 @@ class PassportStampsCard extends StatelessWidget {
     this.dateColor,
     this.transparentBackground = false,
     this.seed,
+    this.sizeMultiplier = 1.0,
+    this.jitterFactor = 0.4,
   });
 
   final List<String> countryCodes;
@@ -603,6 +605,14 @@ class PassportStampsCard extends StatelessWidget {
   /// arrangement (ADR-125).
   final int? seed;
 
+  /// Multiplier applied to the non-print base stamp radius (default 1.0).
+  /// Values > 1 produce larger stamps; < 1 produce smaller ones.
+  final double sizeMultiplier;
+
+  /// Fraction of cell width/height used for random jitter (default 0.4).
+  /// 0.0 = stamps sit exactly at cell centres; 0.8 = heavy scatter/overlap.
+  final double jitterFactor;
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
@@ -627,6 +637,8 @@ class PassportStampsCard extends StatelessWidget {
                   dateColor: dateColor,
                   transparentBackground: transparentBackground,
                   seed: seed,
+                  sizeMultiplier: sizeMultiplier,
+                  jitterFactor: jitterFactor,
                 );
               },
             ),
@@ -671,6 +683,8 @@ class _PassportPagePainter extends StatefulWidget {
     this.dateColor,
     this.transparentBackground = false,
     this.seed,
+    this.sizeMultiplier = 1.0,
+    this.jitterFactor = 0.4,
   });
 
   final List<String> countryCodes;
@@ -685,6 +699,8 @@ class _PassportPagePainter extends StatefulWidget {
   final Color? dateColor;
   final bool transparentBackground;
   final int? seed;
+  final double sizeMultiplier;
+  final double jitterFactor;
 
   /// See [PassportStampsCard.onAssetsLoaded].
   final VoidCallback? onAssetsLoaded;
@@ -715,7 +731,9 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         old.forPrint != widget.forPrint ||
         old.stampColor != widget.stampColor ||
         old.dateColor != widget.dateColor ||
-        old.seed != widget.seed) {
+        old.seed != widget.seed ||
+        old.sizeMultiplier != widget.sizeMultiplier ||
+        old.jitterFactor != widget.jitterFactor) {
       setState(() {
         _applyLayoutResult(_computeLayoutResult());
         _assets = const {};
@@ -738,6 +756,8 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         entryOnly: widget.entryOnly,
         forPrint: widget.forPrint,
         seed: widget.seed,
+        sizeMultiplier: widget.sizeMultiplier,
+        jitterFactor: widget.jitterFactor,
       );
 
   Future<void> _loadAssets() async {
@@ -909,7 +929,7 @@ class _MultiStampPainter extends CustomPainter {
 
     final tpCount = TextPainter(
       text: TextSpan(
-        text: '$count countries',
+        text: '$count ${count == 1 ? 'country' : 'countries'}',
         style: TextStyle(
           color: color,
           fontSize: fontSize,

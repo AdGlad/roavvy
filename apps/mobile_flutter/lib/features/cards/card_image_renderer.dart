@@ -78,6 +78,9 @@ class CardImageRenderer {
     bool transparentBackground = false,
     String? travelerLevel,
     Color? textColor,
+    int? stampSeed,
+    double stampSizeMultiplier = 1.0,
+    double stampJitterFactor = 0.4,
   }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -162,6 +165,9 @@ class CardImageRenderer {
               transparentBackground: transparentBackground,
               travelerLevel: travelerLevel,
               textColor: textColor,
+              stampSeed: stampSeed,
+              stampSizeMultiplier: stampSizeMultiplier,
+              stampJitterFactor: stampJitterFactor,
               onAssetsLoaded: assetsCompleter != null
                   ? () {
                       if (!assetsCompleter.isCompleted) {
@@ -208,6 +214,9 @@ class CardImageRenderer {
     String? travelerLevel,
     Color? textColor,
     VoidCallback? onAssetsLoaded,
+    int? stampSeed,
+    double stampSizeMultiplier = 1.0,
+    double stampJitterFactor = 0.4,
     }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -248,6 +257,9 @@ class CardImageRenderer {
           transparentBackground: transparentBackground,
           onWasForced: onWasForced,
           onAssetsLoaded: onAssetsLoaded,
+          seed: stampSeed,
+          sizeMultiplier: stampSizeMultiplier,
+          jitterFactor: stampJitterFactor,
         );
 
       case CardTemplateType.timeline:
