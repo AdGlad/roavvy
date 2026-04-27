@@ -1,19 +1,18 @@
-# Active Task: M78 — Unified Scan Experience
-Branch: milestone/m78-unified-scan-experience
+# Active Task: M85 — Order Confirmation Screen (Pre-Checkout)
+Branch: milestone/m85-order-confirmation-screen
 
 ## Goal
-One scan UX for all modes: always-visible globe + country list + passport stamps,
-pre-populated at rest, live-animated during scan. All scan outcomes navigate through ScanSummaryScreen.
+Insert a mandatory full-screen confirmation step between the Printful mockup and Shopify checkout
+so users must explicitly verify size, colour, design, and print positions before purchasing.
 
 ## Scope
-In: `lib/features/scan/scan_screen.dart`, `test/features/scan/scan_screen_incremental_test.dart`
-Out: Firestore, web, card editor, merch, packages, map screen, any other feature
+In: `merch_order_confirmation_screen.dart` (new); `local_mockup_preview_screen.dart` (trigger only)
+Out: Printful API; Firestore; Cloud Functions; card editor; scan; map; web; poster flow
 
 ## Tasks
-- [x] T1 — Always-visible scan home view (remove idle/scanning split)
-- [x] T2 — Passport stamp preview pre-populated with existing countries
-- [x] T3 — ScanSummaryScreen for NothingNew scan outcome
-- [x] T4 — Remove dead widgets (_VisitList, _StatsCard, _StatRow, _NothingNewView, _NewCountriesView)
-- [x] T5 — Verify analyze clean; existing repo + summary screen tests unaffected
+- [x] T1 — Create MerchOrderConfirmationScreen
+- [x] T2 — Wire trigger in LocalMockupPreviewScreen
+- [x] T3 — Widget tests
+- [x] T4 — Analyze clean
 
-## Status: Complete (2026-04-24)
+## Status: ✅ Complete (2026-04-27)
