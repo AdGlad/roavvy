@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_branding_footer.dart';
+import 'card_text_renderer.dart';
 import 'flag_tile_renderer.dart';
 import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
@@ -164,69 +165,34 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
-      child: Container(
-        // Flags fill the entire canvas edge-to-edge; no solid background needed.
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final layout = gridLayout(
-                    size,
-                    widget.countryCodes.length,
-                  );
-                  final tileWidth = layout.cols > 0
-                      ? size.width / layout.cols
-                      : 0.0;
-                  _preloadSvgs(tileWidth);
-                  return CustomPaint(
-                    size: size,
-                    painter: _GridPainter(
-                      countryCodes: widget.countryCodes,
-                      canvasSize: size,
-                      repaintNotifier: _repaintNotifier,
-                    ),
-                  );
-                },
-              ),
+      // All rendering (flags + text zones) is done in _GridPainter so the
+      // captured PNG contains title and branding without any widget overlays.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+
+          // Compute grid tile width using the flag-only zone height so the
+          // aspect-ratio-aware column count is accurate.
+          const topH = CardTextRenderer.titleZoneH;
+          const botH = CardTextRenderer.brandingZoneH;
+          final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
+          final gridSize = Size(size.width, gridH);
+          final layout = gridLayout(gridSize, widget.countryCodes.length);
+          final tileWidth = layout.cols > 0 ? gridSize.width / layout.cols : 0.0;
+          _preloadSvgs(tileWidth);
+
+          return CustomPaint(
+            size: size,
+            painter: _GridPainter(
+              countryCodes: widget.countryCodes,
+              canvasSize: size,
+              repaintNotifier: _repaintNotifier,
+              title: effectiveTitle,
+              dateLabel: widget.dateLabel,
+              customLabel: widget.titleOverride,
             ),
-            // Title bar overlaid at the top.
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: const Color(0xBB0D2137),
-                padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
-                child: Text(
-                  effectiveTitle.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-              ),
-            ),
-            // Branding footer overlaid at the bottom.
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: CardBrandingFooter(
-                countryCount: widget.countryCodes.length,
-                dateLabel: widget.dateLabel,
-                backgroundColor: const Color(0xBB0D2137),
-                customLabel: widget.titleOverride,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -237,46 +203,81 @@ class _GridPainter extends CustomPainter {
     required this.countryCodes,
     required this.canvasSize,
     required ValueNotifier<int> repaintNotifier,
+    required this.title,
+    required this.dateLabel,
+    this.customLabel,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
   final Size canvasSize;
+
+  /// Full title string drawn in the top zone (e.g. "12 Countries · 2024").
+  final String title;
+
+  /// Date label forwarded to [CardTextRenderer.drawBranding].
+  final String dateLabel;
+
+  /// Custom label forwarded to [CardTextRenderer.drawBranding].
+  final String? customLabel;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
 
   // Transparent placeholder shown while an SVG loads asynchronously.
-  // With a transparent card background, tiles simply show through to the
-  // app background until their SVG arrives.
   static final _placeholderPaint = Paint()..color = Colors.transparent;
+
+  // Text zone constants (mirrors CardTextRenderer).
+  static const _topH = CardTextRenderer.titleZoneH;
+  static const _botH = CardTextRenderer.brandingZoneH;
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 1. Text zones (drawn first so flags sit on top if text is transparent).
+    CardTextRenderer.drawTitle(canvas, size, title);
+    CardTextRenderer.drawBranding(
+      canvas,
+      size,
+      countryCount: countryCodes.length,
+      dateLabel: dateLabel,
+      customLabel: customLabel,
+    );
+
+    // 2. Flag grid in the zone between title and branding strips.
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final layout = gridLayout(size, countryCodes.length);
+    final gridH = size.height - _topH - _botH;
+    if (gridH <= 0) return;
+    final gridSize = Size(size.width, gridH);
+
+    final layout = gridLayout(gridSize, countryCodes.length);
     if (layout.cols == 0 || layout.rows == 0) return;
 
     // Full rows use equal tile widths. The last (possibly partial) row expands
     // its tiles to fill the canvas width — no gap at the right edge.
-    final fullRowTileW = size.width / layout.cols;
-    final tileH = size.height / layout.rows;
+    final fullRowTileW = gridSize.width / layout.cols;
+    final tileH = gridSize.height / layout.rows;
 
     int index = 0;
     for (int r = 0; r < layout.rows; r++) {
       final itemsInRow = (r == layout.rows - 1)
           ? countryCodes.length - (r * layout.cols)
           : layout.cols;
-      final rowTileW = size.width / itemsInRow;
+      final rowTileW = gridSize.width / itemsInRow;
 
       for (int c = 0; c < itemsInRow; c++) {
         final code = countryCodes[index];
-        final rect = Rect.fromLTWH(c * rowTileW, r * tileH, rowTileW, tileH);
+        // Offset rect by top zone height so flags start below the title.
+        final rect = Rect.fromLTWH(
+          c * rowTileW,
+          _topH + r * tileH,
+          rowTileW,
+          tileH,
+        );
 
-        // Use the standard (full-row) tile width as the cache key so that last-
-        // row tiles hit the same cache entry as their preloaded counterparts.
+        // Use the standard (full-row) tile width as the cache key so that
+        // last-row tiles hit the same cache entry as their preloaded ones.
         final cached = _sharedCache.get(code, fullRowTileW);
         if (cached != null) {
           FlagTileRenderer.drawImage(canvas, cached, rect, cornerRadius: 0.0);
@@ -292,7 +293,11 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GridPainter old) =>
-      old.countryCodes != countryCodes || old.canvasSize != canvasSize;
+      old.countryCodes != countryCodes ||
+      old.canvasSize != canvasSize ||
+      old.title != title ||
+      old.dateLabel != dateLabel ||
+      old.customLabel != customLabel;
 }
 
 // ── HeartRenderConfig ─────────────────────────────────────────────────────────
