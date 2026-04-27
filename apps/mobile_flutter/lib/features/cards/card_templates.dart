@@ -149,32 +149,13 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       );
     }
 
-    final effectiveTitle = widget.titleOverride ??
-        '${widget.countryCodes.length} Countries'
-            '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
-
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: Container(
         decoration: BoxDecoration(color: bgColor),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                effectiveTitle.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ),
-            Expanded(
+            Positioned.fill(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final size = Size(constraints.maxWidth, constraints.maxHeight);
@@ -197,10 +178,16 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
                 },
               ),
             ),
-            CardBrandingFooter(
-              countryCount: widget.countryCodes.length,
-              dateLabel: widget.dateLabel,
-              customLabel: widget.titleOverride,
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: CardBrandingFooter(
+                countryCount: widget.countryCodes.length,
+                dateLabel: widget.dateLabel,
+                backgroundColor: const Color(0xBB0D2137),
+                customLabel: widget.titleOverride,
+              ),
             ),
           ],
         ),
@@ -223,45 +210,42 @@ class _GridPainter extends CustomPainter {
   // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
 
+  // Subtle dark placeholder shown while an SVG loads asynchronously.
+  static final _placeholderPaint = Paint()..color = const Color(0xFF142840);
+
   @override
   void paint(Canvas canvas, Size size) {
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final layout = gridLayout(
-      size,
-      countryCodes.length,
-    );
-
+    final layout = gridLayout(size, countryCodes.length);
     if (layout.cols == 0 || layout.rows == 0) return;
 
-    // Stretch tiles to fill the canvas with no gaps (ADR-123).
-    final tileWidth = size.width / layout.cols;
-    final tileHeight = size.height / layout.rows;
+    // Full rows use equal tile widths. The last (possibly partial) row expands
+    // its tiles to fill the canvas width — no gap at the right edge.
+    final fullRowTileW = size.width / layout.cols;
+    final tileH = size.height / layout.rows;
 
     int index = 0;
     for (int r = 0; r < layout.rows; r++) {
-      final itemsInThisRow = r == layout.rows - 1
+      final itemsInRow = (r == layout.rows - 1)
           ? countryCodes.length - (r * layout.cols)
           : layout.cols;
+      final rowTileW = size.width / itemsInRow;
 
-      for (int c = 0; c < itemsInThisRow; c++) {
+      for (int c = 0; c < itemsInRow; c++) {
         final code = countryCodes[index];
-        final rect = Rect.fromLTWH(
-          c * tileWidth,
-          r * tileHeight,
-          tileWidth,
-          tileHeight,
-        );
+        final rect = Rect.fromLTWH(c * rowTileW, r * tileH, rowTileW, tileH);
 
-        final tile = HeartTilePosition(rect: rect, countryCode: code);
-        FlagTileRenderer.renderFromCache(
-          canvas,
-          tile,
-          _sharedCache,
-          cornerRadius: 0.0,
-          gapWidth: 0.0,
-        );
+        // Use the standard (full-row) tile width as the cache key so that last-
+        // row tiles hit the same cache entry as their preloaded counterparts.
+        final cached = _sharedCache.get(code, fullRowTileW);
+        if (cached != null) {
+          FlagTileRenderer.drawImage(canvas, cached, rect, cornerRadius: 0.0);
+        } else {
+          // Placeholder while SVG loads — no emoji fallback.
+          canvas.drawRect(rect, _placeholderPaint);
+        }
 
         index++;
       }

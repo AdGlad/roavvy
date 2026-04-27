@@ -81,6 +81,7 @@ class CardImageRenderer {
     int? stampSeed,
     double stampSizeMultiplier = 1.0,
     double stampJitterFactor = 0.4,
+    Duration assetsTimeout = const Duration(seconds: 10),
   }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -188,7 +189,7 @@ class CardImageRenderer {
       // Timeout guards against the widget being disposed before onAssetsLoaded
       // fires (e.g. user navigates away).
       assetsCompleter.future
-          .timeout(const Duration(seconds: 10), onTimeout: () {})
+          .timeout(assetsTimeout, onTimeout: () {})
           .then((_) => doCapture());
     } else {
       doCapture();
