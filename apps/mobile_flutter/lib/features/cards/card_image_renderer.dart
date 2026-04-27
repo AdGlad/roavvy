@@ -269,6 +269,8 @@ class CardImageRenderer {
           trips: trips,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
+          titleOverride: titleOverride,
+          transparentBackground: transparentBackground,
         );
     }
   }
