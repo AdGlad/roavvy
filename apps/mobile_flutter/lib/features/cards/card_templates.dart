@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_branding_footer.dart';
+import 'card_text_renderer.dart';
 import 'flag_tile_renderer.dart';
 import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
@@ -86,6 +87,19 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   bool _onAssetsLoadedFired = false;
 
   @override
+  void didUpdateWidget(GridFlagsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When the country list changes (e.g. user deselects a country), the grid
+    // layout recalculates — different cols → different tileWidth → different
+    // cache key. Reset the preload guard so _preloadSvgs re-runs at the new
+    // tileWidth and fills the cache for the updated layout.
+    if (oldWidget.countryCodes != widget.countryCodes) {
+      _preloadStarted = false;
+      _onAssetsLoadedFired = false;
+    }
+  }
+
+  @override
   void dispose() {
     _repaintNotifier.dispose();
     super.dispose();
@@ -129,15 +143,11 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.transparentBackground
-        ? Colors.transparent
-        : const Color(0xFF0D2137);
-
     if (widget.countryCodes.isEmpty) {
       return AspectRatio(
         aspectRatio: widget.aspectRatio,
         child: Container(
-          color: bgColor,
+          color: const Color(0xFF0D2137),
           child: const Center(
             child: Text(
               'Scan your photos\nto fill your card',
@@ -150,60 +160,39 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     }
 
     final effectiveTitle = widget.titleOverride ??
-        '${widget.countryCodes.length} Countries'
+        '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
-      child: Container(
-        decoration: BoxDecoration(color: bgColor),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                effectiveTitle.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final size = Size(constraints.maxWidth, constraints.maxHeight);
-                  final layout = gridLayout(
-                    size,
-                    widget.countryCodes.length,
-                  );
-                  final tileWidth = layout.cols > 0
-                      ? size.width / layout.cols
-                      : 0.0;
-                  _preloadSvgs(tileWidth);
-                  return CustomPaint(
-                    size: size,
-                    painter: _GridPainter(
-                      countryCodes: widget.countryCodes,
-                      canvasSize: size,
-                      repaintNotifier: _repaintNotifier,
-                    ),
-                  );
-                },
-              ),
-            ),
-            CardBrandingFooter(
-              countryCount: widget.countryCodes.length,
+      // All rendering (flags + text zones) is done in _GridPainter so the
+      // captured PNG contains title and branding without any widget overlays.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+
+          // Compute grid tile width using the flag-only zone height so the
+          // aspect-ratio-aware column count is accurate.
+          const topH = CardTextRenderer.titleZoneH;
+          const botH = CardTextRenderer.brandingZoneH;
+          final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
+          final gridSize = Size(size.width, gridH);
+          final layout = gridLayout(gridSize, widget.countryCodes.length);
+          final tileWidth = layout.cols > 0 ? gridSize.width / layout.cols : 0.0;
+          _preloadSvgs(tileWidth);
+
+          return CustomPaint(
+            size: size,
+            painter: _GridPainter(
+              countryCodes: widget.countryCodes,
+              canvasSize: size,
+              repaintNotifier: _repaintNotifier,
+              title: effectiveTitle,
               dateLabel: widget.dateLabel,
               customLabel: widget.titleOverride,
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -214,54 +203,88 @@ class _GridPainter extends CustomPainter {
     required this.countryCodes,
     required this.canvasSize,
     required ValueNotifier<int> repaintNotifier,
+    required this.title,
+    required this.dateLabel,
+    this.customLabel,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
   final Size canvasSize;
 
+  /// Full title string drawn in the top zone (e.g. "12 Countries · 2024").
+  final String title;
+
+  /// Date label forwarded to [CardTextRenderer.drawBranding].
+  final String dateLabel;
+
+  /// Custom label forwarded to [CardTextRenderer.drawBranding].
+  final String? customLabel;
+
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
 
+  // Transparent placeholder shown while an SVG loads asynchronously.
+  static final _placeholderPaint = Paint()..color = Colors.transparent;
+
+  // Text zone constants (mirrors CardTextRenderer).
+  static const _topH = CardTextRenderer.titleZoneH;
+  static const _botH = CardTextRenderer.brandingZoneH;
+
   @override
   void paint(Canvas canvas, Size size) {
+    // 1. Text zones (drawn first so flags sit on top if text is transparent).
+    CardTextRenderer.drawTitle(canvas, size, title);
+    CardTextRenderer.drawBranding(
+      canvas,
+      size,
+      countryCount: countryCodes.length,
+      dateLabel: dateLabel,
+      customLabel: customLabel,
+    );
+
+    // 2. Flag grid in the zone between title and branding strips.
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final layout = gridLayout(
-      size,
-      countryCodes.length,
-    );
+    final gridH = size.height - _topH - _botH;
+    if (gridH <= 0) return;
+    final gridSize = Size(size.width, gridH);
 
+    final layout = gridLayout(gridSize, countryCodes.length);
     if (layout.cols == 0 || layout.rows == 0) return;
 
-    // Stretch tiles to fill the canvas with no gaps (ADR-123).
-    final tileWidth = size.width / layout.cols;
-    final tileHeight = size.height / layout.rows;
+    // Full rows use equal tile widths. The last (possibly partial) row expands
+    // its tiles to fill the canvas width — no gap at the right edge.
+    final fullRowTileW = gridSize.width / layout.cols;
+    final tileH = gridSize.height / layout.rows;
 
     int index = 0;
     for (int r = 0; r < layout.rows; r++) {
-      final itemsInThisRow = r == layout.rows - 1
+      final itemsInRow = (r == layout.rows - 1)
           ? countryCodes.length - (r * layout.cols)
           : layout.cols;
+      final rowTileW = gridSize.width / itemsInRow;
 
-      for (int c = 0; c < itemsInThisRow; c++) {
+      for (int c = 0; c < itemsInRow; c++) {
         final code = countryCodes[index];
+        // Offset rect by top zone height so flags start below the title.
         final rect = Rect.fromLTWH(
-          c * tileWidth,
-          r * tileHeight,
-          tileWidth,
-          tileHeight,
+          c * rowTileW,
+          _topH + r * tileH,
+          rowTileW,
+          tileH,
         );
 
-        final tile = HeartTilePosition(rect: rect, countryCode: code);
-        FlagTileRenderer.renderFromCache(
-          canvas,
-          tile,
-          _sharedCache,
-          cornerRadius: 0.0,
-          gapWidth: 0.0,
-        );
+        // Use the standard (full-row) tile width as the cache key so that
+        // last-row tiles hit the same cache entry as their preloaded ones.
+        final cached = _sharedCache.get(code, fullRowTileW);
+        if (cached != null) {
+          FlagTileRenderer.drawImage(canvas, cached, rect, cornerRadius: 0.0);
+        } else {
+          // Placeholder while SVG loads — no emoji fallback.
+          canvas.drawRect(rect, _placeholderPaint);
+        }
 
         index++;
       }
@@ -270,7 +293,11 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GridPainter old) =>
-      old.countryCodes != countryCodes || old.canvasSize != canvasSize;
+      old.countryCodes != countryCodes ||
+      old.canvasSize != canvasSize ||
+      old.title != title ||
+      old.dateLabel != dateLabel ||
+      old.customLabel != customLabel;
 }
 
 // ── HeartRenderConfig ─────────────────────────────────────────────────────────
@@ -560,6 +587,8 @@ class PassportStampsCard extends StatelessWidget {
     this.dateColor,
     this.transparentBackground = false,
     this.seed,
+    this.sizeMultiplier = 1.0,
+    this.jitterFactor = 0.4,
   });
 
   final List<String> countryCodes;
@@ -603,6 +632,14 @@ class PassportStampsCard extends StatelessWidget {
   /// arrangement (ADR-125).
   final int? seed;
 
+  /// Multiplier applied to the non-print base stamp radius (default 1.0).
+  /// Values > 1 produce larger stamps; < 1 produce smaller ones.
+  final double sizeMultiplier;
+
+  /// Fraction of cell width/height used for random jitter (default 0.4).
+  /// 0.0 = stamps sit exactly at cell centres; 0.8 = heavy scatter/overlap.
+  final double jitterFactor;
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
@@ -627,6 +664,8 @@ class PassportStampsCard extends StatelessWidget {
                   dateColor: dateColor,
                   transparentBackground: transparentBackground,
                   seed: seed,
+                  sizeMultiplier: sizeMultiplier,
+                  jitterFactor: jitterFactor,
                 );
               },
             ),
@@ -671,6 +710,8 @@ class _PassportPagePainter extends StatefulWidget {
     this.dateColor,
     this.transparentBackground = false,
     this.seed,
+    this.sizeMultiplier = 1.0,
+    this.jitterFactor = 0.4,
   });
 
   final List<String> countryCodes;
@@ -685,6 +726,8 @@ class _PassportPagePainter extends StatefulWidget {
   final Color? dateColor;
   final bool transparentBackground;
   final int? seed;
+  final double sizeMultiplier;
+  final double jitterFactor;
 
   /// See [PassportStampsCard.onAssetsLoaded].
   final VoidCallback? onAssetsLoaded;
@@ -715,7 +758,9 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         old.forPrint != widget.forPrint ||
         old.stampColor != widget.stampColor ||
         old.dateColor != widget.dateColor ||
-        old.seed != widget.seed) {
+        old.seed != widget.seed ||
+        old.sizeMultiplier != widget.sizeMultiplier ||
+        old.jitterFactor != widget.jitterFactor) {
       setState(() {
         _applyLayoutResult(_computeLayoutResult());
         _assets = const {};
@@ -738,6 +783,8 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         entryOnly: widget.entryOnly,
         forPrint: widget.forPrint,
         seed: widget.seed,
+        sizeMultiplier: widget.sizeMultiplier,
+        jitterFactor: widget.jitterFactor,
       );
 
   Future<void> _loadAssets() async {
@@ -909,7 +956,7 @@ class _MultiStampPainter extends CustomPainter {
 
     final tpCount = TextPainter(
       text: TextSpan(
-        text: '$count countries',
+        text: '$count ${count == 1 ? 'country' : 'countries'}',
         style: TextStyle(
           color: color,
           fontSize: fontSize,

@@ -169,6 +169,8 @@ class PassportLayoutEngine {
     int? seed,
     bool entryOnly = false,
     bool forPrint = false,
+    double sizeMultiplier = 1.0,
+    double jitterFactor = 0.4,
   }) {
     if (countryCodes.isEmpty) {
       return const PassportLayoutResult(stamps: [], wasForced: false);
@@ -197,20 +199,17 @@ class PassportLayoutEngine {
     final usableW = canvasSize.width - marginX * 2;
     final usableH = canvasSize.height - marginY * 2;
 
-    // Dynamic base radius: scales continuously with stamp count in both
-    // directions — 56 × √(20/n) — clamped to [6, 100].
+    // Dynamic base radius: scales continuously with stamp count — 45 × √(20/n)
+    // — clamped to [6, 100]. Coefficient reduced from 56 to 45 (≈ 20% smaller)
+    // so stamps are less crowded and overlap less. (M86 fix)
     //
-    // The previous formula used min(1, 20/n), which capped growth at n≤20 and
-    // kept all small counts at exactly 56 px. That meant country-selection
-    // filtering (e.g. 12 → 2 stamps) produced no visible size change.
-    // Removing the min() lets the formula grow above 56 px for small counts:
-    //   n=2 → 56×√10 ≈ 177 → 100 px (ceiling)
-    //   n=5 → 56×√4  = 112 → 100 px
-    //   n=10 → 56×√2 ≈  79 px
-    //   n=20 → 56×√1 =  56 px (unchanged)
-    //   n=40 → 56×√0.5 ≈ 40 px (unchanged)
+    //   n=2  → 45×√10 ≈ 142 → 100 px (ceiling)
+    //   n=5  → 45×√4  =  90 →  90 px
+    //   n=10 → 45×√2  ≈  64 px
+    //   n=20 → 45×√1  =  45 px
+    //   n=40 → 45×√0.5 ≈ 32 px
     final dynamicRadius = totalCount > 0
-        ? (56.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
+        ? (45.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
         : 100.0;
 
     // Determine forPrint base radius and check wasForced (ADR-102 / ADR-113).
@@ -277,7 +276,7 @@ class PassportLayoutEngine {
         scale = baseRadius / 38.0;
       } else {
         final variety = 0.9 + rng.nextDouble() * 0.2;
-        baseRadius = (dynamicRadius * variety).clamp(6.0, 38.0);
+        baseRadius = (dynamicRadius * variety * sizeMultiplier).clamp(4.0, 60.0);
         scale = baseRadius / 38.0;
       }
 
@@ -292,8 +291,8 @@ class PassportLayoutEngine {
       // Jitter ±30% of cell dimensions for a natural, scattered look. Stamps
       // are 25% smaller than before so the extra spread no longer causes
       // excessive overlap.
-      final jitterX = (rng.nextDouble() - 0.5) * cellW * 0.6;
-      final jitterY = (rng.nextDouble() - 0.5) * cellH * 0.6;
+      final jitterX = (rng.nextDouble() - 0.5) * cellW * jitterFactor;
+      final jitterY = (rng.nextDouble() - 0.5) * cellH * jitterFactor;
 
       final rawCentre = Offset(
         marginX + (cellCol + 0.5) * cellW + jitterX,

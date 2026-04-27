@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'artwork_confirmation_service.dart';
 import 'card_image_renderer.dart';
@@ -86,11 +87,21 @@ class ArtworkConfirmationScreen extends ConsumerStatefulWidget {
       _ArtworkConfirmationScreenState();
 }
 
+String _flagEmoji(String iso) {
+  if (iso.length != 2) return '';
+  const base = 0x1F1E6;
+  return String.fromCharCode(base + iso.codeUnitAt(0) - 65) +
+      String.fromCharCode(base + iso.codeUnitAt(1) - 65);
+}
+
 class _ArtworkConfirmationScreenState
     extends ConsumerState<ArtworkConfirmationScreen> {
   CardRenderResult? _result;
   bool _rendering = true;
   bool _confirming = false;
+
+  // Per-attribute confirmation checkboxes. Keys are assigned in build().
+  final Map<String, bool> _confirmed = {};
 
   @override
   void initState() {
@@ -199,7 +210,38 @@ class _ArtworkConfirmationScreenState
     final wasForced = result?.wasForced ?? false;
     final countryCount = widget.countryCodes.length;
     final dateLabel = _computeDateLabel();
-    final canConfirm = !_rendering && result != null && !_confirming;
+    final effectiveEntryOnly = widget.entryOnly || (result?.wasForced ?? false);
+
+    // Build the list of attributes the user must individually confirm.
+    final attrs = <({String key, String label, String? detail})>[
+      (
+        key: 'countries',
+        label: '${countryCount == 1 ? '1 country' : '$countryCount countries'} included',
+        detail: null,
+      ),
+      if (dateLabel.isNotEmpty)
+        (key: 'date', label: 'Date range', detail: dateLabel),
+      (
+        key: 'style',
+        label: 'Card style',
+        detail: _templateLabel(widget.templateType),
+      ),
+      if (effectiveEntryOnly)
+        (
+          key: 'entry',
+          label: 'Entry stamps only',
+          detail: wasForced ? 'Too many stamps — limited automatically' : null,
+        ),
+    ];
+
+    // Initialise any new keys to false without resetting existing ones.
+    for (final a in attrs) {
+      _confirmed.putIfAbsent(a.key, () => false);
+    }
+
+    final allConfirmed = attrs.every((a) => _confirmed[a.key] == true);
+    final canConfirm =
+        !_rendering && result != null && !_confirming && allConfirmed;
 
     return Scaffold(
       appBar: AppBar(
@@ -211,103 +253,52 @@ class _ArtworkConfirmationScreenState
         ),
       ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Updated banner (M51-E3)
-            if (widget.showUpdatedBanner)
-              Container(
-                color: _kAmber.withValues(alpha: 0.15),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline,
-                        size: 16, color: _kAmber),
-                    const SizedBox(width: 8),
-                    const Flexible(
-                      child: Text(
-                        'Your artwork has been updated — please confirm the new version.',
-                        style: TextStyle(fontSize: 13, color: _kAmber),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Metadata header
-            Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
-                children: [
-                  Text(
-                    '$countryCount ${countryCount == 1 ? 'country' : 'countries'}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: _kAmber,
-                    ),
-                  ),
-                  if (dateLabel.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      dateLabel,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white60,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // wasForced notice
-            if (wasForced &&
-                widget.templateType == CardTemplateType.passport)
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Container(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Updated banner (M51-E3)
+              if (widget.showUpdatedBanner)
+                Container(
+                  color: _kAmber.withValues(alpha: 0.15),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _kAmber.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: _kAmber.withValues(alpha: 0.4)),
-                  ),
-                  child: const Text(
-                    'Too many stamps — showing entry stamps only',
-                    style: TextStyle(fontSize: 12, color: _kAmber),
+                      horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 16, color: _kAmber),
+                      const SizedBox(width: 8),
+                      const Flexible(
+                        child: Text(
+                          'Your artwork has been updated — please confirm the new version.',
+                          style: TextStyle(fontSize: 13, color: _kAmber),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
 
-            // Artwork preview
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Center(
+              // Artwork preview
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: AspectRatio(
+                  aspectRatio: widget.aspectRatio,
                   child: _rendering
-                      ? const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator.adaptive(),
-                            SizedBox(height: 12),
-                            Text(
-                              'Rendering your artwork…',
-                              style: TextStyle(
-                                  fontSize: 13, color: Colors.white54),
-                            ),
-                          ],
+                      ? const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator.adaptive(),
+                              SizedBox(height: 12),
+                              Text(
+                                'Rendering your artwork…',
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.white54),
+                              ),
+                            ],
+                          ),
                         )
                       : result != null
                           ? widget.transparentBackground
-                              // Transparent-background renders (white stamp mode):
-                              // wrap in a dark container so white stamps are
-                              // visible in the preview (ADR-119).
                               ? ColoredBox(
                                   color: Colors.black,
                                   child: Image.memory(
@@ -319,46 +310,134 @@ class _ArtworkConfirmationScreenState
                                   result.bytes,
                                   fit: BoxFit.contain,
                                 )
-                          : const Text(
-                              'Could not render artwork.',
-                              style: TextStyle(color: Colors.white54),
+                          : const Center(
+                              child: Text(
+                                'Could not render artwork.',
+                                style: TextStyle(color: Colors.white54),
+                              ),
                             ),
                 ),
               ),
-            ),
 
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: canConfirm ? _onConfirm : null,
-                      child: _confirming
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator.adaptive(
-                                  strokeWidth: 2),
-                            )
-                          : const Text('Confirm artwork'),
-                    ),
+              // ── Country list ──────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: Text(
+                  '${countryCount == 1 ? '1 country' : '$countryCount countries'} included',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
                   ),
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(context)
-                            .pop<ArtworkConfirmResult>(null),
-                    child: const Text('Change something'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: widget.countryCodes.map((code) {
+                    final name = kCountryNames[code] ?? code;
+                    final flag = _flagEmoji(code);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '$flag  $name',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              // ── Per-attribute confirmations ───────────────────────────────
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Text(
+                  'Confirm each detail before proceeding:',
+                  style: TextStyle(fontSize: 13, color: Colors.white54),
+                ),
+              ),
+              ...attrs.map((a) {
+                return CheckboxListTile(
+                  value: _confirmed[a.key] ?? false,
+                  onChanged: (v) =>
+                      setState(() => _confirmed[a.key] = v ?? false),
+                  activeColor: _kAmber,
+                  checkColor: Colors.black,
+                  title: Text(
+                    a.label,
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                  ),
+                  subtitle: a.detail != null
+                      ? Text(
+                          a.detail!,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white54),
+                        )
+                      : null,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                );
+              }),
+
+              const SizedBox(height: 8),
+
+              // Action buttons
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: canConfirm ? _onConfirm : null,
+                        child: _confirming
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator.adaptive(
+                                    strokeWidth: 2),
+                              )
+                            : const Text('Confirm artwork'),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    TextButton(
+                      onPressed: () => Navigator.of(context)
+                          .pop<ArtworkConfirmResult>(null),
+                      child: const Text('Change something'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _templateLabel(CardTemplateType type) {
+    switch (type) {
+      case CardTemplateType.grid:
+        return 'Flag grid';
+      case CardTemplateType.heart:
+        return 'Heart flags';
+      case CardTemplateType.passport:
+        return 'Passport stamps';
+      case CardTemplateType.timeline:
+        return 'Timeline';
+      case CardTemplateType.frontRibbon:
+        return 'Front ribbon';
+    }
   }
 }

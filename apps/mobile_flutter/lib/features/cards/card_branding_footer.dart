@@ -43,7 +43,7 @@ class CardBrandingFooter extends StatelessWidget {
     final countText =
         (customLabel != null && customLabel!.isNotEmpty)
             ? customLabel!
-            : '$countryCount countries';
+            : '$countryCount ${countryCount == 1 ? 'country' : 'countries'}';
     return Container(
       color: backgroundColor,
       padding: const EdgeInsets.fromLTRB(10, 3, 10, 5),
@@ -56,13 +56,18 @@ class CardBrandingFooter extends StatelessWidget {
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 2,
+              decoration: TextDecoration.none,
             ),
           ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               countText,
-              style: TextStyle(color: textColor, fontSize: 9),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 9,
+                decoration: TextDecoration.none,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -70,7 +75,11 @@ class CardBrandingFooter extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               dateLabel,
-              style: TextStyle(color: textColor, fontSize: 9),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 9,
+                decoration: TextDecoration.none,
+              ),
             ),
           ],
         ],

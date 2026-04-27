@@ -243,6 +243,14 @@ class _LocalMockupPreviewScreenState
     _artworkBytes = widget.artworkImageBytes;
     _artworkConfirmationId = widget.artworkConfirmationId;
     _artworkVariants[0] = widget.artworkImageBytes;
+    // T-shirts always composite artwork transparently onto fabric. If the
+    // confirmed artwork was rendered with a background (transparentBackground=false),
+    // the multicolor variant must be re-rendered with transparency. Clearing
+    // slot 0 here forces _renderVariant(0) when the user picks multicolor,
+    // which sets transparentBg = _isTshirt || ... = true.
+    if (_isTshirt && !widget.transparentBackground) {
+      _artworkVariants[0] = null;
+    }
     _passportColorMode = _suggestStampColor(_colour);
 
     WidgetsBinding.instance.addObserver(this);

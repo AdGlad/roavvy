@@ -187,6 +187,40 @@ void main() {
     });
   });
 
+  // ── Nearest-neighbour fallback ────────────────────────────────────────────
+
+  group('nearest-neighbour fallback recovers coastal/border gaps', () {
+    test('point just outside a polygon edge is recovered by fallback', () {
+      // Country covers 40–50°N, 10–20°E.
+      // A point at (50.1, 15.0) is 0.1° north of the northern edge — outside.
+      // Fallback samples at (50.1 - 0.15, 15.0) = (49.95, 15.0) — inside.
+      final b = TestGeodataBuilder()..addRect('AA', 40.0, 50.0, 10.0, 20.0);
+      initCountryLookup(b.build());
+
+      expect(resolveCountry(50.1, 15.0), equals('AA'));
+    });
+
+    test('isolated point 0.1 degrees outside a polygon is recovered', () {
+      // A country that covers 10–20°N, 10–20°E.
+      // A point at (20.1, 15.0) is just outside the northern boundary.
+      // Neighbours at 20.1-0.15 = 19.95°N are inside → fallback returns 'XX'.
+      final b = TestGeodataBuilder()
+        ..addRect('XX', 10.0, 20.0, 10.0, 20.0);
+      initCountryLookup(b.build());
+
+      expect(resolveCountry(20.1, 15.0), equals('XX'));
+    });
+
+    test('point well offshore returns null even with fallback', () {
+      // Only GB polygon; a point far at sea has no neighbours inside any polygon.
+      final b = TestGeodataBuilder()
+        ..addRect('GB', 49.0, 61.0, -8.0, 2.0);
+      initCountryLookup(b.build());
+
+      expect(resolveCountry(30.0, -30.0), isNull);
+    });
+  });
+
   // ── Binary format ─────────────────────────────────────────────────────────
 
   group('binary format validation', () {

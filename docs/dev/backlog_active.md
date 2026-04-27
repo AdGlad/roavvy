@@ -7,6 +7,15 @@
 
 ## Next up (mobile-first order)
 
+### M86 — Map Screen Enhancements
+**Goal:** Globe auto-rotation (east→west, pauses on interaction), lighter ocean background, horizontal visited-country flag strip (globe mode, tap → snap to country), tappable stats strip (Countries → CountriesListScreen, Achievements → StatsScreen), tappable XP level bar → progression sheet.
+**Phase:** 16 — Map UX Polish
+**Scope in:** `globe_map_widget.dart`, `globe_painter.dart`, `map_screen.dart`, `stats_strip.dart`, `xp_level_bar.dart`, `core/providers.dart`.
+**Scope out:** Flat map mode enhancements; Journal country map; new achievement screen; web.
+**Status:** ✅ Complete (2026-04-27).
+
+---
+
 ### M77 — Incremental Scan Redesign ← CURRENT
 **Goal:** Globe pre-populated with known countries, country list shows existing visits from scan start, assetId-based dedup for robustness, instant visual feedback on auto-scan.
 **Phase:** 16 — Scan UX

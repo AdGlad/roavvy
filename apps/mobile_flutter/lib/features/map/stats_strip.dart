@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../stats/achievements_screen.dart';
+import '../stats/countries_list_screen.dart';
 
 /// A slim stats bar overlaid at the bottom of the map.
 ///
 /// Watches [travelSummaryProvider] and renders:
-/// - country count
-/// - earliest visit year → latest visit year (or "—" when absent)
+/// - country count (tappable → CountriesListScreen)
+/// - earliest → latest visit year
+/// - achievements count (tappable → StatsScreen)
 ///
 /// Renders nothing ([SizedBox.shrink]) while loading or on error.
 class StatsStrip extends ConsumerWidget {
@@ -34,12 +37,21 @@ class StatsStrip extends ConsumerWidget {
               _Stat(
                 label: 'Countries',
                 value: summary.countryCount.toString(),
+                onTap: () {
+                  final visits = ref.read(effectiveVisitsProvider).valueOrNull ?? [];
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => CountriesListScreen(visits: visits),
+                  ));
+                },
               ),
               _Stat(label: 'First visit', value: earliest),
               _Stat(label: 'Latest visit', value: latest),
               _Stat(
                 label: 'Achievements',
                 value: '🏆 ${summary.achievementCount}',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AchievementsScreen(),
+                )),
               ),
             ],
           ),
@@ -50,14 +62,15 @@ class StatsStrip extends ConsumerWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
@@ -73,6 +86,18 @@ class _Stat extends StatelessWidget {
           style: const TextStyle(color: Colors.white70, fontSize: 11),
         ),
       ],
+    );
+    if (onTap == null) return content;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+        child: content,
+      ),
     );
   }
 }

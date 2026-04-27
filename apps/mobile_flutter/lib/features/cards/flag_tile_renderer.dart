@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -97,13 +98,24 @@ class FlagTileRenderer {
 
   static void _drawImageInRect(
       Canvas canvas, ui.Image image, Rect dst, double cornerRadius) {
+    final imgW = image.width.toDouble();
+    final imgH = image.height.toDouble();
+
+    // BoxFit.cover: scale so the image covers dst, then center-crop the excess.
+    final scale = math.max(dst.width / imgW, dst.height / imgH);
+    final srcW = dst.width / scale;
+    final srcH = dst.height / scale;
+    final srcX = (imgW - srcW) / 2;
+    final srcY = (imgH - srcH) / 2;
+    final srcRect = Rect.fromLTWH(srcX, srcY, srcW, srcH);
+
     canvas.save();
     if (cornerRadius > 0) {
       canvas.clipRRect(RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)));
     }
     canvas.drawImageRect(
       image,
-      Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+      srcRect,
       dst,
       Paint()..filterQuality = FilterQuality.medium,
     );
@@ -161,13 +173,17 @@ class FlagTileRenderer {
 
       final srcSize = pictureInfo.size;
       final scale = targetSize / srcSize.width;
+      // Render at natural aspect ratio (e.g. 640×480 → targetSize × targetSize*0.75).
+      final imgH = srcSize.height > 0
+          ? (targetSize * srcSize.height / srcSize.width).round().clamp(1, 4096)
+          : targetSize.round();
       c.scale(scale, scale);
       c.drawPicture(pictureInfo.picture);
       pictureInfo.picture.dispose();
 
       final picture = recorder.endRecording();
       final image =
-          await picture.toImage(targetSize.round(), targetSize.round());
+          await picture.toImage(targetSize.round(), imgH);
       picture.dispose();
 
       cache.put(code, targetSize, image);

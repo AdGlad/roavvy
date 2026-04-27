@@ -123,6 +123,11 @@ final yearFilterProvider = StateProvider<int?>((ref) => null);
 /// Whether the globe map is active. true = globe (default). (ADR-116)
 final globeModeProvider = StateProvider<bool>((ref) => true);
 
+/// Target (lat, lng) in degrees to animate the globe to. Set from outside
+/// (e.g. country flag strip); the globe resets this to null after arriving.
+/// No-op when [globeModeProvider] is false. (M86)
+final globeTargetProvider = StateProvider<(double, double)?>((_) => null);
+
 /// The earliest trip `startedOn` year across all trips; null if no trips exist.
 /// Used to compute the scrubber range in [TimelineScrubberBar]. (ADR-076)
 final earliestVisitYearProvider = FutureProvider<int?>((ref) async {
