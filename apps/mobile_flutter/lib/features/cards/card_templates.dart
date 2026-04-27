@@ -86,6 +86,19 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   bool _onAssetsLoadedFired = false;
 
   @override
+  void didUpdateWidget(GridFlagsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When the country list changes (e.g. user deselects a country), the grid
+    // layout recalculates — different cols → different tileWidth → different
+    // cache key. Reset the preload guard so _preloadSvgs re-runs at the new
+    // tileWidth and fills the cache for the updated layout.
+    if (oldWidget.countryCodes != widget.countryCodes) {
+      _preloadStarted = false;
+      _onAssetsLoadedFired = false;
+    }
+  }
+
+  @override
   void dispose() {
     _repaintNotifier.dispose();
     super.dispose();
@@ -129,15 +142,11 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.transparentBackground
-        ? Colors.transparent
-        : const Color(0xFF0D2137);
-
     if (widget.countryCodes.isEmpty) {
       return AspectRatio(
         aspectRatio: widget.aspectRatio,
         child: Container(
-          color: bgColor,
+          color: const Color(0xFF0D2137),
           child: const Center(
             child: Text(
               'Scan your photos\nto fill your card',
@@ -149,10 +158,15 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       );
     }
 
+    final effectiveTitle = widget.titleOverride ??
+        '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
+            '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
+
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: Container(
-        decoration: BoxDecoration(color: bgColor),
+        // Flags fill the entire canvas edge-to-edge; no solid background needed.
+        color: Colors.transparent,
         child: Stack(
           children: [
             Positioned.fill(
@@ -178,6 +192,28 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
                 },
               ),
             ),
+            // Title bar overlaid at the top.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: const Color(0xBB0D2137),
+                padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
+                child: Text(
+                  effectiveTitle.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ),
+            // Branding footer overlaid at the bottom.
             Positioned(
               bottom: 0,
               left: 0,
@@ -210,8 +246,10 @@ class _GridPainter extends CustomPainter {
   // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
 
-  // Subtle dark placeholder shown while an SVG loads asynchronously.
-  static final _placeholderPaint = Paint()..color = const Color(0xFF142840);
+  // Transparent placeholder shown while an SVG loads asynchronously.
+  // With a transparent card background, tiles simply show through to the
+  // app background until their SVG arrives.
+  static final _placeholderPaint = Paint()..color = Colors.transparent;
 
   @override
   void paint(Canvas canvas, Size size) {
