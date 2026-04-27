@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-<!-- Recent ADRs (ADR-100 to ADR-128). Load when introducing new patterns. -->
-=======
-<!-- Recent ADRs (ADR-100 to ADR-130). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-131). Load when introducing new patterns. -->
 
 ## ADR-130 — M77 Scan Screen Pre-load: Globe and Country List Show Existing Visits
 
@@ -76,7 +73,45 @@ This correctly handles the common case (new photos added since last scan). Howev
 - Null-assetId photos (older SQLite rows or devices that don't send assetId) are never filtered.
 
 ---
->>>>>>> milestone/m77-incremental-scan-redesign
+
+## ADR-131 — M85 Pre-Checkout Order Confirmation: Immutable Snapshot Screen
+
+**Status:** Accepted
+
+**Context:**
+In the `ready` state of `LocalMockupPreviewScreen`, a single "Complete order →" button directly
+launches the Shopify checkout URL. A user who selected the wrong size, colour, or print position
+has no opportunity to review before payment. This causes refunds, poor UX, and financial loss.
+The confirmation must be mandatory — users must not be able to skip it.
+
+**Decision:**
+1. **New screen `MerchOrderConfirmationScreen`** — a separate `StatefulWidget` pushed via
+   `Navigator.push` from the ready-state button. All order data is passed as immutable constructor
+   parameters at push time: `frontMockupUrl`, `backMockupUrl`, `frontArtworkBytes`, `artworkBytes`,
+   `size`, `colour`, `frontPosition`, `backPosition`, `templateType`, `checkoutUrl`, `isTshirt`.
+2. **Frozen snapshot** — the confirmation screen holds no references to the parent's mutable state.
+   Once pushed, the displayed data cannot drift even if the user somehow navigates back and changes
+   a value (they would need to re-approve, regenerating the mockup, to reach ready state again).
+3. **Checkbox gate** — a single `_confirmed` bool (local state) drives both the checkbox widget
+   and the `FilledButton.onPressed` (`null` when false, `_launchCheckout` when true).
+4. **No Firestore / API calls in the confirmation screen** — it is purely a review and gate step.
+   `_launchCheckout` calls `url_launcher` only.
+5. **Go Back** — `Navigator.pop()` returns to the `ready` state. The Printful mockup is preserved;
+   the user can change config only by resetting to `configuring` from there.
+6. **`_checkoutLaunched` flag** — moved from `LocalMockupPreviewScreen` into the confirmation
+   screen. The flag is local to the confirmation screen and is set in `_launchCheckout`.
+7. **Mockup fallback** — if `frontMockupUrl` is null (still generating when the user tapped),
+   the confirmation screen renders `Image.memory(frontArtworkBytes ?? artworkBytes)`. This ensures
+   the confirmation is never blocked by an in-flight Printful response.
+
+**Consequences:**
+- No purchase can proceed without the user ticking the confirmation checkbox.
+- `LocalMockupPreviewScreen._buildBottomBar()` changes by one push instead of one call.
+- `_completeCheckout()` method in `LocalMockupPreviewScreen` is removed.
+- Poster flow: `MerchOrderConfirmationScreen` receives `isTshirt: false`; size/colour section
+  is omitted from the summary card.
+
+---
 
 ## ADR-128 — M76 Named Printful Placement for Left Chest Designs
 

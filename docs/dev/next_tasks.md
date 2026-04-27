@@ -1,96 +1,58 @@
-# M78 — Unified Scan Experience: Task List
+# M85 — Order Confirmation Screen (Pre-Checkout)
+Branch: milestone/m85-order-confirmation-screen
 
 ## Goal
-Initial, Incremental, and Full scan all share the same screen, layout, and animation pipeline.
-The globe + country list + passport stamp preview is the permanent home view of the scan tab:
-pre-populated with existing data at rest, live-updating as batches arrive during a scan.
+After the Printful mockup is returned, the user must explicitly review size, colour, design, and
+print positions and tick a confirmation checkbox before the "Proceed to Checkout" button enables.
 
 ## Scope
-In:  `lib/features/scan/scan_screen.dart` only.
-Out: Firestore, web, card editor, merch, packages, map screen, any other feature.
+In:
+  - NEW `apps/mobile_flutter/lib/features/merch/merch_order_confirmation_screen.dart`
+  - `apps/mobile_flutter/lib/features/merch/local_mockup_preview_screen.dart` — trigger change only
+  - NEW `apps/mobile_flutter/test/features/merch/merch_order_confirmation_screen_test.dart`
+Out: Printful API; Firestore schema; Cloud Functions; card editor; scan; map; web; poster flow.
 
----
+## Tasks
 
-## T1 — Always-visible scan home view
-**File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** `_ScanningView` shown at all times when user has data (or scanning),
-not only during active scan. Remove `_VisitList` / `_StatsCard` idle layout.
+- [ ] T1 — Create `MerchOrderConfirmationScreen`
+  Files: `lib/features/merch/merch_order_confirmation_screen.dart`
+  Deliverable: Full-screen StatefulWidget with:
+    - Constructor params (all immutable): frontMockupUrl, backMockupUrl, frontArtworkBytes,
+      artworkBytes, size, colour, frontPosition, backPosition, templateType, checkoutUrl, isTshirt
+    - PageView showing front mockup (NetworkImage) + back mockup (if backMockupUrl present);
+      falls back to Image.memory(frontArtworkBytes ?? artworkBytes) when URL is null
+    - Order summary card: colour swatch (filled circle matching _kSwatchColours palette),
+      size chip, front/back position labels, design template label
+    - Warning box: amber border, warning icon, no-refund copy
+    - Checkbox row: "I confirm..." — drives _confirmed bool via setState
+    - Action row: TextButton "Go Back" (Navigator.pop) + FilledButton "Proceed to Checkout"
+      (disabled when !_confirmed; on tap calls _launchCheckout)
+    - _launchCheckout: launchUrl(uri, mode: LaunchMode.inAppBrowserView), SnackBar on failure
+  AC: Button disabled when checkbox unchecked; enabled when checked; Go Back pops.
 
-**Changes:**
-- Add `isScanning` param to `_ScanningView`. Show `LinearProgressIndicator` + progress
-  text only when `isScanning == true`; hide them at rest.
-- In `_ScanScreenState.build()`: replace the `if (_scanning)/_ScanningView / if (!_scanning)/...`
-  split with a single always-on `_ScanningView` block when
-  `_effectiveVisits.isNotEmpty || _scanning`. Keep `_NoScanYetHint` for first-run (no data).
-- Move scan button + mode toggle above the persistent view (compact header, stays visible).
-- Keep `_ScanningPill` for the zero-batch lag window (unchanged).
-- Keep `_EmptyResultsHint` for the no-geotagged-photos path (unchanged).
+- [ ] T2 — Wire trigger in `LocalMockupPreviewScreen`
+  Files: `lib/features/merch/local_mockup_preview_screen.dart`
+  Deliverable:
+    - In `_buildBottomBar()`, replace direct `_completeCheckout` call (ready state button) with
+      Navigator.push to MerchOrderConfirmationScreen, passing frozen state values.
+    - Change button label from "Complete order →" to "Review & Checkout".
+    - Keep `_completeCheckout` removed; checkout is now launched from inside confirmation screen.
+    - `_checkoutLaunched` flag: set in confirmation screen's _launchCheckout instead.
+  AC: Tapping "Review & Checkout" in ready state pushes confirmation screen. Direct checkout
+      no longer reachable without ticking checkbox.
 
-**Acceptance criteria:**
-- Opening scan tab after first scan shows globe + country list + stamp preview immediately.
-- Progress bar and count text only appear while `_scanning == true`.
-- Scan button remains tappable at top while globe is visible.
+- [ ] T3 — Widget tests
+  Files: `test/features/merch/merch_order_confirmation_screen_test.dart`
+  Deliverable:
+    - Test: button disabled initially (checkbox unchecked)
+    - Test: button enabled after ticking checkbox
+    - Test: Go Back pops navigator (use NavigatorObserver)
+    - Test: shows Image.memory fallback when frontMockupUrl is null
+    - Test: shows two-item PageView tab indicator when both mockup URLs are provided
+  AC: All tests compilable and logically correct.
 
----
+- [ ] T4 — Analyze clean
+  Deliverable: `flutter analyze 2>/tmp/m85_analyze.txt; tail -5 /tmp/m85_analyze.txt`
+  AC: No errors reported.
 
-## T2 — Passport stamp preview pre-populated with existing countries
-**File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** `_ScanPassportPreview` shows all visited countries (existing + newly found),
-not just discoveries from the current scan run.
-
-**Changes:**
-- Add `existingCodes` param to `_ScanPassportPreview`.
-- Pass `[...existingCodes, ...liveNewCodes]` as `countryCodes` to `PassportStampsCard`.
-
-**Acceptance criteria:**
-- On scan start, stamp panel immediately shows all previously visited stamps.
-- New stamps appear alongside existing ones as scan runs.
-
----
-
-## T3 — ScanSummaryScreen for NothingNew outcome
-**File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** When a scan completes with no new countries, push `ScanSummaryScreen`
-(State B — "All up to date") instead of silently navigating to map.
-
-**Changes:**
-- In `_scan()`, replace the `_NothingNew` branch (calls `widget.onScanComplete?.call()`)
-  with a push to `ScanSummaryScreen(newCountries: const [], newCodes: const [],
-  newAchievementIds: const [], lastScanAt: preScanTimestamp, onDone: ...)`.
-
-**Acceptance criteria:**
-- Incremental scan with no new finds shows "All up to date" summary, then returns to map.
-- Full scan with no new finds shows same summary.
-
----
-
-## T4 — Remove dead widgets
-**File:** `lib/features/scan/scan_screen.dart`
-**Deliverable:** Delete widgets replaced by the unified view.
-
-**Remove:** `_VisitList`, `_StatsCard`, `_StatRow`, `_NothingNewView`, `_NewCountriesView`
-**Keep:**   `_NoScanYetHint`, `_EmptyResultsHint`, `_ScanningPill`, `_ErrorView`
-
-**Acceptance criteria:**
-- File compiles; `flutter analyze` clean.
-- No references to removed widgets remain.
-
----
-
-## T5 — Update tests
-**File:** `test/features/scan/scan_screen_incremental_test.dart`
-**Deliverable:** Tests updated for new always-visible layout. New test: `_NothingNew` triggers
-navigation to `ScanSummaryScreen`.
-
-**Acceptance criteria:**
-- Tests compile and reflect new widget structure.
-- A test verifies `ScanSummaryScreen` is pushed on NothingNew outcome.
-
----
-
-## Risks
-| Risk | Mitigation |
-|---|---|
-| `PassportStampsCard` layout overflow with many stamps | Uses existing grid logic; no new risk |
-| `_ScanningView` always visible causes layout overflow | Wrap in `Expanded` same as scanning path |
-| Tests reference removed widgets | Update finders to match new structure |
+## Status: In Progress (2026-04-27)

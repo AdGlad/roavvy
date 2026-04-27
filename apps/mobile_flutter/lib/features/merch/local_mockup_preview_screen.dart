@@ -10,13 +10,12 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../core/providers.dart';
 import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
+import 'merch_order_confirmation_screen.dart';
 import 'merch_post_purchase_screen.dart';
 import 'merch_stamp_color.dart';
 import 'merch_variant_lookup.dart';
@@ -860,18 +859,27 @@ class _LocalMockupPreviewScreenState
     }
   }
 
-  Future<void> _completeCheckout() async {
+  void _openConfirmationScreen() {
     final url = _checkoutUrl;
     if (url == null) return;
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open checkout')),
-      );
-      return;
-    }
-    _checkoutLaunched = true;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MerchOrderConfirmationScreen(
+          frontMockupUrl:    _mockupUrl,
+          backMockupUrl:     _backMockupUrl,
+          frontArtworkBytes: _frontRibbonBytes,
+          artworkBytes:      _artworkBytes,
+          size:              _isTshirt ? _tshirtSize : _posterSize,
+          colour:            _colour,
+          frontPosition:     _frontPosition,
+          backPosition:      _backPosition,
+          templateType:      _template,
+          checkoutUrl:       url,
+          isTshirt:          _isTshirt,
+          onCheckoutLaunched: () { _checkoutLaunched = true; },
+        ),
+      ),
+    );
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -1317,12 +1325,13 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildBottomBar() {
     if (_state == _MockupState.ready) {
+      final mockupReady = _mockupUrl != null;
       return Row(
         children: [
           Expanded(
             child: FilledButton(
-              onPressed: _completeCheckout,
-              child: const Text('Complete order →'),
+              onPressed: mockupReady ? _openConfirmationScreen : null,
+              child: Text(mockupReady ? 'Review & Checkout' : 'Loading preview…'),
             ),
           ),
         ],
