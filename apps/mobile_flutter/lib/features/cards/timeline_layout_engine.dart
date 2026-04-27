@@ -32,90 +32,58 @@ class TimelineLayoutResult {
 
   final List<TimelineEntry> entries;
 
-  /// Number of trips that were omitted because they did not fit the canvas.
+  /// Number of trips omitted because they exceeded [TimelineLayoutEngine._kMaxEntries].
   final int truncatedCount;
 }
 
 /// Pure static layout engine for the Timeline card template (ADR-104 / M52).
 ///
 /// Produces an ordered list of [TimelineEntry] objects from a list of
-/// [TripRecord]s, truncated to fit the available canvas height.
+/// [TripRecord]s, capped at [_kMaxEntries]. Ordering is controlled by
+/// [newestFirst] (default false = earliest → latest, per M86 spec).
 class TimelineLayoutEngine {
   const TimelineLayoutEngine._();
 
-  /// Approximate height (logical px) of the card header section.
-  static const double _kHeaderHeight = 64.0;
+  /// Maximum number of trip entries shown in a single timeline card.
+  static const int kMaxEntries = 25;
 
-  /// Approximate height (logical px) of the card footer (branding).
-  static const double _kFooterHeight = 36.0;
-
-  /// Approximate height (logical px) of a year-divider row.
-  static const double _kDividerHeight = 22.0;
-
-  /// Lays out timeline entries from [trips] sorted most-recent first.
+  /// Lays out timeline entries from [trips].
   ///
-  /// [countryCodes] is used only when [trips] is empty — in that case there
-  /// are no entries to display. When [trips] is non-empty, country names are
-  /// looked up from [kCountryNames].
+  /// [newestFirst] — when true, sorts most-recent first (latest → earliest).
+  ///   Default false = chronological (earliest → latest).
   ///
-  /// [canvasSize] drives the truncation calculation. Entry row height is
-  /// derived from the canvas height and clamped to [28, 52] logical pixels.
+  /// [canvasSize] is retained for API compatibility but no longer used for
+  /// truncation — the painter handles dynamic scaling instead.
   static TimelineLayoutResult layout({
     required List<TripRecord> trips,
     required List<String> countryCodes,
-    required Size canvasSize,
+    Size canvasSize = Size.zero,
+    bool newestFirst = false,
   }) {
     if (trips.isEmpty) {
       return const TimelineLayoutResult(entries: [], truncatedCount: 0);
     }
 
-    // Sort most-recent first.
     final sorted = List<TripRecord>.from(trips)
-      ..sort((a, b) => b.startedOn.compareTo(a.startedOn));
+      ..sort((a, b) => newestFirst
+          ? b.startedOn.compareTo(a.startedOn)
+          : a.startedOn.compareTo(b.startedOn));
 
-    // Estimate row height from canvas.
-    final rowHeight =
-        (canvasSize.height / 12.0).clamp(28.0, 52.0);
-
-    // Available height for entry rows (subtract header, footer, and a small
-    // vertical padding buffer).
-    final usableHeight =
-        canvasSize.height - _kHeaderHeight - _kFooterHeight - 8.0;
-
-    // Build entries and track year-divider overhead.
-    final allEntries = <TimelineEntry>[];
-    for (final trip in sorted) {
+    final allEntries = sorted.map((trip) {
       final duration = trip.endedOn.difference(trip.startedOn).inDays;
-      allEntries.add(TimelineEntry(
+      return TimelineEntry(
         countryCode: trip.countryCode,
         countryName: kCountryNames[trip.countryCode] ?? trip.countryCode,
         entryDate: trip.startedOn,
         exitDate: trip.endedOn,
         durationDays: duration > 0 ? duration : null,
-      ));
-    }
+      );
+    }).toList();
 
-    // Determine how many entries fit.
-    double consumed = 0.0;
-    int? lastYear;
-    final visible = <TimelineEntry>[];
-
-    for (final entry in allEntries) {
-      final year = entry.entryDate.year;
-      double rowCost = rowHeight;
-      if (lastYear != year) {
-        rowCost += _kDividerHeight;
-        lastYear = year;
-      }
-      if (consumed + rowCost > usableHeight && visible.isNotEmpty) break;
-      consumed += rowCost;
-      visible.add(entry);
-    }
-
-    final truncatedCount = allEntries.length - visible.length;
+    final visible = allEntries.take(kMaxEntries).toList();
     return TimelineLayoutResult(
       entries: visible,
-      truncatedCount: truncatedCount,
+      truncatedCount: allEntries.length - visible.length,
     );
   }
 }

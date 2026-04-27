@@ -136,6 +136,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   double _stampSizeMultiplier = 1.0;
   double _stampJitterFactor = 0.4;
 
+  // Timeline sort order (M86)
+  bool _newestFirst = false;
+
   final _previewKey = GlobalKey();
   final _transformController = TransformationController();
   bool _sharing = false;
@@ -283,6 +286,21 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                         _HeartOrderPicker(
                           selected: _heartOrder,
                           onChanged: (o) => setState(() => _heartOrder = o),
+                        ),
+                      if (_selected == CardTemplateType.timeline)
+                        _ChipRow(
+                          children: [
+                            _OptionChip(
+                              label: 'Oldest first',
+                              selected: !_newestFirst,
+                              onTap: () => setState(() => _newestFirst = false),
+                            ),
+                            _OptionChip(
+                              label: 'Newest first',
+                              selected: _newestFirst,
+                              onTap: () => setState(() => _newestFirst = true),
+                            ),
+                          ],
                         ),
                       if (_selected == CardTemplateType.passport)
                         Padding(
@@ -489,6 +507,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           countryCodes: codes,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
+          titleOverride: _titleOverride,
+          newestFirst: _newestFirst,
+          transparentBackground: _transparentBackground,
         );
       case CardTemplateType.frontRibbon:
         return FrontRibbonCard(
