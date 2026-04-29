@@ -159,6 +159,59 @@ class PhotoDateRecords extends Table {
   Set<Column> get primaryKey => {countryCode, capturedAt};
 }
 
+/// Hero image candidates for each trip (M89, ADR-134).
+///
+/// One row per candidate (rank 1-3) per trip. rank=1 is the selected hero;
+/// rank=-1 is a tombstone (asset no longer available on device).
+///
+/// [assetId] is a PHAsset.localIdentifier — stored locally only, never
+/// written to Firestore (extends ADR-002, ADR-060).
+///
+/// Array fields (activity, mood, subjects) are stored as JSON strings.
+@DataClassName('HeroImageRow')
+class HeroImages extends Table {
+  /// `"hero_{tripId}"` for rank-1; `"hero_{tripId}_2"` / `"_3"` for candidates.
+  TextColumn get id => text()();
+  TextColumn get assetId => text()();
+  TextColumn get tripId => text()();
+  TextColumn get countryCode => text()();
+
+  /// UTC milliseconds since epoch.
+  IntColumn get capturedAt => integer()();
+
+  /// Roavvy vocabulary labels (nullable — labelling may not have run yet).
+  TextColumn get primaryScene => text().nullable()();
+  TextColumn get secondaryScene => text().nullable()();
+
+  /// JSON arrays, e.g. '["boat"]'. Null when empty.
+  TextColumn get activity => text().nullable()();
+  TextColumn get mood => text().nullable()();
+  TextColumn get subjects => text().nullable()();
+  TextColumn get landmark => text().nullable()();
+
+  RealColumn get labelConfidence =>
+      real().withDefault(const Constant(0.0))();
+  RealColumn get qualityScore =>
+      real().withDefault(const Constant(0.0))();
+  RealColumn get heroScore => real().withDefault(const Constant(0.0))();
+
+  /// 1 = selected hero, 2-3 = candidates, -1 = tombstone.
+  IntColumn get rank => integer().withDefault(const Constant(1))();
+
+  /// 1 = user explicitly chose this image; never overwritten by auto-analysis.
+  IntColumn get isUserSelected =>
+      integer().withDefault(const Constant(0))();
+
+  /// Device-local cache path for a persisted thumbnail; never synced.
+  TextColumn get thumbnailLocalPath => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// XP award events (M22 / ADR-068).
 ///
 /// One row per award. Used by [XpNotifier] to compute total XP and level.
@@ -214,12 +267,13 @@ class Trips extends Table {
   PhotoDateRecords,
   Trips,
   XpEvents,
+  HeroImages,
 ])
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -258,6 +312,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 10) {
         await m.createTable(xpEvents);
+      }
+      if (from < 11) {
+        await m.createTable(heroImages);
       }
     },
   );

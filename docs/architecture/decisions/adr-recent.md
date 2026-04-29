@@ -1,4 +1,68 @@
-<!-- Recent ADRs (ADR-100 to ADR-132). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-134). Load when introducing new patterns. -->
+
+## ADR-134 — M89 On-Device Hero Image Detection Pipeline
+
+**Status:** Accepted
+
+**Context:**
+M89 introduces a hero image system that selects the single best representative photo per trip, labels it using on-device ML (iOS Vision framework), and persists structured label records in SQLite. Key constraints: photos must never leave the device; scan performance must be unaffected; labels must use a controlled Roavvy vocabulary rather than raw ML output.
+
+**Decisions:**
+
+1. **Two-phase pipeline**: Candidate selection (metadata-only, during scan) is separated from Vision labelling (post-scan, background). Scan result screen appears before labelling starts.
+2. **Vision `VNClassifyImageRequest`**: On-device Core ML classification. `isNetworkAccessAllowed = false` on all `PHImageManager` requests. 200×200 px thumbnails only — no original fetch.
+3. **Label normalisation**: Raw Vision `identifier` strings are mapped to a fixed Roavvy vocabulary (`LabelNormalizer.swift`) before crossing the MethodChannel. Unknown identifiers are discarded. Only labels with confidence >= 0.35 are used.
+4. **`assetId` scope**: PHAsset local identifiers are stored in Drift only. They extend the ADR-002 local-only constraint to the `hero_images` table. `assetId` and `thumbnailLocalPath` are explicitly excluded from all Firestore writes.
+5. **`isUserSelected` guard**: If a hero image row has `isUserSelected = true`, neither a re-scan nor background analysis may modify it. User overrides are permanent until the user explicitly resets.
+6. **Drift schema v11**: New `hero_images` table. Upsert on re-scan. Migration v10 → v11 is additive (new table only).
+7. **Firestore sync deferred**: Hero metadata sync to Firestore is out of scope for M89. Local SQLite only. Sync added in a later milestone when hero images surface in UI.
+8. **MethodChannel**: New `roavvy/hero_analysis` channel (separate from `roavvy/photo_scan`). Single method `analyseHeroCandidates({tripId, assetIds})`. Registered in `AppDelegate.swift`.
+
+**Consequences:**
+- Drift schema increments to v11; migration is additive (no data loss).
+- New `HeroImages` table in `RoavvyDatabase`; code-gen must be re-run after T2.
+- `HeroImage` and `HeroLabels` models added to `shared_models`; zero new dependencies.
+- iOS target minimum iOS 13 sufficient for `VNClassifyImageRequest`; `VNDetectImageApertureScoreRequest` (quality score) gated behind `#available(iOS 16, *)`.
+- `HeroAnalysisService` uses `compute()` to avoid blocking the main isolate.
+
+## ADR-133 — M88 Passport WYSIWYG: Full-Screen Preview, RepaintBoundary Capture, and Layout Lock
+
+**Status:** Accepted
+
+**Context:**
+Three linked problems in the passport card editor:
+1. Control widgets (title, shuffle, size, scatter, year slider, country chips) occupy significant vertical space above the card, leaving the card preview undersized.
+2. Tapping "Print" calls `CardImageRenderer.render()` with `forPrint: true`, which uses different margins (3% vs 8%) and ignores `sizeMultiplier` in the print path, producing a layout that does not match what the user designed on screen.
+3. `LocalMockupPreviewScreen` does not receive `stampSizeMultiplier`, `stampJitterFactor`, or `stampLayoutSeed`, so stamp-colour re-renders use default layout values (sizeMultiplier=1.0, jitterFactor=0.4, seed=null), diverging further from the user's design.
+
+**Decisions:**
+
+**1. Full-screen card with floating controls (passport only)**
+The passport editor body becomes a `Stack`. The card widget (wrapped in its existing `RepaintBoundary`) fills 100% of the body via `Positioned.fill`. All controls float over the card in frosted-glass overlay strips:
+- Top strip: title field + Shuffle button (amber outlined).
+- Second strip: Size slider | Scatter slider (compact, side-by-side).
+- Third strip (conditional): year range slider, then country chips — each only rendered if applicable.
+- Bottom bar: Share + Print buttons with a translucent background anchored to the bottom safe area.
+
+The `InteractiveViewer` wrapping the card sits beneath all overlay widgets; `AbsorbPointer` is NOT used on the card since the overlay widgets naturally receive their own gestures only. Non-passport templates retain the existing Column layout unchanged.
+
+**2. WYSIWYG capture for Print**
+For the passport template, `_navigateToPrint` captures artwork by calling `boundary.toImage(pixelRatio: 3.5)` on the `_previewKey` `RenderRepaintBoundary` — the same path as the Share flow — instead of calling `CardImageRenderer.render()`. `CardImageRenderer` is still used for non-passport templates where `forPrint: true` layout differences are intentional. This ensures the print artwork is exactly the card the user sees.
+
+**3. Layout params threaded to LocalMockupPreviewScreen**
+`LocalMockupPreviewScreen` receives three new optional params: `stampSizeMultiplier` (default 1.0), `stampJitterFactor` (default 0.4), `stampLayoutSeed` (default null). `_renderVariant` forwards them to `CardImageRenderer.render()`. These are only meaningful for the passport template; other templates ignore them (their defaults are correct).
+
+**4. Passport config lock on merch screen**
+When `_template == CardTemplateType.passport`, the inline config panel renders only the stamp colour picker. All other sections (transparency, date colour, timeline colour, front ribbon mode) are hidden. This is a conditional `if` guard around each section, not a structural change.
+
+**Consequences:**
+- Passport card preview is ~40% taller (fills full body height).
+- Print artwork is always pixel-for-pixel identical to the on-screen preview.
+- Stamp-colour changes on the merch screen preserve the user's size/scatter/seed layout.
+- `LocalMockupPreviewScreen` constructor gains three optional params (backwards compatible; all existing callers pass nothing, receiving defaults).
+- `CardImageRenderer.render()` is still called for non-passport print paths; no change there.
+
+
 
 ## ADR-132 — M86 Globe Auto-Rotation and External Navigation via globeTargetProvider
 

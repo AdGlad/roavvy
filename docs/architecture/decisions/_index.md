@@ -131,3 +131,4 @@
 | 124 | M67 Grid and Heart SVG Flag Loading: ChangeNotifier-Based Async Repaint | Accepted | `StatefulWidget` + `ChangeNotifier repaint:`; async `loadSvgToCache()`; emoji fallback on first frame |
 | 125 | M70 Passport Stamp UX: Portrait Lock, Shuffle Seed, Year-Free Titles | Accepted | Portrait-only passport; nullable shuffle seed; year removed from title generation |
 | 126 | M72 Country Celebration Carousel: Single-Route Multi-Country Flow | Accepted | `CountryCelebrationCarousel` replaces N-deep nav stack; dot progress indicator |
+| 134 | M89 On-Device Hero Image Detection Pipeline | Accepted | Vision `VNClassifyImageRequest`; async post-scan; labels normalised to Roavvy vocabulary; `assetId` local-only (extends ADR-002); Drift schema v11 |

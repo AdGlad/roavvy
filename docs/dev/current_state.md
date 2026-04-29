@@ -18,6 +18,7 @@
 | Web app | ✅ | `/sign-in`, `/sign-up`, `/map`, `/shop`, `/share/[token]`, `/privacy` |
 | Onboarding | ✅ | 3-screen `OnboardingFlow`; bypassed for returning users |
 | Notifications | ✅ | Achievement unlock + 30-day nudge; tap routing to correct tab |
+| Hero image pipeline | ✅ | On-device Vision labelling post-scan; `hero_images` table in Drift v11; `HeroCandidateSelector`, `HeroImageAnalyzer`, `HeroScoringEngine`, `HeroImageRepository`, `HeroAnalysisService`; `heroForTripProvider`; no UI yet (M90) |
 | Rovy mascot | ✅ | `RovyBubble`; 5 trigger types; 4s auto-dismiss |
 
 ## What is NOT built
@@ -27,6 +28,7 @@
 - M61: Grid Card real-flag SVG upgrade (currently emoji-based)
 - M66: Heart Card gapless SVG repack
 - M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
+- M90–M94: Hero image UI, Memory Pulse, label titles, photo card background, Year in Review (depend on M89)
 - Social / friends features
 - iPad layout (iPhone-only target)
 - Sound effects (separate milestone)
@@ -53,7 +55,7 @@
 
 ## Schema
 
-Drift SQLite schema **v10** — tables: `photo_date_records` (v9 + `asset_id`), `user_added_countries`, `user_removed_countries`, `trips`, `region_visits`, `xp_events`.
+Drift SQLite schema **v11** — tables: `photo_date_records` (v9 + `asset_id`), `user_added_countries`, `user_removed_countries`, `trips`, `region_visits`, `xp_events`, `hero_images` (M89).
 
 ## Tests (M72)
 

@@ -3705,6 +3705,1114 @@ class XpEventsCompanion extends UpdateCompanion<XpEventRow> {
   }
 }
 
+class $HeroImagesTable extends HeroImages
+    with TableInfo<$HeroImagesTable, HeroImageRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HeroImagesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _assetIdMeta = const VerificationMeta(
+    'assetId',
+  );
+  @override
+  late final GeneratedColumn<String> assetId = GeneratedColumn<String>(
+    'asset_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+    'trip_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countryCodeMeta = const VerificationMeta(
+    'countryCode',
+  );
+  @override
+  late final GeneratedColumn<String> countryCode = GeneratedColumn<String>(
+    'country_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<int> capturedAt = GeneratedColumn<int>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _primarySceneMeta = const VerificationMeta(
+    'primaryScene',
+  );
+  @override
+  late final GeneratedColumn<String> primaryScene = GeneratedColumn<String>(
+    'primary_scene',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _secondarySceneMeta = const VerificationMeta(
+    'secondaryScene',
+  );
+  @override
+  late final GeneratedColumn<String> secondaryScene = GeneratedColumn<String>(
+    'secondary_scene',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _activityMeta = const VerificationMeta(
+    'activity',
+  );
+  @override
+  late final GeneratedColumn<String> activity = GeneratedColumn<String>(
+    'activity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _moodMeta = const VerificationMeta('mood');
+  @override
+  late final GeneratedColumn<String> mood = GeneratedColumn<String>(
+    'mood',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _subjectsMeta = const VerificationMeta(
+    'subjects',
+  );
+  @override
+  late final GeneratedColumn<String> subjects = GeneratedColumn<String>(
+    'subjects',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _landmarkMeta = const VerificationMeta(
+    'landmark',
+  );
+  @override
+  late final GeneratedColumn<String> landmark = GeneratedColumn<String>(
+    'landmark',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _labelConfidenceMeta = const VerificationMeta(
+    'labelConfidence',
+  );
+  @override
+  late final GeneratedColumn<double> labelConfidence = GeneratedColumn<double>(
+    'label_confidence',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _qualityScoreMeta = const VerificationMeta(
+    'qualityScore',
+  );
+  @override
+  late final GeneratedColumn<double> qualityScore = GeneratedColumn<double>(
+    'quality_score',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _heroScoreMeta = const VerificationMeta(
+    'heroScore',
+  );
+  @override
+  late final GeneratedColumn<double> heroScore = GeneratedColumn<double>(
+    'hero_score',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _rankMeta = const VerificationMeta('rank');
+  @override
+  late final GeneratedColumn<int> rank = GeneratedColumn<int>(
+    'rank',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isUserSelectedMeta = const VerificationMeta(
+    'isUserSelected',
+  );
+  @override
+  late final GeneratedColumn<int> isUserSelected = GeneratedColumn<int>(
+    'is_user_selected',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _thumbnailLocalPathMeta =
+      const VerificationMeta('thumbnailLocalPath');
+  @override
+  late final GeneratedColumn<String> thumbnailLocalPath =
+      GeneratedColumn<String>(
+        'thumbnail_local_path',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    assetId,
+    tripId,
+    countryCode,
+    capturedAt,
+    primaryScene,
+    secondaryScene,
+    activity,
+    mood,
+    subjects,
+    landmark,
+    labelConfidence,
+    qualityScore,
+    heroScore,
+    rank,
+    isUserSelected,
+    thumbnailLocalPath,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'hero_images';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HeroImageRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('asset_id')) {
+      context.handle(
+        _assetIdMeta,
+        assetId.isAcceptableOrUnknown(data['asset_id']!, _assetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_assetIdMeta);
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(
+        _tripIdMeta,
+        tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('country_code')) {
+      context.handle(
+        _countryCodeMeta,
+        countryCode.isAcceptableOrUnknown(
+          data['country_code']!,
+          _countryCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_countryCodeMeta);
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('primary_scene')) {
+      context.handle(
+        _primarySceneMeta,
+        primaryScene.isAcceptableOrUnknown(
+          data['primary_scene']!,
+          _primarySceneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('secondary_scene')) {
+      context.handle(
+        _secondarySceneMeta,
+        secondaryScene.isAcceptableOrUnknown(
+          data['secondary_scene']!,
+          _secondarySceneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('activity')) {
+      context.handle(
+        _activityMeta,
+        activity.isAcceptableOrUnknown(data['activity']!, _activityMeta),
+      );
+    }
+    if (data.containsKey('mood')) {
+      context.handle(
+        _moodMeta,
+        mood.isAcceptableOrUnknown(data['mood']!, _moodMeta),
+      );
+    }
+    if (data.containsKey('subjects')) {
+      context.handle(
+        _subjectsMeta,
+        subjects.isAcceptableOrUnknown(data['subjects']!, _subjectsMeta),
+      );
+    }
+    if (data.containsKey('landmark')) {
+      context.handle(
+        _landmarkMeta,
+        landmark.isAcceptableOrUnknown(data['landmark']!, _landmarkMeta),
+      );
+    }
+    if (data.containsKey('label_confidence')) {
+      context.handle(
+        _labelConfidenceMeta,
+        labelConfidence.isAcceptableOrUnknown(
+          data['label_confidence']!,
+          _labelConfidenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('quality_score')) {
+      context.handle(
+        _qualityScoreMeta,
+        qualityScore.isAcceptableOrUnknown(
+          data['quality_score']!,
+          _qualityScoreMeta,
+        ),
+      );
+    }
+    if (data.containsKey('hero_score')) {
+      context.handle(
+        _heroScoreMeta,
+        heroScore.isAcceptableOrUnknown(data['hero_score']!, _heroScoreMeta),
+      );
+    }
+    if (data.containsKey('rank')) {
+      context.handle(
+        _rankMeta,
+        rank.isAcceptableOrUnknown(data['rank']!, _rankMeta),
+      );
+    }
+    if (data.containsKey('is_user_selected')) {
+      context.handle(
+        _isUserSelectedMeta,
+        isUserSelected.isAcceptableOrUnknown(
+          data['is_user_selected']!,
+          _isUserSelectedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('thumbnail_local_path')) {
+      context.handle(
+        _thumbnailLocalPathMeta,
+        thumbnailLocalPath.isAcceptableOrUnknown(
+          data['thumbnail_local_path']!,
+          _thumbnailLocalPathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  HeroImageRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HeroImageRow(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      assetId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}asset_id'],
+          )!,
+      tripId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}trip_id'],
+          )!,
+      countryCode:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}country_code'],
+          )!,
+      capturedAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}captured_at'],
+          )!,
+      primaryScene: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}primary_scene'],
+      ),
+      secondaryScene: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}secondary_scene'],
+      ),
+      activity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity'],
+      ),
+      mood: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mood'],
+      ),
+      subjects: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subjects'],
+      ),
+      landmark: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}landmark'],
+      ),
+      labelConfidence:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}label_confidence'],
+          )!,
+      qualityScore:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}quality_score'],
+          )!,
+      heroScore:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}hero_score'],
+          )!,
+      rank:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}rank'],
+          )!,
+      isUserSelected:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}is_user_selected'],
+          )!,
+      thumbnailLocalPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thumbnail_local_path'],
+      ),
+      createdAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}created_at'],
+          )!,
+      updatedAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}updated_at'],
+          )!,
+    );
+  }
+
+  @override
+  $HeroImagesTable createAlias(String alias) {
+    return $HeroImagesTable(attachedDatabase, alias);
+  }
+}
+
+class HeroImageRow extends DataClass implements Insertable<HeroImageRow> {
+  /// `"hero_{tripId}"` for rank-1; `"hero_{tripId}_2"` / `"_3"` for candidates.
+  final String id;
+  final String assetId;
+  final String tripId;
+  final String countryCode;
+
+  /// UTC milliseconds since epoch.
+  final int capturedAt;
+
+  /// Roavvy vocabulary labels (nullable — labelling may not have run yet).
+  final String? primaryScene;
+  final String? secondaryScene;
+
+  /// JSON arrays, e.g. '["boat"]'. Null when empty.
+  final String? activity;
+  final String? mood;
+  final String? subjects;
+  final String? landmark;
+  final double labelConfidence;
+  final double qualityScore;
+  final double heroScore;
+
+  /// 1 = selected hero, 2-3 = candidates, -1 = tombstone.
+  final int rank;
+
+  /// 1 = user explicitly chose this image; never overwritten by auto-analysis.
+  final int isUserSelected;
+
+  /// Device-local cache path for a persisted thumbnail; never synced.
+  final String? thumbnailLocalPath;
+  final int createdAt;
+  final int updatedAt;
+  const HeroImageRow({
+    required this.id,
+    required this.assetId,
+    required this.tripId,
+    required this.countryCode,
+    required this.capturedAt,
+    this.primaryScene,
+    this.secondaryScene,
+    this.activity,
+    this.mood,
+    this.subjects,
+    this.landmark,
+    required this.labelConfidence,
+    required this.qualityScore,
+    required this.heroScore,
+    required this.rank,
+    required this.isUserSelected,
+    this.thumbnailLocalPath,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['asset_id'] = Variable<String>(assetId);
+    map['trip_id'] = Variable<String>(tripId);
+    map['country_code'] = Variable<String>(countryCode);
+    map['captured_at'] = Variable<int>(capturedAt);
+    if (!nullToAbsent || primaryScene != null) {
+      map['primary_scene'] = Variable<String>(primaryScene);
+    }
+    if (!nullToAbsent || secondaryScene != null) {
+      map['secondary_scene'] = Variable<String>(secondaryScene);
+    }
+    if (!nullToAbsent || activity != null) {
+      map['activity'] = Variable<String>(activity);
+    }
+    if (!nullToAbsent || mood != null) {
+      map['mood'] = Variable<String>(mood);
+    }
+    if (!nullToAbsent || subjects != null) {
+      map['subjects'] = Variable<String>(subjects);
+    }
+    if (!nullToAbsent || landmark != null) {
+      map['landmark'] = Variable<String>(landmark);
+    }
+    map['label_confidence'] = Variable<double>(labelConfidence);
+    map['quality_score'] = Variable<double>(qualityScore);
+    map['hero_score'] = Variable<double>(heroScore);
+    map['rank'] = Variable<int>(rank);
+    map['is_user_selected'] = Variable<int>(isUserSelected);
+    if (!nullToAbsent || thumbnailLocalPath != null) {
+      map['thumbnail_local_path'] = Variable<String>(thumbnailLocalPath);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  HeroImagesCompanion toCompanion(bool nullToAbsent) {
+    return HeroImagesCompanion(
+      id: Value(id),
+      assetId: Value(assetId),
+      tripId: Value(tripId),
+      countryCode: Value(countryCode),
+      capturedAt: Value(capturedAt),
+      primaryScene:
+          primaryScene == null && nullToAbsent
+              ? const Value.absent()
+              : Value(primaryScene),
+      secondaryScene:
+          secondaryScene == null && nullToAbsent
+              ? const Value.absent()
+              : Value(secondaryScene),
+      activity:
+          activity == null && nullToAbsent
+              ? const Value.absent()
+              : Value(activity),
+      mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
+      subjects:
+          subjects == null && nullToAbsent
+              ? const Value.absent()
+              : Value(subjects),
+      landmark:
+          landmark == null && nullToAbsent
+              ? const Value.absent()
+              : Value(landmark),
+      labelConfidence: Value(labelConfidence),
+      qualityScore: Value(qualityScore),
+      heroScore: Value(heroScore),
+      rank: Value(rank),
+      isUserSelected: Value(isUserSelected),
+      thumbnailLocalPath:
+          thumbnailLocalPath == null && nullToAbsent
+              ? const Value.absent()
+              : Value(thumbnailLocalPath),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory HeroImageRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HeroImageRow(
+      id: serializer.fromJson<String>(json['id']),
+      assetId: serializer.fromJson<String>(json['assetId']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      countryCode: serializer.fromJson<String>(json['countryCode']),
+      capturedAt: serializer.fromJson<int>(json['capturedAt']),
+      primaryScene: serializer.fromJson<String?>(json['primaryScene']),
+      secondaryScene: serializer.fromJson<String?>(json['secondaryScene']),
+      activity: serializer.fromJson<String?>(json['activity']),
+      mood: serializer.fromJson<String?>(json['mood']),
+      subjects: serializer.fromJson<String?>(json['subjects']),
+      landmark: serializer.fromJson<String?>(json['landmark']),
+      labelConfidence: serializer.fromJson<double>(json['labelConfidence']),
+      qualityScore: serializer.fromJson<double>(json['qualityScore']),
+      heroScore: serializer.fromJson<double>(json['heroScore']),
+      rank: serializer.fromJson<int>(json['rank']),
+      isUserSelected: serializer.fromJson<int>(json['isUserSelected']),
+      thumbnailLocalPath: serializer.fromJson<String?>(
+        json['thumbnailLocalPath'],
+      ),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'assetId': serializer.toJson<String>(assetId),
+      'tripId': serializer.toJson<String>(tripId),
+      'countryCode': serializer.toJson<String>(countryCode),
+      'capturedAt': serializer.toJson<int>(capturedAt),
+      'primaryScene': serializer.toJson<String?>(primaryScene),
+      'secondaryScene': serializer.toJson<String?>(secondaryScene),
+      'activity': serializer.toJson<String?>(activity),
+      'mood': serializer.toJson<String?>(mood),
+      'subjects': serializer.toJson<String?>(subjects),
+      'landmark': serializer.toJson<String?>(landmark),
+      'labelConfidence': serializer.toJson<double>(labelConfidence),
+      'qualityScore': serializer.toJson<double>(qualityScore),
+      'heroScore': serializer.toJson<double>(heroScore),
+      'rank': serializer.toJson<int>(rank),
+      'isUserSelected': serializer.toJson<int>(isUserSelected),
+      'thumbnailLocalPath': serializer.toJson<String?>(thumbnailLocalPath),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  HeroImageRow copyWith({
+    String? id,
+    String? assetId,
+    String? tripId,
+    String? countryCode,
+    int? capturedAt,
+    Value<String?> primaryScene = const Value.absent(),
+    Value<String?> secondaryScene = const Value.absent(),
+    Value<String?> activity = const Value.absent(),
+    Value<String?> mood = const Value.absent(),
+    Value<String?> subjects = const Value.absent(),
+    Value<String?> landmark = const Value.absent(),
+    double? labelConfidence,
+    double? qualityScore,
+    double? heroScore,
+    int? rank,
+    int? isUserSelected,
+    Value<String?> thumbnailLocalPath = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => HeroImageRow(
+    id: id ?? this.id,
+    assetId: assetId ?? this.assetId,
+    tripId: tripId ?? this.tripId,
+    countryCode: countryCode ?? this.countryCode,
+    capturedAt: capturedAt ?? this.capturedAt,
+    primaryScene: primaryScene.present ? primaryScene.value : this.primaryScene,
+    secondaryScene:
+        secondaryScene.present ? secondaryScene.value : this.secondaryScene,
+    activity: activity.present ? activity.value : this.activity,
+    mood: mood.present ? mood.value : this.mood,
+    subjects: subjects.present ? subjects.value : this.subjects,
+    landmark: landmark.present ? landmark.value : this.landmark,
+    labelConfidence: labelConfidence ?? this.labelConfidence,
+    qualityScore: qualityScore ?? this.qualityScore,
+    heroScore: heroScore ?? this.heroScore,
+    rank: rank ?? this.rank,
+    isUserSelected: isUserSelected ?? this.isUserSelected,
+    thumbnailLocalPath:
+        thumbnailLocalPath.present
+            ? thumbnailLocalPath.value
+            : this.thumbnailLocalPath,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  HeroImageRow copyWithCompanion(HeroImagesCompanion data) {
+    return HeroImageRow(
+      id: data.id.present ? data.id.value : this.id,
+      assetId: data.assetId.present ? data.assetId.value : this.assetId,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      countryCode:
+          data.countryCode.present ? data.countryCode.value : this.countryCode,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+      primaryScene:
+          data.primaryScene.present
+              ? data.primaryScene.value
+              : this.primaryScene,
+      secondaryScene:
+          data.secondaryScene.present
+              ? data.secondaryScene.value
+              : this.secondaryScene,
+      activity: data.activity.present ? data.activity.value : this.activity,
+      mood: data.mood.present ? data.mood.value : this.mood,
+      subjects: data.subjects.present ? data.subjects.value : this.subjects,
+      landmark: data.landmark.present ? data.landmark.value : this.landmark,
+      labelConfidence:
+          data.labelConfidence.present
+              ? data.labelConfidence.value
+              : this.labelConfidence,
+      qualityScore:
+          data.qualityScore.present
+              ? data.qualityScore.value
+              : this.qualityScore,
+      heroScore: data.heroScore.present ? data.heroScore.value : this.heroScore,
+      rank: data.rank.present ? data.rank.value : this.rank,
+      isUserSelected:
+          data.isUserSelected.present
+              ? data.isUserSelected.value
+              : this.isUserSelected,
+      thumbnailLocalPath:
+          data.thumbnailLocalPath.present
+              ? data.thumbnailLocalPath.value
+              : this.thumbnailLocalPath,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HeroImageRow(')
+          ..write('id: $id, ')
+          ..write('assetId: $assetId, ')
+          ..write('tripId: $tripId, ')
+          ..write('countryCode: $countryCode, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('primaryScene: $primaryScene, ')
+          ..write('secondaryScene: $secondaryScene, ')
+          ..write('activity: $activity, ')
+          ..write('mood: $mood, ')
+          ..write('subjects: $subjects, ')
+          ..write('landmark: $landmark, ')
+          ..write('labelConfidence: $labelConfidence, ')
+          ..write('qualityScore: $qualityScore, ')
+          ..write('heroScore: $heroScore, ')
+          ..write('rank: $rank, ')
+          ..write('isUserSelected: $isUserSelected, ')
+          ..write('thumbnailLocalPath: $thumbnailLocalPath, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    assetId,
+    tripId,
+    countryCode,
+    capturedAt,
+    primaryScene,
+    secondaryScene,
+    activity,
+    mood,
+    subjects,
+    landmark,
+    labelConfidence,
+    qualityScore,
+    heroScore,
+    rank,
+    isUserSelected,
+    thumbnailLocalPath,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HeroImageRow &&
+          other.id == this.id &&
+          other.assetId == this.assetId &&
+          other.tripId == this.tripId &&
+          other.countryCode == this.countryCode &&
+          other.capturedAt == this.capturedAt &&
+          other.primaryScene == this.primaryScene &&
+          other.secondaryScene == this.secondaryScene &&
+          other.activity == this.activity &&
+          other.mood == this.mood &&
+          other.subjects == this.subjects &&
+          other.landmark == this.landmark &&
+          other.labelConfidence == this.labelConfidence &&
+          other.qualityScore == this.qualityScore &&
+          other.heroScore == this.heroScore &&
+          other.rank == this.rank &&
+          other.isUserSelected == this.isUserSelected &&
+          other.thumbnailLocalPath == this.thumbnailLocalPath &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class HeroImagesCompanion extends UpdateCompanion<HeroImageRow> {
+  final Value<String> id;
+  final Value<String> assetId;
+  final Value<String> tripId;
+  final Value<String> countryCode;
+  final Value<int> capturedAt;
+  final Value<String?> primaryScene;
+  final Value<String?> secondaryScene;
+  final Value<String?> activity;
+  final Value<String?> mood;
+  final Value<String?> subjects;
+  final Value<String?> landmark;
+  final Value<double> labelConfidence;
+  final Value<double> qualityScore;
+  final Value<double> heroScore;
+  final Value<int> rank;
+  final Value<int> isUserSelected;
+  final Value<String?> thumbnailLocalPath;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const HeroImagesCompanion({
+    this.id = const Value.absent(),
+    this.assetId = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.countryCode = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.primaryScene = const Value.absent(),
+    this.secondaryScene = const Value.absent(),
+    this.activity = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.subjects = const Value.absent(),
+    this.landmark = const Value.absent(),
+    this.labelConfidence = const Value.absent(),
+    this.qualityScore = const Value.absent(),
+    this.heroScore = const Value.absent(),
+    this.rank = const Value.absent(),
+    this.isUserSelected = const Value.absent(),
+    this.thumbnailLocalPath = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HeroImagesCompanion.insert({
+    required String id,
+    required String assetId,
+    required String tripId,
+    required String countryCode,
+    required int capturedAt,
+    this.primaryScene = const Value.absent(),
+    this.secondaryScene = const Value.absent(),
+    this.activity = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.subjects = const Value.absent(),
+    this.landmark = const Value.absent(),
+    this.labelConfidence = const Value.absent(),
+    this.qualityScore = const Value.absent(),
+    this.heroScore = const Value.absent(),
+    this.rank = const Value.absent(),
+    this.isUserSelected = const Value.absent(),
+    this.thumbnailLocalPath = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       assetId = Value(assetId),
+       tripId = Value(tripId),
+       countryCode = Value(countryCode),
+       capturedAt = Value(capturedAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<HeroImageRow> custom({
+    Expression<String>? id,
+    Expression<String>? assetId,
+    Expression<String>? tripId,
+    Expression<String>? countryCode,
+    Expression<int>? capturedAt,
+    Expression<String>? primaryScene,
+    Expression<String>? secondaryScene,
+    Expression<String>? activity,
+    Expression<String>? mood,
+    Expression<String>? subjects,
+    Expression<String>? landmark,
+    Expression<double>? labelConfidence,
+    Expression<double>? qualityScore,
+    Expression<double>? heroScore,
+    Expression<int>? rank,
+    Expression<int>? isUserSelected,
+    Expression<String>? thumbnailLocalPath,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (assetId != null) 'asset_id': assetId,
+      if (tripId != null) 'trip_id': tripId,
+      if (countryCode != null) 'country_code': countryCode,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (primaryScene != null) 'primary_scene': primaryScene,
+      if (secondaryScene != null) 'secondary_scene': secondaryScene,
+      if (activity != null) 'activity': activity,
+      if (mood != null) 'mood': mood,
+      if (subjects != null) 'subjects': subjects,
+      if (landmark != null) 'landmark': landmark,
+      if (labelConfidence != null) 'label_confidence': labelConfidence,
+      if (qualityScore != null) 'quality_score': qualityScore,
+      if (heroScore != null) 'hero_score': heroScore,
+      if (rank != null) 'rank': rank,
+      if (isUserSelected != null) 'is_user_selected': isUserSelected,
+      if (thumbnailLocalPath != null)
+        'thumbnail_local_path': thumbnailLocalPath,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HeroImagesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? assetId,
+    Value<String>? tripId,
+    Value<String>? countryCode,
+    Value<int>? capturedAt,
+    Value<String?>? primaryScene,
+    Value<String?>? secondaryScene,
+    Value<String?>? activity,
+    Value<String?>? mood,
+    Value<String?>? subjects,
+    Value<String?>? landmark,
+    Value<double>? labelConfidence,
+    Value<double>? qualityScore,
+    Value<double>? heroScore,
+    Value<int>? rank,
+    Value<int>? isUserSelected,
+    Value<String?>? thumbnailLocalPath,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return HeroImagesCompanion(
+      id: id ?? this.id,
+      assetId: assetId ?? this.assetId,
+      tripId: tripId ?? this.tripId,
+      countryCode: countryCode ?? this.countryCode,
+      capturedAt: capturedAt ?? this.capturedAt,
+      primaryScene: primaryScene ?? this.primaryScene,
+      secondaryScene: secondaryScene ?? this.secondaryScene,
+      activity: activity ?? this.activity,
+      mood: mood ?? this.mood,
+      subjects: subjects ?? this.subjects,
+      landmark: landmark ?? this.landmark,
+      labelConfidence: labelConfidence ?? this.labelConfidence,
+      qualityScore: qualityScore ?? this.qualityScore,
+      heroScore: heroScore ?? this.heroScore,
+      rank: rank ?? this.rank,
+      isUserSelected: isUserSelected ?? this.isUserSelected,
+      thumbnailLocalPath: thumbnailLocalPath ?? this.thumbnailLocalPath,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (assetId.present) {
+      map['asset_id'] = Variable<String>(assetId.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (countryCode.present) {
+      map['country_code'] = Variable<String>(countryCode.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<int>(capturedAt.value);
+    }
+    if (primaryScene.present) {
+      map['primary_scene'] = Variable<String>(primaryScene.value);
+    }
+    if (secondaryScene.present) {
+      map['secondary_scene'] = Variable<String>(secondaryScene.value);
+    }
+    if (activity.present) {
+      map['activity'] = Variable<String>(activity.value);
+    }
+    if (mood.present) {
+      map['mood'] = Variable<String>(mood.value);
+    }
+    if (subjects.present) {
+      map['subjects'] = Variable<String>(subjects.value);
+    }
+    if (landmark.present) {
+      map['landmark'] = Variable<String>(landmark.value);
+    }
+    if (labelConfidence.present) {
+      map['label_confidence'] = Variable<double>(labelConfidence.value);
+    }
+    if (qualityScore.present) {
+      map['quality_score'] = Variable<double>(qualityScore.value);
+    }
+    if (heroScore.present) {
+      map['hero_score'] = Variable<double>(heroScore.value);
+    }
+    if (rank.present) {
+      map['rank'] = Variable<int>(rank.value);
+    }
+    if (isUserSelected.present) {
+      map['is_user_selected'] = Variable<int>(isUserSelected.value);
+    }
+    if (thumbnailLocalPath.present) {
+      map['thumbnail_local_path'] = Variable<String>(thumbnailLocalPath.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HeroImagesCompanion(')
+          ..write('id: $id, ')
+          ..write('assetId: $assetId, ')
+          ..write('tripId: $tripId, ')
+          ..write('countryCode: $countryCode, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('primaryScene: $primaryScene, ')
+          ..write('secondaryScene: $secondaryScene, ')
+          ..write('activity: $activity, ')
+          ..write('mood: $mood, ')
+          ..write('subjects: $subjects, ')
+          ..write('landmark: $landmark, ')
+          ..write('labelConfidence: $labelConfidence, ')
+          ..write('qualityScore: $qualityScore, ')
+          ..write('heroScore: $heroScore, ')
+          ..write('rank: $rank, ')
+          ..write('isUserSelected: $isUserSelected, ')
+          ..write('thumbnailLocalPath: $thumbnailLocalPath, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RoavvyDatabase extends GeneratedDatabase {
   _$RoavvyDatabase(QueryExecutor e) : super(e);
   $RoavvyDatabaseManager get managers => $RoavvyDatabaseManager(this);
@@ -3724,6 +4832,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
   );
   late final $TripsTable trips = $TripsTable(this);
   late final $XpEventsTable xpEvents = $XpEventsTable(this);
+  late final $HeroImagesTable heroImages = $HeroImagesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3739,6 +4848,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
     photoDateRecords,
     trips,
     xpEvents,
+    heroImages,
   ];
 }
 
@@ -5897,6 +7007,495 @@ typedef $$XpEventsTableProcessedTableManager =
       XpEventRow,
       PrefetchHooks Function()
     >;
+typedef $$HeroImagesTableCreateCompanionBuilder =
+    HeroImagesCompanion Function({
+      required String id,
+      required String assetId,
+      required String tripId,
+      required String countryCode,
+      required int capturedAt,
+      Value<String?> primaryScene,
+      Value<String?> secondaryScene,
+      Value<String?> activity,
+      Value<String?> mood,
+      Value<String?> subjects,
+      Value<String?> landmark,
+      Value<double> labelConfidence,
+      Value<double> qualityScore,
+      Value<double> heroScore,
+      Value<int> rank,
+      Value<int> isUserSelected,
+      Value<String?> thumbnailLocalPath,
+      required int createdAt,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$HeroImagesTableUpdateCompanionBuilder =
+    HeroImagesCompanion Function({
+      Value<String> id,
+      Value<String> assetId,
+      Value<String> tripId,
+      Value<String> countryCode,
+      Value<int> capturedAt,
+      Value<String?> primaryScene,
+      Value<String?> secondaryScene,
+      Value<String?> activity,
+      Value<String?> mood,
+      Value<String?> subjects,
+      Value<String?> landmark,
+      Value<double> labelConfidence,
+      Value<double> qualityScore,
+      Value<double> heroScore,
+      Value<int> rank,
+      Value<int> isUserSelected,
+      Value<String?> thumbnailLocalPath,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$HeroImagesTableFilterComposer
+    extends Composer<_$RoavvyDatabase, $HeroImagesTable> {
+  $$HeroImagesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tripId => $composableBuilder(
+    column: $table.tripId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get countryCode => $composableBuilder(
+    column: $table.countryCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get primaryScene => $composableBuilder(
+    column: $table.primaryScene,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get secondaryScene => $composableBuilder(
+    column: $table.secondaryScene,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activity => $composableBuilder(
+    column: $table.activity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subjects => $composableBuilder(
+    column: $table.subjects,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get landmark => $composableBuilder(
+    column: $table.landmark,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get labelConfidence => $composableBuilder(
+    column: $table.labelConfidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get qualityScore => $composableBuilder(
+    column: $table.qualityScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get heroScore => $composableBuilder(
+    column: $table.heroScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rank => $composableBuilder(
+    column: $table.rank,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isUserSelected => $composableBuilder(
+    column: $table.isUserSelected,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thumbnailLocalPath => $composableBuilder(
+    column: $table.thumbnailLocalPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$HeroImagesTableOrderingComposer
+    extends Composer<_$RoavvyDatabase, $HeroImagesTable> {
+  $$HeroImagesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tripId => $composableBuilder(
+    column: $table.tripId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get countryCode => $composableBuilder(
+    column: $table.countryCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get primaryScene => $composableBuilder(
+    column: $table.primaryScene,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get secondaryScene => $composableBuilder(
+    column: $table.secondaryScene,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get activity => $composableBuilder(
+    column: $table.activity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subjects => $composableBuilder(
+    column: $table.subjects,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get landmark => $composableBuilder(
+    column: $table.landmark,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get labelConfidence => $composableBuilder(
+    column: $table.labelConfidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get qualityScore => $composableBuilder(
+    column: $table.qualityScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get heroScore => $composableBuilder(
+    column: $table.heroScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rank => $composableBuilder(
+    column: $table.rank,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isUserSelected => $composableBuilder(
+    column: $table.isUserSelected,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get thumbnailLocalPath => $composableBuilder(
+    column: $table.thumbnailLocalPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$HeroImagesTableAnnotationComposer
+    extends Composer<_$RoavvyDatabase, $HeroImagesTable> {
+  $$HeroImagesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get assetId =>
+      $composableBuilder(column: $table.assetId, builder: (column) => column);
+
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get countryCode => $composableBuilder(
+    column: $table.countryCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get primaryScene => $composableBuilder(
+    column: $table.primaryScene,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get secondaryScene => $composableBuilder(
+    column: $table.secondaryScene,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get activity =>
+      $composableBuilder(column: $table.activity, builder: (column) => column);
+
+  GeneratedColumn<String> get mood =>
+      $composableBuilder(column: $table.mood, builder: (column) => column);
+
+  GeneratedColumn<String> get subjects =>
+      $composableBuilder(column: $table.subjects, builder: (column) => column);
+
+  GeneratedColumn<String> get landmark =>
+      $composableBuilder(column: $table.landmark, builder: (column) => column);
+
+  GeneratedColumn<double> get labelConfidence => $composableBuilder(
+    column: $table.labelConfidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get qualityScore => $composableBuilder(
+    column: $table.qualityScore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get heroScore =>
+      $composableBuilder(column: $table.heroScore, builder: (column) => column);
+
+  GeneratedColumn<int> get rank =>
+      $composableBuilder(column: $table.rank, builder: (column) => column);
+
+  GeneratedColumn<int> get isUserSelected => $composableBuilder(
+    column: $table.isUserSelected,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get thumbnailLocalPath => $composableBuilder(
+    column: $table.thumbnailLocalPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$HeroImagesTableTableManager
+    extends
+        RootTableManager<
+          _$RoavvyDatabase,
+          $HeroImagesTable,
+          HeroImageRow,
+          $$HeroImagesTableFilterComposer,
+          $$HeroImagesTableOrderingComposer,
+          $$HeroImagesTableAnnotationComposer,
+          $$HeroImagesTableCreateCompanionBuilder,
+          $$HeroImagesTableUpdateCompanionBuilder,
+          (
+            HeroImageRow,
+            BaseReferences<_$RoavvyDatabase, $HeroImagesTable, HeroImageRow>,
+          ),
+          HeroImageRow,
+          PrefetchHooks Function()
+        > {
+  $$HeroImagesTableTableManager(_$RoavvyDatabase db, $HeroImagesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$HeroImagesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$HeroImagesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$HeroImagesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> assetId = const Value.absent(),
+                Value<String> tripId = const Value.absent(),
+                Value<String> countryCode = const Value.absent(),
+                Value<int> capturedAt = const Value.absent(),
+                Value<String?> primaryScene = const Value.absent(),
+                Value<String?> secondaryScene = const Value.absent(),
+                Value<String?> activity = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
+                Value<String?> subjects = const Value.absent(),
+                Value<String?> landmark = const Value.absent(),
+                Value<double> labelConfidence = const Value.absent(),
+                Value<double> qualityScore = const Value.absent(),
+                Value<double> heroScore = const Value.absent(),
+                Value<int> rank = const Value.absent(),
+                Value<int> isUserSelected = const Value.absent(),
+                Value<String?> thumbnailLocalPath = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HeroImagesCompanion(
+                id: id,
+                assetId: assetId,
+                tripId: tripId,
+                countryCode: countryCode,
+                capturedAt: capturedAt,
+                primaryScene: primaryScene,
+                secondaryScene: secondaryScene,
+                activity: activity,
+                mood: mood,
+                subjects: subjects,
+                landmark: landmark,
+                labelConfidence: labelConfidence,
+                qualityScore: qualityScore,
+                heroScore: heroScore,
+                rank: rank,
+                isUserSelected: isUserSelected,
+                thumbnailLocalPath: thumbnailLocalPath,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String assetId,
+                required String tripId,
+                required String countryCode,
+                required int capturedAt,
+                Value<String?> primaryScene = const Value.absent(),
+                Value<String?> secondaryScene = const Value.absent(),
+                Value<String?> activity = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
+                Value<String?> subjects = const Value.absent(),
+                Value<String?> landmark = const Value.absent(),
+                Value<double> labelConfidence = const Value.absent(),
+                Value<double> qualityScore = const Value.absent(),
+                Value<double> heroScore = const Value.absent(),
+                Value<int> rank = const Value.absent(),
+                Value<int> isUserSelected = const Value.absent(),
+                Value<String?> thumbnailLocalPath = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => HeroImagesCompanion.insert(
+                id: id,
+                assetId: assetId,
+                tripId: tripId,
+                countryCode: countryCode,
+                capturedAt: capturedAt,
+                primaryScene: primaryScene,
+                secondaryScene: secondaryScene,
+                activity: activity,
+                mood: mood,
+                subjects: subjects,
+                landmark: landmark,
+                labelConfidence: labelConfidence,
+                qualityScore: qualityScore,
+                heroScore: heroScore,
+                rank: rank,
+                isUserSelected: isUserSelected,
+                thumbnailLocalPath: thumbnailLocalPath,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$HeroImagesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RoavvyDatabase,
+      $HeroImagesTable,
+      HeroImageRow,
+      $$HeroImagesTableFilterComposer,
+      $$HeroImagesTableOrderingComposer,
+      $$HeroImagesTableAnnotationComposer,
+      $$HeroImagesTableCreateCompanionBuilder,
+      $$HeroImagesTableUpdateCompanionBuilder,
+      (
+        HeroImageRow,
+        BaseReferences<_$RoavvyDatabase, $HeroImagesTable, HeroImageRow>,
+      ),
+      HeroImageRow,
+      PrefetchHooks Function()
+    >;
 
 class $RoavvyDatabaseManager {
   final _$RoavvyDatabase _db;
@@ -5921,4 +7520,6 @@ class $RoavvyDatabaseManager {
       $$TripsTableTableManager(_db, _db.trips);
   $$XpEventsTableTableManager get xpEvents =>
       $$XpEventsTableTableManager(_db, _db.xpEvents);
+  $$HeroImagesTableTableManager get heroImages =>
+      $$HeroImagesTableTableManager(_db, _db.heroImages);
 }

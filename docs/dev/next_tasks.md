@@ -1,58 +1,92 @@
-# M85 — Order Confirmation Screen (Pre-Checkout)
-Branch: milestone/m85-order-confirmation-screen
+# M89 — Hero Image Detection & Trip Labels
+
+**Branch:** `milestone/m89-hero-image-detection`
+**Status:** In Progress
 
 ## Goal
-After the Printful mockup is returned, the user must explicitly review size, colour, design, and
-print positions and tick a confirmation checkbox before the "Proceed to Checkout" button enables.
+
+Build an on-device pipeline that selects hero image candidates per trip during scan, labels them using iOS Vision framework post-scan in a background task, and persists structured label records in Drift schema v11. No photos leave the device. Scan performance unaffected.
 
 ## Scope
-In:
-  - NEW `apps/mobile_flutter/lib/features/merch/merch_order_confirmation_screen.dart`
-  - `apps/mobile_flutter/lib/features/merch/local_mockup_preview_screen.dart` — trigger change only
-  - NEW `apps/mobile_flutter/test/features/merch/merch_order_confirmation_screen_test.dart`
-Out: Printful API; Firestore schema; Cloud Functions; card editor; scan; map; web; poster flow.
+
+**In:**
+- `packages/shared_models/lib/src/hero_image.dart` — `HeroImage`, `HeroLabels`, `HeroAnalysisResult` models
+- `apps/mobile_flutter/lib/data/db/roavvy_database.dart` — schema v11 `HeroImages` table + migration
+- `apps/mobile_flutter/lib/features/scan/hero_candidate_selector.dart` — metadata-only candidate picker
+- `apps/mobile_flutter/ios/Runner/LabelNormalizer.swift` — ML label to Roavvy vocabulary
+- `apps/mobile_flutter/ios/Runner/HeroImageAnalyzer.swift` — Vision framework analysis
+- `apps/mobile_flutter/lib/features/scan/hero_analysis_channel.dart` — MethodChannel Dart wrapper
+- `apps/mobile_flutter/ios/Runner/AppDelegate.swift` — register hero analysis channel
+- `packages/shared_models/lib/src/hero_scoring_engine.dart` — composite score + ranking
+- `apps/mobile_flutter/lib/features/scan/hero_image_repository.dart` — Drift DAO wrapper
+- `apps/mobile_flutter/lib/features/scan/hero_analysis_service.dart` — orchestrates T3+T6+T7+T8
+- `apps/mobile_flutter/lib/features/scan/hero_cache_validator.dart` — tombstone deleted assets
+- `apps/mobile_flutter/lib/features/scan/hero_providers.dart` — Riverpod heroForTripProvider
+
+**Out:** Any UI displaying hero images; Firestore sync; landmark detection; web; Android.
 
 ## Tasks
 
-- [ ] T1 — Create `MerchOrderConfirmationScreen`
-  Files: `lib/features/merch/merch_order_confirmation_screen.dart`
-  Deliverable: Full-screen StatefulWidget with:
-    - Constructor params (all immutable): frontMockupUrl, backMockupUrl, frontArtworkBytes,
-      artworkBytes, size, colour, frontPosition, backPosition, templateType, checkoutUrl, isTshirt
-    - PageView showing front mockup (NetworkImage) + back mockup (if backMockupUrl present);
-      falls back to Image.memory(frontArtworkBytes ?? artworkBytes) when URL is null
-    - Order summary card: colour swatch (filled circle matching _kSwatchColours palette),
-      size chip, front/back position labels, design template label
-    - Warning box: amber border, warning icon, no-refund copy
-    - Checkbox row: "I confirm..." — drives _confirmed bool via setState
-    - Action row: TextButton "Go Back" (Navigator.pop) + FilledButton "Proceed to Checkout"
-      (disabled when !_confirmed; on tap calls _launchCheckout)
-    - _launchCheckout: launchUrl(uri, mode: LaunchMode.inAppBrowserView), SnackBar on failure
-  AC: Button disabled when checkbox unchecked; enabled when checked; Go Back pops.
+- [ ] T1 — HeroImage shared model
+  - Files: packages/shared_models/lib/src/hero_image.dart, packages/shared_models/lib/shared_models.dart
+  - Deliverable: HeroImage, HeroLabels, HeroAnalysisResult Dart classes with equality, copyWith, and JSON parsing from MethodChannel response.
+  - Acceptance: Unit tests pass; exported from shared_models barrel.
 
-- [ ] T2 — Wire trigger in `LocalMockupPreviewScreen`
-  Files: `lib/features/merch/local_mockup_preview_screen.dart`
-  Deliverable:
-    - In `_buildBottomBar()`, replace direct `_completeCheckout` call (ready state button) with
-      Navigator.push to MerchOrderConfirmationScreen, passing frozen state values.
-    - Change button label from "Complete order →" to "Review & Checkout".
-    - Keep `_completeCheckout` removed; checkout is now launched from inside confirmation screen.
-    - `_checkoutLaunched` flag: set in confirmation screen's _launchCheckout instead.
-  AC: Tapping "Review & Checkout" in ready state pushes confirmation screen. Direct checkout
-      no longer reachable without ticking checkbox.
+- [ ] T2 — Drift schema v11: hero_images table
+  - Files: apps/mobile_flutter/lib/data/db/roavvy_database.dart
+  - Deliverable: HeroImages Drift table + migration v10 to v11 + DAO with upsertHero, getHeroForTrip, getHeroesForCountry, deleteHeroesForTrip, tombstone methods.
+  - Acceptance: Migration runs on existing DB; DAO unit tests pass.
 
-- [ ] T3 — Widget tests
-  Files: `test/features/merch/merch_order_confirmation_screen_test.dart`
-  Deliverable:
-    - Test: button disabled initially (checkbox unchecked)
-    - Test: button enabled after ticking checkbox
-    - Test: Go Back pops navigator (use NavigatorObserver)
-    - Test: shows Image.memory fallback when frontMockupUrl is null
-    - Test: shows two-item PageView tab indicator when both mockup URLs are provided
-  AC: All tests compilable and logically correct.
+- [ ] T3 — HeroCandidateSelector (Dart)
+  - File: apps/mobile_flutter/lib/features/scan/hero_candidate_selector.dart
+  - Deliverable: Pure Dart. Input: List<PhotoDateRecord> for one trip. Output: List<String> assetIds (up to 5). Applies GPS-first selection, 60s burst dedup, 30-min temporal spacing, fallback (no GPS).
+  - Acceptance: Unit tests for GPS-first, burst dedup, temporal spacing, fallback, single-photo trip.
 
-- [ ] T4 — Analyze clean
-  Deliverable: `flutter analyze 2>/tmp/m85_analyze.txt; tail -5 /tmp/m85_analyze.txt`
-  AC: No errors reported.
+- [ ] T4 — LabelNormalizer (Swift)
+  - File: apps/mobile_flutter/ios/Runner/LabelNormalizer.swift
+  - Deliverable: Static struct with lookup table mapping Vision identifier strings to Roavvy vocabulary. Returns [String: Any] dict with primaryScene, secondaryScene, activity, mood, subjects, landmark.
+  - Acceptance: Covers all mappings in milestone doc. Unknown identifiers discarded.
 
-## Status: In Progress (2026-04-27)
+- [ ] T5 — HeroImageAnalyzer (Swift)
+  - File: apps/mobile_flutter/ios/Runner/HeroImageAnalyzer.swift
+  - Deliverable: Accepts [String] assetIds. Fetches 200x200 thumbnails via PHImageManager (isNetworkAccessAllowed = false). Runs VNClassifyImageRequest. Calls LabelNormalizer. Applies quality score. Returns [[String: Any]].
+  - Acceptance: No network access. Returns empty array gracefully for unavailable/iCloud assets. Does not block main thread.
+
+- [ ] T6 — HeroAnalysisMethodChannel bridge
+  - Files: apps/mobile_flutter/lib/features/scan/hero_analysis_channel.dart, apps/mobile_flutter/ios/Runner/AppDelegate.swift
+  - Deliverable: MethodChannel("roavvy/hero_analysis") with method analyseHeroCandidates({tripId, assetIds}) returning List<Map>. Dart wrapper calls channel async. AppDelegate registers handler calling HeroImageAnalyzer.
+  - Acceptance: Dart wrapper compiles; AppDelegate registers channel.
+
+- [ ] T7 — HeroScoringEngine (Dart)
+  - File: packages/shared_models/lib/src/hero_scoring_engine.dart
+  - Deliverable: Pure Dart. Input: List<HeroAnalysisResult> for one trip. Applies scoring formula (quality 0-30, label 0-25, diversity 0-25, metadata 0-20). Returns ranked list with heroScore and rank.
+  - Acceptance: Unit tests for score ordering, tie-breaking by labelConfidence.
+
+- [ ] T8 — HeroImageRepository (Dart)
+  - File: apps/mobile_flutter/lib/features/scan/hero_image_repository.dart
+  - Deliverable: Wraps Drift DAO. upsertHeroesForTrip(tripId, List<HeroImage>) honours isUserSelected guard. watchHeroForTrip(tripId) stream.
+  - Acceptance: Unit tests: upsert skips user-selected rows; tombstone on unavailable asset.
+
+- [ ] T9 — HeroAnalysisService + post-scan trigger
+  - Files: apps/mobile_flutter/lib/features/scan/hero_analysis_service.dart, apps/mobile_flutter/lib/features/scan/scan_screen.dart
+  - Deliverable: Service orchestrates T3 to T6 to T7 to T8 per trip. Called from scan_screen.dart after ScanSummaryScreen is pushed (fire-and-forget). Runs on background isolate.
+  - Acceptance: ScanSummaryScreen appears without waiting. Hero analysis does not run on main thread.
+
+- [ ] T10 — HeroCacheValidator
+  - File: apps/mobile_flutter/lib/features/scan/hero_cache_validator.dart
+  - Deliverable: On app launch (max once per day), batch-check assetId values from hero_images via PHAsset.fetchAssets. Tombstone missing assets.
+  - Acceptance: Unit test with mock unavailable assetId results in tombstoned row, not deletion.
+
+- [ ] T11 — heroForTripProvider (Riverpod)
+  - File: apps/mobile_flutter/lib/features/scan/hero_providers.dart
+  - Deliverable: heroForTripProvider(String tripId) StreamProvider<HeroImage?> from repository. Emits updated state on upsert.
+  - Acceptance: Provider compiles; emits null when no hero exists for trip.
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| Drift code-gen required after schema change | Run dart run build_runner build after T2 |
+| VNDetectImageApertureScoreRequest iOS 16+ only | Gate with #available(iOS 16, *); fallback to dimension-only |
+| PHAsset access requires Photos permission | Reuse existing permission infrastructure; analysis only runs post-scan |
+| Background analysis may be interrupted | State is safe: upsert is idempotent; retry on next scan |

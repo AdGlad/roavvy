@@ -25,6 +25,9 @@ import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
 import '../../photo_scan_channel.dart';
 import '../visits/review_screen.dart';
+import 'hero_analysis_channel.dart';
+import 'hero_analysis_service.dart';
+import 'hero_image_repository.dart';
 import 'scan_summary_screen.dart';
 
 // ── Background isolate helpers ─────────────────────────────────────────────────
@@ -402,6 +405,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final inferredTrips = inferTrips(allDates);
       await _tripRepo.upsertAll(inferredTrips);
       await _regionRepo.upsertAll(inferRegionVisits(allDates, inferredTrips));
+
+      // M89: Fire hero image analysis in the background after trips are saved.
+      // Fire-and-forget — does not block the scan result screen.
+      unawaited(HeroAnalysisService(
+        repository: HeroImageRepository(ref.read(roavvyDatabaseProvider)),
+        channel: HeroAnalysisChannel(),
+      ).runForTrips(
+        trips: inferredTrips,
+        photoDateRecords: allDates,
+      ));
 
       final effective = await _repo.loadEffective();
 
