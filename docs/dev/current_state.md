@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M90, 2026-04-30)
+# Roavvy — Current State (updated M91, 2026-04-30)
 
 ## What is built
 
@@ -20,6 +20,7 @@
 | Notifications | ✅ | Achievement unlock + 30-day nudge; tap routing to correct tab |
 | Hero image pipeline | ✅ | On-device Vision labelling post-scan; `hero_images` table in Drift v11; `HeroCandidateSelector`, `HeroImageAnalyzer`, `HeroScoringEngine`, `HeroImageRepository`, `HeroAnalysisService`; `heroForTripProvider` (M89) |
 | Hero image UI | ✅ | `HeroImageView` widget (shimmer + fallback colour); `ThumbnailPlugin.swift` (`roavvy/thumbnail` channel, NSCache); full-bleed trip card headers in Journal; cover image in country detail sheet; best-shot section in scan summary; `HeroOverridePicker` (isUserSelected guard); `bestHeroForCountryProvider`, `bestHeroFromScanProvider` (M90) |
+| Memory Pulse | ✅ | Travel anniversary detection via strftime SQL; `MemoryPulseService` (checkToday, buildCopy, scheduleNextAnniversaryNotification); `MemoryPulseCard` widget (single + paged); `_MemoryPulseSection` on map screen (slide-in animation); `todaysMemoriesProvider`; `memoriesDismissedProvider`; `scheduleMemoryPulse` notification (ID 2); `pendingMemoryTripId` cold-start routing (M91) |
 | Rovy mascot | ✅ | `RovyBubble`; 5 trigger types; 4s auto-dismiss |
 
 ## What is NOT built
@@ -29,7 +30,7 @@
 - M61: Grid Card real-flag SVG upgrade (currently emoji-based)
 - M66: Heart Card gapless SVG repack
 - M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
-- M91: Memory Pulse (travel anniversaries, on-device, depends on M89+M90)
+- M91: Memory Pulse ✅ Complete (2026-04-30)
 - M92: Label-powered auto titles (depends on M89)
 - M93: Hero image share card background (depends on M89+M90)
 - M94: Year in Review (depends on M89+M90)
@@ -55,6 +56,8 @@
 | Order confirmation | `lib/features/merch/merch_order_confirmation_screen.dart` |
 | Hero image view | `lib/features/shared/hero_image_view.dart` |
 | Hero override picker | `lib/features/shared/hero_override_picker.dart` |
+| Memory pulse service | `lib/features/memory/memory_pulse_service.dart` |
+| Memory pulse card | `lib/features/memory/memory_pulse_card.dart` |
 | Thumbnail channel | `lib/features/shared/thumbnail_channel.dart` |
 | Thumbnail plugin (iOS) | `ios/Runner/ThumbnailPlugin.swift` |
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |

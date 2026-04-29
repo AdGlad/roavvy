@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../core/notification_service.dart';
 import '../../core/providers.dart';
 import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
@@ -18,6 +19,7 @@ import '../cards/card_type_picker_screen.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
+import '../memory/memory_pulse_card.dart';
 import 'country_detail_sheet.dart';
 import 'country_polygon_layer.dart';
 import 'country_centroids.dart';
@@ -258,6 +260,10 @@ class MapScreen extends ConsumerWidget {
           const Align(
             alignment: Alignment.topCenter,
             child: XpLevelBar(),
+          ),
+          const Align(
+            alignment: Alignment.topCenter,
+            child: _MemoryPulseSection(),
           ),
           Align(
             alignment: Alignment.bottomCenter,
@@ -719,6 +725,121 @@ class DiscoverNewCountriesSheet extends StatelessWidget {
               child: const Text('Later'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Memory Pulse Section ──────────────────────────────────────────────────────
+
+/// Surfaces today's travel anniversary cards above the globe (M91, ADR-136).
+///
+/// Owns the slide-in animation and cold-start ValueNotifier listener.
+/// Stays as a separate [ConsumerStatefulWidget] so [MapScreen] itself
+/// remains a [ConsumerWidget] (ADR-136).
+class _MemoryPulseSection extends ConsumerStatefulWidget {
+  const _MemoryPulseSection();
+
+  @override
+  ConsumerState<_MemoryPulseSection> createState() =>
+      _MemoryPulseSectionState();
+}
+
+class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _fade = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+
+    // Handle cold-start from memory pulse notification.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tripId = NotificationService.instance.pendingMemoryTripId.value;
+      if (tripId != null && mounted) {
+        NotificationService.instance.pendingMemoryTripId.value = null;
+      }
+    });
+
+    // Watch for foreground notification taps.
+    NotificationService.instance.pendingMemoryTripId.addListener(
+      _onPendingMemoryTripId,
+    );
+  }
+
+  void _onPendingMemoryTripId() {
+    // Foreground tap — the card is already visible; no additional action needed.
+    NotificationService.instance.pendingMemoryTripId.value = null;
+  }
+
+  @override
+  void dispose() {
+    NotificationService.instance.pendingMemoryTripId.removeListener(
+      _onPendingMemoryTripId,
+    );
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final memoriesAsync = ref.watch(todaysMemoriesProvider);
+    final dismissed = ref.watch(memoriesDismissedProvider);
+    final service = ref.read(memoryPulseServiceProvider);
+
+    final memories = memoriesAsync.valueOrNull ?? const [];
+    final visible = memories.where((m) => !dismissed.contains(m.tripId)).toList();
+
+    if (visible.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _controller.isCompleted) _controller.reverse();
+      });
+      return const SizedBox.shrink();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_controller.isCompleted && !_controller.isAnimating) {
+        _controller.forward();
+      }
+    });
+
+    // Schedule the next notification once memories are known (fire-and-forget).
+    ref.listen<AsyncValue<List<HeroImage>>>(todaysMemoriesProvider, (_, next) {
+      if (next.hasValue) {
+        service.scheduleNextAnniversaryNotification(DateTime.now());
+      }
+    });
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 52, // below XpLevelBar
+      ),
+      child: SlideTransition(
+        position: _slide,
+        child: FadeTransition(
+          opacity: _fade,
+          child: MemoryPulseCard(
+            memories: visible,
+            service: service,
+            onViewTrip: (_) {
+              // Navigate to journal tab (tab index 1).
+              NotificationService.instance.pendingTabIndex.value = 1;
+            },
+          ),
         ),
       ),
     );
