@@ -641,6 +641,7 @@ class _BestShotSection extends ConsumerWidget {
                   assetId: hero.assetId,
                   fallbackColor: fallbackColor,
                   height: 180,
+                  useFullResolution: true,
                 ),
                 Positioned(
                   bottom: 0,

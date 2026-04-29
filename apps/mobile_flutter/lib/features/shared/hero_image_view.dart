@@ -24,6 +24,7 @@ class HeroImageView extends StatefulWidget {
     this.onEditTap,
     this.fit = BoxFit.cover,
     this.thumbnailSize = 600,
+    this.useFullResolution = false,
   });
 
   /// PHAsset local identifier. Null → show [fallbackColor] immediately.
@@ -42,6 +43,10 @@ class HeroImageView extends StatefulWidget {
 
   /// Pixel size of the requested thumbnail (square). Capped at 600 by default.
   final int thumbnailSize;
+
+  /// When true, fetches the full-resolution original from PHImageManager
+  /// instead of a downscaled thumbnail. Use for large display surfaces.
+  final bool useFullResolution;
 
   @override
   State<HeroImageView> createState() => _HeroImageViewState();
@@ -100,7 +105,7 @@ class _HeroImageViewState extends State<HeroImageView>
 
     final bytes = await _channel.getThumbnail(
       assetId,
-      size: widget.thumbnailSize,
+      size: widget.useFullResolution ? 0 : widget.thumbnailSize,
     );
 
     if (!mounted) return;

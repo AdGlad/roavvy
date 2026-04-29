@@ -283,6 +283,7 @@ class _TripTile extends ConsumerWidget {
               assetId: hero?.assetId,
               fallbackColor: fallbackColor,
               height: 160,
+              useFullResolution: true,
               onEditTap: () => showHeroOverridePicker(
                 context,
                 trip.id,

@@ -120,6 +120,7 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                 assetId: hero?.assetId,
                 fallbackColor: fallbackColor,
                 height: 200,
+                useFullResolution: true,
                 onEditTap: hero != null
                     ? () => showHeroOverridePicker(
                           context,

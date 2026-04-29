@@ -50,10 +50,14 @@ class ThumbnailPlugin: NSObject {
       return
     }
 
-    let targetSize = CGSize(width: size, height: size)
+    // size == 0 → full original resolution at high quality.
+    let isFullRes = (size == 0)
+    let targetSize = isFullRes
+      ? PHImageManagerMaximumSize
+      : CGSize(width: size, height: size)
     let options = PHImageRequestOptions()
     options.isNetworkAccessAllowed = false
-    options.deliveryMode = .fastFormat
+    options.deliveryMode = isFullRes ? .highQualityFormat : .fastFormat
     options.isSynchronous = false
 
     PHImageManager.default().requestImage(
@@ -63,8 +67,9 @@ class ThumbnailPlugin: NSObject {
       options: options
     ) { [weak self] image, info in
       // Degrade gracefully: iCloud-only assets return nil here.
+      let quality: CGFloat = isFullRes ? 0.92 : 0.82
       guard let image = image,
-            let jpeg = image.jpegData(compressionQuality: 0.82) else {
+            let jpeg = image.jpegData(compressionQuality: quality) else {
         DispatchQueue.main.async { result(nil) }
         return
       }
