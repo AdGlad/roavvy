@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M86, 2026-04-27)
+# Roavvy — Current State (updated M90, 2026-04-30)
 
 ## What is built
 
@@ -18,7 +18,8 @@
 | Web app | ✅ | `/sign-in`, `/sign-up`, `/map`, `/shop`, `/share/[token]`, `/privacy` |
 | Onboarding | ✅ | 3-screen `OnboardingFlow`; bypassed for returning users |
 | Notifications | ✅ | Achievement unlock + 30-day nudge; tap routing to correct tab |
-| Hero image pipeline | ✅ | On-device Vision labelling post-scan; `hero_images` table in Drift v11; `HeroCandidateSelector`, `HeroImageAnalyzer`, `HeroScoringEngine`, `HeroImageRepository`, `HeroAnalysisService`; `heroForTripProvider`; no UI yet (M90) |
+| Hero image pipeline | ✅ | On-device Vision labelling post-scan; `hero_images` table in Drift v11; `HeroCandidateSelector`, `HeroImageAnalyzer`, `HeroScoringEngine`, `HeroImageRepository`, `HeroAnalysisService`; `heroForTripProvider` (M89) |
+| Hero image UI | ✅ | `HeroImageView` widget (shimmer + fallback colour); `ThumbnailPlugin.swift` (`roavvy/thumbnail` channel, NSCache); full-bleed trip card headers in Journal; cover image in country detail sheet; best-shot section in scan summary; `HeroOverridePicker` (isUserSelected guard); `bestHeroForCountryProvider`, `bestHeroFromScanProvider` (M90) |
 | Rovy mascot | ✅ | `RovyBubble`; 5 trigger types; 4s auto-dismiss |
 
 ## What is NOT built
@@ -28,7 +29,10 @@
 - M61: Grid Card real-flag SVG upgrade (currently emoji-based)
 - M66: Heart Card gapless SVG repack
 - M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
-- M90–M94: Hero image UI, Memory Pulse, label titles, photo card background, Year in Review (depend on M89)
+- M91: Memory Pulse (travel anniversaries, on-device, depends on M89+M90)
+- M92: Label-powered auto titles (depends on M89)
+- M93: Hero image share card background (depends on M89+M90)
+- M94: Year in Review (depends on M89+M90)
 - Social / friends features
 - iPad layout (iPhone-only target)
 - Sound effects (separate milestone)
@@ -49,6 +53,10 @@
 | Map screen | `lib/features/map/map_screen.dart` |
 | Providers | `lib/core/providers.dart` |
 | Order confirmation | `lib/features/merch/merch_order_confirmation_screen.dart` |
+| Hero image view | `lib/features/shared/hero_image_view.dart` |
+| Hero override picker | `lib/features/shared/hero_override_picker.dart` |
+| Thumbnail channel | `lib/features/shared/thumbnail_channel.dart` |
+| Thumbnail plugin (iOS) | `ios/Runner/ThumbnailPlugin.swift` |
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |
 | Country lookup | `packages/country_lookup/lib/` |
 | Region lookup | `packages/region_lookup/lib/` |

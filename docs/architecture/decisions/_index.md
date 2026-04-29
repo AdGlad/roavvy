@@ -132,3 +132,4 @@
 | 125 | M70 Passport Stamp UX: Portrait Lock, Shuffle Seed, Year-Free Titles | Accepted | Portrait-only passport; nullable shuffle seed; year removed from title generation |
 | 126 | M72 Country Celebration Carousel: Single-Route Multi-Country Flow | Accepted | `CountryCelebrationCarousel` replaces N-deep nav stack; dot progress indicator |
 | 134 | M89 On-Device Hero Image Detection Pipeline | Accepted | Vision `VNClassifyImageRequest`; async post-scan; labels normalised to Roavvy vocabulary; `assetId` local-only (extends ADR-002); Drift schema v11 |
+| 135 | M90 Hero Image UI: MethodChannel Thumbnail Fetch + Reactive HeroImageView | Accepted | `roavvy/thumbnail` channel; NSCache; `HeroImageView`; override picker preserves isUserSelected guard |

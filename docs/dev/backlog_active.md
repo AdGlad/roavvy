@@ -24,7 +24,7 @@
 **Depends on:** M89
 **Scope in:** `journal_screen.dart`, `country_detail_sheet.dart`, `scan_summary_screen.dart`; new `HeroImageView` widget; `ThumbnailPlugin.swift` (thumbnail MethodChannel).
 **Full plan:** `docs/dev/milestones/m90-hero-image-ui.md`
-**Status:** Not started.
+**Status:** ✅ Complete (2026-04-30).
 
 ---
 

@@ -13,6 +13,7 @@ import UIKit
     private var aiTitlePlugin: AnyObject? // holds AiTitlePlugin on iOS 26+
     private var heroAnalysisChannel: FlutterMethodChannel?
     private let heroAnalyzer = HeroImageAnalyzer()
+    private let thumbnailPlugin = ThumbnailPlugin()
 
     override func application(
         _ application: UIApplication,
@@ -117,6 +118,9 @@ import UIKit
             }
         }
         heroAnalysisChannel = heroChannel
+
+        // Thumbnail fetch channel (M90, ADR-135).
+        thumbnailPlugin.register(with: messenger)
     }
 
     // MARK: - Permission
