@@ -11,6 +11,8 @@ import UIKit
     private var photoMethodChannel: FlutterMethodChannel?
     private var photoEventChannel: FlutterEventChannel?
     private var aiTitlePlugin: AnyObject? // holds AiTitlePlugin on iOS 26+
+    private var heroAnalysisChannel: FlutterMethodChannel?
+    private let heroAnalyzer = HeroImageAnalyzer()
 
     override func application(
         _ application: UIApplication,
@@ -75,6 +77,46 @@ import UIKit
         if #available(iOS 26.0, *) {
             aiTitlePlugin = AiTitlePlugin.register(with: messenger)
         }
+
+        // Hero image analysis channel (M89, ADR-134).
+        let heroChannel = FlutterMethodChannel(
+            name: "roavvy/hero_analysis",
+            binaryMessenger: messenger
+        )
+        heroChannel.setMethodCallHandler { [weak self] call, result in
+            guard let self = self else { return }
+            switch call.method {
+            case "analyseHeroCandidates":
+                guard
+                    let args = call.arguments as? [String: Any],
+                    let tripId = args["tripId"] as? String,
+                    let assetIds = args["assetIds"] as? [String]
+                else {
+                    result(FlutterError(
+                        code: "INVALID_ARGS",
+                        message: "analyseHeroCandidates requires tripId and assetIds",
+                        details: nil
+                    ))
+                    return
+                }
+                self.heroAnalyzer.analyse(assetIds: assetIds, tripId: tripId) { results in
+                    DispatchQueue.main.async { result(results) }
+                }
+            case "checkAssetsExist":
+                guard
+                    let args = call.arguments as? [String: Any],
+                    let assetIds = args["assetIds"] as? [String]
+                else {
+                    result([])
+                    return
+                }
+                let existing = self.heroAnalyzer.checkExistence(assetIds: assetIds)
+                result(existing)
+            default:
+                result(FlutterMethodNotImplemented)
+            }
+        }
+        heroAnalysisChannel = heroChannel
     }
 
     // MARK: - Permission

@@ -7,6 +7,67 @@
 
 ## Next up (mobile-first order)
 
+### M89 — Hero Image Detection & Trip Labels
+**Goal:** During photo scanning, select up to 5 metadata-scored candidates per trip; after scan completes, run on-device Vision framework labelling on candidates; persist a structured hero image record (labels + score + rank) in Drift. No photos leave the device. Scan performance unaffected.
+**Phase:** 19 — Personalisation & Memory
+**Scope in:** `packages/shared_models` (HeroImage model, HeroScoringEngine); Drift schema v11 (`hero_images` table); `HeroCandidateSelector`, `HeroImageRepository`, `HeroAnalysisService` (Dart); `HeroImageAnalyzer`, `LabelNormalizer` (Swift); MethodChannel bridge; Riverpod provider.
+**Scope out:** Any UI displaying hero images; Firestore sync; landmark detection; web; Android.
+**Depends on:** Existing scan pipeline (PhotoDateRecord + TripRecord + assetId in schema v9+)
+**Full plan:** `docs/dev/milestones/m89-hero-image-detection.md`
+**Status:** ✅ Complete (2026-04-29).
+
+---
+
+### M90 — Hero Image UI Surfaces
+**Goal:** Surface M89 hero images in the three screens users already use: journal trip cards (full-bleed header), country detail sheet (cover image), and scan summary ("best shot" moment). Add hero override picker so users can swap their hero image from within each screen.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M89
+**Scope in:** `journal_screen.dart`, `country_detail_sheet.dart`, `scan_summary_screen.dart`; new `HeroImageView` widget; `ThumbnailPlugin.swift` (thumbnail MethodChannel).
+**Full plan:** `docs/dev/milestones/m90-hero-image-ui.md`
+**Status:** Not started.
+
+---
+
+### M91 — Memory Pulse
+**Goal:** On travel anniversaries, show an in-app memory card on the map screen and an optional local push notification with label-driven copy ("3 years ago today — Aegean sunrise in Greece 🌅"). Fully on-device; no server scheduling.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M89 (labels), M90 (HeroImageView)
+**Scope in:** New `memory_pulse_service.dart`, `memory_pulse_card.dart`; `notification_service.dart` extension; `map_screen.dart`; `providers.dart`.
+**Full plan:** `docs/dev/milestones/m91-memory-pulse.md`
+**Status:** Not started.
+
+---
+
+### M92 — Label-Powered Auto Titles
+**Goal:** Enrich the existing rule-based title generator with scene and mood labels from hero images. "Greece 2024" becomes "Aegean Sunset". Graceful fallback to geography titles when no labels available.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M89
+**Scope in:** `rule_based_title_generator.dart`, `title_generation_models.dart`, `card_editor_screen.dart`.
+**Full plan:** `docs/dev/milestones/m92-label-powered-titles.md`
+**Status:** Not started.
+
+---
+
+### M93 — Hero Image Share Card Background
+**Goal:** Optional hero photo background layer in passport and grid card editors. User toggles "Photo background" to place their travel photo behind stamps/flags. Background composited at print resolution for sharing and merch.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M89, M90
+**Scope in:** `card_editor_screen.dart`, `card_templates.dart` (PassportStampsCard + GridCard), `card_image_renderer.dart`; new `CardBackgroundPicker`; `ThumbnailPlugin.swift` (full-res fetch).
+**Full plan:** `docs/dev/milestones/m93-hero-share-card-background.md`
+**Status:** Not started.
+
+---
+
+### M94 — Year in Review
+**Goal:** Full-screen annual travel summary: timeline of hero images per trip, key stats, highlights ("most common scene: beach"), and a shareable 1080×1920 mosaic card. Triggered by New Year notification.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M89, M90
+**Scope in:** New `year_in_review_screen.dart`, `year_in_review_service.dart`; `map_screen.dart` (Dec/Jan entry chip); `card_image_renderer.dart` (YIR card render); `notification_service.dart` (New Year notification).
+**Full plan:** `docs/dev/milestones/m94-year-in-review.md`
+**Status:** Not started.
+
+---
+
 ### M86 — Map Screen Enhancements
 **Goal:** Globe auto-rotation (east→west, pauses on interaction), lighter ocean background, horizontal visited-country flag strip (globe mode, tap → snap to country), tappable stats strip (Countries → CountriesListScreen, Achievements → StatsScreen), tappable XP level bar → progression sheet.
 **Phase:** 16 — Map UX Polish
