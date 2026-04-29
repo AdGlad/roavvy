@@ -8,6 +8,7 @@ const int _kScanTab = 3;
 
 const int _kNudgeNotificationId = 0;
 const int _kAchievementNotificationId = 1;
+const int _kMemoryPulseNotificationId = 2;
 
 /// Singleton service for local push notifications (ADR-056).
 ///
@@ -28,6 +29,10 @@ class NotificationService {
   /// Emits the tab index to switch to when a notification is tapped.
   /// [MainShell] adds a listener in [State.initState].
   final ValueNotifier<int?> pendingTabIndex = ValueNotifier(null);
+
+  /// Emits the tripId of a memory pulse notification tapped by the user.
+  /// [_MemoryPulseSection] on the map screen listens to this (M91, ADR-136).
+  final ValueNotifier<String?> pendingMemoryTripId = ValueNotifier(null);
 
   bool _initialized = false;
 
@@ -51,9 +56,13 @@ class NotificationService {
 
   void _onTap(NotificationResponse response) {
     final payload = response.payload;
-    if (payload == null || !payload.startsWith('tab:')) return;
-    final tabIndex = int.tryParse(payload.substring(4));
-    if (tabIndex != null) pendingTabIndex.value = tabIndex;
+    if (payload == null) return;
+    if (payload.startsWith('tab:')) {
+      final tabIndex = int.tryParse(payload.substring(4));
+      if (tabIndex != null) pendingTabIndex.value = tabIndex;
+    } else if (payload.startsWith('memoryPulse:')) {
+      pendingMemoryTripId.value = payload.substring(12);
+    }
   }
 
   /// Returns the tab index embedded in the notification that cold-started the
@@ -65,6 +74,17 @@ class NotificationService {
     final payload = details.notificationResponse?.payload;
     if (payload == null || !payload.startsWith('tab:')) return null;
     return int.tryParse(payload.substring(4));
+  }
+
+  /// Returns the tripId if a memory pulse notification cold-started the app,
+  /// or null otherwise (M91, ADR-136).
+  Future<String?> getLaunchMemoryTripId() async {
+    if (!_initialized) return null;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details == null || !details.didNotificationLaunchApp) return null;
+    final payload = details.notificationResponse?.payload;
+    if (payload == null || !payload.startsWith('memoryPulse:')) return null;
+    return payload.substring(12);
   }
 
   /// Requests notification permission from iOS. Returns true if granted.
@@ -107,6 +127,32 @@ class NotificationService {
       body,
       const NotificationDetails(iOS: DarwinNotificationDetails()),
       payload: 'tab:$_kStatsTab',
+    );
+  }
+
+  /// Cancels any existing memory pulse notification and schedules a new one
+  /// at [deliverAt] (9:00 AM local time on the anniversary date).
+  ///
+  /// Tapping the notification sets [pendingMemoryTripId] via `_onTap`
+  /// (payload `memoryPulse:{tripId}`). Used by [MemoryPulseService] (M91).
+  Future<void> scheduleMemoryPulse({
+    required String title,
+    required String body,
+    required String tripId,
+    required DateTime deliverAt,
+  }) async {
+    if (!_initialized) return;
+    await _plugin.cancel(_kMemoryPulseNotificationId);
+    await _plugin.zonedSchedule(
+      _kMemoryPulseNotificationId,
+      title,
+      body,
+      tz.TZDateTime.from(deliverAt, tz.local),
+      const NotificationDetails(iOS: DarwinNotificationDetails()),
+      payload: 'memoryPulse:$tripId',
+      androidScheduleMode: AndroidScheduleMode.inexact,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 

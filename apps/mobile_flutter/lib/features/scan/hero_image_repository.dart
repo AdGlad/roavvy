@@ -64,6 +64,17 @@ class HeroImageRepository {
     return rows.map(_fromRow).toList();
   }
 
+  /// Returns all rank-1 heroes across every trip.
+  ///
+  /// Used by [MemoryPulseService] to find the next future anniversary for
+  /// notification scheduling (M91, ADR-136).
+  Future<List<HeroImage>> getHeroesForRank1() async {
+    final rows = await (_db.select(_db.heroImages)
+          ..where((t) => t.rank.equals(1)))
+        .get();
+    return rows.map(_fromRow).toList();
+  }
+
   /// Returns all rank-1 heroes for the given [countryCode].
   Future<List<HeroImage>> getHeroesForCountry(String countryCode) async {
     final rows = await (_db.select(_db.heroImages)
@@ -103,6 +114,82 @@ class HeroImageRepository {
           ..where((t) => t.tripId.equals(tripId) & t.rank.equals(1)))
         .watchSingleOrNull()
         .map((row) => row == null ? null : _fromRow(row));
+  }
+
+  // ── M91 Memory Pulse queries ──────────────────────────────────────────────
+
+  /// Returns rank-1 hero images whose [capturedAt] matches today's month+day
+  /// and is at least 1 year before [today] (UTC). Used by [MemoryPulseService].
+  ///
+  /// Uses a raw `strftime` query because Drift's typed API does not support
+  /// calendar-date extraction (ADR-136). `captured_at` is stored as Unix
+  /// milliseconds, so we divide by 1000 before passing to strftime.
+  Future<List<HeroImage>> getHeroesWithAnniversaryToday(DateTime today) async {
+    final utc = today.toUtc();
+    final mmdd =
+        '${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}';
+    // 365-day threshold so leap-year edge cases don't block 1-year-ago results.
+    final oneYearAgoMs =
+        utc.subtract(const Duration(days: 365)).millisecondsSinceEpoch;
+
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM hero_images '
+          "WHERE strftime('%m-%d', captured_at / 1000, 'unixepoch') = ? "
+          'AND captured_at < ? '
+          'AND rank = 1',
+          variables: [
+            Variable.withString(mmdd),
+            Variable.withInt(oneYearAgoMs),
+          ],
+          readsFrom: {_db.heroImages},
+        )
+        .get();
+
+    return rows.map(_fromQueryRow).toList();
+  }
+
+  HeroImage _fromQueryRow(QueryRow row) {
+    List<String> parseList(String? json) {
+      if (json == null || json.isEmpty) return const [];
+      try {
+        final decoded = jsonDecode(json) as List<dynamic>;
+        return decoded.whereType<String>().toList();
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    return HeroImage(
+      id: row.read<String>('id'),
+      assetId: row.read<String>('asset_id'),
+      tripId: row.read<String>('trip_id'),
+      countryCode: row.read<String>('country_code'),
+      capturedAt: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('captured_at'),
+        isUtc: true,
+      ),
+      heroScore: row.read<double>('hero_score'),
+      rank: row.read<int>('rank'),
+      isUserSelected: row.read<int>('is_user_selected') == 1,
+      primaryScene: row.readNullable<String>('primary_scene'),
+      secondaryScene: row.readNullable<String>('secondary_scene'),
+      activity: parseList(row.readNullable<String>('activity')),
+      mood: parseList(row.readNullable<String>('mood')),
+      subjects: parseList(row.readNullable<String>('subjects')),
+      landmark: row.readNullable<String>('landmark'),
+      labelConfidence: row.read<double>('label_confidence'),
+      qualityScore: row.read<double>('quality_score'),
+      thumbnailLocalPath: row.readNullable<String>('thumbnail_local_path'),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('created_at'),
+        isUtc: true,
+      ),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('updated_at'),
+        isUtc: true,
+      ),
+    );
   }
 
   // ── M90 UI queries ────────────────────────────────────────────────────────

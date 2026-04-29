@@ -14,8 +14,11 @@ import '../data/region_repository.dart';
 import '../data/trip_repository.dart';
 import '../data/visit_repository.dart';
 import '../data/xp_repository.dart';
+import '../features/memory/memory_pulse_service.dart';
+import '../features/scan/hero_image_repository.dart';
 import '../features/xp/xp_event.dart';
 import '../features/xp/xp_notifier.dart';
+import 'notification_service.dart';
 
 final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),
@@ -175,6 +178,34 @@ final lastScanAtProvider = FutureProvider<DateTime?>(
 /// Whether the user has dismissed the 30-day scan nudge banner this session.
 /// Not persisted — resets to false on every app launch. (ADR-085)
 final scanNudgeDismissedProvider = StateProvider<bool>((ref) => false);
+
+// ── M91 Memory Pulse providers ────────────────────────────────────────────
+
+/// Provides the [MemoryPulseService] instance (M91, ADR-136).
+final memoryPulseServiceProvider = Provider<MemoryPulseService>(
+  (ref) => MemoryPulseService(
+    heroRepo: HeroImageRepository(ref.watch(roavvyDatabaseProvider)),
+    notifications: NotificationService.instance,
+  ),
+);
+
+/// Today's memory pulse heroes — one-shot per app session (M91, ADR-136).
+///
+/// Returns up to 3 [HeroImage] records for trips whose anniversaries fall
+/// today, filtered for undismissed entries. Empty list when none.
+final todaysMemoriesProvider = FutureProvider<List<HeroImage>>(
+  (ref) => ref
+      .watch(memoryPulseServiceProvider)
+      .checkToday(DateTime.now()),
+);
+
+/// Session-scoped set of tripIds dismissed by the user this session.
+///
+/// When the user taps Dismiss on a [MemoryPulseCard], their tripId is added
+/// here so the card vanishes immediately without re-querying the DB (ADR-136).
+final memoriesDismissedProvider = StateProvider<Set<String>>((ref) => {});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
   final visits = await ref.watch(effectiveVisitsProvider.future);

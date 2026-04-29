@@ -1256,3 +1256,34 @@ The orientation `IconButton` in `_ControlStrip` is conditionally hidden when `te
 - `HeroImageView` is safe to drop into any widget tree; it degrades gracefully to a colour tile.
 - Override picker preserves the `isUserSelected` guard permanently (ADR-134).
 - `ScanSummaryScreen` is backwards-compatible: existing callers omit `newTripIds` and the best-shot section is simply absent.
+
+---
+
+## ADR-136 — M91 Memory Pulse: Anniversary Detection, Label-Driven Copy, and In-App Card
+
+**Status:** Accepted
+
+**Context:**
+M91 surfaces travel anniversaries as in-app memory cards and optional local push notifications. Key decisions concern: how to detect anniversaries from the existing `hero_images` Drift table (millisecond-epoch `capturedAt`), how to generate personalised copy without AI or network, how to store dismissal state, and how to surface the card on the map screen without restructuring the existing `ConsumerWidget`.
+
+**Decision:**
+
+1. **Anniversary detection via `customSelect`**: The Drift typed query API does not support arbitrary SQLite date functions. Anniversary detection uses `db.customSelect` with `strftime('%m-%d', capturedAt / 1000, 'unixepoch') = '?'` (dividing by 1000 because `capturedAt` is stored as Unix milliseconds). This is the only viable approach short of loading all rows into memory. Filtered to `rank = 1` and `capturedAt < (today - 1 year as ms)`.
+
+2. **Copy generation from Roavvy labels**: Notification and card copy is built from the hero image's `primaryScene`, `mood`, `activity`, and `countryCode`. A local `kMoodEmoji` constant map converts labels to emoji. No AI call, no network. Falls back gracefully to "{N} years ago today in {country}" when labels are absent.
+
+3. **Dismissal in SharedPreferences (not Drift)**: Dismissal is a transient UI preference, not travel data. Key format: `memoryPulse:dismissed:{tripId}:{yyyy-MM-dd}`. Additionally mirrored in a session-scoped `memoriesDismissedProvider` (`StateProvider<Set<String>>`) so dismissed cards vanish immediately without re-querying the DB.
+
+4. **`MapScreen` stays `ConsumerWidget`**: Animated slide-in and cold-start ValueNotifier listener are isolated in a private `_MemoryPulseSection` child widget (`ConsumerStatefulWidget`). `MapScreen.build` only reads `todaysMemoriesProvider` and passes the filtered list down. This avoids converting `MapScreen` to a `StatefulWidget`.
+
+5. **Single scheduled notification (ID 2)**: At most one memory pulse notification is outstanding at any time. `scheduleMemoryPulse` cancels the previous `_kMemoryPulseNotificationId = 2` before scheduling the new one. Re-scheduled on each app launch.
+
+6. **Cold-start payload routing**: The `memoryPulse:{tripId}` payload extends the existing tab-routing system. `_onTap` already handles `tab:N`; M91 adds an `else if (payload.startsWith('memoryPulse:'))` branch that sets `pendingMemoryTripId.value`. `getLaunchMemoryTripId()` parallels the existing `getLaunchTab()` for cold-start detection.
+
+**Consequences:**
+
+- `customSelect` queries are not type-safe; must be tested with integration tests against a real Drift in-memory DB.
+- `hero_images` Drift schema unchanged (v11 remains); no migration needed.
+- No new package dependencies: SharedPreferences already present; `flutter_local_notifications` + `timezone` already present.
+- Dismissal is not persisted across calendar days (same key includes the date); stale keys accumulate in SharedPreferences but are harmless and small (< 1 KB total).
+- `MapScreen` stays a `ConsumerWidget`; existing tests are unaffected.

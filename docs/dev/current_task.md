@@ -1,16 +1,14 @@
-# Active Task: M90 — Hero Image UI Surfaces
+# Active Task: M91 — Memory Pulse
 
-Branch: milestone/m90-hero-image-ui
+Branch: milestone/m91-memory-pulse
 
 ## Status: Complete (2026-04-30)
 
 ## Tasks
 
-- [x] T1 — iOS ThumbnailPlugin.swift (roavvy/thumbnail channel); getThumbnail; NSCache; isNetworkAccessAllowed=false; register in AppDelegate.
-- [x] T2 — HeroImageView widget (lib/features/shared/hero_image_view.dart); loads thumbnail via channel; shimmer; fallback colour; optional edit pencil.
-- [x] T3 — HeroImageRepository additions: getBestHeroForCountry, getBestHeroFromTrips, setUserSelected, clearUserSelected, watchBestHeroForCountry.
-- [x] T4 — hero_providers.dart additions: bestHeroForCountryProvider, bestHeroFromScanProvider.
-- [x] T5 — HeroOverridePicker bottom sheet (lib/features/shared/hero_override_picker.dart).
-- [x] T6 — Journal screen: HeroImageView header + pencil picker per trip card.
-- [x] T7 — Country detail sheet: HeroImageView cover + pencil picker.
-- [x] T8 — Scan summary: newTripIds param + best-shot section.
+- [x] T3 — HeroImageRepository: getHeroesWithAnniversaryToday + getHeroesForRank1
+- [x] T1 — MemoryPulseService (checkToday, buildCopy, scheduleNextAnniversaryNotification)
+- [x] T2 — NotificationService: scheduleMemoryPulse, pendingMemoryTripId, getLaunchMemoryTripId
+- [x] T4 — todaysMemoriesProvider + memoriesDismissedProvider + memoryPulseServiceProvider
+- [x] T5 — MemoryPulseCard widget (single + paged, dismiss, view trip)
+- [x] T6 — Map screen: _MemoryPulseSection with slide animation + cold-start handling

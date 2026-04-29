@@ -1,92 +1,68 @@
-# M89 — Hero Image Detection & Trip Labels
+# M91 — Memory Pulse
 
-**Branch:** `milestone/m89-hero-image-detection`
+**Branch:** `milestone/m91-memory-pulse`
+**Phase:** 19 — Personalisation & Memory
 **Status:** In Progress
 
 ## Goal
 
-Build an on-device pipeline that selects hero image candidates per trip during scan, labels them using iOS Vision framework post-scan in a background task, and persists structured label records in Drift schema v11. No photos leave the device. Scan performance unaffected.
+On travel anniversaries, show a dismissible in-app memory card on the map screen and schedule an optional 9 AM local push notification, using hero image labels for personal copy. Fully on-device; no server scheduling.
 
 ## Scope
 
 **In:**
-- `packages/shared_models/lib/src/hero_image.dart` — `HeroImage`, `HeroLabels`, `HeroAnalysisResult` models
-- `apps/mobile_flutter/lib/data/db/roavvy_database.dart` — schema v11 `HeroImages` table + migration
-- `apps/mobile_flutter/lib/features/scan/hero_candidate_selector.dart` — metadata-only candidate picker
-- `apps/mobile_flutter/ios/Runner/LabelNormalizer.swift` — ML label to Roavvy vocabulary
-- `apps/mobile_flutter/ios/Runner/HeroImageAnalyzer.swift` — Vision framework analysis
-- `apps/mobile_flutter/lib/features/scan/hero_analysis_channel.dart` — MethodChannel Dart wrapper
-- `apps/mobile_flutter/ios/Runner/AppDelegate.swift` — register hero analysis channel
-- `packages/shared_models/lib/src/hero_scoring_engine.dart` — composite score + ranking
-- `apps/mobile_flutter/lib/features/scan/hero_image_repository.dart` — Drift DAO wrapper
-- `apps/mobile_flutter/lib/features/scan/hero_analysis_service.dart` — orchestrates T3+T6+T7+T8
-- `apps/mobile_flutter/lib/features/scan/hero_cache_validator.dart` — tombstone deleted assets
-- `apps/mobile_flutter/lib/features/scan/hero_providers.dart` — Riverpod heroForTripProvider
+- `lib/features/memory/memory_pulse_service.dart` (new)
+- `lib/features/memory/memory_pulse_card.dart` (new)
+- `lib/core/notification_service.dart` (extend: scheduleMemoryPulse, pendingMemoryTripId)
+- `lib/features/scan/hero_image_repository.dart` (extend: getHeroesWithAnniversaryToday)
+- `lib/core/providers.dart` (new todaysMemoriesProvider)
+- `lib/features/map/map_screen.dart` (surface MemoryPulseCard)
 
-**Out:** Any UI displaying hero images; Firestore sync; landmark detection; web; Android.
+**Out:** Firebase Cloud Messaging, server-side notifications, social sharing of memory cards, web, Android.
 
 ## Tasks
 
-- [ ] T1 — HeroImage shared model
-  - Files: packages/shared_models/lib/src/hero_image.dart, packages/shared_models/lib/shared_models.dart
-  - Deliverable: HeroImage, HeroLabels, HeroAnalysisResult Dart classes with equality, copyWith, and JSON parsing from MethodChannel response.
-  - Acceptance: Unit tests pass; exported from shared_models barrel.
+- [ ] T3 — HeroImageRepository: getHeroesWithAnniversaryToday
+  - File: `lib/features/scan/hero_image_repository.dart`
+  - Deliverable: Add `getHeroesWithAnniversaryToday(DateTime today)` — queries `hero_images` using `strftime('%m-%d', capturedAt / 1000, 'unixepoch')` matching today's MM-DD. Filters: rank = 1, capturedAt at least 1 year before today.
+  - Acceptance: Unit tests for: correct anniversary match, no match when < 1 year old, tombstoned rows (rank = -1) excluded.
 
-- [ ] T2 — Drift schema v11: hero_images table
-  - Files: apps/mobile_flutter/lib/data/db/roavvy_database.dart
-  - Deliverable: HeroImages Drift table + migration v10 to v11 + DAO with upsertHero, getHeroForTrip, getHeroesForCountry, deleteHeroesForTrip, tombstone methods.
-  - Acceptance: Migration runs on existing DB; DAO unit tests pass.
+- [ ] T1 — MemoryPulseService
+  - File: `lib/features/memory/memory_pulse_service.dart`
+  - Deliverable: `checkToday(DateTime today)` → calls `HeroImageRepository.getHeroesWithAnniversaryToday`, filters out dismissed entries (SharedPreferences key `dismissed:{tripId}:{yyyy-MM-dd}`). Returns `List<HeroImage>` max 3. `scheduleNextAnniversaryNotification()` → finds next future anniversary across all trips with rank=1 heroes; cancels existing pulse notification; schedules `zonedSchedule` at 9:00 AM local. `buildCopy(HeroImage hero, int yearsAgo)` → returns `MemoryPulseCopy(title, body)` from label-to-copy rules using mood emoji map.
+  - Acceptance: Unit tests for: anniversary match with labels, copy generation with full labels, copy generation with no labels (graceful fallback), dismissed entry filtered out.
 
-- [ ] T3 — HeroCandidateSelector (Dart)
-  - File: apps/mobile_flutter/lib/features/scan/hero_candidate_selector.dart
-  - Deliverable: Pure Dart. Input: List<PhotoDateRecord> for one trip. Output: List<String> assetIds (up to 5). Applies GPS-first selection, 60s burst dedup, 30-min temporal spacing, fallback (no GPS).
-  - Acceptance: Unit tests for GPS-first, burst dedup, temporal spacing, fallback, single-photo trip.
+- [ ] T2 — NotificationService extension
+  - File: `lib/core/notification_service.dart`
+  - Deliverable: Add `const _kMemoryPulseNotificationId = 2`. Add `final ValueNotifier<String?> pendingMemoryTripId = ValueNotifier(null)`. Add `scheduleMemoryPulse({required String title, required String body, required String tripId, required DateTime deliverAt})` using `zonedSchedule` with payload `memoryPulse:$tripId`. Update `_onTap` to handle `memoryPulse:` prefix — sets `pendingMemoryTripId.value`. Update `getLaunchTab` equivalent for cold-start: expose `getLaunchMemoryTripId()` that reads launch notification payload. Existing nudge and achievement notifications unaffected.
+  - Acceptance: New method compiles; `_onTap` sets `pendingMemoryTripId`; existing notification IDs 0 and 1 unaffected.
 
-- [ ] T4 — LabelNormalizer (Swift)
-  - File: apps/mobile_flutter/ios/Runner/LabelNormalizer.swift
-  - Deliverable: Static struct with lookup table mapping Vision identifier strings to Roavvy vocabulary. Returns [String: Any] dict with primaryScene, secondaryScene, activity, mood, subjects, landmark.
-  - Acceptance: Covers all mappings in milestone doc. Unknown identifiers discarded.
+- [ ] T4 — todaysMemoriesProvider
+  - File: `lib/core/providers.dart`
+  - Deliverable: `todaysMemoriesProvider` as `FutureProvider<List<HeroImage>>` that calls `MemoryPulseService.checkToday(DateTime.now())`. Add `memoriesDismissedProvider` as `StateProvider<Set<String>>` (holds dismissed tripIds for the current session, so the card disappears instantly without re-querying DB).
+  - Acceptance: Provider returns empty list when no anniversaries. Does not throw on first launch (no hero data).
 
-- [ ] T5 — HeroImageAnalyzer (Swift)
-  - File: apps/mobile_flutter/ios/Runner/HeroImageAnalyzer.swift
-  - Deliverable: Accepts [String] assetIds. Fetches 200x200 thumbnails via PHImageManager (isNetworkAccessAllowed = false). Runs VNClassifyImageRequest. Calls LabelNormalizer. Applies quality score. Returns [[String: Any]].
-  - Acceptance: No network access. Returns empty array gracefully for unavailable/iCloud assets. Does not block main thread.
+- [ ] T5 — MemoryPulseCard widget
+  - File: `lib/features/memory/memory_pulse_card.dart`
+  - Deliverable: Card matching Section 4a design. 80×80 rounded `HeroImageView`. Shows "{N} years ago today", country name + top mood emoji, formatted date, trip duration, top 2 label chips. "View trip" navigates to journal screen at tripId. Dismiss button stores `dismissed:{tripId}:{yyyy-MM-dd}` in SharedPreferences, adds tripId to `memoriesDismissedProvider`. When multiple memories: wrap in `PageView` + dots indicator (max 3 cards).
+  - Acceptance: Widget tests: renders with labels, renders with no labels (graceful), dismiss stores preference, "View trip" calls correct navigation.
 
-- [ ] T6 — HeroAnalysisMethodChannel bridge
-  - Files: apps/mobile_flutter/lib/features/scan/hero_analysis_channel.dart, apps/mobile_flutter/ios/Runner/AppDelegate.swift
-  - Deliverable: MethodChannel("roavvy/hero_analysis") with method analyseHeroCandidates({tripId, assetIds}) returning List<Map>. Dart wrapper calls channel async. AppDelegate registers handler calling HeroImageAnalyzer.
-  - Acceptance: Dart wrapper compiles; AppDelegate registers channel.
+- [ ] T6 — Map screen integration
+  - File: `lib/features/map/map_screen.dart`
+  - Deliverable: Watch `todaysMemoriesProvider` and `memoriesDismissedProvider`. Filter out dismissed. If non-empty: show `MemoryPulseCard` at top of map Stack, above globe, positioned below safe area. Wrap card in `AnimatedSlide` (offset 0,-1 → 0,0) + `AnimatedOpacity` for slide-in. Handle cold-start: in `initState`-equivalent listen, check `NotificationService.pendingMemoryTripId`; if set, scroll to the matching memory card.
+  - Acceptance: Card absent when no anniversaries. Card slides in. Dismissed card removes immediately. Multiple memories shown as paged cards with dots.
 
-- [ ] T7 — HeroScoringEngine (Dart)
-  - File: packages/shared_models/lib/src/hero_scoring_engine.dart
-  - Deliverable: Pure Dart. Input: List<HeroAnalysisResult> for one trip. Applies scoring formula (quality 0-30, label 0-25, diversity 0-25, metadata 0-20). Returns ranked list with heroScore and rank.
-  - Acceptance: Unit tests for score ordering, tie-breaking by labelConfidence.
+## Build Order
 
-- [ ] T8 — HeroImageRepository (Dart)
-  - File: apps/mobile_flutter/lib/features/scan/hero_image_repository.dart
-  - Deliverable: Wraps Drift DAO. upsertHeroesForTrip(tripId, List<HeroImage>) honours isUserSelected guard. watchHeroForTrip(tripId) stream.
-  - Acceptance: Unit tests: upsert skips user-selected rows; tombstone on unavailable asset.
-
-- [ ] T9 — HeroAnalysisService + post-scan trigger
-  - Files: apps/mobile_flutter/lib/features/scan/hero_analysis_service.dart, apps/mobile_flutter/lib/features/scan/scan_screen.dart
-  - Deliverable: Service orchestrates T3 to T6 to T7 to T8 per trip. Called from scan_screen.dart after ScanSummaryScreen is pushed (fire-and-forget). Runs on background isolate.
-  - Acceptance: ScanSummaryScreen appears without waiting. Hero analysis does not run on main thread.
-
-- [ ] T10 — HeroCacheValidator
-  - File: apps/mobile_flutter/lib/features/scan/hero_cache_validator.dart
-  - Deliverable: On app launch (max once per day), batch-check assetId values from hero_images via PHAsset.fetchAssets. Tombstone missing assets.
-  - Acceptance: Unit test with mock unavailable assetId results in tombstoned row, not deletion.
-
-- [ ] T11 — heroForTripProvider (Riverpod)
-  - File: apps/mobile_flutter/lib/features/scan/hero_providers.dart
-  - Deliverable: heroForTripProvider(String tripId) StreamProvider<HeroImage?> from repository. Emits updated state on upsert.
-  - Acceptance: Provider compiles; emits null when no hero exists for trip.
+```
+T3 (Repository) → T1 (Service) + T2 (Notification) → T4 (Provider) → T5 (Card) → T6 (Map)
+```
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| Drift code-gen required after schema change | Run dart run build_runner build after T2 |
-| VNDetectImageApertureScoreRequest iOS 16+ only | Gate with #available(iOS 16, *); fallback to dimension-only |
-| PHAsset access requires Photos permission | Reuse existing permission infrastructure; analysis only runs post-scan |
-| Background analysis may be interrupted | State is safe: upsert is idempotent; retry on next scan |
+| strftime SQL date comparison differs from Dart date logic | Add unit test confirming millisecond epoch → MM-DD string matches expected |
+| `flutter_local_notifications` `zonedSchedule` requires timezone init | `tz.initializeTimeZones()` already called in main; no change needed |
+| SharedPreferences key collision | Use prefix `memoryPulse:dismissed:` to namespace |
+| Map screen becomes StatefulWidget to use AnimationController | Convert only the map body area; keep existing ConsumerWidget structure by extracting animated card into a separate StatefulWidget child |
