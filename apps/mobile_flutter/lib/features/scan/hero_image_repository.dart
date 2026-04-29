@@ -105,6 +105,69 @@ class HeroImageRepository {
         .map((row) => row == null ? null : _fromRow(row));
   }
 
+  // ── M90 UI queries ────────────────────────────────────────────────────────
+
+  /// Streams the single highest-scoring rank-1 hero for [countryCode].
+  ///
+  /// Used by [bestHeroForCountryProvider] to power the country detail sheet.
+  /// Emits null when no hero exists for the country.
+  Stream<HeroImage?> watchBestHeroForCountry(String countryCode) {
+    return (_db.select(_db.heroImages)
+          ..where((t) =>
+              t.countryCode.equals(countryCode) &
+              t.rank.isBiggerOrEqualValue(1))
+          ..orderBy([(t) => OrderingTerm.desc(t.heroScore)])
+          ..limit(1))
+        .watchSingleOrNull()
+        .map((row) => row == null ? null : _fromRow(row));
+  }
+
+  /// Returns the single highest-scoring rank-1 hero across [tripIds].
+  ///
+  /// Used by scan summary "best shot" section. Returns null when no heroes
+  /// have been analysed for the given trips yet.
+  Future<HeroImage?> getBestHeroFromTrips(List<String> tripIds) async {
+    if (tripIds.isEmpty) return null;
+    final rows = await (_db.select(_db.heroImages)
+          ..where((t) =>
+              t.tripId.isIn(tripIds) & t.rank.isBiggerOrEqualValue(1))
+          ..orderBy([(t) => OrderingTerm.desc(t.heroScore)])
+          ..limit(1))
+        .get();
+    return rows.isEmpty ? null : _fromRow(rows.first);
+  }
+
+  /// Sets [assetId] as the user-selected hero for [tripId].
+  ///
+  /// Clears [isUserSelected] on all other rows for the trip, then sets it
+  /// on the chosen row. Promotes the chosen row to rank 1 if needed.
+  /// The isUserSelected guard (ADR-134) then protects it from re-scan.
+  Future<void> setUserSelected(String assetId, String tripId) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.heroImages)
+            ..where((t) => t.tripId.equals(tripId)))
+          .write(const HeroImagesCompanion(isUserSelected: Value(0)));
+
+      await (_db.update(_db.heroImages)
+            ..where((t) =>
+                t.assetId.equals(assetId) & t.tripId.equals(tripId)))
+          .write(const HeroImagesCompanion(
+            isUserSelected: Value(1),
+            rank: Value(1),
+          ));
+    });
+  }
+
+  /// Clears [isUserSelected] on all rows for [tripId].
+  ///
+  /// The next scan/analysis pass will overwrite these rows with auto-ranked
+  /// results (the isUserSelected guard no longer blocks them).
+  Future<void> clearUserSelected(String tripId) async {
+    await (_db.update(_db.heroImages)
+          ..where((t) => t.tripId.equals(tripId)))
+        .write(const HeroImagesCompanion(isUserSelected: Value(0)));
+  }
+
   // ── Queries for cache validation ──────────────────────────────────────────
 
   /// Returns all assetIds where rank >= 0 (non-tombstoned) for batch

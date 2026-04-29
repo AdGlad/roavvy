@@ -14,7 +14,9 @@ import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import '../merch/merch_country_selection_screen.dart';
 import '../cards/card_type_picker_screen.dart';
+import '../shared/hero_image_view.dart';
 import 'achievement_unlock_sheet.dart';
+import 'hero_providers.dart';
 import 'level_up_sheet.dart';
 import 'milestone_card_sheet.dart';
 import 'scan_reveal_mini_map.dart';
@@ -51,6 +53,7 @@ class ScanSummaryScreen extends ConsumerStatefulWidget {
     required this.newCodes,
     required this.onDone,
     this.lastScanAt,
+    this.newTripIds = const [],
   });
 
   /// Countries that are new since the pre-save snapshot.
@@ -64,12 +67,14 @@ class ScanSummaryScreen extends ConsumerStatefulWidget {
   final List<String> newCodes;
 
   /// Called when the user taps the primary CTA and [newCodes] is empty.
-  /// The caller is responsible for dismissing [ScanSummaryScreen] and
-  /// returning the user to the Map tab (ADR-054).
   final VoidCallback onDone;
 
   /// Last scan timestamp — shown in State B only.
   final DateTime? lastScanAt;
+
+  /// Trip IDs newly inferred in this scan. When non-empty, the best-shot
+  /// section queries [bestHeroFromScanProvider] (M90, ADR-135).
+  final List<String> newTripIds;
 
   @override
   ConsumerState<ScanSummaryScreen> createState() => _ScanSummaryScreenState();
@@ -244,6 +249,7 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
                 newCountries: widget.newCountries,
                 newAchievementIds: widget.newAchievementIds,
                 newCodes: widget.newCodes,
+                newTripIds: widget.newTripIds,
                 onDone: _handleDone,
               ),
       ),
@@ -253,25 +259,27 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
 
 // ── State A — new discoveries ─────────────────────────────────────────────────
 
-class _NewDiscoveriesState extends StatefulWidget {
+class _NewDiscoveriesState extends ConsumerStatefulWidget {
   const _NewDiscoveriesState({
     required this.newCountries,
     required this.newAchievementIds,
     required this.newCodes,
     required this.onDone,
+    this.newTripIds = const [],
   });
 
   final List<EffectiveVisitedCountry> newCountries;
   final List<String> newAchievementIds;
   final List<String> newCodes;
+  final List<String> newTripIds;
   final Future<void> Function() onDone;
 
   @override
-  State<_NewDiscoveriesState> createState() => _NewDiscoveriesStateState();
+  ConsumerState<_NewDiscoveriesState> createState() =>
+      _NewDiscoveriesStateState();
 }
 
-
-class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
+class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
     with TickerProviderStateMixin {
   ConfettiController? _confettiController;
   AnimationController? _staggerController;
@@ -426,6 +434,10 @@ class _NewDiscoveriesStateState extends State<_NewDiscoveriesState>
                     _AchievementsSection(
                         achievementIds: widget.newAchievementIds),
                   ],
+                  // Best shot — only shown when hero analysis has completed
+                  // and returned a result for the new trips (M90, ADR-135).
+                  if (widget.newTripIds.isNotEmpty)
+                    _BestShotSection(tripIds: widget.newTripIds),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -581,6 +593,134 @@ class _FlagTimelineList extends StatelessWidget {
         return FadeTransition(opacity: opacity, child: card);
       }),
     );
+  }
+}
+
+/// Best shot section — shown in State A when [bestHeroFromScanProvider]
+/// returns a non-null hero for the new trips (M90, ADR-135).
+///
+/// Hidden when hero analysis has not yet completed or found no candidates.
+/// No shimmer — intentionally absent to avoid false promise of an image.
+class _BestShotSection extends ConsumerWidget {
+  const _BestShotSection({required this.tripIds});
+
+  final List<String> tripIds;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final heroAsync = ref.watch(bestHeroFromScanProvider(tripIds));
+
+    // Only render when analysis has completed AND returned a result.
+    final hero = heroAsync.valueOrNull;
+    if (hero == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
+    final fallbackColor = _continentFallback(hero.countryCode);
+    final labels = [
+      if (hero.primaryScene != null) hero.primaryScene!,
+      if (hero.mood.isNotEmpty) hero.mood.first,
+    ].take(2).toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Best shot from this scan',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              children: [
+                HeroImageView(
+                  assetId: hero.assetId,
+                  fallbackColor: fallbackColor,
+                  height: 180,
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.65),
+                        ],
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$countryName · ${hero.capturedAt.month}/${hero.capturedAt.year}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (labels.isNotEmpty)
+                          Wrap(
+                            spacing: 4,
+                            children: labels
+                                .map(
+                                  (l) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      l,
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(color: Colors.white),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _continentFallback(String countryCode) {
+    switch (kCountryContinent[countryCode]) {
+      case 'Europe':
+        return const Color(0xFF2563EB);
+      case 'Asia':
+        return const Color(0xFF7C3AED);
+      case 'North America':
+        return const Color(0xFF059669);
+      case 'South America':
+        return const Color(0xFFD97706);
+      case 'Africa':
+        return const Color(0xFFDC2626);
+      case 'Oceania':
+        return const Color(0xFF0891B2);
+      default:
+        return const Color(0xFF374151);
+    }
   }
 }
 

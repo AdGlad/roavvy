@@ -1234,3 +1234,25 @@ The orientation `IconButton` in `_ControlStrip` is conditionally hidden when `te
 - Titles never include years; the card's date label (e.g. "2018–2024") is the sole year reference.
 - `TitleGenerationRequest.startYear` / `.endYear` fields are retained on the model for potential future use but are no longer populated at the call site.
 - Post-processing in Swift is additive (strip-only); it cannot introduce regressions in the AI path.
+
+---
+
+## ADR-135 — M90 Hero Image Display: MethodChannel Thumbnail Fetch + Reactive HeroImageView
+
+**Status:** Accepted
+
+**Context:** M89 persists hero image `assetId` values in Drift. M90 needs to display those images in journal trip cards, the country detail sheet, and scan summary. Photo bytes cannot be bundled or cached to disk (ADR-002); they must be fetched on-demand from PHImageManager using the stored `assetId`.
+
+**Decision:**
+1. A dedicated `roavvy/thumbnail` MethodChannel (`ThumbnailPlugin.swift`) fetches JPEG bytes for a given `assetId` + `size` via `PHImageManager.requestImage`. `isNetworkAccessAllowed = false` on all requests. Results cached in `NSCache` (keyed `assetId+size`) for the session lifetime only.
+2. `HeroImageView` is a `StatefulWidget` that calls the channel on first build, shows an animated shimmer pulse while loading, displays the decoded image when available, and falls back to a solid `fallbackColor` tile when `assetId` is null or the asset is unavailable.
+3. The edit pencil (optional `onEditTap`) opens `HeroOverridePicker` — a bottom sheet showing rank-1/2/3 candidates. "Use this photo" calls `HeroImageRepository.setUserSelected`; "Reset to auto" calls `clearUserSelected`. This preserves the `isUserSelected` guard from ADR-134.
+4. Three new Riverpod providers: `bestHeroForCountryProvider(countryCode)` streams highest-scoring rank-1 hero for a country; `bestHeroFromScanProvider(tripIds)` is a one-shot Future for the scan summary.
+5. `ScanSummaryScreen` gains an optional `newTripIds` parameter (default `const []`). Best-shot section is hidden when `bestHeroFromScanProvider` returns null — no shimmer, no placeholder.
+
+**Consequences:**
+- Photo bytes are never written to Drift, Firestore, or any network path (extends ADR-002).
+- NSCache is session-scoped — no on-disk thumbnail files to manage or delete.
+- `HeroImageView` is safe to drop into any widget tree; it degrades gracefully to a colour tile.
+- Override picker preserves the `isUserSelected` guard permanently (ADR-134).
+- `ScanSummaryScreen` is backwards-compatible: existing callers omit `newTripIds` and the best-shot section is simply absent.

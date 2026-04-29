@@ -5,8 +5,30 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../../core/region_names.dart';
+import '../scan/hero_providers.dart';
+import '../shared/hero_image_view.dart';
+import '../shared/hero_override_picker.dart';
 import '../visits/trip_edit_sheet.dart';
 import 'photo_gallery_screen.dart';
+
+Color _continentFallbackColor(String? continent) {
+  switch (continent) {
+    case 'Europe':
+      return const Color(0xFF2563EB);
+    case 'Asia':
+      return const Color(0xFF7C3AED);
+    case 'North America':
+      return const Color(0xFF059669);
+    case 'South America':
+      return const Color(0xFFD97706);
+    case 'Africa':
+      return const Color(0xFFDC2626);
+    case 'Oceania':
+      return const Color(0xFF0891B2);
+    default:
+      return const Color(0xFF374151);
+  }
+}
 
 /// Bottom sheet shown when the user taps a country on the map.
 ///
@@ -80,12 +102,32 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
     final displayName = kCountryNames[widget.isoCode] ?? widget.isoCode;
     final visit = widget.visit;
 
+    final heroAsync = ref.watch(bestHeroForCountryProvider(widget.isoCode));
+    final hero = heroAsync.valueOrNull;
+    final fallbackColor = _continentFallbackColor(
+      kCountryContinent[widget.isoCode],
+    );
+
     return DefaultTabController(
       length: 2,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Hero cover image ────────────────────────────────────────────
+            if (visit != null)
+              HeroImageView(
+                assetId: hero?.assetId,
+                fallbackColor: fallbackColor,
+                height: 200,
+                onEditTap: hero != null
+                    ? () => showHeroOverridePicker(
+                          context,
+                          hero.tripId,
+                          fallbackColor: fallbackColor,
+                        )
+                    : null,
+              ),
             // ── Header ─────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),

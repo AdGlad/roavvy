@@ -5,6 +5,29 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../map/country_region_globe_screen.dart';
+import '../scan/hero_providers.dart';
+import '../shared/hero_image_view.dart';
+import '../shared/hero_override_picker.dart';
+
+/// Returns a deterministic fallback colour for a continent name.
+Color _continentFallbackColor(String? continent) {
+  switch (continent) {
+    case 'Europe':
+      return const Color(0xFF2563EB); // blue
+    case 'Asia':
+      return const Color(0xFF7C3AED); // purple
+    case 'North America':
+      return const Color(0xFF059669); // emerald
+    case 'South America':
+      return const Color(0xFFD97706); // amber
+    case 'Africa':
+      return const Color(0xFFDC2626); // red
+    case 'Oceania':
+      return const Color(0xFF0891B2); // cyan
+    default:
+      return const Color(0xFF374151); // neutral gray
+  }
+}
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -216,14 +239,14 @@ class _YearHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 // ── Trip tile ─────────────────────────────────────────────────────────────────
 
-class _TripTile extends StatelessWidget {
+class _TripTile extends ConsumerWidget {
   const _TripTile({required this.trip, required this.visit});
 
   final TripRecord trip;
   final EffectiveVisitedCountry? visit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final secondary = theme.colorScheme.onSurfaceVariant;
 
@@ -232,6 +255,12 @@ class _TripTile extends StatelessWidget {
     final dateRange = _dateRange(trip.startedOn, trip.endedOn);
     final days = _tripDays(trip.startedOn, trip.endedOn);
     final dayWord = days == 1 ? 'day' : 'days';
+
+    final heroAsync = ref.watch(heroForTripProvider(trip.id));
+    final hero = heroAsync.valueOrNull;
+    final fallbackColor = _continentFallbackColor(
+      kCountryContinent[trip.countryCode],
+    );
 
     final semanticLabel = [
       countryName,
@@ -246,54 +275,70 @@ class _TripTile extends StatelessWidget {
       button: true,
       child: InkWell(
         onTap: () => _openSheet(context),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Text(flag, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      countryName,
-                      style: theme.textTheme.bodyLarge,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$dateRange  ·  $days $dayWord',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: secondary),
-                    ),
-                    if (trip.photoCount > 0) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '📷 ${trip.photoCount} '
-                        '${trip.photoCount == 1 ? 'photo' : 'photos'}',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: secondary),
-                      ),
-                    ],
-                    if (trip.isManual) ...[
-                      const SizedBox(height: 4),
-                      Chip(
-                        label: const Text('Added manually'),
-                        labelStyle: theme.textTheme.labelSmall,
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                        padding: EdgeInsets.zero,
-                      ),
-                    ],
-                  ],
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Hero image header — always shown; shimmer while loading.
+            HeroImageView(
+              assetId: hero?.assetId,
+              fallbackColor: fallbackColor,
+              height: 160,
+              onEditTap: () => showHeroOverridePicker(
+                context,
+                trip.id,
+                fallbackColor: fallbackColor,
               ),
-              Icon(Icons.chevron_right, color: secondary, size: 20),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Text(flag, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          countryName,
+                          style: theme.textTheme.bodyLarge,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$dateRange  ·  $days $dayWord',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: secondary),
+                        ),
+                        if (trip.photoCount > 0) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '📷 ${trip.photoCount} '
+                            '${trip.photoCount == 1 ? 'photo' : 'photos'}',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: secondary),
+                          ),
+                        ],
+                        if (trip.isManual) ...[
+                          const SizedBox(height: 4),
+                          Chip(
+                            label: const Text('Added manually'),
+                            labelStyle: theme.textTheme.labelSmall,
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: secondary, size: 20),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

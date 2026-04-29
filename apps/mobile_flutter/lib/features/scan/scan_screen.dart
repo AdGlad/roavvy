@@ -476,6 +476,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           final newCodesSet = newCodesList.toSet();
           final newCountries =
               effective.where((v) => newCodesSet.contains(v.countryCode)).toList();
+          // M90: trip IDs for new countries — passed to best-shot section.
+          final newTripIds = inferredTrips
+              .where((t) => newCodesSet.contains(t.countryCode))
+              .map((t) => t.id)
+              .toList();
           final nav = Navigator.of(context);
           await nav.push(
             MaterialPageRoute<void>(
@@ -483,6 +488,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 newCountries: newCountries,
                 newAchievementIds: newlyUnlockedIds.toList(),
                 newCodes: newCodesList,
+                newTripIds: newTripIds,
                 onDone: () {
                   nav.pop();
                   widget.onScanComplete?.call();
