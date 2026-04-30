@@ -3,10 +3,12 @@ import 'package:shared_models/shared_models.dart';
 
 /// Dart wrapper for the `roavvy/hero_analysis` MethodChannel.
 ///
-/// Calls the Swift [HeroImageAnalyzer] to fetch 200×200 px thumbnails and
-/// run Vision VNClassifyImageRequest on candidate assetIds (M89, ADR-134).
+/// Calls the Swift [HeroImageAnalyzer] to fetch 800×800 px images and run
+/// VNClassifyImageRequest, VNGenerateAttentionBasedSaliencyImageRequest, and
+/// VNDetectFaceRectanglesRequest on candidate assetIds (M89, ADR-134).
 ///
-/// Never accesses the network — Swift side enforces isNetworkAccessAllowed=false.
+/// Local assets are analysed without network access; iCloud assets are fetched
+/// only when local candidates are insufficient (ADR-134 extended).
 class HeroAnalysisChannel {
   HeroAnalysisChannel({MethodChannel? channel})
       : _channel = channel ??

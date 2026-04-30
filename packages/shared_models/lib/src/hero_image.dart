@@ -118,6 +118,10 @@ class HeroAnalysisResult {
     required this.pixelHeight,
     required this.hasGps,
     required this.tripId,
+    this.saliencyCenterScore = 0.5,
+    this.faceCount = 0,
+    this.colorRichnessScore = 0.5,
+    this.analysisResolution = 0,
   });
 
   /// PHAsset.localIdentifier — device-local only (ADR-060).
@@ -125,7 +129,7 @@ class HeroAnalysisResult {
   final DateTime capturedAt;
   final HeroLabels labels;
 
-  /// Normalised quality score 0.0–1.0 from Swift-side apertureScore / dimensions.
+  /// Normalised quality score 0.0–1.0 from Swift-side dimension analysis.
   final double qualityScore;
   final int pixelWidth;
   final int pixelHeight;
@@ -133,6 +137,23 @@ class HeroAnalysisResult {
 
   /// Trip ID this candidate belongs to (passed in by Dart side, echoed back).
   final String tripId;
+
+  /// 0.0–1.0: how centred the most salient region is (1.0 = perfectly centred).
+  /// Derived from VNGenerateAttentionBasedSaliencyImageRequest.
+  /// Defaults to 0.5 (neutral) when not available.
+  final double saliencyCenterScore;
+
+  /// Number of faces detected by VNDetectFaceRectanglesRequest.
+  final int faceCount;
+
+  /// 0.0–1.0: HSB saturation of the image's average colour.
+  /// Low = grey/flat; high = vibrant/colourful.
+  /// Defaults to 0.5 (neutral) when not available.
+  final double colorRichnessScore;
+
+  /// Shorter edge (pixels) of the image actually analysed by Swift.
+  /// 0 indicates an older result without this field.
+  final int analysisResolution;
 
   /// Constructs from a JSON map returned by the MethodChannel.
   factory HeroAnalysisResult.fromJson(Map<Object?, Object?> json) {
@@ -147,6 +168,12 @@ class HeroAnalysisResult {
       pixelHeight: (json['pixelHeight'] as int? ?? 0),
       hasGps: (json['hasGps'] as bool? ?? false),
       tripId: json['tripId'] as String,
+      saliencyCenterScore:
+          (json['saliencyCenterScore'] as num? ?? 0.5).toDouble(),
+      faceCount: (json['faceCount'] as int? ?? 0),
+      colorRichnessScore:
+          (json['colorRichnessScore'] as num? ?? 0.5).toDouble(),
+      analysisResolution: (json['analysisResolution'] as int? ?? 0),
     );
   }
 
@@ -164,7 +191,8 @@ class HeroAnalysisResult {
   @override
   String toString() =>
       'HeroAnalysisResult(assetId: $assetId, tripId: $tripId, '
-      'qualityScore: $qualityScore)';
+      'qualityScore: $qualityScore, colorRichness: $colorRichnessScore, '
+      'saliency: $saliencyCenterScore, faces: $faceCount)';
 }
 
 /// A persisted hero image record: the selected (or candidate) representative
