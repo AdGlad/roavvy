@@ -6,7 +6,66 @@ import '../../../core/country_names.dart';
 import 'title_generation_models.dart';
 import 'title_generation_service.dart';
 
-/// Sub-regional country clusters — checked before continent fallback.
+// ── Label-based title tables (M92, ADR-137) ────────────────────────────────
+
+/// (primaryScene, mood) → title options.
+///
+/// Checked first; most specific path through the label priority chain.
+const _kSceneMoodTitles = <(String, String), List<String>>{
+  ('beach', 'sunset'): ['Aegean Sunset', 'Shore at Dusk', 'Golden Coastline'],
+  ('beach', 'golden_hour'): ['Golden Shore', 'Coast at Golden Hour', 'Warm Tides'],
+  ('beach', 'sunrise'): ['Dawn on the Shore', 'Morning Tide', 'First Light Coast'],
+  ('mountain', 'snow'): ['Alpine Snowfields', 'Peak Season', 'White Summits'],
+  ('mountain', 'sunrise'): ['Mountain Dawn', 'Summit Light', 'Above the Clouds'],
+  ('mountain', 'golden_hour'): ['Alpine Gold', 'Mountain at Dusk', 'Peaks at Sunset'],
+  ('city', 'night'): ['City After Dark', 'Neon Nights', 'Night in the City'],
+  ('city', 'golden_hour'): ['Golden Streets', 'City at Dusk', 'Urban Gold'],
+  ('desert', 'sunset'): ['Desert Gold', 'Sand at Dusk', 'Sahara Sunset'],
+  ('desert', 'golden_hour'): ['Dunes at Golden Hour', 'Desert Glow', 'Sand and Light'],
+  ('forest', 'sunrise'): ['Forest Dawn', 'Morning in the Trees', 'First Light Forest'],
+  ('snow', 'sunrise'): ['Frozen Dawn', 'Winter Light', 'Snow at Sunrise'],
+  ('island', 'sunset'): ['Island Sunset', 'Tropical Dusk', 'Offshore Gold'],
+  ('island', 'golden_hour'): ['Golden Island', 'Island at Dusk', 'Tropical Gold'],
+  ('lake', 'sunrise'): ['Still Water Dawn', 'Lake at Sunrise', 'Morning Reflections'],
+  ('coast', 'golden_hour'): ['Golden Cliffs', 'Coastal Glow', 'Light on the Coast'],
+};
+
+/// (primaryScene, activity) → title options.
+const _kSceneActivityTitles = <(String, String), List<String>>{
+  ('mountain', 'hiking'): ['Trail Blazer', 'Into the Mountains', 'High Country'],
+  ('mountain', 'skiing'): ['Powder Days', 'Off Piste', 'White Run'],
+  ('coast', 'boat'): ['Under Sail', 'Blue Water Run', 'Open Horizon'],
+  ('beach', 'boat'): ['Island Hopping', 'Sailing the Coast', 'Blue Lagoon'],
+  ('city', 'food'): ['Food and City', 'Urban Feast', 'City Bites'],
+  ('forest', 'hiking'): ['Deep Woods', 'Through the Trees', 'Green Trail'],
+  ('island', 'boat'): ['Island to Island', 'Archipelago Run', 'Between the Islands'],
+  ('countryside', 'roadtrip'): ['Open Road', 'Rolling Hills', 'Country Miles'],
+  ('desert', 'roadtrip'): ['Desert Drive', 'Dust Road', 'Endless Miles'],
+};
+
+/// primaryScene solo fallback when no mood/activity combo matches.
+const _kSceneTitles = <String, List<String>>{
+  'beach': ['Shoreline', 'Sandy Days', 'Coast Life'],
+  'city': ['Urban Escape', 'City Break', 'Streets and Stories'],
+  'mountain': ['High Country', 'Mountain Air', 'Above It All'],
+  'island': ['Island Escape', 'Island Life', 'Off the Map'],
+  'coast': ['Clifftop Views', 'Coastal Drive', 'Edge of Land'],
+  'desert': ['Dust and Gold', 'Arid Days', 'Desert Crossing'],
+  'forest': ['Into the Trees', 'Green Escape', 'Forest Road'],
+  'snow': ['Winter Escape', 'Cold and Clear', 'Snow Days'],
+  'lake': ['Still Waters', 'Lakeside', 'By the Lake'],
+  'countryside': ['Rolling Hills', 'Rural Escape', 'Field and Sky'],
+};
+
+/// mood solo fallback when no scene is present.
+const _kMoodTitles = <String, List<String>>{
+  'sunset': ['Golden Hour', 'Last Light', 'Chasing Sunsets'],
+  'sunrise': ['Early Light', 'Dawn Patrol', 'First Light'],
+  'golden_hour': ['Golden Hour', 'Warm Light', 'The Golden Hour'],
+  'night': ['After Dark', 'Night Moves', 'Midnight Run'],
+};
+
+// ── Sub-regional country clusters — checked before continent fallback. ─────
 ///
 /// Each cluster maps a set of country codes to a list of title options.
 /// A random option is chosen on each call so the title varies when the
@@ -67,6 +126,41 @@ class RuleBasedTitleGenerator implements TitleGenerationService {
 
   String _pick(List<String> options) => options[_random.nextInt(options.length)];
 
+  /// Resolves a label-based title from [aggregated] using the priority chain:
+  /// scene+mood combo → scene+activity combo → scene solo → mood solo.
+  /// Returns null when no table entry matches.
+  String? _labelTitle(AggregatedLabels aggregated) {
+    final scene = aggregated.primaryScene;
+    final mood = aggregated.mood;
+    final activity = aggregated.activity;
+
+    // 1. scene + mood combo
+    if (scene != null && mood != null) {
+      final titles = _kSceneMoodTitles[(scene, mood)];
+      if (titles != null) return _pick(titles);
+    }
+
+    // 2. scene + activity combo
+    if (scene != null && activity != null) {
+      final titles = _kSceneActivityTitles[(scene, activity)];
+      if (titles != null) return _pick(titles);
+    }
+
+    // 3. scene solo
+    if (scene != null) {
+      final titles = _kSceneTitles[scene];
+      if (titles != null) return _pick(titles);
+    }
+
+    // 4. mood solo
+    if (mood != null) {
+      final titles = _kMoodTitles[mood];
+      if (titles != null) return _pick(titles);
+    }
+
+    return null;
+  }
+
   @override
   Future<TitleGenerationResult> generate(TitleGenerationRequest request) async {
     final title = _compute(request);
@@ -77,21 +171,30 @@ class RuleBasedTitleGenerator implements TitleGenerationService {
     final codes = request.countryCodes;
     if (codes.isEmpty) return _pick(['World Tour', 'Everywhere', 'Global Wander']);
 
-    // 1. Single country — return its name directly.
+    // 1. Label-based title — runs before geography (ADR-137).
+    if (request.heroLabels != null) {
+      final aggregated = HeroLabelAggregator.aggregate(request.heroLabels!);
+      if (aggregated != null) {
+        final labelTitle = _labelTitle(aggregated);
+        if (labelTitle != null) return labelTitle;
+      }
+    }
+
+    // 2. Single country — return its name directly.
     if (codes.length == 1) {
       return kCountryNames[codes.first] ?? codes.first;
     }
 
     final codeSet = codes.toSet();
 
-    // 2. Sub-regional override — all codes must be a subset of the cluster.
+    // 3. Sub-regional override — all codes must be a subset of the cluster.
     for (final entry in _kSubRegions.entries) {
       if (codeSet.isNotEmpty && codeSet.every(entry.value.contains)) {
         return _pick(entry.key);
       }
     }
 
-    // 3. Dominant continent.
+    // 4. Dominant continent.
     final continentCounts = <String, int>{};
     for (final code in codes) {
       final continent = kCountryContinent[code];

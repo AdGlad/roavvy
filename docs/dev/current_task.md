@@ -1,14 +1,11 @@
-# Active Task: M91 — Memory Pulse
+# Active Task: M92 — Label-Powered Auto Titles
 
-Branch: milestone/m91-memory-pulse
+Branch: milestone/m92-label-powered-titles
 
-## Status: Complete (2026-04-30)
+## Status: ✅ Complete (2026-04-30)
 
 ## Tasks
 
-- [x] T3 — HeroImageRepository: getHeroesWithAnniversaryToday + getHeroesForRank1
-- [x] T1 — MemoryPulseService (checkToday, buildCopy, scheduleNextAnniversaryNotification)
-- [x] T2 — NotificationService: scheduleMemoryPulse, pendingMemoryTripId, getLaunchMemoryTripId
-- [x] T4 — todaysMemoriesProvider + memoriesDismissedProvider + memoryPulseServiceProvider
-- [x] T5 — MemoryPulseCard widget (single + paged, dismiss, view trip)
-- [x] T6 — Map screen: _MemoryPulseSection with slide animation + cold-start handling
+- [x] T1 — TitleRequest + HeroLabelAggregator (title_generation_models.dart)
+- [x] T2 — Label title tables + _labelTitle() in RuleBasedTitleGenerator
+- [x] T3 — Card editor: _fetchHeroLabelsForTrips + pass heroLabels to request

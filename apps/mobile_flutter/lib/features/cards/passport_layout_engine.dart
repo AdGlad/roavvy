@@ -269,14 +269,16 @@ class PassportLayoutEngine {
       final rotation = (rng.nextDouble() * 2 - 1) * (20 * math.pi / 180);
 
       // In print mode use uniform adaptive radius; otherwise ±10% variety.
+      // sizeMultiplier is applied in both modes so the printed card matches
+      // what the user sees on screen.
       final double scale;
       final double baseRadius;
       if (forPrint && forPrintBaseRadius != null) {
-        baseRadius = forPrintBaseRadius;
+        baseRadius = (forPrintBaseRadius * sizeMultiplier).clamp(4.0, 100.0);
         scale = baseRadius / 38.0;
       } else {
         final variety = 0.9 + rng.nextDouble() * 0.2;
-        baseRadius = (dynamicRadius * variety * sizeMultiplier).clamp(4.0, 60.0);
+        baseRadius = (dynamicRadius * variety * sizeMultiplier).clamp(4.0, 100.0);
         scale = baseRadius / 38.0;
       }
 
@@ -299,14 +301,24 @@ class PassportLayoutEngine {
         safeStartY + (cellRow + 0.5) * cellH + jitterY,
       );
 
-      // Stamps render at targetW = baseRadius * 2.1, so they extend
-      // baseRadius * 1.05 from their centre. Use this half-width for clamping
-      // so stamps fit fully inside the portrait boundary.
-      final halfStampW = baseRadius * 1.05;
-      // Clamp to keep stamps inside usable area and clear of safe zones.
+      // Stamps are drawn on an offscreen canvas of baseRadius * 2.8, so they
+      // extend baseRadius * 1.4 from their centre. Use this half-width for
+      // clamping so stamps fit fully inside the portrait boundary.
+      final halfStampW = baseRadius * 1.4;
+      // Guard clamp bounds so lower never exceeds upper on very small canvases
+      // (e.g. the ~95 px scan preview panel). If the stamp is wider than the
+      // available area, place it at the canvas centre rather than throwing.
+      final minCx = marginX + halfStampW;
+      final maxCx = canvasSize.width - marginX - halfStampW;
+      final minCy = safeStartY + halfStampW;
+      final maxCy = canvasSize.height - marginY - halfStampW;
       Offset? centre = Offset(
-        rawCentre.dx.clamp(marginX + halfStampW, canvasSize.width - marginX - halfStampW),
-        rawCentre.dy.clamp(safeStartY + halfStampW, canvasSize.height - marginY - halfStampW),
+        minCx <= maxCx
+            ? rawCentre.dx.clamp(minCx, maxCx)
+            : canvasSize.width / 2,
+        minCy <= maxCy
+            ? rawCentre.dy.clamp(minCy, maxCy)
+            : (safeStartY + canvasSize.height - marginY) / 2,
       );
 
       // If clamped into a safe zone, nudge towards usable centre.
