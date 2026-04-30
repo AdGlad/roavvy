@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "457696483088",
+    "project_id": "roavvy-prod",
+    "storage_bucket": "roavvy-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457696483088:android:d45d35618eab541e833795",
+        "android_client_info": {
+          "package_name": "com.roavvy.prod"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "457696483088-f0ldn85i8m55ln0ahnilngv2v9vqkfuc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1uR4VnLcRjFGkzVtXx8CPn19oaXaZqno"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "457696483088-f0ldn85i8m55ln0ahnilngv2v9vqkfuc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "457696483088-lhks9rku65vtvvc3vbr8mmtu30j0opv4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.roavvy.prod"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

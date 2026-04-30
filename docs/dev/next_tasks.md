@@ -1,116 +1,161 @@
-# M94 — Year in Review
+# M87 — Passport PDF Generation & Mobile Preview
 
-**Branch:** `milestone/m94-year-in-review`
-**Phase:** 19 — Personalisation & Memory
+**Branch:** `milestone/m87-passport-pdf`
+**Phase:** 18 — Passport Stamp Image Quality
 **Status:** In Progress (2026-05-01)
 
 ## Goal
-Full-screen annual travel summary shown in Dec/Jan: hero-image trip timeline, key stats,
-label-driven highlights, shareable mosaic card, New Year push notification.
+
+User can export their passport stamp collection as a multi-page PDF book (cover + stamp pages + summary), preview it page-by-page in-app, and share the PDF file.
 
 ## Scope
-In: year_in_review_service.dart, year_in_review_screen.dart, year_in_review_card.dart,
-    providers.dart (yearInReviewDataProvider), notification_service.dart (scheduleYearInReview),
-    map_screen.dart (_YearInReviewBanner)
-Out: Firestore sync, CardEditorScreen, web, shared_models, Android
+
+In: `passport_pdf_service.dart` (new), `passport_book_screen.dart` (new),
+    `card_editor_screen.dart` (entry point), `pubspec.yaml` (add `pdf` package)
+Out: Blurb/Lulu upload, PDF trim/bleed metadata, background isolate caching,
+     quokka emblem, Android, web, Firestore, new Drift schema
 
 ## Tasks
 
-- [ ] T1 -- YearInReviewService + YearInReviewData
-- [ ] T2 -- yearInReviewDataProvider (Riverpod)
-- [ ] T3 -- YearInReviewCard widget (mosaic card)
-- [ ] T4 -- YearInReviewScreen (full-screen summary + share)
-- [ ] T5 -- _YearInReviewBanner in map_screen.dart
-- [ ] T6 -- NotificationService: scheduleYearInReview (ID 3)
+- [ ] T1 -- PassportPrintConfig + PassportPdfService
+- [ ] T2 -- PassportBookScreen (in-app preview + share)
+- [ ] T3 -- Entry point in card_editor_screen.dart
 
 ---
 
-## T1 -- YearInReviewService + YearInReviewData
-**File:** `lib/features/year_in_review/year_in_review_service.dart`
+## T1 -- PassportPrintConfig + PassportPdfService
 
-YearInReviewData fields: year, List<TripRecord> trips (sorted by startedOn, filtered to year),
-Map<String, HeroImage?> heroByTripId, int countryCount, tripCount, totalPhotos,
-String? topScene, topMood, topActivity, topCountry.
+**File:** `lib/features/cards/passport_pdf_service.dart`
+**pubspec:** add `pdf: ^3.10.8`
 
-YearInReviewService.getDataForYear(int year) -> Future<YearInReviewData?>
-- Null if no trips. Pure. trips sorted asc by startedOn.
-- topScene = most frequent non-null primaryScene across heroes.
+### PassportPrintConfig
 
-AC: null for empty year; trips sorted; aggregates correct.
+Const class with A6 at 300 DPI:
+- `pageWidthPx = 1240` (4.133 in × 300)
+- `pageHeightPx = 1748` (5.827 in × 300)
+- `stampsPerPage = 8`
+- `coverBackground = Color(0xFF0A1628)` (deep navy)
+- `stampPageBackground = Color(0xFFF5F0E8)` (aged cream)
 
----
+### PassportPdfPageType enum
 
-## T2 -- yearInReviewDataProvider
-**File:** `lib/core/providers.dart`
+`cover | stamps | summary`
 
-FutureProvider.family<YearInReviewData?, int> using tripRepositoryProvider + heroImageRepositoryProvider.
+### PassportPdfPage
 
-AC: Follows existing FutureProvider.family pattern.
+Value class:
+- `type`: PassportPdfPageType
+- `stamps`: List<StampData> (empty for cover/summary)
+- `tripSummary`: List<TripRecord> (for summary page only)
+- `countryCodes`: List<String> (for summary page only)
 
----
+### PassportPdfService
 
-## T3 -- YearInReviewCard widget
-**File:** `lib/features/year_in_review/year_in_review_card.dart`
+Three static methods:
 
-AspectRatio 9:16, dark bg (0xFF0D1117).
-- Top: gold year + "Your Year in Travel" subtitle
-- Middle: 3x3 hero thumbnail grid (up to 9); blank = flag emoji tile
-- Bottom: "N countries . N trips . N photos" amber stats
-- Highlight chip if topScene present; "made with Roavvy" branding
+**`buildPages(List<TripRecord> trips, List<String> countryCodes) -> List<PassportPdfPage>`**
+- Always: cover page first
+- Lay out ALL stamps using `PassportLayoutEngine.layout(forPrint:true, canvasSize: Size(pageWidthPx, pageHeightPx))`
+- Partition result into groups of `stampsPerPage`; each group → one stamps page
+- Always: summary page last (uses trips + countryCodes)
+- Minimum 1 stamps page even if trips empty (empty stamps list = blank page with cream bg)
 
-_YearInReviewCardLoader StatefulWidget loads thumbs via ThumbnailChannel, passes
-Map<String, Uint8List?> thumbs to YearInReviewCard.
+**`renderPage(PassportPdfPage page) -> Future<Uint8List>` (PNG bytes)**
+Cover page:
+  - Navy bg rectangle
+  - "ROAVVY" centered: white, 96px, w800, letterSpacing 8
+  - "PASSPORT" below: gold (0xFFD4A017), 42px, w400, letterSpacing 12
+  - Thin gold horizontal rule (3px, 60% width) between title lines
+  - Year range at bottom (e.g. "2018 – 2025"): white54, 32px — empty if no trips
 
-YearInReviewCard({required YearInReviewData data, required Map<String, Uint8List?> thumbs})
+Stamps page (index >= 1, not last):
+  - Aged cream bg
+  - Draw all stamps using `StampPainter(stamp).paint(canvas, pageSize)`
 
-AC: Renders with all-null heroes (flag fallback); AspectRatio enforced.
+Summary page (last):
+  - Navy bg
+  - "YOUR TRAVELS" header: gold, 56px, w700, letterSpacing 4
+  - Sorted country list: 2-column wrap, each row = flag emoji + country name in white
+  - Footer: date range + count e.g. "42 countries · 2015–2025": gold
 
----
+**`generate(List<TripRecord> trips, List<String> countryCodes) -> Future<Uint8List>`**
+1. `buildPages()` → list of PassportPdfPage
+2. For each page: `await renderPage(page)` → PNG Uint8List (serial, avoids OOM on 10+ pages)
+3. Assemble PDF using `pdf` package:
+   - `pw.Document()`, one `pw.Page` per rendered PNG
+   - Page format: `PdfPageFormat(pageWidthPx * 72 / 300, pageHeightPx * 72 / 300)` (pt units)
+   - Page build: `pw.Image(pw.MemoryImage(pngBytes), fit: pw.BoxFit.fill)`
+4. Return `await doc.save()`
 
-## T4 -- YearInReviewScreen
-**File:** `lib/features/year_in_review/year_in_review_screen.dart`
-
-Full-screen ConsumerStatefulWidget, CustomScrollView:
-1. Header: year badge + counts
-2. Highlights row: emoji chips (topScene/mood/activity), hidden if no labels
-3. Trip timeline: _TripTile (HeroImageView thumb, country name, date range, photo count)
-4. "Share Card" amber button
-
-Share: RepaintBoundary GlobalKey on Offstage _YearInReviewCardLoader.
-boundary.toImage(pixelRatio:3) -> PNG -> Share.shareXFiles. Button disabled until thumbs loaded.
-
-YearInReviewScreen({required int year})
-
-AC: Empty state when data null; share invokes system sheet; no upload.
-
----
-
-## T5 -- _YearInReviewBanner in map_screen.dart
-**File:** `lib/features/map/map_screen.dart`
-
-ConsumerStatefulWidget in bottom Column after _ScanNudgeBanner.
-- Dec: reviewYear = currentYear; Jan: reviewYear = currentYear - 1
-- Shown when month in {12,1} AND data non-null AND not dismissed
-- Dismissed via SharedPreferences `yirDismissed:{year}`
-- Taps -> YearInReviewScreen(year: reviewYear)
-- Listens to pendingYearInReviewYear; auto-opens on match
-- Schedules notification once per year (guarded by `yirScheduled:{nextYear}`)
-
-AC: Not shown outside Dec/Jan; not shown when no data; dismissal persists.
+AC:
+- 1 trip → cover + 1 stamp page + summary = 3 pages
+- 9 stamps → cover + 2 stamp pages + summary = 4 pages
+- 0 trips → cover + 1 blank stamp page + summary = 3 pages
+- PDF bytes non-empty; page count correct.
 
 ---
 
-## T6 -- NotificationService: scheduleYearInReview
-**File:** `lib/core/notification_service.dart`
+## T2 -- PassportBookScreen
 
-1. const int _kYearInReviewNotificationId = 3
-2. final ValueNotifier<int?> pendingYearInReviewYear = ValueNotifier(null)
-3. _onTap: `yearInReview:` payload -> pendingYearInReviewYear.value = int
-4. Future<int?> getLaunchYearInReviewYear() cold-start routing
-5. Future<void> scheduleYearInReview({required int forYear}):
-   - Cancel ID 3, schedule Jan 1 forYear 9:00 AM UTC
-   - Title: "Your ${forYear-1} in Travel is ready"
-   - Body: "See every country, trip, and highlight from last year."
-   - Payload: `yearInReview:{forYear-1}`
+**File:** `lib/features/cards/passport_book_screen.dart`
 
-AC: ID 3 no conflict; no-op when !_initialized; cold-start routing works.
+`PassportBookScreen({required List<TripRecord> trips, required List<String> countryCodes})`
+`ConsumerStatefulWidget` (needs tripRepositoryProvider for countries if needed, but receives data directly)
+
+Actually: plain `StatefulWidget` — data passed in at construction.
+
+**State:**
+- `_state`: `_BookState.loading | ready | error`
+- `_pages`: `List<Uint8List>` rendered PNG pages (same list used in preview)
+- `_pdfBytes`: `Uint8List?` raw PDF bytes
+- `_currentPage`: int (0-indexed)
+- `_sharing`: bool
+
+**initState:** call `_generate()` async
+
+**`_generate()`:**
+1. Call `PassportPdfService.generate()` → `_pdfBytes`
+2. Call `PassportPdfService.buildPages()` then `renderPage()` for each → `_pages`
+   Wait — to avoid double rendering, have `generate()` also return the rendered pages.
+   Change `generate()` to return `PassportPdfResult({Uint8List pdfBytes, List<Uint8List> pages})`
+   so we render once and get both.
+
+**`_share()`:**
+1. Write `_pdfBytes` to `getTemporaryDirectory()/roavvy_passport.pdf`
+2. `Share.shareXFiles([XFile(path)], subject: 'My Passport Book — Roavvy')`
+
+**Layout (Scaffold, dark bg 0xFF0A1628):**
+- AppBar: title "Passport Book", dark bg, white
+- Loading state: `CircularProgressIndicator.adaptive()` + "Generating your passport…" label
+- Error state: text + retry button
+- Ready state:
+  - `PageView.builder(controller, itemCount: _pages.length, itemBuilder: → Image.memory(pages[i], fit:BoxFit.contain))`
+  - Bottom bar (surface color, safe area):
+    - Page indicator dots (max 7 shown with truncation, gold for current)
+    - "Share PDF" amber FilledButton (disabled while _sharing)
+
+AC: Loading shown during generation; pages swiped horizontally; share opens system sheet; error state shown on failure.
+
+---
+
+## T3 -- Entry point in card_editor_screen.dart
+
+**File:** `lib/features/cards/card_editor_screen.dart`
+
+In the passport template's bottom action bar (near the existing Share + Print buttons), add:
+- "Book" `OutlinedButton.icon` with a book icon
+- Only visible when `_template == CardTemplateType.passport`
+- `onPressed`: read `_trips` and `_countryCodes` from existing state, push `PassportBookScreen`
+
+AC: Button visible on passport template only; tapping navigates to PassportBookScreen with correct data.
+
+---
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| `pdf` package coordinate system (points not pixels) | Convert px → pt: pt = px * 72 / 300 |
+| `StampPainter.paint` requires a live `Canvas` + `Size` | Use `ui.PictureRecorder` directly; StampPainter.paint is a pure Canvas call |
+| OOM on many stamps pages | Serial rendering (one page at a time); free images after PNG encode |
+| `pdf` package not in pubspec | Add `pdf: ^3.10.8` to dependencies |

@@ -1,14 +1,11 @@
-# Active Task: M94 -- Year in Review
+# Active Task: M87 -- Passport PDF Generation & Mobile Preview
 
-Branch: milestone/m94-year-in-review
+Branch: milestone/m87-passport-pdf
 
-## Status: ✅ Complete (2026-05-01)
+## Status: Complete (2026-05-01)
 
 ## Tasks
 
-- [x] T1 -- YearInReviewService + YearInReviewData
-- [x] T2 -- yearInReviewDataProvider (Riverpod)
-- [x] T3 -- YearInReviewCard widget (mosaic card)
-- [x] T4 -- YearInReviewScreen (full-screen summary + share)
-- [x] T5 -- _YearInReviewBanner in map_screen.dart
-- [x] T6 -- NotificationService: scheduleYearInReview (ID 3)
+- [x] T1 -- PassportPrintConfig + PassportPdfService (passport_pdf_service.dart + pubspec)
+- [x] T2 -- PassportBookScreen (passport_book_screen.dart)
+- [x] T3 -- Entry point in card_editor_screen.dart

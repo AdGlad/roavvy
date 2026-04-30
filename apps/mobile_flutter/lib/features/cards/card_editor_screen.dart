@@ -18,6 +18,7 @@ import '../merch/local_mockup_preview_screen.dart';
 import '../scan/hero_providers.dart';
 import '../shared/thumbnail_channel.dart';
 import 'card_background_picker.dart';
+import 'passport_book_screen.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
 import 'front_ribbon_card.dart';
@@ -406,6 +407,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                         context, effectiveCodes, effectiveTrips, dateLabel),
                     onPrint: () => _onPrint(context, effectiveCodes, allCodes,
                         effectiveTrips, effectiveRange, showDateSlider),
+                    onBook: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PassportBookScreen(
+                          trips: effectiveTrips,
+                          countryCodes: effectiveCodes,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1405,6 +1414,7 @@ class _PassportBottomBar extends StatelessWidget {
     required this.bottomPadding,
     required this.onShare,
     required this.onPrint,
+    required this.onBook,
   });
 
   final bool sharing;
@@ -1412,6 +1422,7 @@ class _PassportBottomBar extends StatelessWidget {
   final double bottomPadding;
   final VoidCallback onShare;
   final VoidCallback onPrint;
+  final VoidCallback onBook;
 
   @override
   Widget build(BuildContext context) {
@@ -1437,7 +1448,7 @@ class _PassportBottomBar extends StatelessWidget {
                   label: const Text('Share'),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: (sharing || printing) ? null : onPrint,
@@ -1450,6 +1461,14 @@ class _PassportBottomBar extends StatelessWidget {
                         )
                       : const Icon(Icons.print_outlined, size: 16),
                   label: const Text('Print'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (sharing || printing) ? null : onBook,
+                  icon: const Icon(Icons.menu_book_outlined, size: 16),
+                  label: const Text('Book'),
                 ),
               ),
             ],

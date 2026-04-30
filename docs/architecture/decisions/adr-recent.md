@@ -1,4 +1,36 @@
-<!-- Recent ADRs (ADR-100 to ADR-134). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-140). Load when introducing new patterns. -->
+
+## ADR-140 — M87 Passport PDF: Raster-Embed Strategy, Page Model, and Preview Architecture
+
+**Status:** Accepted
+
+**Context:**
+M87 generates a multi-page "Passport Book" PDF from the user's stamp collection. The existing rendering pipeline (`StampPainter` + `PassportLayoutEngine`) produces stamps via Flutter `Canvas` / `ui.PictureRecorder`. A PDF generation approach must reuse this pipeline without duplicating drawing logic, fit entirely on-device, and produce a file shareable via iOS share sheet.
+
+**Decisions:**
+
+1. **Raster-embed strategy**: Each PDF page is rendered to a PNG `Uint8List` using `ui.PictureRecorder` + `StampPainter`, then embedded as a full-bleed raster image in the PDF via the `pdf` package (`pw.MemoryImage`). This reuses all existing stamp drawing logic unchanged and avoids reimplementing it in the `pdf` package's coordinate system.
+
+2. **`pdf` package (pure Dart)**: Added as a direct dependency of `mobile_flutter` only. No native code. No Firestore writes. Package boundary is `apps/mobile_flutter/pubspec.yaml` — no changes to `packages/`.
+
+3. **Page coordinate conversion**: PDF uses points (1/72 inch). A6 at 300 DPI = 1240 × 1748 px. Conversion: `pt = px * 72 / 300`. Cover and stamp pages are rendered at pixel dimensions; the PDF page format uses point equivalents.
+
+4. **`PassportPdfResult`**: `generate()` returns a single result object containing both `pdfBytes: Uint8List` and `pages: List<Uint8List>` (per-page PNGs). This avoids double-rendering — the same PNG images are used for both PDF assembly and the in-app `PageView` preview.
+
+5. **Serial page rendering**: Pages are rendered one at a time (`await renderPage()` in a loop) rather than in parallel with `Future.wait`. This bounds peak memory — a 10-page passport at 1240×1748 would consume ~210 MB of image buffers if all were decoded simultaneously. Serial rendering keeps memory closer to ~25 MB per page.
+
+6. **`PassportBookScreen` receives data directly**: Data is passed as constructor parameters (`List<TripRecord> trips, List<String> countryCodes`) — no Riverpod watch inside the screen. The provider read happens in `card_editor_screen.dart` before navigation, consistent with how `CardImageRenderer` and `LocalMockupPreviewScreen` receive their data.
+
+7. **No PDF viewer library**: The in-app preview shows the pre-rendered PNG page images in a `PageView`. No additional PDF viewer dependency needed. The raw PDF file is only accessed at share time.
+
+8. **No caching**: PDFs are generated fresh on each `PassportBookScreen` open and written to `getTemporaryDirectory()`. Caching (keyed by stamp hash) is deferred.
+
+**Consequences:**
+- `pdf: ^3.10.8` added to `apps/mobile_flutter/pubspec.yaml`.
+- No changes to `packages/`, `shared_models`, or any existing repository or service.
+- No Drift schema change.
+- `PassportLayoutEngine.layout(forPrint: true)` is reused per-page with A6 pixel dimensions.
+- `card_editor_screen.dart` gains a "Book" action button (passport template only).
 
 ## ADR-134 — M89 On-Device Hero Image Detection Pipeline
 
