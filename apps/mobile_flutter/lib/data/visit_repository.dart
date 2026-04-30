@@ -277,6 +277,9 @@ class VisitRepository {
       await _db.delete(_db.photoDateRecords).go();
       await _db.delete(_db.trips).go();
       await _db.delete(_db.regionVisits).go();
+      // Hero images are part of the travel record — clear them so a fresh
+      // rescan triggers re-analysis with current scoring logic.
+      await _db.delete(_db.heroImages).go();
     });
   }
 
