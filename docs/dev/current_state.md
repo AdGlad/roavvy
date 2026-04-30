@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M93, 2026-05-01)
+# Roavvy — Current State (updated M94, 2026-05-01)
 
 ## What is built
 
@@ -33,7 +33,7 @@
 - M91: Memory Pulse ✅ Complete (2026-04-30)
 - M92: ✅ Complete (2026-04-30) — label-powered auto titles
 - M93: ✅ Complete (2026-05-01) — photo background compositing for passport + grid cards
-- M94: Year in Review (depends on M89+M90)
+- M94: ✅ Complete (2026-05-01) — Year in Review screen, mosaic card, Dec/Jan banner, New Year notification
 - Social / friends features
 - iPad layout (iPhone-only target)
 - Sound effects (separate milestone)
@@ -60,6 +60,7 @@
 | Memory pulse card | `lib/features/memory/memory_pulse_card.dart` |
 | Thumbnail channel | `lib/features/shared/thumbnail_channel.dart` |
 | Card background picker | `lib/features/cards/card_background_picker.dart` |
+| Year in Review | `lib/features/year_in_review/` |
 | Thumbnail plugin (iOS) | `ios/Runner/ThumbnailPlugin.swift` |
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |
 | Country lookup | `packages/country_lookup/lib/` |
