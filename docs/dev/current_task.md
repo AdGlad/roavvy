@@ -1,11 +1,14 @@
-# Active Task: M92 — Label-Powered Auto Titles
+# Active Task: M93 — Hero Image Share Card Background
 
-Branch: milestone/m92-label-powered-titles
+Branch: milestone/m93-hero-share-card-background
 
 ## Status: ✅ Complete (2026-04-30)
 
 ## Tasks
 
-- [x] T1 — TitleRequest + HeroLabelAggregator (title_generation_models.dart)
-- [x] T2 — Label title tables + _labelTitle() in RuleBasedTitleGenerator
-- [x] T3 — Card editor: _fetchHeroLabelsForTrips + pass heroLabels to request
+- [x] T1 — getFullResolutionImage in ThumbnailChannel
+- [x] T2 — CardBackgroundPicker widget
+- [x] T3 — Background layer in PassportStampsCard
+- [x] T4 — Background layer in GridFlagsCard
+- [x] T5 — CardImageRenderer background support
+- [x] T6 — Card editor background controls + state

@@ -16,6 +16,8 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
 import '../scan/hero_providers.dart';
+import '../shared/thumbnail_channel.dart';
+import 'card_background_picker.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
 import 'front_ribbon_card.dart';
@@ -42,6 +44,7 @@ class _CardParams {
     this.stampLayoutSeed,
     this.stampSizeMultiplier = 1.0,
     this.stampJitterFactor = 0.4,
+    this.backgroundAssetId,
   });
 
   final CardTemplateType templateType;
@@ -55,6 +58,7 @@ class _CardParams {
   final int? stampLayoutSeed;
   final double stampSizeMultiplier;
   final double stampJitterFactor;
+  final String? backgroundAssetId;
 
   @override
   bool operator ==(Object other) {
@@ -69,7 +73,8 @@ class _CardParams {
         titleOverride == other.titleOverride &&
         stampLayoutSeed == other.stampLayoutSeed &&
         stampSizeMultiplier == other.stampSizeMultiplier &&
-        stampJitterFactor == other.stampJitterFactor;
+        stampJitterFactor == other.stampJitterFactor &&
+        backgroundAssetId == other.backgroundAssetId;
   }
 
   @override
@@ -85,6 +90,7 @@ class _CardParams {
         stampLayoutSeed,
         stampSizeMultiplier,
         stampJitterFactor,
+        backgroundAssetId,
       );
 }
 
@@ -123,6 +129,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   bool _autoGenerateFired = false;
   bool _sharing = false;
   bool _printing = false;
+
+  // Photo background (M93, ADR-138) — transient, not persisted.
+  String? _backgroundAssetId;
+  Uint8List? _backgroundImageBytes;
 
   // Render cache (ADR-103)
   _CardParams? _lastConfirmedParams;
@@ -343,6 +353,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                       onCountryToggle: onCountryToggle,
                       onDismiss: () =>
                           setState(() => _showPassportControls = false),
+                      backgroundAssetId: _backgroundAssetId,
+                      backgroundImageBytes: _backgroundImageBytes,
+                      onBackgroundTap: () =>
+                          _openBackgroundPicker(context, effectiveTrips),
                     ),
                   ),
                 // Floating show-controls button when overlay is dismissed
@@ -465,6 +479,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   onToggle: onCountryToggle,
                 ),
               ],
+              // ── Photo background (grid only) ─────────────────────────
+              if (widget.templateType == CardTemplateType.grid) ...[
+                const SizedBox(height: 4),
+                _BackgroundPickerRow(
+                  assetId: _backgroundAssetId,
+                  thumbBytes: _backgroundImageBytes,
+                  onTap: () =>
+                      _openBackgroundPicker(context, effectiveTrips),
+                ),
+              ],
               const SizedBox(height: 8),
               // ── Card preview ─────────────────────────────────────────
               Expanded(
@@ -531,6 +555,52 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     return labels.isEmpty ? null : labels;
   }
 
+  Future<void> _setBackgroundAsset(String? assetId) async {
+    if (assetId == null) {
+      setState(() {
+        _backgroundAssetId = null;
+        _backgroundImageBytes = null;
+      });
+      return;
+    }
+    setState(() => _backgroundAssetId = assetId);
+    final bytes = await const ThumbnailChannel().getThumbnail(assetId, size: 1024);
+    if (mounted && _backgroundAssetId == assetId) {
+      setState(() => _backgroundImageBytes = bytes);
+    }
+  }
+
+  Future<void> _openBackgroundPicker(
+    BuildContext context,
+    List<TripRecord> trips,
+  ) async {
+    final heroImages = <HeroImage>[];
+    for (final trip in trips) {
+      final hero = ref.read(heroForTripProvider(trip.id)).valueOrNull;
+      if (hero != null) heroImages.add(hero);
+    }
+
+    final selected = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useRootNavigator: true,
+      builder: (_) => CardBackgroundPicker(
+        heroImages: heroImages,
+        currentAssetId: _backgroundAssetId,
+      ),
+    );
+
+    // null → sheet dismissed without selection (tapped outside) — no change.
+    // '__none__' sentinel → user explicitly chose "No background".
+    // assetId string → user picked a photo.
+    if (selected == CardBackgroundPicker.noBackground) {
+      unawaited(_setBackgroundAsset(null));
+    } else if (selected != null && selected != _backgroundAssetId) {
+      unawaited(_setBackgroundAsset(selected));
+    }
+  }
+
   Future<void> _generateTitle(
     List<String> codes,
     List<TripRecord> trips,
@@ -576,7 +646,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     List<TripRecord> filteredTrips,
     String dateLabel,
   ) {
-    final template = _buildTemplate(displayedCodes, filteredTrips, dateLabel);
+    final template = _buildTemplate(
+        displayedCodes, filteredTrips, dateLabel, _backgroundImageBytes);
     final boundary = RepaintBoundary(key: _previewKey, child: template);
     // Timeline is transparent — wrap with white so text is readable on-screen.
     // The RepaintBoundary is inside, so share/export PNGs remain transparent.
@@ -590,6 +661,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     List<String> codes,
     List<TripRecord> trips,
     String dateLabel,
+    Uint8List? backgroundImageBytes,
   ) {
     switch (widget.templateType) {
       case CardTemplateType.grid:
@@ -601,6 +673,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
+          backgroundImageBytes: backgroundImageBytes,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -626,6 +699,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           seed: _stampLayoutSeed,
           sizeMultiplier: _stampSizeMultiplier,
           jitterFactor: _stampJitterFactor,
+          backgroundImageBytes: backgroundImageBytes,
         );
       case CardTemplateType.timeline:
         return TimelineCard(
@@ -748,6 +822,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       stampLayoutSeed: _stampLayoutSeed,
       stampSizeMultiplier: _stampSizeMultiplier,
       stampJitterFactor: _stampJitterFactor,
+      backgroundAssetId: _backgroundAssetId,
     );
 
     // Same params → skip re-render (ADR-103).
@@ -782,6 +857,12 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
             ? HeartLayoutEngine.sortCodes(codes, _order, trips,
                 shuffleSeed: _gridShuffleSeed)
             : codes;
+        // Fetch full-resolution background bytes for print quality (M93).
+        Uint8List? printBgBytes;
+        if (_backgroundAssetId != null) {
+          printBgBytes = await const ThumbnailChannel()
+              .getFullResolutionImage(_backgroundAssetId!);
+        }
         final result = await CardImageRenderer.render(
           context,
           widget.templateType,
@@ -799,6 +880,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           stampSeed: _stampLayoutSeed,
           stampSizeMultiplier: _stampSizeMultiplier,
           stampJitterFactor: _stampJitterFactor,
+          backgroundImageBytes: printBgBytes,
         );
         capturedBytes = result.bytes;
       }
@@ -1138,6 +1220,9 @@ class _PassportTopOverlay extends StatelessWidget {
     required this.deselectedCodes,
     required this.onCountryToggle,
     required this.onDismiss,
+    required this.backgroundAssetId,
+    required this.backgroundImageBytes,
+    required this.onBackgroundTap,
   });
 
   final TextEditingController titleController;
@@ -1163,6 +1248,9 @@ class _PassportTopOverlay extends StatelessWidget {
   final Set<String> deselectedCodes;
   final ValueChanged<String> onCountryToggle;
   final VoidCallback onDismiss;
+  final String? backgroundAssetId;
+  final Uint8List? backgroundImageBytes;
+  final VoidCallback onBackgroundTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1269,6 +1357,12 @@ class _PassportTopOverlay extends StatelessWidget {
                 stampJitterFactor: stampJitterFactor,
                 onSizeChanged: onSizeChanged,
                 onJitterChanged: onJitterChanged,
+              ),
+              // ── Photo background picker row (M93) ────────────────────
+              _BackgroundPickerRow(
+                assetId: backgroundAssetId,
+                thumbBytes: backgroundImageBytes,
+                onTap: onBackgroundTap,
               ),
               // ── Year slider (conditional) ────────────────────────────
               if (showDateSlider &&
@@ -1612,6 +1706,90 @@ class _ActionBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Background picker row (M93) ───────────────────────────────────────────────
+
+/// Compact row showing the current background state and a tap target to open
+/// [CardBackgroundPicker]. Shown in both passport and non-passport editors.
+class _BackgroundPickerRow extends StatelessWidget {
+  const _BackgroundPickerRow({
+    required this.assetId,
+    required this.thumbBytes,
+    required this.onTap,
+  });
+
+  final String? assetId;
+  final Uint8List? thumbBytes;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const amber = Color(0xFFD4A017);
+    final hasBackground = assetId != null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: hasBackground ? amber : Colors.white24,
+              width: hasBackground ? 1.5 : 1.0,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            color: hasBackground
+                ? amber.withValues(alpha: 0.08)
+                : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                hasBackground ? Icons.image_rounded : Icons.image_outlined,
+                size: 14,
+                color: hasBackground ? amber : Colors.white38,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Photo background',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: hasBackground ? Colors.white70 : Colors.white38,
+                  fontWeight: hasBackground
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                ),
+              ),
+              const Spacer(),
+              if (hasBackground && thumbBytes != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.memory(
+                    thumbBytes!,
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              else if (hasBackground)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+                )
+              else
+                Text(
+                  'Add →',
+                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
