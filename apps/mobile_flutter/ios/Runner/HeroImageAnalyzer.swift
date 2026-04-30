@@ -19,8 +19,10 @@ final class HeroImageAnalyzer {
     /// [tripId] is echoed into each result so Dart can correlate results
     /// back to the originating trip.
     ///
-    /// Assets that are iCloud-only, deleted, or unavailable are silently
-    /// skipped — the returned array may be shorter than [assetIds].
+    /// Local (on-device) assets are analysed first. iCloud-only assets are
+    /// only fetched and analysed if the local results are fewer than the
+    /// number of requested assetIds — i.e. local photos always take priority
+    /// as hero candidates (ADR-134 extended).
     ///
     /// Must NOT be called on the main thread.
     func analyse(
@@ -39,23 +41,73 @@ final class HeroImageAnalyzer {
                 options: nil
             )
 
-            var results: [[String: Any]] = []
-            let group = DispatchGroup()
-
+            var allAssets: [PHAsset] = []
             fetchResult.enumerateObjects { asset, _, _ in
-                group.enter()
-                self.analyseAsset(asset, tripId: tripId) { result in
-                    if let r = result {
-                        results.append(r)
-                    }
-                    group.leave()
+                allAssets.append(asset)
+            }
+
+            // Partition into local and iCloud-only groups.
+            let (localAssets, iCloudAssets) = self.partitionByAvailability(allAssets)
+
+            // Analyse local assets first — no network required.
+            var results: [[String: Any]] = []
+            let localGroup = DispatchGroup()
+
+            for asset in localAssets {
+                localGroup.enter()
+                self.analyseAsset(asset, tripId: tripId, allowNetwork: false) { result in
+                    if let r = result { results.append(r) }
+                    localGroup.leave()
                 }
             }
+            localGroup.wait()
 
-            group.notify(queue: .global(qos: .utility)) {
-                completion(results)
+            // Fall back to iCloud assets only if we still need more candidates.
+            let needed = assetIds.count - results.count
+            if needed > 0 && !iCloudAssets.isEmpty {
+                let iCloudGroup = DispatchGroup()
+                for asset in iCloudAssets.prefix(needed) {
+                    iCloudGroup.enter()
+                    self.analyseAsset(asset, tripId: tripId, allowNetwork: true) { result in
+                        if let r = result { results.append(r) }
+                        iCloudGroup.leave()
+                    }
+                }
+                iCloudGroup.wait()
             }
+
+            completion(results)
         }
+    }
+
+    // MARK: - Local availability check
+
+    /// Returns assets split into (local, iCloud-only) by probing each with a
+    /// 1×1 synchronous fetch. A nil result with isNetworkAccessAllowed=false
+    /// means the asset is not cached on-device.
+    private func partitionByAvailability(_ assets: [PHAsset]) -> (local: [PHAsset], iCloud: [PHAsset]) {
+        var local: [PHAsset] = []
+        var iCloud: [PHAsset] = []
+
+        let options = PHImageRequestOptions()
+        options.isSynchronous = true
+        options.isNetworkAccessAllowed = false
+        options.deliveryMode = .fastFormat
+
+        for asset in assets {
+            var isLocal = false
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: 1, height: 1),
+                contentMode: .aspectFill,
+                options: options
+            ) { image, _ in
+                isLocal = (image != nil)
+            }
+            if isLocal { local.append(asset) } else { iCloud.append(asset) }
+        }
+
+        return (local, iCloud)
     }
 
     /// Returns the subset of [assetIds] that still exist in the photo library.
@@ -76,11 +128,12 @@ final class HeroImageAnalyzer {
     private func analyseAsset(
         _ asset: PHAsset,
         tripId: String,
+        allowNetwork: Bool,
         completion: @escaping ([String: Any]?) -> Void
     ) {
         let options = PHImageRequestOptions()
-        options.deliveryMode = PHImageRequestOptionsDeliveryMode.fastFormat
-        options.isNetworkAccessAllowed = false   // ADR-002: no iCloud fetch
+        options.deliveryMode = allowNetwork ? .highQualityFormat : .fastFormat
+        options.isNetworkAccessAllowed = allowNetwork
         options.isSynchronous = false
         options.resizeMode = PHImageRequestOptionsResizeMode.fast
 
