@@ -1287,3 +1287,31 @@ M91 surfaces travel anniversaries as in-app memory cards and optional local push
 - No new package dependencies: SharedPreferences already present; `flutter_local_notifications` + `timezone` already present.
 - Dismissal is not persisted across calendar days (same key includes the date); stale keys accumulate in SharedPreferences but are harmless and small (< 1 KB total).
 - `MapScreen` stays a `ConsumerWidget`; existing tests are unaffected.
+
+---
+
+## ADR-137 — M92 Hero Label Injection into Title Generator
+
+**Status:** Accepted
+
+**Context:**
+M92 enriches the existing rule-based title generator with hero image labels (scene, mood, activity) from the M89 pipeline. Labels are stored per-trip in the `hero_images` table and exposed via `heroForTripProvider`. The title generator must remain stable when no label data is available (first launch, un-analysed trips) and must not require network calls or AI changes.
+
+**Decisions:**
+
+1. **`heroLabels: List<HeroLabels>?` added to `TitleGenerationRequest`**: Optional field; `null` or empty list causes the generator to fall through to existing geography logic. No breaking change to existing callers or AI plugin.
+
+2. **Priority chain in `RuleBasedTitleGenerator._compute()`**: Label lookup (scene+mood combo → scene+activity combo → scene solo → mood solo) runs before single-country name and sub-region cluster checks. When label lookup matches, the result is returned immediately. All label title tables (`_kSceneMoodTitles`, `_kSceneActivityTitles`, `_kSceneTitles`, `_kMoodTitles`) are hardcoded constants — no dynamic data or network.
+
+3. **`HeroLabelAggregator.aggregate()`**: Multi-trip aggregation uses confidence-weighted frequency to select the dominant `primaryScene`, `mood`, and `activity`. Confidence weight = `confidence + 1.0` so even unconfident labels contribute. Returns `null` when all inputs are empty.
+
+4. **Card editor reads from Riverpod cache only**: `_fetchHeroLabelsForTrips` calls `ref.read(heroForTripProvider(trip.id))` — a synchronous cache read, no new subscriptions. If the stream hasn't emitted yet, `valueOrNull` returns `null` and the generator falls back to geography titles. This keeps `_generateTitle` non-blocking and avoids redundant DB reads.
+
+5. **AI title plugin unchanged**: `IosOnDeviceTitleGenerator` passes through to `RuleBasedTitleGenerator` on failure; label enrichment automatically applies on that fallback path without touching Swift code.
+
+**Consequences:**
+
+- Title quality improves for analysed trips immediately after the first hero scan completes.
+- No new package dependencies.
+- `TitleGenerationRequest` has one new optional field; all existing callers compile unchanged.
+- Label title tables are O(1) lookup; no performance impact.

@@ -15,6 +15,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
+import '../scan/hero_providers.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
 import 'front_ribbon_card.dart';
@@ -38,6 +39,9 @@ class _CardParams {
     this.yearStart,
     this.yearEnd,
     this.titleOverride,
+    this.stampLayoutSeed,
+    this.stampSizeMultiplier = 1.0,
+    this.stampJitterFactor = 0.4,
   });
 
   final CardTemplateType templateType;
@@ -48,6 +52,9 @@ class _CardParams {
   final int? yearStart;
   final int? yearEnd;
   final String? titleOverride;
+  final int? stampLayoutSeed;
+  final double stampSizeMultiplier;
+  final double stampJitterFactor;
 
   @override
   bool operator ==(Object other) {
@@ -59,7 +66,10 @@ class _CardParams {
         order == other.order &&
         yearStart == other.yearStart &&
         yearEnd == other.yearEnd &&
-        titleOverride == other.titleOverride;
+        titleOverride == other.titleOverride &&
+        stampLayoutSeed == other.stampLayoutSeed &&
+        stampSizeMultiplier == other.stampSizeMultiplier &&
+        stampJitterFactor == other.stampJitterFactor;
   }
 
   @override
@@ -72,6 +82,9 @@ class _CardParams {
         yearStart,
         yearEnd,
         titleOverride,
+        stampLayoutSeed,
+        stampSizeMultiplier,
+        stampJitterFactor,
       );
 }
 
@@ -98,6 +111,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   bool _entryOnly = false;
   bool _portrait = true;
   int? _stampLayoutSeed; // null = deterministic hash default (passport only)
+  double _stampSizeMultiplier = 1.0;
+  double _stampJitterFactor = 0.4;
+  bool _showPassportControls = true;
   RangeValues? _yearSelection;
   /// Country codes manually deselected by the user. Cleared when year range changes.
   Set<String> _manuallyDeselectedCodes = {};
@@ -236,38 +252,180 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
             });
           }
 
+          // ── Shared callbacks used by both layout paths ─────────────
+          void onCountryToggle(String code) {
+            setState(() {
+              if (_manuallyDeselectedCodes.contains(code)) {
+                _manuallyDeselectedCodes =
+                    {..._manuallyDeselectedCodes}..remove(code);
+              } else if (effectiveCodes.length > 1) {
+                _manuallyDeselectedCodes = {
+                  ..._manuallyDeselectedCodes,
+                  code
+                };
+              }
+            });
+            _generateTitle(
+              displayedCodes
+                  .where((c) => !_manuallyDeselectedCodes.contains(c))
+                  .toList(),
+              filteredTrips
+                  .where(
+                      (t) => !_manuallyDeselectedCodes.contains(t.countryCode))
+                  .toList(),
+              effectiveRange,
+            );
+          }
+
+          // ── PASSPORT: full-screen card + floating overlays ─────────────
+          if (widget.templateType == CardTemplateType.passport) {
+            return Stack(
+              children: [
+                // Card fills entire body
+                Positioned.fill(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: InteractiveViewer(
+                        transformationController: _transformController,
+                        minScale: 1.0,
+                        maxScale: 6.0,
+                        child: _buildCardPreview(
+                          effectiveCodes,
+                          effectiveTrips,
+                          dateLabel,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Top: compact frosted controls (dismissible)
+                if (_showPassportControls)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _PassportTopOverlay(
+                      titleController: _titleController,
+                      titleOverride: _titleOverride,
+                      defaultTitle: defaultTitle,
+                      isTitleGenerating: _isTitleGenerating,
+                      onTitleChanged: (v) => setState(
+                          () => _titleOverride = v.isEmpty ? null : v),
+                      onTitleCleared: () {
+                        setState(() => _titleOverride = null);
+                        _titleController.clear();
+                      },
+                      onGenerateTitle: () => _generateTitle(
+                          effectiveCodes, effectiveTrips, effectiveRange),
+                      onShuffleStamps: () => setState(() =>
+                          _stampLayoutSeed =
+                              math.Random().nextInt(0x7FFFFFFF)),
+                      stampSizeMultiplier: _stampSizeMultiplier,
+                      stampJitterFactor: _stampJitterFactor,
+                      onSizeChanged: (v) =>
+                          setState(() => _stampSizeMultiplier = v),
+                      onJitterChanged: (v) =>
+                          setState(() => _stampJitterFactor = v),
+                      showDateSlider: showDateSlider,
+                      yearMin: yearMin,
+                      yearMax: yearMax,
+                      effectiveRange: effectiveRange,
+                      countryCount: effectiveCodes.length,
+                      onYearChanged: (v) => setState(() {
+                        _yearSelection = v;
+                        _manuallyDeselectedCodes = {};
+                      }),
+                      onYearChangeEnd: (v) =>
+                          _generateTitle(effectiveCodes, effectiveTrips, v),
+                      displayedCodes: displayedCodes,
+                      deselectedCodes: _manuallyDeselectedCodes,
+                      onCountryToggle: onCountryToggle,
+                      onDismiss: () =>
+                          setState(() => _showPassportControls = false),
+                    ),
+                  ),
+                // Floating show-controls button when overlay is dismissed
+                if (!_showPassportControls)
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 8,
+                    right: 10,
+                    child: GestureDetector(
+                      onTap: () =>
+                          setState(() => _showPassportControls = true),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            color: Colors.black.withValues(alpha: 0.38),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.tune_rounded,
+                                    size: 14, color: Colors.white70),
+                                SizedBox(width: 4),
+                                Text('Controls',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Bottom: frosted action bar
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _PassportBottomBar(
+                    sharing: _sharing,
+                    printing: _printing,
+                    bottomPadding: MediaQuery.paddingOf(context).bottom,
+                    onShare: () => _onShare(
+                        context, effectiveCodes, effectiveTrips, dateLabel),
+                    onPrint: () => _onPrint(context, effectiveCodes, allCodes,
+                        effectiveTrips, effectiveRange, showDateSlider),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // ── NON-PASSPORT: standard column layout ───────────────────────
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Control strip ──────────────────────────────────────────
+              // ── Control strip ────────────────────────────────────────
               _ControlStrip(
                 titleController: _titleController,
                 titleOverride: _titleOverride,
                 defaultTitle: defaultTitle,
                 portrait: _portrait,
                 isTitleGenerating: _isTitleGenerating,
-                showOrientationToggle:
-                    widget.templateType != CardTemplateType.passport,
-                showShuffleButton:
-                    widget.templateType == CardTemplateType.passport,
+                showOrientationToggle: true,
+                showShuffleButton: false,
                 onTitleChanged: (v) =>
                     setState(() => _titleOverride = v.isEmpty ? null : v),
                 onTitleCleared: () {
                   setState(() => _titleOverride = null);
                   _titleController.clear();
                 },
-                onGenerateTitle: () =>
-                    _generateTitle(effectiveCodes, effectiveTrips, effectiveRange),
+                onGenerateTitle: () => _generateTitle(
+                    effectiveCodes, effectiveTrips, effectiveRange),
                 onOrientationToggle: () => setState(() {
                   _portrait = !_portrait;
                   _resetZoom();
                 }),
-                onShuffleStamps: () => setState(
-                  () => _stampLayoutSeed =
-                      math.Random().nextInt(0x7FFFFFFF),
-                ),
+                onShuffleStamps: () {},
               ),
-              // ── Sort order (Grid + Heart) ──────────────────────────────
+              // ── Sort order (Grid + Heart) ────────────────────────────
               if (widget.templateType == CardTemplateType.grid ||
                   widget.templateType == CardTemplateType.heart) ...[
                 const SizedBox(height: 4),
@@ -282,7 +440,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   }),
                 ),
               ],
-              // ── Year range slider ──────────────────────────────────────
+              // ── Year range slider ────────────────────────────────────
               if (showDateSlider && effectiveRange != null) ...[
                 const SizedBox(height: 4),
                 _YearSlider(
@@ -292,56 +450,31 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   countryCount: effectiveCodes.length,
                   onChanged: (v) => setState(() {
                     _yearSelection = v;
-                    // Clear manual deselections when year range changes so all
-                    // countries in the new range start selected.
                     _manuallyDeselectedCodes = {};
                   }),
-                  onChangeEnd: (v) => _generateTitle(
-                    effectiveCodes,
-                    effectiveTrips,
-                    v,
-                  ),
+                  onChangeEnd: (v) =>
+                      _generateTitle(effectiveCodes, effectiveTrips, v),
                 ),
               ],
-              // ── Country filter chips ───────────────────────────────────
+              // ── Country filter chips ─────────────────────────────────
               if (displayedCodes.length > 1) ...[
                 const SizedBox(height: 4),
                 _CountryFilterRow(
                   availableCodes: displayedCodes,
                   deselectedCodes: _manuallyDeselectedCodes,
-                  onToggle: (code) {
-                    setState(() {
-                      if (_manuallyDeselectedCodes.contains(code)) {
-                        _manuallyDeselectedCodes = {..._manuallyDeselectedCodes}..remove(code);
-                      } else {
-                        // Prevent deselecting the last country.
-                        if (effectiveCodes.length > 1) {
-                          _manuallyDeselectedCodes = {..._manuallyDeselectedCodes, code};
-                        }
-                      }
-                    });
-                    // Regenerate title to reflect new selection (M74-T4).
-                    _generateTitle(
-                      displayedCodes.where((c) => !_manuallyDeselectedCodes.contains(c)).toList(),
-                      filteredTrips.where((t) => !_manuallyDeselectedCodes.contains(t.countryCode)).toList(),
-                      effectiveRange,
-                    );
-                  },
+                  onToggle: onCountryToggle,
                 ),
               ],
               const SizedBox(height: 8),
-              // ── Card preview ───────────────────────────────────────────
+              // ── Card preview ─────────────────────────────────────────
               Expanded(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints:
-                          const BoxConstraints(maxWidth: 340),
+                      constraints: const BoxConstraints(maxWidth: 340),
                       child: InteractiveViewer(
-                        transformationController:
-                            _transformController,
+                        transformationController: _transformController,
                         minScale: 1.0,
                         maxScale: 6.0,
                         child: _buildCardPreview(
@@ -355,23 +488,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              // ── Action bar ─────────────────────────────────────────────
+              // ── Action bar ───────────────────────────────────────────
               _ActionBar(
                 sharing: _sharing,
                 printing: _printing,
-                onShare: () =>
-                    _onShare(context, effectiveCodes, effectiveTrips, dateLabel),
-                onPrint: () => _onPrint(
-                  context,
-                  effectiveCodes,
-                  allCodes,
-                  effectiveTrips,
-                  effectiveRange,
-                  showDateSlider,
-                ),
+                onShare: () => _onShare(
+                    context, effectiveCodes, effectiveTrips, dateLabel),
+                onPrint: () => _onPrint(context, effectiveCodes, allCodes,
+                    effectiveTrips, effectiveRange, showDateSlider),
               ),
-              SizedBox(
-                  height: MediaQuery.paddingOf(context).bottom + 8),
+              SizedBox(height: MediaQuery.paddingOf(context).bottom + 8),
             ],
           );
         },
@@ -380,6 +506,30 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   }
 
   // ── AI title generation ─────────────────────────────────────────────────────
+
+  /// Reads cached hero labels for [trips] from Riverpod without side-effects.
+  ///
+  /// Returns null when no hero data is available yet; the generator then falls
+  /// back to geography-based titles gracefully (ADR-137).
+  List<HeroLabels>? _fetchHeroLabelsForTrips(List<TripRecord> trips) {
+    final labels = <HeroLabels>[];
+    for (final trip in trips) {
+      final heroAsync = ref.read(heroForTripProvider(trip.id));
+      final hero = heroAsync.valueOrNull;
+      if (hero != null) {
+        labels.add(HeroLabels(
+          primaryScene: hero.primaryScene,
+          secondaryScene: hero.secondaryScene,
+          activity: hero.activity,
+          mood: hero.mood,
+          subjects: hero.subjects,
+          landmark: hero.landmark,
+          confidence: hero.labelConfidence,
+        ));
+      }
+    }
+    return labels.isEmpty ? null : labels;
+  }
 
   Future<void> _generateTitle(
     List<String> codes,
@@ -400,6 +550,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           .toSet()
           .toList(),
       cardType: widget.templateType,
+      heroLabels: _fetchHeroLabelsForTrips(trips),
     );
 
     try {
@@ -426,8 +577,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     String dateLabel,
   ) {
     final template = _buildTemplate(displayedCodes, filteredTrips, dateLabel);
-
-    return RepaintBoundary(key: _previewKey, child: template);
+    final boundary = RepaintBoundary(key: _previewKey, child: template);
+    // Timeline is transparent — wrap with white so text is readable on-screen.
+    // The RepaintBoundary is inside, so share/export PNGs remain transparent.
+    if (widget.templateType == CardTemplateType.timeline) {
+      return ColoredBox(color: Colors.white, child: boundary);
+    }
+    return boundary;
   }
 
   Widget _buildTemplate(
@@ -460,7 +616,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           countryCodes: codes,
           trips: trips,
           entryOnly: _entryOnly,
-          forPrint: true,
+          forPrint: false, // preview uses screen layout so sliders take effect
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
@@ -468,6 +624,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           dateColor: null,
           transparentBackground: false,
           seed: _stampLayoutSeed,
+          sizeMultiplier: _stampSizeMultiplier,
+          jitterFactor: _stampJitterFactor,
         );
       case CardTemplateType.timeline:
         return TimelineCard(
@@ -475,6 +633,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           countryCodes: codes,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
+          transparentBackground: true,
         );
       case CardTemplateType.frontRibbon:
         return FrontRibbonCard(
@@ -586,6 +745,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       yearStart: yearStart,
       yearEnd: yearEnd,
       titleOverride: _titleOverride,
+      stampLayoutSeed: _stampLayoutSeed,
+      stampSizeMultiplier: _stampSizeMultiplier,
+      stampJitterFactor: _stampJitterFactor,
     );
 
     // Same params → skip re-render (ADR-103).
@@ -596,43 +758,61 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       return;
     }
 
-    // Pre-render card before pushing LocalMockupPreviewScreen (ADR-112).
+    // Capture artwork. For passport, grab directly from the RepaintBoundary
+    // so the printed image is pixel-for-pixel what the user sees (WYSIWYG).
+    // For all other templates, use CardImageRenderer for forPrint layout.
     setState(() => _printing = true);
-    CardRenderResult? preRender;
+    Uint8List? capturedBytes;
     try {
       if (!context.mounted) return;
-      final dateLabel = _computeDateLabel(trips);
-      // For Grid, pass sorted codes so the rendered image matches the preview.
-      final renderCodes = widget.templateType == CardTemplateType.grid
-          ? HeartLayoutEngine.sortCodes(codes, _order, trips,
-              shuffleSeed: _gridShuffleSeed)
-          : codes;
-      preRender = await CardImageRenderer.render(
-        context,
-        widget.templateType,
-        codes: renderCodes,
-        trips: trips,
-        forPrint: widget.templateType == CardTemplateType.passport,
-        entryOnly: _entryOnly,
-        cardAspectRatio: _aspectRatio,
-        heartOrder: _order,
-        dateLabel: dateLabel,
-        titleOverride: _titleOverride,
-        stampColor: null,
-        dateColor: null,
-        transparentBackground: widget.templateType == CardTemplateType.grid,
-      );
+
+      if (widget.templateType == CardTemplateType.passport) {
+        // WYSIWYG: capture from the live preview boundary (ADR-133).
+        final boundary = _previewKey.currentContext
+            ?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary != null) {
+          final image = await boundary.toImage(pixelRatio: 3.5);
+          final byteData =
+              await image.toByteData(format: ui.ImageByteFormat.png);
+          capturedBytes = byteData?.buffer.asUint8List();
+        }
+      } else {
+        final dateLabel = _computeDateLabel(trips);
+        final renderCodes = widget.templateType == CardTemplateType.grid
+            ? HeartLayoutEngine.sortCodes(codes, _order, trips,
+                shuffleSeed: _gridShuffleSeed)
+            : codes;
+        final result = await CardImageRenderer.render(
+          context,
+          widget.templateType,
+          codes: renderCodes,
+          trips: trips,
+          forPrint: true,
+          entryOnly: _entryOnly,
+          cardAspectRatio: _aspectRatio,
+          heartOrder: _order,
+          dateLabel: dateLabel,
+          titleOverride: _titleOverride,
+          stampColor: null,
+          dateColor: null,
+          transparentBackground: widget.templateType == CardTemplateType.grid,
+          stampSeed: _stampLayoutSeed,
+          stampSizeMultiplier: _stampSizeMultiplier,
+          stampJitterFactor: _stampJitterFactor,
+        );
+        capturedBytes = result.bytes;
+      }
     } catch (_) {
-      preRender = null;
+      capturedBytes = null;
     } finally {
       if (mounted) setState(() => _printing = false);
     }
 
-    if (preRender == null || !context.mounted) return;
+    if (capturedBytes == null || !context.mounted) return;
 
     setState(() {
       _lastConfirmedParams = currentParams;
-      _artworkImageBytes = preRender!.bytes;
+      _artworkImageBytes = capturedBytes;
       _lastConfirmedTrips = trips;
     });
 
@@ -672,6 +852,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         stampColor: null,
         dateColor: null,
         transparentBackground: widget.templateType == CardTemplateType.grid,
+        stampSizeMultiplier: _stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
+        stampLayoutSeed: _stampLayoutSeed,
       ),
     ));
   }
@@ -769,17 +952,19 @@ class _ControlStrip extends StatelessWidget {
           ),
           if (showShuffleButton) ...[
             const SizedBox(width: 8),
-            IconButton.outlined(
+            OutlinedButton.icon(
               onPressed: onShuffleStamps,
-              icon: const Icon(Icons.shuffle_rounded, size: 20),
-              style: IconButton.styleFrom(
-                padding: const EdgeInsets.all(8),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                side: const BorderSide(color: Colors.white24),
-                minimumSize: const Size(38, 38),
+              icon: const Icon(Icons.shuffle_rounded, size: 15),
+              label: const Text('Shuffle'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kAmber,
+                side: const BorderSide(color: _kAmber, width: 1.5),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 0),
+                minimumSize: const Size(0, 38),
+                textStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700),
               ),
-              tooltip: 'Shuffle stamp layout',
             ),
           ],
           if (showOrientationToggle) ...[
@@ -915,6 +1100,387 @@ class _SortChip extends StatelessWidget {
                 fontWeight: selected
                     ? FontWeight.w600
                     : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Passport full-screen overlays ─────────────────────────────────────────────
+
+/// Frosted-glass top overlay — title, shuffle, size/scatter sliders, and
+/// optional year + country controls. All float over the card image.
+class _PassportTopOverlay extends StatelessWidget {
+  const _PassportTopOverlay({
+    required this.titleController,
+    required this.titleOverride,
+    required this.defaultTitle,
+    required this.isTitleGenerating,
+    required this.onTitleChanged,
+    required this.onTitleCleared,
+    required this.onGenerateTitle,
+    required this.onShuffleStamps,
+    required this.stampSizeMultiplier,
+    required this.stampJitterFactor,
+    required this.onSizeChanged,
+    required this.onJitterChanged,
+    required this.showDateSlider,
+    required this.yearMin,
+    required this.yearMax,
+    required this.effectiveRange,
+    required this.countryCount,
+    required this.onYearChanged,
+    required this.onYearChangeEnd,
+    required this.displayedCodes,
+    required this.deselectedCodes,
+    required this.onCountryToggle,
+    required this.onDismiss,
+  });
+
+  final TextEditingController titleController;
+  final String? titleOverride;
+  final String defaultTitle;
+  final bool isTitleGenerating;
+  final ValueChanged<String> onTitleChanged;
+  final VoidCallback onTitleCleared;
+  final VoidCallback onGenerateTitle;
+  final VoidCallback onShuffleStamps;
+  final double stampSizeMultiplier;
+  final double stampJitterFactor;
+  final ValueChanged<double> onSizeChanged;
+  final ValueChanged<double> onJitterChanged;
+  final bool showDateSlider;
+  final double? yearMin;
+  final double? yearMax;
+  final RangeValues? effectiveRange;
+  final int countryCount;
+  final ValueChanged<RangeValues> onYearChanged;
+  final ValueChanged<RangeValues> onYearChangeEnd;
+  final List<String> displayedCodes;
+  final Set<String> deselectedCodes;
+  final ValueChanged<String> onCountryToggle;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Title row + shuffle + dismiss ────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 6, 2),
+                child: Row(
+                  children: [
+                    // Auto-generate
+                    IconButton(
+                      onPressed: isTitleGenerating ? null : onGenerateTitle,
+                      icon: const Icon(Icons.auto_awesome, size: 17),
+                      tooltip: 'Generate title',
+                      padding: const EdgeInsets.all(4),
+                      constraints:
+                          const BoxConstraints(minWidth: 28, minHeight: 28),
+                    ),
+                    const SizedBox(width: 4),
+                    // Title field
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: TextField(
+                          controller: titleController,
+                          decoration: InputDecoration(
+                            hintText: defaultTitle,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 7),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  const BorderSide(color: Colors.white24),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  const BorderSide(color: Colors.white24),
+                            ),
+                            suffixIcon: isTitleGenerating
+                                ? const Padding(
+                                    padding: EdgeInsets.all(9),
+                                    child: SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  )
+                                : titleOverride != null
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 14),
+                                        onPressed: onTitleCleared,
+                                        padding: EdgeInsets.zero,
+                                      )
+                                    : null,
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                          onChanged: onTitleChanged,
+                        ),
+                      ),
+                    ),
+                    // Shuffle
+                    const SizedBox(width: 6),
+                    OutlinedButton.icon(
+                      onPressed: onShuffleStamps,
+                      icon: const Icon(Icons.shuffle_rounded, size: 13),
+                      label: const Text('Shuffle'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _kAmber,
+                        side: const BorderSide(color: _kAmber, width: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 0),
+                        minimumSize: const Size(0, 32),
+                        textStyle: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    // Dismiss
+                    const SizedBox(width: 2),
+                    IconButton(
+                      onPressed: onDismiss,
+                      icon: const Icon(Icons.expand_less_rounded, size: 18),
+                      tooltip: 'Hide controls',
+                      padding: const EdgeInsets.all(4),
+                      constraints:
+                          const BoxConstraints(minWidth: 28, minHeight: 28),
+                    ),
+                  ],
+                ),
+              ),
+              // ── Size + scatter sliders ───────────────────────────────
+              _PassportSlidersRow(
+                stampSizeMultiplier: stampSizeMultiplier,
+                stampJitterFactor: stampJitterFactor,
+                onSizeChanged: onSizeChanged,
+                onJitterChanged: onJitterChanged,
+              ),
+              // ── Year slider (conditional) ────────────────────────────
+              if (showDateSlider &&
+                  effectiveRange != null &&
+                  yearMin != null &&
+                  yearMax != null) ...[
+                const SizedBox(height: 2),
+                _YearSlider(
+                  yearMin: yearMin!,
+                  yearMax: yearMax!,
+                  values: effectiveRange!,
+                  countryCount: countryCount,
+                  onChanged: onYearChanged,
+                  onChangeEnd: onYearChangeEnd,
+                ),
+              ],
+              // ── Country chips (conditional) ──────────────────────────
+              if (displayedCodes.length > 1) ...[
+                const SizedBox(height: 2),
+                _CountryFilterRow(
+                  availableCodes: displayedCodes,
+                  deselectedCodes: deselectedCodes,
+                  onToggle: onCountryToggle,
+                ),
+              ],
+              const SizedBox(height: 4),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Frosted-glass bottom action bar anchored over the card.
+class _PassportBottomBar extends StatelessWidget {
+  const _PassportBottomBar({
+    required this.sharing,
+    required this.printing,
+    required this.bottomPadding,
+    required this.onShare,
+    required this.onPrint,
+  });
+
+  final bool sharing;
+  final bool printing;
+  final double bottomPadding;
+  final VoidCallback onShare;
+  final VoidCallback onPrint;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.55),
+          padding: EdgeInsets.fromLTRB(16, 10, 16, bottomPadding + 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: (sharing || printing) ? null : onShare,
+                  icon: sharing
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator.adaptive(
+                              strokeWidth: 2),
+                        )
+                      : const Icon(Icons.share, size: 16),
+                  label: const Text('Share'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (sharing || printing) ? null : onPrint,
+                  icon: printing
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator.adaptive(
+                              strokeWidth: 2),
+                        )
+                      : const Icon(Icons.print_outlined, size: 16),
+                  label: const Text('Print'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Passport stamp sliders (size + scatter, compact horizontal strip) ──────────
+
+class _PassportSlidersRow extends StatelessWidget {
+  const _PassportSlidersRow({
+    required this.stampSizeMultiplier,
+    required this.stampJitterFactor,
+    required this.onSizeChanged,
+    required this.onJitterChanged,
+  });
+
+  final double stampSizeMultiplier;
+  final double stampJitterFactor;
+  final ValueChanged<double> onSizeChanged;
+  final ValueChanged<double> onJitterChanged;
+
+  static String _sizeLabel(double v) =>
+      v == 1.0 ? 'Default' : v < 1.0 ? 'Smaller' : 'Larger';
+
+  static String _scatterLabel(double v) =>
+      v < 0.3 ? 'Grid' : v < 1.2 ? 'Natural' : v < 2.0 ? 'Scattered' : 'Max';
+
+  @override
+  Widget build(BuildContext context) {
+    final sliderTheme = SliderTheme.of(context).copyWith(
+      activeTrackColor: _kAmber,
+      thumbColor: _kAmber,
+      inactiveTrackColor: Colors.white12,
+      overlayColor: _kAmber.withValues(alpha: 0.15),
+      trackHeight: 2,
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ── Stamp size ───────────────────────────────────────────────
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.photo_size_select_small,
+                          size: 12, color: Colors.white38),
+                      const SizedBox(width: 5),
+                      const Text('Size',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white60,
+                              fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Text(
+                        _sizeLabel(stampSizeMultiplier),
+                        style: const TextStyle(
+                            fontSize: 10, color: Colors.white38),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: sliderTheme,
+                    child: Slider(
+                      value: stampSizeMultiplier,
+                      min: 0.3,
+                      max: 2.0,
+                      divisions: 17,
+                      onChanged: onSizeChanged,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Divider
+            Container(
+              width: 1,
+              height: 36,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              color: Colors.white12,
+            ),
+            // ── Scatter ──────────────────────────────────────────────────
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.scatter_plot_outlined,
+                          size: 12, color: Colors.white38),
+                      const SizedBox(width: 5),
+                      const Text('Scatter',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white60,
+                              fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Text(
+                        _scatterLabel(stampJitterFactor),
+                        style: const TextStyle(
+                            fontSize: 10, color: Colors.white38),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: sliderTheme,
+                    child: Slider(
+                      value: stampJitterFactor,
+                      min: 0.0,
+                      max: 2.5,
+                      divisions: 25,
+                      onChanged: onJitterChanged,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

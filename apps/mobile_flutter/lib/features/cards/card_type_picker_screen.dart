@@ -262,11 +262,15 @@ class _CardTypeTile extends StatelessWidget {
           dateLabel: '',
         );
       case CardTemplateType.timeline:
-        return TimelineCard(
-          trips: trips,
-          countryCodes: countryCodes,
-          aspectRatio: aspectRatio,
-          dateLabel: '',
+        return ColoredBox(
+          color: Colors.white,
+          child: TimelineCard(
+            trips: trips,
+            countryCodes: countryCodes,
+            aspectRatio: aspectRatio,
+            dateLabel: '',
+            transparentBackground: true,
+          ),
         );
       case CardTemplateType.frontRibbon:
         return FrontRibbonCard(

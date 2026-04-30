@@ -60,6 +60,14 @@ class TripRepository {
     return rows.map(_rowToRecord).toList();
   }
 
+  /// Returns the trip with [id], or null if it does not exist.
+  Future<TripRecord?> loadById(String id) async {
+    final row = await (_db.select(_db.trips)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return row == null ? null : _rowToRecord(row);
+  }
+
   // ── Dirty reads (for Firestore sync) ─────────────────────────────────────
 
   /// Returns all rows with [isDirty] = 1.

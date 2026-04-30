@@ -44,7 +44,7 @@
 **Depends on:** M89
 **Scope in:** `rule_based_title_generator.dart`, `title_generation_models.dart`, `card_editor_screen.dart`.
 **Full plan:** `docs/dev/milestones/m92-label-powered-titles.md`
-**Status:** Not started.
+**Status:** ✅ Complete (2026-04-30).
 
 ---
 

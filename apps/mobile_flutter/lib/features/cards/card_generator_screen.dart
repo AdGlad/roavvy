@@ -430,13 +430,21 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 340, maxHeight: 300),
-                    child: InteractiveViewer(
-                      transformationController: _transformController,
-                      minScale: 1.0,
-                      maxScale: 6.0,
-                      child: RepaintBoundary(
-                        key: _previewKey,
-                        child: _buildTemplate(selectedCodes, selectedTrips),
+                    // Timeline is transparent — show a white canvas behind it so
+                    // the ink text is readable on-screen. The RepaintBoundary is
+                    // inside this container, so share/export PNGs remain transparent.
+                    child: Container(
+                      color: _selected == CardTemplateType.timeline
+                          ? Colors.white
+                          : null,
+                      child: InteractiveViewer(
+                        transformationController: _transformController,
+                        minScale: 1.0,
+                        maxScale: 6.0,
+                        child: RepaintBoundary(
+                          key: _previewKey,
+                          child: _buildTemplate(selectedCodes, selectedTrips),
+                        ),
                       ),
                     ),
                   ),
@@ -509,7 +517,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
           newestFirst: _newestFirst,
-          transparentBackground: _transparentBackground,
+          transparentBackground: true,
         );
       case CardTemplateType.frontRibbon:
         return FrontRibbonCard(
@@ -600,6 +608,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         ? effectiveRange.end.round()
         : null;
 
+    // Timeline is always rendered with a transparent background regardless of
+    // the shared _transparentBackground toggle (which is only relevant for
+    // passport/grid). This prevents stale passport toggle state leaking into
+    // the timeline render call.
+    final effectiveTransparentBg = _selected == CardTemplateType.timeline
+        ? true
+        : _transparentBackground;
+
     final currentParams = _CardParams(
       templateType: _selected,
       countryCodes: codes,
@@ -611,7 +627,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       titleOverride: _titleOverride,
       stampColor: _stampColor,
       dateColor: _dateColor,
-      transparentBackground: _transparentBackground,
+      transparentBackground: effectiveTransparentBg,
       stampSeed: _stampSeed,
       stampSizeMultiplier: _stampSizeMultiplier,
       stampJitterFactor: _stampJitterFactor,
@@ -648,7 +664,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         titleOverride: _titleOverride,
         stampColor: _stampColor,
         dateColor: _dateColor,
-        transparentBackground: _transparentBackground,
+        transparentBackground: effectiveTransparentBg,
         stampSeed: _stampSeed,
         stampSizeMultiplier: _stampSizeMultiplier,
         stampJitterFactor: _stampJitterFactor,
@@ -684,7 +700,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           titleOverride: _titleOverride,
           stampColor: _stampColor,
           dateColor: _dateColor,
-          transparentBackground: _transparentBackground,
+          transparentBackground: effectiveTransparentBg,
         ),
       ),
     );
@@ -750,7 +766,8 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         titleOverride: _titleOverride,
         stampColor: _stampColor,
         dateColor: _dateColor,
-        transparentBackground: _transparentBackground,
+        // Use the confirmed params' value — always set before this is called.
+        transparentBackground: _lastConfirmedParams!.transparentBackground,
       ),
     ));
   }

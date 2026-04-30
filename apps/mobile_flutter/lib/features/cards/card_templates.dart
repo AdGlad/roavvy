@@ -751,7 +751,7 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
   @override
   void didUpdateWidget(_PassportPagePainter old) {
     super.didUpdateWidget(old);
-    if (!listEquals(old.countryCodes, widget.countryCodes) ||
+    final layoutChanged = !listEquals(old.countryCodes, widget.countryCodes) ||
         !listEquals(old.trips, widget.trips) ||
         old.canvasSize != widget.canvasSize ||
         old.entryOnly != widget.entryOnly ||
@@ -760,12 +760,21 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         old.dateColor != widget.dateColor ||
         old.seed != widget.seed ||
         old.sizeMultiplier != widget.sizeMultiplier ||
-        old.jitterFactor != widget.jitterFactor) {
+        old.jitterFactor != widget.jitterFactor;
+    if (layoutChanged) {
+      // Only clear + reload SVG assets when the stamp set itself changes
+      // (new countries/trips/seed). Size and scatter changes only affect
+      // geometry, so keeping existing assets avoids a blank-frame flicker.
+      final stampSetChanged =
+          !listEquals(old.countryCodes, widget.countryCodes) ||
+          !listEquals(old.trips, widget.trips) ||
+          old.entryOnly != widget.entryOnly ||
+          old.seed != widget.seed;
       setState(() {
         _applyLayoutResult(_computeLayoutResult());
-        _assets = const {};
+        if (stampSetChanged) _assets = const {};
       });
-      _loadAssets();
+      if (stampSetChanged) _loadAssets();
     }
   }
 

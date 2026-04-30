@@ -69,6 +69,11 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.stampColor,
     this.dateColor,
     this.transparentBackground = false,
+    // Passport layout params (ADR-133): stamp colour variants re-render using
+    // the same size/scatter/seed so the merch image matches the editor design.
+    this.stampSizeMultiplier = 1.0,
+    this.stampJitterFactor = 0.4,
+    this.stampLayoutSeed,
   });
 
   final List<String> selectedCodes;
@@ -99,6 +104,12 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final Color? stampColor;
   final Color? dateColor;
   final bool transparentBackground;
+
+  /// Passport layout params (ADR-133). Forwarded to CardImageRenderer so
+  /// stamp-colour re-renders preserve the user's size/scatter/seed design.
+  final double stampSizeMultiplier;
+  final double stampJitterFactor;
+  final int? stampLayoutSeed;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -166,6 +177,11 @@ class _LocalMockupPreviewScreenState
 
   PassportColorMode _passportColorMode = PassportColorMode.black;
 
+  // ── Timeline text colour (M86) ─────────────────────────────────────────────
+  // null = not yet resolved; set in initState from _suggestTimelineTextColor.
+
+  Color? _timelineTextColor;
+
   // ── Front ribbon mode (M74) ───────────────────────────────────────────────
   // 'all'      → ribbon uses all-time countries (widget.allCodes)
   // 'selected' → ribbon uses year-filtered selection (widget.selectedCodes)
@@ -228,6 +244,14 @@ class _LocalMockupPreviewScreenState
     _              => PassportColorMode.black,
   };
 
+  /// Suggests a timeline text colour based on shirt colour luminance.
+  /// Dark shirts → white text; light shirts → black text.
+  Color _suggestTimelineTextColor(String shirtColour) => switch (shirtColour) {
+    'White' => Colors.black,
+    'Grey'  => Colors.black,
+    _       => Colors.white, // Black, Blue, Red → white
+  };
+
   Set<PassportColorMode> _disabledStampColors(String shirtColour) => switch (shirtColour) {
     'Black'        => {PassportColorMode.black, PassportColorMode.multicolor},
     'White'        => {PassportColorMode.white},
@@ -252,6 +276,7 @@ class _LocalMockupPreviewScreenState
       _artworkVariants[0] = null;
     }
     _passportColorMode = _suggestStampColor(_colour);
+    _timelineTextColor = _suggestTimelineTextColor(_colour);
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -265,6 +290,11 @@ class _LocalMockupPreviewScreenState
       // stamps on a black shirt) without having to tap a color chip manually.
       if (_isTshirt && _template == CardTemplateType.passport) {
         unawaited(_setPassportColorMode(_passportColorMode));
+      }
+      // Immediately render with the suggested text colour for timeline cards
+      // so the artwork bytes are fresh + transparent on first entry.
+      if (_isTshirt && _template == CardTemplateType.timeline) {
+        unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
       }
     });
   }
@@ -338,8 +368,15 @@ class _LocalMockupPreviewScreenState
     if (!_isTshirt || !mounted) return;
 
     final levelLabel = ref.read(xpNotifierProvider).levelLabel;
-    final isDark = _colour == 'Black' || _colour == 'Navy' || _colour == 'Red';
-    final textColor = isDark ? Colors.white : Colors.black;
+    // For timeline cards use the user-selected text color so the front ribbon
+    // matches the back card. For other templates auto-calculate from shirt color.
+    final Color textColor;
+    if (_template == CardTemplateType.timeline && _timelineTextColor != null) {
+      textColor = _timelineTextColor!;
+    } else {
+      final isDark = _colour == 'Black' || _colour == 'Navy' || _colour == 'Red';
+      textColor = isDark ? Colors.white : Colors.black;
+    }
     // Use all-time codes when the user has selected 'all' ribbon mode.
     final ribbonCodes = _frontRibbonMode == 'all'
         ? widget.allCodes
@@ -508,7 +545,11 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
-        forPrint: _template == CardTemplateType.passport,
+        // Passport uses forPrint=false so re-renders for stamp colour changes
+        // use the same screen-layout (margins, sizeMultiplier, jitter) as the
+        // card the user designed. forPrint=true would change margins and ignore
+        // sizeMultiplier, producing a different layout (ADR-133).
+        forPrint: false,
         // T-shirts always show entry + exit stamps regardless of card-editor setting.
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
         cardAspectRatio: widget.confirmedAspectRatio,
@@ -516,6 +557,10 @@ class _LocalMockupPreviewScreenState
         stampColor: stampColor,
         dateColor: widget.dateColor,
         transparentBackground: transparentBg,
+        // Preserve the exact layout the user designed (ADR-133).
+        stampSeed: widget.stampLayoutSeed,
+        stampSizeMultiplier: widget.stampSizeMultiplier,
+        stampJitterFactor: widget.stampJitterFactor,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -551,6 +596,36 @@ class _LocalMockupPreviewScreenState
     }
   }
 
+  // ── Timeline text colour selection (M86) ───────────────────────────────────
+
+  Future<void> _setTimelineTextColor(Color textColor) async {
+    setState(() {
+      _timelineTextColor = textColor;
+      _variantLoading = true;
+    });
+    try {
+      if (!context.mounted) return;
+      final result = await CardImageRenderer.render(
+        context,
+        _template,
+        codes: widget.selectedCodes,
+        trips: widget.trips,
+        cardAspectRatio: widget.confirmedAspectRatio,
+        titleOverride: widget.titleOverride,
+        transparentBackground: true,
+        textColor: textColor,
+      );
+      if (!mounted) return;
+      await _decodeArtwork(result.bytes);
+      if (!mounted) return;
+      setState(() => _artworkBytes = result.bytes);
+      // Re-render front ribbon to match the chosen text color.
+      await _loadFrontRibbonImage();
+    } finally {
+      if (mounted) setState(() => _variantLoading = false);
+    }
+  }
+
   // ── Colour / placement change handler ─────────────────────────────────────
 
   void _onVariantOptionChanged({
@@ -578,6 +653,9 @@ class _LocalMockupPreviewScreenState
     }
     if (colourChanged && _isTshirt && _template == CardTemplateType.passport) {
       unawaited(_setPassportColorMode(_suggestStampColor(colour)));
+    }
+    if (colourChanged && _isTshirt && _template == CardTemplateType.timeline) {
+      unawaited(_setTimelineTextColor(_suggestTimelineTextColor(colour)));
     }
   }
 
@@ -1211,6 +1289,76 @@ class _LocalMockupPreviewScreenState
     );
   }
 
+  // ── Timeline text colour picker (M86) ─────────────────────────────────────
+
+  Widget _buildTimelineColorPicker() {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final currentColor = _timelineTextColor ?? Colors.white;
+
+    Widget chip(Color color, String label) {
+      final isSelected = currentColor == color;
+      return GestureDetector(
+        onTap: () => unawaited(_setTimelineTextColor(color)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isSelected
+                  ? onSurface.withValues(alpha: 0.7)
+                  : onSurface.withValues(alpha: 0.2),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+            borderRadius: BorderRadius.circular(6),
+            color: isSelected
+                ? onSurface.withValues(alpha: 0.1)
+                : Colors.transparent,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                  border: Border.all(
+                    color: onSurface.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected
+                      ? onSurface.withValues(alpha: 0.9)
+                      : onSurface.withValues(alpha: 0.55),
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Row(
+        children: [
+          chip(Colors.black, 'Black text'),
+          const SizedBox(width: 8),
+          chip(Colors.white, 'White text'),
+        ],
+      ),
+    );
+  }
+
   // ── Inline config panel (ADR-127 / M75) ────────────────────────────────────
 
   /// Always-visible t-shirt configuration panel below the mockup.
@@ -1232,6 +1380,15 @@ class _LocalMockupPreviewScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── Passport: stamp colour is the only adjustable image param ─
+            // T-shirt colour/size/placement controls are still shown so the
+            // user can choose the garment they want; only card re-renders are
+            // locked to the original design (ADR-133).
+            if (_template == CardTemplateType.passport) ...[
+              _buildStampColorPicker(),
+              const SizedBox(height: 12),
+            ],
+
             // ── Colour + Flip ─────────────────────────────────────────────
             Row(
               children: [
@@ -1265,8 +1422,10 @@ class _LocalMockupPreviewScreenState
               selected: _colour,
               onChanged: (c) => _onVariantOptionChanged(colour: c),
             ),
-            if (_template == CardTemplateType.passport)
-              _buildStampColorPicker(),
+            // Non-passport stamp/timeline colour pickers
+            if (_template != CardTemplateType.passport &&
+                _template == CardTemplateType.timeline)
+              _buildTimelineColorPicker(),
             const SizedBox(height: 12),
 
             // ── Size ──────────────────────────────────────────────────────

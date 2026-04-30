@@ -1,8 +1,10 @@
 import 'package:shared_models/shared_models.dart';
 
-/// Selects up to 5 hero image candidates for a single trip using photo
+/// Selects up to 25 hero image candidates for a single trip using photo
 /// metadata only — no image loading, no ML at this stage (M89, ADR-134).
 ///
+/// 25 candidates spread across the trip's timespan give the Vision pipeline
+/// richer label coverage, improving [HeroScoringEngine] ranking quality.
 /// Candidates are passed to the Swift [HeroImageAnalyzer] for Vision labelling
 /// after the scan result screen is shown.
 class HeroCandidateSelector {
@@ -23,11 +25,12 @@ class HeroCandidateSelector {
   ///    country resolution) are preferred. When no GPS-tagged photos survive
   ///    dedup, a fallback set of the first [maxCandidates] photos is returned.
   /// 5. Temporal spacing: from the GPS-eligible pool, select candidates that
-  ///    are at least 30 minutes apart from the previously selected candidate.
-  /// 6. Cap at [maxCandidates] (default 5).
+  ///    are at least 15 minutes apart from the previously selected candidate,
+  ///    ensuring good coverage of the trip timespan.
+  /// 6. Cap at [maxCandidates] (default 25).
   List<String> select(
     List<PhotoDateRecord> photos, {
-    int maxCandidates = 5,
+    int maxCandidates = 25,
   }) {
     if (photos.isEmpty) return const [];
 
@@ -53,8 +56,10 @@ class HeroCandidateSelector {
           .toList();
     }
 
-    // Temporal spacing: at least 30 minutes between selected candidates.
-    final spaced = _temporalSpacing(deduped, minGapMinutes: 30);
+    // Temporal spacing: at least 15 minutes between selected candidates.
+    // Reduced from 30 min so 25 candidates fit comfortably within a single
+    // travel day while still avoiding near-duplicate shots.
+    final spaced = _temporalSpacing(deduped, minGapMinutes: 15);
 
     if (spaced.isEmpty) {
       // Fallback: return first candidate from deduped.

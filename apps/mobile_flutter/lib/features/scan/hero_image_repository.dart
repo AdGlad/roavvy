@@ -245,6 +245,50 @@ class HeroImageRepository {
     });
   }
 
+  /// Sets [assetId] as the user-selected hero for [tripId], inserting a new
+  /// row if the photo was not previously stored as a hero candidate.
+  ///
+  /// Use this when the user picks any trip photo (not just an existing
+  /// hero candidate). Supplying [countryCode] and [capturedAt] is required
+  /// so the new row has complete metadata if it does not already exist.
+  ///
+  /// Clears [isUserSelected] on all other rows for the trip, then upserts
+  /// the chosen photo as rank-1 with isUserSelected=1.
+  Future<void> upsertUserSelected({
+    required String assetId,
+    required String tripId,
+    required String countryCode,
+    required DateTime capturedAt,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await _db.transaction(() async {
+      // Clear selection on existing rows.
+      await (_db.update(_db.heroImages)
+            ..where((t) => t.tripId.equals(tripId)))
+          .write(const HeroImagesCompanion(isUserSelected: Value(0)));
+
+      // Upsert the selected photo as the rank-1 hero.
+      // If a row already exists for this assetId+tripId it is updated;
+      // if not, a minimal row is inserted (scores default to 0).
+      await _db.into(_db.heroImages).insertOnConflictUpdate(
+        HeroImagesCompanion(
+          id: Value('hero_$tripId'),
+          assetId: Value(assetId),
+          tripId: Value(tripId),
+          countryCode: Value(countryCode),
+          capturedAt: Value(capturedAt.millisecondsSinceEpoch),
+          heroScore: const Value(0.0),
+          rank: const Value(1),
+          isUserSelected: const Value(1),
+          labelConfidence: const Value(0.0),
+          qualityScore: const Value(0.0),
+          createdAt: Value(now.millisecondsSinceEpoch),
+          updatedAt: Value(now.millisecondsSinceEpoch),
+        ),
+      );
+    });
+  }
+
   /// Clears [isUserSelected] on all rows for [tripId].
   ///
   /// The next scan/analysis pass will overwrite these rows with auto-ranked

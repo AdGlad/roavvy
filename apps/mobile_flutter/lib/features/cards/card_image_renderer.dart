@@ -271,6 +271,7 @@ class CardImageRenderer {
           dateLabel: dateLabel,
           titleOverride: titleOverride,
           transparentBackground: transparentBackground,
+          textColor: textColor,
         );
     }
   }

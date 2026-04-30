@@ -36,7 +36,8 @@ class TimelineCard extends StatelessWidget {
     this.dateLabel = '',
     this.titleOverride,
     this.newestFirst = false,
-    this.transparentBackground = false,
+    this.transparentBackground = true,
+    this.textColor,
   });
 
   final List<TripRecord> trips;
@@ -51,9 +52,14 @@ class TimelineCard extends StatelessWidget {
   /// Default false = chronological (earliest → latest).
   final bool newestFirst;
 
-  /// When true, the card background is fully transparent (default false =
-  /// parchment fill). Set true for merch / overlay use.
+  /// When true, the card background is fully transparent (default true =
+  /// transparent; set false to paint the parchment fill).
   final bool transparentBackground;
+
+  /// Optional override for country name and date text colour.
+  /// When null, defaults to [_kInk] / [_kInkMuted]. Set to [Colors.white]
+  /// for dark t-shirts or [Colors.black] for light t-shirts.
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +83,8 @@ class TimelineCard extends StatelessWidget {
               dateLabel: dateLabel,
               titleOverride: titleOverride,
               transparentBackground: transparentBackground,
+              newestFirst: newestFirst,
+              textColor: textColor,
             ),
           );
         },
@@ -95,6 +103,8 @@ class _TimelinePainter extends CustomPainter {
     required this.dateLabel,
     required this.titleOverride,
     required this.transparentBackground,
+    required this.newestFirst,
+    this.textColor,
   });
 
   final List<TimelineEntry> entries;
@@ -103,11 +113,27 @@ class _TimelinePainter extends CustomPainter {
   final String dateLabel;
   final String? titleOverride;
   final bool transparentBackground;
+  final bool newestFirst;
+  final Color? textColor;
+
+  Color get _inkColor => textColor ?? _kInk;
+  Color get _inkMutedColor => textColor?.withValues(alpha: 0.65) ?? _kInkMuted;
 
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Background.
-    if (!transparentBackground) {
+    // When transparent, explicitly clear the entire canvas to alpha=0 using
+    // BlendMode.clear. Without this, undrawn pixels retain the platform's
+    // default clear colour (black or white) in RepaintBoundary.toImage()
+    // captures, producing an opaque background in exported PNGs.
+    if (transparentBackground) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()
+          ..color = const Color(0x00000000)
+          ..blendMode = BlendMode.clear,
+      );
+    } else {
       canvas.drawRect(
         Rect.fromLTWH(0, 0, size.width, size.height),
         Paint()..color = _kParchment,
@@ -151,15 +177,36 @@ class _TimelinePainter extends CustomPainter {
 
     // Compute divider + row heights dynamically so all entries fit.
     final (rowH, divH) = _computeHeights(entries.length, divCount, available);
-    final fontSize = (rowH * 0.52).clamp(6.0, 14.0);
-    final dateFontSize = (rowH * 0.44).clamp(6.0, 12.0);
-    final flagFontSize = (rowH * 0.56).clamp(6.0, 16.0);
+
+    // Most recent trip shows only the entry month/year (no exit date).
+    // newestFirst=true → entries[0] is most recent; false → entries.last.
+    final mostRecentIdx = newestFirst ? 0 : entries.length - 1;
+
+    // Build date strings upfront.
+    final dateStrs = [
+      for (var i = 0; i < entries.length; i++)
+        // Passing same date for entry/exit causes formatTimelineDate to return "Mon YYYY".
+        i == mostRecentIdx
+            ? formatTimelineDate(entries[i].entryDate, entries[i].entryDate)
+            : formatTimelineDate(entries[i].entryDate, entries[i].exitDate),
+    ];
+
+    // Single global font size that fits every entry without wrapping.
+    const kPad = 10.0; // horizontal padding
+    final fontSize = _computeFontSize(
+      rowH,
+      width,
+      kPad,
+      [for (final e in entries) e.countryName],
+      dateStrs,
+    );
+    final flagFontSize = (fontSize * 1.5).clamp(8.0, 28.0);
 
     double y = zoneTop + kPadH;
     int? lastYear;
-    const kPad = 10.0; // horizontal padding
 
-    for (final entry in entries) {
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
       final year = entry.entryDate.year;
       if (lastYear != year && divH > 0) {
         _drawYearDivider(canvas, width, y, divH, year, fontSize * 0.85, kPad);
@@ -168,14 +215,81 @@ class _TimelinePainter extends CustomPainter {
       } else {
         lastYear = year;
       }
-      _drawEntryRow(canvas, width, y, rowH, entry, fontSize, dateFontSize,
-          flagFontSize, kPad);
+      _drawEntryRow(
+          canvas, width, y, rowH, entry, dateStrs[i], fontSize, flagFontSize, kPad);
       y += rowH;
     }
 
     if (truncatedCount > 0) {
-      _drawMoreNote(canvas, width, y, truncatedCount, dateFontSize, kPad);
+      _drawMoreNote(canvas, width, y, truncatedCount, fontSize, kPad);
     }
+  }
+
+  /// Finds the largest font size ≥ 5.0 (step 0.5) where every entry's country
+  /// name and date fit on one line without wrapping.
+  double _computeFontSize(
+    double rowH,
+    double width,
+    double hPad,
+    List<String> names,
+    List<String> dates,
+  ) {
+    double fs = (rowH * 0.65).clamp(5.0, 20.0);
+    while (fs > 5.0) {
+      if (_allTextFits(fs, width, hPad, names, dates)) return fs;
+      fs -= 0.5;
+    }
+    return 5.0;
+  }
+
+  bool _allTextFits(
+    double fs,
+    double width,
+    double hPad,
+    List<String> names,
+    List<String> dates,
+  ) {
+    // Flag emoji rendered at 1.5× font size; estimated rendered width ~2× font.
+    final flagEst = fs * 2.0;
+    // Date column: wider fraction to accommodate cross-year "Mar 2023–Jan 2024".
+    const dateColFraction = 0.43;
+    final dateColW = width * dateColFraction;
+    // Name column: remainder after left pad, flag, gaps, and date column.
+    final nameColW = width - hPad * 2 - flagEst - 10 - dateColW;
+    if (nameColW <= 0) return false;
+
+    for (var i = 0; i < names.length; i++) {
+      final tpName = TextPainter(
+        text: TextSpan(
+          text: names[i],
+          style: TextStyle(
+            fontSize: fs,
+            fontWeight: FontWeight.w700,
+            decoration: TextDecoration.none,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout(maxWidth: nameColW);
+      if (tpName.didExceedMaxLines) return false;
+
+      final tpDate = TextPainter(
+        text: TextSpan(
+          text: dates[i],
+          style: TextStyle(
+            fontSize: fs,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'CourierNew',
+            fontFamilyFallback: const ['Courier', 'monospace'],
+            decoration: TextDecoration.none,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout(maxWidth: dateColW);
+      if (tpDate.didExceedMaxLines) return false;
+    }
+    return true;
   }
 
   // Dynamically compute divider height and row height to fit all entries.
@@ -239,20 +353,22 @@ class _TimelinePainter extends CustomPainter {
     double y,
     double rowH,
     TimelineEntry entry,
+    String dateStr,
     double fontSize,
-    double dateFontSize,
     double flagFontSize,
     double hPad,
   ) {
-    final dateStr = formatTimelineDate(entry.entryDate, entry.exitDate);
+    const dateColFraction = 0.43;
+    final dateColW = width * dateColFraction;
+    final midY = y + rowH / 2;
 
-    // Date (right-aligned, bold, monospace).
+    // Date (right-aligned, bold, monospace, single line — font pre-sized to fit).
     final tpDate = TextPainter(
       text: TextSpan(
         text: dateStr,
         style: TextStyle(
-          color: _kInkMuted,
-          fontSize: dateFontSize,
+          color: _inkMutedColor,
+          fontSize: fontSize,
           fontWeight: FontWeight.w700,
           fontFamily: 'CourierNew',
           fontFamilyFallback: const ['Courier', 'monospace'],
@@ -260,10 +376,10 @@ class _TimelinePainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: width * 0.38);
+      maxLines: 1,
+    )..layout(maxWidth: dateColW);
 
     final dateX = width - hPad - tpDate.width;
-    final midY = y + rowH / 2;
     tpDate.paint(canvas, Offset(dateX, midY - tpDate.height / 2));
 
     // Flag emoji.
@@ -280,7 +396,7 @@ class _TimelinePainter extends CustomPainter {
 
     tpFlag.paint(canvas, Offset(hPad, midY - tpFlag.height / 2));
 
-    // Country name (bold, ink, fills remaining space).
+    // Country name (bold, single line — font pre-sized so it never wraps).
     final nameX = hPad + tpFlag.width + 4;
     final nameMaxW = dateX - nameX - 6;
     if (nameMaxW > 0) {
@@ -288,7 +404,7 @@ class _TimelinePainter extends CustomPainter {
         text: TextSpan(
           text: entry.countryName,
           style: TextStyle(
-            color: _kInk,
+            color: _inkColor,
             fontSize: fontSize,
             fontWeight: FontWeight.w700,
             decoration: TextDecoration.none,
@@ -296,7 +412,6 @@ class _TimelinePainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
         maxLines: 1,
-        ellipsis: '\u2026',
       )..layout(maxWidth: nameMaxW);
 
       tpName.paint(canvas, Offset(nameX, midY - tpName.height / 2));
@@ -310,8 +425,8 @@ class _TimelinePainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
-          color: _kInkMuted,
-          fontSize: (fontSize * 0.9).clamp(6.0, 11.0),
+          color: _inkMutedColor,
+          fontSize: (fontSize * 0.9).clamp(5.0, 11.0),
           fontStyle: FontStyle.italic,
           decoration: TextDecoration.none,
         ),
@@ -329,5 +444,7 @@ class _TimelinePainter extends CustomPainter {
       old.countryCodes != countryCodes ||
       old.dateLabel != dateLabel ||
       old.titleOverride != titleOverride ||
-      old.transparentBackground != transparentBackground;
+      old.transparentBackground != transparentBackground ||
+      old.newestFirst != newestFirst ||
+      old.textColor != textColor;
 }
