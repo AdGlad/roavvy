@@ -20,6 +20,8 @@ import '../merch/merch_country_selection_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import '../memory/memory_pulse_card.dart';
+import '../year_in_review/year_in_review_providers.dart';
+import '../year_in_review/year_in_review_screen.dart';
 import 'country_detail_sheet.dart';
 import 'country_polygon_layer.dart';
 import 'country_centroids.dart';
@@ -277,6 +279,7 @@ class MapScreen extends ConsumerWidget {
                         ref.read(scanNudgeDismissedProvider.notifier).state =
                             true,
                   ),
+                const _YearInReviewBanner(),
                 if (globeMode && visitedByCode.isNotEmpty)
                   _VisitedCountryFlagStrip(
                     visits: visitsAsync.valueOrNull ?? const [],
@@ -726,6 +729,149 @@ class DiscoverNewCountriesSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Year in Review Banner ─────────────────────────────────────────────────────
+
+/// Dismissible bottom banner shown in December (current year preview) and
+/// January (prior year summary), inviting the user to view Year in Review.
+/// (M94, ADR-139)
+class _YearInReviewBanner extends ConsumerStatefulWidget {
+  const _YearInReviewBanner();
+
+  @override
+  ConsumerState<_YearInReviewBanner> createState() =>
+      _YearInReviewBannerState();
+}
+
+class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
+  static const _prefDismissedPrefix = 'yirDismissed:';
+  static const _prefScheduledPrefix = 'yirScheduled:';
+
+  bool _dismissed = false;
+  bool _prefLoaded = false;
+
+  late int _reviewYear;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _reviewYear = now.month == 12 ? now.year : now.year - 1;
+    _loadPref();
+
+    // Handle cold-start from YIR notification.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final year = NotificationService.instance.pendingYearInReviewYear.value;
+      if (year != null && mounted) {
+        NotificationService.instance.pendingYearInReviewYear.value = null;
+        _openScreen(year);
+      }
+    });
+
+    NotificationService.instance.pendingYearInReviewYear.addListener(
+      _onPendingYearInReview,
+    );
+  }
+
+  void _onPendingYearInReview() {
+    final year = NotificationService.instance.pendingYearInReviewYear.value;
+    if (year != null && mounted) {
+      NotificationService.instance.pendingYearInReviewYear.value = null;
+      _openScreen(year);
+    }
+  }
+
+  Future<void> _loadPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final dismissed = prefs.getBool('$_prefDismissedPrefix$_reviewYear') ?? false;
+    setState(() {
+      _dismissed = dismissed;
+      _prefLoaded = true;
+    });
+    // Schedule next notification once per year (guard prevents duplicate scheduling).
+    final nextYear = DateTime.now().year + 1;
+    final alreadyScheduled =
+        prefs.getBool('$_prefScheduledPrefix$nextYear') ?? false;
+    if (!alreadyScheduled) {
+      await NotificationService.instance.scheduleYearInReview(forYear: nextYear);
+      await prefs.setBool('$_prefScheduledPrefix$nextYear', true);
+    }
+  }
+
+  Future<void> _dismiss() async {
+    setState(() => _dismissed = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('$_prefDismissedPrefix$_reviewYear', true);
+  }
+
+  void _openScreen(int year) {
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => YearInReviewScreen(year: year),
+    ));
+  }
+
+  @override
+  void dispose() {
+    NotificationService.instance.pendingYearInReviewYear.removeListener(
+      _onPendingYearInReview,
+    );
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    // Only show in December or January.
+    if (now.month != 12 && now.month != 1) return const SizedBox.shrink();
+    if (!_prefLoaded || _dismissed) return const SizedBox.shrink();
+
+    // Only show if there is data for the review year.
+    final dataAsync = ref.watch(yearInReviewDataProvider(_reviewYear));
+    if (!dataAsync.hasValue || dataAsync.valueOrNull == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        border: Border.all(color: const Color(0xFFD4A017).withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          const Text('🌍', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$_reviewYear in Review — see your year in travel',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _openScreen(_reviewYear),
+            child: const Text(
+              'View',
+              style: TextStyle(color: Color(0xFFD4A017)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+            onPressed: _dismiss,
+            tooltip: 'Dismiss',
+          ),
+        ],
       ),
     );
   }

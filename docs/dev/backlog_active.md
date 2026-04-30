@@ -64,7 +64,7 @@
 **Depends on:** M89, M90
 **Scope in:** New `year_in_review_screen.dart`, `year_in_review_service.dart`; `map_screen.dart` (Dec/Jan entry chip); `card_image_renderer.dart` (YIR card render); `notification_service.dart` (New Year notification).
 **Full plan:** `docs/dev/milestones/m94-year-in-review.md`
-**Status:** Not started.
+**Status:** ✅ Complete (2026-05-01).
 
 ---
 

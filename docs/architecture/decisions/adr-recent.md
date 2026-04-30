@@ -1349,3 +1349,54 @@ M93 adds an optional photo background layer to passport and grid share cards. A 
 - No Firestore schema changes required.
 - `card_templates.dart` `PassportStampsCard` and `GridFlagsCard` each gain one new optional param; all existing callers compile unchanged.
 - `CardImageRenderer.render()` gains `backgroundImageBytes` param; existing callers are unaffected.
+
+---
+
+## ADR-139 -- M94 Year in Review: Data Aggregation, Card Rendering, and Notification Routing
+
+**Status:** Accepted
+
+**Context:**
+M94 adds a full-screen annual travel summary shown in Dec/Jan. It aggregates trips,
+hero images, and labels for a given year, renders a shareable 1080x1920 mosaic card,
+and schedules a New Year push notification.
+
+**Decisions:**
+
+1. **`YearInReviewData` lives in `mobile_flutter` only**: It is a view-model aggregating
+   TripRecord + HeroImage + computed stats. It is not a wire type and is never synced to
+   Firestore, so it does not belong in `shared_models`. No schema migration required.
+
+2. **Self-contained RepaintBoundary rendering (not CardImageRenderer)**: The YIR card
+   has fundamentally different data (year, hero map, stats) vs. country-code-based cards.
+   Extending CardImageRenderer's signature would require large API changes for a one-off
+   format. Instead, YearInReviewScreen hosts an Offstage `_YearInReviewCardLoader` with a
+   GlobalKey<RenderRepaintBoundary>; share captures it via `boundary.toImage(pixelRatio:3)`.
+   This is the same mechanism that underlies CardImageRenderer, just applied inline.
+
+3. **`yearInReviewDataProvider` as `FutureProvider.family<YearInReviewData?, int>`**:
+   Year is the cache key. Placed in `lib/features/year_in_review/year_in_review_providers.dart`
+   alongside the service (not in global `providers.dart`), following the pattern of
+   `hero_providers.dart`. `YearInReviewService` is constructed inline in the provider.
+
+4. **Thumbnail loading gate for share**: `_YearInReviewCardLoader` loads all up-to-9
+   thumbnail bytes via `ThumbnailChannel` before setting `_thumbsReady = true`. Share
+   button is disabled until `_thumbsReady`. This prevents blank tiles in the exported PNG.
+
+5. **Notification routing follows M91 pattern**: `pendingYearInReviewYear` is a
+   `ValueNotifier<int?>` on `NotificationService.instance`. `_YearInReviewBanner` adds a
+   listener in `initState` and navigates to `YearInReviewScreen` on match, mirroring how
+   `_MemoryPulseSectionState` handles `pendingMemoryTripId`. ID 3 is reserved; IDs 0-2
+   remain unchanged (nudge, achievement, memory pulse).
+
+6. **Review year calculation**: Dec => reviewYear = currentYear (preview current year's
+   trips). Jan => reviewYear = currentYear - 1 (full prior year). Notification always
+   delivers Jan 1st for the prior year review.
+
+**Consequences:**
+
+- No `shared_models` changes; no Firestore schema changes.
+- `CardImageRenderer` signature unchanged.
+- The YIR card cannot be used in the merch flow (by design — it is portrait-only 9:16,
+  not compatible with t-shirt/poster templates).
+- Notification ID 3 is now reserved; future notifications must use ID 4+.

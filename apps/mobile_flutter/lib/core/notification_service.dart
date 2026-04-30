@@ -9,6 +9,7 @@ const int _kScanTab = 3;
 const int _kNudgeNotificationId = 0;
 const int _kAchievementNotificationId = 1;
 const int _kMemoryPulseNotificationId = 2;
+const int _kYearInReviewNotificationId = 3;
 
 /// Singleton service for local push notifications (ADR-056).
 ///
@@ -33,6 +34,10 @@ class NotificationService {
   /// Emits the tripId of a memory pulse notification tapped by the user.
   /// [_MemoryPulseSection] on the map screen listens to this (M91, ADR-136).
   final ValueNotifier<String?> pendingMemoryTripId = ValueNotifier(null);
+
+  /// Emits the review year when a Year in Review notification is tapped.
+  /// [_YearInReviewBanner] on the map screen listens to this (M94, ADR-139).
+  final ValueNotifier<int?> pendingYearInReviewYear = ValueNotifier(null);
 
   bool _initialized = false;
 
@@ -62,6 +67,9 @@ class NotificationService {
       if (tabIndex != null) pendingTabIndex.value = tabIndex;
     } else if (payload.startsWith('memoryPulse:')) {
       pendingMemoryTripId.value = payload.substring(12);
+    } else if (payload.startsWith('yearInReview:')) {
+      final year = int.tryParse(payload.substring(13));
+      if (year != null) pendingYearInReviewYear.value = year;
     }
   }
 
@@ -74,6 +82,17 @@ class NotificationService {
     final payload = details.notificationResponse?.payload;
     if (payload == null || !payload.startsWith('tab:')) return null;
     return int.tryParse(payload.substring(4));
+  }
+
+  /// Returns the review year if a Year in Review notification cold-started the
+  /// app, or null otherwise (M94, ADR-139).
+  Future<int?> getLaunchYearInReviewYear() async {
+    if (!_initialized) return null;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details == null || !details.didNotificationLaunchApp) return null;
+    final payload = details.notificationResponse?.payload;
+    if (payload == null || !payload.startsWith('yearInReview:')) return null;
+    return int.tryParse(payload.substring(13));
   }
 
   /// Returns the tripId if a memory pulse notification cold-started the app,
@@ -150,6 +169,28 @@ class NotificationService {
       tz.TZDateTime.from(deliverAt, tz.local),
       const NotificationDetails(iOS: DarwinNotificationDetails()),
       payload: 'memoryPulse:$tripId',
+      androidScheduleMode: AndroidScheduleMode.inexact,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  /// Cancels any existing Year in Review notification and schedules a new one
+  /// for January 1st [forYear] at 9:00 AM UTC. Tapping it sets
+  /// [pendingYearInReviewYear] to the review year (forYear - 1). (M94, ADR-139)
+  Future<void> scheduleYearInReview({required int forYear}) async {
+    if (!_initialized) return;
+    await _plugin.cancel(_kYearInReviewNotificationId);
+    final deliverAt = DateTime.utc(forYear, 1, 1, 9, 0, 0);
+    if (deliverAt.isBefore(DateTime.now().toUtc())) return;
+    final reviewYear = forYear - 1;
+    await _plugin.zonedSchedule(
+      _kYearInReviewNotificationId,
+      'Your $reviewYear in Travel is ready 🌍',
+      'See every country, trip, and highlight from last year.',
+      tz.TZDateTime.from(deliverAt, tz.local),
+      const NotificationDetails(iOS: DarwinNotificationDetails()),
+      payload: 'yearInReview:$reviewYear',
       androidScheduleMode: AndroidScheduleMode.inexact,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
