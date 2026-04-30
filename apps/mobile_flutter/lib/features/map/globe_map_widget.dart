@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
@@ -41,11 +41,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   Size _canvasSize = Size.zero;
   Offset _lastFocalPoint = Offset.zero;
 
-  // ── Auto-rotation ──────────────────────────────────────────────────────────
+  // ── Auto-rotation & Physics ────────────────────────────────────────────────
+
+  static const _kRotationScale = 150.0; // pixels to radians divisor
+  static const _kIdleVelocity = -0.0015; // ~5°/sec east→west
 
   late final Ticker _rotationTicker;
   bool _isInteracting = false;
-  Timer? _interactionTimer;
+  Offset _velocity = Offset.zero; // radians per tick
   Duration _lastTickTime = Duration.zero;
 
   // ── Rotation snap (900 ms — rotLng + rotLat only) ─────────────────────────
@@ -80,26 +83,60 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     _rotationTicker.dispose();
     _snapController.dispose();
     _zoomController.dispose();
-    _interactionTimer?.cancel();
     super.dispose();
   }
 
   // ── Rotation ticker ────────────────────────────────────────────────────────
 
   void _onRotationTick(Duration elapsed) {
-    // Pause during interaction OR any zoom sequence (snap + zoom).
+    final dt = elapsed - _lastTickTime;
+    _lastTickTime = elapsed;
+
     if (_isInteracting ||
         _snapController.isAnimating ||
         _zoomController.isAnimating) {
-      _lastTickTime = elapsed;
       return;
     }
-    final dt = elapsed - _lastTickTime;
-    _lastTickTime = elapsed;
+
     if (dt.inMilliseconds > 120) return; // skip jump-frames on resume
+    final dtSec = dt.inMicroseconds / 1000000.0;
+
+    // 1. Apply Friction
+    // Exponential decay: v = v * friction^dt
+    // 0.05 means velocity drops to 5% after 1 second.
+    const friction = 0.05;
+    _velocity *= math.pow(friction, dtSec).toDouble();
+
+    // 2. Blend with Idle Spin
+    // We want to smoothly transition back to the constant -0.0015 radians/tick.
+    // Convert idle velocity to radians/sec for consistency.
+    // Current loop is ~60fps, so 0.0015 * 60 = ~0.09 rad/sec.
+    const idleRadSec = _kIdleVelocity * 60.0;
+    const blendThreshold = 0.2; // rad/sec
+
+    double targetLngV = _velocity.dx;
+    double targetLatV = _velocity.dy;
+
+    if (_velocity.distance < blendThreshold) {
+      // Smoothly interpolate towards idle spin (horizontal only).
+      // vertical velocity should trend to zero.
+      targetLngV = ui.lerpDouble(targetLngV, idleRadSec, 0.1)!;
+      targetLatV = ui.lerpDouble(targetLatV, 0.0, 0.1)!;
+      _velocity = Offset(targetLngV, targetLatV);
+    }
+
+    // 3. Integrate
+    double newLng = _projection.rotLng + _velocity.dx * dtSec;
+    double newLat = (_projection.rotLat + _velocity.dy * dtSec)
+        .clamp(-math.pi / 2, math.pi / 2);
+
+    // 4. Normalize Longitude to [-pi, pi]
+    newLng = ((newLng + math.pi) % (2 * math.pi)) - math.pi;
+
     setState(() {
       _projection = _projection.copyWith(
-        rotLng: _projection.rotLng - 0.0015, // ~5°/sec east→west
+        rotLng: newLng,
+        rotLat: newLat,
       );
     });
   }
@@ -130,6 +167,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   // ── Animate to country ─────────────────────────────────────────────────────
 
   void _animateTo(double lat, double lng) {
+    _velocity = Offset.zero;
     final targetRotLng = -lng * math.pi / 180.0;
     final targetRotLat = lat * math.pi / 180.0;
 
@@ -181,7 +219,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     _baseScale = _projection.scale;
     _lastFocalPoint = d.focalPoint;
     _isInteracting = true;
-    _interactionTimer?.cancel();
+    _velocity = Offset.zero;
     _snapController.stop();
     _zoomController.stop();
   }
@@ -195,8 +233,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       } else {
         final delta = d.focalPoint - _lastFocalPoint;
         _projection = _projection.copyWith(
-          rotLng: _projection.rotLng + delta.dx / 150.0,
-          rotLat: (_projection.rotLat + delta.dy / 150.0)
+          rotLng: _projection.rotLng + delta.dx / _kRotationScale,
+          rotLat: (_projection.rotLat + delta.dy / _kRotationScale)
               .clamp(-math.pi / 2, math.pi / 2),
         );
       }
@@ -205,10 +243,20 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   }
 
   void _onScaleEnd(ScaleEndDetails d) {
-    _interactionTimer?.cancel();
-    _interactionTimer = Timer(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _isInteracting = false);
-    });
+    _isInteracting = false;
+    // Capture velocity in radians per SECOND, then convert to per TICK (approx).
+    // Note: We integrate in _onRotationTick using dt.
+    final pixelsPerSec = d.velocity.pixelsPerSecond;
+    _velocity = Offset(
+      pixelsPerSec.dx / _kRotationScale,
+      pixelsPerSec.dy / _kRotationScale,
+    );
+
+    // Limit extreme velocity to prevent "nausea" spins.
+    const maxV = 10.0;
+    if (_velocity.distance > maxV) {
+      _velocity = Offset.fromDirection(_velocity.direction, maxV);
+    }
   }
 
   void _onTapUp(TapUpDetails d) {

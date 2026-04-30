@@ -1,11 +1,12 @@
-# Active Task: M87 -- Passport PDF Generation & Mobile Preview
+# Active Task: M88 -- Native Flutter Globe Spin Physics
 
-Branch: milestone/m87-passport-pdf
+Branch: milestone/m88-globe-inertia
 
-## Status: Complete (2026-05-01)
+## Status: ✅ Complete (2026-05-02)
 
 ## Tasks
 
-- [x] T1 -- PassportPrintConfig + PassportPdfService (passport_pdf_service.dart + pubspec)
-- [x] T2 -- PassportBookScreen (passport_book_screen.dart)
-- [x] T3 -- Entry point in card_editor_screen.dart
+- [x] T1 — Velocity Tracking & Gesture Refactor (globe_map_widget.dart)
+- [x] T2 — Inertia Physics & Friction Decay (globe_map_widget.dart)
+- [x] T3 — Idle Spin Resumption & Blending (globe_map_widget.dart)
+- [x] T4 — Animation Conflict Resolution & Normalization (globe_map_widget.dart)

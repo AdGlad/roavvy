@@ -4401,3 +4401,28 @@ The `_PlacementToggle` in the bottom bar is shown for all t-shirts in the ready 
 - A Printful API failure surfaces as an explicit error rather than a misleading local preview.
 - `front_left`/`front_right` placement support depends on Printful product configuration; if unsupported, the user sees an error and cannot place an order until a supported position is selected.
 - `_buildLocalMockupArea` remains available for the pre-approval (configuring/rerendering) phases only.
+
+---
+
+## ADR-145 — Globe Inertia & Friction-Based Decay Model (M88)
+
+**Status:** Accepted
+
+**Context:**
+The Roavvy globe currently lacks physical momentum. Gestures are purely displacement-driven, and auto-rotation resumes after a fixed delay. To achieve a premium "physical globe" feel, the interaction must preserve gesture velocity and decay it naturally over time.
+
+**Decision:**
+1.  **Velocity Tracking:** Gesture velocity will be calculated during `onScaleUpdate` as a 2D vector (radians per second) in the spherical coordinate space ($\phi$, $\theta$).
+2.  **Physics Ticker:** The existing `Ticker` used for auto-rotation will be repurposed as a physics integrator. 
+3.  **Euler Integration:** In each frame, when the user is not interacting, rotation will be updated via:
+    $rotation = rotation + velocity \times dt$
+4.  **Exponential Friction:** Velocity will decay exponentially based on time rather than frame count to ensure 60Hz/120Hz parity:
+    $velocity = velocity \times friction^{dt}$ (where $friction$ is a value like $0.15$ per second).
+5.  **State Blending:** Instead of a binary "User vs. Auto" state, a "Blend Zone" will be implemented. When gesture-driven velocity drops below $V_{threshold}$, it will be linearly interpolated towards the fixed auto-rotation velocity ($V_{auto}$).
+6.  **Normalization:** Longitude ($\phi$) will be normalized to the range $[-\pi, \pi]$ on every frame update to prevent floating-point precision loss.
+
+**Consequences:**
+*   **Physicality:** The globe will respond to "flicks," spinning and slowing down realistically.
+*   **Seamlessness:** The transition from user control to idle spin will feel organic rather than jarring.
+*   **Precision:** Normalizing longitude ensures the projection math remains stable during long sessions or high-speed spins.
+*   **Clamping:** Latitude will continue to be clamped to $[-\pi/2, \pi/2]$ to prevent "pole jumping."
