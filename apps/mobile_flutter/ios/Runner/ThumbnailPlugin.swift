@@ -50,14 +50,17 @@ class ThumbnailPlugin: NSObject {
       return
     }
 
-    // size == 0 → full original resolution at high quality.
+    // size == 0 → use full device-local resolution.
+    // Always use .fastFormat so iCloud-only assets return the best locally
+    // cached version rather than nil (isNetworkAccessAllowed = false means
+    // .highQualityFormat returns nil for iCloud photos, causing blank tiles).
     let isFullRes = (size == 0)
     let targetSize = isFullRes
       ? PHImageManagerMaximumSize
       : CGSize(width: size, height: size)
     let options = PHImageRequestOptions()
     options.isNetworkAccessAllowed = false
-    options.deliveryMode = isFullRes ? .highQualityFormat : .fastFormat
+    options.deliveryMode = .fastFormat
     options.isSynchronous = false
 
     PHImageManager.default().requestImage(
