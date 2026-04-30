@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +57,7 @@ class GridFlagsCard extends StatefulWidget {
     this.titleOverride,
     this.transparentBackground = false,
     this.onAssetsLoaded,
+    this.backgroundImageBytes,
   });
 
   final List<String> countryCodes;
@@ -75,6 +77,10 @@ class GridFlagsCard extends StatefulWidget {
   /// ready (ADR-123).
   final VoidCallback? onAssetsLoaded;
 
+  /// Optional background photo bytes (JPEG). When non-null, drawn beneath flag
+  /// tiles at 55% opacity with a dark vignette (M93, ADR-138).
+  final Uint8List? backgroundImageBytes;
+
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
 }
@@ -85,6 +91,17 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   final _repaintNotifier = ValueNotifier<int>(0);
   bool _preloadStarted = false;
   bool _onAssetsLoadedFired = false;
+
+  // Background image decoded from backgroundImageBytes (M93, ADR-138).
+  ui.Image? _backgroundImage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.backgroundImageBytes != null) {
+      _decodeBackgroundImage(widget.backgroundImageBytes!);
+    }
+  }
 
   @override
   void didUpdateWidget(GridFlagsCard oldWidget) {
@@ -97,11 +114,25 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       _preloadStarted = false;
       _onAssetsLoadedFired = false;
     }
+    if (oldWidget.backgroundImageBytes != widget.backgroundImageBytes) {
+      if (widget.backgroundImageBytes == null) {
+        setState(() => _backgroundImage = null);
+      } else {
+        _decodeBackgroundImage(widget.backgroundImageBytes!);
+      }
+    }
+  }
+
+  Future<void> _decodeBackgroundImage(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    if (mounted) setState(() => _backgroundImage = frame.image);
   }
 
   @override
   void dispose() {
     _repaintNotifier.dispose();
+    _backgroundImage?.dispose();
     super.dispose();
   }
 
@@ -190,6 +221,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               title: effectiveTitle,
               dateLabel: widget.dateLabel,
               customLabel: widget.titleOverride,
+              backgroundImage: _backgroundImage,
             ),
           );
         },
@@ -206,6 +238,7 @@ class _GridPainter extends CustomPainter {
     required this.title,
     required this.dateLabel,
     this.customLabel,
+    this.backgroundImage,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -220,6 +253,9 @@ class _GridPainter extends CustomPainter {
   /// Custom label forwarded to [CardTextRenderer.drawBranding].
   final String? customLabel;
 
+  /// Optional decoded background photo (M93, ADR-138).
+  final ui.Image? backgroundImage;
+
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
@@ -233,6 +269,21 @@ class _GridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 0. Background photo layer (M93, ADR-138).
+    if (backgroundImage != null) {
+      _drawBackgroundPhoto(canvas, size, backgroundImage!, opacity: 0.55);
+      // Dark vignette for flag readability.
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = RadialGradient(
+            center: Alignment.center,
+            radius: 1.0,
+            colors: const [Colors.transparent, Color(0x55000000)],
+          ).createShader(Offset.zero & size),
+      );
+    }
+
     // 1. Text zones (drawn first so flags sit on top if text is transparent).
     CardTextRenderer.drawTitle(canvas, size, title);
     CardTextRenderer.drawBranding(
@@ -297,7 +348,38 @@ class _GridPainter extends CustomPainter {
       old.canvasSize != canvasSize ||
       old.title != title ||
       old.dateLabel != dateLabel ||
-      old.customLabel != customLabel;
+      old.customLabel != customLabel ||
+      old.backgroundImage != backgroundImage;
+}
+
+/// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by
+/// _GridPainter and _MultiStampPainter (M93, ADR-138).
+void _drawBackgroundPhoto(
+  Canvas canvas,
+  Size size,
+  ui.Image image, {
+  double opacity = 0.70,
+}) {
+  final imgW = image.width.toDouble();
+  final imgH = image.height.toDouble();
+  final canvasAR = size.width / size.height;
+  final imgAR = imgW / imgH;
+
+  final Rect src;
+  if (imgAR > canvasAR) {
+    final srcW = imgH * canvasAR;
+    src = Rect.fromLTWH((imgW - srcW) / 2, 0, srcW, imgH);
+  } else {
+    final srcH = imgW / canvasAR;
+    src = Rect.fromLTWH(0, (imgH - srcH) / 2, imgW, srcH);
+  }
+
+  canvas.drawImageRect(
+    image,
+    src,
+    Offset.zero & size,
+    Paint()..color = Color.fromRGBO(255, 255, 255, opacity),
+  );
 }
 
 // ── HeartRenderConfig ─────────────────────────────────────────────────────────
@@ -589,6 +671,7 @@ class PassportStampsCard extends StatelessWidget {
     this.seed,
     this.sizeMultiplier = 1.0,
     this.jitterFactor = 0.4,
+    this.backgroundImageBytes,
   });
 
   final List<String> countryCodes;
@@ -640,6 +723,10 @@ class PassportStampsCard extends StatelessWidget {
   /// 0.0 = stamps sit exactly at cell centres; 0.8 = heavy scatter/overlap.
   final double jitterFactor;
 
+  /// Optional background photo bytes (JPEG). When non-null, drawn beneath
+  /// the parchment and stamps at 70% opacity (M93, ADR-138).
+  final Uint8List? backgroundImageBytes;
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
@@ -666,6 +753,7 @@ class PassportStampsCard extends StatelessWidget {
                   seed: seed,
                   sizeMultiplier: sizeMultiplier,
                   jitterFactor: jitterFactor,
+                  backgroundImageBytes: backgroundImageBytes,
                 );
               },
             ),
@@ -712,6 +800,7 @@ class _PassportPagePainter extends StatefulWidget {
     this.seed,
     this.sizeMultiplier = 1.0,
     this.jitterFactor = 0.4,
+    this.backgroundImageBytes,
   });
 
   final List<String> countryCodes;
@@ -729,6 +818,9 @@ class _PassportPagePainter extends StatefulWidget {
   final double sizeMultiplier;
   final double jitterFactor;
 
+  /// Optional background photo bytes (M93, ADR-138).
+  final Uint8List? backgroundImageBytes;
+
   /// See [PassportStampsCard.onAssetsLoaded].
   final VoidCallback? onAssetsLoaded;
 
@@ -741,16 +833,29 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
   bool _wasForced = false;
   Map<String, StampAsset> _assets = const {};
 
+  // Decoded background photo (M93, ADR-138).
+  ui.Image? _backgroundImage;
+
   @override
   void initState() {
     super.initState();
     _applyLayoutResult(_computeLayoutResult());
     _loadAssets();
+    if (widget.backgroundImageBytes != null) {
+      _decodeBackgroundImage(widget.backgroundImageBytes!);
+    }
   }
 
   @override
   void didUpdateWidget(_PassportPagePainter old) {
     super.didUpdateWidget(old);
+    if (old.backgroundImageBytes != widget.backgroundImageBytes) {
+      if (widget.backgroundImageBytes == null) {
+        setState(() => _backgroundImage = null);
+      } else {
+        _decodeBackgroundImage(widget.backgroundImageBytes!);
+      }
+    }
     final layoutChanged = !listEquals(old.countryCodes, widget.countryCodes) ||
         !listEquals(old.trips, widget.trips) ||
         old.canvasSize != widget.canvasSize ||
@@ -776,6 +881,18 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
       });
       if (stampSetChanged) _loadAssets();
     }
+  }
+
+  @override
+  void dispose() {
+    _backgroundImage?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _decodeBackgroundImage(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    if (mounted) setState(() => _backgroundImage = frame.image);
   }
 
   void _applyLayoutResult(PassportLayoutResult result) {
@@ -854,6 +971,7 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         titleOverride: widget.titleOverride,
         transparentBackground: widget.transparentBackground,
         countryCount: widget.countryCodes.length,
+        backgroundImage: _backgroundImage,
       ),
     );
   }
@@ -874,6 +992,7 @@ class _MultiStampPainter extends CustomPainter {
     this.titleOverride,
     this.transparentBackground = false,
     required this.countryCount,
+    this.backgroundImage,
   });
 
   final List<StampData> stamps;
@@ -886,13 +1005,43 @@ class _MultiStampPainter extends CustomPainter {
   final bool transparentBackground;
   final int countryCount;
 
+  /// Optional decoded background photo (M93, ADR-138).
+  final ui.Image? backgroundImage;
+
   @override
   void paint(Canvas canvas, Size size) {
+    // 0. Background photo layer (M93, ADR-138).
+    // Drawn before parchment so the paper texture sits on top, maintaining
+    // the ink-on-paper look while the photo shows through.
+    if (backgroundImage != null && !transparentBackground) {
+      _drawBackgroundPhoto(canvas, size, backgroundImage!, opacity: 0.70);
+      // Bottom-30% gradient darkens to aid stamp readability.
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Color(0x88000000)],
+            stops: [0.70, 1.0],
+          ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+      );
+    }
+
     // 1. Paper texture background (drawn directly — not in saveLayer so it
     //    acts as the "destination" for the multiply blend)
     // Tint is removed if transparentBackground is true (ADR-117).
+    // When a background photo is active, draw parchment at 25% opacity so the
+    // photo shows through while the ink-on-paper multiply blend still works.
     if (!transparentBackground) {
-      const PaperTexturePainter().paint(canvas, size);
+      if (backgroundImage != null) {
+        canvas.saveLayer(Offset.zero & size,
+            Paint()..color = const Color(0x40FFFFFF));
+        const PaperTexturePainter().paint(canvas, size);
+        canvas.restore();
+      } else {
+        const PaperTexturePainter().paint(canvas, size);
+      }
     }
 
     // 2. Stamp compositing layer.
@@ -1154,5 +1303,7 @@ class _MultiStampPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MultiStampPainter old) =>
-      old.stamps != stamps || old.assets != assets;
+      old.stamps != stamps ||
+      old.assets != assets ||
+      old.backgroundImage != backgroundImage;
 }

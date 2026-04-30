@@ -1315,3 +1315,37 @@ M92 enriches the existing rule-based title generator with hero image labels (sce
 - No new package dependencies.
 - `TitleGenerationRequest` has one new optional field; all existing callers compile unchanged.
 - Label title tables are O(1) lookup; no performance impact.
+
+---
+
+## ADR-138 — M93 Background Image Compositing for Share Cards
+
+**Status:** Accepted
+
+**Context:**
+M93 adds an optional photo background layer to passport and grid share cards. A user's travel photo is composited behind stamps/flags at both preview and print resolution. The background image must not be persisted to Firestore (privacy constraint) and must not break existing render paths.
+
+**Decisions:**
+
+1. **`backgroundImageBytes: Uint8List?` flows through the render stack**: `card_editor_screen → card_templates → CustomPainter.paint()`. The bytes are decoded to `ui.Image` asynchronously in `StatefulWidget` state (`_GridFlagsCardState`, `_PassportPagePainterState`) via `ui.instantiateImageCodec` before being passed to the synchronous `CustomPainter`. This avoids async work inside `paint()`.
+
+2. **`_drawBackgroundPhoto()` top-level helper**: Shared by `_GridPainter` and `_MultiStampPainter`. Computes a BoxFit.cover source rect crop and draws via `canvas.drawImageRect` at configurable opacity (default 0.70 for passport, 0.55 for grid).
+
+3. **Layer stack — passport**: photo (70% opacity) → gradient overlay (bottom 30%, transparent→black) → parchment texture at 25% opacity (via `saveLayer`) → stamps (BlendMode.multiply unchanged) → title/branding.
+
+4. **Layer stack — grid**: photo (55% opacity) → dark radial vignette → text zones → flag tiles.
+
+5. **`CardBackgroundPicker` bottom sheet**: Shows "No background" tile (sentinel `'__none__'`), hero image candidates (from `HeroImage` list via `ThumbnailChannel`), and recent library photos (30, via `photo_manager`). Returns `String?` assetId via `Navigator.pop`. Sentinel distinguishes explicit "no background" from sheet dismissal (both would otherwise return `null`).
+
+6. **Preview vs print resolution**: Preview bytes fetched at size 1024 via `ThumbnailChannel.getThumbnail`. Print bytes fetched at full resolution via `ThumbnailChannel.getFullResolutionImage` (calls `getThumbnail(size: 0)` → `PHImageManagerMaximumSize`) immediately before `CardImageRenderer.render()`.
+
+7. **`backgroundAssetId` NOT persisted to Firestore in M93**: Background selection is transient per session. Only `{countryCode, firstSeen, lastSeen}` ever leaves the device.
+
+8. **`ui.Image` disposal**: `_GridFlagsCardState` and `_PassportPagePainterState` each implement `dispose()` to call `_backgroundImage?.dispose()`, preventing GPU texture memory leaks.
+
+**Consequences:**
+
+- Background images render correctly in both WYSIWYG capture (passport share) and off-screen `CardImageRenderer` capture (grid print).
+- No Firestore schema changes required.
+- `card_templates.dart` `PassportStampsCard` and `GridFlagsCard` each gain one new optional param; all existing callers compile unchanged.
+- `CardImageRenderer.render()` gains `backgroundImageBytes` param; existing callers are unaffected.

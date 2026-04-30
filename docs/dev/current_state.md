@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M92, 2026-04-30)
+# Roavvy — Current State (updated M93, 2026-05-01)
 
 ## What is built
 
@@ -10,7 +10,7 @@
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
 | Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; achievement gallery |
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |
-| Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70); label-powered titles from hero images (M92) |
+| Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70); label-powered titles from hero images (M92); optional photo background (passport + grid) composited at print resolution (M93) |
 | Sharing | ✅ | Share sheet; `/share/[token]` web page; token revocation |
 | Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll |
 | Commerce (web) | ✅ | `/shop` public landing; auth-aware CTA; web checkout in M28 (not started) |
@@ -32,7 +32,7 @@
 - M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
 - M91: Memory Pulse ✅ Complete (2026-04-30)
 - M92: ✅ Complete (2026-04-30) — label-powered auto titles
-- M93: Hero image share card background (depends on M89+M90)
+- M93: ✅ Complete (2026-05-01) — photo background compositing for passport + grid cards
 - M94: Year in Review (depends on M89+M90)
 - Social / friends features
 - iPad layout (iPhone-only target)
@@ -59,6 +59,7 @@
 | Memory pulse service | `lib/features/memory/memory_pulse_service.dart` |
 | Memory pulse card | `lib/features/memory/memory_pulse_card.dart` |
 | Thumbnail channel | `lib/features/shared/thumbnail_channel.dart` |
+| Card background picker | `lib/features/cards/card_background_picker.dart` |
 | Thumbnail plugin (iOS) | `ios/Runner/ThumbnailPlugin.swift` |
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |
 | Country lookup | `packages/country_lookup/lib/` |

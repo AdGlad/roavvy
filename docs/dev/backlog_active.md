@@ -34,7 +34,7 @@
 **Depends on:** M89 (labels), M90 (HeroImageView)
 **Scope in:** New `memory_pulse_service.dart`, `memory_pulse_card.dart`; `notification_service.dart` extension; `map_screen.dart`; `providers.dart`.
 **Full plan:** `docs/dev/milestones/m91-memory-pulse.md`
-**Status:** In Progress (2026-04-30).
+**Status:** ✅ Complete (2026-04-30).
 
 ---
 
@@ -54,7 +54,7 @@
 **Depends on:** M89, M90
 **Scope in:** `card_editor_screen.dart`, `card_templates.dart` (PassportStampsCard + GridCard), `card_image_renderer.dart`; new `CardBackgroundPicker`; `ThumbnailPlugin.swift` (full-res fetch).
 **Full plan:** `docs/dev/milestones/m93-hero-share-card-background.md`
-**Status:** Not started.
+**Status:** ✅ Complete (2026-05-01).
 
 ---
 

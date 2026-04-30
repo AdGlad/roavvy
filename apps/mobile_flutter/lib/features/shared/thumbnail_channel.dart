@@ -25,4 +25,12 @@ class ThumbnailChannel {
       return null;
     }
   }
+
+  /// Returns full-resolution JPEG bytes for [assetId], or null if unavailable.
+  ///
+  /// Uses `PHImageManagerMaximumSize` with `highQualityFormat` delivery.
+  /// iCloud-only assets may download to the device (network allowed on Swift side).
+  /// Use for print/share compositing where pixel quality matters (M93, ADR-138).
+  Future<Uint8List?> getFullResolutionImage(String assetId) =>
+      getThumbnail(assetId, size: 0);
 }

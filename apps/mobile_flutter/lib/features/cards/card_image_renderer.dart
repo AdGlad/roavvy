@@ -82,6 +82,7 @@ class CardImageRenderer {
     double stampSizeMultiplier = 1.0,
     double stampJitterFactor = 0.4,
     Duration assetsTimeout = const Duration(seconds: 10),
+    Uint8List? backgroundImageBytes,
   }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -169,6 +170,7 @@ class CardImageRenderer {
               stampSeed: stampSeed,
               stampSizeMultiplier: stampSizeMultiplier,
               stampJitterFactor: stampJitterFactor,
+              backgroundImageBytes: backgroundImageBytes,
               onAssetsLoaded: assetsCompleter != null
                   ? () {
                       if (!assetsCompleter.isCompleted) {
@@ -218,7 +220,8 @@ class CardImageRenderer {
     int? stampSeed,
     double stampSizeMultiplier = 1.0,
     double stampJitterFactor = 0.4,
-    }) {
+    Uint8List? backgroundImageBytes,
+  }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
         return FrontRibbonCard(
@@ -234,6 +237,7 @@ class CardImageRenderer {
           titleOverride: titleOverride,
           transparentBackground: transparentBackground,
           onAssetsLoaded: onAssetsLoaded,
+          backgroundImageBytes: backgroundImageBytes,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -261,6 +265,7 @@ class CardImageRenderer {
           seed: stampSeed,
           sizeMultiplier: stampSizeMultiplier,
           jitterFactor: stampJitterFactor,
+          backgroundImageBytes: backgroundImageBytes,
         );
 
       case CardTemplateType.timeline:
