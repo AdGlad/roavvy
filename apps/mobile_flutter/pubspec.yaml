@@ -65,6 +65,7 @@ dependencies:
   pdf: ^3.10.8
   flutter_custom_carousel: ^0.1.0+1
   flutter_animate: ^4.5.0
+  turnable_page: ^1.0.1
 
 dev_dependencies:
   flutter_test:

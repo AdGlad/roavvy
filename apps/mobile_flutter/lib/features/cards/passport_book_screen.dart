@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:turnable_page/turnable_page.dart';
 
 import 'passport_pdf_service.dart';
 
@@ -35,7 +36,7 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
   Uint8List? _pdfBytes;
   int _currentPage = 0;
   bool _sharing = false;
-  final _pageController = PageController();
+  final _flipController = PageFlipController();
 
   @override
   void initState() {
@@ -45,7 +46,6 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -155,14 +155,19 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
     return Column(
       children: [
         Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: _pages.length,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (context, i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Image.memory(_pages[i], fit: BoxFit.contain),
+          child: TurnablePage(
+            controller: _flipController,
+            pageCount: _pages.length,
+            pageViewMode: PageViewMode.single,
+            paperBoundaryDecoration: PaperBoundaryDecoration.modern,
+            settings: FlipSettings(
+              flippingTime: 600,
+              swipeDistance: 60.0,
             ),
+            onPageChanged: (left, right) =>
+                setState(() => _currentPage = left),
+            builder: (context, i, constraints) =>
+                Image.memory(_pages[i], fit: BoxFit.fill),
           ),
         ),
         _BottomBar(

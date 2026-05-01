@@ -29,7 +29,7 @@
 - M31: Web password reset flow
 - M61: Grid Card real-flag SVG upgrade (currently emoji-based)
 - M66: Heart Card gapless SVG repack
-- M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
+- M87: ✅ Complete (2026-05-01) — Passport Book PDF (cover + stamp pages + summary, in-app preview, share)
 - M88: ✅ Complete (2026-05-02) — Native Flutter Globe Spin Physics (Inertia & Decay)
 - M89: Journal Redesign: 3D Trip Carousel & Immersive Details
 - M91: Memory Pulse ✅ Complete (2026-04-30)
@@ -62,6 +62,8 @@
 | Memory pulse card | `lib/features/memory/memory_pulse_card.dart` |
 | Thumbnail channel | `lib/features/shared/thumbnail_channel.dart` |
 | Card background picker | `lib/features/cards/card_background_picker.dart` |
+| Passport PDF service | `lib/features/cards/passport_pdf_service.dart` |
+| Passport book screen | `lib/features/cards/passport_book_screen.dart` |
 | Year in Review | `lib/features/year_in_review/` |
 | Thumbnail plugin (iOS) | `ios/Runner/ThumbnailPlugin.swift` |
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |
