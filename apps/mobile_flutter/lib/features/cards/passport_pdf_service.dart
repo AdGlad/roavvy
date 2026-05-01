@@ -60,6 +60,7 @@ class PassportPdfPage {
     required this.stamps,
     required this.trips,
     required this.countryCodes,
+    this.pageIndex = 0,
   });
 
   final PassportPdfPageType type;
@@ -72,6 +73,9 @@ class PassportPdfPage {
 
   /// All country codes in the book.
   final List<String> countryCodes;
+
+  /// 1-based human-readable page number (set for stamp pages only).
+  final int pageIndex;
 }
 
 // ── Result ────────────────────────────────────────────────────────────────────
@@ -178,6 +182,7 @@ abstract final class PassportPdfService {
         stamps: stamps,
         trips: sorted,
         countryCodes: countryCodes,
+        pageIndex: p + 1, // 1-based page number for display
       ));
     }
 
@@ -321,6 +326,9 @@ abstract final class PassportPdfService {
     // 4. Vignette darkens the corners to give a physical page feel
     _drawVignette(canvas, _pageSize);
 
+    // 5. Page number — bottom-centre in muted teal, passport style
+    _drawPageNumber(canvas, page.pageIndex);
+
     return _finish(recorder);
   }
 
@@ -441,9 +449,10 @@ abstract final class PassportPdfService {
 
   // ── Passport page background ───────────────────────────────────────────────
 
-  /// Draws an authentic passport page background: white base + dense guilloché
-  /// mesh (horizontal + vertical interlocking sine waves) in blue-teal, matching
-  /// the reference security-paper pattern.
+  /// Draws an authentic passport page background matching the reference
+  /// security-paper guilloché pattern: white base + very fine, densely-packed
+  /// interlocking sine-wave mesh in blue-teal (H) and blue-green (V), plus a
+  /// subtle radial teal wash in the centre.
   static void _drawPassportPage(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
@@ -454,83 +463,117 @@ abstract final class PassportPdfService {
       Paint()..color = const Color(0xFFFFFFFF),
     );
 
-    // ── Guilloché horizontal layers ──────────────────────────────────────────
+    // Reference image shows lines ~3–4 px apart, amplitude ~4–7 px, two
+    // interleaved horizontal + two vertical layers producing fine diamond nodes.
+    const gap = 4.0; // line-to-line spacing (px)
 
-    // Layer H1: teal-blue, dense, moderate amplitude
+    // ── Horizontal layers ────────────────────────────────────────────────────
+
+    // H1 — primary teal-blue sweep
     final pH1 = Paint()
-      ..color = const Color(0xFF3A8FA8).withValues(alpha: 0.09)
-      ..strokeWidth = 0.9
+      ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.12)
+      ..strokeWidth = 0.7
       ..style = PaintingStyle.stroke;
-    const hGap = 9.0;
-    const hAmp1 = 10.0;
-    final hFreq1 = 2 * math.pi / (w * 0.11);
-    for (var baseY = 0.0; baseY < h; baseY += hGap) {
+    final hFreq1 = 2 * math.pi / (w * 0.13); // slow wave ~full-width cycle
+    const hAmp1 = 5.5;
+    for (var baseY = 0.0; baseY < h; baseY += gap) {
       final path = Path()..moveTo(0, baseY);
-      for (var x = 2.0; x <= w; x += 2) {
+      for (var x = 1.5; x <= w; x += 1.5) {
         path.lineTo(x, baseY + hAmp1 * math.sin(hFreq1 * x));
       }
       canvas.drawPath(path, pH1);
     }
 
-    // Layer H2: offset phase + higher frequency for interlocking mesh
+    // H2 — offset phase, higher frequency, creates interlock nodes with H1
     final pH2 = Paint()
-      ..color = const Color(0xFF3A8FA8).withValues(alpha: 0.055)
-      ..strokeWidth = 0.7
+      ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.075)
+      ..strokeWidth = 0.55
       ..style = PaintingStyle.stroke;
-    const hAmp2 = 6.0;
-    final hFreq2 = 2 * math.pi / (w * 0.065);
-    for (var baseY = hGap / 2; baseY < h; baseY += hGap) {
+    final hFreq2 = 2 * math.pi / (w * 0.075);
+    const hAmp2 = 4.0;
+    for (var baseY = gap / 2; baseY < h; baseY += gap) {
       final path = Path()..moveTo(0, baseY);
-      for (var x = 2.0; x <= w; x += 2) {
+      for (var x = 1.5; x <= w; x += 1.5) {
         path.lineTo(
-            x, baseY + hAmp2 * math.sin(hFreq2 * x + math.pi * 0.55));
+            x, baseY + hAmp2 * math.sin(hFreq2 * x + math.pi * 0.6));
       }
       canvas.drawPath(path, pH2);
     }
 
-    // ── Guilloché vertical layers ────────────────────────────────────────────
+    // ── Vertical layers ──────────────────────────────────────────────────────
 
-    // Layer V1: blue-green, same density, crosses the horizontal mesh
+    // V1 — blue-green crosses horizontal mesh
     final pV1 = Paint()
-      ..color = const Color(0xFF3A9A70).withValues(alpha: 0.07)
-      ..strokeWidth = 0.9
+      ..color = const Color(0xFF2EA87A).withValues(alpha: 0.09)
+      ..strokeWidth = 0.7
       ..style = PaintingStyle.stroke;
-    final vFreq1 = 2 * math.pi / (h * 0.11);
-    for (var baseX = 0.0; baseX < w; baseX += hGap) {
+    final vFreq1 = 2 * math.pi / (h * 0.13);
+    for (var baseX = 0.0; baseX < w; baseX += gap) {
       final path = Path()..moveTo(baseX, 0);
-      for (var y = 2.0; y <= h; y += 2) {
+      for (var y = 1.5; y <= h; y += 1.5) {
         path.lineTo(baseX + hAmp1 * math.sin(vFreq1 * y), y);
       }
       canvas.drawPath(path, pV1);
     }
 
-    // Layer V2: offset to create diamond mesh nodes
+    // V2 — offset, tighter frequency, completes diamond mesh
     final pV2 = Paint()
-      ..color = const Color(0xFF3A9A70).withValues(alpha: 0.045)
-      ..strokeWidth = 0.7
+      ..color = const Color(0xFF2EA87A).withValues(alpha: 0.06)
+      ..strokeWidth = 0.55
       ..style = PaintingStyle.stroke;
-    final vFreq2 = 2 * math.pi / (h * 0.065);
-    for (var baseX = hGap / 2; baseX < w; baseX += hGap) {
+    final vFreq2 = 2 * math.pi / (h * 0.075);
+    for (var baseX = gap / 2; baseX < w; baseX += gap) {
       final path = Path()..moveTo(baseX, 0);
-      for (var y = 2.0; y <= h; y += 2) {
+      for (var y = 1.5; y <= h; y += 1.5) {
         path.lineTo(
-            baseX + hAmp2 * math.sin(vFreq2 * y + math.pi * 0.55), y);
+            baseX + hAmp2 * math.sin(vFreq2 * y + math.pi * 0.6), y);
       }
       canvas.drawPath(path, pV2);
     }
 
-    // Subtle centre luminosity — very light teal wash, matches reference glow
+    // Subtle radial teal-green centre wash matching the reference luminosity
     canvas.drawRect(
       Offset.zero & size,
       Paint()
         ..shader = RadialGradient(
           center: Alignment.center,
-          radius: 0.75,
+          radius: 0.65,
           colors: [
-            const Color(0xFF80C8B0).withValues(alpha: 0.06),
+            const Color(0xFF68C9A8).withValues(alpha: 0.10),
+            const Color(0xFF4AADCC).withValues(alpha: 0.04),
             Colors.transparent,
           ],
+          stops: const [0.0, 0.45, 1.0],
         ).createShader(Offset.zero & size),
+    );
+  }
+
+  /// Draws a centered passport-style page number at the bottom of the page.
+  static void _drawPageNumber(Canvas canvas, int pageIndex) {
+    if (pageIndex <= 0) return;
+    const w = PassportPrintConfig.pageWidthPx;
+    const h = PassportPrintConfig.pageHeightPx;
+    const margin = 52.0;
+
+    // Thin horizontal rule above number
+    final rulePaint = Paint()
+      ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.25)
+      ..strokeWidth = 1.5;
+    canvas.drawLine(
+      Offset(w * 0.38, h - margin - 28),
+      Offset(w * 0.62, h - margin - 28),
+      rulePaint,
+    );
+
+    _paintCentred(
+      canvas,
+      '$pageIndex',
+      fontSize: 38,
+      fontWeight: FontWeight.w400,
+      color: const Color(0xFF2E8BA5).withValues(alpha: 0.45),
+      letterSpacing: 4,
+      y: h - margin,
+      maxWidth: w,
     );
   }
 
