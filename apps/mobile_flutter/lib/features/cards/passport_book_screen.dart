@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -159,10 +160,7 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
             controller: _pageController,
             itemCount: _pages.length,
             onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (context, i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Image.memory(_pages[i], fit: BoxFit.contain),
-            ),
+            itemBuilder: (context, i) => _buildAnimatedPage(i),
           ),
         ),
         _BottomBar(
@@ -172,6 +170,49 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
           onShare: _share,
         ),
       ],
+    );
+  }
+
+  Widget _buildAnimatedPage(int i) {
+    return AnimatedBuilder(
+      animation: _pageController,
+      builder: (context, child) {
+        double angle = 0.0;
+        if (_pageController.position.haveDimensions) {
+          final page = _pageController.page ?? _currentPage.toDouble();
+          final diff = (i - page).clamp(-1.0, 1.0);
+          angle = diff * math.pi / 2;
+        }
+        // Pages turning away go back (positive angle = rotated right),
+        // pages coming in come from the left (negative angle).
+        final isLeaving = angle > 0;
+        return Transform(
+          alignment: isLeaving ? Alignment.centerLeft : Alignment.centerRight,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.0006)
+            ..rotateY(angle),
+          child: child,
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x60000000),
+                blurRadius: 28,
+                offset: Offset(4, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.memory(_pages[i], fit: BoxFit.contain),
+          ),
+        ),
+      ),
     );
   }
 }
