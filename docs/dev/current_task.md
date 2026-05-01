@@ -1,12 +1,22 @@
-# Active Task: M88 -- Native Flutter Globe Spin Physics
+# Active Task: M89 — Journal Redesign: 3D Trip Carousel & Immersive Details
 
-Branch: milestone/m88-globe-inertia
+Branch: milestone/m89-journal-carousel
 
-## Status: ✅ Complete (2026-05-02)
+## Status: In Progress (2026-05-02)
 
 ## Tasks
 
-- [x] T1 — Velocity Tracking & Gesture Refactor (globe_map_widget.dart)
-- [x] T2 — Inertia Physics & Friction Decay (globe_map_widget.dart)
-- [x] T3 — Idle Spin Resumption & Blending (globe_map_widget.dart)
-- [x] T4 — Animation Conflict Resolution & Normalization (globe_map_widget.dart)
+- [x] **T1 — Add Dependencies & State**
+  - **Files:** `pubspec.yaml`, `lib/features/journal/journal_providers.dart`
+- [x] **T2 — Premium Trip Card Component**
+  - **Files:** `lib/features/journal/trip_carousel_card.dart`
+- [x] **T3 — 3D Rolodex Carousel Implementation**
+  - **Files:** `lib/features/journal/journal_screen.dart`
+- [x] **T4 — Trip Detail Screen: Map Header**
+  - **Files:** `lib/features/journal/trip_detail_screen.dart`
+- [x] **T5 — Trip Detail Screen: Photo Gallery**
+  - **Files:** `lib/features/journal/trip_detail_screen.dart`
+- [x] **T6 — Navigation & State Wiring**
+  - **Files:** `lib/features/journal/journal_screen.dart`, `lib/features/shell/main_shell.dart`
+- [ ] **T7 — Performance Optimization & QA**
+  - **Files:** `lib/features/journal/journal_screen.dart`

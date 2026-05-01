@@ -4426,3 +4426,25 @@ The Roavvy globe currently lacks physical momentum. Gestures are purely displace
 *   **Seamlessness:** The transition from user control to idle spin will feel organic rather than jarring.
 *   **Precision:** Normalizing longitude ensures the projection math remains stable during long sessions or high-speed spins.
 *   **Clamping:** Latitude will continue to be clamped to $[-\pi/2, \pi/2]$ to prevent "pole jumping."
+
+---
+
+## ADR-146 — 3D Journal Carousel: Architecture, Dependencies, and State Management (M89)
+
+**Status:** Accepted
+
+**Context:**
+The current Journal screen uses a standard vertical list which lacks the premium, immersive feel required for a travel archive. To elevate the UX, we are redesigning the Journal as a vertical 3D rolodex carousel where each trip is a full-image card. This requires a robust animation system and specialized gesture handling.
+
+**Decision:**
+1.  **Dependencies:** Add `flutter_custom_carousel: ^1.0.0` and `flutter_animate: ^4.5.0` to the mobile app. These libraries provide the high-level declarative API needed for complex transition effects without manual matrix math.
+2.  **Rolodex Physics:** Use `CustomCarousel` with a vertical orientation. Effects will be applied in a specific order (`align` -> `rotateX` -> `scale` -> `fade`) to simulate a mechanical arc. Perspective will be set to `0.001` for consistent 3D depth across screen sizes.
+3.  **State Persistence:** Create a `journalCarouselProvider` (Riverpod) to store the current scroll index. This ensures that when a user navigates to a trip detail and returns, the carousel remains on the same trip.
+4.  **Trip Detail Architecture:** Implement `TripDetailScreen` as a `NestedScrollView`. The `SliverAppBar` will host a `RegionGlobePainter` (from M86) focused on the specific trip's country. Regions will be filtered using the trip's date range to only highlight what was visited during that journey.
+5.  **Hero Image Integration:** Cards will utilize the existing `heroForTripProvider`. To ensure performance, only the focused and adjacent cards will decode full-resolution images; others will use cached thumbnails.
+
+**Consequences:**
+*   **UX Elevation:** The Journal transforms from a functional list to a visually rich browsing experience.
+*   **Build Complexity:** Adding external animation libraries increases the binary size slightly but significantly reduces implementation time and bug surface area for custom transforms.
+*   **Consistency:** Reusing `RegionGlobePainter` ensures that trip details feel like a focused extension of the global map.
+*   **Performance:** Careful management of `HeroImageView` is required to prevent OOM when scrolling through long trip histories.

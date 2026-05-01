@@ -31,6 +31,7 @@
 - M66: Heart Card gapless SVG repack
 - M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
 - M88: ✅ Complete (2026-05-02) — Native Flutter Globe Spin Physics (Inertia & Decay)
+- M89: Journal Redesign: 3D Trip Carousel & Immersive Details
 - M91: Memory Pulse ✅ Complete (2026-04-30)
 - M92: ✅ Complete (2026-04-30) — label-powered auto titles
 - M93: ✅ Complete (2026-05-01) — photo background compositing for passport + grid cards

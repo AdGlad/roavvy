@@ -1,41 +1,41 @@
-# Milestone 88 — Native Flutter Globe Spin Physics
+# Milestone 89 — Journal Redesign: 3D Trip Carousel & Immersive Details
 
 ## Goal
-Elevate the globe interaction from a static drag-and-stop model to a physical-feeling experience with inertia, friction, and seamless transitions between user control and idle auto-rotation.
-
-## Scope
-- **In:** `GlobeMapWidget` gesture logic, physics ticker integration, velocity-based rotation, state blending.
-- **Out:** `flutter_map` Mercator view, Mapbox APIs, non-globe UI components.
+Transform the Journal into a premium, immersive travel archive by replacing the standard scrolling list with a vertical 3D rolodex carousel and rich, memory-focused trip detail screens.
 
 ## Tasks
 
-- [ ] T1 — Velocity Tracking & Gesture Refactor
-  - **Files:** `lib/features/map/globe_map_widget.dart`
-  - **Deliverable:** Update `onScaleUpdate` to calculate instantaneous velocity (radians/sec) for both longitude and latitude when `pointerCount == 1`. Store this in a new `_velocity` Offset field.
-  - **Acceptance Criteria:** Velocity is correctly calculated during drag; velocity is zeroed on interaction start; velocity is preserved when the finger is lifted.
+- [ ] **T1 — Add Dependencies & State**
+  - **Files:** `pubspec.yaml`, `lib/features/journal/journal_providers.dart`
+  - **Deliverable:** Add `flutter_custom_carousel` and `flutter_animate`. Create `journalCarouselProvider` to persist scroll index.
+  - **Acceptance Criteria:** `pub get` passes; provider correctly stores and restores integer index.
 
-- [ ] T2 — Inertia Physics & Friction Decay
-  - **Files:** `lib/features/map/globe_map_widget.dart`
-  - **Deliverable:** 
-    - Integrate `_velocity` into the `_onRotationTick`.
-    - When `!_isInteracting`, apply `_velocity` to `rotLng` and `rotLat`.
-    - Implement a friction coefficient (e.g., `0.95` per frame) to decay velocity over time.
-    - Clamp `rotLat` to prevent pole-flipping.
-    - Clamp maximum exit velocity to prevent "infinite spin" on extreme flicks.
-  - **Acceptance Criteria:** Flicking the globe causes it to spin and slow down naturally; rotation direction matches flick direction.
+- [ ] **T2 — Premium Trip Card Component**
+  - **Files:** `lib/features/journal/trip_carousel_card.dart`
+  - **Deliverable:** Create `TripCarouselCard` widget with full-bleed hero image, dual-gradient overlays (top/bottom), and premium typography for country, title, and dates.
+  - **Acceptance Criteria:** Text is readable on light/dark images; layout matches the "editorial" design target.
 
-- [ ] T3 — Idle Spin Resumption & Blending
-  - **Files:** `lib/features/map/globe_map_widget.dart`
-  - **Deliverable:**
-    - Define an `_kIdleVelocity` constant (~5°/sec).
-    - When the inertia velocity drops below a threshold (e.g., 2.0 * `_kIdleVelocity`), gradually `lerp` the current velocity towards the idle velocity.
-    - Remove the hard-coded 2-second `Timer` delay for resuming auto-rotation.
-  - **Acceptance Criteria:** Globe transition from flick-inertia to idle-spin is smooth and gapless; no more 2-second "frozen" state.
+- [ ] **T3 — 3D Rolodex Carousel Implementation**
+  - **Files:** `lib/features/journal/journal_screen.dart`
+  - **Deliverable:** Replace `_JournalList` with `CustomCarousel`. Implement `align` -> `rotateX` -> `scale` -> `fade` effects stack. Fine-tune perspective (0.001) and Curves.
+  - **Acceptance Criteria:** Vertical scrolling feels physical and snappy; cards arc realistically.
 
-- [ ] T4 — Animation Conflict Resolution & Normalization
-  - **Files:** `lib/features/map/globe_map_widget.dart`
-  - **Deliverable:**
-    - Ensure `_snapController` and `_zoomController` (flag-strip taps) zero out `_velocity` and stop the physics loop.
-    - Normalize `rotLng` within `[0, 2π]` on every tick to prevent precision drift.
-    - Ensure `_onScaleStart` immediately kills all active inertia and idle spin.
-  - **Acceptance Criteria:** Manual taps and automated country-zooms work without jitter; longitude values remain stable over time.
+- [ ] **T4 — Trip Detail Screen: Map Header**
+  - **Files:** `lib/features/journal/trip_detail_screen.dart`
+  - **Deliverable:** Implement `TripDetailScreen` with `NestedScrollView`. Use `RegionGlobePainter` in the header to show the trip's country with visited regions highlighted. Overlay trip metadata.
+  - **Acceptance Criteria:** Header collapses gracefully; map correctly reflects trip-specific region visits.
+
+- [ ] **T5 — Trip Detail Screen: Photo Gallery**
+  - **Files:** `lib/features/journal/trip_detail_screen.dart`
+  - **Deliverable:** Add a sliver-based photo grid to the detail screen. Integrate with `photo_manager` and reuse `HeroImageView` for high-quality thumbnails.
+  - **Acceptance Criteria:** All photos from the trip are displayed; performance is smooth during scroll.
+
+- [ ] **T6 — Navigation & State Wiring**
+  - **Files:** `lib/features/journal/journal_screen.dart`, `lib/main_shell.dart`
+  - **Deliverable:** Wire card tap to `TripDetailScreen`. Ensure `journalCarouselProvider` is used to restore scroll position on back navigation.
+  - **Acceptance Criteria:** Seamless push/pop transitions; carousel index is preserved.
+
+- [ ] **T7 — Performance Optimization & QA**
+  - **Files:** `lib/features/journal/journal_screen.dart`
+  - **Deliverable:** Optimize image decoding (cache control); add `RepaintBoundary` if needed; verify 60 FPS on real hardware.
+  - **Acceptance Criteria:** No jank during fast scrolling; memory usage remains within bounds.

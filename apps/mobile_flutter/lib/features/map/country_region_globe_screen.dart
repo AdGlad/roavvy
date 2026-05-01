@@ -1,7 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
-import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:region_lookup/region_lookup.dart';
@@ -11,60 +9,13 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'country_centroids.dart';
 import 'globe_projection.dart';
-
-// ── Pastel palette (mirrors CountryRegionMapScreen — ADR-111) ─────────────────
-
-const _kPastelPalette = [
-  Color(0xFFFFD1DC), // pastel pink
-  Color(0xFFA8D8EA), // pastel sky blue
-  Color(0xFFB7E5B4), // pastel green
-  Color(0xFFFFE5A0), // pastel yellow
-  Color(0xFFCFB8E8), // pastel lavender
-  Color(0xFFFFBD9B), // pastel peach
-  Color(0xFFB5EAD7), // pastel mint
-  Color(0xFFDCEFF9), // pastel ice blue
-  Color(0xFFFFD9A0), // pastel apricot
-  Color(0xFFD4E9C8), // pastel sage
-  Color(0xFFF7C6C7), // pastel rose
-  Color(0xFFE8D5B7), // pastel tan
-];
-
-// ── Colours (same system as main globe — globe_painter.dart) ─────────────────
-
-const _kOcean          = Color(0xFF1B3A5C); // lighter navy ocean
-const _kAtmosphere     = Color(0xFF3A6A9A); // atmosphere rim
-const _kWorldCountry   = Color(0xFF2D5280); // world map background countries
-const _kWorldBorder    = Color(0xFF3D6490); // world country borders
-const _kUnvisitedRegion = Color(0xFF3A6080); // unvisited regions of selected country
-const _kUnvisitedBorder = Color(0xFF4E7AA0); // unvisited region borders (clearly visible)
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+import 'region_globe_painter.dart';
 
 String _flagEmoji(String iso) {
   if (iso.length != 2) return '';
   const base = 0x1F1E6;
   return String.fromCharCode(base + iso.codeUnitAt(0) - 65) +
       String.fromCharCode(base + iso.codeUnitAt(1) - 65);
-}
-
-/// Average-of-vertices centroid for back-face culling.
-(double, double) _polyCentroid(RegionPolygon p) {
-  double sumLat = 0, sumLng = 0;
-  for (final v in p.vertices) {
-    sumLat += v.$1;
-    sumLng += v.$2;
-  }
-  return (sumLat / p.vertices.length, sumLng / p.vertices.length);
-}
-
-/// Average-of-vertices centroid for a [CountryPolygon].
-(double, double) _countryCentroid(CountryPolygon p) {
-  double sumLat = 0, sumLng = 0;
-  for (final v in p.vertices) {
-    sumLat += v.$1;
-    sumLng += v.$2;
-  }
-  return (sumLat / p.vertices.length, sumLng / p.vertices.length);
 }
 
 /// Scale that makes the selected country fill ~65% of the globe face.
@@ -89,152 +40,6 @@ double _autoScale(List<RegionPolygon> polygons, GlobeProjection centered) {
   // Upper bound raised to 14.0 so tiny island nations (e.g. Seychelles) start
   // fully visible rather than as an invisible speck.
   return ((kRadius * kTargetFraction) / maxDist).clamp(1.2, 14.0);
-}
-
-// ── RegionGlobePainter ────────────────────────────────────────────────────────
-
-/// Renders a globe showing:
-///  1. Ocean background.
-///  2. All world country polygons (background context — same fill as main globe).
-///  3. Unvisited regions of [countryCode] (lighter than world countries).
-///  4. Visited regions of [countryCode] (pastel palette — high contrast).
-///  5. Atmosphere rim.
-///
-/// Mirrors the main globe's colour system (ADR-116) for visual consistency.
-class RegionGlobePainter extends CustomPainter {
-  const RegionGlobePainter({
-    required this.countryPolygons,
-    required this.regionPolygons,
-    required this.visitedCodes,
-    required this.projection,
-  });
-
-  /// All world country polygons (from [polygonsProvider]) for background.
-  final List<CountryPolygon> countryPolygons;
-
-  /// All region polygons for the selected country.
-  final List<RegionPolygon> regionPolygons;
-
-  final Set<String> visitedCodes;
-  final GlobeProjection projection;
-
-  static const _kStrokeWidth = 0.4;
-  static const _kSuppressed = {'AQ'};
-
-  @override
-  void paint(ui.Canvas canvas, ui.Size size) {
-    final r = projection.radius(size);
-    final c = projection.centre(size);
-
-    // 1. Ocean.
-    canvas.drawCircle(c, r, Paint()..color = _kOcean);
-
-    // 2. World country background — same approach as GlobePainter.
-    for (final poly in countryPolygons) {
-      if (_kSuppressed.contains(poly.isoCode)) continue;
-      final cent = _countryCentroid(poly);
-      if (!projection.isVisible(cent.$1, cent.$2)) continue;
-
-      for (final ring in projection.splitAtAntimeridian(poly.vertices)) {
-        final pts = <ui.Offset>[];
-        for (final v in ring) {
-          final pt = projection.project(v.$1, v.$2, size);
-          if (pt != null) pts.add(pt);
-        }
-        if (pts.length < 3) continue;
-
-        final path = ui.Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (final p in pts.skip(1)) { path.lineTo(p.dx, p.dy); }
-        path.close();
-
-        canvas.drawPath(path, Paint()..color = _kWorldCountry);
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = _kWorldBorder
-            ..style = ui.PaintingStyle.stroke
-            ..strokeWidth = _kStrokeWidth,
-        );
-      }
-    }
-
-    // Sort region codes for deterministic pastel assignment.
-    final allCodes = regionPolygons.map((p) => p.regionCode).toSet().toList()
-      ..sort();
-    final codeIndex = {for (var i = 0; i < allCodes.length; i++) allCodes[i]: i};
-
-    // 3. Unvisited regions (drawn first so visited appear on top).
-    _drawRegions(canvas, size, visited: false, codeIndex: codeIndex);
-
-    // 4. Visited regions.
-    _drawRegions(canvas, size, visited: true, codeIndex: codeIndex);
-
-    // 5. Atmosphere rim.
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..color = _kAtmosphere
-        ..style = ui.PaintingStyle.stroke
-        ..strokeWidth = r * 0.025,
-    );
-  }
-
-  void _drawRegions(
-    ui.Canvas canvas,
-    ui.Size size, {
-    required bool visited,
-    required Map<String, int> codeIndex,
-  }) {
-    for (final poly in regionPolygons) {
-      final isVisited = visitedCodes.contains(poly.regionCode);
-      if (isVisited != visited) continue;
-
-      final cent = _polyCentroid(poly);
-      if (!projection.isVisible(cent.$1, cent.$2)) continue;
-
-      for (final ring in projection.splitAtAntimeridian(poly.vertices)) {
-        final pts = <ui.Offset>[];
-        for (final v in ring) {
-          final pt = projection.project(v.$1, v.$2, size);
-          if (pt != null) pts.add(pt);
-        }
-        if (pts.length < 3) continue;
-
-        final path = ui.Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (final p in pts.skip(1)) { path.lineTo(p.dx, p.dy); }
-        path.close();
-
-        final Color fill;
-        final Color border;
-        if (isVisited) {
-          final idx = codeIndex[poly.regionCode] ?? 0;
-          fill = _kPastelPalette[idx % _kPastelPalette.length]
-              .withValues(alpha: 0.92);
-          border = fill.withValues(alpha: 0.6);
-        } else {
-          fill = _kUnvisitedRegion;
-          border = _kUnvisitedBorder;
-        }
-
-        canvas.drawPath(path, Paint()..color = fill);
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = border
-            ..style = ui.PaintingStyle.stroke
-            ..strokeWidth = _kStrokeWidth,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(RegionGlobePainter old) =>
-      old.projection != projection ||
-      old.visitedCodes != visitedCodes ||
-      old.regionPolygons != regionPolygons ||
-      old.countryPolygons != countryPolygons;
 }
 
 // ── CountryRegionGlobeScreen ──────────────────────────────────────────────────
@@ -340,9 +145,9 @@ class _CountryRegionGlobeScreenState
     final countryPolygons = ref.watch(polygonsProvider);
 
     return Scaffold(
-      backgroundColor: _kOcean,
+      backgroundColor: kOcean,
       appBar: AppBar(
-        backgroundColor: _kOcean,
+        backgroundColor: kOcean,
         foregroundColor: Colors.white,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
