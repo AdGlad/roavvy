@@ -1,11 +1,11 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:turnable_page/turnable_page.dart';
 
 import 'passport_pdf_service.dart';
 
@@ -36,7 +36,7 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
   Uint8List? _pdfBytes;
   int _currentPage = 0;
   bool _sharing = false;
-  final _pageController = PageController();
+  final _flipController = PageFlipController();
 
   @override
   void initState() {
@@ -46,7 +46,6 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -156,11 +155,19 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
     return Column(
       children: [
         Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: _pages.length,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (context, i) => _buildAnimatedPage(i),
+          child: TurnablePage(
+            controller: _flipController,
+            pageCount: _pages.length,
+            pageViewMode: PageViewMode.single,
+            paperBoundaryDecoration: PaperBoundaryDecoration.modern,
+            settings: FlipSettings(
+              flippingTime: 600,
+              swipeDistance: 60.0,
+            ),
+            onPageChanged: (left, right) =>
+                setState(() => _currentPage = left),
+            builder: (context, i, constraints) =>
+                Image.memory(_pages[i], fit: BoxFit.fill),
           ),
         ),
         _BottomBar(
@@ -170,49 +177,6 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
           onShare: _share,
         ),
       ],
-    );
-  }
-
-  Widget _buildAnimatedPage(int i) {
-    return AnimatedBuilder(
-      animation: _pageController,
-      builder: (context, child) {
-        double angle = 0.0;
-        if (_pageController.position.haveDimensions) {
-          final page = _pageController.page ?? _currentPage.toDouble();
-          final diff = (i - page).clamp(-1.0, 1.0);
-          angle = diff * math.pi / 2;
-        }
-        // Pages turning away go back (positive angle = rotated right),
-        // pages coming in come from the left (negative angle).
-        final isLeaving = angle > 0;
-        return Transform(
-          alignment: isLeaving ? Alignment.centerLeft : Alignment.centerRight,
-          transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.0006)
-            ..rotateY(angle),
-          child: child,
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x60000000),
-                blurRadius: 28,
-                offset: Offset(4, 10),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Image.memory(_pages[i], fit: BoxFit.contain),
-          ),
-        ),
-      ),
     );
   }
 }
