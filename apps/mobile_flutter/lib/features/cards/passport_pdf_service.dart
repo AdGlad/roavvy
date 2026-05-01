@@ -29,19 +29,20 @@ abstract final class PassportPrintConfig {
   /// gives 8 stamps per page — enough for a full, well-spaced page.
   static const int tripsPerPage = 4;
 
-  /// Scale multiplier applied to stamp radii on PDF pages.
-  /// Larger than the default card value so stamps fill the A6 page.
-  static const double stampSizeMultiplier = 1.8;
+  /// Fixed base radius for PDF stamp rendering.
+  ///
+  /// Bypasses the layout engine's adaptive radius (which is clamped to 100px
+  /// for performance) so stamps fill the A6 page.  With [visualScale] ≈ 1.0
+  /// this renders stamps at ~340px wide on a 1240px canvas — two per row,
+  /// filling most of the cell with slight overlap as requested.
+  static const double stampPdfBaseRadius = 165.0;
 
-  /// Jitter factor for stamp placement on PDF pages.
-  /// Increased from the card default (0.4) to allow natural overlap.
+  /// Jitter factor passed to [PassportLayoutEngine.layout] for PDF pages.
+  /// Allows stamps to scatter within each grid cell for a natural look.
   static const double stampJitterFactor = 0.7;
 
   /// Deep navy background for cover and summary pages.
   static const Color coverBackground = Color(0xFF0A1628);
-
-  /// Warm cream base for stamp pages (parchment feel).
-  static const Color stampPageBackground = Color(0xFFF8F2E0);
 
   /// Gold accent colour matching the Roavvy brand.
   static const Color gold = Color(0xFFD4A017);
@@ -167,7 +168,6 @@ abstract final class PassportPdfService {
           canvasSize: _pageSize,
           forPrint: true,
           entryOnly: false,
-          sizeMultiplier: PassportPrintConfig.stampSizeMultiplier,
           jitterFactor: PassportPrintConfig.stampJitterFactor,
         );
         stamps = result.stamps;
@@ -293,10 +293,27 @@ abstract final class PassportPdfService {
       final key = StampAssetLoader.assetKey(stamp.countryCode, stamp.isEntry);
       final asset = assets[key];
       if (asset != null) {
-        _drawAssetStamp(canvas, stamp, asset);
+        // Fixed PDF base radius so stamps fill the A6 page (bypasses engine clamp).
+        _drawAssetStamp(canvas, stamp, asset,
+            baseRadiusOverride: PassportPrintConfig.stampPdfBaseRadius);
       } else {
-        // Procedural fallback for countries without a PNG asset
-        StampPainter(stamp).paint(canvas, _pageSize);
+        // Procedural fallback: scale stamp to match the fixed PDF radius.
+        final scaledStamp = StampData(
+          countryCode: stamp.countryCode,
+          isEntry: stamp.isEntry,
+          style: stamp.style,
+          inkFamilyIndex: stamp.inkFamilyIndex,
+          ageEffect: stamp.ageEffect,
+          rotation: stamp.rotation,
+          center: stamp.center,
+          scale: PassportPrintConfig.stampPdfBaseRadius / 38.0,
+          countryName: stamp.countryName,
+          dateLabel: stamp.dateLabel,
+          overrideInkColor: stamp.overrideInkColor,
+          overrideDateColor: stamp.overrideDateColor,
+          edgeClip: stamp.edgeClip,
+        );
+        StampPainter(scaledStamp).paint(canvas, _pageSize);
       }
     }
     canvas.restore(); // end multiply layer
@@ -424,75 +441,114 @@ abstract final class PassportPdfService {
 
   // ── Passport page background ───────────────────────────────────────────────
 
-  /// Draws an authentic passport page background: warm parchment + two layers
-  /// of guilloché sine-wave lines + subtle paper grain.
+  /// Draws an authentic passport page background: white base + dense guilloché
+  /// mesh (horizontal + vertical interlocking sine waves) in blue-teal, matching
+  /// the reference security-paper pattern.
   static void _drawPassportPage(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // Warm parchment base
+    // White paper base
     canvas.drawRect(
       Rect.fromLTWH(0, 0, w, h),
-      Paint()..color = PassportPrintConfig.stampPageBackground,
+      Paint()..color = const Color(0xFFFFFFFF),
     );
 
-    // Guilloché layer 1: gold undulating lines, wider spacing
-    final p1 = Paint()
-      ..color = const Color(0xFFD4A017).withValues(alpha: 0.07)
-      ..strokeWidth = 1.6
+    // ── Guilloché horizontal layers ──────────────────────────────────────────
+
+    // Layer H1: teal-blue, dense, moderate amplitude
+    final pH1 = Paint()
+      ..color = const Color(0xFF3A8FA8).withValues(alpha: 0.09)
+      ..strokeWidth = 0.9
       ..style = PaintingStyle.stroke;
-    const lineGap1 = 18.0;
-    const amp1 = 16.0;
-    final freq1 = 2 * math.pi / (w * 0.13);
-    for (var baseY = 0.0; baseY < h; baseY += lineGap1) {
+    const hGap = 9.0;
+    const hAmp1 = 10.0;
+    final hFreq1 = 2 * math.pi / (w * 0.11);
+    for (var baseY = 0.0; baseY < h; baseY += hGap) {
       final path = Path()..moveTo(0, baseY);
-      for (var x = 4.0; x <= w; x += 4) {
-        path.lineTo(x, baseY + amp1 * math.sin(freq1 * x));
+      for (var x = 2.0; x <= w; x += 2) {
+        path.lineTo(x, baseY + hAmp1 * math.sin(hFreq1 * x));
       }
-      canvas.drawPath(path, p1);
+      canvas.drawPath(path, pH1);
     }
 
-    // Guilloché layer 2: steel-blue, offset phase + higher frequency
-    final p2 = Paint()
-      ..color = const Color(0xFF3A5A7A).withValues(alpha: 0.055)
-      ..strokeWidth = 1.0
+    // Layer H2: offset phase + higher frequency for interlocking mesh
+    final pH2 = Paint()
+      ..color = const Color(0xFF3A8FA8).withValues(alpha: 0.055)
+      ..strokeWidth = 0.7
       ..style = PaintingStyle.stroke;
-    const lineGap2 = 18.0;
-    const amp2 = 9.0;
-    final freq2 = 2 * math.pi / (w * 0.07);
-    for (var baseY = lineGap2 / 2; baseY < h; baseY += lineGap2) {
+    const hAmp2 = 6.0;
+    final hFreq2 = 2 * math.pi / (w * 0.065);
+    for (var baseY = hGap / 2; baseY < h; baseY += hGap) {
       final path = Path()..moveTo(0, baseY);
-      for (var x = 4.0; x <= w; x += 4) {
-        path.lineTo(x, baseY + amp2 * math.sin(freq2 * x + math.pi * 0.4));
+      for (var x = 2.0; x <= w; x += 2) {
+        path.lineTo(
+            x, baseY + hAmp2 * math.sin(hFreq2 * x + math.pi * 0.55));
       }
-      canvas.drawPath(path, p2);
+      canvas.drawPath(path, pH2);
     }
 
-    // Subtle paper grain
-    final rng = math.Random(42);
-    for (var i = 0; i < 400; i++) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          rng.nextDouble() * w,
-          rng.nextDouble() * h,
-          1 + rng.nextDouble(),
-          1 + rng.nextDouble(),
-        ),
-        Paint()..color = const Color.fromARGB(10, 140, 110, 60),
-      );
+    // ── Guilloché vertical layers ────────────────────────────────────────────
+
+    // Layer V1: blue-green, same density, crosses the horizontal mesh
+    final pV1 = Paint()
+      ..color = const Color(0xFF3A9A70).withValues(alpha: 0.07)
+      ..strokeWidth = 0.9
+      ..style = PaintingStyle.stroke;
+    final vFreq1 = 2 * math.pi / (h * 0.11);
+    for (var baseX = 0.0; baseX < w; baseX += hGap) {
+      final path = Path()..moveTo(baseX, 0);
+      for (var y = 2.0; y <= h; y += 2) {
+        path.lineTo(baseX + hAmp1 * math.sin(vFreq1 * y), y);
+      }
+      canvas.drawPath(path, pV1);
     }
+
+    // Layer V2: offset to create diamond mesh nodes
+    final pV2 = Paint()
+      ..color = const Color(0xFF3A9A70).withValues(alpha: 0.045)
+      ..strokeWidth = 0.7
+      ..style = PaintingStyle.stroke;
+    final vFreq2 = 2 * math.pi / (h * 0.065);
+    for (var baseX = hGap / 2; baseX < w; baseX += hGap) {
+      final path = Path()..moveTo(baseX, 0);
+      for (var y = 2.0; y <= h; y += 2) {
+        path.lineTo(
+            baseX + hAmp2 * math.sin(vFreq2 * y + math.pi * 0.55), y);
+      }
+      canvas.drawPath(path, pV2);
+    }
+
+    // Subtle centre luminosity — very light teal wash, matches reference glow
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = RadialGradient(
+          center: Alignment.center,
+          radius: 0.75,
+          colors: [
+            const Color(0xFF80C8B0).withValues(alpha: 0.06),
+            Colors.transparent,
+          ],
+        ).createShader(Offset.zero & size),
+    );
   }
 
   // ── Stamp drawing ──────────────────────────────────────────────────────────
 
   /// Draws a stamp from its real PNG asset with date overlay.
   ///
-  /// Mirrors the logic in `_MultiStampPainter._drawAssetStamp` so the book
-  /// pages look consistent with the on-screen card preview.
+  /// [baseRadiusOverride] bypasses [stamp.scale] so the PDF can use a
+  /// fixed large radius that fills the A6 page regardless of the layout
+  /// engine's clamped adaptive radius.
   static void _drawAssetStamp(
-      Canvas canvas, StampData stamp, StampAsset asset) {
+    Canvas canvas,
+    StampData stamp,
+    StampAsset asset, {
+    double? baseRadiusOverride,
+  }) {
     final meta = asset.metadata;
-    final baseRadius = 38.0 * stamp.scale;
+    final baseRadius = baseRadiusOverride ?? (38.0 * stamp.scale);
     final targetW = baseRadius * 2.1 * meta.visualScale;
     final targetH = targetW * (meta.imageHeight / meta.imageWidth);
 
