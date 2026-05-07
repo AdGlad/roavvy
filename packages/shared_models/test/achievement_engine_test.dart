@@ -14,11 +14,11 @@ void main() {
   // ── kAchievements catalogue ───────────────────────────────────────────────
 
   group('kAchievements', () {
-    test('catalogue contains at least 8 entries', () {
-      expect(kAchievements.length, greaterThanOrEqualTo(8));
+    test('catalogue contains at least 29 entries', () {
+      expect(kAchievements.length, greaterThanOrEqualTo(29));
     });
 
-    test('all engine IDs are present in catalogue', () {
+    test('all original IDs are still present in catalogue', () {
       final catalogueIds = kAchievements.map((a) => a.id).toSet();
       for (final id in [
         'countries_1',
@@ -30,8 +30,31 @@ void main() {
         'continents_3',
         'continents_all',
       ]) {
-        expect(catalogueIds, contains(id));
+        expect(catalogueIds, contains(id), reason: 'existing ID $id must not be removed');
       }
+    });
+
+    test('new country IDs are present', () {
+      final ids = kAchievements.map((a) => a.id).toSet();
+      for (final id in ['countries_3', 'countries_15', 'countries_20',
+          'countries_30', 'countries_40', 'countries_75',
+          'countries_125', 'countries_150', 'countries_195']) {
+        expect(ids, contains(id));
+      }
+    });
+
+    test('all achievements have a non-empty id, title, description', () {
+      for (final a in kAchievements) {
+        expect(a.id, isNotEmpty, reason: 'id empty for ${a.title}');
+        expect(a.title, isNotEmpty, reason: 'title empty for ${a.id}');
+        expect(a.description, isNotEmpty, reason: 'description empty for ${a.id}');
+        expect(a.progressTarget, greaterThan(0), reason: 'progressTarget invalid for ${a.id}');
+      }
+    });
+
+    test('no duplicate IDs in catalogue', () {
+      final ids = kAchievements.map((a) => a.id).toList();
+      expect(ids.toSet().length, ids.length, reason: 'duplicate IDs found');
     });
   });
 
@@ -139,11 +162,90 @@ void main() {
       expect(result, containsAll(['countries_1', 'countries_5', 'countries_10',
           'countries_25', 'countries_50', 'countries_100']));
     });
+
+    test('3 countries unlocks countries_3', () {
+      final result = AchievementEngine.evaluate(_visits(['GB', 'FR', 'DE']));
+      expect(result, contains('countries_3'));
+    });
+
+    test('2 countries does not unlock countries_3', () {
+      final result = AchievementEngine.evaluate(_visits(['GB', 'FR']));
+      expect(result, isNot(contains('countries_3')));
+    });
+  });
+
+  // ── trip count achievements ───────────────────────────────────────────────
+
+  group('trip count achievements', () {
+    test('0 trips unlocks nothing trip-based', () {
+      final result = AchievementEngine.evaluate([]);
+      expect(result, isNot(contains('trips_1')));
+    });
+
+    test('1 trip unlocks trips_1', () {
+      final result = AchievementEngine.evaluate([], tripCount: 1);
+      expect(result, contains('trips_1'));
+    });
+
+    test('4 trips does not unlock trips_5', () {
+      final result = AchievementEngine.evaluate([], tripCount: 4);
+      expect(result, isNot(contains('trips_5')));
+    });
+
+    test('5 trips unlocks trips_5', () {
+      final result = AchievementEngine.evaluate([], tripCount: 5);
+      expect(result, contains('trips_5'));
+    });
+
+    test('10 trips unlocks trips_1, trips_3, trips_5, trips_10', () {
+      final result = AchievementEngine.evaluate([], tripCount: 10);
+      expect(result, containsAll(['trips_1', 'trips_3', 'trips_5', 'trips_10']));
+    });
+
+    test('backward-compatible: no trip params → no trip achievements', () {
+      final result = AchievementEngine.evaluate(_visits(['GB', 'FR', 'DE']));
+      expect(result, isNot(contains('trips_1')));
+    });
+  });
+
+  // ── this-year country count ───────────────────────────────────────────────
+
+  group('this-year country count achievements', () {
+    test('0 this-year countries unlocks nothing', () {
+      final result = AchievementEngine.evaluate([]);
+      expect(result, isNot(contains('year_countries_3')));
+    });
+
+    test('3 this-year countries unlocks year_countries_3', () {
+      final result = AchievementEngine.evaluate([], thisYearCountryCount: 3);
+      expect(result, contains('year_countries_3'));
+    });
+
+    test('2 this-year countries does not unlock year_countries_3', () {
+      final result = AchievementEngine.evaluate([], thisYearCountryCount: 2);
+      expect(result, isNot(contains('year_countries_3')));
+    });
+
+    test('10 this-year countries unlocks all year achievements', () {
+      final result = AchievementEngine.evaluate([], thisYearCountryCount: 10);
+      expect(result, containsAll(['year_countries_3', 'year_countries_5', 'year_countries_10']));
+    });
   });
 
   // ── continent achievements ────────────────────────────────────────────────
 
   group('continent achievements', () {
+    test('1 continent does not unlock continents_2', () {
+      final result = AchievementEngine.evaluate(_visits(['GB', 'FR']));
+      expect(result, isNot(contains('continents_2')));
+    });
+
+    test('2 continents unlocks continents_2', () {
+      // GB=Europe, JP=Asia
+      final result = AchievementEngine.evaluate(_visits(['GB', 'JP']));
+      expect(result, contains('continents_2'));
+    });
+
     test('2 continents does not unlock continents_3', () {
       // GB=Europe, JP=Asia
       final result = AchievementEngine.evaluate(_visits(['GB', 'JP']));

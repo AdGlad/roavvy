@@ -66,6 +66,7 @@ dependencies:
   flutter_custom_carousel: ^0.1.0+1
   flutter_animate: ^4.5.0
   turnable_page: ^1.0.1
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:

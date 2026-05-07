@@ -420,7 +420,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       // Evaluate achievements and persist any newly unlocked ones.
       final priorIds = (await _achievementRepo.loadAll()).toSet();
-      final unlockedIds = AchievementEngine.evaluate(effective);
+      final tripCount = (await _tripRepo.loadAll()).length;
+      final thisYear = DateTime.now().year;
+      final thisYearCount = effective.where((v) => v.firstSeen?.year == thisYear).length;
+      final unlockedIds = AchievementEngine.evaluate(
+        effective,
+        tripCount: tripCount,
+        thisYearCountryCount: thisYearCount,
+      );
       final newlyUnlockedIds = unlockedIds.difference(priorIds);
       if (newlyUnlockedIds.isNotEmpty) {
         await _achievementRepo.upsertAll(newlyUnlockedIds, preScanTimestamp);

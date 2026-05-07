@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:region_lookup/region_lookup.dart';
 import 'package:shared_models/shared_models.dart';
@@ -185,6 +186,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               );
             }
 
+            // Compute the exact physical pixel size of each grid cell so
+            // photo_manager requests at exactly the right resolution.
+            final mq = MediaQuery.of(context);
+            final cellPx = ((mq.size.width - 4) / 3 * mq.devicePixelRatio).ceil();
+
             return CustomScrollView(
               slivers: [
                 SliverPadding(
@@ -203,6 +209,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             assetId: assetIds[index],
                             fallbackColor: Colors.grey[900]!,
                             height: double.infinity,
+                            thumbnailSize: ThumbnailSize.square(cellPx),
                           ),
                         );
                       },

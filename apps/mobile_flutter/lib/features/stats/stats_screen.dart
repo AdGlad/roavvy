@@ -4,29 +4,21 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
-import '../cards/card_type_picker_screen.dart';
-import '../merch/merch_country_selection_screen.dart';
-import '../scan/achievement_unlock_sheet.dart';
 import 'countries_list_screen.dart';
 import 'region_breakdown_sheet.dart';
+import 'widgets/achievement_gallery.dart';
+import 'widgets/merch_moments_section.dart';
+import 'widgets/next_achievements_carousel.dart';
+import 'widgets/travel_progress_hero.dart';
 
-const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-String _fmtUnlockDate(DateTime dt) {
-  final m = _months[dt.month - 1];
-  return 'Unlocked ${dt.day} $m ${dt.year}';
-}
-
-/// Travel stats and achievement gallery screen.
+/// Gamified travel stats and achievement dashboard (M97, ADR-148).
 ///
-/// Entry point: Stats tab (index 2).
-/// Watches three async providers for stats panel values — displays "—" as a
-/// fallback while any value is still loading; no spinner (Design Principle 3).
-/// Reads all [UnlockedAchievementRow]s via [achievementRepositoryProvider] for
-/// the achievement gallery unlock dates (ADR-052, Decision 3).
+/// Sections:
+/// 1. Travel Progress Hero — PieChart donut + tier badge + merch CTA
+/// 2. Next Achievements — horizontal carousel of nearest unmet achievements
+/// 3. Stats Grid — countries / continents / regions / trips (2×2)
+/// 4. Achievement Gallery — tabbed (Countries | Continents | Trips | All)
+/// 5. Merch Moments — recently unlocked achievement merch suggestions
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
@@ -40,25 +32,23 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
   @override
   void initState() {
     super.initState();
-    _achievementsFuture =
-        ref.read(achievementRepositoryProvider).loadAllRows();
+    _achievementsFuture = ref.read(achievementRepositoryProvider).loadAllRows();
   }
 
   @override
   Widget build(BuildContext context) {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
-    final summaryAsync = ref.watch(travelSummaryProvider);
     final regionCountAsync = ref.watch(regionCountProvider);
+    final tripCountAsync = ref.watch(tripCountProvider);
+    final continentCountAsync = ref.watch(continentCountProvider);
+    final thisYearCountAsync = ref.watch(thisYearCountryCountProvider);
 
+    final countryCount = visitsAsync.valueOrNull?.length ?? 0;
+    final regionCount = regionCountAsync.valueOrNull ?? 0;
+    final tripCount = tripCountAsync.valueOrNull ?? 0;
+    final continentCount = continentCountAsync.valueOrNull ?? 0;
+    final thisYearCount = thisYearCountAsync.valueOrNull ?? 0;
     final visits = visitsAsync.valueOrNull;
-    final countryCount =
-        visitsAsync.whenOrNull(data: (v) => v.length.toString()) ?? '—';
-    final regionCount =
-        regionCountAsync.whenOrNull(data: (n) => n.toString()) ?? '—';
-    final sinceYear = summaryAsync.whenOrNull(
-          data: (s) => s.earliestVisit?.year.toString(),
-        ) ??
-        '—';
 
     return FutureBuilder<List<UnlockedAchievementRow>>(
       future: _achievementsFuture,
@@ -67,6 +57,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         final unlockedById = {
           for (final r in achievementRows) r.achievementId: r.unlockedAt,
         };
+        final unlockedIds = unlockedById.keys.toSet();
 
         return CustomScrollView(
           slivers: [
@@ -74,64 +65,69 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
               title: const Text('Stats'),
               floating: true,
               snap: true,
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const MerchCountrySelectionScreen(),
-                    ),
-                  ),
-                  child: const Text('Shop'),
-                ),
-              ],
             ),
+
+            // ── Travel Progress Hero ────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _StatsPanel(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                child: TravelProgressHero(
                   countryCount: countryCount,
-                  regionCount: regionCount,
-                  sinceYear: sinceYear,
-                  onCountriesTap: visits == null || visits.isEmpty
-                      ? null
-                      : () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  CountriesListScreen(visits: visits),
-                            ),
-                          ),
-                  onRegionsTap: regionCount == '—' || regionCount == '0'
-                      ? null
-                      : () => RegionBreakdownSheet.show(context),
+                  unlockedIds: unlockedIds,
                 ),
               ),
             ),
-            if (visits != null && visits.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const CardTypePickerScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.style_outlined),
-                    label: const Text('Create card'),
-                  ),
-                ),
-              ),
-            const SliverToBoxAdapter(
+
+            // ── Next Achievements Carousel ──────────────────────────────────
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-                child: Text(
-                  'Achievements',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                padding: const EdgeInsets.only(bottom: 20),
+                child: NextAchievementsCarousel(
+                  countryCount: countryCount,
+                  continentCount: continentCount,
+                  tripCount: tripCount,
+                  thisYearCount: thisYearCount,
+                  unlockedIds: unlockedIds,
                 ),
               ),
             ),
-            _AchievementGrid(unlockedById: unlockedById),
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+            // ── Stats Grid ─────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                child: _StatsGrid(
+                  countryCount: countryCount,
+                  continentCount: continentCount,
+                  regionCount: regionCount,
+                  tripCount: tripCount,
+                  visits: visits,
+                  regionCountStr: regionCountAsync.valueOrNull?.toString() ?? '—',
+                ),
+              ),
+            ),
+
+            // ── Achievement Gallery ─────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: AchievementGallery(
+                  unlockedById: unlockedById,
+                  countryCount: countryCount,
+                  continentCount: continentCount,
+                  tripCount: tripCount,
+                  thisYearCount: thisYearCount,
+                ),
+              ),
+            ),
+
+            // ── Merch Moments ───────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: MerchMomentsSection(unlockedById: unlockedById),
+              ),
+            ),
           ],
         );
       },
@@ -139,99 +135,114 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
   }
 }
 
-// ── Stats panel ───────────────────────────────────────────────────────────────
+// ── Stats Grid ────────────────────────────────────────────────────────────────
 
-class _StatsPanel extends StatelessWidget {
-  const _StatsPanel({
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({
     required this.countryCount,
+    required this.continentCount,
     required this.regionCount,
-    required this.sinceYear,
-    this.onCountriesTap,
-    this.onRegionsTap,
+    required this.tripCount,
+    required this.visits,
+    required this.regionCountStr,
   });
 
-  final String countryCount;
-  final String regionCount;
-  final String sinceYear;
-  final VoidCallback? onCountriesTap;
-  final VoidCallback? onRegionsTap;
+  final int countryCount;
+  final int continentCount;
+  final int regionCount;
+  final int tripCount;
+  final List<EffectiveVisitedCountry>? visits;
+  final String regionCountStr;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 2.0,
       children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: onCountriesTap,
-            child: Semantics(
-              label: '$countryCount countries visited. Tap to view list.',
-              excludeSemantics: true,
-              child: _StatTile(
-                value: countryCount,
-                label: 'Countries',
-                tappable: onCountriesTap != null,
-              ),
-            ),
-          ),
+        _StatCard(
+          value: countryCount == 0 ? '—' : '$countryCount',
+          label: 'Countries',
+          suffix: '/ 195',
+          onTap: (visits != null && visits!.isNotEmpty)
+              ? () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CountriesListScreen(visits: visits!),
+                    ),
+                  )
+              : null,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: GestureDetector(
-            onTap: onRegionsTap,
-            child: Semantics(
-              label: '$regionCount regions visited. Tap to view breakdown.',
-              excludeSemantics: true,
-              child: _StatTile(
-                value: regionCount,
-                label: 'Regions',
-                tappable: onRegionsTap != null,
-              ),
-            ),
-          ),
+        _StatCard(
+          value: continentCount == 0 ? '—' : '$continentCount',
+          label: 'Continents',
+          suffix: '/ 6',
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Semantics(
-            label: sinceYear == '—'
-                ? 'No travel data yet'
-                : 'Travelling since $sinceYear',
-            excludeSemantics: true,
-            child: _StatTile(value: sinceYear, label: 'Since'),
-          ),
+        _StatCard(
+          value: regionCount == 0 ? '—' : '$regionCount',
+          label: 'Regions',
+          onTap: regionCount > 0 ? () => RegionBreakdownSheet.show(context) : null,
+        ),
+        _StatCard(
+          value: tripCount == 0 ? '—' : '$tripCount',
+          label: 'Trips',
         ),
       ],
     );
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.value, required this.label, this.tappable = false});
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.value,
+    required this.label,
+    this.suffix,
+    this.onTap,
+  });
 
   final String value;
   final String label;
-  final bool tappable;
+  final String? suffix;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            value,
-            style: theme.textTheme.headlineMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (suffix != null) ...[
+                const SizedBox(width: 4),
+                Text(
+                  suffix!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          Row(
             children: [
               Text(
                 label,
@@ -239,162 +250,17 @@ class _StatTile extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              if (tappable) ...[
+              if (onTap != null) ...[
                 const SizedBox(width: 2),
-                Icon(
-                  Icons.chevron_right,
-                  size: 14,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                Icon(Icons.chevron_right, size: 14, color: theme.colorScheme.onSurfaceVariant),
               ],
             ],
           ),
         ],
       ),
     );
-  }
-}
-
-// ── Achievement gallery ───────────────────────────────────────────────────────
-
-class _AchievementGrid extends StatelessWidget {
-  const _AchievementGrid({required this.unlockedById});
-
-  final Map<String, DateTime> unlockedById;
-
-  @override
-  Widget build(BuildContext context) {
-    // Unlocked achievements sorted by unlock date descending, then locked.
-    final unlocked = kAchievements
-        .where((a) => unlockedById.containsKey(a.id))
-        .toList()
-      ..sort((a, b) => unlockedById[b.id]!.compareTo(unlockedById[a.id]!));
-
-    final locked = kAchievements
-        .where((a) => !unlockedById.containsKey(a.id))
-        .toList();
-
-    final items = [...unlocked, ...locked];
-
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.1,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final achievement = items[index];
-          final unlockDate = unlockedById[achievement.id];
-          return Padding(
-            padding: EdgeInsets.only(
-              left: index.isEven ? 16 : 0,
-              right: index.isOdd ? 16 : 0,
-            ),
-            child: _AchievementCard(
-              achievement: achievement,
-              unlockedAt: unlockDate,
-              onTap: () => AchievementUnlockSheet.show(
-                context,
-                achievement: achievement,
-                unlockedAt: unlockDate,
-              ),
-            ),
-          );
-        },
-        childCount: items.length,
-      ),
-    );
-  }
-}
-
-class _AchievementCard extends StatelessWidget {
-  const _AchievementCard({
-    required this.achievement,
-    required this.unlockedAt,
-    this.onTap,
-  });
-
-  final Achievement achievement;
-  final DateTime? unlockedAt;
-  final VoidCallback? onTap;
-
-  bool get isUnlocked => unlockedAt != null;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final secondary = theme.colorScheme.onSurfaceVariant;
-
-    final semanticLabel = [
-      achievement.title,
-      achievement.description,
-      isUnlocked
-          ? _fmtUnlockDate(unlockedAt!)
-          : 'Not yet unlocked',
-    ].join('. ');
-
-    final card = Container(
-      decoration: BoxDecoration(
-        color: isUnlocked
-            ? const Color(0xFFFFF8E1) // amber/gold tint
-            : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isUnlocked
-                ? Icons.emoji_events_outlined
-                : Icons.lock_outline,
-            size: 28,
-            color: isUnlocked ? Colors.amber[700] : secondary,
-          ),
-          const Spacer(),
-          Text(
-            achievement.title,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: isUnlocked ? null : secondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            achievement.description,
-            style: theme.textTheme.bodySmall?.copyWith(color: secondary),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (isUnlocked) ...[
-            const SizedBox(height: 4),
-            Text(
-              _fmtUnlockDate(unlockedAt!),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-
-    final cardWithOpacity =
-        isUnlocked ? card : Opacity(opacity: 0.55, child: card);
-
-    return Semantics(
-      label: semanticLabel,
-      child: onTap == null
-          ? cardWithOpacity
-          : GestureDetector(
-              onTap: onTap,
-              child: cardWithOpacity,
-            ),
-    );
+    if (onTap == null) return card;
+    return GestureDetector(onTap: onTap, child: card);
   }
 }
 
@@ -402,7 +268,7 @@ class _AchievementCard extends StatelessWidget {
 
 /// Full-screen achievement gallery. Pushed from the map stats strip (M86).
 ///
-/// Wraps [_AchievementGrid] in a proper [Scaffold] so it renders correctly
+/// Wraps [AchievementGallery] in a proper [Scaffold] so it renders correctly
 /// when navigated to outside the Stats tab context.
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -438,6 +304,11 @@ class _AchievementsScreenBodyState
 
   @override
   Widget build(BuildContext context) {
+    final continentCount = ref.watch(continentCountProvider).valueOrNull ?? 0;
+    final tripCount = ref.watch(tripCountProvider).valueOrNull ?? 0;
+    final thisYearCount = ref.watch(thisYearCountryCountProvider).valueOrNull ?? 0;
+    final countryCount = ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
+
     return Scaffold(
       body: FutureBuilder<List<UnlockedAchievementRow>>(
         future: _future,
@@ -453,7 +324,15 @@ class _AchievementsScreenBodyState
                 floating: true,
                 snap: true,
               ),
-              _AchievementGrid(unlockedById: unlockedById),
+              SliverToBoxAdapter(
+                child: AchievementGallery(
+                  unlockedById: unlockedById,
+                  countryCount: countryCount,
+                  continentCount: continentCount,
+                  tripCount: tripCount,
+                  thisYearCount: thisYearCount,
+                ),
+              ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
           );

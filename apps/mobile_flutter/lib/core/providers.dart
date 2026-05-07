@@ -1,5 +1,6 @@
 import 'dart:math';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -120,6 +121,30 @@ final countryTripCountsProvider = FutureProvider<Map<String, int>>((ref) async {
   return counts;
 });
 
+/// Total number of logged trips. Used by the achievement engine (M97, ADR-148).
+final tripCountProvider = FutureProvider<int>(
+  (ref) async => (await ref.watch(tripListProvider.future)).length,
+);
+
+/// Number of distinct continents visited, derived from [effectiveVisitsProvider]
+/// and [kCountryContinent] (M97, ADR-148).
+final continentCountProvider = FutureProvider<int>((ref) async {
+  final visits = await ref.watch(effectiveVisitsProvider.future);
+  return visits
+      .map((v) => kCountryContinent[v.countryCode])
+      .whereType<String>()
+      .toSet()
+      .length;
+});
+
+/// Number of distinct countries first seen in the current calendar year.
+/// Used by the achievement engine (M97, ADR-148).
+final thisYearCountryCountProvider = FutureProvider<int>((ref) async {
+  final visits = await ref.watch(effectiveVisitsProvider.future);
+  final year = DateTime.now().year;
+  return visits.where((v) => v.firstSeen?.year == year).length;
+});
+
 /// Year filter for the timeline scrubber. null = show all time. (ADR-076)
 final yearFilterProvider = StateProvider<int?>((ref) => null);
 
@@ -189,14 +214,27 @@ final memoryPulseServiceProvider = Provider<MemoryPulseService>(
   ),
 );
 
+/// Debug-only toggle: when true, [todaysMemoriesProvider] returns all rank-1
+/// heroes regardless of anniversary date. Ignored in release builds.
+final memoryPulseDebugOverrideProvider = StateProvider<bool>((ref) => false);
+
 /// Today's memory pulse heroes — one-shot per app session (M91, ADR-136).
 ///
 /// Returns up to 3 [HeroImage] records for trips whose anniversaries fall
 /// today, filtered for undismissed entries. Empty list when none.
+///
+/// In debug builds, set [memoryPulseDebugOverrideProvider] to true to force-
+/// show all rank-1 heroes regardless of date.
 final todaysMemoriesProvider = FutureProvider<List<HeroImage>>(
-  (ref) => ref
-      .watch(memoryPulseServiceProvider)
-      .checkToday(DateTime.now()),
+  (ref) {
+    if (kDebugMode && ref.watch(memoryPulseDebugOverrideProvider)) {
+      return HeroImageRepository(ref.watch(roavvyDatabaseProvider))
+          .getHeroesForRank1();
+    }
+    return ref
+        .watch(memoryPulseServiceProvider)
+        .checkToday(DateTime.now());
+  },
 );
 
 /// Session-scoped set of tripIds dismissed by the user this session.

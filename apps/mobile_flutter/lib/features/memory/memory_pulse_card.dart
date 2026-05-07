@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_models/shared_models.dart';
 
-import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../memory/memory_pulse_service.dart';
+import '../memory/memory_reveal_sheet.dart';
 import '../shared/hero_image_view.dart';
 
 /// In-app travel anniversary card, shown on the map screen (M91, ADR-136).
@@ -69,7 +70,6 @@ class _SingleCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _CardBody(
       hero: hero,
-      onViewTrip: onViewTrip,
       onDismiss: () => _dismiss(ref),
       service: service,
     );
@@ -116,7 +116,6 @@ class _PagedCardsState extends State<_PagedCards> {
               return Consumer(
                 builder: (_, ref, __) => _CardBody(
                   hero: hero,
-                  onViewTrip: widget.onViewTrip,
                   onDismiss: () async {
                     ref
                         .read(memoriesDismissedProvider.notifier)
@@ -170,13 +169,11 @@ const double _kCardHeight = 100.0;
 class _CardBody extends StatelessWidget {
   const _CardBody({
     required this.hero,
-    required this.onViewTrip,
     required this.onDismiss,
     required this.service,
   });
 
   final HeroImage hero;
-  final void Function(String tripId) onViewTrip;
   final VoidCallback onDismiss;
   final MemoryPulseService service;
 
@@ -185,12 +182,7 @@ class _CardBody extends StatelessWidget {
     final theme = Theme.of(context);
     final today = DateTime.now();
     final yearsAgo = today.year - hero.capturedAt.year;
-    final copy = service.buildCopy(hero, yearsAgo);
-    final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
-    final topLabels = [
-      if (hero.primaryScene != null) hero.primaryScene!,
-      ...hero.mood.take(1),
-    ].take(2).toList();
+    final question = service.buildQuestion(hero, yearsAgo);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -213,7 +205,7 @@ class _CardBody extends StatelessWidget {
                 assetId: hero.assetId,
                 fallbackColor: const Color(0xFF2D4A5F),
                 height: 72,
-                thumbnailSize: 200,
+                thumbnailSize: const ThumbnailSize.square(200),
               ),
             ),
           ),
@@ -224,62 +216,41 @@ class _CardBody extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Question text — curiosity teaser
                 Text(
-                  copy.title,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white70,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  countryName,
-                  style: theme.textTheme.titleSmall?.copyWith(
+                  question,
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (topLabels.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    children: topLabels
-                        .map(
-                          (l) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white12,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              l.replaceAll('_', ' '),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    InkWell(
-                      onTap: () => onViewTrip(hero.tripId),
-                      child: Text(
-                        'View trip',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.amber,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    // Reveal chip
+                    FilledButton(
+                      onPressed: () => MemoryRevealSheet.show(
+                        context,
+                        hero: hero,
+                        yearsAgo: yearsAgo,
+                        service: service,
                       ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black87,
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        textStyle: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Reveal \u25b8'),
                     ),
                     const Spacer(),
                     GestureDetector(

@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M87, 2026-05-01)
+# Roavvy — Current State (updated M97, 2026-05-08)
 
 ## What is built
 
@@ -8,11 +8,11 @@
 | World map | ✅ | `flutter_map`; globe (auto-rotating east→west, snap-to-country via flag strip, M86); dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states); tappable stats strip → Countries/Achievements screens (M86); tappable XP level → progression sheet (M86) |
 | Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet |
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
-| Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; achievement gallery |
+| Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; gamified achievement dashboard with fl_chart PieChart donut, next-achievements carousel, tabbed gallery, merch CTAs (M97); 29 achievements across country/continent/trip/thisYear categories; `continentCountProvider`, `tripCountProvider`, `thisYearCountryCountProvider` (M97) |
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |
 | Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70); label-powered titles from hero images (M92); optional photo background (passport + grid) composited at print resolution (M93); Passport Book PDF export + in-app preview (M87) |
 | Sharing | ✅ | Share sheet; `/share/[token]` web page; token revocation |
-| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll |
+| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll; preset-driven merch entry (kMerchPresets: recent_trip/this_year/all_time/single_country), MerchCustomisationSheet Layer 2, PrintfulPlacementMapper, _artworkLocked image lock, mockup polling fallback warning (M96) |
 | Commerce (web) | ✅ | `/shop` public landing; auth-aware CTA; web checkout in M28 (not started) |
 | Firebase | ✅ | Anonymous auth; Apple Sign-In; Firestore sync (visits, trips, achievements, merch configs) |
 | Web app | ✅ | `/sign-in`, `/sign-up`, `/map`, `/shop`, `/share/[token]`, `/privacy` |
@@ -56,6 +56,9 @@
 | Map screen | `lib/features/map/map_screen.dart` |
 | Providers | `lib/core/providers.dart` |
 | Order confirmation | `lib/features/merch/merch_order_confirmation_screen.dart` |
+| Merch preset model | `lib/features/merch/merch_preset.dart` |
+| Merch customisation sheet | `lib/features/merch/merch_customisation_sheet.dart` |
+| Printful placement mapper | `lib/features/merch/printful_placement_mapper.dart` |
 | Hero image view | `lib/features/shared/hero_image_view.dart` |
 | Hero override picker | `lib/features/shared/hero_override_picker.dart` |
 | Memory pulse service | `lib/features/memory/memory_pulse_service.dart` |

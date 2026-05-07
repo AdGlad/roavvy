@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M97 — Gamified Stats & Achievement Dashboard
+**Goal:** Replace the plain 3-stat panel + flat achievement grid with a gamified travel dashboard: fl_chart PieChart donut progress ring, next-achievements carousel, tabbed achievement gallery with merch CTAs, and a Merch Moments section driven by unlocked achievements. Expands kAchievements from 8 to ~30 trackable achievements with progressTarget and MerchTriggerType fields.
+**Phase:** 21 — Engagement & Gamification
+**Scope in:** `pubspec.yaml` (fl_chart); `packages/shared_models` (Achievement model, kAchievements, AchievementEngine); `lib/core/providers.dart`; `lib/features/stats/stats_screen.dart`; new `lib/features/stats/widgets/` files.
+**Scope out:** Passport stamp / streak achievements; poster/mug merch types; web; new Drift schema.
+**Full plan:** `docs/dev/milestones/m97-gamified-stats-dashboard.md`
+**Status:** ✅ Complete (2026-05-08).
+
+---
+
 ### M89 — Hero Image Detection & Trip Labels
 **Goal:** During photo scanning, select up to 5 metadata-scored candidates per trip; after scan completes, run on-device Vision framework labelling on candidates; persist a structured hero image record (labels + score + rank) in Drift. No photos leave the device. Scan performance unaffected.
 **Phase:** 19 — Personalisation & Memory
@@ -65,6 +75,16 @@
 **Scope in:** New `year_in_review_screen.dart`, `year_in_review_service.dart`; `map_screen.dart` (Dec/Jan entry chip); `card_image_renderer.dart` (YIR card render); `notification_service.dart` (New Year notification).
 **Full plan:** `docs/dev/milestones/m94-year-in-review.md`
 **Status:** ✅ Complete (2026-05-01).
+
+---
+
+### M95 — Memory Pulse 2.0: Question-Based Reveal + Share
+**Goal:** Upgrade M91 Memory Pulse from a passive anniversary card into a curiosity-first engagement loop: question teaser card, animated reveal sheet, on-device share card, question-style notifications, smart morning/evening timing, and a post-scan pulse trigger.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M91 (MemoryPulseService, MemoryPulseCard), M90 (HeroImageView)
+**Scope in:** `memory_pulse_service.dart`, `memory_pulse_card.dart`; new `memory_reveal_sheet.dart`, `memory_share_service.dart`, `app_open_tracker.dart`; `main_shell.dart`; `scan_summary_screen.dart`.
+**Full plan:** `docs/dev/milestones/m95-memory-pulse-reveal.md`
+**Status:** ✅ Complete (2026-05-04).
 
 ---
 
@@ -272,6 +292,17 @@ Checkbox gates the proceed button. "Go Back" returns to `ready` state with mocku
 
 **Dependencies:** None — sits on top of existing `ready` state output.
 **Status:** ✅ Complete (2026-04-27).
+
+---
+
+### M96 — Preset-Driven Merch & Advanced Customisation
+**Goal:** Replace the blank-state card-first merch flow with a preset-driven experience: instant t-shirt mockup from a smart preset, two-layer customisation (quick inline controls + explicit advanced sheet), locked image source of truth across the full purchase pipeline, Printful placement/none/back mockup fixes, and loading UX with retry logic.
+**Phase:** 20 — Commerce Experience
+**Depends on:** M75, M85, M93
+**Scope in:** New `merch_preset.dart`, `merch_customisation_sheet.dart`, `printful_placement_mapper.dart`; refactor `local_mockup_preview_screen.dart`.
+**Scope out:** Post-purchase "My Merch" screen; gift messages (M81); shipping speed selection (M83); web checkout.
+**Full plan:** `docs/dev/milestones/m96-preset-merch-customisation.md`
+**Status:** ✅ Complete (2026-05-04).
 
 ---
 

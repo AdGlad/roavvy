@@ -56,12 +56,18 @@ class ThumbnailPlugin: NSObject {
     // photo from Apple's servers (extends ADR-002 — Roavvy servers untouched).
     // Thumbnails (size > 0) stay network-disallowed for fast offline display.
     let isFullRes = (size == 0)
+    // High-quality requests (size ≥ 1000) need .highQualityFormat so iOS
+    // actually decodes the source photo rather than returning a cached
+    // low-res thumbnail that looks blurry when stretched to fill the card.
+    // Grid/picker thumbnails (< 1000) keep .fastFormat — firing many
+    // concurrent highQuality requests causes PHImageManager to drop most.
+    let isHighQuality = isFullRes || size >= 1000
     let targetSize = isFullRes
       ? PHImageManagerMaximumSize
       : CGSize(width: size, height: size)
     let options = PHImageRequestOptions()
     options.isNetworkAccessAllowed = isFullRes
-    options.deliveryMode = isFullRes ? .highQualityFormat : .fastFormat
+    options.deliveryMode = isHighQuality ? .highQualityFormat : .fastFormat
     options.isSynchronous = false
 
     PHImageManager.default().requestImage(
@@ -71,11 +77,20 @@ class ThumbnailPlugin: NSObject {
       options: options
     ) { [weak self] image, info in
       // Degrade gracefully: iCloud-only assets return nil here.
-      let quality: CGFloat = isFullRes ? 0.92 : 0.82
-      guard let image = image,
-            let jpeg = image.jpegData(compressionQuality: quality) else {
+      guard let image = image else {
         DispatchQueue.main.async { result(nil) }
         return
+      }
+      // PHImageManager returns images backed by a premultiplied-alpha bitmap
+      // even for opaque photos, which doubles memory and triggers an iOS
+      // warning when encoding to JPEG. Redraw into an opaque renderer first.
+      let quality: CGFloat = isHighQuality ? 0.92 : 0.82
+      let fmt = UIGraphicsImageRendererFormat()
+      fmt.opaque = true
+      fmt.scale = image.scale
+      let renderer = UIGraphicsImageRenderer(size: image.size, format: fmt)
+      let jpeg = renderer.jpegData(withCompressionQuality: quality) { _ in
+        image.draw(in: CGRect(origin: .zero, size: image.size))
       }
       let data = jpeg as NSData
       self?.cache.setObject(data, forKey: cacheKey)

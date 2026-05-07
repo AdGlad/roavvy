@@ -145,8 +145,8 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
           final bottomInset = MediaQuery.paddingOf(context).bottom;
           // Available height below the AppBar and above the home indicator.
           final availH = constraints.maxHeight - topInset - bottomInset;
-          // Card takes 78 % of available height so ~11 % peeks above and below.
-          final cardH = (availH * 0.78).clamp(260.0, 620.0);
+          // Card takes 68 % of available height so ~16 % peeks above and below.
+          final cardH = (availH * 0.68).clamp(260.0, 580.0);
 
           return Padding(
             padding: EdgeInsets.only(top: topInset, bottom: bottomInset),
@@ -178,7 +178,7 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
                     opacity: (1.0 - 0.50 * absT).clamp(0.0, 1.0),
                     child: Transform.translate(
                       // Screen-space vertical separation between cards.
-                      offset: Offset(0, t * cardH * 0.20),
+                      offset: Offset(0, t * cardH * 0.28),
                       child: Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.identity()

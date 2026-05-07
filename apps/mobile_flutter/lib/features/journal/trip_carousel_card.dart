@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'package:photo_manager/photo_manager.dart';
+
 import '../../core/country_names.dart';
 import '../scan/hero_providers.dart';
 import '../shared/hero_image_view.dart';
+import '../shared/hero_override_picker.dart';
 
 /// Full-bleed photographic card for the 3D Journal Carousel.
 ///
@@ -23,6 +26,10 @@ class TripCarouselCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final mq = MediaQuery.of(context);
+    // Request the image at the card's physical pixel width so PHImageManager
+    // decodes at exactly the right resolution — no upscaling, no waste.
+    final cardPx = (mq.size.width * mq.devicePixelRatio).ceil();
     final countryName = kCountryNames[trip.countryCode] ?? trip.countryCode;
     final flag = _flagEmoji(trip.countryCode);
     final dateRange = _dateRange(trip.startedOn, trip.endedOn);
@@ -57,7 +64,7 @@ class TripCarouselCard extends ConsumerWidget {
             assetId: hero?.assetId,
             fallbackColor: fallbackColor,
             height: double.infinity,
-            useFullResolution: true,
+            thumbnailSize: ThumbnailSize.square(cardPx),
           ),
 
           // 2. Dual Gradients (Legibility layers)
@@ -139,12 +146,17 @@ class TripCarouselCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      dateRange,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
+                    Flexible(
+                      child: Text(
+                        dateRange,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white70,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '$days $dayWord · ${trip.photoCount} 📷',
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -158,13 +170,34 @@ class TripCarouselCard extends ConsumerWidget {
             ),
           ),
 
-          // 4. Tap Target
+          // 4. Tap Target (covers the full card below the edit button)
           Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
               splashColor: Colors.white10,
               highlightColor: Colors.white10,
+            ),
+          ),
+
+          // 5. Edit button — last so it sits above the InkWell in hit-test order.
+          Positioned(
+            top: 14,
+            right: 14,
+            child: GestureDetector(
+              onTap: () => showHeroOverridePicker(
+                context,
+                trip.id,
+                fallbackColor: fallbackColor,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 16),
+              ),
             ),
           ),
         ],
