@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
-import '../../merch/merch_country_selection_screen.dart';
+import '../../merch/achievement_merch_option_screen.dart';
 
 /// Merch Moments section — up to 3 most recently unlocked merch-eligible
 /// achievements with a product suggestion CTA (M97, ADR-148).
@@ -99,7 +99,8 @@ class _MerchMomentTile extends StatelessWidget {
           FilledButton.tonal(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const MerchCountrySelectionScreen(),
+                builder: (_) =>
+                    AchievementMerchOptionScreen(achievement: achievement),
               ),
             ),
             style: FilledButton.styleFrom(

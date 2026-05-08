@@ -1,61 +1,76 @@
-# M97 — Gamified Stats & Achievement Dashboard
+# Active Tasks: M98 — Achievement-Driven Merch Workflow
 
-Branch: milestone/m97-gamified-stats-dashboard
+Branch: milestone/m98-achievement-merch-workflow
 
 ## Goal
 
-Replace the plain 3-stat panel + flat achievement grid on the Stats tab with a fully gamified travel dashboard: `fl_chart` PieChart donut progress ring, next-achievements carousel, tabbed achievement gallery with merch CTAs, and a Merch Moments section.
+Users tapping "Make a Tee" or "Create" from any achievement unlock are taken into the same
+modern t-shirt selection experience currently used by Memory Pulse, with shirt options
+pre-scoped to the achievement's relevant countries and trips.
 
 ## Scope
 
 In:
-- `pubspec.yaml` (fl_chart: ^0.69.0)
-- `packages/shared_models/lib/src/achievement.dart` (expand model + kAchievements to ~30)
-- `packages/shared_models/lib/src/achievement_engine.dart` (trip + thisYear evaluation)
-- `packages/shared_models/test/achievement_engine_test.dart` (regression + new tests)
-- `lib/core/providers.dart` (tripCountProvider, thisYearCountryCountProvider)
-- `lib/features/stats/stats_screen.dart` (full redesign)
-- `lib/features/stats/widgets/travel_progress_hero.dart` (new)
-- `lib/features/stats/widgets/next_achievements_carousel.dart` (new)
-- `lib/features/stats/widgets/achievement_gallery.dart` (new)
-- `lib/features/stats/widgets/merch_moments_section.dart` (new)
+- `lib/features/merch/merch_option_list_widgets.dart` (new — shared rendering widgets)
+- `lib/features/merch/pulse_merch_option_screen.dart` (modified — import shared widgets)
+- `lib/features/merch/achievement_merch_option_screen.dart` (new — achievement merch screen)
+- `lib/features/stats/widgets/achievement_gallery.dart` (modified — reroute _MerchChip)
+- `lib/features/stats/widgets/merch_moments_section.dart` (modified — reroute _MerchMomentTile)
 
 Out:
-- Passport stamp / streak achievements (no Drift data — deferred)
-- Poster/mug/sticker merch types (T-shirt only in M97)
-- Web stats page
-- New Drift schema changes
+- LocalMockupPreviewScreen, MerchOrderConfirmationScreen, Shopify/Printful
+- pulse_merch_option.dart, shared_models
+- Web, new achievement categories, new kAchievements entries
 
 ## Tasks
 
-- [ ] **T1 — fl_chart dependency + Achievement model expansion**
-  - **Files:** `pubspec.yaml`, `packages/shared_models/lib/src/achievement.dart`
-  - **Deliverable:** `fl_chart: ^0.69.0` in pubspec; `AchievementCategory` + `MerchTriggerType` enums; `Achievement` model gains `category`, `progressTarget`, `merch?`; `kAchievements` expanded to ~30 entries (country/continent/trip/thisYear categories); existing 8 IDs unchanged.
+- [ ] 1. Extract shared merch option widgets — `lib/features/merch/merch_option_list_widgets.dart`
+  Deliverable: New file with public versions of the sealed list-item types, auto-tune helpers,
+  backCardAspectRatio(), templateLabel(), MerchOptionSectionHeader, MerchOptionCard,
+  MerchOptionCustomCard.
+  AC: All types/functions that will be shared between pulse and achievement screens are exported
+  from this file. File compiles standalone (dart analyze clean).
 
-- [ ] **T2 — AchievementEngine + new providers**
-  - **Files:** `packages/shared_models/lib/src/achievement_engine.dart`, `packages/shared_models/test/achievement_engine_test.dart`, `lib/core/providers.dart`
-  - **Deliverable:** `evaluate()` gains named optional `tripCount` + `thisYearCountryCount` params; evaluates all ~30 achievements; `tripCountProvider` + `thisYearCountryCountProvider` added to providers.dart.
+- [ ] 2. Refactor pulse_merch_option_screen.dart to use shared widgets — `lib/features/merch/pulse_merch_option_screen.dart`
+  Deliverable: All private types replaced with imports from merch_option_list_widgets.dart.
+  AC: File compiles. Public API of PulseMerchOptionScreen is unchanged. Memory Pulse
+  "Print on a t-shirt" flow navigates to PulseMerchOptionScreen as before.
 
-- [ ] **T3 — Travel Progress Hero**
-  - **Files:** `lib/features/stats/widgets/travel_progress_hero.dart` (new)
-  - **Deliverable:** `_TravelProgressHero` widget: `fl_chart` `PieChart` donut (gold visited / surface remaining), centre country count (48sp bold), tier badge (highest unlocked country achievement title), "Create your travel tee" `FilledButton` → `MerchCountrySelectionScreen`.
+- [ ] 3. Create AchievementMerchOptionScreen — `lib/features/merch/achievement_merch_option_screen.dart`
+  Deliverable: ConsumerWidget taking `Achievement achievement`. Reads effectiveVisitsProvider
+  + tripListProvider. Resolves codes/trips per achievement category and progressTarget.
+  Generates grouped PulseMerchOption list. Renders via shared widgets. Navigates to
+  LocalMockupPreviewScreen on tap.
+  AC:
+  - countries_1 → resolvedCodes = [firstCountry], options scoped to that country + world collection
+  - countries_N (N≤25) → resolvedCodes = first N by firstSeen
+  - countries_N (N>25) → resolvedCodes = all countries
+  - continents_N → resolvedCodes = all countries
+  - trips_N → resolvedTrips = first N trips, resolvedCodes = unique codes from those trips
+  - year_N → resolvedCodes = countries with firstSeen.year == currentYear, resolvedTrips = this year's trips
+  - Loading state shows CircularProgressIndicator; error state shows retry
 
-- [ ] **T4 — Next Achievements Carousel**
-  - **Files:** `lib/features/stats/widgets/next_achievements_carousel.dart` (new)
-  - **Deliverable:** Horizontal `ListView` of up to 3 nearest unmet achievements sorted by `(progressTarget - currentProgress)` ascending; each card shows title, `LinearProgressIndicator` progress strip, "{n} more to go", optional merch teaser chip. (fl_chart is reserved for hero PieChart only — ADR-148.)
+- [ ] 4. Reroute _MerchChip in achievement_gallery.dart — `lib/features/stats/widgets/achievement_gallery.dart`
+  Deliverable: _MerchChip.onPressed navigates to AchievementMerchOptionScreen(achievement: achievement).
+  Import of MerchCountrySelectionScreen removed.
+  AC: Tapping "Make tee" on an unlocked achievement pushes AchievementMerchOptionScreen.
 
-- [ ] **T5 — Achievement Gallery (tabbed)**
-  - **Files:** `lib/features/stats/widgets/achievement_gallery.dart` (new)
-  - **Deliverable:** `DefaultTabController` with tabs Countries / Continents / Trips / All; unlocked rows show gold accent + trophy + unlock date + merch CTA chip; locked rows dimmed with `LinearProgressIndicator`.
+- [ ] 5. Reroute _MerchMomentTile in merch_moments_section.dart — `lib/features/stats/widgets/merch_moments_section.dart`
+  Deliverable: "Create" button navigates to AchievementMerchOptionScreen(achievement: achievement).
+  Import of MerchCountrySelectionScreen removed.
+  AC: Tapping "Create" in Merch Moments pushes AchievementMerchOptionScreen.
 
-- [ ] **T6 — Merch Moments section**
-  - **Files:** `lib/features/stats/widgets/merch_moments_section.dart` (new)
-  - **Deliverable:** `_MerchMomentsSection` showing up to 3 most-recently-unlocked merch-eligible achievements with CTA navigating to `LocalMockupPreviewScreen` via `_presetFor()` helper; section absent when no eligible unlocks.
+- [ ] 6. flutter analyze — pass with no new warnings
 
-- [ ] **T7 — StatsScreen redesign**
-  - **Files:** `lib/features/stats/stats_screen.dart`
-  - **Deliverable:** `StatsScreen` refactored to `CustomScrollView` with 5 sliver sections: Progress Hero, Next Achievements, Stats Grid (2×2: countries/continents/regions/trips), Achievement Gallery, Merch Moments. Existing `AchievementsScreen` entry point preserved.
+## Dependencies
 
-- [ ] **T8 — Analyze clean**
-  - **Files:** All touched files
-  - **Deliverable:** `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt` reports zero issues.
+- M96 (MerchPresetConfig, LocalMockupPreviewScreen, PulseMerchOption pipeline) ✅
+- M97 (Achievement model, kAchievements, AchievementGallery, MerchMomentsSection) ✅
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| Extracting private types from pulse screen breaks Memory Pulse | Task 2 is a pure mechanical rename; zero behavior change; analyze catches any break |
+| AchievementMerchOptionScreen generates wrong codes for edge cases (0 visits, 0 trips) | Guard every resolved list: if empty, fall back gracefully (empty list = no artwork, no crash) |
+| _CustomOptionCard param removal (hero, allTrips, allCodes were unused) | Verified by code read that onTap only ever used `template` — removal is safe |

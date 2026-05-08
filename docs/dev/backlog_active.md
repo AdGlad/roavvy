@@ -7,6 +7,17 @@
 
 ## Next up (mobile-first order)
 
+### M98 — Achievement-Driven Merch Workflow
+**Goal:** Fix the "Make a Tee" / "Create" buttons in the Stats & Achievement Dashboard to navigate into the same modern t-shirt purchase workflow used by Memory Pulse. Extract shared rendering widgets from `PulseMerchOptionScreen`; create `AchievementMerchOptionScreen` that generates `PulseMerchOption` items from achievement context. Both entry points share the same merch pipeline end-to-end.
+**Phase:** 21 — Engagement & Gamification
+**Depends on:** M96 (preset-driven merch), M97 (gamified stats dashboard)
+**Scope in:** New `lib/features/merch/merch_option_list_widgets.dart`; new `lib/features/merch/achievement_merch_option_screen.dart`; `pulse_merch_option_screen.dart` (import shared widgets); `achievement_gallery.dart` (reroute `_MerchChip`); `merch_moments_section.dart` (reroute `_MerchMomentTile`).
+**Scope out:** `LocalMockupPreviewScreen`, `MerchOrderConfirmationScreen`, Printful/Shopify, shared_models, web.
+**Full plan:** `docs/dev/milestones/m98-achievement-merch-workflow.md`
+**Status:** ✅ Complete (2026-05-08).
+
+---
+
 ### M97 — Gamified Stats & Achievement Dashboard
 **Goal:** Replace the plain 3-stat panel + flat achievement grid with a gamified travel dashboard: fl_chart PieChart donut progress ring, next-achievements carousel, tabbed achievement gallery with merch CTAs, and a Merch Moments section driven by unlocked achievements. Expands kAchievements from 8 to ~30 trackable achievements with progressTarget and MerchTriggerType fields.
 **Phase:** 21 — Engagement & Gamification

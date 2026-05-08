@@ -1,4 +1,57 @@
-<!-- Recent ADRs (ADR-100 to ADR-140). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-149). Load when introducing new patterns. -->
+
+## ADR-149 — M98 Achievement-Driven Merch: Shared Rendering Layer + AchievementMerchOptionScreen
+
+**Status:** Accepted
+
+**Context:**
+M97 wired "Make a Tee" / "Create" buttons in `AchievementGallery` and `MerchMomentsSection`
+to `MerchCountrySelectionScreen` (the legacy blank-slate flow). The correct modern flow —
+preset-driven option selection → `LocalMockupPreviewScreen` → `MerchOrderConfirmationScreen`
+→ Shopify — is already used by Memory Pulse via `PulseMerchOptionScreen`. The rendering
+widgets in that screen (`_OptionCard`, `_CustomOptionCard`, `_SectionHeader`) are private,
+preventing reuse by an achievement-based sibling screen.
+
+**Decisions:**
+
+1. **Extract shared rendering widgets**: The private sealed list-item types (`_ListItem`,
+   `_HeaderItem`, `_OptionItem`, `_CustomiseItem`), auto-tune helpers (`_autoTuneStamps`,
+   `_autoTuneCodes`), `_backCardAspectRatio`, `_templateLabel`, `_SectionHeader`,
+   `_OptionCard`, and `_CustomOptionCard` are extracted from `pulse_merch_option_screen.dart`
+   into a new file `lib/features/merch/merch_option_list_widgets.dart` with public visibility.
+   `MerchOptionCustomCard` simplifies the original by removing the three unused parameters
+   (`hero`, `allTrips`, `allCodes`) that were never accessed in the `onTap` body.
+
+2. **`pulse_merch_option_screen.dart` is a mechanical refactor only**: All private types are
+   replaced with the imported shared equivalents. The public constructor, parameters, and
+   behaviour of `PulseMerchOptionScreen` are unchanged. Memory Pulse regression risk is zero.
+
+3. **`AchievementMerchOptionScreen`**: A `ConsumerWidget` taking only `Achievement achievement`.
+   It reads `effectiveVisitsProvider` + `tripListProvider` itself. Option scope is resolved
+   from the achievement's `category` and `progressTarget` (see resolution table). Options are
+   generated as `PulseMerchOption` instances and rendered using the shared widgets. It navigates
+   to `LocalMockupPreviewScreen` on tap — exactly the same convergence point as `PulseMerchOptionScreen`.
+
+4. **Achievement scope resolution**:
+   - `countries`, target=1 → first visited country only
+   - `countries`, target ≤ 25 → first `progressTarget` countries by `firstSeen`
+   - `countries`, target > 25 → all visited countries
+   - `continents` → all visited countries
+   - `trips` → first `progressTarget` trips by `startedOn`; codes = unique codes from those trips
+   - `thisYear` → countries with `firstSeen.year == currentYear`; trips from that year
+
+5. **Call-site simplicity**: `_MerchChip` (achievement_gallery.dart) and `_MerchMomentTile`
+   (merch_moments_section.dart) each pass only their existing `achievement` field to
+   `AchievementMerchOptionScreen`. No additional data threading required at call sites.
+
+**Consequences:**
+- `pulse_merch_option_screen.dart` is refactored but externally identical.
+- `merch_option_list_widgets.dart` is a new pure UI file; no new providers, services, or DB changes.
+- `achievement_merch_option_screen.dart` is a new screen that reads existing providers.
+- `MerchCountrySelectionScreen` is no longer imported by stats widgets.
+- Downstream pipeline (`LocalMockupPreviewScreen` → `MerchOrderConfirmationScreen`) is unchanged.
+
+---
 
 ## ADR-140 — M87 Passport PDF: Raster-Embed Strategy, Page Model, and Preview Architecture
 

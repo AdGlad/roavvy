@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
-import '../../merch/merch_country_selection_screen.dart';
+import '../../merch/achievement_merch_option_screen.dart';
 
 /// Tabbed achievement gallery for the Stats screen (M97, ADR-148).
 ///
@@ -243,7 +243,8 @@ class _MerchChip extends StatelessWidget {
     return OutlinedButton(
       onPressed: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => const MerchCountrySelectionScreen(),
+          builder: (_) =>
+              AchievementMerchOptionScreen(achievement: achievement),
         ),
       ),
       style: OutlinedButton.styleFrom(
