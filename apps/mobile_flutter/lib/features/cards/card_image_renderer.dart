@@ -103,7 +103,8 @@ class CardImageRenderer {
     final assetsCompleter =
         (template == CardTemplateType.passport ||
                 template == CardTemplateType.grid ||
-                template == CardTemplateType.heart)
+                template == CardTemplateType.heart ||
+                template == CardTemplateType.badge)
             ? Completer<void>()
             : null;
 
@@ -280,6 +281,21 @@ class CardImageRenderer {
           titleOverride: titleOverride,
           transparentBackground: transparentBackground,
           textColor: textColor,
+        );
+
+      case CardTemplateType.typography:
+        return TypographyCard(
+          codes: codes,
+          titleOverride: titleOverride,
+          transparentBackground: transparentBackground,
+        );
+
+      case CardTemplateType.badge:
+        return BadgeCard(
+          codes: codes,
+          scopeLabel: titleOverride,
+          transparentBackground: transparentBackground,
+          onAssetsLoaded: onAssetsLoaded,
         );
     }
   }

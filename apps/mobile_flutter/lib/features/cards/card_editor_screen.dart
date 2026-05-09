@@ -170,6 +170,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         CardTemplateType.passport => 'Passport',
         CardTemplateType.timeline => 'Timeline',
         CardTemplateType.frontRibbon => 'Front Ribbon',
+        CardTemplateType.typography => 'Typography',
+        CardTemplateType.badge => 'Explorer Badge',
       };
 
   @override
@@ -722,6 +724,18 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         return FrontRibbonCard(
           countryCodes: codes,
           travelerLevel: 'Explorer',
+        );
+      case CardTemplateType.typography:
+        return TypographyCard(
+          codes: codes,
+          titleOverride: _titleOverride,
+          transparentBackground: true,
+        );
+      case CardTemplateType.badge:
+        return BadgeCard(
+          codes: codes,
+          scopeLabel: _titleOverride,
+          transparentBackground: true,
         );
     }
   }

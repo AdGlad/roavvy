@@ -277,6 +277,16 @@ class _CardTypeTile extends StatelessWidget {
           countryCodes: countryCodes,
           travelerLevel: 'Explorer',
         );
+      case CardTemplateType.typography:
+        return TypographyCard(
+          codes: countryCodes,
+          transparentBackground: false,
+        );
+      case CardTemplateType.badge:
+        return BadgeCard(
+          codes: countryCodes,
+          transparentBackground: false,
+        );
     }
   }
 }

@@ -268,6 +268,14 @@ class MerchContext {
 
     _addGroup(
       items,
+      label: 'Explorer Badge',
+      template: CardTemplateType.badge,
+      scopedTitle: countryName,
+      scopedDesc: 'A commemorative badge for your first country',
+    );
+
+    _addGroup(
+      items,
       label: 'Flags',
       template: CardTemplateType.grid,
       scopedTitle: '$countryName Flag',
@@ -280,6 +288,14 @@ class MerchContext {
       template: CardTemplateType.heart,
       scopedTitle: '$countryName Heart',
       scopedDesc: 'A heart made from your first flag',
+    );
+
+    _addGroup(
+      items,
+      label: 'Typography',
+      template: CardTemplateType.typography,
+      scopedTitle: countryName,
+      scopedDesc: 'Your first country, typographically',
     );
 
     _addGroup(
@@ -330,6 +346,26 @@ class MerchContext {
 
     _addGroup(
       items,
+      label: 'Typography',
+      template: CardTemplateType.typography,
+      scopedTitle: prefix,
+      scopedDesc: scopeDescription,
+      includeWorldCollection: _hasWorldCollection,
+    );
+
+    // Badge suits smaller country sets only — too cluttered beyond 15.
+    if (codes.length <= 15) {
+      _addGroup(
+        items,
+        label: 'Explorer Badge',
+        template: CardTemplateType.badge,
+        scopedTitle: prefix,
+        scopedDesc: '${codes.length} countries in your collection',
+      );
+    }
+
+    _addGroup(
+      items,
       label: 'Tour Dates',
       template: CardTemplateType.timeline,
       scopedTitle: isFirstN ? prefix : '$n Countries World Tour',
@@ -355,6 +391,14 @@ class MerchContext {
       label: 'Flags',
       template: CardTemplateType.grid,
       scopedTitle: '$continentLabel — Flags',
+      scopedDesc: countDesc,
+    );
+
+    _addGroup(
+      items,
+      label: 'Typography',
+      template: CardTemplateType.typography,
+      scopedTitle: continentLabel,
       scopedDesc: countDesc,
     );
 
@@ -453,6 +497,15 @@ class MerchContext {
 
     _addGroup(
       items,
+      label: 'Typography',
+      template: CardTemplateType.typography,
+      scopedTitle: '$year World Tour',
+      scopedDesc: '${codes.length} countries in $year',
+      includeWorldCollection: false,
+    );
+
+    _addGroup(
+      items,
       label: 'Heart Flags',
       template: CardTemplateType.heart,
       scopedTitle: '$year Travels — Heart',
@@ -498,6 +551,18 @@ class MerchContext {
       includeWorldCollection: _hasWorldCollection,
     );
 
+    // Badge suits continent-explorer achievements well.
+    if (codes.length <= 15) {
+      _addGroup(
+        items,
+        label: 'Explorer Badge',
+        template: CardTemplateType.badge,
+        scopedTitle: '$continentName Explorer',
+        scopedDesc: countDesc,
+        includeWorldCollection: false,
+      );
+    }
+
     _addGroup(
       items,
       label: 'Heart Flags',
@@ -505,6 +570,15 @@ class MerchContext {
       scopedTitle: '$continentName — Heart',
       scopedDesc: 'Your $continentName countries as a heart of flags',
       includeWorldCollection: _hasWorldCollection,
+    );
+
+    _addGroup(
+      items,
+      label: 'Typography',
+      template: CardTemplateType.typography,
+      scopedTitle: '$continentName Explorer',
+      scopedDesc: countDesc,
+      includeWorldCollection: false,
     );
 
     _addGroup(
@@ -545,6 +619,17 @@ class MerchContext {
       includeWorldCollection: _hasWorldCollection,
     );
 
+    if (codes.length <= 15) {
+      _addGroup(
+        items,
+        label: 'Explorer Badge',
+        template: CardTemplateType.badge,
+        scopedTitle: '$regionName Explorer',
+        scopedDesc: countDesc,
+        includeWorldCollection: false,
+      );
+    }
+
     _addGroup(
       items,
       label: 'Flags',
@@ -552,6 +637,15 @@ class MerchContext {
       scopedTitle: '$regionName — Flags',
       scopedDesc: countDesc,
       includeWorldCollection: _hasWorldCollection,
+    );
+
+    _addGroup(
+      items,
+      label: 'Typography',
+      template: CardTemplateType.typography,
+      scopedTitle: '$regionName Explorer',
+      scopedDesc: countDesc,
+      includeWorldCollection: false,
     );
 
     _addGroup(
@@ -662,6 +756,8 @@ class MerchContext {
           ? merchAutoTuneStamps(trips.length * 2)
           : merchAutoTuneCodes(codes.length);
 
+      final suggestedColour = merchSuggestShirtColor(template);
+
       items.add(MerchOptionEntry(PulseMerchOption(
         id: '${template.name}_scoped_${achievement?.id ?? 'ctx'}',
         title: scopedTitle,
@@ -672,6 +768,7 @@ class MerchContext {
         trips: trips,
         jitter: tune.jitter,
         stampSizeMultiplier: tune.size,
+        suggestedShirtColor: suggestedColour,
       )));
 
       if (includeWorldCollection && allCodes.isNotEmpty) {
@@ -689,6 +786,7 @@ class MerchContext {
           trips: allTrips,
           jitter: allTune.jitter,
           stampSizeMultiplier: allTune.size,
+          suggestedShirtColor: suggestedColour,
         )));
       }
     }

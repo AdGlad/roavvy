@@ -373,6 +373,8 @@ class _OrderSummaryCard extends StatelessWidget {
         CardTemplateType.heart       => 'Heart Flags',
         CardTemplateType.timeline    => 'Travel Log',
         CardTemplateType.frontRibbon => 'Front Ribbon',
+        CardTemplateType.typography  => 'Typography',
+        CardTemplateType.badge       => 'Explorer Badge',
       };
 }
 

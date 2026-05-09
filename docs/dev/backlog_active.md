@@ -14,7 +14,7 @@
 **Scope in:** `travel_card.dart` (2 new enum values); `card_templates.dart` (`TypographyCard`, `BadgeCard` widgets); `card_image_renderer.dart`; `merch_option_list_widgets.dart` (`merchSuggestShirtColor`); `pulse_merch_option.dart` (`suggestedShirtColor`); `local_mockup_preview_screen.dart` (`initialColour`); `merch_context.dart` (typography + badge in builders); exhaustive-switch updates in `card_editor_screen`, `artwork_confirmation_screen`, `card_type_picker_screen`.
 **Scope out:** Route/vintage/scrapbook/minimalist templates; full card editor support for new templates; Printful/Shopify; web; Android.
 **Full plan:** `docs/dev/milestones/m103-expanded-merch-template-variety.md`
-**Status:** Not started.
+**Status:** ✅ Complete (2026-05-09).
 
 ---
 

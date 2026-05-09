@@ -33,6 +33,7 @@ class PulseMerchOption {
     this.entryOnly = false,
     this.jitter = 0.4,
     this.stampSizeMultiplier = 1.0,
+    this.suggestedShirtColor,
   });
 
   final String id;
@@ -51,6 +52,12 @@ class PulseMerchOption {
   final double jitter;
   final double stampSizeMultiplier;
 
+  /// Suggested shirt colour for this option (ADR-153).
+  ///
+  /// When non-null, [LocalMockupPreviewScreen] pre-selects this colour.
+  /// Callers that don't set this field default to the first available colour.
+  final String? suggestedShirtColor;
+
   /// Human-readable label shown in the template chip.
   String get templateLabel => switch (template) {
         CardTemplateType.passport => 'Passport stamps',
@@ -58,5 +65,7 @@ class PulseMerchOption {
         CardTemplateType.heart => 'Heart flags',
         CardTemplateType.timeline => 'Timeline',
         CardTemplateType.frontRibbon => 'Ribbon',
+        CardTemplateType.typography => 'Typography',
+        CardTemplateType.badge => 'Explorer Badge',
       };
 }

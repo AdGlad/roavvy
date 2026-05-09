@@ -16,6 +16,12 @@ enum CardTemplateType {
   /// Front chest ribbon: military-medal style grid of flags designed for the
   /// front of merch like t-shirts (M62).
   frontRibbon,
+
+  /// Stacked country-name text composition on a dark navy background (M103).
+  typography,
+
+  /// Circular explorer badge with flag arc, tick ring, and scope label (M103).
+  badge,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries

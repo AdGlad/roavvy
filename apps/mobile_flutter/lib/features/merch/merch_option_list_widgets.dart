@@ -45,6 +45,16 @@ String merchTemplateLabel(CardTemplateType t) => switch (t) {
       CardTemplateType.timeline => 'Tour Dates',
       CardTemplateType.heart => 'Heart Flags',
       CardTemplateType.frontRibbon => 'Ribbon',
+      CardTemplateType.typography => 'Typography',
+      CardTemplateType.badge => 'Explorer Badge',
+    };
+
+/// Suggests a suitable shirt colour for a given template (ADR-153).
+///
+/// Returned strings match entries in [tshirtColors] from `merch_variant_lookup.dart`.
+String merchSuggestShirtColor(CardTemplateType template) => switch (template) {
+      CardTemplateType.badge => 'Navy',
+      _ => 'Black',
     };
 
 /// Auto-tunes jitter + size for passport templates based on stamp count
@@ -73,10 +83,11 @@ String merchTemplateLabel(CardTemplateType t) => switch (t) {
 /// Flag-based (grid) and horizontal timeline designs render better in landscape
 /// so they fill the shirt back correctly without excess letterboxing.
 /// Passport designs remain portrait to match stamp page proportions.
-double merchBackCardAspectRatio(CardTemplateType template) =>
-    (template == CardTemplateType.grid || template == CardTemplateType.timeline)
-        ? 3.0 / 2.0 // landscape
-        : 2.0 / 3.0; // portrait
+double merchBackCardAspectRatio(CardTemplateType template) => switch (template) {
+      CardTemplateType.grid || CardTemplateType.timeline => 3.0 / 2.0,
+      CardTemplateType.badge || CardTemplateType.typography => 1.0,
+      _ => 2.0 / 3.0, // passport, heart, frontRibbon — portrait
+    };
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -269,6 +280,7 @@ class _MerchOptionCardState extends State<MerchOptionCard> {
         transparentBackground: true,
         stampJitterFactor: widget.option.jitter,
         stampSizeMultiplier: widget.option.stampSizeMultiplier,
+        initialColour: widget.option.suggestedShirtColor,
       ),
     ));
   }

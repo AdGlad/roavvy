@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
 import 'card_branding_footer.dart';
 import 'card_text_renderer.dart';
 import 'flag_tile_renderer.dart';
@@ -1351,4 +1352,501 @@ class _MultiStampPainter extends CustomPainter {
       old.stamps != stamps ||
       old.assets != assets ||
       old.backgroundImage != backgroundImage;
+}
+
+// ── TypographyCard ────────────────────────────────────────────────────────────
+
+/// Travel card template: a stacked country-name text composition (M103).
+///
+/// Lists up to 24 country names in a two-column layout with alternating font
+/// size and opacity for visual rhythm. Single-country mode renders the name as
+/// a centred headline. Dark navy background unless [transparentBackground].
+class TypographyCard extends StatelessWidget {
+  const TypographyCard({
+    super.key,
+    required this.codes,
+    this.titleOverride,
+    this.transparentBackground = false,
+  });
+
+  final List<String> codes;
+  final String? titleOverride;
+  final bool transparentBackground;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _TypographyPainter(
+            codes: codes,
+            titleOverride: titleOverride,
+            transparentBackground: transparentBackground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypographyPainter extends CustomPainter {
+  _TypographyPainter({
+    required this.codes,
+    this.titleOverride,
+    required this.transparentBackground,
+  });
+
+  final List<String> codes;
+  final String? titleOverride;
+  final bool transparentBackground;
+
+  static const _bgColor = Color(0xFF0D1B2A);
+  static const _accentColor = Color(0xFFE8C84A); // gold
+  static const _maxNames = 24;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!transparentBackground) {
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = _bgColor,
+      );
+      // Subtle gradient overlay for depth.
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x00000000), Color(0x33000000)],
+          ).createShader(Offset.zero & size),
+      );
+    }
+
+    if (codes.isEmpty) {
+      _drawCentredText(canvas, size, 'No countries yet', 16,
+          Colors.white54, FontWeight.normal);
+      return;
+    }
+
+    if (codes.length == 1) {
+      _drawSingleCountry(canvas, size);
+    } else {
+      _drawMultiCountry(canvas, size);
+    }
+  }
+
+  void _drawSingleCountry(Canvas canvas, Size size) {
+    final name = kCountryNames[codes.first] ?? codes.first;
+    final flag = _flag(codes.first);
+
+    // Flag emoji centred at 30% height.
+    _drawCentredText(canvas, size, flag, size.width * 0.15,
+        Colors.white, FontWeight.normal,
+        offsetY: -size.height * 0.12);
+
+    // Country name headline.
+    _drawCentredText(canvas, size, name, size.width * 0.08,
+        Colors.white, FontWeight.w700);
+
+    // Gold accent rule.
+    final ruleY = size.height * 0.58;
+    canvas.drawLine(
+      Offset(size.width * 0.3, ruleY),
+      Offset(size.width * 0.7, ruleY),
+      Paint()
+        ..color = _accentColor
+        ..strokeWidth = 1.5,
+    );
+
+    // Subtitle.
+    _drawCentredText(canvas, size, titleOverride ?? 'My First Country',
+        size.width * 0.045, _accentColor, FontWeight.w500,
+        offsetY: size.height * 0.1);
+  }
+
+  void _drawMultiCountry(Canvas canvas, Size size) {
+    final displayCodes = codes.take(_maxNames).toList();
+    final overflow = codes.length - displayCodes.length;
+    final names = displayCodes
+        .map((c) => kCountryNames[c] ?? c)
+        .toList();
+
+    final pad = size.width * 0.06;
+    final colWidth = (size.width - pad * 3) / 2;
+    final startY = size.height * 0.10;
+    final bottomPad = size.height * 0.14;
+    final availH = size.height - startY - bottomPad;
+
+    // Determine row count per column.
+    final totalNames = names.length + (overflow > 0 ? 1 : 0);
+    final rows = (totalNames / 2).ceil();
+    final rowH = availH / rows.clamp(1, 999);
+
+    for (int i = 0; i < totalNames; i++) {
+      final col = i % 2;
+      final row = i ~/ 2;
+      final isLarge = (i % 3 == 0);
+      final opacity = isLarge ? 1.0 : 0.62;
+      final fontSize = isLarge ? size.width * 0.038 : size.width * 0.032;
+
+      final x = pad + col * (colWidth + pad);
+      final y = startY + row * rowH;
+
+      final String label;
+      if (i == totalNames - 1 && overflow > 0) {
+        label = '+ $overflow more';
+      } else {
+        label = names[i];
+      }
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: opacity),
+            fontSize: fontSize,
+            fontWeight: isLarge ? FontWeight.w600 : FontWeight.w400,
+            letterSpacing: 0.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: colWidth);
+
+      tp.paint(canvas, Offset(x, y + (rowH - tp.height) / 2));
+    }
+
+    // Bottom count label.
+    final countLabel = titleOverride ?? '${codes.length} countries';
+    _drawCentredText(canvas, size, countLabel, size.width * 0.038,
+        _accentColor, FontWeight.w500,
+        offsetY: size.height * 0.43);
+  }
+
+  void _drawCentredText(
+    Canvas canvas,
+    Size size,
+    String text,
+    double fontSize,
+    Color color,
+    FontWeight weight, {
+    double offsetY = 0,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: weight,
+          letterSpacing: 0.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: size.width * 0.85);
+    tp.paint(
+      canvas,
+      Offset(
+        (size.width - tp.width) / 2,
+        (size.height - tp.height) / 2 + offsetY,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TypographyPainter old) =>
+      old.codes != codes ||
+      old.titleOverride != titleOverride ||
+      old.transparentBackground != transparentBackground;
+}
+
+// ── BadgeCard ─────────────────────────────────────────────────────────────────
+
+/// Travel card template: a circular explorer badge with flag arc, tick ring,
+/// and scope label (M103, ADR-153).
+///
+/// Renders up to 12 flag emoji tiles arranged in an arc. The [onAssetsLoaded]
+/// callback follows the [HeartFlagsCard] pattern so [CardImageRenderer] can
+/// await rendering before PNG capture. Because this template uses emoji flags
+/// (no async SVG), the callback fires on the next frame — matching the
+/// `futures.isEmpty` branch in HeartFlagsCard.
+class BadgeCard extends StatefulWidget {
+  const BadgeCard({
+    super.key,
+    required this.codes,
+    this.scopeLabel,
+    this.transparentBackground = false,
+    this.onAssetsLoaded,
+  });
+
+  final List<String> codes;
+
+  /// Optional label shown in the badge centre (e.g. "Europe Explorer").
+  /// Defaults to `"${codes.length} Countries"` when null.
+  final String? scopeLabel;
+
+  final bool transparentBackground;
+
+  /// Called exactly once on the next frame after build, following the
+  /// [HeartFlagsCard.onAssetsLoaded] protocol used by [CardImageRenderer].
+  final VoidCallback? onAssetsLoaded;
+
+  @override
+  State<BadgeCard> createState() => _BadgeCardState();
+}
+
+class _BadgeCardState extends State<BadgeCard> {
+  bool _firedOnAssetsLoaded = false;
+
+  @override
+  void didUpdateWidget(BadgeCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.codes != widget.codes) {
+      _firedOnAssetsLoaded = false;
+    }
+  }
+
+  void _maybeFireOnAssetsLoaded() {
+    if (_firedOnAssetsLoaded) return;
+    _firedOnAssetsLoaded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onAssetsLoaded?.call();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _maybeFireOnAssetsLoaded();
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _BadgePainter(
+            codes: widget.codes,
+            scopeLabel: widget.scopeLabel,
+            transparentBackground: widget.transparentBackground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgePainter extends CustomPainter {
+  _BadgePainter({
+    required this.codes,
+    this.scopeLabel,
+    required this.transparentBackground,
+  });
+
+  final List<String> codes;
+  final String? scopeLabel;
+  final bool transparentBackground;
+
+  static const _bgColor = Color(0xFF0D1B2A);
+  static const _ringColor = Color(0xFFE8C84A);
+  static const _maxFlags = 12;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!transparentBackground) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = _bgColor);
+    }
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width * 0.44;
+
+    _drawOuterRing(canvas, cx, cy, r);
+    _drawTickMarks(canvas, cx, cy, r);
+    _drawFlagArc(canvas, cx, cy, r * 0.72, size);
+    _drawCentreLabel(canvas, cx, cy, size);
+    _drawOuterText(canvas, cx, cy, r * 0.92, size);
+  }
+
+  void _drawOuterRing(Canvas canvas, double cx, double cy, double r) {
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r,
+      Paint()
+        ..color = _ringColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    );
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r * 0.88,
+      Paint()
+        ..color = _ringColor.withValues(alpha: 0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
+    );
+  }
+
+  void _drawTickMarks(Canvas canvas, double cx, double cy, double r) {
+    const tickCount = 36;
+    final tickPaint = Paint()
+      ..color = _ringColor.withValues(alpha: 0.7)
+      ..strokeWidth = 1.2;
+    for (int i = 0; i < tickCount; i++) {
+      final angle = (i / tickCount) * 2 * math.pi - math.pi / 2;
+      final isMajor = i % 9 == 0;
+      final inner = r + (isMajor ? 4 : 6);
+      final outer = r + 10;
+      canvas.drawLine(
+        Offset(cx + inner * math.cos(angle), cy + inner * math.sin(angle)),
+        Offset(cx + outer * math.cos(angle), cy + outer * math.sin(angle)),
+        tickPaint,
+      );
+    }
+  }
+
+  void _drawFlagArc(Canvas canvas, double cx, double cy, double arcR, Size size) {
+    final displayCodes = codes.take(_maxFlags).toList();
+    if (displayCodes.isEmpty) return;
+
+    final flagFontSize = _flagFontSize(displayCodes.length, size);
+
+    for (int i = 0; i < displayCodes.length; i++) {
+      final angle = displayCodes.length == 1
+          ? -math.pi / 2 // single flag centred at top
+          : (i / displayCodes.length) * 2 * math.pi - math.pi / 2;
+
+      final r = displayCodes.length == 1 ? 0.0 : arcR;
+      final x = cx + r * math.cos(angle);
+      final y = cy + r * math.sin(angle);
+
+      final emoji = _flag(displayCodes[i]);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: emoji,
+          style: TextStyle(fontSize: flagFontSize),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
+    }
+
+    // Overflow indicator.
+    if (codes.length > _maxFlags) {
+      final overflow = codes.length - _maxFlags;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '+$overflow',
+          style: TextStyle(
+            color: _ringColor.withValues(alpha: 0.8),
+            fontSize: size.width * 0.030,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset(cx - tp.width / 2, cy + arcR * 0.6 - tp.height / 2),
+      );
+    }
+  }
+
+  double _flagFontSize(int count, Size size) {
+    if (count <= 1) return size.width * 0.20;
+    if (count <= 4) return size.width * 0.12;
+    if (count <= 8) return size.width * 0.09;
+    return size.width * 0.075;
+  }
+
+  void _drawCentreLabel(Canvas canvas, double cx, double cy, Size size) {
+    final label = scopeLabel ?? '${codes.length} Countries';
+
+    // Split long labels at spaces into max two lines.
+    final words = label.split(' ');
+    final String line1;
+    final String? line2;
+    if (words.length <= 2 || label.length <= 12) {
+      line1 = label;
+      line2 = null;
+    } else {
+      final mid = words.length ~/ 2;
+      line1 = words.take(mid).join(' ');
+      line2 = words.skip(mid).join(' ');
+    }
+
+    final fontSize = _labelFontSize(label.length, size);
+
+    if (line2 == null) {
+      _paintCentred(canvas, line1, cx, cy, fontSize, Colors.white,
+          FontWeight.w700);
+    } else {
+      _paintCentred(canvas, line1, cx, cy - fontSize * 0.7, fontSize,
+          Colors.white, FontWeight.w700);
+      _paintCentred(canvas, line2, cx, cy + fontSize * 0.7, fontSize,
+          Colors.white, FontWeight.w700);
+    }
+  }
+
+  double _labelFontSize(int charCount, Size size) {
+    if (charCount <= 8) return size.width * 0.075;
+    if (charCount <= 14) return size.width * 0.058;
+    return size.width * 0.046;
+  }
+
+  void _drawOuterText(
+      Canvas canvas, double cx, double cy, double textR, Size size) {
+    final year = DateTime.now().year;
+    final outerLabel = 'ROAVVY · TRAVEL · $year';
+    final chars = outerLabel.split('');
+    final fontSize = size.width * 0.028;
+    final angleStep = (2 * math.pi) / outerLabel.length;
+
+    for (int i = 0; i < chars.length; i++) {
+      final angle = i * angleStep - math.pi / 2;
+      final x = cx + textR * math.cos(angle);
+      final y = cy + textR * math.sin(angle);
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(angle + math.pi / 2);
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: chars[i],
+          style: TextStyle(
+            color: _ringColor.withValues(alpha: 0.75),
+            fontSize: fontSize,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+      canvas.restore();
+    }
+  }
+
+  void _paintCentred(Canvas canvas, String text, double cx, double cy,
+      double fontSize, Color color, FontWeight weight) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: weight,
+          letterSpacing: 0.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: 200);
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(_BadgePainter old) =>
+      old.codes != codes ||
+      old.scopeLabel != scopeLabel ||
+      old.transparentBackground != transparentBackground;
 }

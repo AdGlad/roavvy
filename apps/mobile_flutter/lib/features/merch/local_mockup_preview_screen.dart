@@ -80,6 +80,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.stampSizeMultiplier = 1.0,
     this.stampJitterFactor = 0.4,
     this.stampLayoutSeed,
+    this.initialColour,
   });
 
   final List<String> selectedCodes;
@@ -124,6 +125,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final double stampSizeMultiplier;
   final double stampJitterFactor;
   final int? stampLayoutSeed;
+
+  /// Pre-selected shirt colour from [PulseMerchOption.suggestedShirtColor]
+  /// (ADR-153). When null, the first available colour is used.
+  final String? initialColour;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -298,6 +303,10 @@ class _LocalMockupPreviewScreenState
     super.initState();
     _template = widget.initialTemplate;
     _artworkConfirmationId = widget.artworkConfirmationId;
+    if (widget.initialColour != null &&
+        tshirtColors.contains(widget.initialColour)) {
+      _colour = widget.initialColour!;
+    }
 
     final providedBytes = widget.artworkImageBytes;
     if (providedBytes != null) {
