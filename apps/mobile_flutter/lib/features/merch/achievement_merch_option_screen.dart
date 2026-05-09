@@ -23,20 +23,37 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
 
   final Achievement achievement;
 
-  static String _subtitle(Achievement achievement) =>
-      switch (achievement.category) {
-        AchievementCategory.countries when achievement.progressTarget == 1 =>
-          'Celebrating your first country',
-        AchievementCategory.countries =>
-          'Celebrating ${achievement.progressTarget} countries visited',
-        AchievementCategory.continents =>
-          'Celebrating ${achievement.progressTarget} continents explored',
-        AchievementCategory.trips =>
-          'Celebrating ${achievement.progressTarget} trips logged',
-        AchievementCategory.thisYear =>
-          'Celebrating ${achievement.progressTarget} countries'
-              ' in ${DateTime.now().year}',
-      };
+  static String _subtitle(Achievement achievement) {
+    // Continent-explorer achievements.
+    if (achievement.continentScope != null) {
+      return 'Celebrating ${achievement.progressTarget} countries'
+          ' in ${achievement.continentScope}';
+    }
+    // Region achievements.
+    if (achievement.regionScope != null) {
+      return 'Celebrating ${achievement.progressTarget} countries'
+          ' in the ${subRegionDisplayName(achievement.regionScope!)}';
+    }
+    // Passport stamp milestones.
+    if (achievement.category == AchievementCategory.trips &&
+        achievement.merch == MerchTriggerType.passportStamp) {
+      final stamps = achievement.progressTarget * 2;
+      return 'Celebrating $stamps passport stamps';
+    }
+    return switch (achievement.category) {
+      AchievementCategory.countries when achievement.progressTarget == 1 =>
+        'Celebrating your first country',
+      AchievementCategory.countries =>
+        'Celebrating ${achievement.progressTarget} countries visited',
+      AchievementCategory.continents =>
+        'Celebrating ${achievement.progressTarget} continents explored',
+      AchievementCategory.trips =>
+        'Celebrating ${achievement.progressTarget} trips logged',
+      AchievementCategory.thisYear =>
+        'Celebrating ${achievement.progressTarget} countries'
+            ' in ${DateTime.now().year}',
+    };
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

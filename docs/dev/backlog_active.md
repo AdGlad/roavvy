@@ -7,6 +7,27 @@
 
 ## Next up (mobile-first order)
 
+### M103 — Expanded Merch Template Variety
+**Goal:** Add two new renderable card templates (`CardTemplateType.typography`, `CardTemplateType.badge`), improve per-achievement option curation, and add shirt colour intelligence so each generated option pre-selects a suitable shirt colour.
+**Phase:** 22 — Merch Platform
+**Depends on:** M102
+**Scope in:** `travel_card.dart` (2 new enum values); `card_templates.dart` (`TypographyCard`, `BadgeCard` widgets); `card_image_renderer.dart`; `merch_option_list_widgets.dart` (`merchSuggestShirtColor`); `pulse_merch_option.dart` (`suggestedShirtColor`); `local_mockup_preview_screen.dart` (`initialColour`); `merch_context.dart` (typography + badge in builders); exhaustive-switch updates in `card_editor_screen`, `artwork_confirmation_screen`, `card_type_picker_screen`.
+**Scope out:** Route/vintage/scrapbook/minimalist templates; full card editor support for new templates; Printful/Shopify; web; Android.
+**Full plan:** `docs/dev/milestones/m103-expanded-merch-template-variety.md`
+**Status:** Not started.
+
+---
+
+### M102 — Achievement-Aware Merchandise Context System
+**Goal:** Extend `MerchContext` and `AchievementEngine` so achievements generate merchandise options scoped precisely to the relevant travel data: continent-explorer achievements filter to only countries in that continent; region achievements filter to sub-region; passport milestones prioritise stamp-led layouts.
+**Phase:** 22 — Merch Platform
+**Depends on:** M100
+**Scope in:** `packages/shared_models` (Achievement: continentScope/regionScope fields; new continent/region/passport achievements in kAchievements; AchievementEngine: per-continent + per-region + passport stamp counts; new `continent_subregion_map.dart`); `apps/mobile_flutter` (MerchContext: scope-filtered _resolveCodes/_resolveTrips, new _buildContinentExplorerItems/_buildRegionItems/_buildPassportMilestoneItems; AchievementMerchOptionScreen subtitle for new types).
+**Scope out:** `achievement_gallery.dart` / `next_achievements_carousel.dart` stat display accuracy; LocalMockupPreviewScreen, Printful, Shopify; web; Android.
+**Status:** ✅ Complete (2026-05-09).
+
+---
+
 ### M100 — Expanded Template Variety
 **Goal:** Add Heart Flags as a fourth merch template group in both Memory Pulse and Achievement merch screens. Requires `onAssetsLoaded` hook on `HeartFlagsCard` so `CardImageRenderer` captures SVG flags correctly off-screen.
 **Phase:** 22 — Merch Platform

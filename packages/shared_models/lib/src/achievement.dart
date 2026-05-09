@@ -17,6 +17,8 @@ class Achievement {
     required this.category,
     required this.progressTarget,
     this.merch,
+    this.continentScope,
+    this.regionScope,
   });
 
   /// Stable identifier used for persistence and Firestore sync.
@@ -36,14 +38,34 @@ class Achievement {
   ///
   /// Interpretation depends on [category]:
   /// - [AchievementCategory.countries]: distinct country count
-  /// - [AchievementCategory.continents]: distinct continent count
-  /// - [AchievementCategory.trips]: total trip count
+  /// - [AchievementCategory.continents]: distinct continent count or, when
+  ///   [continentScope] is set, countries within that continent
+  /// - [AchievementCategory.trips]: total trip count (or stamp count when
+  ///   [merch] is [MerchTriggerType.passportStamp], where stamps ≈ trips × 2)
   /// - [AchievementCategory.thisYear]: countries first visited in the current year
   final int progressTarget;
 
   /// Optional merch product suggestion shown when this achievement is unlocked.
   /// Null means no merch CTA is shown for this achievement.
   final MerchTriggerType? merch;
+
+  /// When non-null, this achievement is scoped to a specific continent.
+  ///
+  /// Values match the continent strings in [kCountryContinent]:
+  /// 'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania'.
+  ///
+  /// [MerchContext] filters visited countries to only those in this continent
+  /// when generating merchandise options (ADR-152).
+  final String? continentScope;
+
+  /// When non-null, this achievement is scoped to a sub-continental region.
+  ///
+  /// Values match the region keys in [kCountrySubRegion]:
+  /// 'Mediterranean', 'SoutheastAsia'.
+  ///
+  /// [MerchContext] filters visited countries to only those in this region
+  /// when generating merchandise options (ADR-152).
+  final String? regionScope;
 
   @override
   bool operator ==(Object other) =>
@@ -268,6 +290,137 @@ const List<Achievement> kAchievements = [
     category: AchievementCategory.trips,
     progressTarget: 50,
     merch: MerchTriggerType.timeline,
+  ),
+
+  // ── Continent explorers ──────────────────────────────────────────────────
+  // Scoped to countries within a specific continent (ADR-152).
+  // progressTarget = number of countries in that continent, not continent count.
+  Achievement(
+    id: 'continent_europe_3',
+    title: 'Europe Initiate',
+    description: 'Visited 3 countries in Europe.',
+    category: AchievementCategory.continents,
+    progressTarget: 3,
+    continentScope: 'Europe',
+  ),
+  Achievement(
+    id: 'continent_europe_5',
+    title: 'Europe Explorer',
+    description: 'Visited 5 countries in Europe.',
+    category: AchievementCategory.continents,
+    progressTarget: 5,
+    continentScope: 'Europe',
+    merch: MerchTriggerType.flagGrid,
+  ),
+  Achievement(
+    id: 'continent_europe_10',
+    title: 'European Adventurer',
+    description: 'Visited 10 countries in Europe.',
+    category: AchievementCategory.continents,
+    progressTarget: 10,
+    continentScope: 'Europe',
+    merch: MerchTriggerType.flagGrid,
+  ),
+  Achievement(
+    id: 'continent_asia_3',
+    title: 'Asia Initiate',
+    description: 'Visited 3 countries in Asia.',
+    category: AchievementCategory.continents,
+    progressTarget: 3,
+    continentScope: 'Asia',
+  ),
+  Achievement(
+    id: 'continent_asia_5',
+    title: 'Asia Explorer',
+    description: 'Visited 5 countries in Asia.',
+    category: AchievementCategory.continents,
+    progressTarget: 5,
+    continentScope: 'Asia',
+    merch: MerchTriggerType.flagGrid,
+  ),
+  Achievement(
+    id: 'continent_africa_3',
+    title: 'Africa Explorer',
+    description: 'Visited 3 countries in Africa.',
+    category: AchievementCategory.continents,
+    progressTarget: 3,
+    continentScope: 'Africa',
+    merch: MerchTriggerType.flagGrid,
+  ),
+  Achievement(
+    id: 'continent_north_america_3',
+    title: 'North America Explorer',
+    description: 'Visited 3 countries in North America.',
+    category: AchievementCategory.continents,
+    progressTarget: 3,
+    continentScope: 'North America',
+    merch: MerchTriggerType.flagGrid,
+  ),
+  Achievement(
+    id: 'continent_south_america_3',
+    title: 'South America Explorer',
+    description: 'Visited 3 countries in South America.',
+    category: AchievementCategory.continents,
+    progressTarget: 3,
+    continentScope: 'South America',
+    merch: MerchTriggerType.flagGrid,
+  ),
+  Achievement(
+    id: 'continent_oceania_3',
+    title: 'Oceania Explorer',
+    description: 'Visited 3 countries in Oceania.',
+    category: AchievementCategory.continents,
+    progressTarget: 3,
+    continentScope: 'Oceania',
+    merch: MerchTriggerType.flagGrid,
+  ),
+
+  // ── Region explorers ─────────────────────────────────────────────────────
+  // Scoped to sub-continental regions via [kCountrySubRegion] (ADR-152).
+  Achievement(
+    id: 'region_mediterranean',
+    title: 'Mediterranean Explorer',
+    description: 'Visited 5 Mediterranean countries.',
+    category: AchievementCategory.continents,
+    progressTarget: 5,
+    regionScope: 'Mediterranean',
+    merch: MerchTriggerType.passportStamp,
+  ),
+  Achievement(
+    id: 'region_southeast_asia',
+    title: 'Southeast Asia Explorer',
+    description: 'Visited 5 countries in Southeast Asia.',
+    category: AchievementCategory.continents,
+    progressTarget: 5,
+    regionScope: 'SoutheastAsia',
+    merch: MerchTriggerType.flagGrid,
+  ),
+
+  // ── Passport stamp milestones ────────────────────────────────────────────
+  // Approximates stamp count as tripCount × 2 (entry + exit per trip).
+  Achievement(
+    id: 'passport_10',
+    title: '10 Stamps',
+    description: 'Collected 10 passport stamps across your trips.',
+    category: AchievementCategory.trips,
+    progressTarget: 5,
+    merch: MerchTriggerType.passportStamp,
+  ),
+  Achievement(
+    id: 'passport_25',
+    title: '25 Stamps',
+    description: 'Collected 25 passport stamps across your trips.',
+    category: AchievementCategory.trips,
+    progressTarget: 13,
+    merch: MerchTriggerType.passportStamp,
+  ),
+  Achievement(
+    id: 'passport_50',
+    title: 'Stamp Collector',
+    description: 'Collected 50 passport stamps across your trips.',
+    category: AchievementCategory.trips,
+    progressTarget: 25,
+    merch: MerchTriggerType.passportStamp,
   ),
 
   // ── This year ────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import 'continent_map.dart';
+import 'continent_subregion_map.dart';
 import 'effective_visited_country.dart';
 
 /// Evaluates which achievements are unlocked for a given set of visits.
@@ -32,6 +33,27 @@ class AchievementEngine {
         .whereType<String>()
         .toSet()
         .length;
+
+    // Per-continent country counts for continent-explorer achievements (ADR-152).
+    int _continentCount(String continent) => visits
+        .where((v) => kCountryContinent[v.countryCode] == continent)
+        .length;
+    final europeCount = _continentCount('Europe');
+    final asiaCount = _continentCount('Asia');
+    final africaCount = _continentCount('Africa');
+    final northAmericaCount = _continentCount('North America');
+    final southAmericaCount = _continentCount('South America');
+    final oceaniaCount = _continentCount('Oceania');
+
+    // Per-region country counts for region achievements (ADR-152).
+    int _regionCount(String region) => visits
+        .where((v) => kCountrySubRegion[v.countryCode] == region)
+        .length;
+    final mediterraneanCount = _regionCount('Mediterranean');
+    final southeastAsiaCount = _regionCount('SoutheastAsia');
+
+    // Passport stamp approximation: each trip generates ~2 stamps (entry + exit).
+    final stampCount = tripCount * 2;
 
     final unlocked = <String>{};
 
@@ -71,6 +93,27 @@ class AchievementEngine {
     if (thisYearCountryCount >= 3) unlocked.add('year_countries_3');
     if (thisYearCountryCount >= 5) unlocked.add('year_countries_5');
     if (thisYearCountryCount >= 10) unlocked.add('year_countries_10');
+
+    // ── Continent explorers (ADR-152) ──────────────────────────────────────
+    if (europeCount >= 3) unlocked.add('continent_europe_3');
+    if (europeCount >= 5) unlocked.add('continent_europe_5');
+    if (europeCount >= 10) unlocked.add('continent_europe_10');
+    if (asiaCount >= 3) unlocked.add('continent_asia_3');
+    if (asiaCount >= 5) unlocked.add('continent_asia_5');
+    if (africaCount >= 3) unlocked.add('continent_africa_3');
+    if (northAmericaCount >= 3) unlocked.add('continent_north_america_3');
+    if (southAmericaCount >= 3) unlocked.add('continent_south_america_3');
+    if (oceaniaCount >= 3) unlocked.add('continent_oceania_3');
+
+    // ── Region explorers (ADR-152) ─────────────────────────────────────────
+    if (mediterraneanCount >= 5) unlocked.add('region_mediterranean');
+    if (southeastAsiaCount >= 5) unlocked.add('region_southeast_asia');
+
+    // ── Passport stamp milestones (ADR-152) ────────────────────────────────
+    // Stamp count approximated as tripCount × 2 (entry + exit per trip).
+    if (stampCount >= 10) unlocked.add('passport_10');
+    if (stampCount >= 25) unlocked.add('passport_25');
+    if (stampCount >= 50) unlocked.add('passport_50');
 
     return unlocked;
   }
