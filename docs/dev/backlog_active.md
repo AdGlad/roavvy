@@ -7,6 +7,17 @@
 
 ## Next up (mobile-first order)
 
+### M105 — Social Merch & Travel Identity System
+**Goal:** Transform merchandise into a social, emotional, and viral engagement system. Users should feel "I unlocked something special" — with a travel identity, cinematic gallery reveal, featured lead card, and social share export.
+**Phase:** 22 — Merch Platform
+**Depends on:** M104
+**Scope in:** `travel_identity.dart` (`TravelIdentity` enum + `TravelIdentityInfo`); `merch_drop.dart` (`MerchDrop` + `kCurrentMerchDrops`); `merch_share_card.dart` + `merch_share_exporter.dart` (social PNG export); staggered reveal animations in `MerchOptionCard`; `MerchOptionFeaturedCard` for top-ranked option; achievement header celebration with identity label + scale animation + shimmer; "Share This Design" in `LocalMockupPreviewScreen`; identity-aware section labels; drop badge labels.
+**Scope out:** New CardTemplateType values; new product types; checkout/Printful changes; animated video exports; social feed; web/Android.
+**Full plan:** `docs/dev/milestones/m105-social-merch-identity-system.md`
+**Status:** Not started.
+
+---
+
 ### M104 — Intelligent Merch Recommendation Engine
 **Goal:** Replace fixed per-builder template lists with a ranked, density-aware `MerchTemplateRanker`; add `MerchStory` for emotionally engaging option titles; extend 5-tier auto-tune scaling; improve shirt colour intelligence with density awareness; add `contextLabel` to options.
 **Phase:** 22 — Merch Platform
