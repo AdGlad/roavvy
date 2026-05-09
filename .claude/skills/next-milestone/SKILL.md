@@ -20,11 +20,26 @@ The workflow is optimised for:
 
 ## Firebase Retrieval (mandatory)
 
-Before reading any large markdown documentation, run:
+Before running any retrieval, verify GCP auth:
+
+```bash
+gcloud auth application-default print-access-token >/dev/null
+```
+
+If this command fails, **STOP immediately** and report:
+> `GCP auth failed. Run: gcloud auth application-default login`
+
+Then run retrieval:
 
 ```bash
 python3 scripts/retrieve_context.py "<current milestone summary>"
 ```
+
+If retrieval returns **no output**, **STOP immediately** and report:
+> `Firebase retrieval returned no chunks. Fix GCP auth or retrieval data before running next-milestone.`
+
+Do NOT fall back to local markdown files.
+Do NOT continue with the workflow if retrieval returns empty output.
 
 Use the retrieved Firebase chunks as the **primary** project memory/context source for:
 - architecture decisions (ADRs)
@@ -33,7 +48,7 @@ Use the retrieved Firebase chunks as the **primary** project memory/context sour
 - known issues
 - implementation notes
 
-Only directly read local files when Firebase retrieval is unavailable or when reading small files directly related to implementation:
+Only directly read local files for small files directly related to implementation:
 - `CLAUDE.md`
 - `docs/dev/current_task.md`
 - the current milestone file
@@ -92,11 +107,13 @@ Before starting any work:
 
 1. Run `/compact`.
 2. Inspect git status and recover safely from interrupted work.
-3. Run Firebase retrieval for the next milestone:
+3. Verify GCP auth and run Firebase retrieval for the next milestone:
    ```bash
+   gcloud auth application-default print-access-token >/dev/null
    python3 scripts/retrieve_context.py "next milestone backlog"
    ```
-4. From the retrieved context (or `docs/dev/backlog_active.md` if retrieval unavailable), identify the first incomplete milestone.
+   If auth fails or retrieval returns no output, **STOP** — report the error and do not continue.
+4. From the retrieved context, identify the first incomplete milestone.
 5. Derive branch name: `milestone/mXX-short-name`
 6. Create or switch to the branch automatically.
 7. Read ONLY:
@@ -112,18 +129,19 @@ Do NOT bulk-read documentation.
 
 Act as the Planner persona defined in `docs/personas/planner.md`.
 
-Before planning, run Firebase retrieval:
+Before planning, verify GCP auth and run Firebase retrieval:
 
 ```bash
+gcloud auth application-default print-access-token >/dev/null
 python3 scripts/retrieve_context.py "<milestone title> current state roadmap"
 ```
+
+If auth fails or retrieval returns no output, **STOP** — report the error and do not continue.
 
 Use retrieved chunks for:
 - `current_state.md` context
 - `roadmap.md` context
 - `vision.md` context
-
-Only read local markdown if Firebase retrieval is unavailable.
 
 Produce:
 - Goal
@@ -147,11 +165,14 @@ Then run `/compact`.
 
 Act as the Engineering Architect persona defined in `docs/personas/architect.md`.
 
-Before proposing architecture, run Firebase retrieval:
+Before proposing architecture, verify GCP auth and run Firebase retrieval:
 
 ```bash
+gcloud auth application-default print-access-token >/dev/null
 python3 scripts/retrieve_context.py "<milestone title> architecture decisions ADR"
 ```
+
+If auth fails or retrieval returns no output, **STOP** — report the error and do not continue.
 
 Use retrieved chunks for:
 - ADR context
@@ -182,10 +203,12 @@ Read `docs/dev/next_tasks.md` locally.
 
 For each task:
 
-1. Run Firebase retrieval for the specific task:
+1. Verify GCP auth and run Firebase retrieval for the specific task:
    ```bash
+   gcloud auth application-default print-access-token >/dev/null
    python3 scripts/retrieve_context.py "<task description> implementation"
    ```
+   If auth fails or retrieval returns no output, **STOP** — report the error and do not continue.
 2. Read only relevant CLAUDE.md sections for directories being modified.
 3. Implement the minimum code required.
 4. Add or update tests where appropriate.
@@ -221,11 +244,14 @@ Review all changes using:
 git diff main
 ```
 
-Run Firebase retrieval to validate against known patterns:
+Verify GCP auth and run Firebase retrieval to validate against known patterns:
 
 ```bash
+gcloud auth application-default print-access-token >/dev/null
 python3 scripts/retrieve_context.py "<milestone title> review acceptance criteria"
 ```
+
+If auth fails or retrieval returns no output, **STOP** — report the error and do not continue.
 
 Check:
 - all acceptance criteria met
