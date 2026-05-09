@@ -34,6 +34,7 @@ class PulseMerchOption {
     this.jitter = 0.4,
     this.stampSizeMultiplier = 1.0,
     this.suggestedShirtColor,
+    this.contextLabel,
   });
 
   final String id;
@@ -57,6 +58,10 @@ class PulseMerchOption {
   /// When non-null, [LocalMockupPreviewScreen] pre-selects this colour.
   /// Callers that don't set this field default to the first available colour.
   final String? suggestedShirtColor;
+
+  /// Optional context label shown below the description in the merch card
+  /// (ADR-154). E.g. "Based on your Europe Explorer achievement".
+  final String? contextLabel;
 
   /// Human-readable label shown in the template chip.
   String get templateLabel => switch (template) {

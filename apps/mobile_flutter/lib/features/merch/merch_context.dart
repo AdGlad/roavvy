@@ -2,6 +2,8 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import 'merch_option_list_widgets.dart';
+import 'merch_story.dart';
+import 'merch_template_ranker.dart';
 import 'pulse_merch_option.dart';
 
 /// The resolved travel data and display labels for a merch generation session.
@@ -220,499 +222,85 @@ class MerchContext {
 
   /// Generates the full list of [MerchOptionListItem]s for display.
   ///
-  /// Template ordering varies by achievement type for maximum relevance:
-  /// - Country milestones: passport → flags → tour dates
-  /// - Continent achievements: flags → passport → tour dates
-  /// - Trip achievements: tour dates → passport → flags (timeline first)
-  /// - Year achievements: flags → passport → tour dates
+  /// Delegates to [_buildFromRankedTemplates] which calls
+  /// [MerchTemplateRanker.rankFor] and [MerchStory.forOption] for each
+  /// template (ADR-154).
   List<MerchOptionListItem> buildItems() {
     final ach = achievement;
+    final contextLabel = _buildContextLabel(ach);
     if (ach == null) return _buildGenericItems();
+    return _buildFromRankedTemplates(contextLabel: contextLabel);
+  }
 
-    // Continent-explorer: scoped to a single continent's countries.
-    if (ach.continentScope != null) return _buildContinentExplorerItems();
+  /// Builds a curated, ranked list of option groups using [MerchTemplateRanker]
+  /// and [MerchStory].
+  List<MerchOptionListItem> _buildFromRankedTemplates({String? contextLabel}) {
+    final density = MerchTemplateRanker.densityFor(codes.length);
+    final maxN = MerchTemplateRanker.maxForDensity(density);
+    final year = DateTime.now().year;
 
-    // Region: scoped to a sub-continental region's countries.
-    if (ach.regionScope != null) return _buildRegionItems();
+    final ranked = MerchTemplateRanker.rankFor(
+      achievement: achievement,
+      codeCount: codes.length,
+      tripCount: trips.length,
+      stampCount: trips.length * 2,
+    );
 
-    // Passport milestone: trip achievement with stamp-focused merch.
+    final items = <MerchOptionListItem>[];
+    var count = 0;
+
+    for (final rank in ranked) {
+      if (rank.exclude) continue;
+      if (count >= maxN) break;
+
+      final story = MerchStory.forOption(
+        template: rank.template,
+        achievement: achievement,
+        codes: codes,
+        density: density,
+        year: year,
+      );
+
+      // Badge and typography are scoped — don't offer a "World Collection"
+      // variant for these templates.
+      final includeWorld = _hasWorldCollection &&
+          rank.template != CardTemplateType.badge;
+
+      _addGroup(
+        items,
+        label: rank.label,
+        template: rank.template,
+        scopedTitle: story.title,
+        scopedDesc: story.subtitle,
+        includeWorldCollection: includeWorld,
+        contextLabel: contextLabel,
+      );
+      count++;
+    }
+
+    return items;
+  }
+
+  /// Generates a short label explaining the source of this merch context.
+  static String? _buildContextLabel(Achievement? ach) {
+    if (ach == null) return null;
+    if (ach.continentScope != null) {
+      return 'Based on your ${ach.continentScope} Explorer achievement';
+    }
+    if (ach.regionScope != null) {
+      return 'Based on your ${subRegionDisplayName(ach.regionScope!)} achievement';
+    }
+    if (ach.category == AchievementCategory.thisYear) {
+      return 'Generated from your ${DateTime.now().year} travels';
+    }
     if (ach.category == AchievementCategory.trips &&
         ach.merch == MerchTriggerType.passportStamp) {
-      return _buildPassportMilestoneItems();
+      return 'Celebrating ${ach.progressTarget * 2} passport stamps';
     }
-
-    return switch (ach.category) {
-      AchievementCategory.countries when ach.progressTarget == 1 =>
-        _buildFirstCountryItems(),
-      AchievementCategory.countries => _buildCountryItems(),
-      AchievementCategory.continents => _buildContinentItems(),
-      AchievementCategory.trips => _buildTripItems(),
-      AchievementCategory.thisYear => _buildYearItems(),
-    };
-  }
-
-  // ── First Country (progressTarget == 1) ───────────────────────────────────
-
-  List<MerchOptionListItem> _buildFirstCountryItems() {
-    final countryName =
-        kCountryNames[codes.firstOrNull ?? ''] ?? codes.firstOrNull ?? '';
-    final items = <MerchOptionListItem>[];
-
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$countryName Entry Stamp',
-      scopedDesc: 'Your first ever passport stamp',
-    );
-
-    _addGroup(
-      items,
-      label: 'Explorer Badge',
-      template: CardTemplateType.badge,
-      scopedTitle: countryName,
-      scopedDesc: 'A commemorative badge for your first country',
-    );
-
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$countryName Flag',
-      scopedDesc: 'Where it all began',
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$countryName Heart',
-      scopedDesc: 'A heart made from your first flag',
-    );
-
-    _addGroup(
-      items,
-      label: 'Typography',
-      template: CardTemplateType.typography,
-      scopedTitle: countryName,
-      scopedDesc: 'Your first country, typographically',
-    );
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: 'My First Country — $countryName',
-      scopedDesc: 'The trip that started everything',
-    );
-
-    return items;
-  }
-
-  // ── Country milestones (progressTarget > 1) ────────────────────────────────
-
-  List<MerchOptionListItem> _buildCountryItems() {
-    final n = achievement!.progressTarget;
-    final isFirstN = codes.length <= 25;
-    final prefix = isFirstN ? 'First $n Countries' : '$n Countries';
-    final items = <MerchOptionListItem>[];
-
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$prefix — Stamps',
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$prefix — Flags',
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$prefix — Heart',
-      scopedDesc: 'Your countries as a heart of flags',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Typography',
-      template: CardTemplateType.typography,
-      scopedTitle: prefix,
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    // Badge suits smaller country sets only — too cluttered beyond 15.
-    if (codes.length <= 15) {
-      _addGroup(
-        items,
-        label: 'Explorer Badge',
-        template: CardTemplateType.badge,
-        scopedTitle: prefix,
-        scopedDesc: '${codes.length} countries in your collection',
-      );
+    if (ach.progressTarget <= 25) {
+      return 'Built from your first ${ach.progressTarget} countries';
     }
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: isFirstN ? prefix : '$n Countries World Tour',
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    return items;
-  }
-
-  // ── Continent achievements ─────────────────────────────────────────────────
-
-  List<MerchOptionListItem> _buildContinentItems() {
-    final n = achievement!.progressTarget;
-    final continentLabel = n >= 6 ? 'All Six Continents' : '$n Continents';
-    final countDesc = '${codes.length} countries across $n continents';
-    final items = <MerchOptionListItem>[];
-
-    // Flags lead for continent achievements — the breadth of coverage is
-    // the story, and a flag grid communicates that best.
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$continentLabel — Flags',
-      scopedDesc: countDesc,
-    );
-
-    _addGroup(
-      items,
-      label: 'Typography',
-      template: CardTemplateType.typography,
-      scopedTitle: continentLabel,
-      scopedDesc: countDesc,
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$continentLabel — Heart',
-      scopedDesc: 'Your world in a heart of flags',
-    );
-
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: 'World Tour — Stamps',
-      scopedDesc: countDesc,
-    );
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: '$continentLabel World Tour',
-      scopedDesc: scopeDescription,
-    );
-
-    return items;
-  }
-
-  // ── Trip achievements ──────────────────────────────────────────────────────
-
-  List<MerchOptionListItem> _buildTripItems() {
-    final n = achievement!.progressTarget;
-    final tripLabel = n == 1 ? 'First Trip' : '$n Trips';
-    final tripCountDesc = trips.isNotEmpty
-        ? '${trips.length} trips, ${codes.length} countries'
-        : '${codes.length} countries';
-    final items = <MerchOptionListItem>[];
-
-    // Timeline/tour dates lead for trip achievements.
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: '$tripLabel — Timeline',
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$tripLabel — Stamps',
-      scopedDesc: tripCountDesc,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$tripLabel — Flags',
-      scopedDesc: '${codes.length} countries across $n trips',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$tripLabel — Heart',
-      scopedDesc: 'Your trip countries as a heart of flags',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    return items;
-  }
-
-  // ── Year achievements ──────────────────────────────────────────────────────
-
-  List<MerchOptionListItem> _buildYearItems() {
-    final year = DateTime.now().year;
-    final items = <MerchOptionListItem>[];
-
-    // Flags lead for year achievements — year recaps are about breadth.
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$year Travels — Flags',
-      scopedDesc: '${codes.length} countries in $year',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Typography',
-      template: CardTemplateType.typography,
-      scopedTitle: '$year World Tour',
-      scopedDesc: '${codes.length} countries in $year',
-      includeWorldCollection: false,
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$year Travels — Heart',
-      scopedDesc: 'Your $year countries as a heart of flags',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$year Travels — Stamps',
-      scopedDesc: '$year trips and stamps',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: '$year World Tour',
-      scopedDesc: 'Your $year travel recap',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    return items;
-  }
-
-  // ── Continent-explorer achievements ────────────────────────────────────────
-
-  List<MerchOptionListItem> _buildContinentExplorerItems() {
-    final continentName = achievement!.continentScope!;
-    final countDesc = '${codes.length} countries in $continentName';
-    final items = <MerchOptionListItem>[];
-
-    // Flags lead for continent-explorer achievements — breadth is the story.
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$continentName — Flags',
-      scopedDesc: countDesc,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    // Badge suits continent-explorer achievements well.
-    if (codes.length <= 15) {
-      _addGroup(
-        items,
-        label: 'Explorer Badge',
-        template: CardTemplateType.badge,
-        scopedTitle: '$continentName Explorer',
-        scopedDesc: countDesc,
-        includeWorldCollection: false,
-      );
-    }
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$continentName — Heart',
-      scopedDesc: 'Your $continentName countries as a heart of flags',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Typography',
-      template: CardTemplateType.typography,
-      scopedTitle: '$continentName Explorer',
-      scopedDesc: countDesc,
-      includeWorldCollection: false,
-    );
-
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$continentName Tour — Stamps',
-      scopedDesc: countDesc,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: '$continentName World Tour',
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    return items;
-  }
-
-  // ── Region achievements ─────────────────────────────────────────────────────
-
-  List<MerchOptionListItem> _buildRegionItems() {
-    final regionName = subRegionDisplayName(achievement!.regionScope!);
-    final countDesc = '${codes.length} countries in the $regionName';
-    final items = <MerchOptionListItem>[];
-
-    // Passport leads for region achievements — stamps feel like travel mementos.
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$regionName — Stamps',
-      scopedDesc: countDesc,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    if (codes.length <= 15) {
-      _addGroup(
-        items,
-        label: 'Explorer Badge',
-        template: CardTemplateType.badge,
-        scopedTitle: '$regionName Explorer',
-        scopedDesc: countDesc,
-        includeWorldCollection: false,
-      );
-    }
-
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$regionName — Flags',
-      scopedDesc: countDesc,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Typography',
-      template: CardTemplateType.typography,
-      scopedTitle: '$regionName Explorer',
-      scopedDesc: countDesc,
-      includeWorldCollection: false,
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$regionName — Heart',
-      scopedDesc: 'Your $regionName countries as a heart of flags',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: '$regionName Tour',
-      scopedDesc: scopeDescription,
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    return items;
-  }
-
-  // ── Passport stamp milestone achievements ───────────────────────────────────
-
-  List<MerchOptionListItem> _buildPassportMilestoneItems() {
-    final stampCount = achievement!.progressTarget * 2;
-    final items = <MerchOptionListItem>[];
-
-    // Passport leads — the achievement is about stamps.
-    _addGroup(
-      items,
-      label: 'Passport',
-      template: CardTemplateType.passport,
-      scopedTitle: '$stampCount Stamps — Passport',
-      scopedDesc: 'Your passport stamps across all your travels',
-      includeWorldCollection: false,
-    );
-
-    _addGroup(
-      items,
-      label: 'Tour Dates',
-      template: CardTemplateType.timeline,
-      scopedTitle: '$stampCount Stamps — Tour Dates',
-      scopedDesc: 'Every destination, timeline style',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Flags',
-      template: CardTemplateType.grid,
-      scopedTitle: '$stampCount Stamps — Flags',
-      scopedDesc: '${codes.length} countries across all your stamps',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    _addGroup(
-      items,
-      label: 'Heart Flags',
-      template: CardTemplateType.heart,
-      scopedTitle: '$stampCount Stamps — Heart',
-      scopedDesc: 'Your stamped countries as a heart of flags',
-      includeWorldCollection: _hasWorldCollection,
-    );
-
-    return items;
+    return 'Based on your ${ach.progressTarget} countries achievement';
   }
 
   // ── Generic (non-achievement entry points) ─────────────────────────────────
@@ -747,16 +335,19 @@ class MerchContext {
     required String scopedTitle,
     required String scopedDesc,
     bool includeWorldCollection = false,
+    String? contextLabel,
   }) {
     items.add(MerchOptionHeaderItem(label));
 
     if (codes.isNotEmpty) {
       final isPassport = template == CardTemplateType.passport;
+      final density = MerchTemplateRanker.densityFor(codes.length);
       final tune = isPassport
           ? merchAutoTuneStamps(trips.length * 2)
           : merchAutoTuneCodes(codes.length);
 
-      final suggestedColour = merchSuggestShirtColor(template);
+      final suggestedColour =
+          merchSuggestShirtColor(template, density: density);
 
       items.add(MerchOptionEntry(PulseMerchOption(
         id: '${template.name}_scoped_${achievement?.id ?? 'ctx'}',
@@ -769,6 +360,7 @@ class MerchContext {
         jitter: tune.jitter,
         stampSizeMultiplier: tune.size,
         suggestedShirtColor: suggestedColour,
+        contextLabel: contextLabel,
       )));
 
       if (includeWorldCollection && allCodes.isNotEmpty) {
@@ -777,9 +369,8 @@ class MerchContext {
             : merchAutoTuneCodes(allCodes.length);
         items.add(MerchOptionEntry(PulseMerchOption(
           id: '${template.name}_world_${achievement?.id ?? 'ctx'}',
-          title: '${merchTemplateLabel(template)} — World Collection',
-          description:
-              '${allCodes.length} countries across all your travels',
+          title: '${merchTemplateLabel(template)} \u2014 World Collection',
+          description: '${allCodes.length} countries across all your travels',
           scope: PulseMerchScope.allTime,
           template: template,
           codes: allCodes,

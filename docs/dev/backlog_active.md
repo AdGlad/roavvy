@@ -7,6 +7,17 @@
 
 ## Next up (mobile-first order)
 
+### M104 — Intelligent Merch Recommendation Engine
+**Goal:** Replace fixed per-builder template lists with a ranked, density-aware `MerchTemplateRanker`; add `MerchStory` for emotionally engaging option titles; extend 5-tier auto-tune scaling; improve shirt colour intelligence with density awareness; add `contextLabel` to options.
+**Phase:** 22 — Merch Platform
+**Depends on:** M103
+**Scope in:** New `merch_template_ranker.dart` (`MerchDensityClass`, `MerchTemplateRank`, `MerchTemplateRanker`); new `merch_story.dart` (`MerchStory.forOption()`); `merch_option_list_widgets.dart` (5-tier auto-tune, density-aware `merchSuggestShirtColor`, `contextLabel` in card); `pulse_merch_option.dart` (`contextLabel`); `merch_context.dart` (builders use ranker + story).
+**Scope out:** New CardTemplateType values; new product types; AI runtime calls; checkout/Printful/web.
+**Full plan:** `docs/dev/milestones/m104-intelligent-merch-recommendation-engine.md`
+**Status:** ✅ Complete (2026-05-09).
+
+---
+
 ### M103 — Expanded Merch Template Variety
 **Goal:** Add two new renderable card templates (`CardTemplateType.typography`, `CardTemplateType.badge`), improve per-achievement option curation, and add shirt colour intelligence so each generated option pre-selects a suitable shirt colour.
 **Phase:** 22 — Merch Platform

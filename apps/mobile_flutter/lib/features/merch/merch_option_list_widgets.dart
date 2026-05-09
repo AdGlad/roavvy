@@ -8,6 +8,7 @@ import '../cards/card_editor_screen.dart';
 import '../cards/card_image_renderer.dart';
 import 'local_mockup_painter.dart';
 import 'local_mockup_preview_screen.dart';
+import 'merch_template_ranker.dart';
 import 'merch_variant_lookup.dart';
 import 'product_mockup_specs.dart';
 import 'pulse_merch_option.dart';
@@ -49,33 +50,47 @@ String merchTemplateLabel(CardTemplateType t) => switch (t) {
       CardTemplateType.badge => 'Explorer Badge',
     };
 
-/// Suggests a suitable shirt colour for a given template (ADR-153).
+/// Suggests a suitable shirt colour for a given template and density (ADR-154).
 ///
 /// Returned strings match entries in [tshirtColors] from `merch_variant_lookup.dart`.
-String merchSuggestShirtColor(CardTemplateType template) => switch (template) {
-      CardTemplateType.badge => 'Navy',
-      _ => 'Black',
-    };
+/// The optional [density] param enables density-aware colour selection; callers
+/// that don't supply it default to [MerchDensityClass.medium] behaviour.
+String merchSuggestShirtColor(
+  CardTemplateType template, {
+  MerchDensityClass density = MerchDensityClass.medium,
+}) {
+  final isSoloOrSmall =
+      density == MerchDensityClass.solo || density == MerchDensityClass.small;
+  final isLargeOrMassive =
+      density == MerchDensityClass.large || density == MerchDensityClass.massive;
 
-/// Auto-tunes jitter + size for passport templates based on stamp count
-/// (trips × 2 for entry+exit, or trips × 1 for entryOnly).
-///
-/// Small counts use smaller stamps to avoid 100% overlap on the fixed-ceiling
-/// radius (100 px). Large counts pack tightly.
-({double jitter, double size}) merchAutoTuneStamps(int stampCount) {
-  if (stampCount <= 2) return (jitter: 0.05, size: 0.60);
-  if (stampCount <= 4) return (jitter: 0.15, size: 0.75);
-  if (stampCount <= 8) return (jitter: 0.25, size: 0.85);
-  if (stampCount <= 16) return (jitter: 0.35, size: 0.90);
-  return (jitter: 0.40, size: 0.75);
+  return switch (template) {
+    CardTemplateType.passport => isSoloOrSmall ? 'White' : 'Black',
+    CardTemplateType.grid => isLargeOrMassive ? 'Navy' : 'Black',
+    CardTemplateType.badge => 'Navy',
+    _ => 'Black',
+  };
 }
 
-/// Auto-tunes jitter + size for grid / flags / timeline based on country count.
+/// Auto-tunes jitter + size for passport templates based on stamp count
+/// (trips × 2 for entry+exit, or trips × 1 for entryOnly) — 5-tier model
+/// matching [MerchDensityClass] (ADR-154).
+({double jitter, double size}) merchAutoTuneStamps(int stampCount) {
+  if (stampCount <= 2) return (jitter: 0.00, size: 0.55);
+  if (stampCount <= 6) return (jitter: 0.12, size: 0.70);
+  if (stampCount <= 14) return (jitter: 0.22, size: 0.82);
+  if (stampCount <= 30) return (jitter: 0.33, size: 0.88);
+  return (jitter: 0.40, size: 0.72);
+}
+
+/// Auto-tunes jitter + size for grid / flags / timeline based on country count
+/// — 5-tier model matching [MerchDensityClass] (ADR-154).
 ({double jitter, double size}) merchAutoTuneCodes(int codeCount) {
-  if (codeCount <= 3) return (jitter: 0.15, size: 1.00);
-  if (codeCount <= 8) return (jitter: 0.25, size: 0.90);
-  if (codeCount <= 20) return (jitter: 0.35, size: 0.80);
-  return (jitter: 0.40, size: 0.65);
+  if (codeCount <= 1) return (jitter: 0.00, size: 1.20);
+  if (codeCount <= 5) return (jitter: 0.15, size: 1.00);
+  if (codeCount <= 15) return (jitter: 0.28, size: 0.85);
+  if (codeCount <= 50) return (jitter: 0.38, size: 0.72);
+  return (jitter: 0.42, size: 0.58);
 }
 
 /// Aspect ratio for the back-card artwork based on template type.
@@ -482,6 +497,15 @@ class _MerchOptionCardState extends State<MerchOptionCard> {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
+        if (widget.option.contextLabel != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            widget.option.contextLabel!,
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
