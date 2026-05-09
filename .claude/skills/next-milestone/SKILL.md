@@ -1,104 +1,236 @@
 ---
 name: next-milestone
-description: Runs the full Planner → Architect → Builder → Reviewer workflow for the next unstarted milestone, autonomously without confirmation prompts.
+description: Runs the full Planner → Architect → Builder → Reviewer workflow for the next unstarted milestone autonomously with crash recovery, compact context loading, and selective retrieval.
 ---
 
 # Skill: next-milestone
 
-Runs the full four-stage development workflow (Planner → Architect → Builder → Reviewer) for the next milestone without pausing for confirmation. Execute every step below in order, autonomously.
+Runs the full four-stage development workflow (Planner → Architect → Builder → Reviewer) for the next milestone without pausing for confirmation.
+
+The workflow is optimised for:
+- reduced token usage
+- crash recovery
+- compact context loading
+- selective Firebase + markdown retrieval
+- autonomous milestone execution
 
 ---
 
-## Step 0 — Compact and branch
+# Global Rules
 
-1. Run `/compact` to clear context before starting.
-2. Read `docs/dev/backlog.md` to identify the next milestone (the first milestone listed that has no ✅ status).
-3. Derive a branch name from the milestone number and short title, e.g. `milestone/m22-gamified-map`.
-4. Run `git checkout -b <branch-name>` to create and switch to the branch. Do not ask for confirmation.
+## Firebase Retrieval (mandatory)
+
+Before reading any large markdown documentation, run:
+
+```bash
+python3 scripts/retrieve_context.py "<current milestone summary>"
+```
+
+Use the retrieved Firebase chunks as the **primary** project memory/context source for:
+- architecture decisions (ADRs)
+- roadmap context
+- feature history
+- known issues
+- implementation notes
+
+Only directly read local files when Firebase retrieval is unavailable or when reading small files directly related to implementation:
+- `CLAUDE.md`
+- `docs/dev/current_task.md`
+- the current milestone file
+- small source files being modified
+
+Do NOT bulk-read large markdown docs (`current_state.md`, `backlog_active.md`, `decisions/_index.md`) — retrieve from Firebase instead.
 
 ---
 
-## Step 1 — Planner
+## Crash Recovery
+
+Before starting any work:
+
+1. Inspect git status.
+2. Inspect current branch.
+3. Inspect uncommitted changes.
+4. Inspect git diff against main.
+5. Recover safely from interrupted or crashed executions.
+6. Never duplicate already completed work.
+7. Continue from current repository state.
+
+---
+
+## Context Loading Rules
+
+1. Never bulk-read large markdown documents.
+2. Prefer Firebase chunk retrieval over local markdown reads.
+3. Read only the minimum context required for the current task.
+4. Large markdown files should be treated as indexed reference material, not always-on context.
+5. If a markdown file exceeds ~150 lines, retrieve only relevant sections.
+6. CLAUDE.md files must remain concise and focused on constraints/rules.
+
+---
+
+## Working Style
+
+1. Work autonomously.
+2. Do not ask for confirmation.
+3. Implement in small coherent slices.
+4. Keep changes minimal and targeted.
+5. Avoid unnecessary refactors.
+6. Preserve existing architecture patterns unless required.
+
+---
+
+## Validation Rules
+
+1. Run lightweight validation where useful.
+2. Prefer `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt` over full test runs.
+3. Avoid large token-expensive outputs.
+4. Summarise validation failures concisely.
+
+---
+
+## Step 0 — Compact and Branch
+
+1. Run `/compact`.
+2. Inspect git status and recover safely from interrupted work.
+3. Run Firebase retrieval for the next milestone:
+   ```bash
+   python3 scripts/retrieve_context.py "next milestone backlog"
+   ```
+4. From the retrieved context (or `docs/dev/backlog_active.md` if retrieval unavailable), identify the first incomplete milestone.
+5. Derive branch name: `milestone/mXX-short-name`
+6. Create or switch to the branch automatically.
+7. Read ONLY:
+   - root `CLAUDE.md`
+   - `docs/dev/current_task.md`
+   - current milestone file
+
+Do NOT bulk-read documentation.
+
+---
+
+# Step 1 — Planner
 
 Act as the Planner persona defined in `docs/personas/planner.md`.
 
-Before scoping, read:
-- `docs/dev/current_state.md`
-- `docs/dev/backlog.md`
-- `docs/product/roadmap.md`
-- `docs/product/vision.md`
+Before planning, run Firebase retrieval:
 
-Produce the full task list for the milestone. Apply the Planner's output format exactly (Goal, Scope, Tasks with Deliverable + Acceptance Criteria, Dependencies, Risks).
+```bash
+python3 scripts/retrieve_context.py "<milestone title> current state roadmap"
+```
+
+Use retrieved chunks for:
+- `current_state.md` context
+- `roadmap.md` context
+- `vision.md` context
+
+Only read local markdown if Firebase retrieval is unavailable.
+
+Produce:
+- Goal
+- Scope
+- Tasks
+- Acceptance Criteria
+- Dependencies
+- Risks
 
 After finalising:
-- Write the complete task list to `docs/dev/next_tasks.md` (overwrite).
-- Write the first task to `docs/dev/current_task.md` with status "In Progress".
-- Update `docs/product/roadmap.md` milestone status to "In Progress" if needed.
+
+1. Write task list to `docs/dev/next_tasks.md`
+2. Write first task to `docs/dev/current_task.md`
+3. Mark milestone as "In Progress" if required.
 
 Then run `/compact`.
 
 ---
 
-## Step 2 — Architect
+# Step 2 — Architect
 
 Act as the Engineering Architect persona defined in `docs/personas/architect.md`.
 
-Before proposing anything, read:
-- `docs/architecture/decisions.md`
-- `docs/dev/current_state.md`
-- `docs/dev/next_tasks.md`
+Before proposing architecture, run Firebase retrieval:
 
-Review the Planner's task list for structural risks. For every significant technical decision, append an ADR to `docs/architecture/decisions.md` using the standard ADR format (ADR-NNN, Status: Accepted, Context, Decision, Consequences).
+```bash
+python3 scripts/retrieve_context.py "<milestone title> architecture decisions ADR"
+```
 
-If any task has a blocker-level structural risk, rewrite that task in `docs/dev/next_tasks.md` to resolve it before building begins.
+Use retrieved chunks for:
+- ADR context
+- structural patterns
+- integration risks
+
+Read `docs/dev/next_tasks.md` locally.
+
+Review for:
+- structural risks
+- integration risks
+- scalability concerns
+- security concerns
+
+Append only necessary ADRs.
+
+If any blocker-level issue exists, rewrite affected tasks before build begins.
 
 Then run `/compact`.
 
 ---
 
-## Step 3 — Builder
+# Step 3 — Builder
 
 Act as the Builder persona defined in `docs/personas/builder.md`.
 
-Read `docs/dev/next_tasks.md` and implement every task in the listed order. For each task:
+Read `docs/dev/next_tasks.md` locally.
 
-1. Read the CLAUDE.md for each directory you will touch.
-2. Read `docs/architecture/decisions.md` for constraints on the area.
-3. Implement the minimum code that satisfies the acceptance criteria.
-4. Write tests alongside implementation. **Do NOT run tests** — test execution is temporarily suspended to avoid token exhaustion.
-5. Update `docs/dev/current_task.md` — mark the task ✅ Done and set the next task to "In Progress".
+For each task:
 
-Do not ask for permission before creating files, running commands, or editing code. Proceed autonomously through all tasks.
+1. Run Firebase retrieval for the specific task:
+   ```bash
+   python3 scripts/retrieve_context.py "<task description> implementation"
+   ```
+2. Read only relevant CLAUDE.md sections for directories being modified.
+3. Implement the minimum code required.
+4. Add or update tests where appropriate.
+5. Avoid unnecessary rewrites.
+6. Update `docs/dev/current_task.md`.
 
-When all tasks are complete, update `docs/dev/current_task.md` status to "✅ Complete" with today's date.
+Implementation rules:
+- work in small slices
+- prefer incremental commits
+- preserve existing patterns
+- minimise token-heavy outputs
+
+After significant slices:
+- inspect diff
+- ensure consistency
+- commit checkpoint if appropriate
+
+When complete:
+- mark current task complete
+- update milestone status
 
 Then run `/compact`.
 
 ---
 
-## Step 4 — Reviewer
+# Step 4 — Reviewer
 
 Act as the Reviewer persona defined in `docs/personas/reviewer.md`.
 
-Review all changes made during Step 3 using `git diff main`. Apply the full review checklist from `docs/personas/reviewer.md` (Privacy, Package boundaries, Correctness, Security).
+Review all changes using:
 
-Output each finding as `[BLOCKER]` or `[SUGGESTION]` with a reason.
+```bash
+git diff main
+```
 
-If there are any BLOCKERs:
-- Fix them immediately (act as Builder to apply the fix).
-- Re-run the relevant review checklist items.
+Run Firebase retrieval to validate against known patterns:
 
-Finish with a final verdict: **Approved**, **Approved with suggestions**, or **Changes required**.
+```bash
+python3 scripts/retrieve_context.py "<milestone title> review acceptance criteria"
+```
 
-Then update `docs/dev/current_state.md` to reflect what was built in this milestone.
+Check:
+- all acceptance criteria met
+- no new `flutter analyze` warnings
+- docs updated (`current_state.md`, `backlog_active.md`, ADR index, milestone status)
+- commit clean and descriptive
 
----
-
-## Completion
-
-When the review passes, output a concise summary:
-- Milestone completed
-- Branch name
-- List of tasks implemented
-- Any open suggestions (non-blocking)
-- Reminder of any production prerequisites noted during the build
+Then run `/compact`.
