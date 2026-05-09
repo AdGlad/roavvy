@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M100 — Expanded Template Variety
+**Goal:** Add Heart Flags as a fourth merch template group in both Memory Pulse and Achievement merch screens. Requires `onAssetsLoaded` hook on `HeartFlagsCard` so `CardImageRenderer` captures SVG flags correctly off-screen.
+**Phase:** 22 — Merch Platform
+**Depends on:** M99
+**Scope in:** `card_templates.dart` (HeartFlagsCard onAssetsLoaded); `card_image_renderer.dart` (assetsCompleter for heart); `merch_context.dart` (heart group in all builders); `pulse_merch_option_screen.dart` (heart in groups).
+**Scope out:** Route/typography/explorer/vintage templates; entry-only passport variant; shared_models; web.
+**Status:** ✅ Complete (2026-05-08).
+
+---
+
 ### M98 — Achievement-Driven Merch Workflow
 **Goal:** Fix the "Make a Tee" / "Create" buttons in the Stats & Achievement Dashboard to navigate into the same modern t-shirt purchase workflow used by Memory Pulse. Extract shared rendering widgets from `PulseMerchOptionScreen`; create `AchievementMerchOptionScreen` that generates `PulseMerchOption` items from achievement context. Both entry points share the same merch pipeline end-to-end.
 **Phase:** 21 — Engagement & Gamification

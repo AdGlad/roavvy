@@ -426,6 +426,7 @@ class HeartFlagsCard extends StatefulWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.titleOverride,
+    this.onAssetsLoaded,
   });
 
   final List<String> countryCodes;
@@ -442,6 +443,12 @@ class HeartFlagsCard extends StatefulWidget {
   /// in [CardBrandingFooter] when non-null (ADR-120).
   final String? titleOverride;
 
+  /// Called exactly once when all SVG flag assets have finished loading into
+  /// the shared cache. Used by [CardImageRenderer] to delay PNG capture until
+  /// SVGs are ready (ADR-151). If all assets were already cached, fires on the
+  /// next post-frame callback.
+  final VoidCallback? onAssetsLoaded;
+
   @override
   State<HeartFlagsCard> createState() => _HeartFlagsCardState();
 }
@@ -450,6 +457,17 @@ class _HeartFlagsCardState extends State<HeartFlagsCard> {
   // ValueNotifier is a ChangeNotifier subclass that can be incremented from any
   // class without needing to call the protected notifyListeners() (ADR-123).
   final _repaintNotifier = ValueNotifier<int>(0);
+  bool _preloadStarted = false;
+  bool _onAssetsLoadedFired = false;
+
+  @override
+  void didUpdateWidget(HeartFlagsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.countryCodes != widget.countryCodes) {
+      _preloadStarted = false;
+      _onAssetsLoadedFired = false;
+    }
+  }
 
   @override
   void dispose() {
@@ -457,24 +475,51 @@ class _HeartFlagsCardState extends State<HeartFlagsCard> {
     super.dispose();
   }
 
+  void _fireOnAssetsLoaded() {
+    if (_onAssetsLoadedFired) return;
+    _onAssetsLoadedFired = true;
+    widget.onAssetsLoaded?.call();
+  }
+
   /// Schedules async SVG loading for all tiles produced by [HeartLayoutEngine]
   /// at [canvasSize]. Skips codes already in cache and codes without SVG assets.
+  /// Fires [widget.onAssetsLoaded] exactly once when all pending loads complete,
+  /// or on the next frame if nothing needed loading (ADR-151).
   void _preloadSvgsForSize(Size canvasSize) {
+    if (_preloadStarted) return;
+    _preloadStarted = true;
+
     final tiles = HeartLayoutEngine.layout(
       widget.countryCodes,
       canvasSize,
       order: widget.flagOrder,
       trips: widget.trips,
     );
+
+    final futures = <Future<void>>[];
     for (final tile in tiles) {
       final code = tile.countryCode;
       final tileSize = tile.rect.width;
       if (tileSize <= 0) continue;
       if (!FlagTileRenderer.hasSvg(code)) continue;
       if (_HeartPainter._sharedCache.get(code, tileSize) != null) continue;
-      FlagTileRenderer.loadSvgToCache(code, tileSize, _HeartPainter._sharedCache)
-          .then((img) {
-        if (mounted && img != null) _repaintNotifier.value++;
+      futures.add(
+        FlagTileRenderer.loadSvgToCache(code, tileSize, _HeartPainter._sharedCache)
+            .then((img) {
+          if (mounted && img != null) _repaintNotifier.value++;
+        }),
+      );
+    }
+
+    if (futures.isEmpty) {
+      // All assets already cached — fire on the next frame so the caller's
+      // OverlayEntry has been inserted before the capture callback runs.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fireOnAssetsLoaded();
+      });
+    } else {
+      Future.wait(futures).then((_) {
+        if (mounted) _fireOnAssetsLoaded();
       });
     }
   }

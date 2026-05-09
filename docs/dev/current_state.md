@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M98, 2026-05-08)
+# Roavvy — Current State (updated M100, 2026-05-08)
 
 ## What is built
 
@@ -12,7 +12,7 @@
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |
 | Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70); label-powered titles from hero images (M92); optional photo background (passport + grid) composited at print resolution (M93); Passport Book PDF export + in-app preview (M87) |
 | Sharing | ✅ | Share sheet; `/share/[token]` web page; token revocation |
-| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll; preset-driven merch entry (kMerchPresets: recent_trip/this_year/all_time/single_country), MerchCustomisationSheet Layer 2, PrintfulPlacementMapper, _artworkLocked image lock, mockup polling fallback warning (M96); achievement-driven merch entry: `AchievementMerchOptionScreen` generates `PulseMerchOption` items scoped to achievement context; shared rendering layer (`merch_option_list_widgets.dart`) used by both Memory Pulse and Achievement entry points (M98) |
+| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll; preset-driven merch entry (kMerchPresets: recent_trip/this_year/all_time/single_country), MerchCustomisationSheet Layer 2, PrintfulPlacementMapper, _artworkLocked image lock, mockup polling fallback warning (M96); achievement-driven merch entry: `AchievementMerchOptionScreen` generates `PulseMerchOption` items scoped to achievement context; shared rendering layer (`merch_option_list_widgets.dart`) used by both Memory Pulse and Achievement entry points (M98); `MerchContext` shared merch context layer: achievement-type-specific option generation (first-country, country milestones, continent, trip, year), template ordering by achievement type, World Collection only when scope is a strict subset of all countries (M99); 4 template groups (Passport, Flags, Heart Flags, Tour Dates) in both Memory Pulse and Achievement merch screens; `HeartFlagsCard.onAssetsLoaded` hook enables correct SVG-flag off-screen rendering in `CardImageRenderer` (M100, ADR-151) |
 | Commerce (web) | ✅ | `/shop` public landing; auth-aware CTA; web checkout in M28 (not started) |
 | Firebase | ✅ | Anonymous auth; Apple Sign-In; Firestore sync (visits, trips, achievements, merch configs) |
 | Web app | ✅ | `/sign-in`, `/sign-up`, `/map`, `/shop`, `/share/[token]`, `/privacy` |
@@ -60,6 +60,7 @@
 | Merch customisation sheet | `lib/features/merch/merch_customisation_sheet.dart` |
 | Printful placement mapper | `lib/features/merch/printful_placement_mapper.dart` |
 | Merch option shared widgets | `lib/features/merch/merch_option_list_widgets.dart` |
+| Merch context (shared layer) | `lib/features/merch/merch_context.dart` |
 | Achievement merch screen | `lib/features/merch/achievement_merch_option_screen.dart` |
 | Hero image view | `lib/features/shared/hero_image_view.dart` |
 | Hero override picker | `lib/features/shared/hero_override_picker.dart` |

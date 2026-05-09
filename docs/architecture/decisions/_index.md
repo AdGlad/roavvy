@@ -133,3 +133,6 @@
 | 126 | M72 Country Celebration Carousel: Single-Route Multi-Country Flow | Accepted | `CountryCelebrationCarousel` replaces N-deep nav stack; dot progress indicator |
 | 134 | M89 On-Device Hero Image Detection Pipeline | Accepted | Vision `VNClassifyImageRequest`; async post-scan; labels normalised to Roavvy vocabulary; `assetId` local-only (extends ADR-002); Drift schema v11 |
 | 135 | M90 Hero Image UI: MethodChannel Thumbnail Fetch + Reactive HeroImageView | Accepted | `roavvy/thumbnail` channel; NSCache; `HeroImageView`; override picker preserves isUserSelected guard |
+| 149 | M98 Achievement Merch Shared Rendering Layer | Accepted | `merch_option_list_widgets.dart` shared by Memory Pulse + Achievement entry points; `PulseMerchOption` is the shared merch data model |
+| 150 | M99 MerchContext: Shared Merch Context Layer | Accepted | `MerchContext.fromAchievement()` pure factory; `buildItems()` dispatches to achievement-type-specific builders; shared by all entry points |
+| 151 | M100 HeartFlagsCard onAssetsLoaded: SVG-Ready Off-Screen Render | Accepted | `HeartFlagsCard` gains `onAssetsLoaded` callback; `CardImageRenderer` includes heart in `assetsCompleter` branch; heart added as 4th merch template group |

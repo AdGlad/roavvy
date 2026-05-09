@@ -101,7 +101,9 @@ class CardImageRenderer {
     // render() returns completer.future immediately, letting the caller pump
     // freely until the capture is complete.
     final assetsCompleter =
-        (template == CardTemplateType.passport || template == CardTemplateType.grid)
+        (template == CardTemplateType.passport ||
+                template == CardTemplateType.grid ||
+                template == CardTemplateType.heart)
             ? Completer<void>()
             : null;
 
@@ -247,6 +249,7 @@ class CardImageRenderer {
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
           titleOverride: titleOverride,
+          onAssetsLoaded: onAssetsLoaded,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

@@ -1,76 +1,57 @@
-# Active Tasks: M98 — Achievement-Driven Merch Workflow
+# M100 — Expanded Template Variety
 
-Branch: milestone/m98-achievement-merch-workflow
+Branch: milestone/m100-expanded-template-variety
 
 ## Goal
 
-Users tapping "Make a Tee" or "Create" from any achievement unlock are taken into the same
-modern t-shirt selection experience currently used by Memory Pulse, with shirt options
-pre-scoped to the achievement's relevant countries and trips.
+The merch selection screen offers four distinct card design types — Passport, Flags, Heart Flags, and Tour Dates — giving users meaningful visual choice. Previously only three template groups were generated; Heart Flags was excluded from the merch pipeline because `HeartFlagsCard` had no `onAssetsLoaded` hook, causing the off-screen renderer to capture emoji fallbacks instead of SVG flags.
 
 ## Scope
 
-In:
-- `lib/features/merch/merch_option_list_widgets.dart` (new — shared rendering widgets)
-- `lib/features/merch/pulse_merch_option_screen.dart` (modified — import shared widgets)
-- `lib/features/merch/achievement_merch_option_screen.dart` (new — achievement merch screen)
-- `lib/features/stats/widgets/achievement_gallery.dart` (modified — reroute _MerchChip)
-- `lib/features/stats/widgets/merch_moments_section.dart` (modified — reroute _MerchMomentTile)
+**In:**
+- `card_templates.dart` — add `onAssetsLoaded` + async-guard fields to `HeartFlagsCard`
+- `card_image_renderer.dart` — include `CardTemplateType.heart` in the `assetsCompleter` branch; pass `onAssetsLoaded` to `HeartFlagsCard`
+- `merch_context.dart` — add heart group to every `_build*Items()` method (between Flags and Tour Dates)
+- `pulse_merch_option_screen.dart` — add heart to the groups constant
+- `backlog_active.md` — add M100 entry and mark complete
+- `docs/architecture/decisions/_index.md` — ADR-151
 
-Out:
-- LocalMockupPreviewScreen, MerchOrderConfirmationScreen, Shopify/Printful
-- pulse_merch_option.dart, shared_models
-- Web, new achievement categories, new kAchievements entries
+**Out:**
+- Route, typography, explorer, vintage templates (new painting engines — M101+)
+- Entry-only passport variant (M101)
+- `shared_models` changes
+- Web, Android
+- `CardEditorScreen` changes
 
 ## Tasks
 
-- [ ] 1. Extract shared merch option widgets — `lib/features/merch/merch_option_list_widgets.dart`
-  Deliverable: New file with public versions of the sealed list-item types, auto-tune helpers,
-  backCardAspectRatio(), templateLabel(), MerchOptionSectionHeader, MerchOptionCard,
-  MerchOptionCustomCard.
-  AC: All types/functions that will be shared between pulse and achievement screens are exported
-  from this file. File compiles standalone (dart analyze clean).
+- [ ] 1. Add `onAssetsLoaded` to `HeartFlagsCard` — `card_templates.dart`
+  - Deliverable: `HeartFlagsCard` gains `onAssetsLoaded: VoidCallback?` param; `_HeartFlagsCardState` gains `_preloadStarted` + `_onAssetsLoadedFired` guards; `_preloadSvgsForSize` tracks pending SVG loads with `Future.wait` and fires callback exactly once when all complete (or next frame if all already cached)
+  - Acceptance: `onAssetsLoaded` fires exactly once; no double-fire from repeated LayoutBuilder calls
 
-- [ ] 2. Refactor pulse_merch_option_screen.dart to use shared widgets — `lib/features/merch/pulse_merch_option_screen.dart`
-  Deliverable: All private types replaced with imports from merch_option_list_widgets.dart.
-  AC: File compiles. Public API of PulseMerchOptionScreen is unchanged. Memory Pulse
-  "Print on a t-shirt" flow navigates to PulseMerchOptionScreen as before.
+- [ ] 2. Wire heart into `CardImageRenderer` — `card_image_renderer.dart`
+  - Deliverable: `assetsCompleter` created for passport, grid, AND heart; `_cardWidget` passes `onAssetsLoaded` to `HeartFlagsCard`
+  - Acceptance: `CardImageRenderer.render(ctx, CardTemplateType.heart, codes: [...])` produces PNG bytes with SVG flags (not emoji)
 
-- [ ] 3. Create AchievementMerchOptionScreen — `lib/features/merch/achievement_merch_option_screen.dart`
-  Deliverable: ConsumerWidget taking `Achievement achievement`. Reads effectiveVisitsProvider
-  + tripListProvider. Resolves codes/trips per achievement category and progressTarget.
-  Generates grouped PulseMerchOption list. Renders via shared widgets. Navigates to
-  LocalMockupPreviewScreen on tap.
-  AC:
-  - countries_1 → resolvedCodes = [firstCountry], options scoped to that country + world collection
-  - countries_N (N≤25) → resolvedCodes = first N by firstSeen
-  - countries_N (N>25) → resolvedCodes = all countries
-  - continents_N → resolvedCodes = all countries
-  - trips_N → resolvedTrips = first N trips, resolvedCodes = unique codes from those trips
-  - year_N → resolvedCodes = countries with firstSeen.year == currentYear, resolvedTrips = this year's trips
-  - Loading state shows CircularProgressIndicator; error state shows retry
+- [ ] 3. Add heart group to `MerchContext` — `merch_context.dart`
+  - Deliverable: All six `_build*Items()` methods include a Heart Flags group (between Flags and Tour Dates)
+  - Acceptance: Achievement merch option screen shows 4 template groups; heart thumbnail renders correctly
 
-- [ ] 4. Reroute _MerchChip in achievement_gallery.dart — `lib/features/stats/widgets/achievement_gallery.dart`
-  Deliverable: _MerchChip.onPressed navigates to AchievementMerchOptionScreen(achievement: achievement).
-  Import of MerchCountrySelectionScreen removed.
-  AC: Tapping "Make tee" on an unlocked achievement pushes AchievementMerchOptionScreen.
+- [ ] 4. Add heart group to `PulseMerchOptionScreen` — `pulse_merch_option_screen.dart`
+  - Deliverable: `groups` constant includes `(label: 'Heart Flags', template: CardTemplateType.heart)` between Flags and Tour Dates
+  - Acceptance: Memory Pulse shirt screen shows 4 template groups including Heart Flags
 
-- [ ] 5. Reroute _MerchMomentTile in merch_moments_section.dart — `lib/features/stats/widgets/merch_moments_section.dart`
-  Deliverable: "Create" button navigates to AchievementMerchOptionScreen(achievement: achievement).
-  Import of MerchCountrySelectionScreen removed.
-  AC: Tapping "Create" in Merch Moments pushes AchievementMerchOptionScreen.
-
-- [ ] 6. flutter analyze — pass with no new warnings
+- [ ] 5. `flutter analyze` — 0 new warnings
 
 ## Dependencies
 
-- M96 (MerchPresetConfig, LocalMockupPreviewScreen, PulseMerchOption pipeline) ✅
-- M97 (Achievement model, kAchievements, AchievementGallery, MerchMomentsSection) ✅
+- M99 complete (MerchContext shared layer) ✅
+- No new packages required
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| Extracting private types from pulse screen breaks Memory Pulse | Task 2 is a pure mechanical rename; zero behavior change; analyze catches any break |
-| AchievementMerchOptionScreen generates wrong codes for edge cases (0 visits, 0 trips) | Guard every resolved list: if empty, fall back gracefully (empty list = no artwork, no crash) |
-| _CustomOptionCard param removal (hero, allTrips, allCodes were unused) | Verified by code read that onTap only ever used `template` — removal is safe |
+| `HeartFlagsCard.onAssetsLoaded` fires multiple times if LayoutBuilder rebuilds | `_preloadStarted` guard prevents re-entry after first call |
+| `Future.wait` never resolves if `FlagTileRenderer.loadSvgToCache` hangs | `CardImageRenderer.render()` already has `assetsTimeout` (default 10s) — heart also covered |
+| Heart thumbnail looks odd at small size (72×92 px) | HeartLayoutEngine adapts density at any canvas size; recognizable even at thumbnail size |
