@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_templates.dart';
+import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
@@ -83,6 +84,7 @@ class CardImageRenderer {
     double stampJitterFactor = 0.4,
     Duration assetsTimeout = const Duration(seconds: 10),
     Uint8List? backgroundImageBytes,
+    FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
   }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -174,6 +176,7 @@ class CardImageRenderer {
               stampSizeMultiplier: stampSizeMultiplier,
               stampJitterFactor: stampJitterFactor,
               backgroundImageBytes: backgroundImageBytes,
+              gridLayoutMode: gridLayoutMode,
               onAssetsLoaded: assetsCompleter != null
                   ? () {
                       if (!assetsCompleter.isCompleted) {
@@ -224,6 +227,7 @@ class CardImageRenderer {
     double stampSizeMultiplier = 1.0,
     double stampJitterFactor = 0.4,
     Uint8List? backgroundImageBytes,
+    FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -241,6 +245,7 @@ class CardImageRenderer {
           transparentBackground: transparentBackground,
           onAssetsLoaded: onAssetsLoaded,
           backgroundImageBytes: backgroundImageBytes,
+          layoutMode: gridLayoutMode,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(

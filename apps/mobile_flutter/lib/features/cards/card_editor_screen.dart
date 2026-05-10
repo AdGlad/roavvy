@@ -21,6 +21,7 @@ import 'card_background_picker.dart';
 import 'passport_book_screen.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
+import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
@@ -46,6 +47,7 @@ class _CardParams {
     this.stampSizeMultiplier = 1.0,
     this.stampJitterFactor = 0.4,
     this.backgroundAssetId,
+    this.gridLayoutMode = FlagGridLayoutMode.packedRow,
   });
 
   final CardTemplateType templateType;
@@ -60,6 +62,7 @@ class _CardParams {
   final double stampSizeMultiplier;
   final double stampJitterFactor;
   final String? backgroundAssetId;
+  final FlagGridLayoutMode gridLayoutMode;
 
   @override
   bool operator ==(Object other) {
@@ -75,7 +78,8 @@ class _CardParams {
         stampLayoutSeed == other.stampLayoutSeed &&
         stampSizeMultiplier == other.stampSizeMultiplier &&
         stampJitterFactor == other.stampJitterFactor &&
-        backgroundAssetId == other.backgroundAssetId;
+        backgroundAssetId == other.backgroundAssetId &&
+        gridLayoutMode == other.gridLayoutMode;
   }
 
   @override
@@ -92,6 +96,7 @@ class _CardParams {
         stampSizeMultiplier,
         stampJitterFactor,
         backgroundAssetId,
+        gridLayoutMode,
       );
 }
 
@@ -115,6 +120,7 @@ class CardEditorScreen extends ConsumerStatefulWidget {
 class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   HeartFlagOrder _order = HeartFlagOrder.randomized;
   int _gridShuffleSeed = 0;
+  FlagGridLayoutMode _gridLayoutMode = FlagGridLayoutMode.packedRow;
   bool _entryOnly = false;
   bool _portrait = true;
   int? _stampLayoutSeed; // null = deterministic hash default (passport only)
@@ -499,6 +505,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   onTap: () =>
                       _openBackgroundPicker(context, effectiveTrips),
                 ),
+                const SizedBox(height: 4),
+                _GridLayoutPicker(
+                  mode: _gridLayoutMode,
+                  onChanged: (m) => setState(() => _gridLayoutMode = m),
+                ),
               ],
               const SizedBox(height: 8),
               // ── Card preview ─────────────────────────────────────────
@@ -685,6 +696,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
           backgroundImageBytes: backgroundImageBytes,
+          layoutMode: _gridLayoutMode,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -846,6 +858,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       stampSizeMultiplier: _stampSizeMultiplier,
       stampJitterFactor: _stampJitterFactor,
       backgroundAssetId: _backgroundAssetId,
+      gridLayoutMode: _gridLayoutMode,
     );
 
     // Same params → skip re-render (ADR-103).
@@ -904,6 +917,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           stampSizeMultiplier: _stampSizeMultiplier,
           stampJitterFactor: _stampJitterFactor,
           backgroundImageBytes: printBgBytes,
+          gridLayoutMode: _gridLayoutMode,
         );
         capturedBytes = result.bytes;
       }
@@ -1748,6 +1762,58 @@ class _ActionBar extends StatelessWidget {
 
 /// Compact row showing the current background state and a tap target to open
 /// [CardBackgroundPicker]. Shown in both passport and non-passport editors.
+// ── _GridLayoutPicker ──────────────────────────────────────────────────────────
+
+/// Compact segmented-control row for selecting the flag grid layout algorithm
+/// (M106, ADR-156). Only shown for [CardTemplateType.grid].
+class _GridLayoutPicker extends StatelessWidget {
+  const _GridLayoutPicker({required this.mode, required this.onChanged});
+
+  final FlagGridLayoutMode mode;
+  final ValueChanged<FlagGridLayoutMode> onChanged;
+
+  static const _labels = {
+    FlagGridLayoutMode.packedRow: 'Packed',
+    FlagGridLayoutMode.normalizedGrid: 'Grid',
+    FlagGridLayoutMode.treemap: 'Mosaic',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          const Text(
+            'Layout',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SegmentedButton<FlagGridLayoutMode>(
+              style: SegmentedButton.styleFrom(
+                textStyle: const TextStyle(fontSize: 11),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 30),
+              ),
+              segments: FlagGridLayoutMode.values
+                  .map((m) => ButtonSegment<FlagGridLayoutMode>(
+                        value: m,
+                        label: Text(_labels[m]!),
+                      ))
+                  .toList(),
+              selected: {mode},
+              onSelectionChanged: (s) => onChanged(s.first),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── _BackgroundPickerRow ───────────────────────────────────────────────────────
+
 class _BackgroundPickerRow extends StatelessWidget {
   const _BackgroundPickerRow({
     required this.assetId,

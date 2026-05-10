@@ -7,6 +7,17 @@
 
 ## Next up (mobile-first order)
 
+### M106 — Flag Grid Quality, Layout Options, and Packed Row Default
+**Goal:** Improve flag grid artwork so flags preserve their aspect ratios, avoid cropping, and fit cleanly in portrait/landscape outputs. Add three selectable layout algorithms; default all generation to Packed Row.
+**Phase:** 22 — Merch Platform / Visual Quality
+**Depends on:** M105
+**Scope in:** `flag_grid_layout_engine.dart` (`FlagGridLayoutMode` enum, `FlagGridLayoutEngine`, `FlagGridTile`); `FlagTileRenderer.drawContained()` + `FilterQuality.high`; `GridFlagsCard.layoutMode` param; `CardImageRenderer.render(gridLayoutMode:)`; `_GridLayoutPicker` segmented control in `CardEditorScreen`; `_CardParams.gridLayoutMode`; ADR-156.
+**Scope out:** New flag SVG sources (existing flag-icons 4×3 library is already vector quality); animated layout transitions; merch call sites (inherit packedRow default); web/Android.
+**Full plan:** `docs/dev/milestones/m106-flag-grid-quality-and-layout.md`
+**Status:** ✅ Complete (2026-05-10).
+
+---
+
 ### M105 — Social Merch & Travel Identity System
 **Goal:** Transform merchandise into a social, emotional, and viral engagement system. Users should feel "I unlocked something special" — with a travel identity, cinematic gallery reveal, featured lead card, and social share export.
 **Phase:** 22 — Merch Platform

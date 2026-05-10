@@ -1546,3 +1546,81 @@ copy), Merch Reveal (cinematic entry + featured lead card), and Social Export.
   even though that entry point does not currently resolve a `TravelIdentity`.
 - `share_plus ^10.1.4` was already in pubspec; no new dependencies added.
 - `path_provider` is used by `MerchShareExporter` (pre-existing dependency).
+
+---
+
+## ADR-156 — M106 Flag Grid Quality, Layout Engine, and Packed Row Default
+
+**Status:** Accepted
+
+**Context:**
+The existing `GridFlagsCard` used `gridLayout()` (ADR-118) which divided the canvas into
+equal-area rectangular cells. Cell width and cell height were computed independently
+(`width/cols` and `gridH/rows`), so the aspect ratio of each cell rarely matched the natural
+4:3 (or other) aspect ratio of a flag SVG. `FlagTileRenderer._drawImageInRect` used
+`BoxFit.cover` to fill the cell, cropping the flag image on the sides or top/bottom.
+The result was visually distorted or truncated flags on the back of t-shirts and card exports.
+Source quality (flag-icons SVG library) was already high; the issue was purely algorithmic.
+
+**Decisions:**
+
+**1. `FlagGridLayoutMode` enum (3 variants):**
+`packedRow` (default), `normalizedGrid`, `treemap`. Defined in `flag_grid_layout_engine.dart`.
+
+**2. `FlagGridLayoutEngine` — pure static layout factory:**
+`compute(codes, canvasSize, topOffset, bottomOffset, mode, gutter, padding)` returns
+`List<FlagGridTile>`, each with a `code` and a `rect` whose aspect ratio matches the
+flag's natural proportion. The computation is pure and synchronous — no canvas or
+Flutter dependencies.
+
+**3. Packed Row (default):**
+Flags are distributed into `R ≈ sqrt(n × H/W)` sequential rows. For each row, the natural
+height is `(W − internal gutters) / ΣAR`. All row heights are scaled by a common factor so
+the total (plus inter-row gutters) fills the canvas height exactly. Each flag's width is
+`AR × rowH`. Result: all rows fill canvas width; no cropping; no unused space.
+
+**4. Normalized Grid:**
+Reuses `gridLayout()` to compute col/row counts. Each flag gets an identical rectangular
+cell. Rendered with `FlagTileRenderer.drawContained` (new static method, `BoxFit.contain`)
+so the flag fits within its cell with letterbox space rather than being cropped.
+
+**5. Treemap / Mosaic:**
+Greedy row packing: flags are accumulated into a row until adding one more flag would
+exceed 110% of canvas width (at a target row height `sqrt(W×H/ΣAR)`). Row heights then
+scaled to fill canvas height. Produces rows with varying flag counts — editorial layout.
+
+**6. Aspect ratio table:**
+A `_arOverrides` const map handles notable non-4:3 flags (Switzerland 1:1, Nepal 0.64,
+Qatar 2.55). All others default to 4:3. This avoids async loading at layout time.
+
+**7. Representative tile width for SVG cache:**
+`representativeTileWidth(gridSize, n) = sqrt(W×H/n)`. Used as the cache key for all
+three modes, so pre-loading and rendering always agree on the key.
+
+**8. `FilterQuality.high` everywhere:**
+`FlagTileRenderer._drawImageInRect` and `drawContained` both use `FilterQuality.high`
+(was `medium`).
+
+**9. Layout selector UI:**
+`_GridLayoutPicker` (new `SegmentedButton` row) added to `CardEditorScreen` for
+`CardTemplateType.grid` only. Labels: Packed / Grid / Mosaic. Changing mode rebuilds
+the card preview immediately; does not reset flags, orientation, or title.
+
+**10. Default wiring:**
+`GridFlagsCard.layoutMode` defaults to `FlagGridLayoutMode.packedRow`.
+`CardImageRenderer.render(gridLayoutMode:)` optional param defaults to `packedRow`.
+All merch rendering call sites (`MerchOptionCard`, `LocalMockupPreviewScreen`, etc.)
+inherit `packedRow` automatically via the default.
+
+**11. Quality report:**
+SVG source assets (flag-icons 4×3 library) are vector and already high quality.
+No new source assets are required. The visible quality improvement comes from:
+(a) correct aspect ratios — no more cover-crop distortion;
+(b) `FilterQuality.high` during rasterisation.
+
+**Consequences:**
+- `flag_grid_layout_engine.dart` is a new zero-dependency pure-function file.
+- `flag_tile_renderer.dart` gains `drawContained()`.
+- `card_templates.dart`, `card_image_renderer.dart`, `card_editor_screen.dart` extended.
+- All existing call sites use Packed Row by default without any changes.
+- Passport, Heart, Tour Dates, and other card types are not affected.

@@ -9,6 +9,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import 'card_branding_footer.dart';
 import 'card_text_renderer.dart';
+import 'flag_grid_layout_engine.dart';
 import 'flag_tile_renderer.dart';
 import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
@@ -59,6 +60,7 @@ class GridFlagsCard extends StatefulWidget {
     this.transparentBackground = false,
     this.onAssetsLoaded,
     this.backgroundImageBytes,
+    this.layoutMode = FlagGridLayoutMode.packedRow,
   });
 
   final List<String> countryCodes;
@@ -81,6 +83,10 @@ class GridFlagsCard extends StatefulWidget {
   /// Optional background photo bytes (JPEG). When non-null, drawn beneath flag
   /// tiles at 55% opacity with a dark vignette (M93, ADR-138).
   final Uint8List? backgroundImageBytes;
+
+  /// Layout algorithm for positioning flags (M106, ADR-156).
+  /// Defaults to [FlagGridLayoutMode.packedRow].
+  final FlagGridLayoutMode layoutMode;
 
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
@@ -137,18 +143,21 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     super.dispose();
   }
 
-  /// Schedules async SVG loading for all country codes at [tileWidth].
-  /// Fires [widget.onAssetsLoaded] exactly once when all pending loads complete
-  /// (or immediately if nothing needs loading). Cache hits are skipped.
+  /// Schedules async SVG loading for all country codes at [reprWidth].
+  ///
+  /// [reprWidth] is a representative tile width derived from grid area / n —
+  /// consistent across all layout modes so the cache is always hit at render
+  /// time. Fires [widget.onAssetsLoaded] exactly once when all pending loads
+  /// complete (or immediately if nothing needs loading).
   /// Guards against being called multiple times from [LayoutBuilder].
-  void _preloadSvgs(double tileWidth) {
-    if (tileWidth <= 0 || _preloadStarted) return;
+  void _preloadSvgs(double reprWidth) {
+    if (reprWidth <= 0 || _preloadStarted) return;
     _preloadStarted = true;
 
     final toLoad = widget.countryCodes
         .where((code) =>
             FlagTileRenderer.hasSvg(code) &&
-            _GridPainter._sharedCache.get(code, tileWidth) == null)
+            _GridPainter._sharedCache.get(code, reprWidth) == null)
         .toList();
 
     if (toLoad.isEmpty) {
@@ -158,7 +167,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
     var remaining = toLoad.length;
     for (final code in toLoad) {
-      FlagTileRenderer.loadSvgToCache(code, tileWidth, _GridPainter._sharedCache)
+      FlagTileRenderer.loadSvgToCache(code, reprWidth, _GridPainter._sharedCache)
           .then((img) {
         if (mounted && img != null) _repaintNotifier.value++;
         remaining--;
@@ -203,15 +212,16 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
 
-          // Compute grid tile width using the flag-only zone height so the
-          // aspect-ratio-aware column count is accurate.
+          // Use a representative tile width that is consistent across all
+          // layout modes: sqrt(gridArea / n). The cache key is the same at
+          // pre-load and render time (ADR-156).
           const topH = CardTextRenderer.titleZoneH;
           const botH = CardTextRenderer.brandingZoneH;
           final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
           final gridSize = Size(size.width, gridH);
-          final layout = gridLayout(gridSize, widget.countryCodes.length);
-          final tileWidth = layout.cols > 0 ? gridSize.width / layout.cols : 0.0;
-          _preloadSvgs(tileWidth);
+          final reprWidth = FlagGridLayoutEngine.representativeTileWidth(
+              gridSize, widget.countryCodes.length);
+          _preloadSvgs(reprWidth);
 
           return CustomPaint(
             size: size,
@@ -223,6 +233,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               dateLabel: widget.dateLabel,
               customLabel: widget.titleOverride,
               backgroundImage: _backgroundImage,
+              layoutMode: widget.layoutMode,
+              reprWidth: reprWidth,
             ),
           );
         },
@@ -240,6 +252,8 @@ class _GridPainter extends CustomPainter {
     required this.dateLabel,
     this.customLabel,
     this.backgroundImage,
+    this.layoutMode = FlagGridLayoutMode.packedRow,
+    required this.reprWidth,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -256,6 +270,12 @@ class _GridPainter extends CustomPainter {
 
   /// Optional decoded background photo (M93, ADR-138).
   final ui.Image? backgroundImage;
+
+  /// Layout algorithm (M106, ADR-156).
+  final FlagGridLayoutMode layoutMode;
+
+  /// Representative tile width used as the SVG cache key (ADR-156).
+  final double reprWidth;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -295,50 +315,34 @@ class _GridPainter extends CustomPainter {
       customLabel: customLabel,
     );
 
-    // 2. Flag grid in the zone between title and branding strips.
+    // 2. Flag grid in the zone between title and branding strips (ADR-156).
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final gridH = size.height - _topH - _botH;
-    if (gridH <= 0) return;
-    final gridSize = Size(size.width, gridH);
+    final tiles = FlagGridLayoutEngine.compute(
+      codes: countryCodes,
+      canvasSize: size,
+      topOffset: _topH,
+      bottomOffset: _botH,
+      mode: layoutMode,
+    );
+    if (tiles.isEmpty) return;
 
-    final layout = gridLayout(gridSize, countryCodes.length);
-    if (layout.cols == 0 || layout.rows == 0) return;
+    final isContain = layoutMode == FlagGridLayoutMode.normalizedGrid;
 
-    // Full rows use equal tile widths. The last (possibly partial) row expands
-    // its tiles to fill the canvas width — no gap at the right edge.
-    final fullRowTileW = gridSize.width / layout.cols;
-    final tileH = gridSize.height / layout.rows;
-
-    int index = 0;
-    for (int r = 0; r < layout.rows; r++) {
-      final itemsInRow = (r == layout.rows - 1)
-          ? countryCodes.length - (r * layout.cols)
-          : layout.cols;
-      final rowTileW = gridSize.width / itemsInRow;
-
-      for (int c = 0; c < itemsInRow; c++) {
-        final code = countryCodes[index];
-        // Offset rect by top zone height so flags start below the title.
-        final rect = Rect.fromLTWH(
-          c * rowTileW,
-          _topH + r * tileH,
-          rowTileW,
-          tileH,
-        );
-
-        // Use the standard (full-row) tile width as the cache key so that
-        // last-row tiles hit the same cache entry as their preloaded ones.
-        final cached = _sharedCache.get(code, fullRowTileW);
-        if (cached != null) {
-          FlagTileRenderer.drawImage(canvas, cached, rect, cornerRadius: 0.0);
+    for (final tile in tiles) {
+      final cached = _sharedCache.get(tile.code, reprWidth);
+      if (cached != null) {
+        if (isContain) {
+          FlagTileRenderer.drawContained(canvas, cached, tile.rect,
+              cornerRadius: 0.0);
         } else {
-          // Placeholder while SVG loads — no emoji fallback.
-          canvas.drawRect(rect, _placeholderPaint);
+          FlagTileRenderer.drawImage(canvas, cached, tile.rect,
+              cornerRadius: 0.0);
         }
-
-        index++;
+      } else {
+        // Placeholder while SVG loads — transparent rect.
+        canvas.drawRect(tile.rect, _placeholderPaint);
       }
     }
   }
@@ -350,7 +354,9 @@ class _GridPainter extends CustomPainter {
       old.title != title ||
       old.dateLabel != dateLabel ||
       old.customLabel != customLabel ||
-      old.backgroundImage != backgroundImage;
+      old.backgroundImage != backgroundImage ||
+      old.layoutMode != layoutMode ||
+      old.reprWidth != reprWidth;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by

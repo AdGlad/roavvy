@@ -96,6 +96,45 @@ class FlagTileRenderer {
     _drawImageInRect(canvas, image, dst, cornerRadius);
   }
 
+  /// Draws [image] into [dst] using contain-fit (letterbox / object-fit:contain).
+  ///
+  /// The image is scaled to the largest size that fits entirely within [dst]
+  /// while preserving its aspect ratio. Unused space is left transparent.
+  /// Use this for [FlagGridLayoutMode.normalizedGrid] cells.
+  static void drawContained(
+    Canvas canvas,
+    ui.Image image,
+    Rect dst, {
+    double cornerRadius = 2.0,
+  }) {
+    final imgW = image.width.toDouble();
+    final imgH = image.height.toDouble();
+    if (imgW <= 0 || imgH <= 0) return;
+
+    // BoxFit.contain: scale down uniformly so image fits within dst.
+    final scale = math.min(dst.width / imgW, dst.height / imgH);
+    final fitW = imgW * scale;
+    final fitH = imgH * scale;
+    final fitDst = Rect.fromLTWH(
+      dst.left + (dst.width - fitW) / 2,
+      dst.top + (dst.height - fitH) / 2,
+      fitW,
+      fitH,
+    );
+
+    canvas.save();
+    if (cornerRadius > 0) {
+      canvas.clipRRect(RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)));
+    }
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, imgW, imgH),
+      fitDst,
+      Paint()..filterQuality = FilterQuality.high,
+    );
+    canvas.restore();
+  }
+
   static void _drawImageInRect(
       Canvas canvas, ui.Image image, Rect dst, double cornerRadius) {
     final imgW = image.width.toDouble();
@@ -117,7 +156,7 @@ class FlagTileRenderer {
       image,
       srcRect,
       dst,
-      Paint()..filterQuality = FilterQuality.medium,
+      Paint()..filterQuality = FilterQuality.high,
     );
     canvas.restore();
   }
