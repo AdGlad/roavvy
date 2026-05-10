@@ -14,11 +14,20 @@ enum TravelReplayMode {
 }
 
 /// A single travel leg between two countries.
+///
+/// [fromLat]/[fromLng] and [toLat]/[toLng] are the actual GPS coordinates of
+/// the last photo in the departing trip and the first photo in the arriving
+/// trip respectively (M109, ADR-157). When null, the replay engine falls back
+/// to [kCountryCentroids] for visual positioning.
 class TravelLeg {
   const TravelLeg({
     required this.fromCode,
     required this.toCode,
     required this.date,
+    this.fromLat,
+    this.fromLng,
+    this.toLat,
+    this.toLng,
   });
 
   /// ISO 3166-1 alpha-2 departure country.
@@ -30,8 +39,25 @@ class TravelLeg {
   /// Date of travel (used for year-filter and display).
   final DateTime date;
 
+  /// Actual GPS of the last photo in the departing trip segment. Null when
+  /// the trip has no GPS data (manual trips, pre-v12 data, or no GPS photos).
+  final double? fromLat;
+  final double? fromLng;
+
+  /// Actual GPS of the first photo in the arriving trip segment.
+  final double? toLat;
+  final double? toLng;
+
+  /// True when this leg has explicit GPS coordinates for the departure point.
+  bool get hasFromGps => fromLat != null && fromLng != null;
+
+  /// True when this leg has explicit GPS coordinates for the arrival point.
+  bool get hasToGps => toLat != null && toLng != null;
+
   @override
-  String toString() => 'TravelLeg($fromCode→$toCode, ${date.year})';
+  String toString() => 'TravelLeg($fromCode→$toCode, ${date.year}, '
+      'gps: ${hasFromGps ? "($fromLat,$fromLng)" : "centroid"}→'
+      '${hasToGps ? "($toLat,$toLng)" : "centroid"})';
 }
 
 /// An ordered list of [TravelLeg]s ready to replay on the globe.
@@ -79,6 +105,8 @@ class TravelReplayScriptBuilder {
       ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
     // Build legs from consecutive country changes.
+    // M109: use actual trip GPS endpoints — last GPS of departing trip as
+    // departure point; first GPS of arriving trip as arrival point (ADR-157).
     final legs = <TravelLeg>[];
     for (var i = 0; i + 1 < sorted.length; i++) {
       final from = sorted[i];
@@ -88,6 +116,10 @@ class TravelReplayScriptBuilder {
         fromCode: from.countryCode,
         toCode: to.countryCode,
         date: to.startedOn,
+        fromLat: from.lastLat,
+        fromLng: from.lastLng,
+        toLat: to.firstLat,
+        toLng: to.firstLng,
       ));
     }
 

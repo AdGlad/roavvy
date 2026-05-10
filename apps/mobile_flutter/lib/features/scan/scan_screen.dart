@@ -65,18 +65,48 @@ DateTime? _later(DateTime? a, DateTime? b) {
   return a.isAfter(b) ? a : b;
 }
 
+/// Raw GPS record for a single photo, retained in-memory during scan to
+/// populate trip GPS endpoints (ADR-157). Never persisted directly.
+class PhotoGpsRecord {
+  const PhotoGpsRecord({
+    required this.countryCode,
+    required this.capturedAt,
+    required this.lat,
+    required this.lng,
+  });
+
+  final String countryCode;
+  final DateTime capturedAt;
+
+  /// Raw (unbucketed) latitude — preserved for replay arc accuracy (M109).
+  final double lat;
+
+  /// Raw (unbucketed) longitude.
+  final double lng;
+}
+
 /// Result of resolving a batch of [PhotoRecord]s.
 ///
-/// Contains both the per-country [accum] aggregates (for [InferredCountryVisit]
-/// upsert) and the individual [photoDates] (for trip inference via [inferTrips]).
+/// Contains the per-country [accum] aggregates (for [InferredCountryVisit]
+/// upsert), the individual [photoDates] (for trip inference via [inferTrips]),
+/// and [photoGps] (raw GPS records for trip endpoint extraction, ADR-157).
 class BatchResult {
-  const BatchResult({required this.accum, required this.photoDates});
+  const BatchResult({
+    required this.accum,
+    required this.photoDates,
+    required this.photoGps,
+  });
 
   final Map<String, CountryAccum> accum;
 
   /// One record per photo that had a non-null [PhotoRecord.capturedAt] and a
   /// successfully resolved country code.
   final List<PhotoDateRecord> photoDates;
+
+  /// Raw GPS per photo — used to extract first/last GPS endpoints per trip.
+  /// Only photos with a resolved country code and non-null [capturedAt] are
+  /// included. Never persisted; discarded after [_extractTripGps] runs.
+  final List<PhotoGpsRecord> photoGps;
 }
 
 /// Resolves [photos] to a [BatchResult] using [countryResolver].
@@ -96,6 +126,7 @@ BatchResult resolveBatch(
     String? Function(double lat, double lng)? regionResolver]) {
   final accum = <String, CountryAccum>{};
   final photoDates = <PhotoDateRecord>[];
+  final photoGps = <PhotoGpsRecord>[];
   // Per-bucket caches so each unique 0.5° cell calls each resolver once.
   final countryBucketCache = <(double, double), String?>{};
   final regionBucketCache = <(double, double), String?>{};
@@ -123,10 +154,16 @@ BatchResult resolveBatch(
           capturedAt: photo.capturedAt!,
           regionCode: regionCode,
           assetId: photo.assetId));
+      // Track raw GPS for trip endpoint extraction (ADR-157).
+      photoGps.add(PhotoGpsRecord(
+          countryCode: code,
+          capturedAt: photo.capturedAt!,
+          lat: photo.lat,
+          lng: photo.lng));
     }
   }
 
-  return BatchResult(accum: accum, photoDates: photoDates);
+  return BatchResult(accum: accum, photoDates: photoDates, photoGps: photoGps);
 }
 
 /// Top-level function — safe to pass to [Isolate.run].
@@ -140,6 +177,50 @@ BatchResult _resolvePhotos(
   return resolveBatch(photos, resolveCountry, resolveRegion);
 }
 
+
+// ── Trip GPS enrichment (M109, ADR-157) ────────────────────────────────────────
+
+/// Applies GPS endpoints from [photoGps] to each trip in [trips].
+///
+/// For each trip, finds all [PhotoGpsRecord] items whose country code matches
+/// and whose [capturedAt] falls within `trip.startedOn..trip.endedOn`. The
+/// first and last of these (chronologically) provide the GPS endpoints.
+///
+/// Returns a new list; trips with no matching GPS records are returned
+/// unchanged (GPS fields remain null — centroid fallback applies at replay).
+List<TripRecord> _applyTripGps(
+  List<TripRecord> trips,
+  List<PhotoGpsRecord> photoGps,
+) {
+  if (trips.isEmpty || photoGps.isEmpty) return trips;
+
+  // Sort GPS records once ascending by capturedAt.
+  final sorted = [...photoGps]..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+
+  return trips.map((trip) {
+    final inWindow = sorted.where((g) =>
+        g.countryCode == trip.countryCode &&
+        !g.capturedAt.isBefore(trip.startedOn) &&
+        !g.capturedAt.isAfter(trip.endedOn)).toList();
+
+    if (inWindow.isEmpty) return trip;
+
+    final first = inWindow.first;
+    final last = inWindow.last;
+    return TripRecord(
+      id: trip.id,
+      countryCode: trip.countryCode,
+      startedOn: trip.startedOn,
+      endedOn: trip.endedOn,
+      photoCount: trip.photoCount,
+      isManual: trip.isManual,
+      firstLat: first.lat,
+      firstLng: first.lng,
+      lastLat: last.lat,
+      lastLng: last.lng,
+    );
+  }).toList();
+}
 
 // ── Scan result ────────────────────────────────────────────────────────────────
 
@@ -337,6 +418,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       final accum = <String, CountryAccum>{};
       final allPhotoDates = <PhotoDateRecord>[];
+      final allPhotoGps = <PhotoGpsRecord>[];
       var totalProcessed = 0;
 
       final scanStream = widget.scanStarter != null
@@ -357,6 +439,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 existing == null ? entry.value : existing.merge(entry.value);
           }
           allPhotoDates.addAll(batchResult.photoDates);
+          allPhotoGps.addAll(batchResult.photoGps);
           // Progress counts the raw batch size (pre-filter) so the number
           // reflects photos inspected, not just new ones resolved.
           totalProcessed += event.photos.length;
@@ -402,7 +485,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       // Re-infer all trips from the full photo date history and persist.
       final allDates = await _repo.loadPhotoDates();
-      final inferredTrips = inferTrips(allDates);
+      final rawTrips = inferTrips(allDates);
+      // M109: enrich inferred trips with GPS endpoints from scan (ADR-157).
+      final inferredTrips = _applyTripGps(rawTrips, allPhotoGps);
       await _tripRepo.upsertAll(inferredTrips);
       await _regionRepo.upsertAll(inferRegionVisits(allDates, inferredTrips));
 

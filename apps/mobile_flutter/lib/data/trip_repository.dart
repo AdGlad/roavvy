@@ -36,6 +36,10 @@ class TripRepository {
             photoCount: Value(t.photoCount),
             isManual: Value(t.isManual ? 1 : 0),
             isDirty: const Value(1),
+            firstLat: Value(t.firstLat),
+            firstLng: Value(t.firstLng),
+            lastLat: Value(t.lastLat),
+            lastLng: Value(t.lastLng),
           ),
         );
       }
@@ -111,5 +115,9 @@ class TripRepository {
         endedOn: r.endedOn.toUtc(),
         photoCount: r.photoCount,
         isManual: r.isManual == 1,
+        firstLat: r.firstLat,
+        firstLng: r.firstLng,
+        lastLat: r.lastLat,
+        lastLng: r.lastLng,
       );
 }

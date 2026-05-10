@@ -61,7 +61,7 @@ class GlobeReplayPainter extends CustomPainter {
         elevation: true);
 
     // 3. Departure dot.
-    final depPt = _projectCentroid(leg.fromCode, size);
+    final depPt = _resolveProject(leg.fromLat, leg.fromLng, leg.fromCode, size);
     if (depPt != null) {
       canvas.drawCircle(
           depPt,
@@ -71,7 +71,7 @@ class GlobeReplayPainter extends CustomPainter {
 
     // 4. Moving marker at arcProgress along the arc.
     if (arcProgress > 0) {
-      final markerPt = _arcPoint(leg.fromCode, leg.toCode, arcProgress, size);
+      final markerPt = _arcPoint(leg, arcProgress, size);
       if (markerPt != null) {
         // Drop shadow.
         canvas.drawCircle(
@@ -85,7 +85,7 @@ class GlobeReplayPainter extends CustomPainter {
 
     // 5. Arrival pulse ring.
     if (pulseValue > 0) {
-      final arrPt = _projectCentroid(leg.toCode, size);
+      final arrPt = _resolveProject(leg.toLat, leg.toLng, leg.toCode, size);
       if (arrPt != null) {
         final r = projection.radius(size);
         final ringRadius = r * 0.05 + r * 0.12 * pulseValue;
@@ -111,8 +111,8 @@ class GlobeReplayPainter extends CustomPainter {
   }) {
     if (fraction <= 0) return;
 
-    final from = _toUnit(leg.fromCode);
-    final to = _toUnit(leg.toCode);
+    final from = _resolveUnit(leg.fromLat, leg.fromLng, leg.fromCode);
+    final to = _resolveUnit(leg.toLat, leg.toLng, leg.toCode);
     if (from == null || to == null) return;
 
     final r = projection.radius(size);
@@ -213,27 +213,41 @@ class GlobeReplayPainter extends CustomPainter {
     return (v.$1 / len, v.$2 / len, v.$3 / len);
   }
 
-  /// Converts ISO code centroid to a unit 3D vector.
-  static (double, double, double)? _toUnit(String code) {
-    final c = kCountryCentroids[code];
-    if (c == null) return null;
-    final latR = c.$1 * math.pi / 180.0;
-    final lngR = c.$2 * math.pi / 180.0;
+  /// Converts a lat/lng pair to a unit 3D vector on the globe sphere.
+  static (double, double, double) _latLngToUnit(double lat, double lng) {
+    final latR = lat * math.pi / 180.0;
+    final lngR = lng * math.pi / 180.0;
     final cosLat = math.cos(latR);
     return (cosLat * math.sin(lngR), math.sin(latR), cosLat * math.cos(lngR));
   }
 
-  /// Projects a centroid screen position (null if behind globe).
-  Offset? _projectCentroid(String code, ui.Size size) {
+  /// Resolves a unit 3D vector from explicit GPS or centroid fallback.
+  ///
+  /// Prefers [lat]/[lng] when both are non-null; falls back to
+  /// [kCountryCentroids[code]] otherwise.
+  static (double, double, double)? _resolveUnit(
+      double? lat, double? lng, String code) {
+    if (lat != null && lng != null) return _latLngToUnit(lat, lng);
+    final c = kCountryCentroids[code];
+    if (c == null) return null;
+    return _latLngToUnit(c.$1, c.$2);
+  }
+
+  /// Projects a screen position from explicit GPS or centroid fallback.
+  Offset? _resolveProject(
+      double? lat, double? lng, String code, ui.Size size) {
+    if (lat != null && lng != null) {
+      return projection.project(lat, lng, size);
+    }
     final c = kCountryCentroids[code];
     if (c == null) return null;
     return projection.project(c.$1, c.$2, size);
   }
 
-  /// Projects an arc point along the leg at [t].
-  Offset? _arcPoint(String fromCode, String toCode, double t, ui.Size size) {
-    final from = _toUnit(fromCode);
-    final to = _toUnit(toCode);
+  /// Projects an arc point along [leg] at parameter [t] (0–1).
+  Offset? _arcPoint(TravelLeg leg, double t, ui.Size size) {
+    final from = _resolveUnit(leg.fromLat, leg.fromLng, leg.fromCode);
+    final to = _resolveUnit(leg.toLat, leg.toLng, leg.toCode);
     if (from == null || to == null) return null;
     final r = projection.radius(size);
     final elev = r * _kMaxElevationFraction * math.sin(math.pi * t);

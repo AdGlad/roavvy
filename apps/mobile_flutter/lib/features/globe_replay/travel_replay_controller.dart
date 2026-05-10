@@ -104,11 +104,18 @@ class TravelReplayController extends ChangeNotifier {
     _runDepartureSettle();
   }
 
-  /// Phase 1: rotate directly to departure country and zoom in slightly.
+  /// Phase 1: rotate directly to departure point and zoom in slightly.
+  ///
+  /// Uses the leg's actual GPS departure coordinates when available (M109);
+  /// falls back to country centroid.
   void _runDepartureSettle() {
     final leg = script.legs[currentLegIndex];
-    final fromLat = _centroidLat(leg.fromCode);
-    final fromLng = _centroidLng(leg.fromCode);
+    final fromLat = leg.hasFromGps
+        ? leg.fromLat! * math.pi / 180.0
+        : _centroidLat(leg.fromCode);
+    final fromLng = leg.hasFromGps
+        ? -(leg.fromLng! * math.pi / 180.0)
+        : _centroidLng(leg.fromCode);
 
     final startProjection = projection;
     final ctrl = _makeCtrl(_kDepartureSettleDuration);
@@ -149,12 +156,23 @@ class TravelReplayController extends ChangeNotifier {
   ///
   /// Scale curve: departs at 1.7×, dips to ~1.3× at mid-arc, arrives at 1.9×.
   /// Camera pan uses easeInOutSine so it starts and ends smoothly.
+  ///
+  /// M109: uses leg GPS coordinates when available for both pan targets;
+  /// falls back to country centroids.
   void _runFlight() {
     final leg = script.legs[currentLegIndex];
-    final fromLat = _centroidLat(leg.fromCode);
-    final fromLng = _centroidLng(leg.fromCode);
-    final toLat = _centroidLat(leg.toCode);
-    final toLng = _centroidLng(leg.toCode);
+    final fromLat = leg.hasFromGps
+        ? leg.fromLat! * math.pi / 180.0
+        : _centroidLat(leg.fromCode);
+    final fromLng = leg.hasFromGps
+        ? -(leg.fromLng! * math.pi / 180.0)
+        : _centroidLng(leg.fromCode);
+    final toLat = leg.hasToGps
+        ? leg.toLat! * math.pi / 180.0
+        : _centroidLat(leg.toCode);
+    final toLng = leg.hasToGps
+        ? -(leg.toLng! * math.pi / 180.0)
+        : _centroidLng(leg.toCode);
 
     final legCount = script.legs.length;
     final flightMs = TravelReplayScriptBuilder.legDurationMs(legCount);

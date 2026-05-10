@@ -252,6 +252,16 @@ class Trips extends Table {
   IntColumn get isDirty => integer().withDefault(const Constant(1))();
   TextColumn get syncedAt => text().nullable()();
 
+  /// GPS of the first geotagged photo in this trip (ADR-157). Null when
+  /// unavailable (manual trips, pre-v12 data, or photos without GPS).
+  /// Never synced to Firestore — on-device only.
+  RealColumn get firstLat => real().nullable()();
+  RealColumn get firstLng => real().nullable()();
+
+  /// GPS of the last geotagged photo in this trip (ADR-157).
+  RealColumn get lastLat => real().nullable()();
+  RealColumn get lastLng => real().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -273,7 +283,7 @@ class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -315,6 +325,12 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 11) {
         await m.createTable(heroImages);
+      }
+      if (from < 12) {
+        await m.addColumn(trips, trips.firstLat);
+        await m.addColumn(trips, trips.firstLng);
+        await m.addColumn(trips, trips.lastLat);
+        await m.addColumn(trips, trips.lastLng);
       }
     },
   );

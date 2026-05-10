@@ -8,6 +8,11 @@
 ///   (the `"manual_"` prefix prevents collision with inferred keys).
 ///
 /// The `id` doubles as the Firestore document ID (`users/{uid}/trips/{id}`).
+///
+/// **GPS endpoints (ADR-157):** [firstLat]/[firstLng] and [lastLat]/[lastLng]
+/// are the GPS coordinates of the first and last geotagged photo in this trip
+/// segment. Null for manual trips, trips from pre-v12 scans, or trips where no
+/// photo had GPS. Never synced to Firestore; stored on-device only.
 class TripRecord {
   const TripRecord({
     required this.id,
@@ -16,6 +21,10 @@ class TripRecord {
     required this.endedOn,
     required this.photoCount,
     required this.isManual,
+    this.firstLat,
+    this.firstLng,
+    this.lastLat,
+    this.lastLng,
   });
 
   final String id;
@@ -27,6 +36,14 @@ class TripRecord {
   /// True for trips created or edited by the user; false for inferred trips.
   final bool isManual;
 
+  /// GPS of the first geotagged photo in this trip. Null when unavailable.
+  final double? firstLat;
+  final double? firstLng;
+
+  /// GPS of the last geotagged photo in this trip. Null when unavailable.
+  final double? lastLat;
+  final double? lastLng;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -37,14 +54,20 @@ class TripRecord {
           startedOn == other.startedOn &&
           endedOn == other.endedOn &&
           photoCount == other.photoCount &&
-          isManual == other.isManual;
+          isManual == other.isManual &&
+          firstLat == other.firstLat &&
+          firstLng == other.firstLng &&
+          lastLat == other.lastLat &&
+          lastLng == other.lastLng;
 
   @override
-  int get hashCode =>
-      Object.hash(id, countryCode, startedOn, endedOn, photoCount, isManual);
+  int get hashCode => Object.hash(
+      id, countryCode, startedOn, endedOn, photoCount, isManual,
+      firstLat, firstLng, lastLat, lastLng);
 
   @override
   String toString() => 'TripRecord(id: $id, countryCode: $countryCode, '
       'startedOn: $startedOn, endedOn: $endedOn, '
-      'photoCount: $photoCount, isManual: $isManual)';
+      'photoCount: $photoCount, isManual: $isManual, '
+      'firstGps: ($firstLat,$firstLng), lastGps: ($lastLat,$lastLng))';
 }

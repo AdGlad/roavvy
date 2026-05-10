@@ -7,6 +7,17 @@
 
 ## Next up (mobile-first order)
 
+### M109 — Accurate Departure & Arrival Coordinates
+**Goal:** Replace country-centroid start/end points in cinematic travel replay with actual GPS coordinates from trip photos — using the last valid GPS image of the departing segment and the first valid GPS image of the arriving segment. Fallback chain: nearest GPS image → city coordinate → country centroid.
+**Phase:** 23 — Globe Experiences
+**Depends on:** M108
+**Scope in:** Extend `TravelLeg` with `fromLat/fromLng/toLat/toLng` + `resolvedFrom`/`resolvedTo` getters; update `TravelReplayScriptBuilder` GPS extraction helpers; update `GlobeReplayPainter` and `TravelReplayController` to use resolved coordinates; unit tests for GPS and fallback scenarios.
+**Scope out:** City coordinate database (level-2 fallback deferred); per-photo replay mode; video/audio hooks; Android/web.
+**Full plan:** `docs/dev/milestones/m109-accurate-departure-arrival-coordinates.md`
+**Status:** ✅ Complete (2026-05-11)
+
+---
+
 ### M108 — Cinematic Travel Replay System
 **Goal:** Build a cinematic travel replay on the existing Flutter globe. Animates travel legs between countries with globe rotation, zoom, great-circle arc, moving marker, and arrival highlight. Supports trip / year / all-time / continent modes.
 **Phase:** 23 — Globe Experiences
