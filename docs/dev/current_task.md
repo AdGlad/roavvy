@@ -1,17 +1,15 @@
-# Active Task: M100 — Expanded Template Variety
+# Active Task: M108 — Cinematic Travel Replay
 
-Branch: milestone/m100-expanded-template-variety
+Branch: milestone/m108-cinematic-travel-replay
 
-## Status: ✅ Complete (2026-05-08)
+## Status: Complete (2026-05-10)
 
-## Goal
+## Delivered
 
-Four merch template groups (Passport, Flags, Heart Flags, Tour Dates) available in both Memory Pulse and Achievement merch screens. Heart Flags renders correctly using SVG flags via a new `onAssetsLoaded` hook on `HeartFlagsCard`.
-
-## Tasks
-
-- [x] 1. Add `onAssetsLoaded` to `HeartFlagsCard` — `lib/features/cards/card_templates.dart`
-- [x] 2. Wire heart into `CardImageRenderer` — `lib/features/cards/card_image_renderer.dart`
-- [x] 3. Add heart group to `MerchContext` — `lib/features/merch/merch_context.dart`
-- [x] 4. Add heart group to `PulseMerchOptionScreen` — `lib/features/merch/pulse_merch_option_screen.dart`
-- [x] 5. `flutter analyze` — 0 new warnings
+- `lib/features/globe_replay/travel_replay_engine.dart` — TravelLeg, TravelReplayScript, TravelReplayMode, TravelReplayScriptBuilder
+- `lib/features/globe_replay/travel_replay_controller.dart` — TravelReplayController (ChangeNotifier, ReplayPhase state machine)
+- `lib/features/globe_replay/globe_replay_painter.dart` — GlobeReplayPainter with great-circle arc, slerp, back-face culling, trail, pulse
+- `lib/features/globe_replay/globe_replay_widget.dart` — GlobeReplayWidget fullscreen overlay
+- `lib/features/globe_replay/replay_entry_sheet.dart` — mode picker bottom sheet
+- Map screen: play button (globe mode top bar) → showReplayEntrySheet
+- flutter analyze: 0 new warnings

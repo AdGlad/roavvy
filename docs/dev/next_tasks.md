@@ -1,35 +1,19 @@
-# M107 — Title & Subtitle Rules and Design Screen Editing [COMPLETE]
+# M108 — Cinematic Travel Replay
 
-Branch: milestone/m107-title-subtitle-rules-and-design-screen-editing
+Branch: milestone/m108-cinematic-travel-replay
 
 ## Goal
 
-Emotional, count-free titles + "Roavvy: N Countries •…" structured subtitles on every shirt.
-Both fields editable and regeneratable on the Design Your T-Shirt screen.
-Text colour auto-adapts to shirt colour.
-
-## Non-Negotiable Rules
-
-1. Title MUST NOT include country count
-2. Subtitle MUST begin with `Roavvy:`
-3. Subtitle MUST include country count
-4. Title/subtitle backgrounds MUST remain transparent
-5. Text colour MUST adapt to shirt colour
+Cinematic travel replay on the Flutter globe. Animates travel legs between countries
+with globe rotation, zoom, great-circle arc, moving marker, and arrival highlight.
+Supports allTime / year / trip modes.
 
 ## Tasks
 
-- [ ] Task 1: Audit `CardTextRenderer.drawTitle` + `drawBranding` — confirm transparency,
-  `textColor` threading, current branding content; identify what `subtitleOverride` needs to add
-- [ ] Task 2: Build `TitleWordbank` — curated travel-inspired title phrases per context
-  (country/continent/trip/year/all-time); randomised selection that avoids consecutive repeats
-- [ ] Task 3: Rewrite `MerchStory.forOption()` — titles use `TitleWordbank` (no count);
-  subtitles use "Roavvy: N Countries • [Region] • [Year]" format
-- [ ] Task 4: Add `subtitleOverride` to `GridFlagsCard`, `CardTextRenderer.drawBranding`,
-  and `CardImageRenderer.render`; plumb through all relevant card templates
-- [ ] Task 5: Wire `MerchStory.subtitle` as the `subtitleOverride` throughout the merch
-  rendering pipeline (MerchOptionCard → LocalMockupPreviewScreen → CardImageRenderer)
-- [ ] Task 6: Add title + subtitle edit fields and per-field Regenerate buttons to
-  `LocalMockupPreviewScreen`; re-render artwork on change; preserve shirt colour and other state
-- [ ] Task 7: Verify text colour auto-adaptation covers all tshirtColors; ensure textColor
-  flows to card artwork for all template types in the merch pipeline
-- [ ] Task 8: ADR-157 + update current_state.md, backlog_active.md + flutter analyze clean
+- [ ] 1. `travel_replay_engine.dart` — TravelLeg, TravelReplayScript, TravelReplayMode, TravelReplayScriptBuilder
+- [ ] 2. `travel_replay_controller.dart` — TravelReplayController (ChangeNotifier, ReplayPhase state machine, per-phase AnimationControllers, TickerProvider)
+- [ ] 3. `globe_replay_painter.dart` — GlobeReplayPainter (trail, active arc, marker, arrival pulse, back-face culling)
+- [ ] 4. `globe_replay_widget.dart` — GlobeReplayWidget fullscreen overlay: GlobePainter + GlobeReplayPainter, gesture lock, stop button
+- [ ] 5. `replay_entry_sheet.dart` — bottom sheet: mode chips (allTime/year/trip) + Play button
+- [ ] 6. Map screen entry point — play/replay button in globe mode top bar
+- [ ] 7. `flutter analyze` — 0 new warnings; update current_task.md + milestone status
