@@ -8,13 +8,12 @@ import 'travel_replay_engine.dart';
 /// Animation phases for a single replay leg.
 enum ReplayPhase {
   idle,
-  rotating,   // globe rotates to midpoint of leg (600 ms)
-  zoomIn,     // globe zooms toward departure (400 ms)
-  arc,        // great-circle arc draws + marker travels (variable)
-  arrivalZoom,// zoom re-centres on arrival (400 ms)
-  pulse,      // arrival country pulses (300 ms)
-  hold,       // brief pause before next leg (200 ms)
-  done,       // script complete
+  departureSettle, // rotate + zoom in to departure country (700 ms)
+  departureHold,   // hold on departure before flight (250 ms)
+  flight,          // arc draws while camera pans to arrival with scale dip (variable)
+  pulse,           // arrival country pulses (300 ms)
+  hold,            // brief pause before next leg (200 ms)
+  done,            // script complete
 }
 
 /// Drives the cinematic globe replay (M108).
@@ -64,9 +63,8 @@ class TravelReplayController extends ChangeNotifier {
   AnimationController? _phaseCtrl;
   bool _disposed = false;
 
-  static const _kRotateDuration = Duration(milliseconds: 600);
-  static const _kZoomInDuration = Duration(milliseconds: 400);
-  static const _kArrivalZoomDuration = Duration(milliseconds: 400);
+  static const _kDepartureSettleDuration = Duration(milliseconds: 700);
+  static const _kDepartureHoldDuration = Duration(milliseconds: 250);
   static const _kPulseDuration = Duration(milliseconds: 300);
   static const _kHoldDuration = Duration(milliseconds: 200);
 
@@ -103,108 +101,88 @@ class TravelReplayController extends ChangeNotifier {
     onLegStart?.call(currentLegIndex);
     arcProgress = 0.0;
     pulseValue = 0.0;
-    _runRotate();
+    _runDepartureSettle();
   }
 
-  void _runRotate() {
+  /// Phase 1: rotate directly to departure country and zoom in slightly.
+  void _runDepartureSettle() {
     final leg = script.legs[currentLegIndex];
     final fromLat = _centroidLat(leg.fromCode);
     final fromLng = _centroidLng(leg.fromCode);
-    final toLat = _centroidLat(leg.toCode);
-    final toLng = _centroidLng(leg.toCode);
-
-    // Target midpoint of the leg so both countries are visible.
-    final midLat = (fromLat + toLat) / 2.0;
-    final midLng = _midLng(fromLng, toLng);
-
-    final targetRotLat = midLat;
-    final targetRotLng = midLng;
 
     final startProjection = projection;
-    final ctrl = _makeCtrl(_kRotateDuration);
+    final ctrl = _makeCtrl(_kDepartureSettleDuration);
     _phaseCtrl = ctrl;
-    phase = ReplayPhase.rotating;
+    phase = ReplayPhase.departureSettle;
     notifyListeners();
 
     final anim = CurvedAnimation(parent: ctrl, curve: Curves.easeInOutCubic);
     ctrl.addListener(() {
       final t = anim.value;
-      final newLng = _lerpAngle(startProjection.rotLng, targetRotLng, t);
-      final newLat = _lerp(startProjection.rotLat, targetRotLat, t);
-      projection = projection.copyWith(rotLng: newLng, rotLat: newLat);
-      if (!_disposed) notifyListeners();
-    });
-    ctrl.addStatusListener((s) {
-      if (s == AnimationStatus.completed) _runZoomIn();
-    });
-    ctrl.forward();
-  }
-
-  void _runZoomIn() {
-    final leg = script.legs[currentLegIndex];
-    final fromLat = _centroidLat(leg.fromCode);
-    final fromLng = _centroidLng(leg.fromCode);
-
-    final startProjection = projection;
-    final ctrl = _makeCtrl(_kZoomInDuration);
-    _phaseCtrl = ctrl;
-    phase = ReplayPhase.zoomIn;
-    notifyListeners();
-
-    final anim = CurvedAnimation(parent: ctrl, curve: Curves.easeOutCubic);
-    ctrl.addListener(() {
-      final t = anim.value;
       projection = projection.copyWith(
         rotLat: _lerp(startProjection.rotLat, fromLat, t),
         rotLng: _lerpAngle(startProjection.rotLng, fromLng, t),
-        scale: _lerp(startProjection.scale, 1.8, t),
+        scale: _lerp(startProjection.scale, 1.7, t),
       );
       if (!_disposed) notifyListeners();
     });
     ctrl.addStatusListener((s) {
-      if (s == AnimationStatus.completed) _runArc();
+      if (s == AnimationStatus.completed) _runDepartureHold();
     });
     ctrl.forward();
   }
 
-  void _runArc() {
-    final legCount = script.legs.length;
-    final arcMs = TravelReplayScriptBuilder.legDurationMs(legCount);
-    final ctrl = _makeCtrl(Duration(milliseconds: arcMs));
+  /// Phase 2: brief hold on departure before the arc begins.
+  void _runDepartureHold() {
+    final ctrl = _makeCtrl(_kDepartureHoldDuration);
     _phaseCtrl = ctrl;
-    phase = ReplayPhase.arc;
-    arcProgress = 0.0;
+    phase = ReplayPhase.departureHold;
     notifyListeners();
-
-    final anim = CurvedAnimation(parent: ctrl, curve: Curves.easeInOutSine);
-    ctrl.addListener(() {
-      arcProgress = anim.value;
-      if (!_disposed) notifyListeners();
-    });
     ctrl.addStatusListener((s) {
-      if (s == AnimationStatus.completed) _runArrivalZoom();
+      if (s == AnimationStatus.completed) _runFlight();
     });
     ctrl.forward();
   }
 
-  void _runArrivalZoom() {
+  /// Phase 3: arc draws while the camera simultaneously pans from departure
+  /// to arrival with a gentle scale dip at mid-flight for cinematic depth.
+  ///
+  /// Scale curve: departs at 1.7×, dips to ~1.3× at mid-arc, arrives at 1.9×.
+  /// Camera pan uses easeInOutSine so it starts and ends smoothly.
+  void _runFlight() {
     final leg = script.legs[currentLegIndex];
+    final fromLat = _centroidLat(leg.fromCode);
+    final fromLng = _centroidLng(leg.fromCode);
     final toLat = _centroidLat(leg.toCode);
     final toLng = _centroidLng(leg.toCode);
 
-    final startProjection = projection;
-    final ctrl = _makeCtrl(_kArrivalZoomDuration);
+    final legCount = script.legs.length;
+    final flightMs = TravelReplayScriptBuilder.legDurationMs(legCount);
+    final ctrl = _makeCtrl(Duration(milliseconds: flightMs));
     _phaseCtrl = ctrl;
-    phase = ReplayPhase.arrivalZoom;
+    phase = ReplayPhase.flight;
+    arcProgress = 0.0;
     notifyListeners();
 
-    final anim = CurvedAnimation(parent: ctrl, curve: Curves.easeInCubic);
     ctrl.addListener(() {
-      final t = anim.value;
+      final rawT = ctrl.value; // linear 0→1
+      final smoothT = Curves.easeInOutSine.transform(rawT);
+
+      // Arc drawing follows the smooth curve.
+      arcProgress = smoothT;
+
+      // Camera pans smoothly from departure to arrival.
+      final newLat = _lerp(fromLat, toLat, smoothT);
+      final newLng = _lerpAngle(fromLng, toLng, smoothT);
+
+      // Scale: 1.7 at departure → dip to ~1.3 at mid-arc → 1.9 at arrival.
+      // sin(π·rawT) peaks at 0.5 so the dip is centred on the flight.
+      final newScale = _lerp(1.7, 1.9, rawT) - 0.5 * math.sin(math.pi * rawT);
+
       projection = projection.copyWith(
-        rotLat: _lerp(startProjection.rotLat, toLat, t),
-        rotLng: _lerpAngle(startProjection.rotLng, toLng, t),
-        scale: _lerp(startProjection.scale, 2.2, t),
+        rotLat: newLat,
+        rotLng: newLng,
+        scale: newScale,
       );
       if (!_disposed) notifyListeners();
     });
@@ -266,14 +244,6 @@ class TravelReplayController extends ChangeNotifier {
     while (diff > math.pi) { diff -= 2 * math.pi; }
     while (diff < -math.pi) { diff += 2 * math.pi; }
     return a + diff * t;
-  }
-
-  /// Midpoint longitude that avoids the antimeridian jump.
-  static double _midLng(double a, double b) {
-    var diff = b - a;
-    while (diff > math.pi) { diff -= 2 * math.pi; }
-    while (diff < -math.pi) { diff += 2 * math.pi; }
-    return a + diff / 2.0;
   }
 
   static double _centroidLat(String code) {
