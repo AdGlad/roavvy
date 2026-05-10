@@ -5,6 +5,7 @@ import 'merch_drop.dart';
 import 'merch_option_list_widgets.dart';
 import 'merch_story.dart';
 import 'merch_template_ranker.dart';
+import 'merch_title_wordbank.dart';
 import 'pulse_merch_option.dart';
 import 'travel_identity.dart';
 
@@ -338,13 +339,15 @@ class MerchContext {
       (label: 'Tour Dates', template: CardTemplateType.timeline),
     ];
     final items = <MerchOptionListItem>[];
+    final n = codes.length;
     for (final g in groups) {
       _addGroup(
         items,
         label: g.label,
         template: g.template,
-        scopedTitle: '${merchTemplateLabel(g.template)} — $scopeTitle',
+        scopedTitle: MerchTitleWordbank.pickGeneric(n, 0),
         scopedDesc: scopeDescription,
+        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(n),
         includeWorldCollection: _hasWorldCollection,
       );
     }

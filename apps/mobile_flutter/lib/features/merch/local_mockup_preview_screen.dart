@@ -24,7 +24,6 @@ import 'merch_stamp_color.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
 import 'printful_placement_mapper.dart';
-import 'merch_title_wordbank.dart';
 import 'product_mockup_specs.dart';
 
 // ── State enum ────────────────────────────────────────────────────────────────
@@ -227,22 +226,16 @@ class _LocalMockupPreviewScreenState
 
   Color? _timelineTextColor;
 
+  // ── Grid text colour (M107) ────────────────────────────────────────────────
+  // Auto-derived from shirt colour; dark text on light shirts, light on dark.
+
+  Color? _gridTextColor;
+
   // ── Front ribbon mode (M74) ───────────────────────────────────────────────
   // 'all'      → ribbon uses all-time countries (widget.allCodes)
   // 'selected' → ribbon uses year-filtered selection (widget.selectedCodes)
   // Only visible when allCodes differs from selectedCodes.
   String _frontRibbonMode = 'selected';
-
-  // ── Editable title + subtitle (ADR-157 / M107) ────────────────────────────
-  // Initialised from widget params in initState; editable on-screen.
-  // _effectiveTitle/Subtitle are the last-applied values used for rendering.
-  // Controllers hold the live text field content.
-
-  late TextEditingController _titleController;
-  late TextEditingController _subtitleController;
-  String? _effectiveTitle;
-  String? _effectiveSubtitle;
-  int _titleSeed = 0;
 
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
@@ -300,9 +293,15 @@ class _LocalMockupPreviewScreenState
     _              => PassportColorMode.black,
   };
 
-  /// Suggests a timeline text colour based on shirt colour luminance.
+  /// Suggests a timeline/grid text colour based on shirt colour luminance.
   /// Dark shirts → white text; light shirts → black text.
   Color _suggestTimelineTextColor(String shirtColour) => switch (shirtColour) {
+    'White' => Colors.black,
+    'Grey'  => Colors.black,
+    _       => Colors.white, // Black, Blue, Red → white
+  };
+
+  Color _suggestGridTextColor(String shirtColour) => switch (shirtColour) {
     'White' => Colors.black,
     'Grey'  => Colors.black,
     _       => Colors.white, // Black, Blue, Red → white
@@ -325,12 +324,6 @@ class _LocalMockupPreviewScreenState
         tshirtColors.contains(widget.initialColour)) {
       _colour = widget.initialColour!;
     }
-    _effectiveTitle = widget.titleOverride;
-    _effectiveSubtitle = widget.subtitleOverride;
-    _titleController = TextEditingController(text: widget.titleOverride ?? '');
-    _subtitleController =
-        TextEditingController(text: widget.subtitleOverride ?? '');
-
     final providedBytes = widget.artworkImageBytes;
     if (providedBytes != null) {
       // Existing path: caller supplied pre-rendered artwork bytes (ADR-147).
@@ -353,6 +346,7 @@ class _LocalMockupPreviewScreenState
 
     _passportColorMode = _suggestStampColor(_colour);
     _timelineTextColor = _suggestTimelineTextColor(_colour);
+    _gridTextColor = _suggestGridTextColor(_colour);
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -376,6 +370,10 @@ class _LocalMockupPreviewScreenState
         if (_isTshirt && _template == CardTemplateType.timeline) {
           unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
         }
+        // Same for grid cards.
+        if (_isTshirt && _template == CardTemplateType.grid) {
+          unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+        }
       } else if (_presetConfig != null) {
         // Preset-driven: auto-generate artwork on first frame.
         unawaited(_generateFromPreset(_presetConfig!));
@@ -388,8 +386,6 @@ class _LocalMockupPreviewScreenState
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
     _mockupSubscription?.cancel();
-    _titleController.dispose();
-    _subtitleController.dispose();
     // Cache owns frontShirtImage/backShirtImage — let it dispose them.
     LocalMockupImageCache.instance.dispose();
     // Artwork image is decoded directly from bytes (not cached) — screen owns it.
@@ -534,6 +530,9 @@ class _LocalMockupPreviewScreenState
       }
       if (_isTshirt && config.layout == CardTemplateType.timeline) {
         unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
+      }
+      if (_isTshirt && config.layout == CardTemplateType.grid) {
+        unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
       }
     } catch (e) {
       debugPrint('[merch] preset generation failed: $e');
@@ -747,8 +746,8 @@ class _LocalMockupPreviewScreenState
         // T-shirts always show entry + exit stamps regardless of card-editor setting.
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
         cardAspectRatio: widget.confirmedAspectRatio,
-        titleOverride: _effectiveTitle,
-        subtitleOverride: _effectiveSubtitle,
+        titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
         stampColor: stampColor,
         dateColor: widget.dateColor,
         transparentBackground: transparentBg,
@@ -806,8 +805,8 @@ class _LocalMockupPreviewScreenState
         codes: widget.selectedCodes,
         trips: widget.trips,
         cardAspectRatio: widget.confirmedAspectRatio,
-        titleOverride: _effectiveTitle,
-        subtitleOverride: _effectiveSubtitle,
+        titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
       );
@@ -822,17 +821,11 @@ class _LocalMockupPreviewScreenState
     }
   }
 
-  // ── Title / subtitle editing (ADR-157 / M107) ────────────────────────────
+  // ── Grid text colour selection (M107) ─────────────────────────────────────
 
-  Future<void> _applyTextOverrides() async {
-    final newTitle =
-        _titleController.text.isNotEmpty ? _titleController.text : null;
-    final newSubtitle =
-        _subtitleController.text.isNotEmpty ? _subtitleController.text : null;
-    if (newTitle == _effectiveTitle && newSubtitle == _effectiveSubtitle) return;
+  Future<void> _setGridTextColor(Color textColor) async {
     setState(() {
-      _effectiveTitle = newTitle;
-      _effectiveSubtitle = newSubtitle;
+      _gridTextColor = textColor;
       _variantLoading = true;
     });
     try {
@@ -843,43 +836,18 @@ class _LocalMockupPreviewScreenState
         codes: widget.selectedCodes,
         trips: widget.trips,
         cardAspectRatio: widget.confirmedAspectRatio,
-        titleOverride: _effectiveTitle,
-        subtitleOverride: _effectiveSubtitle,
+        titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
-        stampSeed: widget.stampLayoutSeed,
-        stampSizeMultiplier: widget.stampSizeMultiplier,
-        stampJitterFactor: widget.stampJitterFactor,
-        entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
+        textColor: textColor,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);
       if (!mounted) return;
       setState(() => _artworkBytes = result.bytes);
-      // Clear cached stamp-colour variants so next switch re-renders.
-      for (var i = 0; i < _artworkVariants.length; i++) {
-        _artworkVariants[i] = null;
-      }
-      _artworkVariants[0] = result.bytes;
     } finally {
       if (mounted) setState(() => _variantLoading = false);
     }
-  }
-
-  void _regenerateTitle() {
-    final n = widget.selectedCodes.length;
-    setState(() => _titleSeed++);
-    final newTitle = MerchTitleWordbank.pickGeneric(n, _titleSeed);
-    _titleController.text = newTitle;
-    _effectiveTitle = newTitle;
-    unawaited(_applyTextOverrides());
-  }
-
-  void _regenerateSubtitle() {
-    final n = widget.selectedCodes.length;
-    final newSubtitle = MerchTitleWordbank.buildSubtitleLine(n);
-    _subtitleController.text = newSubtitle;
-    _effectiveSubtitle = newSubtitle;
-    unawaited(_applyTextOverrides());
   }
 
   // ── Colour / placement change handler ─────────────────────────────────────
@@ -912,6 +880,9 @@ class _LocalMockupPreviewScreenState
     }
     if (colourChanged && _isTshirt && _template == CardTemplateType.timeline) {
       unawaited(_setTimelineTextColor(_suggestTimelineTextColor(colour)));
+    }
+    if (colourChanged && _isTshirt && _template == CardTemplateType.grid) {
+      unawaited(_setGridTextColor(_suggestGridTextColor(colour)));
     }
   }
 
@@ -1628,53 +1599,6 @@ class _LocalMockupPreviewScreenState
     );
   }
 
-  // ── Text edit row (ADR-157) ────────────────────────────────────────────────
-
-  /// A labelled text field with a regenerate icon button (ADR-157).
-  Widget _buildTextEditRow({
-    required String label,
-    required TextEditingController controller,
-    required VoidCallback onRegenerate,
-    required ValueChanged<String> onSubmit,
-  }) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: theme.textTheme.labelSmall),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                style: theme.textTheme.bodySmall,
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: onSubmit,
-              ),
-            ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              tooltip: 'Regenerate $label',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              onPressed: onRegenerate,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   // ── Inline config panel (ADR-127 / M75) ────────────────────────────────────
 
   /// Always-visible t-shirt configuration panel below the mockup.
@@ -1702,24 +1626,6 @@ class _LocalMockupPreviewScreenState
             // locked to the original design (ADR-133).
             if (_template == CardTemplateType.passport) ...[
               _buildStampColorPicker(),
-              const SizedBox(height: 12),
-            ],
-
-            // ── Title + subtitle editing (ADR-157) ────────────────────────
-            if (_effectiveTitle != null || _effectiveSubtitle != null) ...[
-              _buildTextEditRow(
-                label: 'Title',
-                controller: _titleController,
-                onRegenerate: _regenerateTitle,
-                onSubmit: (_) => unawaited(_applyTextOverrides()),
-              ),
-              const SizedBox(height: 8),
-              _buildTextEditRow(
-                label: 'Subtitle',
-                controller: _subtitleController,
-                onRegenerate: _regenerateSubtitle,
-                onSubmit: (_) => unawaited(_applyTextOverrides()),
-              ),
               const SizedBox(height: 12),
             ],
 

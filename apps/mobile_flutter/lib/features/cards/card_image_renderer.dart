@@ -247,6 +247,7 @@ class CardImageRenderer {
           titleOverride: titleOverride,
           subtitleOverride: subtitleOverride,
           transparentBackground: transparentBackground,
+          textColor: textColor,
           onAssetsLoaded: onAssetsLoaded,
           backgroundImageBytes: backgroundImageBytes,
           layoutMode: gridLayoutMode,

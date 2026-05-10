@@ -15,6 +15,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../merch/local_mockup_preview_screen.dart';
+import '../merch/merch_title_wordbank.dart';
 import '../scan/hero_providers.dart';
 import '../shared/thumbnail_channel.dart';
 import 'card_background_picker.dart';
@@ -131,7 +132,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   /// Country codes manually deselected by the user. Cleared when year range changes.
   Set<String> _manuallyDeselectedCodes = {};
   late TextEditingController _titleController;
+  late TextEditingController _subtitleController;
   String? _titleOverride;
+  String? _subtitleOverride;
   bool _isTitleGenerating = false;
   bool _autoGenerateFired = false;
   bool _sharing = false;
@@ -153,6 +156,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   void initState() {
     super.initState();
     _titleController = TextEditingController();
+    _subtitleController = TextEditingController();
     // Passport card is always portrait — prevent inheriting landscape state.
     if (widget.templateType == CardTemplateType.passport) {
       _portrait = true;
@@ -162,6 +166,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _subtitleController.dispose();
     _transformController.dispose();
     super.dispose();
   }
@@ -455,6 +460,19 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   _resetZoom();
                 }),
                 onShuffleStamps: () {},
+                // Subtitle editing for grid (and other templates that support it).
+                subtitleController: widget.templateType == CardTemplateType.grid
+                    ? _subtitleController
+                    : null,
+                subtitleOverride: _subtitleOverride,
+                subtitleHint: MerchTitleWordbank.buildSubtitleLine(
+                    effectiveCodes.length),
+                onSubtitleChanged: (v) =>
+                    setState(() => _subtitleOverride = v.isEmpty ? null : v),
+                onSubtitleCleared: () {
+                  setState(() => _subtitleOverride = null);
+                  _subtitleController.clear();
+                },
               ),
               // ── Sort order (Grid + Heart) ────────────────────────────
               if (widget.templateType == CardTemplateType.grid ||
@@ -671,9 +689,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     final template = _buildTemplate(
         displayedCodes, filteredTrips, dateLabel, _backgroundImageBytes);
     final boundary = RepaintBoundary(key: _previewKey, child: template);
-    // Timeline is transparent — wrap with white so text is readable on-screen.
+    // Transparent templates — wrap with white so text is readable on-screen.
     // The RepaintBoundary is inside, so share/export PNGs remain transparent.
-    if (widget.templateType == CardTemplateType.timeline) {
+    if (widget.templateType == CardTemplateType.timeline ||
+        widget.templateType == CardTemplateType.grid) {
       return ColoredBox(color: Colors.white, child: boundary);
     }
     return boundary;
@@ -695,8 +714,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
+          subtitleOverride: _subtitleOverride,
           backgroundImageBytes: backgroundImageBytes,
           layoutMode: _gridLayoutMode,
+          transparentBackground: true,
+          textColor: Colors.black,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -899,6 +921,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           printBgBytes = await const ThumbnailChannel()
               .getFullResolutionImage(_backgroundAssetId!);
         }
+        // For grid: ensure a structured subtitle is always present so the
+        // branding zone shows achievement context, not the same text as the title.
+        final effectiveSubtitle = widget.templateType == CardTemplateType.grid
+            ? (_subtitleOverride ??
+                MerchTitleWordbank.buildSubtitleLine(renderCodes.length))
+            : _subtitleOverride;
+
         final result = await CardImageRenderer.render(
           context,
           widget.templateType,
@@ -910,9 +939,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           heartOrder: _order,
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
+          subtitleOverride: effectiveSubtitle,
           stampColor: null,
           dateColor: null,
           transparentBackground: widget.templateType == CardTemplateType.grid,
+          textColor: widget.templateType == CardTemplateType.grid
+              ? Colors.black
+              : null,
           stampSeed: _stampLayoutSeed,
           stampSizeMultiplier: _stampSizeMultiplier,
           stampJitterFactor: _stampJitterFactor,
@@ -968,6 +1001,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         confirmedEntryOnly: _entryOnly,
         cardId: cardId,
         titleOverride: _titleOverride,
+        subtitleOverride: widget.templateType == CardTemplateType.grid
+            ? (_subtitleOverride ??
+                MerchTitleWordbank.buildSubtitleLine(codes.length))
+            : _subtitleOverride,
         stampColor: null,
         dateColor: null,
         transparentBackground: widget.templateType == CardTemplateType.grid,
@@ -997,6 +1034,11 @@ class _ControlStrip extends StatelessWidget {
     required this.onGenerateTitle,
     required this.onOrientationToggle,
     required this.onShuffleStamps,
+    this.subtitleController,
+    this.subtitleOverride,
+    this.subtitleHint,
+    this.onSubtitleChanged,
+    this.onSubtitleCleared,
   });
 
   final TextEditingController titleController;
@@ -1011,99 +1053,154 @@ class _ControlStrip extends StatelessWidget {
   final VoidCallback onGenerateTitle;
   final VoidCallback onOrientationToggle;
   final VoidCallback onShuffleStamps;
+  final TextEditingController? subtitleController;
+  final String? subtitleOverride;
+  final String? subtitleHint;
+  final ValueChanged<String>? onSubtitleChanged;
+  final VoidCallback? onSubtitleCleared;
+
+  Widget _buildTitleRow() {
+    return Row(
+      children: [
+        // Auto-generate button
+        IconButton(
+          onPressed: isTitleGenerating ? null : onGenerateTitle,
+          icon: const Icon(Icons.auto_awesome, size: 18),
+          tooltip: 'Generate title',
+          padding: const EdgeInsets.all(6),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: SizedBox(
+            height: 38,
+            child: TextField(
+              controller: titleController,
+              decoration: InputDecoration(
+                hintText: defaultTitle,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      const BorderSide(color: Colors.white24),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      const BorderSide(color: Colors.white24),
+                ),
+                suffixIcon: isTitleGenerating
+                    ? const Padding(
+                        padding: EdgeInsets.all(11),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : titleOverride != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: onTitleCleared,
+                            padding: EdgeInsets.zero,
+                          )
+                        : null,
+              ),
+              style: const TextStyle(fontSize: 13),
+              onChanged: onTitleChanged,
+            ),
+          ),
+        ),
+        if (showShuffleButton) ...[
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onShuffleStamps,
+            icon: const Icon(Icons.shuffle_rounded, size: 15),
+            label: const Text('Shuffle'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _kAmber,
+              side: const BorderSide(color: _kAmber, width: 1.5),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 0),
+              minimumSize: const Size(0, 38),
+              textStyle: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+        if (showOrientationToggle) ...[
+          const SizedBox(width: 8),
+          IconButton.outlined(
+            onPressed: onOrientationToggle,
+            icon: Icon(
+              portrait
+                  ? Icons.stay_current_portrait
+                  : Icons.stay_current_landscape,
+              size: 20,
+            ),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              side: const BorderSide(color: Colors.white24),
+              minimumSize: const Size(38, 38),
+            ),
+            tooltip: portrait ? 'Switch to landscape' : 'Switch to portrait',
+          ),
+        ],
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Auto-generate button
-          IconButton(
-            onPressed: isTitleGenerating ? null : onGenerateTitle,
-            icon: const Icon(Icons.auto_awesome, size: 18),
-            tooltip: 'Generate title',
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: SizedBox(
-              height: 38,
-              child: TextField(
-                controller: titleController,
-                decoration: InputDecoration(
-                  hintText: defaultTitle,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        const BorderSide(color: Colors.white24),
+          _buildTitleRow(),
+          if (subtitleController != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const SizedBox(width: 44), // align with title field
+                Expanded(
+                  child: SizedBox(
+                    height: 34,
+                    child: TextField(
+                      controller: subtitleController,
+                      decoration: InputDecoration(
+                        hintText: subtitleHint ?? 'Roavvy: N Countries • …',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: Colors.white24),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: Colors.white24),
+                        ),
+                        suffixIcon: subtitleOverride != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: onSubtitleCleared,
+                                padding: EdgeInsets.zero,
+                              )
+                            : null,
+                      ),
+                      style: const TextStyle(fontSize: 11),
+                      onChanged: onSubtitleChanged,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        const BorderSide(color: Colors.white24),
-                  ),
-                  suffixIcon: isTitleGenerating
-                      ? const Padding(
-                          padding: EdgeInsets.all(11),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : titleOverride != null
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 16),
-                              onPressed: onTitleCleared,
-                              padding: EdgeInsets.zero,
-                            )
-                          : null,
                 ),
-                style: const TextStyle(fontSize: 13),
-                onChanged: onTitleChanged,
-              ),
-            ),
-          ),
-          if (showShuffleButton) ...[
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: onShuffleStamps,
-              icon: const Icon(Icons.shuffle_rounded, size: 15),
-              label: const Text('Shuffle'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _kAmber,
-                side: const BorderSide(color: _kAmber, width: 1.5),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 0),
-                minimumSize: const Size(0, 38),
-                textStyle: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-          if (showOrientationToggle) ...[
-            const SizedBox(width: 8),
-            IconButton.outlined(
-              onPressed: onOrientationToggle,
-              icon: Icon(
-                portrait
-                    ? Icons.stay_current_portrait
-                    : Icons.stay_current_landscape,
-                size: 20,
-              ),
-              style: IconButton.styleFrom(
-                padding: const EdgeInsets.all(8),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                side: const BorderSide(color: Colors.white24),
-                minimumSize: const Size(38, 38),
-              ),
-              tooltip: portrait ? 'Switch to landscape' : 'Switch to portrait',
+              ],
             ),
           ],
         ],

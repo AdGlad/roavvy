@@ -59,6 +59,7 @@ class GridFlagsCard extends StatefulWidget {
     this.titleOverride,
     this.subtitleOverride,
     this.transparentBackground = false,
+    this.textColor,
     this.onAssetsLoaded,
     this.backgroundImageBytes,
     this.layoutMode = FlagGridLayoutMode.packedRow,
@@ -79,6 +80,12 @@ class GridFlagsCard extends StatefulWidget {
   /// When `true`, renders with a transparent background instead of the default
   /// dark navy. Used by [CardImageRenderer] for t-shirt compositing (ADR-123).
   final bool transparentBackground;
+
+  /// Text colour for title and branding zones. When null and
+  /// [transparentBackground] is false, the default gold colour is used.
+  /// When [transparentBackground] is true, this should be set explicitly
+  /// (e.g. [Colors.black] on white shirts).
+  final Color? textColor;
 
   /// Called once when all SVG flag assets have finished loading into the shared
   /// cache. Used by [CardImageRenderer] to delay PNG capture until SVGs are
@@ -236,11 +243,12 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               repaintNotifier: _repaintNotifier,
               title: effectiveTitle,
               dateLabel: widget.dateLabel,
-              customLabel: widget.titleOverride,
               subtitleOverride: widget.subtitleOverride,
               backgroundImage: _backgroundImage,
               layoutMode: widget.layoutMode,
               reprWidth: reprWidth,
+              transparentBackground: widget.transparentBackground,
+              textColor: widget.textColor,
             ),
           );
         },
@@ -256,11 +264,12 @@ class _GridPainter extends CustomPainter {
     required ValueNotifier<int> repaintNotifier,
     required this.title,
     required this.dateLabel,
-    this.customLabel,
     this.subtitleOverride,
     this.backgroundImage,
     this.layoutMode = FlagGridLayoutMode.packedRow,
     required this.reprWidth,
+    this.transparentBackground = false,
+    this.textColor,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -271,9 +280,6 @@ class _GridPainter extends CustomPainter {
 
   /// Date label forwarded to [CardTextRenderer.drawBranding].
   final String dateLabel;
-
-  /// Custom label forwarded to [CardTextRenderer.drawBranding].
-  final String? customLabel;
 
   /// Structured branding line (ADR-157). When non-null, replaces legacy branding.
   final String? subtitleOverride;
@@ -286,6 +292,12 @@ class _GridPainter extends CustomPainter {
 
   /// Representative tile width used as the SVG cache key (ADR-156).
   final double reprWidth;
+
+  /// When true, text strips are fully transparent (for t-shirt compositing).
+  final bool transparentBackground;
+
+  /// Text colour for title and branding zones.
+  final Color? textColor;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -316,14 +328,21 @@ class _GridPainter extends CustomPainter {
     }
 
     // 1. Text zones (drawn first so flags sit on top if text is transparent).
-    CardTextRenderer.drawTitle(canvas, size, title);
+    final effectiveStripColor = transparentBackground
+        ? Colors.transparent
+        : CardTextRenderer.defaultStripColor;
+    final effectiveTextColor =
+        textColor ?? CardTextRenderer.defaultTextColor;
+    CardTextRenderer.drawTitle(canvas, size, title,
+        textColor: effectiveTextColor, stripColor: effectiveStripColor);
     CardTextRenderer.drawBranding(
       canvas,
       size,
       countryCount: countryCodes.length,
       dateLabel: dateLabel,
-      customLabel: customLabel,
       subtitleLine: subtitleOverride,
+      textColor: effectiveTextColor,
+      stripColor: effectiveStripColor,
     );
 
     // 2. Flag grid in the zone between title and branding strips (ADR-156).
@@ -339,18 +358,11 @@ class _GridPainter extends CustomPainter {
     );
     if (tiles.isEmpty) return;
 
-    final isContain = layoutMode == FlagGridLayoutMode.normalizedGrid;
-
     for (final tile in tiles) {
       final cached = _sharedCache.get(tile.code, reprWidth);
       if (cached != null) {
-        if (isContain) {
-          FlagTileRenderer.drawContained(canvas, cached, tile.rect,
-              cornerRadius: 0.0);
-        } else {
-          FlagTileRenderer.drawImage(canvas, cached, tile.rect,
-              cornerRadius: 0.0);
-        }
+        FlagTileRenderer.drawContained(canvas, cached, tile.rect,
+            cornerRadius: 0.0);
       } else {
         // Placeholder while SVG loads — transparent rect.
         canvas.drawRect(tile.rect, _placeholderPaint);
@@ -364,11 +376,12 @@ class _GridPainter extends CustomPainter {
       old.canvasSize != canvasSize ||
       old.title != title ||
       old.dateLabel != dateLabel ||
-      old.customLabel != customLabel ||
       old.subtitleOverride != subtitleOverride ||
       old.backgroundImage != backgroundImage ||
       old.layoutMode != layoutMode ||
-      old.reprWidth != reprWidth;
+      old.reprWidth != reprWidth ||
+      old.transparentBackground != transparentBackground ||
+      old.textColor != textColor;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by
