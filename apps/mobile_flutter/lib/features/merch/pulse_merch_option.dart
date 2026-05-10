@@ -35,6 +35,7 @@ class PulseMerchOption {
     this.stampSizeMultiplier = 1.0,
     this.suggestedShirtColor,
     this.contextLabel,
+    this.artworkSubtitle,
   });
 
   final String id;
@@ -62,6 +63,12 @@ class PulseMerchOption {
   /// Optional context label shown below the description in the merch card
   /// (ADR-154). E.g. "Based on your Europe Explorer achievement".
   final String? contextLabel;
+
+  /// Structured artwork branding line (ADR-157).
+  ///
+  /// Rendered in the card's bottom branding zone via [CardTextRenderer.drawBranding].
+  /// Format: `"Roavvy: N Countries • [context]"`.
+  final String? artworkSubtitle;
 
   /// Human-readable label shown in the template chip.
   String get templateLabel => switch (template) {

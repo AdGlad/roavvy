@@ -75,12 +75,16 @@ abstract final class CardTextRenderer {
   ///
   /// When [customLabel] is non-null and non-empty it replaces the
   /// auto-generated `"{N} countries"` string (ADR-120).
+  ///
+  /// When [subtitleLine] is non-null it replaces all legacy branding content
+  /// with the single structured "Roavvy: N Countries • …" line (ADR-157).
   static void drawBranding(
     Canvas canvas,
     Size size, {
     required int countryCount,
     required String dateLabel,
     String? customLabel,
+    String? subtitleLine,
     Color textColor = defaultTextColor,
     Color stripColor = defaultStripColor,
   }) {
@@ -98,6 +102,24 @@ abstract final class CardTextRenderer {
       decoration: TextDecoration.none,
       color: textColor,
     );
+
+    // Structured subtitle line (ADR-157): render as a single centred text,
+    // replacing the legacy ROAVVY wordmark + count split.
+    if (subtitleLine != null && subtitleLine.isNotEmpty) {
+      final tp = TextPainter(
+        text: TextSpan(text: subtitleLine, style: baseStyle),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      )..layout(maxWidth: size.width - 20);
+      tp.paint(
+        canvas,
+        Offset(
+          (size.width - tp.width) / 2,
+          top + (brandingZoneH - tp.height) / 2,
+        ),
+      );
+      return;
+    }
 
     final countText = (customLabel != null && customLabel.isNotEmpty)
         ? customLabel

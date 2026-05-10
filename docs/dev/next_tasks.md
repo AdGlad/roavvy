@@ -1,4 +1,4 @@
-# M107 — Title & Subtitle Rules and Design Screen Editing
+# M107 — Title & Subtitle Rules and Design Screen Editing [COMPLETE]
 
 Branch: milestone/m107-title-subtitle-rules-and-design-screen-editing
 

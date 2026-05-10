@@ -57,6 +57,7 @@ class GridFlagsCard extends StatefulWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.titleOverride,
+    this.subtitleOverride,
     this.transparentBackground = false,
     this.onAssetsLoaded,
     this.backgroundImageBytes,
@@ -66,6 +67,10 @@ class GridFlagsCard extends StatefulWidget {
   final List<String> countryCodes;
   final double aspectRatio;
   final String? titleOverride;
+
+  /// Structured branding line forwarded to [CardTextRenderer.drawBranding]
+  /// (ADR-157). When non-null replaces the legacy ROAVVY + count content.
+  final String? subtitleOverride;
 
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
@@ -232,6 +237,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               title: effectiveTitle,
               dateLabel: widget.dateLabel,
               customLabel: widget.titleOverride,
+              subtitleOverride: widget.subtitleOverride,
               backgroundImage: _backgroundImage,
               layoutMode: widget.layoutMode,
               reprWidth: reprWidth,
@@ -251,6 +257,7 @@ class _GridPainter extends CustomPainter {
     required this.title,
     required this.dateLabel,
     this.customLabel,
+    this.subtitleOverride,
     this.backgroundImage,
     this.layoutMode = FlagGridLayoutMode.packedRow,
     required this.reprWidth,
@@ -267,6 +274,9 @@ class _GridPainter extends CustomPainter {
 
   /// Custom label forwarded to [CardTextRenderer.drawBranding].
   final String? customLabel;
+
+  /// Structured branding line (ADR-157). When non-null, replaces legacy branding.
+  final String? subtitleOverride;
 
   /// Optional decoded background photo (M93, ADR-138).
   final ui.Image? backgroundImage;
@@ -313,6 +323,7 @@ class _GridPainter extends CustomPainter {
       countryCount: countryCodes.length,
       dateLabel: dateLabel,
       customLabel: customLabel,
+      subtitleLine: subtitleOverride,
     );
 
     // 2. Flag grid in the zone between title and branding strips (ADR-156).
@@ -354,6 +365,7 @@ class _GridPainter extends CustomPainter {
       old.title != title ||
       old.dateLabel != dateLabel ||
       old.customLabel != customLabel ||
+      old.subtitleOverride != subtitleOverride ||
       old.backgroundImage != backgroundImage ||
       old.layoutMode != layoutMode ||
       old.reprWidth != reprWidth;

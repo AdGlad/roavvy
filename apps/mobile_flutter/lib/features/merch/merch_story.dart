@@ -2,6 +2,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import 'merch_template_ranker.dart';
+import 'merch_title_wordbank.dart';
 import 'travel_identity.dart';
 
 /// A contextual title and subtitle for a single merch option.
@@ -18,7 +19,12 @@ class MerchStory {
 
   /// Generates an emotionally engaging story for a merch option.
   ///
-  /// Falls back gracefully for edge cases (empty codes, unknown countries).
+  /// [seed] is incremented each time the user presses Regenerate so titles
+  /// cycle through the wordbank without consecutive repeats (ADR-157).
+  ///
+  /// Rules (ADR-157):
+  /// - [title] MUST NOT include a country count.
+  /// - [subtitle] always starts with "Roavvy:" and always includes country count.
   static MerchStory forOption({
     required CardTemplateType template,
     Achievement? achievement,
@@ -26,32 +32,33 @@ class MerchStory {
     required MerchDensityClass density,
     required int year,
     TravelIdentityInfo? identity,
+    int seed = 0,
   }) {
     if (achievement != null) {
       if (achievement.continentScope != null) {
-        return _continentExplorer(template, achievement, codes, identity);
+        return _continentExplorer(template, achievement, codes, identity, seed);
       }
       if (achievement.regionScope != null) {
-        return _region(template, achievement, codes, identity);
+        return _region(template, achievement, codes, identity, seed);
       }
       if (achievement.category == AchievementCategory.trips &&
           achievement.merch == MerchTriggerType.passportStamp) {
-        return _passportMilestone(template, achievement, codes);
+        return _passportMilestone(template, achievement, codes, seed);
       }
       if (achievement.category == AchievementCategory.thisYear) {
-        return _year(template, codes, year);
+        return _year(template, codes, year, seed);
       }
       if (achievement.category == AchievementCategory.countries) {
-        return _countries(template, achievement, codes, density);
+        return _countries(template, achievement, codes, density, seed);
       }
       if (achievement.category == AchievementCategory.continents) {
-        return _continents(template, achievement, codes);
+        return _continents(template, achievement, codes, seed);
       }
       if (achievement.category == AchievementCategory.trips) {
-        return _trips(template, achievement, codes);
+        return _trips(template, achievement, codes, seed);
       }
     }
-    return _generic(template, codes, year);
+    return _generic(template, codes, year, seed);
   }
 
   // ── Country achievements ───────────────────────────────────────────────────
@@ -61,79 +68,70 @@ class MerchStory {
     Achievement achievement,
     List<String> codes,
     MerchDensityClass density,
+    int seed,
   ) {
     final n = achievement.progressTarget;
     final countryName = _countryName(codes.firstOrNull);
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(codes.length);
 
     if (n == 1) {
       return switch (template) {
         CardTemplateType.passport => MerchStory(
-            title: '$countryName Entry Stamp',
-            subtitle: 'Your first stamp, forever',
+            title: '$countryName Calling',
+            subtitle: subtitle,
           ),
         CardTemplateType.badge => MerchStory(
-            title: countryName,
-            subtitle: 'Where your travels began',
+            title: '$countryName Dreams',
+            subtitle: subtitle,
           ),
         CardTemplateType.typography => MerchStory(
             title: countryName,
-            subtitle: 'Your first country, typographically',
+            subtitle: subtitle,
           ),
         CardTemplateType.heart => MerchStory(
-            title: '$countryName Heart',
-            subtitle: 'A heart made from your first flag',
+            title: '$countryName \u2014 Heart',
+            subtitle: subtitle,
           ),
         CardTemplateType.timeline => MerchStory(
-            title: 'My First Country \u2014 $countryName',
-            subtitle: 'The trip that started everything',
+            title: 'Where It Began',
+            subtitle: subtitle,
           ),
         _ => MerchStory(
-            title: '$countryName Flag',
-            subtitle: 'Where it all began',
+            title: countryName,
+            subtitle: subtitle,
           ),
       };
     }
 
-    // Multi-country milestones
-    final numWord = _numberWord(n);
-    final isFirstN = n <= 25;
-    final prefix = isFirstN ? 'First $numWord' : '$n';
-    final shortLabel = isFirstN ? 'First $n Countries' : '$n Countries';
+    // Multi-country milestones — pick from wordbank, no count in title.
+    final wordTitle = MerchTitleWordbank.pickGeneric(codes.length, seed);
 
     return switch (template) {
       CardTemplateType.grid => MerchStory(
-          title: n <= 10 ? 'The $prefix' : '$shortLabel \u2014 Flags',
-          subtitle: density == MerchDensityClass.small
-              ? 'Your opening chapter'
-              : 'Your countries, in flags',
+          title: wordTitle,
+          subtitle: subtitle,
         ),
       CardTemplateType.passport => MerchStory(
-          title: '$shortLabel \u2014 Stamps',
-          subtitle: n == 50
-              ? 'Half the world, stamped'
-              : 'Commemorating each border crossed',
+          title: n == 50 ? 'Half the World' : wordTitle,
+          subtitle: subtitle,
         ),
       CardTemplateType.typography => MerchStory(
-          title: n == 50 ? '50 Countries' : shortLabel,
-          subtitle: n == 50
-              ? 'Half the world explored'
-              : _densitySubtitle(density),
+          title: n == 50 ? 'Half the World' : wordTitle,
+          subtitle: subtitle,
         ),
       CardTemplateType.timeline => MerchStory(
-          title: '$n Countries World Tour',
-          subtitle: n == 10
-              ? 'A decade of destinations'
-              : 'Every destination, in order',
+          title: wordTitle,
+          subtitle: subtitle,
         ),
       CardTemplateType.badge => MerchStory(
-          title: shortLabel,
-          subtitle: '${codes.length} countries in your collection',
+          title: wordTitle,
+          subtitle: subtitle,
         ),
       CardTemplateType.heart => MerchStory(
-          title: '$shortLabel \u2014 Heart',
-          subtitle: 'Your countries as a heart of flags',
+          title: wordTitle,
+          subtitle: subtitle,
         ),
-      _ => MerchStory(title: shortLabel, subtitle: _densitySubtitle(density)),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -143,33 +141,28 @@ class MerchStory {
     CardTemplateType template,
     Achievement achievement,
     List<String> codes,
+    int seed,
   ) {
     final n = achievement.progressTarget;
-    final label = n >= 6 ? 'All Six Continents' : '$n Continents';
-    final countDesc = '${codes.length} countries across $n continents';
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(
+      codes.length,
+      continent: n >= 6 ? null : '$n Continents',
+    );
+    final wordTitle = n >= 6
+        ? 'Global Citizen'
+        : MerchTitleWordbank.pickGeneric(codes.length, seed);
 
     return switch (template) {
-      CardTemplateType.grid => MerchStory(
-          title: '$label \u2014 Flags',
-          subtitle: countDesc,
-        ),
-      CardTemplateType.typography => MerchStory(
-          title: label,
-          subtitle: countDesc,
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$label \u2014 Heart',
-          subtitle: 'Your world in a heart of flags',
-        ),
-      CardTemplateType.passport => MerchStory(
-          title: 'World Tour \u2014 Stamps',
-          subtitle: countDesc,
-        ),
-      CardTemplateType.timeline => MerchStory(
-          title: '$label World Tour',
-          subtitle: countDesc,
-        ),
-      _ => MerchStory(title: label, subtitle: countDesc),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.typography =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport =>
+        MerchStory(title: 'The Grand Tour', subtitle: subtitle),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -179,28 +172,28 @@ class MerchStory {
     CardTemplateType template,
     Achievement achievement,
     List<String> codes,
+    int seed,
   ) {
     final n = achievement.progressTarget;
-    final tripLabel = n == 1 ? 'First Trip' : '$n Trips';
+    final tripCtx = n == 1 ? 'First Trip' : '$n Trips';
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(
+      codes.length,
+      tripLabel: tripCtx,
+    );
+    final wordTitle = n == 1
+        ? 'Where It Began'
+        : MerchTitleWordbank.pickForTrips(seed);
 
     return switch (template) {
-      CardTemplateType.timeline => MerchStory(
-          title: '$tripLabel \u2014 Timeline',
-          subtitle: '${codes.length} countries, $n trips',
-        ),
-      CardTemplateType.passport => MerchStory(
-          title: '$tripLabel \u2014 Stamps',
-          subtitle: '${codes.length} countries across your trips',
-        ),
-      CardTemplateType.grid => MerchStory(
-          title: '$tripLabel \u2014 Flags',
-          subtitle: '${codes.length} countries across $n trips',
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$tripLabel \u2014 Heart',
-          subtitle: 'Your trip countries as a heart of flags',
-        ),
-      _ => MerchStory(title: tripLabel, subtitle: '${codes.length} countries'),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.grid =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -210,31 +203,26 @@ class MerchStory {
     CardTemplateType template,
     List<String> codes,
     int year,
+    int seed,
   ) {
-    final n = codes.length;
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(
+      codes.length,
+      year: year,
+    );
+    final wordTitle = MerchTitleWordbank.pickForYear(year, seed);
 
     return switch (template) {
-      CardTemplateType.timeline => MerchStory(
-          title: '$year World Tour',
-          subtitle: 'Your year of travel',
-        ),
-      CardTemplateType.typography => MerchStory(
-          title: '$year World Tour',
-          subtitle: '$n countries explored',
-        ),
-      CardTemplateType.grid => MerchStory(
-          title: '$year Travels \u2014 Flags',
-          subtitle: '$n countries in $year',
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$year \u2014 Heart',
-          subtitle: 'Your $year countries as a heart of flags',
-        ),
-      CardTemplateType.passport => MerchStory(
-          title: '$year \u2014 Stamps',
-          subtitle: '$year trips and stamps',
-        ),
-      _ => MerchStory(title: '$year Travels', subtitle: '$n countries in $year'),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.typography =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.grid =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -245,39 +233,33 @@ class MerchStory {
     Achievement achievement,
     List<String> codes,
     TravelIdentityInfo? identity,
+    int seed,
   ) {
     final continent = achievement.continentScope!;
-    final n = codes.length;
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(
+      codes.length,
+      continent: continent,
+    );
+    final wordTitle = MerchTitleWordbank.pickForContinent(continent, seed);
 
     return switch (template) {
       CardTemplateType.badge => MerchStory(
           title: '$continent Explorer',
-          subtitle: identity?.tagline ?? '$n countries in $continent',
+          subtitle: identity != null
+              ? MerchTitleWordbank.buildSubtitleLine(codes.length,
+                  continent: continent)
+              : subtitle,
         ),
-      CardTemplateType.grid => MerchStory(
-          title: '$continent Explorer',
-          subtitle: '$n countries across the continent',
-        ),
-      CardTemplateType.typography => MerchStory(
-          title: '$continent Explorer',
-          subtitle: '$n countries explored',
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$continent \u2014 Heart',
-          subtitle: 'Your $continent countries as a heart',
-        ),
-      CardTemplateType.passport => MerchStory(
-          title: '$continent Tour \u2014 Stamps',
-          subtitle: '$n countries stamped',
-        ),
-      CardTemplateType.timeline => MerchStory(
-          title: '$continent World Tour',
-          subtitle: 'Your travels across $continent',
-        ),
-      _ => MerchStory(
-          title: '$continent Explorer',
-          subtitle: '$n countries in $continent',
-        ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.typography =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -288,43 +270,32 @@ class MerchStory {
     Achievement achievement,
     List<String> codes,
     TravelIdentityInfo? identity,
+    int seed,
   ) {
-    final regionName = subRegionDisplayName(achievement.regionScope!);
-    final n = codes.length;
-
-    // Special-case subtitles for well-known regions.
-    final passportSubtitle = identity?.tagline ??
-        (regionName == 'Mediterranean' ? 'Sun, sea, and stamps' : '$n countries stamped');
+    final regionKey = achievement.regionScope!;
+    final regionName = subRegionDisplayName(regionKey);
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(
+      codes.length,
+      region: regionKey,
+    );
+    final wordTitle = MerchTitleWordbank.pickForRegion(regionKey, seed);
 
     return switch (template) {
-      CardTemplateType.passport => MerchStory(
-          title: '$regionName Stamps',
-          subtitle: passportSubtitle,
-        ),
+      CardTemplateType.passport =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
       CardTemplateType.badge => MerchStory(
           title: '$regionName Explorer',
-          subtitle: identity?.tagline ?? '$n countries in the region',
+          subtitle: subtitle,
         ),
-      CardTemplateType.typography => MerchStory(
-          title: '$regionName Explorer',
-          subtitle: '$n countries explored',
-        ),
-      CardTemplateType.grid => MerchStory(
-          title: '$regionName \u2014 Flags',
-          subtitle: '$n countries across the region',
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$regionName \u2014 Heart',
-          subtitle: 'Your $regionName countries as a heart',
-        ),
-      CardTemplateType.timeline => MerchStory(
-          title: '$regionName Tour',
-          subtitle: 'Your travels through the $regionName',
-        ),
-      _ => MerchStory(
-          title: regionName,
-          subtitle: '$n countries',
-        ),
+      CardTemplateType.typography =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.grid =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -334,30 +305,21 @@ class MerchStory {
     CardTemplateType template,
     Achievement achievement,
     List<String> codes,
+    int seed,
   ) {
-    final stampCount = achievement.progressTarget * 2;
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(codes.length);
+    final wordTitle = MerchTitleWordbank.pickGeneric(codes.length, seed);
 
     return switch (template) {
-      CardTemplateType.passport => MerchStory(
-          title: '$stampCount Stamps',
-          subtitle: 'Every entry, every exit',
-        ),
-      CardTemplateType.timeline => MerchStory(
-          title: '$stampCount Stamps \u2014 Tour Dates',
-          subtitle: 'Every destination, timeline style',
-        ),
-      CardTemplateType.grid => MerchStory(
-          title: '$stampCount Stamps \u2014 Flags',
-          subtitle: '${codes.length} countries across all your stamps',
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$stampCount Stamps \u2014 Heart',
-          subtitle: 'Your stamped countries as a heart of flags',
-        ),
-      _ => MerchStory(
-          title: '$stampCount Stamps',
-          subtitle: '${codes.length} countries',
-        ),
+      CardTemplateType.passport =>
+        MerchStory(title: 'Every Entry, Every Exit', subtitle: subtitle),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.grid =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -367,38 +329,28 @@ class MerchStory {
     CardTemplateType template,
     List<String> codes,
     int year,
+    int seed,
   ) {
     final n = codes.length;
-    final label = n == 1
+    final subtitle = MerchTitleWordbank.buildSubtitleLine(n);
+    final wordTitle = n == 1
         ? _countryName(codes.firstOrNull)
-        : '$n Countries';
+        : MerchTitleWordbank.pickGeneric(n, seed);
 
     return switch (template) {
-      CardTemplateType.passport => MerchStory(
-          title: '$label \u2014 Stamps',
-          subtitle: 'Commemorating your travels',
-        ),
-      CardTemplateType.grid => MerchStory(
-          title: '$label \u2014 Flags',
-          subtitle: 'Your countries, in flags',
-        ),
-      CardTemplateType.heart => MerchStory(
-          title: '$label \u2014 Heart',
-          subtitle: 'Your countries as a heart of flags',
-        ),
-      CardTemplateType.timeline => MerchStory(
-          title: '$label World Tour',
-          subtitle: 'Every destination, in order',
-        ),
-      CardTemplateType.typography => MerchStory(
-          title: label,
-          subtitle: 'Your travels, typographically',
-        ),
-      CardTemplateType.badge => MerchStory(
-          title: label,
-          subtitle: 'An explorer badge for your travels',
-        ),
-      _ => MerchStory(title: label, subtitle: 'Your travels'),
+      CardTemplateType.passport =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.grid =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.timeline =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.typography =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.badge =>
+        MerchStory(title: wordTitle, subtitle: subtitle),
+      _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
 
@@ -406,38 +358,4 @@ class MerchStory {
 
   static String _countryName(String? code) =>
       kCountryNames[code ?? ''] ?? code ?? '';
-
-  static String _densitySubtitle(MerchDensityClass density) => switch (density) {
-        MerchDensityClass.solo => 'Your first destination',
-        MerchDensityClass.small => 'Your opening chapter',
-        MerchDensityClass.medium => 'A growing collection',
-        MerchDensityClass.large => 'An impressive journey',
-        MerchDensityClass.massive => 'The world, your canvas',
-      };
-
-  /// Returns a word for numbers 1–20, falling back to the digit string.
-  static String _numberWord(int n) => switch (n) {
-        1 => 'One',
-        2 => 'Two',
-        3 => 'Three',
-        4 => 'Four',
-        5 => 'Five',
-        6 => 'Six',
-        7 => 'Seven',
-        8 => 'Eight',
-        9 => 'Nine',
-        10 => 'Ten',
-        11 => 'Eleven',
-        12 => 'Twelve',
-        13 => 'Thirteen',
-        14 => 'Fourteen',
-        15 => 'Fifteen',
-        16 => 'Sixteen',
-        17 => 'Seventeen',
-        18 => 'Eighteen',
-        19 => 'Nineteen',
-        20 => 'Twenty',
-        25 => 'Twenty-Five',
-        _ => '$n',
-      };
 }

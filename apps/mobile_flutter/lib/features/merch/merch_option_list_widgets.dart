@@ -238,6 +238,8 @@ class _MerchOptionCardState extends State<MerchOptionCard>
         stampSizeMultiplier: opt.stampSizeMultiplier,
         pixelRatio: 2.0,
         cardAspectRatio: aspectRatio,
+        titleOverride: opt.title,
+        subtitleOverride: opt.artworkSubtitle,
       );
       final ribbonFuture = CardImageRenderer.render(
         context,
@@ -324,6 +326,8 @@ class _MerchOptionCardState extends State<MerchOptionCard>
         stampJitterFactor: widget.option.jitter,
         stampSizeMultiplier: widget.option.stampSizeMultiplier,
         initialColour: widget.option.suggestedShirtColor,
+        titleOverride: widget.option.title,
+        subtitleOverride: widget.option.artworkSubtitle,
       ),
     ));
   }
@@ -629,6 +633,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         stampSizeMultiplier: opt.stampSizeMultiplier,
         pixelRatio: 2.5,
         cardAspectRatio: aspectRatio,
+        titleOverride: opt.title,
+        subtitleOverride: opt.artworkSubtitle,
       );
       if (!mounted) return;
 
@@ -685,6 +691,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         stampJitterFactor: widget.option.jitter,
         stampSizeMultiplier: widget.option.stampSizeMultiplier,
         initialColour: widget.option.suggestedShirtColor,
+        titleOverride: widget.option.title,
+        subtitleOverride: widget.option.artworkSubtitle,
       ),
     ));
   }

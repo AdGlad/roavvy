@@ -1624,3 +1624,76 @@ No new source assets are required. The visible quality improvement comes from:
 - `card_templates.dart`, `card_image_renderer.dart`, `card_editor_screen.dart` extended.
 - All existing call sites use Packed Row by default without any changes.
 - Passport, Heart, Tour Dates, and other card types are not affected.
+
+## ADR-157 — M107 Title & Subtitle Rules and Design Screen Editing
+
+**Status:** Accepted
+
+**Context:**
+Generated merch shirts used robotic titles like "8 Countries · 2024" and a
+legacy branding zone showing "ROAVVY  8 countries  2024". The branding zone
+lacked the structured context needed for premium shirts (continent, region,
+year range). Titles were not editable by users; the Design screen had no way
+to change them.
+
+**Decisions:**
+
+**1. Non-negotiable title rules:**
+- Title MUST NOT include a country count.
+- Subtitle MUST begin with `Roavvy:`.
+- Subtitle MUST include country count.
+- Title/subtitle backgrounds remain transparent.
+- Text colour adapts to shirt colour.
+
+**2. `MerchTitleWordbank` (new file):**
+Curated wordbanks of emotional travel-inspired phrases, segmented by context:
+- `_solo`, `_small`, `_medium`, `_large`, `_massive` (generic by count density)
+- `_continentPhrases` (keyed by continent name)
+- `_regionPhrases` (keyed by sub-region key)
+- `_yearPhrases`, `_tripPhrases`
+Seed-based rotation: `seed % bank.length` cycles without consecutive repeats.
+
+**3. `MerchStory.forOption()` rewrite:**
+All sub-methods now use `MerchTitleWordbank` for titles (no count in title).
+All subtitles use `MerchTitleWordbank.buildSubtitleLine(count, {...})` which
+produces `"Roavvy: N Countries • [context]"` using `•` separator.
+`seed: int = 0` added to `forOption()` for regeneration cycling.
+
+**4. `CardTextRenderer.drawBranding()` — `subtitleLine: String?` param:**
+When non-null, the structured subtitle line is rendered as a single centred text,
+replacing the legacy `ROAVVY + count + date` split layout (ADR-120).
+Legacy behaviour (countryCount + dateLabel + customLabel) unchanged when
+`subtitleLine` is null, preserving backward compatibility.
+
+**5. `subtitleOverride: String?` threading:**
+Added to `GridFlagsCard`, `_GridPainter`, `TimelineCard`, `_TimelinePainter`,
+`CardImageRenderer.render()`, and `CardImageRenderer._cardWidget()`.
+Passed through from `PulseMerchOption.artworkSubtitle` via `MerchContext._addGroup()`.
+
+**6. `PulseMerchOption.artworkSubtitle: String?` (new field):**
+Stores the structured "Roavvy: N Countries • ..." line per option.
+Set from `story.subtitle` in `MerchContext._buildFromRankedTemplates()`.
+The `description` field reverts to the human-readable scope description
+(e.g. "Your first 8 countries").
+
+**7. `LocalMockupPreviewScreen` editable title + subtitle (ADR-157):**
+- `subtitleOverride: String?` constructor param added.
+- `_effectiveTitle` / `_effectiveSubtitle` state vars hold applied values.
+- `TextEditingController`s for live editing.
+- `_applyTextOverrides()` re-renders artwork with current title/subtitle.
+- `_regenerateTitle()` cycles `MerchTitleWordbank.pickGeneric(n, ++seed)`.
+- `_regenerateSubtitle()` rebuilds `buildSubtitleLine(n)`.
+- `_buildTextEditRow()` helper renders labelled field + refresh icon button.
+- Text editing section shown when `_effectiveTitle` or `_effectiveSubtitle` is non-null.
+- Config panel height increased from 280 to 360 to accommodate fields.
+
+**8. Colour auto-adaptation fix:**
+`_loadFrontRibbonImage` isDark heuristic extended to include 'Blue'
+(was missing from `tshirtColors = ['Black', 'White', 'Blue', 'Grey', 'Red']`).
+
+**Consequences:**
+- All shirts from the Achievement merch flow now show emotional, count-free titles.
+- Branding zone reads "Roavvy: 8 Countries • Europe" instead of "ROAVVY  8 countries".
+- Users can edit title and subtitle in the Design screen; each has a Regenerate button.
+- Passport, Heart, Badge, Typography, FrontRibbon templates unaffected (no branding zone change).
+- `flutter analyze` passes with zero errors.

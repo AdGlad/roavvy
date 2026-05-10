@@ -265,6 +265,7 @@ class MerchContext {
 
     final items = <MerchOptionListItem>[];
     var count = 0;
+    final ach = achievement!;
 
     for (final rank in ranked) {
       if (rank.exclude) continue;
@@ -272,7 +273,7 @@ class MerchContext {
 
       final story = MerchStory.forOption(
         template: rank.template,
-        achievement: achievement,
+        achievement: ach,
         codes: codes,
         density: density,
         year: year,
@@ -293,7 +294,8 @@ class MerchContext {
         label: label,
         template: rank.template,
         scopedTitle: story.title,
-        scopedDesc: story.subtitle,
+        scopedDesc: _scopeDescription(ach, codes),
+        artworkSubtitle: story.subtitle,
         includeWorldCollection: includeWorld,
         contextLabel: contextLabel,
         isFeatured: count == 0,
@@ -357,6 +359,7 @@ class MerchContext {
     required CardTemplateType template,
     required String scopedTitle,
     required String scopedDesc,
+    String? artworkSubtitle,
     bool includeWorldCollection = false,
     String? contextLabel,
     bool isFeatured = false,
@@ -385,6 +388,7 @@ class MerchContext {
         stampSizeMultiplier: tune.size,
         suggestedShirtColor: suggestedColour,
         contextLabel: contextLabel,
+        artworkSubtitle: artworkSubtitle,
       );
       items.add(isFeatured
           ? MerchOptionFeaturedEntry(option)

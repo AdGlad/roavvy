@@ -1,7 +1,7 @@
 # M107 — Title & Subtitle Rules and Design Screen Editing
 
 **Branch:** `milestone/m107-title-subtitle-rules-and-design-screen-editing`
-**Status:** Not Started
+**Status:** Complete
 **Created:** 2026-05-10
 
 ---
@@ -56,21 +56,14 @@ Do not touch the Memory Pulse or non-merch card flows unless directly required.
 
 ## Tasks
 
-- [ ] Task 1: Audit `CardTextRenderer.drawTitle` + `drawBranding` — confirm transparency,
-  `textColor` threading, current subtitle/branding content; identify what `subtitleOverride` needs to add
-- [ ] Task 2: Build `TitleWordbank` — curated sets of emotional travel-inspired title phrases
-  per context (country/continent/trip/year/all-time); randomised selection that avoids consecutive repeats
-- [ ] Task 3: Rewrite `MerchStory.forOption()` — titles use `TitleWordbank`; subtitles use
-  "Roavvy: N Countries • [Region] • [Year]" format; both enforce the non-negotiable rules
-- [ ] Task 4: Add `subtitleOverride` to `GridFlagsCard`, `CardTextRenderer.drawBranding`,
-  and `CardImageRenderer.render`; plumb through all card templates that show branding
-- [ ] Task 5: Wire `MerchStory.subtitle` as the `subtitleOverride` throughout the merch
-  rendering pipeline (MerchOptionCard → LocalMockupPreviewScreen → CardImageRenderer)
-- [ ] Task 6: Add title + subtitle edit fields and per-field Regenerate buttons to
-  `LocalMockupPreviewScreen`; re-render artwork on change; preserve shirt colour and other state
-- [ ] Task 7: Verify and fix text colour auto-adaptation — confirm `isDark` heuristic covers
-  all tshirtColors; ensure textColor flows to card artwork for all template types
-- [ ] Task 8: ADR-157 + update current_state.md, backlog_active.md, next_tasks.md + flutter analyze clean
+- [x] Task 1: Audit `CardTextRenderer.drawTitle` + `drawBranding`
+- [x] Task 2: Build `MerchTitleWordbank` — curated wordbanks per context; seed-based rotation
+- [x] Task 3: Rewrite `MerchStory.forOption()` — emotional titles; "Roavvy: N Countries • ..." subtitles
+- [x] Task 4: Add `subtitleOverride` to `GridFlagsCard`, `TimelineCard`, `CardTextRenderer.drawBranding`, `CardImageRenderer`
+- [x] Task 5: Wire `artworkSubtitle` from `PulseMerchOption` → `MerchOptionCard` → `LocalMockupPreviewScreen`
+- [x] Task 6: Add title + subtitle edit fields with Regenerate buttons to `LocalMockupPreviewScreen`
+- [x] Task 7: Fixed `isDark` heuristic to include 'Blue' in `tshirtColors`
+- [x] Task 8: ADR-157 written; `flutter analyze` clean
 
 ---
 
