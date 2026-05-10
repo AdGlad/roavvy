@@ -15,11 +15,15 @@ import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
+import 'merch_customisation_sheet.dart';
 import 'merch_order_confirmation_screen.dart';
 import 'merch_post_purchase_screen.dart';
+import 'merch_share_exporter.dart';
+import 'merch_preset.dart';
 import 'merch_stamp_color.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
+import 'printful_placement_mapper.dart';
 import 'product_mockup_specs.dart';
 
 // ── State enum ────────────────────────────────────────────────────────────────
@@ -59,7 +63,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     required this.selectedCodes,
     required this.allCodes,
     required this.trips,
-    required this.artworkImageBytes,
+    // nullable: if null and initialPreset is provided, artwork is generated
+    // automatically from the preset on mount (ADR-147).
+    this.artworkImageBytes,
+    this.initialPreset,
     this.artworkConfirmationId,
     this.initialTemplate = CardTemplateType.grid,
     this.confirmedAspectRatio = 3.0 / 2.0,
@@ -74,6 +81,8 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.stampSizeMultiplier = 1.0,
     this.stampJitterFactor = 0.4,
     this.stampLayoutSeed,
+    this.initialColour,
+    this.subtitleOverride,
   });
 
   final List<String> selectedCodes;
@@ -84,7 +93,15 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final List<String> allCodes;
 
   final List<TripRecord> trips;
-  final Uint8List artworkImageBytes;
+
+  /// Pre-rendered artwork bytes. If `null`, artwork is generated from
+  /// [initialPreset] on mount (ADR-147). Existing callers that pass bytes
+  /// continue to work unchanged.
+  final Uint8List? artworkImageBytes;
+
+  /// Preset to use for auto-generating artwork when [artworkImageBytes] is
+  /// null. Ignored if [artworkImageBytes] is provided.
+  final MerchPreset? initialPreset;
   final String? artworkConfirmationId;
   final CardTemplateType initialTemplate;
 
@@ -105,11 +122,19 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final Color? dateColor;
   final bool transparentBackground;
 
+  /// Structured branding subtitle for the artwork (ADR-157).
+  /// When non-null, shown in the bottom branding zone of the card.
+  final String? subtitleOverride;
+
   /// Passport layout params (ADR-133). Forwarded to CardImageRenderer so
   /// stamp-colour re-renders preserve the user's size/scatter/seed design.
   final double stampSizeMultiplier;
   final double stampJitterFactor;
   final int? stampLayoutSeed;
+
+  /// Pre-selected shirt colour from [PulseMerchOption.suggestedShirtColor]
+  /// (ADR-153). When null, the first available colour is used.
+  final String? initialColour;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -136,7 +161,21 @@ class _LocalMockupPreviewScreenState
   // ── Card / artwork state ───────────────────────────────────────────────────
 
   late CardTemplateType _template;
-  late Uint8List _artworkBytes;
+
+  // nullable until first generation (ADR-147: preset-driven entry).
+  Uint8List? _artworkBytes;
+
+  /// True after the first successful artwork render. Prevents silent
+  /// re-generation on navigation events or unrelated state changes.
+  bool _artworkLocked = false;
+
+  /// Current active preset config (may be updated by Layer 2 customisation).
+  MerchPresetConfig? _presetConfig;
+
+  /// True when all Printful mockup retries are exhausted. Shows fallback
+  /// warning and re-enables the checkout button.
+  bool _mockupFailed = false;
+
   String? _artworkConfirmationId;
   String? _mockupApprovalId;
 
@@ -165,6 +204,11 @@ class _LocalMockupPreviewScreenState
   String? _merchConfigId;
   bool _checkoutLaunched = false;
 
+  // ── Mockup realtime listener (post-approve) ────────────────────────────────
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _mockupSubscription;
+  Timer? _mockupListenerTimer;
+
   // ── Flip view key — replaced to reset zoom when colour/placement changes ──
 
   int _flipViewKey = 0;
@@ -182,6 +226,11 @@ class _LocalMockupPreviewScreenState
 
   Color? _timelineTextColor;
 
+  // ── Grid text colour (M107) ────────────────────────────────────────────────
+  // Auto-derived from shirt colour; dark text on light shirts, light on dark.
+
+  Color? _gridTextColor;
+
   // ── Front ribbon mode (M74) ───────────────────────────────────────────────
   // 'all'      → ribbon uses all-time countries (widget.allCodes)
   // 'selected' → ribbon uses year-filtered selection (widget.selectedCodes)
@@ -195,19 +244,19 @@ class _LocalMockupPreviewScreenState
   int _artworkVariantIndex = 0;
   bool _variantLoading = false;
 
-  // ── Poll parameters ────────────────────────────────────────────────────────
+  // ── Post-checkout order poll parameters ────────────────────────────────────
 
   static const int _pollIntervalSeconds = 3;
   static const int _pollMaxAttempts = 10;
 
   // ── Mockup generation parameters ───────────────────────────────────────────
 
-  static const int _kMaxRetries = 1;
+  static const int _kMaxRetries = 2;
   // 30 s — function now returns after cart creation (~5–10 s); mockup is async.
   static const Duration _kCallTimeout = Duration(seconds: 30);
-  // Mockup URL is written to Firestore by the server after cart creation.
-  static const int _kMockupPollIntervalSeconds = 3;
-  static const int _kMockupPollMaxAttempts = 20; // up to 60 s
+  // Realtime listener timeout: Printful can take up to ~75 s (25 polls × 3 s).
+  // 120 s gives comfortable headroom.
+  static const Duration _kMockupListenerTimeout = Duration(seconds: 120);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -244,9 +293,15 @@ class _LocalMockupPreviewScreenState
     _              => PassportColorMode.black,
   };
 
-  /// Suggests a timeline text colour based on shirt colour luminance.
+  /// Suggests a timeline/grid text colour based on shirt colour luminance.
   /// Dark shirts → white text; light shirts → black text.
   Color _suggestTimelineTextColor(String shirtColour) => switch (shirtColour) {
+    'White' => Colors.black,
+    'Grey'  => Colors.black,
+    _       => Colors.white, // Black, Blue, Red → white
+  };
+
+  Color _suggestGridTextColor(String shirtColour) => switch (shirtColour) {
     'White' => Colors.black,
     'Grey'  => Colors.black,
     _       => Colors.white, // Black, Blue, Red → white
@@ -264,37 +319,64 @@ class _LocalMockupPreviewScreenState
   void initState() {
     super.initState();
     _template = widget.initialTemplate;
-    _artworkBytes = widget.artworkImageBytes;
     _artworkConfirmationId = widget.artworkConfirmationId;
-    _artworkVariants[0] = widget.artworkImageBytes;
-    // T-shirts always composite artwork transparently onto fabric. If the
-    // confirmed artwork was rendered with a background (transparentBackground=false),
-    // the multicolor variant must be re-rendered with transparency. Clearing
-    // slot 0 here forces _renderVariant(0) when the user picks multicolor,
-    // which sets transparentBg = _isTshirt || ... = true.
-    if (_isTshirt && !widget.transparentBackground) {
-      _artworkVariants[0] = null;
+    if (widget.initialColour != null &&
+        tshirtColors.contains(widget.initialColour)) {
+      _colour = widget.initialColour!;
     }
+    final providedBytes = widget.artworkImageBytes;
+    if (providedBytes != null) {
+      // Existing path: caller supplied pre-rendered artwork bytes (ADR-147).
+      _artworkBytes = providedBytes;
+      _artworkLocked = true;
+      _artworkVariants[0] = providedBytes;
+      // T-shirts always composite artwork transparently onto fabric. If the
+      // confirmed artwork was rendered with a background (transparentBackground=false),
+      // the multicolor variant must be re-rendered with transparency. Clearing
+      // slot 0 here forces _renderVariant(0) when the user picks multicolor,
+      // which sets transparentBg = _isTshirt || ... = true.
+      if (_isTshirt && !widget.transparentBackground) {
+        _artworkVariants[0] = null;
+      }
+    } else if (widget.initialPreset != null) {
+      // Preset-driven path: no artwork yet. Will be generated in postFrameCallback.
+      _presetConfig = widget.initialPreset!.config;
+      _template = _presetConfig!.layout;
+    }
+
     _passportColorMode = _suggestStampColor(_colour);
     _timelineTextColor = _suggestTimelineTextColor(_colour);
+    _gridTextColor = _suggestGridTextColor(_colour);
 
     WidgetsBinding.instance.addObserver(this);
 
-    _decodeArtwork(_artworkBytes);
+    if (_artworkBytes != null) {
+      _decodeArtwork(_artworkBytes!);
+    }
     _loadShirtImages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadFrontRibbonImage();
-      // Immediately render the suggested stamp color for the initial shirt
-      // colour so the user sees the correct variant on first entry (e.g. white
-      // stamps on a black shirt) without having to tap a color chip manually.
-      if (_isTshirt && _template == CardTemplateType.passport) {
-        unawaited(_setPassportColorMode(_passportColorMode));
-      }
-      // Immediately render with the suggested text colour for timeline cards
-      // so the artwork bytes are fresh + transparent on first entry.
-      if (_isTshirt && _template == CardTemplateType.timeline) {
-        unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
+
+      if (_artworkBytes != null) {
+        // Immediately render the suggested stamp color for the initial shirt
+        // colour so the user sees the correct variant on first entry (e.g. white
+        // stamps on a black shirt) without having to tap a color chip manually.
+        if (_isTshirt && _template == CardTemplateType.passport) {
+          unawaited(_setPassportColorMode(_passportColorMode));
+        }
+        // Immediately render with the suggested text colour for timeline cards
+        // so the artwork bytes are fresh + transparent on first entry.
+        if (_isTshirt && _template == CardTemplateType.timeline) {
+          unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
+        }
+        // Same for grid cards.
+        if (_isTshirt && _template == CardTemplateType.grid) {
+          unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+        }
+      } else if (_presetConfig != null) {
+        // Preset-driven: auto-generate artwork on first frame.
+        unawaited(_generateFromPreset(_presetConfig!));
       }
     });
   }
@@ -302,6 +384,8 @@ class _LocalMockupPreviewScreenState
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _mockupListenerTimer?.cancel();
+    _mockupSubscription?.cancel();
     // Cache owns frontShirtImage/backShirtImage — let it dispose them.
     LocalMockupImageCache.instance.dispose();
     // Artwork image is decoded directly from bytes (not cached) — screen owns it.
@@ -374,7 +458,7 @@ class _LocalMockupPreviewScreenState
     if (_template == CardTemplateType.timeline && _timelineTextColor != null) {
       textColor = _timelineTextColor!;
     } else {
-      final isDark = _colour == 'Black' || _colour == 'Navy' || _colour == 'Red';
+      final isDark = _colour == 'Black' || _colour == 'Blue' || _colour == 'Navy' || _colour == 'Red';
       textColor = isDark ? Colors.white : Colors.black;
     }
     // Use all-time codes when the user has selected 'all' ribbon mode.
@@ -405,6 +489,84 @@ class _LocalMockupPreviewScreenState
         _frontRibbonImage = frame.image;
       });
     } catch (_) {}
+  }
+
+  // ── Preset-driven artwork generation (ADR-147) ────────────────────────────
+
+  /// Generates artwork from [config] using [CardImageRenderer] and locks it.
+  ///
+  /// Shows a rerendering overlay while generating. Called on first mount when
+  /// [widget.initialPreset] is set, and again when the user applies Layer 2
+  /// customisation changes.
+  Future<void> _generateFromPreset(MerchPresetConfig config) async {
+    if (!mounted) return;
+    setState(() => _state = _MockupState.rerendering);
+    try {
+      final result = await CardImageRenderer.render(
+        context,
+        config.layout,
+        codes: widget.selectedCodes,
+        trips: widget.trips,
+        forPrint: false,
+        entryOnly: config.entryOnly,
+        cardAspectRatio: widget.confirmedAspectRatio,
+        transparentBackground: _isTshirt,
+        stampJitterFactor: config.stampJitterFactor,
+        stampSizeMultiplier: config.stampSizeMultiplier,
+      );
+      if (!mounted) return;
+      _artworkVariants[0] = result.bytes;
+      await _decodeArtwork(result.bytes);
+      if (!mounted) return;
+      setState(() {
+        _artworkBytes = result.bytes;
+        _artworkLocked = true;
+        _artworkConfirmationId = null; // reset — new image, no confirmation yet
+        _state = _MockupState.configuring;
+      });
+      // Apply suggested stamp/text colour for the newly generated image.
+      if (_isTshirt && config.layout == CardTemplateType.passport) {
+        unawaited(_setPassportColorMode(_passportColorMode));
+      }
+      if (_isTshirt && config.layout == CardTemplateType.timeline) {
+        unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
+      }
+      if (_isTshirt && config.layout == CardTemplateType.grid) {
+        unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+      }
+    } catch (e) {
+      debugPrint('[merch] preset generation failed: $e');
+      if (!mounted) return;
+      setState(() => _state = _MockupState.configuring);
+    }
+  }
+
+  /// Opens the Layer 2 customisation sheet and regenerates artwork if the
+  /// user applies changes (ADR-147).
+  Future<void> _openCustomisationSheet() async {
+    final current = _presetConfig ??
+        MerchPresetConfig(
+          layout:    _template,
+          source:    MerchCountrySource.allTime,
+          jitter:    widget.stampJitterFactor,
+          density:   MerchDensity.balanced,
+          stampMode: widget.confirmedEntryOnly
+              ? MerchStampMode.entryOnly
+              : MerchStampMode.entryExit,
+        );
+
+    final updated = await showMerchCustomisationSheet(
+      context,
+      config: current,
+    );
+    if (updated == null || !mounted) return;
+
+    setState(() {
+      _presetConfig = updated;
+      _template = updated.layout;
+      _artworkLocked = false; // allow regeneration
+    });
+    await _generateFromPreset(updated);
   }
 
   // ── App lifecycle (post-checkout poll) ────────────────────────────────────
@@ -460,40 +622,71 @@ class _LocalMockupPreviewScreenState
     _showOrderProcessingFallback();
   }
 
-  // ── Mockup URL polling (post-approve) ─────────────────────────────────────
+  // ── Mockup realtime listener (post-approve) ───────────────────────────────
 
-  /// Polls Firestore for front and back mockup URLs after [_onApprove] returns.
-  /// The server generates mockups in the background and writes the URLs to the
-  /// MerchConfig document once Printful completes — typically 10–30 s.
-  Future<void> _startMockupPolling(String configId, String uid) async {
+  /// Attaches a Firestore realtime listener on the MerchConfig document after
+  /// [_onApprove] returns. Reacts to [mockupStatus] field updates written by
+  /// the Cloud Function background task (typically within 20–75 s).
+  ///
+  /// Cancels itself when status is terminal ('ready', 'timeout', 'failed') or
+  /// after [_kMockupListenerTimeout] elapses without a terminal state.
+  void _startMockupListener(String configId, String uid) {
     final docRef = FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('merch_configs')
         .doc(configId);
 
-    for (int attempt = 0; attempt < _kMockupPollMaxAttempts; attempt++) {
-      await Future<void>.delayed(
-          const Duration(seconds: _kMockupPollIntervalSeconds));
-      if (!mounted) return;
-      try {
-        final snap = await docRef.get();
-        final data = snap.data();
-        final frontUrl = data?['frontMockupUrl'] as String?;
-        final backUrl  = data?['backMockupUrl']  as String?;
-        if (frontUrl != null && frontUrl.isNotEmpty) {
-          debugPrint('[mockup] poll: mockups arrived on attempt $attempt (front=✓ back=${backUrl != null ? "✓" : "null"})');
-          setState(() {
-            _mockupUrl     = frontUrl;
-            _backMockupUrl = backUrl;
-          });
-          return;
-        }
-      } catch (_) {
-        // Network error — continue polling.
-      }
-    }
-    debugPrint('[mockup] poll: mockupUrl did not arrive within ${_kMockupPollMaxAttempts * _kMockupPollIntervalSeconds}s');
+    // Hard timeout — cancel and surface the amber fallback if Firestore never
+    // delivers a terminal status within the window.
+    _mockupListenerTimer = Timer(_kMockupListenerTimeout, () {
+      _mockupSubscription?.cancel();
+      _mockupSubscription = null;
+      debugPrint('[mockup] listener: timed out after ${_kMockupListenerTimeout.inSeconds}s');
+      if (mounted) setState(() => _mockupFailed = true);
+    });
+
+    _mockupSubscription = docRef.snapshots().listen(
+      (snap) {
+        final data      = snap.data();
+        final status    = data?['mockupStatus'] as String?;
+        final frontUrl  = data?['frontMockupUrl'] as String?;
+        final backUrl   = data?['backMockupUrl']  as String?;
+
+        debugPrint('[mockup] listener update: status=$status front=${frontUrl != null ? "✓" : "null"} back=${backUrl != null ? "✓" : "null"}');
+
+        // Terminal when server has written a definitive status, or (backwards
+        // compat) when a URL is present on a doc that predates mockupStatus.
+        final isTerminal = status == 'ready' || status == 'timeout' ||
+            status == 'failed' ||
+            (status == null && frontUrl != null && frontUrl.isNotEmpty);
+
+        if (!isTerminal) return;
+
+        _mockupListenerTimer?.cancel();
+        _mockupListenerTimer = null;
+        _mockupSubscription?.cancel();
+        _mockupSubscription = null;
+
+        if (!mounted) return;
+        setState(() {
+          _mockupUrl     = frontUrl;
+          _backMockupUrl = backUrl;
+          // Show amber fallback when server explicitly timed out or failed and
+          // we have no URLs to display.
+          if ((status == 'timeout' || status == 'failed') &&
+              (frontUrl == null || frontUrl.isEmpty)) {
+            _mockupFailed = true;
+          }
+        });
+      },
+      onError: (Object e) {
+        debugPrint('[mockup] listener error: $e');
+        _mockupListenerTimer?.cancel();
+        _mockupListenerTimer = null;
+        if (mounted) setState(() => _mockupFailed = true);
+      },
+    );
   }
 
   void _showOrderProcessingFallback() {
@@ -554,6 +747,7 @@ class _LocalMockupPreviewScreenState
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
         cardAspectRatio: widget.confirmedAspectRatio,
         titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
         stampColor: stampColor,
         dateColor: widget.dateColor,
         transparentBackground: transparentBg,
@@ -612,6 +806,7 @@ class _LocalMockupPreviewScreenState
         trips: widget.trips,
         cardAspectRatio: widget.confirmedAspectRatio,
         titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
       );
@@ -621,6 +816,35 @@ class _LocalMockupPreviewScreenState
       setState(() => _artworkBytes = result.bytes);
       // Re-render front ribbon to match the chosen text color.
       await _loadFrontRibbonImage();
+    } finally {
+      if (mounted) setState(() => _variantLoading = false);
+    }
+  }
+
+  // ── Grid text colour selection (M107) ─────────────────────────────────────
+
+  Future<void> _setGridTextColor(Color textColor) async {
+    setState(() {
+      _gridTextColor = textColor;
+      _variantLoading = true;
+    });
+    try {
+      if (!context.mounted) return;
+      final result = await CardImageRenderer.render(
+        context,
+        _template,
+        codes: widget.selectedCodes,
+        trips: widget.trips,
+        cardAspectRatio: widget.confirmedAspectRatio,
+        titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
+        transparentBackground: true,
+        textColor: textColor,
+      );
+      if (!mounted) return;
+      await _decodeArtwork(result.bytes);
+      if (!mounted) return;
+      setState(() => _artworkBytes = result.bytes);
     } finally {
       if (mounted) setState(() => _variantLoading = false);
     }
@@ -657,6 +881,9 @@ class _LocalMockupPreviewScreenState
     if (colourChanged && _isTshirt && _template == CardTemplateType.timeline) {
       unawaited(_setTimelineTextColor(_suggestTimelineTextColor(colour)));
     }
+    if (colourChanged && _isTshirt && _template == CardTemplateType.grid) {
+      unawaited(_setGridTextColor(_suggestGridTextColor(colour)));
+    }
   }
 
   // ── Upload helpers ─────────────────────────────────────────────────────────
@@ -690,6 +917,13 @@ class _LocalMockupPreviewScreenState
   // ── Approval handler ───────────────────────────────────────────────────────
 
   Future<void> _onApprove() async {
+    // Artwork must be locked before approval (ADR-147).
+    final artworkBytes = _artworkBytes;
+    if (artworkBytes == null) {
+      debugPrint('[mockup] approve blocked — artwork not yet generated');
+      return;
+    }
+
     final uid = ref.read(currentUidProvider);
     if (uid == null) {
       debugPrint('[mockup] ❌ approve blocked — user not signed in');
@@ -704,7 +938,7 @@ class _LocalMockupPreviewScreenState
     debugPrint('[mockup]   product=${_product.name}  colour=$_colour  size=$_tshirtSize');
     debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
     debugPrint('[mockup]   variant=$_resolvedVariantGid');
-    debugPrint('[mockup]   artworkBytes=${_artworkBytes.length}B');
+    debugPrint('[mockup]   artworkBytes=${artworkBytes.length}B');
     debugPrint('[mockup]   frontRibbonBytes=${_frontRibbonBytes?.length ?? 0}B');
     debugPrint('[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}');
 
@@ -718,7 +952,7 @@ class _LocalMockupPreviewScreenState
       String? confirmationId = _artworkConfirmationId;
       if (confirmationId == null) {
         debugPrint('[mockup] step 1: creating artwork confirmation');
-        final imageHash = sha256.convert(_artworkBytes).toString();
+        final imageHash = sha256.convert(artworkBytes).toString();
         debugPrint('[mockup]   imageHash=$imageHash');
         final newConfirmation = ArtworkConfirmation(
           confirmationId: 'ac-${DateTime.now().microsecondsSinceEpoch}',
@@ -780,12 +1014,14 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
 
       // ── Step 3: call createMerchCart (with retry) ──────────────────────────
-      final sendFrontImage = _isTshirt && _frontPosition != 'none' && _frontRibbonBytes != null;
-      final sendBackImage  = _backPosition != 'none';
+      final sendFrontImage = _isTshirt &&
+          PrintfulPlacementMapper.sendsArtwork(_frontPosition) &&
+          _frontRibbonBytes != null;
+      final sendBackImage = PrintfulPlacementMapper.sendsArtwork(_backPosition);
       // Resize images for upload — the server upscales to print dimensions anyway.
       // Reduces the back-artwork payload from ~1.7 MB to ~400 KB (transparent PNG preserved).
       final encSw = Stopwatch()..start();
-      final uploadBackBytes  = sendBackImage  ? await _resizeForUpload(_artworkBytes)       : null;
+      final uploadBackBytes  = sendBackImage  ? await _resizeForUpload(artworkBytes)        : null;
       final uploadFrontBytes = sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!)  : null;
       final backImageBase64  = uploadBackBytes  != null ? base64Encode(uploadBackBytes)  : null;
       final frontImageBase64 = uploadFrontBytes != null ? base64Encode(uploadFrontBytes) : null;
@@ -793,7 +1029,7 @@ class _LocalMockupPreviewScreenState
       debugPrint('[mockup] step 3: calling createMerchCart (max retries: $_kMaxRetries)');
       debugPrint('[mockup]   resize+encode took ${encSw.elapsedMilliseconds}ms');
       debugPrint('[mockup]   sendFrontImage=$sendFrontImage raw=${_frontRibbonBytes?.length ?? 0}B → upload=${uploadFrontBytes?.length ?? 0}B b64=${frontImageBase64?.length ?? 0}B');
-      debugPrint('[mockup]   sendBackImage=$sendBackImage raw=${_artworkBytes.length}B → upload=${uploadBackBytes?.length ?? 0}B b64=${backImageBase64?.length ?? 0}B');
+      debugPrint('[mockup]   sendBackImage=$sendBackImage raw=${artworkBytes.length}B → upload=${uploadBackBytes?.length ?? 0}B b64=${backImageBase64?.length ?? 0}B');
       debugPrint('[mockup]   total payload ~${((frontImageBase64?.length ?? 0) + (backImageBase64?.length ?? 0)) ~/ 1024}KB');
       debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
       debugPrint('[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId');
@@ -824,8 +1060,8 @@ class _LocalMockupPreviewScreenState
                 'mockupApprovalId': approvalId,
                 if (backImageBase64  != null) 'backImageBase64':  backImageBase64,
                 if (frontImageBase64 != null) 'frontImageBase64': frontImageBase64,
-                if (_isTshirt) 'frontPosition': _frontPosition,
-                if (_isTshirt) 'backPosition':  _backPosition,
+                if (_isTshirt) 'frontPosition': PrintfulPlacementMapper.mapFront(_frontPosition),
+                if (_isTshirt) 'backPosition':  PrintfulPlacementMapper.mapBack(_backPosition),
               })
               .timeout(_kCallTimeout);
           sw.stop();
@@ -861,7 +1097,7 @@ class _LocalMockupPreviewScreenState
             _merchConfigId = merchConfigId;
           });
           if ((mockupUrl == null || mockupUrl.isEmpty) && merchConfigId != null) {
-            unawaited(_startMockupPolling(merchConfigId, uid));
+            _startMockupListener(merchConfigId, uid);
           }
           callSucceeded = true;
           break;
@@ -945,6 +1181,12 @@ class _LocalMockupPreviewScreenState
     }
   }
 
+  Future<void> _shareDesign() async {
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    await MerchShareExporter.share(bytes, title: 'My Travel Design');
+  }
+
   void _openConfirmationScreen() {
     final url = _checkoutUrl;
     if (url == null) return;
@@ -954,7 +1196,7 @@ class _LocalMockupPreviewScreenState
           frontMockupUrl:    _mockupUrl,
           backMockupUrl:     _backMockupUrl,
           frontArtworkBytes: _frontRibbonBytes,
-          artworkBytes:      _artworkBytes,
+          artworkBytes:      _artworkBytes!,
           size:              _isTshirt ? _tshirtSize : _posterSize,
           colour:            _colour,
           frontPosition:     _frontPosition,
@@ -991,6 +1233,14 @@ class _LocalMockupPreviewScreenState
       child: Scaffold(
       appBar: AppBar(
         title: Text('Design your ${_isTshirt ? 'T-Shirt' : 'Poster'}'),
+        actions: [
+          if (_artworkBytes != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Share This Design',
+              onPressed: _shareDesign,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -1027,20 +1277,10 @@ class _LocalMockupPreviewScreenState
     }
 
     if (_state == _MockupState.ready) {
-      final frontUrl = _mockupUrl;
-      final backUrl  = _backMockupUrl;
-      if (frontUrl != null || backUrl != null) {
-        // Show separate front / back Printful mockups with swipe navigation.
-        // If only one side is available, show it without the page indicator.
-        final urls = [
-          if (frontUrl != null) frontUrl,
-          if (backUrl  != null) backUrl,
-        ];
-        final labels = [
-          if (frontUrl != null) 'Front',
-          if (backUrl  != null) 'Back',
-        ];
-        return _MockupPageView(urls: urls, labels: labels, fallback: _buildLocalMockupArea(theme));
+      final collageUrl = _mockupUrl;
+      if (collageUrl != null) {
+        // Show the Printful collage mockup (front + back in one image).
+        return _MockupPageView(urls: [collageUrl], labels: const [], fallback: _buildLocalMockupArea(theme));
       }
       // Mockup not yet available — show local preview with a loading overlay
       // while Firestore polling waits for the server to complete generation.
@@ -1373,7 +1613,7 @@ class _LocalMockupPreviewScreenState
           top: BorderSide(color: theme.dividerColor, width: 0.5),
         ),
       ),
-      constraints: const BoxConstraints(maxHeight: 280),
+      constraints: const BoxConstraints(maxHeight: 360),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
@@ -1491,36 +1731,95 @@ class _LocalMockupPreviewScreenState
   // ── Bottom bar ─────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar() {
+    final theme = Theme.of(context);
+
     if (_state == _MockupState.ready) {
-      final mockupReady = _mockupUrl != null;
-      return Row(
+      final mockupReady = _mockupUrl != null || _mockupFailed;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: FilledButton(
-              onPressed: mockupReady ? _openConfirmationScreen : null,
-              child: Text(mockupReady ? 'Review & Checkout' : 'Loading preview…'),
+          // Fallback warning when mockup polling timed out (ADR-147).
+          if (_mockupFailed)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Preview unavailable \u2014 you can still proceed',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.amber.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: mockupReady ? _openConfirmationScreen : null,
+                  child: Text(
+                    mockupReady ? 'Review & Checkout' : 'Loading preview\u2026',
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       );
     }
 
-    return Row(
+    // Artwork not yet generated (preset-driven entry loading state).
+    final artworkReady = _artworkBytes != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Edit card design'),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FilledButton(
-            onPressed: _state == _MockupState.configuring ? _onApprove : null,
-            child: Text(
-              _state == _MockupState.approving
-                  ? 'Preparing your order\u2026'
-                  : 'Approve this order',
+        // "Customise Design" button — only after artwork is locked (ADR-147).
+        if (_artworkLocked && _state == _MockupState.configuring)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _openCustomisationSheet,
+                child: const Text('Customise Design'),
+              ),
             ),
           ),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Edit card design'),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: artworkReady && _state == _MockupState.configuring
+                    ? _onApprove
+                    : null,
+                child: Text(
+                  _state == _MockupState.approving
+                      ? 'Preparing your order\u2026'
+                      : !artworkReady
+                          ? 'Generating design\u2026'
+                          : 'Approve this order',
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

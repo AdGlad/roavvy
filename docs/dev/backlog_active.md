@@ -7,6 +7,91 @@
 
 ## Next up (mobile-first order)
 
+### M106 — Flag Grid Quality, Layout Options, and Packed Row Default
+**Goal:** Improve flag grid artwork so flags preserve their aspect ratios, avoid cropping, and fit cleanly in portrait/landscape outputs. Add three selectable layout algorithms; default all generation to Packed Row.
+**Phase:** 22 — Merch Platform / Visual Quality
+**Depends on:** M105
+**Scope in:** `flag_grid_layout_engine.dart` (`FlagGridLayoutMode` enum, `FlagGridLayoutEngine`, `FlagGridTile`); `FlagTileRenderer.drawContained()` + `FilterQuality.high`; `GridFlagsCard.layoutMode` param; `CardImageRenderer.render(gridLayoutMode:)`; `_GridLayoutPicker` segmented control in `CardEditorScreen`; `_CardParams.gridLayoutMode`; ADR-156.
+**Scope out:** New flag SVG sources (existing flag-icons 4×3 library is already vector quality); animated layout transitions; merch call sites (inherit packedRow default); web/Android.
+**Full plan:** `docs/dev/milestones/m106-flag-grid-quality-and-layout.md`
+**Status:** ✅ Complete (2026-05-10).
+
+---
+
+### M105 — Social Merch & Travel Identity System
+**Goal:** Transform merchandise into a social, emotional, and viral engagement system. Users should feel "I unlocked something special" — with a travel identity, cinematic gallery reveal, featured lead card, and social share export.
+**Phase:** 22 — Merch Platform
+**Depends on:** M104
+**Scope in:** `travel_identity.dart` (`TravelIdentity` enum + `TravelIdentityInfo`); `merch_drop.dart` (`MerchDrop` + `kCurrentMerchDrops`); `merch_share_exporter.dart` (social PNG export via share_plus); staggered reveal animations in `MerchOptionCard`; `MerchOptionFeaturedCard` for top-ranked option; achievement header celebration with identity label + scale animation; "Share" icon in `LocalMockupPreviewScreen` AppBar; identity-aware section labels; drop badge labels; ADR-155.
+**Scope out:** New CardTemplateType values; new product types; checkout/Printful changes; animated video exports; social feed; web/Android.
+**Full plan:** `docs/dev/milestones/m105-social-merch-identity-system.md`
+**Status:** ✅ Complete (2026-05-10).
+
+---
+
+### M104 — Intelligent Merch Recommendation Engine
+**Goal:** Replace fixed per-builder template lists with a ranked, density-aware `MerchTemplateRanker`; add `MerchStory` for emotionally engaging option titles; extend 5-tier auto-tune scaling; improve shirt colour intelligence with density awareness; add `contextLabel` to options.
+**Phase:** 22 — Merch Platform
+**Depends on:** M103
+**Scope in:** New `merch_template_ranker.dart` (`MerchDensityClass`, `MerchTemplateRank`, `MerchTemplateRanker`); new `merch_story.dart` (`MerchStory.forOption()`); `merch_option_list_widgets.dart` (5-tier auto-tune, density-aware `merchSuggestShirtColor`, `contextLabel` in card); `pulse_merch_option.dart` (`contextLabel`); `merch_context.dart` (builders use ranker + story).
+**Scope out:** New CardTemplateType values; new product types; AI runtime calls; checkout/Printful/web.
+**Full plan:** `docs/dev/milestones/m104-intelligent-merch-recommendation-engine.md`
+**Status:** ✅ Complete (2026-05-09).
+
+---
+
+### M103 — Expanded Merch Template Variety
+**Goal:** Add two new renderable card templates (`CardTemplateType.typography`, `CardTemplateType.badge`), improve per-achievement option curation, and add shirt colour intelligence so each generated option pre-selects a suitable shirt colour.
+**Phase:** 22 — Merch Platform
+**Depends on:** M102
+**Scope in:** `travel_card.dart` (2 new enum values); `card_templates.dart` (`TypographyCard`, `BadgeCard` widgets); `card_image_renderer.dart`; `merch_option_list_widgets.dart` (`merchSuggestShirtColor`); `pulse_merch_option.dart` (`suggestedShirtColor`); `local_mockup_preview_screen.dart` (`initialColour`); `merch_context.dart` (typography + badge in builders); exhaustive-switch updates in `card_editor_screen`, `artwork_confirmation_screen`, `card_type_picker_screen`.
+**Scope out:** Route/vintage/scrapbook/minimalist templates; full card editor support for new templates; Printful/Shopify; web; Android.
+**Full plan:** `docs/dev/milestones/m103-expanded-merch-template-variety.md`
+**Status:** ✅ Complete (2026-05-09).
+
+---
+
+### M102 — Achievement-Aware Merchandise Context System
+**Goal:** Extend `MerchContext` and `AchievementEngine` so achievements generate merchandise options scoped precisely to the relevant travel data: continent-explorer achievements filter to only countries in that continent; region achievements filter to sub-region; passport milestones prioritise stamp-led layouts.
+**Phase:** 22 — Merch Platform
+**Depends on:** M100
+**Scope in:** `packages/shared_models` (Achievement: continentScope/regionScope fields; new continent/region/passport achievements in kAchievements; AchievementEngine: per-continent + per-region + passport stamp counts; new `continent_subregion_map.dart`); `apps/mobile_flutter` (MerchContext: scope-filtered _resolveCodes/_resolveTrips, new _buildContinentExplorerItems/_buildRegionItems/_buildPassportMilestoneItems; AchievementMerchOptionScreen subtitle for new types).
+**Scope out:** `achievement_gallery.dart` / `next_achievements_carousel.dart` stat display accuracy; LocalMockupPreviewScreen, Printful, Shopify; web; Android.
+**Status:** ✅ Complete (2026-05-09).
+
+---
+
+### M100 — Expanded Template Variety
+**Goal:** Add Heart Flags as a fourth merch template group in both Memory Pulse and Achievement merch screens. Requires `onAssetsLoaded` hook on `HeartFlagsCard` so `CardImageRenderer` captures SVG flags correctly off-screen.
+**Phase:** 22 — Merch Platform
+**Depends on:** M99
+**Scope in:** `card_templates.dart` (HeartFlagsCard onAssetsLoaded); `card_image_renderer.dart` (assetsCompleter for heart); `merch_context.dart` (heart group in all builders); `pulse_merch_option_screen.dart` (heart in groups).
+**Scope out:** Route/typography/explorer/vintage templates; entry-only passport variant; shared_models; web.
+**Status:** ✅ Complete (2026-05-08).
+
+---
+
+### M98 — Achievement-Driven Merch Workflow
+**Goal:** Fix the "Make a Tee" / "Create" buttons in the Stats & Achievement Dashboard to navigate into the same modern t-shirt purchase workflow used by Memory Pulse. Extract shared rendering widgets from `PulseMerchOptionScreen`; create `AchievementMerchOptionScreen` that generates `PulseMerchOption` items from achievement context. Both entry points share the same merch pipeline end-to-end.
+**Phase:** 21 — Engagement & Gamification
+**Depends on:** M96 (preset-driven merch), M97 (gamified stats dashboard)
+**Scope in:** New `lib/features/merch/merch_option_list_widgets.dart`; new `lib/features/merch/achievement_merch_option_screen.dart`; `pulse_merch_option_screen.dart` (import shared widgets); `achievement_gallery.dart` (reroute `_MerchChip`); `merch_moments_section.dart` (reroute `_MerchMomentTile`).
+**Scope out:** `LocalMockupPreviewScreen`, `MerchOrderConfirmationScreen`, Printful/Shopify, shared_models, web.
+**Full plan:** `docs/dev/milestones/m98-achievement-merch-workflow.md`
+**Status:** ✅ Complete (2026-05-08).
+
+---
+
+### M97 — Gamified Stats & Achievement Dashboard
+**Goal:** Replace the plain 3-stat panel + flat achievement grid with a gamified travel dashboard: fl_chart PieChart donut progress ring, next-achievements carousel, tabbed achievement gallery with merch CTAs, and a Merch Moments section driven by unlocked achievements. Expands kAchievements from 8 to ~30 trackable achievements with progressTarget and MerchTriggerType fields.
+**Phase:** 21 — Engagement & Gamification
+**Scope in:** `pubspec.yaml` (fl_chart); `packages/shared_models` (Achievement model, kAchievements, AchievementEngine); `lib/core/providers.dart`; `lib/features/stats/stats_screen.dart`; new `lib/features/stats/widgets/` files.
+**Scope out:** Passport stamp / streak achievements; poster/mug merch types; web; new Drift schema.
+**Full plan:** `docs/dev/milestones/m97-gamified-stats-dashboard.md`
+**Status:** ✅ Complete (2026-05-08).
+
+---
+
 ### M89 — Hero Image Detection & Trip Labels
 **Goal:** During photo scanning, select up to 5 metadata-scored candidates per trip; after scan completes, run on-device Vision framework labelling on candidates; persist a structured hero image record (labels + score + rank) in Drift. No photos leave the device. Scan performance unaffected.
 **Phase:** 19 — Personalisation & Memory
@@ -65,6 +150,16 @@
 **Scope in:** New `year_in_review_screen.dart`, `year_in_review_service.dart`; `map_screen.dart` (Dec/Jan entry chip); `card_image_renderer.dart` (YIR card render); `notification_service.dart` (New Year notification).
 **Full plan:** `docs/dev/milestones/m94-year-in-review.md`
 **Status:** ✅ Complete (2026-05-01).
+
+---
+
+### M95 — Memory Pulse 2.0: Question-Based Reveal + Share
+**Goal:** Upgrade M91 Memory Pulse from a passive anniversary card into a curiosity-first engagement loop: question teaser card, animated reveal sheet, on-device share card, question-style notifications, smart morning/evening timing, and a post-scan pulse trigger.
+**Phase:** 19 — Personalisation & Memory
+**Depends on:** M91 (MemoryPulseService, MemoryPulseCard), M90 (HeroImageView)
+**Scope in:** `memory_pulse_service.dart`, `memory_pulse_card.dart`; new `memory_reveal_sheet.dart`, `memory_share_service.dart`, `app_open_tracker.dart`; `main_shell.dart`; `scan_summary_screen.dart`.
+**Full plan:** `docs/dev/milestones/m95-memory-pulse-reveal.md`
+**Status:** ✅ Complete (2026-05-04).
 
 ---
 
@@ -272,6 +367,17 @@ Checkbox gates the proceed button. "Go Back" returns to `ready` state with mocku
 
 **Dependencies:** None — sits on top of existing `ready` state output.
 **Status:** ✅ Complete (2026-04-27).
+
+---
+
+### M96 — Preset-Driven Merch & Advanced Customisation
+**Goal:** Replace the blank-state card-first merch flow with a preset-driven experience: instant t-shirt mockup from a smart preset, two-layer customisation (quick inline controls + explicit advanced sheet), locked image source of truth across the full purchase pipeline, Printful placement/none/back mockup fixes, and loading UX with retry logic.
+**Phase:** 20 — Commerce Experience
+**Depends on:** M75, M85, M93
+**Scope in:** New `merch_preset.dart`, `merch_customisation_sheet.dart`, `printful_placement_mapper.dart`; refactor `local_mockup_preview_screen.dart`.
+**Scope out:** Post-purchase "My Merch" screen; gift messages (M81); shipping speed selection (M83); web checkout.
+**Full plan:** `docs/dev/milestones/m96-preset-merch-customisation.md`
+**Status:** ✅ Complete (2026-05-04).
 
 ---
 

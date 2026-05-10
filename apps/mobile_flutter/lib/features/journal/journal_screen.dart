@@ -1,85 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_custom_carousel/flutter_custom_carousel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
-import '../../core/country_names.dart';
 import '../../core/providers.dart';
-import '../map/country_region_globe_screen.dart';
-import '../scan/hero_providers.dart';
-import '../shared/hero_image_view.dart';
-import '../shared/hero_override_picker.dart';
+import 'journal_providers.dart';
+import 'trip_carousel_card.dart';
+import 'trip_detail_screen.dart';
 
-/// Returns a deterministic fallback colour for a continent name.
-Color _continentFallbackColor(String? continent) {
-  switch (continent) {
-    case 'Europe':
-      return const Color(0xFF2563EB); // blue
-    case 'Asia':
-      return const Color(0xFF7C3AED); // purple
-    case 'North America':
-      return const Color(0xFF059669); // emerald
-    case 'South America':
-      return const Color(0xFFD97706); // amber
-    case 'Africa':
-      return const Color(0xFFDC2626); // red
-    case 'Oceania':
-      return const Color(0xFF0891B2); // cyan
-    default:
-      return const Color(0xFF374151); // neutral gray
-  }
-}
-
-const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-String _flagEmoji(String isoCode) {
-  if (isoCode.length != 2) return '';
-  const base = 0x1F1E6;
-  return String.fromCharCode(base + isoCode.codeUnitAt(0) - 65) +
-      String.fromCharCode(base + isoCode.codeUnitAt(1) - 65);
-}
-
-String _fmtDate(DateTime dt, {bool showYear = true}) {
-  final m = _months[dt.month - 1];
-  return showYear ? '${dt.day} $m ${dt.year}' : '${dt.day} $m';
-}
-
-String _dateRange(DateTime start, DateTime end) {
-  if (start.year == end.year) {
-    return '${_fmtDate(start, showYear: false)} – ${_fmtDate(end)}';
-  }
-  return '${_fmtDate(start)} – ${_fmtDate(end)}';
-}
-
-int _tripDays(DateTime start, DateTime end) =>
-    end.difference(start).inDays + 1;
-
-/// Chronological trip history, grouped by year with sticky section headers.
+/// Journal screen — vertical rolodex carousel of trip cards.
 ///
-/// Entry point: Journal tab (index 1). Reads trips from [tripListProvider]
-/// (a [FutureProvider] that is invalidated after clearAll and scan save —
-/// ADR-081). Watches [effectiveVisitsProvider] for [CountryDetailSheet] data.
+/// Cards use a custom [effectsBuilder] for correct 3D perspective: the selected
+/// card is full-size and centred; adjacent cards peek above/below at ~10% scale
+/// reduction with a subtle X-axis tilt and 50% opacity.
 class JournalScreen extends ConsumerWidget {
   const JournalScreen({super.key, required this.onNavigateToScan});
 
-  /// Called when the user taps "Scan Photos" in the empty state.
   final VoidCallback onNavigateToScan;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tripsAsync = ref.watch(tripListProvider);
-    final visitsAsync = ref.watch(effectiveVisitsProvider);
 
-    final visitsByCode = <String, EffectiveVisitedCountry>{};
-    visitsAsync.whenData((visits) {
-      for (final v in visits) {
-        visitsByCode[v.countryCode] = v;
-      }
-    });
-
-    // Design Principle 3: no spinner — render nothing while loading.
+    // No spinner — render nothing while loading.
     final trips = tripsAsync.valueOrNull;
     if (trips == null) return const SizedBox.shrink();
 
@@ -87,7 +30,11 @@ class JournalScreen extends ConsumerWidget {
       return _EmptyState(onScanTap: onNavigateToScan);
     }
 
-    return _JournalList(trips: trips, visitsByCode: visitsByCode);
+    // Sort trips descending by start date.
+    final sortedTrips = List<TripRecord>.from(trips)
+      ..sort((a, b) => b.startedOn.compareTo(a.startedOn));
+
+    return _JournalCarousel(trips: sortedTrips);
   }
 }
 
@@ -135,225 +82,133 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ── Journal list ──────────────────────────────────────────────────────────────
+// ── Journal Carousel ──────────────────────────────────────────────────────────
 
-class _JournalList extends StatelessWidget {
-  const _JournalList({
-    required this.trips,
-    required this.visitsByCode,
-  });
+class _JournalCarousel extends ConsumerStatefulWidget {
+  const _JournalCarousel({required this.trips});
 
   final List<TripRecord> trips;
-  final Map<String, EffectiveVisitedCountry> visitsByCode;
+
+  @override
+  ConsumerState<_JournalCarousel> createState() => _JournalCarouselState();
+}
+
+class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
+  late final CustomCarouselScrollController _controller;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = ref.read(journalCarouselIndexProvider);
+    _controller = CustomCarouselScrollController(initialItem: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Group trips by year; sort years descending; within year sort descending.
-    final byYear = <int, List<TripRecord>>{};
-    for (final t in trips) {
-      byYear.putIfAbsent(t.startedOn.year, () => []).add(t);
-    }
-    final years = byYear.keys.toList()..sort((a, b) => b.compareTo(a));
-    for (final y in years) {
-      byYear[y]!.sort((a, b) => b.startedOn.compareTo(a.startedOn));
-    }
+    final count = widget.trips.length;
 
-    final slivers = <Widget>[
-      const SliverAppBar(
-        title: Text('Journal'),
-        floating: true,
-        snap: true,
-      ),
-    ];
-
-    for (final year in years) {
-      final yearTrips = byYear[year]!;
-      final tripWord = yearTrips.length == 1 ? 'trip' : 'trips';
-      slivers.add(
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _YearHeaderDelegate(
-            text: '$year  ·  ${yearTrips.length} $tripWord',
-          ),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0E1A),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text(
+          'JOURNAL',
+          style: TextStyle(letterSpacing: 4, fontWeight: FontWeight.w900),
         ),
-      );
-      slivers.add(
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final trip = yearTrips[index];
-              final isLast = index == yearTrips.length - 1;
-              return Column(
-                children: [
-                  _TripTile(
-                    trip: trip,
-                    visit: visitsByCode[trip.countryCode],
-                  ),
-                  if (!isLast) const Divider(height: 1, indent: 16),
-                ],
-              );
-            },
-            childCount: yearTrips.length,
-          ),
-        ),
-      );
-    }
-
-    return CustomScrollView(slivers: slivers);
-  }
-}
-
-// ── Year section header ───────────────────────────────────────────────────────
-
-class _YearHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _YearHeaderDelegate({required this.text});
-
-  final String text;
-  static const double _height = 40;
-
-  @override
-  double get maxExtent => _height;
-  @override
-  double get minExtent => _height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Semantics(
-      header: true,
-      child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_YearHeaderDelegate other) => text != other.text;
-}
-
-// ── Trip tile ─────────────────────────────────────────────────────────────────
-
-class _TripTile extends ConsumerWidget {
-  const _TripTile({required this.trip, required this.visit});
-
-  final TripRecord trip;
-  final EffectiveVisitedCountry? visit;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final secondary = theme.colorScheme.onSurfaceVariant;
-
-    final countryName = kCountryNames[trip.countryCode] ?? trip.countryCode;
-    final flag = _flagEmoji(trip.countryCode);
-    final dateRange = _dateRange(trip.startedOn, trip.endedOn);
-    final days = _tripDays(trip.startedOn, trip.endedOn);
-    final dayWord = days == 1 ? 'day' : 'days';
-
-    final heroAsync = ref.watch(heroForTripProvider(trip.id));
-    final hero = heroAsync.valueOrNull;
-    final fallbackColor = _continentFallbackColor(
-      kCountryContinent[trip.countryCode],
-    );
-
-    final semanticLabel = [
-      countryName,
-      '$dateRange, $days $dayWord',
-      if (trip.photoCount > 0)
-        '${trip.photoCount} ${trip.photoCount == 1 ? 'photo' : 'photos'}',
-      if (trip.isManual) 'added manually',
-    ].join(', ');
-
-    return Semantics(
-      label: semanticLabel,
-      button: true,
-      child: InkWell(
-        onTap: () => _openSheet(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Hero image header — always shown; shimmer while loading.
-            HeroImageView(
-              assetId: hero?.assetId,
-              fallbackColor: fallbackColor,
-              height: 160,
-              useFullResolution: true,
-              onEditTap: () => showHeroOverridePicker(
-                context,
-                trip.id,
-                fallbackColor: fallbackColor,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        foregroundColor: Colors.white,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Text(
+                '${_currentIndex + 1} / $count',
+                style: const TextStyle(color: Colors.white38, fontSize: 13),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Text(flag, style: const TextStyle(fontSize: 28)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          countryName,
-                          style: theme.textTheme.bodyLarge,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$dateRange  ·  $days $dayWord',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: secondary),
-                        ),
-                        if (trip.photoCount > 0) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            '📷 ${trip.photoCount} '
-                            '${trip.photoCount == 1 ? 'photo' : 'photos'}',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: secondary),
-                          ),
-                        ],
-                        if (trip.isManual) ...[
-                          const SizedBox(height: 4),
-                          Chip(
-                            label: const Text('Added manually'),
-                            labelStyle: theme.textTheme.labelSmall,
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            padding: EdgeInsets.zero,
-                          ),
-                        ],
-                      ],
+          ),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final topInset =
+              MediaQuery.paddingOf(context).top + kToolbarHeight;
+          final bottomInset = MediaQuery.paddingOf(context).bottom;
+          // Available height below the AppBar and above the home indicator.
+          final availH = constraints.maxHeight - topInset - bottomInset;
+          // Card takes 68 % of available height so ~16 % peeks above and below.
+          final cardH = (availH * 0.68).clamp(260.0, 580.0);
+
+          return Padding(
+            padding: EdgeInsets.only(top: topInset, bottom: bottomInset),
+            child: ClipRect(
+              child: CustomCarousel(
+                controller: _controller,
+                scrollDirection: Axis.vertical,
+                // Selected card always renders in front of adjacent cards.
+                depthOrder: DepthOrder.selectedInFront,
+                // Show 2 cards above and below the selected card.
+                itemCountBefore: 2,
+                itemCountAfter: 2,
+                // All cards start centred; the effectsBuilder translates them.
+                alignment: Alignment.center,
+                onSelectedItemChanged: (index) {
+                  setState(() => _currentIndex = index);
+                  ref.read(journalCarouselIndexProvider.notifier).state =
+                      index;
+                },
+                // ── Effects ────────────────────────────────────────────────
+                // scrollRatio: -1 = furthest before, 0 = selected, +1 = furthest after.
+                // Adjacent cards (|t| ≈ 0.5) translate ~10 % of cardH so they
+                // peek visibly; edge items translate ~20 %, shrink 10 %, and
+                // fade to 50 % opacity.
+                effectsBuilder: (_, scrollRatio, child) {
+                  final t = scrollRatio.clamp(-1.0, 1.0);
+                  final absT = t.abs();
+                  return Opacity(
+                    opacity: (1.0 - 0.50 * absT).clamp(0.0, 1.0),
+                    child: Transform.translate(
+                      // Screen-space vertical separation between cards.
+                      offset: Offset(0, t * cardH * 0.28),
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.0007)              // perspective
+                          ..scaleByDouble(1.0 - 0.10 * absT, 1.0 - 0.10 * absT, 1.0, 1.0)  // subtle size reduction
+                          ..rotateX(t * 0.12),                   // ~7° X-axis tilt
+                        child: child,
+                      ),
                     ),
-                  ),
-                  Icon(Icons.chevron_right, color: secondary, size: 20),
-                ],
+                  );
+                },
+                children: widget.trips.map((trip) {
+                  return SizedBox(
+                    height: cardH,
+                    child: TripCarouselCard(
+                      trip: trip,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TripDetailScreen(trip: trip),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openSheet(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CountryRegionGlobeScreen(
-          countryCode: trip.countryCode,
-          tripFilter: trip,
-          subtitle: _dateRange(trip.startedOn, trip.endedOn),
-        ),
+          );
+        },
       ),
     );
   }
 }
+

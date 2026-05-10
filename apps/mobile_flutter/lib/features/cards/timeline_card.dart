@@ -35,6 +35,7 @@ class TimelineCard extends StatelessWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.titleOverride,
+    this.subtitleOverride,
     this.newestFirst = false,
     this.transparentBackground = true,
     this.textColor,
@@ -47,6 +48,9 @@ class TimelineCard extends StatelessWidget {
 
   /// Optional title override. When null or empty no title zone is drawn.
   final String? titleOverride;
+
+  /// Structured branding line (ADR-157). When non-null, replaces legacy branding.
+  final String? subtitleOverride;
 
   /// When true, orders entries most-recent first (latest → earliest).
   /// Default false = chronological (earliest → latest).
@@ -82,6 +86,7 @@ class TimelineCard extends StatelessWidget {
               countryCodes: countryCodes,
               dateLabel: dateLabel,
               titleOverride: titleOverride,
+              subtitleOverride: subtitleOverride,
               transparentBackground: transparentBackground,
               newestFirst: newestFirst,
               textColor: textColor,
@@ -102,6 +107,7 @@ class _TimelinePainter extends CustomPainter {
     required this.countryCodes,
     required this.dateLabel,
     required this.titleOverride,
+    this.subtitleOverride,
     required this.transparentBackground,
     required this.newestFirst,
     this.textColor,
@@ -112,6 +118,7 @@ class _TimelinePainter extends CustomPainter {
   final List<String> countryCodes;
   final String dateLabel;
   final String? titleOverride;
+  final String? subtitleOverride;
   final bool transparentBackground;
   final bool newestFirst;
   final Color? textColor;
@@ -151,6 +158,7 @@ class _TimelinePainter extends CustomPainter {
       countryCount: countryCodes.length,
       dateLabel: dateLabel,
       customLabel: titleOverride,
+      subtitleLine: subtitleOverride,
     );
 
     // 3. Entry zone.

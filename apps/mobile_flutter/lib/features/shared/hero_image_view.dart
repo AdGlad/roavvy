@@ -1,5 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 import 'thumbnail_channel.dart';
 
@@ -23,7 +25,7 @@ class HeroImageView extends StatefulWidget {
     this.height = 160.0,
     this.onEditTap,
     this.fit = BoxFit.cover,
-    this.thumbnailSize = 600,
+    this.thumbnailSize = const ThumbnailSize.square(600),
     this.useFullResolution = false,
   });
 
@@ -41,11 +43,15 @@ class HeroImageView extends StatefulWidget {
 
   final BoxFit fit;
 
-  /// Pixel size of the requested thumbnail (square). Capped at 600 by default.
-  final int thumbnailSize;
+  /// Physical-pixel dimensions of the requested thumbnail.
+  ///
+  /// Pass the exact render size (width × devicePixelRatio) so photo_manager
+  /// asks PHImageManager for exactly the right resolution — no upscaling,
+  /// no wasted bytes. Defaults to 600×600 for backwards-compatible use sites.
+  final ThumbnailSize thumbnailSize;
 
-  /// When true, fetches the full-resolution original from PHImageManager
-  /// instead of a downscaled thumbnail. Use for large display surfaces.
+  /// When true, fetches the full-resolution original via [ThumbnailChannel]
+  /// (PHImageManagerMaximumSize, JPEG 92%). Use only for print/share surfaces.
   final bool useFullResolution;
 
   @override
@@ -99,14 +105,28 @@ class _HeroImageViewState extends State<HeroImageView>
 
   Future<void> _loadThumbnail(String assetId) async {
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
 
-    final bytes = await _channel.getThumbnail(
-      assetId,
-      size: widget.useFullResolution ? 0 : widget.thumbnailSize,
-    );
+    Uint8List? bytes;
+    if (widget.useFullResolution) {
+      // Full-res path: used for print/share compositing only.
+      bytes = await _channel.getThumbnail(assetId, size: 0);
+    } else {
+      // Thumbnail path: ask photo_manager for the exact physical pixel size.
+      // ThumbnailOption.ios with highQualityFormat + exact resize tells
+      // PHImageManager to decode from the source file at the right resolution
+      // rather than returning a pre-cached small thumbnail that looks blurry.
+      final entity = await AssetEntity.fromId(assetId);
+      bytes = await entity?.thumbnailDataWithOption(
+        ThumbnailOption.ios(
+          size: widget.thumbnailSize,
+          deliveryMode: DeliveryMode.highQualityFormat,
+          resizeMode: ResizeMode.exact,
+          resizeContentMode: ResizeContentMode.fill,
+          quality: 92,
+        ),
+      );
+    }
 
     if (!mounted) return;
     setState(() {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -363,6 +364,19 @@ class MapScreen extends ConsumerWidget {
                   } else if (action == _MapMenuAction.filterByYear) {
                     ref.read(yearFilterProvider.notifier).state =
                         DateTime.now().year;
+                  } else if (action == _MapMenuAction.debugMemoryPulse) {
+                    final notifier = ref.read(
+                        memoryPulseDebugOverrideProvider.notifier);
+                    final turningOn = !notifier.state;
+                    notifier.state = turningOn;
+                    if (turningOn) {
+                      // Clear session-dismissed set so previously-seen cards reappear.
+                      ref.read(memoriesDismissedProvider.notifier).state = {};
+                      // Clear the "shown today" pref so the post-scan tray
+                      // can also re-trigger on demand.
+                      unawaited(ref.read(memoryPulseServiceProvider).clearShownState());
+                    }
+                    ref.invalidate(todaysMemoriesProvider);
                   }
                 },
                 itemBuilder: (_) => [
@@ -439,6 +453,17 @@ class MapScreen extends ConsumerWidget {
                         title: Text('Filter by year'),
                       ),
                     ),
+                  PopupMenuItem(
+                    value: _MapMenuAction.debugMemoryPulse,
+                    child: ListTile(
+                      leading: const Icon(Icons.history_toggle_off),
+                      title: Text(
+                        ref.watch(memoryPulseDebugOverrideProvider)
+                            ? 'Hide memory pulse'
+                            : 'Show memory pulse',
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -511,6 +536,7 @@ enum _MapMenuAction {
   privacyAccount,
   signOut,
   filterByYear,
+  debugMemoryPulse,
 }
 
 // ── Visited country flag strip ─────────────────────────────────────────────────

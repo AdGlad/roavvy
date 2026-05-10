@@ -524,6 +524,16 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           countryCodes: codes,
           travelerLevel: 'Explorer',
         );
+      case CardTemplateType.typography:
+        return TypographyCard(
+          codes: codes,
+          transparentBackground: true,
+        );
+      case CardTemplateType.badge:
+        return BadgeCard(
+          codes: codes,
+          transparentBackground: false,
+        );
     }
   }
 

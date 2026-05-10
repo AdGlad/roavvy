@@ -438,6 +438,10 @@ class _ArtworkConfirmationScreenState
         return 'Timeline';
       case CardTemplateType.frontRibbon:
         return 'Front ribbon';
+      case CardTemplateType.typography:
+        return 'Typography';
+      case CardTemplateType.badge:
+        return 'Explorer Badge';
     }
   }
 }

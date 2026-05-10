@@ -13,6 +13,7 @@ export 'src/effective_visit_merge.dart';
 export 'src/travel_summary.dart';
 export 'src/achievement.dart';
 export 'src/continent_map.dart';
+export 'src/continent_subregion_map.dart';
 export 'src/achievement_engine.dart';
 export 'src/photo_date_record.dart';
 export 'src/trip_record.dart';

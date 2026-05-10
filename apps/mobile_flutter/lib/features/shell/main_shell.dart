@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/notification_service.dart';
+import '../memory/app_open_tracker.dart';
 import '../journal/journal_screen.dart';
 import '../map/map_screen.dart';
 import '../scan/scan_screen.dart';
@@ -39,6 +40,7 @@ class _MainShellState extends State<MainShell> {
     _selectedIndex = widget.initialTab;
     _handleLaunchNotification();
     NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
+    AppOpenTracker.recordNow();
   }
 
   @override

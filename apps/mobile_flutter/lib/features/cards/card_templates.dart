@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
 import 'card_branding_footer.dart';
 import 'card_text_renderer.dart';
+import 'flag_grid_layout_engine.dart';
 import 'flag_tile_renderer.dart';
 import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
@@ -55,14 +57,21 @@ class GridFlagsCard extends StatefulWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.titleOverride,
+    this.subtitleOverride,
     this.transparentBackground = false,
+    this.textColor,
     this.onAssetsLoaded,
     this.backgroundImageBytes,
+    this.layoutMode = FlagGridLayoutMode.packedRow,
   });
 
   final List<String> countryCodes;
   final double aspectRatio;
   final String? titleOverride;
+
+  /// Structured branding line forwarded to [CardTextRenderer.drawBranding]
+  /// (ADR-157). When non-null replaces the legacy ROAVVY + count content.
+  final String? subtitleOverride;
 
   /// Pre-computed date range label, e.g. `"2024"` or `"2018–2024"`.
   /// Empty string omits the date label from the branding footer (ADR-101).
@@ -72,6 +81,12 @@ class GridFlagsCard extends StatefulWidget {
   /// dark navy. Used by [CardImageRenderer] for t-shirt compositing (ADR-123).
   final bool transparentBackground;
 
+  /// Text colour for title and branding zones. When null and
+  /// [transparentBackground] is false, the default gold colour is used.
+  /// When [transparentBackground] is true, this should be set explicitly
+  /// (e.g. [Colors.black] on white shirts).
+  final Color? textColor;
+
   /// Called once when all SVG flag assets have finished loading into the shared
   /// cache. Used by [CardImageRenderer] to delay PNG capture until SVGs are
   /// ready (ADR-123).
@@ -80,6 +95,10 @@ class GridFlagsCard extends StatefulWidget {
   /// Optional background photo bytes (JPEG). When non-null, drawn beneath flag
   /// tiles at 55% opacity with a dark vignette (M93, ADR-138).
   final Uint8List? backgroundImageBytes;
+
+  /// Layout algorithm for positioning flags (M106, ADR-156).
+  /// Defaults to [FlagGridLayoutMode.packedRow].
+  final FlagGridLayoutMode layoutMode;
 
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
@@ -136,18 +155,21 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     super.dispose();
   }
 
-  /// Schedules async SVG loading for all country codes at [tileWidth].
-  /// Fires [widget.onAssetsLoaded] exactly once when all pending loads complete
-  /// (or immediately if nothing needs loading). Cache hits are skipped.
+  /// Schedules async SVG loading for all country codes at [reprWidth].
+  ///
+  /// [reprWidth] is a representative tile width derived from grid area / n —
+  /// consistent across all layout modes so the cache is always hit at render
+  /// time. Fires [widget.onAssetsLoaded] exactly once when all pending loads
+  /// complete (or immediately if nothing needs loading).
   /// Guards against being called multiple times from [LayoutBuilder].
-  void _preloadSvgs(double tileWidth) {
-    if (tileWidth <= 0 || _preloadStarted) return;
+  void _preloadSvgs(double reprWidth) {
+    if (reprWidth <= 0 || _preloadStarted) return;
     _preloadStarted = true;
 
     final toLoad = widget.countryCodes
         .where((code) =>
             FlagTileRenderer.hasSvg(code) &&
-            _GridPainter._sharedCache.get(code, tileWidth) == null)
+            _GridPainter._sharedCache.get(code, reprWidth) == null)
         .toList();
 
     if (toLoad.isEmpty) {
@@ -157,7 +179,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
     var remaining = toLoad.length;
     for (final code in toLoad) {
-      FlagTileRenderer.loadSvgToCache(code, tileWidth, _GridPainter._sharedCache)
+      FlagTileRenderer.loadSvgToCache(code, reprWidth, _GridPainter._sharedCache)
           .then((img) {
         if (mounted && img != null) _repaintNotifier.value++;
         remaining--;
@@ -202,15 +224,16 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
 
-          // Compute grid tile width using the flag-only zone height so the
-          // aspect-ratio-aware column count is accurate.
+          // Use a representative tile width that is consistent across all
+          // layout modes: sqrt(gridArea / n). The cache key is the same at
+          // pre-load and render time (ADR-156).
           const topH = CardTextRenderer.titleZoneH;
           const botH = CardTextRenderer.brandingZoneH;
           final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
           final gridSize = Size(size.width, gridH);
-          final layout = gridLayout(gridSize, widget.countryCodes.length);
-          final tileWidth = layout.cols > 0 ? gridSize.width / layout.cols : 0.0;
-          _preloadSvgs(tileWidth);
+          final reprWidth = FlagGridLayoutEngine.representativeTileWidth(
+              gridSize, widget.countryCodes.length);
+          _preloadSvgs(reprWidth);
 
           return CustomPaint(
             size: size,
@@ -220,8 +243,12 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               repaintNotifier: _repaintNotifier,
               title: effectiveTitle,
               dateLabel: widget.dateLabel,
-              customLabel: widget.titleOverride,
+              subtitleOverride: widget.subtitleOverride,
               backgroundImage: _backgroundImage,
+              layoutMode: widget.layoutMode,
+              reprWidth: reprWidth,
+              transparentBackground: widget.transparentBackground,
+              textColor: widget.textColor,
             ),
           );
         },
@@ -237,8 +264,12 @@ class _GridPainter extends CustomPainter {
     required ValueNotifier<int> repaintNotifier,
     required this.title,
     required this.dateLabel,
-    this.customLabel,
+    this.subtitleOverride,
     this.backgroundImage,
+    this.layoutMode = FlagGridLayoutMode.packedRow,
+    required this.reprWidth,
+    this.transparentBackground = false,
+    this.textColor,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -250,11 +281,23 @@ class _GridPainter extends CustomPainter {
   /// Date label forwarded to [CardTextRenderer.drawBranding].
   final String dateLabel;
 
-  /// Custom label forwarded to [CardTextRenderer.drawBranding].
-  final String? customLabel;
+  /// Structured branding line (ADR-157). When non-null, replaces legacy branding.
+  final String? subtitleOverride;
 
   /// Optional decoded background photo (M93, ADR-138).
   final ui.Image? backgroundImage;
+
+  /// Layout algorithm (M106, ADR-156).
+  final FlagGridLayoutMode layoutMode;
+
+  /// Representative tile width used as the SVG cache key (ADR-156).
+  final double reprWidth;
+
+  /// When true, text strips are fully transparent (for t-shirt compositing).
+  final bool transparentBackground;
+
+  /// Text colour for title and branding zones.
+  final Color? textColor;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -285,59 +328,44 @@ class _GridPainter extends CustomPainter {
     }
 
     // 1. Text zones (drawn first so flags sit on top if text is transparent).
-    CardTextRenderer.drawTitle(canvas, size, title);
+    final effectiveStripColor = transparentBackground
+        ? Colors.transparent
+        : CardTextRenderer.defaultStripColor;
+    final effectiveTextColor =
+        textColor ?? CardTextRenderer.defaultTextColor;
+    CardTextRenderer.drawTitle(canvas, size, title,
+        textColor: effectiveTextColor, stripColor: effectiveStripColor);
     CardTextRenderer.drawBranding(
       canvas,
       size,
       countryCount: countryCodes.length,
       dateLabel: dateLabel,
-      customLabel: customLabel,
+      subtitleLine: subtitleOverride,
+      textColor: effectiveTextColor,
+      stripColor: effectiveStripColor,
     );
 
-    // 2. Flag grid in the zone between title and branding strips.
+    // 2. Flag grid in the zone between title and branding strips (ADR-156).
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final gridH = size.height - _topH - _botH;
-    if (gridH <= 0) return;
-    final gridSize = Size(size.width, gridH);
+    final tiles = FlagGridLayoutEngine.compute(
+      codes: countryCodes,
+      canvasSize: size,
+      topOffset: _topH,
+      bottomOffset: _botH,
+      mode: layoutMode,
+    );
+    if (tiles.isEmpty) return;
 
-    final layout = gridLayout(gridSize, countryCodes.length);
-    if (layout.cols == 0 || layout.rows == 0) return;
-
-    // Full rows use equal tile widths. The last (possibly partial) row expands
-    // its tiles to fill the canvas width — no gap at the right edge.
-    final fullRowTileW = gridSize.width / layout.cols;
-    final tileH = gridSize.height / layout.rows;
-
-    int index = 0;
-    for (int r = 0; r < layout.rows; r++) {
-      final itemsInRow = (r == layout.rows - 1)
-          ? countryCodes.length - (r * layout.cols)
-          : layout.cols;
-      final rowTileW = gridSize.width / itemsInRow;
-
-      for (int c = 0; c < itemsInRow; c++) {
-        final code = countryCodes[index];
-        // Offset rect by top zone height so flags start below the title.
-        final rect = Rect.fromLTWH(
-          c * rowTileW,
-          _topH + r * tileH,
-          rowTileW,
-          tileH,
-        );
-
-        // Use the standard (full-row) tile width as the cache key so that
-        // last-row tiles hit the same cache entry as their preloaded ones.
-        final cached = _sharedCache.get(code, fullRowTileW);
-        if (cached != null) {
-          FlagTileRenderer.drawImage(canvas, cached, rect, cornerRadius: 0.0);
-        } else {
-          // Placeholder while SVG loads — no emoji fallback.
-          canvas.drawRect(rect, _placeholderPaint);
-        }
-
-        index++;
+    for (final tile in tiles) {
+      final cached = _sharedCache.get(tile.code, reprWidth);
+      if (cached != null) {
+        FlagTileRenderer.drawContained(canvas, cached, tile.rect,
+            cornerRadius: 0.0);
+      } else {
+        // Placeholder while SVG loads — transparent rect.
+        canvas.drawRect(tile.rect, _placeholderPaint);
       }
     }
   }
@@ -348,8 +376,12 @@ class _GridPainter extends CustomPainter {
       old.canvasSize != canvasSize ||
       old.title != title ||
       old.dateLabel != dateLabel ||
-      old.customLabel != customLabel ||
-      old.backgroundImage != backgroundImage;
+      old.subtitleOverride != subtitleOverride ||
+      old.backgroundImage != backgroundImage ||
+      old.layoutMode != layoutMode ||
+      old.reprWidth != reprWidth ||
+      old.transparentBackground != transparentBackground ||
+      old.textColor != textColor;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by
@@ -426,6 +458,7 @@ class HeartFlagsCard extends StatefulWidget {
     this.aspectRatio = 3.0 / 2.0,
     this.dateLabel = '',
     this.titleOverride,
+    this.onAssetsLoaded,
   });
 
   final List<String> countryCodes;
@@ -442,6 +475,12 @@ class HeartFlagsCard extends StatefulWidget {
   /// in [CardBrandingFooter] when non-null (ADR-120).
   final String? titleOverride;
 
+  /// Called exactly once when all SVG flag assets have finished loading into
+  /// the shared cache. Used by [CardImageRenderer] to delay PNG capture until
+  /// SVGs are ready (ADR-151). If all assets were already cached, fires on the
+  /// next post-frame callback.
+  final VoidCallback? onAssetsLoaded;
+
   @override
   State<HeartFlagsCard> createState() => _HeartFlagsCardState();
 }
@@ -450,6 +489,17 @@ class _HeartFlagsCardState extends State<HeartFlagsCard> {
   // ValueNotifier is a ChangeNotifier subclass that can be incremented from any
   // class without needing to call the protected notifyListeners() (ADR-123).
   final _repaintNotifier = ValueNotifier<int>(0);
+  bool _preloadStarted = false;
+  bool _onAssetsLoadedFired = false;
+
+  @override
+  void didUpdateWidget(HeartFlagsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.countryCodes != widget.countryCodes) {
+      _preloadStarted = false;
+      _onAssetsLoadedFired = false;
+    }
+  }
 
   @override
   void dispose() {
@@ -457,24 +507,51 @@ class _HeartFlagsCardState extends State<HeartFlagsCard> {
     super.dispose();
   }
 
+  void _fireOnAssetsLoaded() {
+    if (_onAssetsLoadedFired) return;
+    _onAssetsLoadedFired = true;
+    widget.onAssetsLoaded?.call();
+  }
+
   /// Schedules async SVG loading for all tiles produced by [HeartLayoutEngine]
   /// at [canvasSize]. Skips codes already in cache and codes without SVG assets.
+  /// Fires [widget.onAssetsLoaded] exactly once when all pending loads complete,
+  /// or on the next frame if nothing needed loading (ADR-151).
   void _preloadSvgsForSize(Size canvasSize) {
+    if (_preloadStarted) return;
+    _preloadStarted = true;
+
     final tiles = HeartLayoutEngine.layout(
       widget.countryCodes,
       canvasSize,
       order: widget.flagOrder,
       trips: widget.trips,
     );
+
+    final futures = <Future<void>>[];
     for (final tile in tiles) {
       final code = tile.countryCode;
       final tileSize = tile.rect.width;
       if (tileSize <= 0) continue;
       if (!FlagTileRenderer.hasSvg(code)) continue;
       if (_HeartPainter._sharedCache.get(code, tileSize) != null) continue;
-      FlagTileRenderer.loadSvgToCache(code, tileSize, _HeartPainter._sharedCache)
-          .then((img) {
-        if (mounted && img != null) _repaintNotifier.value++;
+      futures.add(
+        FlagTileRenderer.loadSvgToCache(code, tileSize, _HeartPainter._sharedCache)
+            .then((img) {
+          if (mounted && img != null) _repaintNotifier.value++;
+        }),
+      );
+    }
+
+    if (futures.isEmpty) {
+      // All assets already cached — fire on the next frame so the caller's
+      // OverlayEntry has been inserted before the capture callback runs.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fireOnAssetsLoaded();
+      });
+    } else {
+      Future.wait(futures).then((_) {
+        if (mounted) _fireOnAssetsLoaded();
       });
     }
   }
@@ -1306,4 +1383,501 @@ class _MultiStampPainter extends CustomPainter {
       old.stamps != stamps ||
       old.assets != assets ||
       old.backgroundImage != backgroundImage;
+}
+
+// ── TypographyCard ────────────────────────────────────────────────────────────
+
+/// Travel card template: a stacked country-name text composition (M103).
+///
+/// Lists up to 24 country names in a two-column layout with alternating font
+/// size and opacity for visual rhythm. Single-country mode renders the name as
+/// a centred headline. Dark navy background unless [transparentBackground].
+class TypographyCard extends StatelessWidget {
+  const TypographyCard({
+    super.key,
+    required this.codes,
+    this.titleOverride,
+    this.transparentBackground = false,
+  });
+
+  final List<String> codes;
+  final String? titleOverride;
+  final bool transparentBackground;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _TypographyPainter(
+            codes: codes,
+            titleOverride: titleOverride,
+            transparentBackground: transparentBackground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypographyPainter extends CustomPainter {
+  _TypographyPainter({
+    required this.codes,
+    this.titleOverride,
+    required this.transparentBackground,
+  });
+
+  final List<String> codes;
+  final String? titleOverride;
+  final bool transparentBackground;
+
+  static const _bgColor = Color(0xFF0D1B2A);
+  static const _accentColor = Color(0xFFE8C84A); // gold
+  static const _maxNames = 24;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!transparentBackground) {
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = _bgColor,
+      );
+      // Subtle gradient overlay for depth.
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x00000000), Color(0x33000000)],
+          ).createShader(Offset.zero & size),
+      );
+    }
+
+    if (codes.isEmpty) {
+      _drawCentredText(canvas, size, 'No countries yet', 16,
+          Colors.white54, FontWeight.normal);
+      return;
+    }
+
+    if (codes.length == 1) {
+      _drawSingleCountry(canvas, size);
+    } else {
+      _drawMultiCountry(canvas, size);
+    }
+  }
+
+  void _drawSingleCountry(Canvas canvas, Size size) {
+    final name = kCountryNames[codes.first] ?? codes.first;
+    final flag = _flag(codes.first);
+
+    // Flag emoji centred at 30% height.
+    _drawCentredText(canvas, size, flag, size.width * 0.15,
+        Colors.white, FontWeight.normal,
+        offsetY: -size.height * 0.12);
+
+    // Country name headline.
+    _drawCentredText(canvas, size, name, size.width * 0.08,
+        Colors.white, FontWeight.w700);
+
+    // Gold accent rule.
+    final ruleY = size.height * 0.58;
+    canvas.drawLine(
+      Offset(size.width * 0.3, ruleY),
+      Offset(size.width * 0.7, ruleY),
+      Paint()
+        ..color = _accentColor
+        ..strokeWidth = 1.5,
+    );
+
+    // Subtitle.
+    _drawCentredText(canvas, size, titleOverride ?? 'My First Country',
+        size.width * 0.045, _accentColor, FontWeight.w500,
+        offsetY: size.height * 0.1);
+  }
+
+  void _drawMultiCountry(Canvas canvas, Size size) {
+    final displayCodes = codes.take(_maxNames).toList();
+    final overflow = codes.length - displayCodes.length;
+    final names = displayCodes
+        .map((c) => kCountryNames[c] ?? c)
+        .toList();
+
+    final pad = size.width * 0.06;
+    final colWidth = (size.width - pad * 3) / 2;
+    final startY = size.height * 0.10;
+    final bottomPad = size.height * 0.14;
+    final availH = size.height - startY - bottomPad;
+
+    // Determine row count per column.
+    final totalNames = names.length + (overflow > 0 ? 1 : 0);
+    final rows = (totalNames / 2).ceil();
+    final rowH = availH / rows.clamp(1, 999);
+
+    for (int i = 0; i < totalNames; i++) {
+      final col = i % 2;
+      final row = i ~/ 2;
+      final isLarge = (i % 3 == 0);
+      final opacity = isLarge ? 1.0 : 0.62;
+      final fontSize = isLarge ? size.width * 0.038 : size.width * 0.032;
+
+      final x = pad + col * (colWidth + pad);
+      final y = startY + row * rowH;
+
+      final String label;
+      if (i == totalNames - 1 && overflow > 0) {
+        label = '+ $overflow more';
+      } else {
+        label = names[i];
+      }
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: opacity),
+            fontSize: fontSize,
+            fontWeight: isLarge ? FontWeight.w600 : FontWeight.w400,
+            letterSpacing: 0.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: colWidth);
+
+      tp.paint(canvas, Offset(x, y + (rowH - tp.height) / 2));
+    }
+
+    // Bottom count label.
+    final countLabel = titleOverride ?? '${codes.length} countries';
+    _drawCentredText(canvas, size, countLabel, size.width * 0.038,
+        _accentColor, FontWeight.w500,
+        offsetY: size.height * 0.43);
+  }
+
+  void _drawCentredText(
+    Canvas canvas,
+    Size size,
+    String text,
+    double fontSize,
+    Color color,
+    FontWeight weight, {
+    double offsetY = 0,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: weight,
+          letterSpacing: 0.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: size.width * 0.85);
+    tp.paint(
+      canvas,
+      Offset(
+        (size.width - tp.width) / 2,
+        (size.height - tp.height) / 2 + offsetY,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TypographyPainter old) =>
+      old.codes != codes ||
+      old.titleOverride != titleOverride ||
+      old.transparentBackground != transparentBackground;
+}
+
+// ── BadgeCard ─────────────────────────────────────────────────────────────────
+
+/// Travel card template: a circular explorer badge with flag arc, tick ring,
+/// and scope label (M103, ADR-153).
+///
+/// Renders up to 12 flag emoji tiles arranged in an arc. The [onAssetsLoaded]
+/// callback follows the [HeartFlagsCard] pattern so [CardImageRenderer] can
+/// await rendering before PNG capture. Because this template uses emoji flags
+/// (no async SVG), the callback fires on the next frame — matching the
+/// `futures.isEmpty` branch in HeartFlagsCard.
+class BadgeCard extends StatefulWidget {
+  const BadgeCard({
+    super.key,
+    required this.codes,
+    this.scopeLabel,
+    this.transparentBackground = false,
+    this.onAssetsLoaded,
+  });
+
+  final List<String> codes;
+
+  /// Optional label shown in the badge centre (e.g. "Europe Explorer").
+  /// Defaults to `"${codes.length} Countries"` when null.
+  final String? scopeLabel;
+
+  final bool transparentBackground;
+
+  /// Called exactly once on the next frame after build, following the
+  /// [HeartFlagsCard.onAssetsLoaded] protocol used by [CardImageRenderer].
+  final VoidCallback? onAssetsLoaded;
+
+  @override
+  State<BadgeCard> createState() => _BadgeCardState();
+}
+
+class _BadgeCardState extends State<BadgeCard> {
+  bool _firedOnAssetsLoaded = false;
+
+  @override
+  void didUpdateWidget(BadgeCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.codes != widget.codes) {
+      _firedOnAssetsLoaded = false;
+    }
+  }
+
+  void _maybeFireOnAssetsLoaded() {
+    if (_firedOnAssetsLoaded) return;
+    _firedOnAssetsLoaded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onAssetsLoaded?.call();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _maybeFireOnAssetsLoaded();
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _BadgePainter(
+            codes: widget.codes,
+            scopeLabel: widget.scopeLabel,
+            transparentBackground: widget.transparentBackground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgePainter extends CustomPainter {
+  _BadgePainter({
+    required this.codes,
+    this.scopeLabel,
+    required this.transparentBackground,
+  });
+
+  final List<String> codes;
+  final String? scopeLabel;
+  final bool transparentBackground;
+
+  static const _bgColor = Color(0xFF0D1B2A);
+  static const _ringColor = Color(0xFFE8C84A);
+  static const _maxFlags = 12;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!transparentBackground) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = _bgColor);
+    }
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width * 0.44;
+
+    _drawOuterRing(canvas, cx, cy, r);
+    _drawTickMarks(canvas, cx, cy, r);
+    _drawFlagArc(canvas, cx, cy, r * 0.72, size);
+    _drawCentreLabel(canvas, cx, cy, size);
+    _drawOuterText(canvas, cx, cy, r * 0.92, size);
+  }
+
+  void _drawOuterRing(Canvas canvas, double cx, double cy, double r) {
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r,
+      Paint()
+        ..color = _ringColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    );
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r * 0.88,
+      Paint()
+        ..color = _ringColor.withValues(alpha: 0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
+    );
+  }
+
+  void _drawTickMarks(Canvas canvas, double cx, double cy, double r) {
+    const tickCount = 36;
+    final tickPaint = Paint()
+      ..color = _ringColor.withValues(alpha: 0.7)
+      ..strokeWidth = 1.2;
+    for (int i = 0; i < tickCount; i++) {
+      final angle = (i / tickCount) * 2 * math.pi - math.pi / 2;
+      final isMajor = i % 9 == 0;
+      final inner = r + (isMajor ? 4 : 6);
+      final outer = r + 10;
+      canvas.drawLine(
+        Offset(cx + inner * math.cos(angle), cy + inner * math.sin(angle)),
+        Offset(cx + outer * math.cos(angle), cy + outer * math.sin(angle)),
+        tickPaint,
+      );
+    }
+  }
+
+  void _drawFlagArc(Canvas canvas, double cx, double cy, double arcR, Size size) {
+    final displayCodes = codes.take(_maxFlags).toList();
+    if (displayCodes.isEmpty) return;
+
+    final flagFontSize = _flagFontSize(displayCodes.length, size);
+
+    for (int i = 0; i < displayCodes.length; i++) {
+      final angle = displayCodes.length == 1
+          ? -math.pi / 2 // single flag centred at top
+          : (i / displayCodes.length) * 2 * math.pi - math.pi / 2;
+
+      final r = displayCodes.length == 1 ? 0.0 : arcR;
+      final x = cx + r * math.cos(angle);
+      final y = cy + r * math.sin(angle);
+
+      final emoji = _flag(displayCodes[i]);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: emoji,
+          style: TextStyle(fontSize: flagFontSize),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
+    }
+
+    // Overflow indicator.
+    if (codes.length > _maxFlags) {
+      final overflow = codes.length - _maxFlags;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '+$overflow',
+          style: TextStyle(
+            color: _ringColor.withValues(alpha: 0.8),
+            fontSize: size.width * 0.030,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset(cx - tp.width / 2, cy + arcR * 0.6 - tp.height / 2),
+      );
+    }
+  }
+
+  double _flagFontSize(int count, Size size) {
+    if (count <= 1) return size.width * 0.20;
+    if (count <= 4) return size.width * 0.12;
+    if (count <= 8) return size.width * 0.09;
+    return size.width * 0.075;
+  }
+
+  void _drawCentreLabel(Canvas canvas, double cx, double cy, Size size) {
+    final label = scopeLabel ?? '${codes.length} Countries';
+
+    // Split long labels at spaces into max two lines.
+    final words = label.split(' ');
+    final String line1;
+    final String? line2;
+    if (words.length <= 2 || label.length <= 12) {
+      line1 = label;
+      line2 = null;
+    } else {
+      final mid = words.length ~/ 2;
+      line1 = words.take(mid).join(' ');
+      line2 = words.skip(mid).join(' ');
+    }
+
+    final fontSize = _labelFontSize(label.length, size);
+
+    if (line2 == null) {
+      _paintCentred(canvas, line1, cx, cy, fontSize, Colors.white,
+          FontWeight.w700);
+    } else {
+      _paintCentred(canvas, line1, cx, cy - fontSize * 0.7, fontSize,
+          Colors.white, FontWeight.w700);
+      _paintCentred(canvas, line2, cx, cy + fontSize * 0.7, fontSize,
+          Colors.white, FontWeight.w700);
+    }
+  }
+
+  double _labelFontSize(int charCount, Size size) {
+    if (charCount <= 8) return size.width * 0.075;
+    if (charCount <= 14) return size.width * 0.058;
+    return size.width * 0.046;
+  }
+
+  void _drawOuterText(
+      Canvas canvas, double cx, double cy, double textR, Size size) {
+    final year = DateTime.now().year;
+    final outerLabel = 'ROAVVY · TRAVEL · $year';
+    final chars = outerLabel.split('');
+    final fontSize = size.width * 0.028;
+    final angleStep = (2 * math.pi) / outerLabel.length;
+
+    for (int i = 0; i < chars.length; i++) {
+      final angle = i * angleStep - math.pi / 2;
+      final x = cx + textR * math.cos(angle);
+      final y = cy + textR * math.sin(angle);
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(angle + math.pi / 2);
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: chars[i],
+          style: TextStyle(
+            color: _ringColor.withValues(alpha: 0.75),
+            fontSize: fontSize,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+      canvas.restore();
+    }
+  }
+
+  void _paintCentred(Canvas canvas, String text, double cx, double cy,
+      double fontSize, Color color, FontWeight weight) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: weight,
+          letterSpacing: 0.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: 200);
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(_BadgePainter old) =>
+      old.codes != codes ||
+      old.scopeLabel != scopeLabel ||
+      old.transparentBackground != transparentBackground;
 }

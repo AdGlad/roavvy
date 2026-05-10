@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M94, 2026-05-01)
+# Roavvy — Current State (updated M106, 2026-05-10)
 
 ## What is built
 
@@ -8,11 +8,11 @@
 | World map | ✅ | `flutter_map`; globe (auto-rotating east→west, snap-to-country via flag strip, M86); dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states); tappable stats strip → Countries/Achievements screens (M86); tappable XP level → progression sheet (M86) |
 | Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet |
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
-| Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; achievement gallery |
+| Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; gamified achievement dashboard with fl_chart PieChart donut, next-achievements carousel, tabbed gallery, merch CTAs (M97); 29 achievements across country/continent/trip/thisYear categories; `continentCountProvider`, `tripCountProvider`, `thisYearCountryCountProvider` (M97) |
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |
-| Travel cards | ✅ | Grid (SVG flags, M67), Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70); label-powered titles from hero images (M92); optional photo background (passport + grid) composited at print resolution (M93) |
+| Travel cards | ✅ | Grid (SVG flags, aspect-ratio-preserving Packed Row layout by default, M106; layout selector UI: Packed/Grid/Mosaic; `FlagGridLayoutEngine`, `FlagGridLayoutMode`; `FilterQuality.high`; `FlagTileRenderer.drawContained`; Heart (SVG flags + title rendering, M67), Passport templates; `CardEditorScreen`; AI + fallback titles (year-free, M70); label-powered titles from hero images (M92); optional photo background (passport + grid) composited at print resolution (M93); Passport Book PDF export + in-app preview (M87) |
 | Sharing | ✅ | Share sheet; `/share/[token]` web page; token revocation |
-| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll |
+| Commerce (mobile) | ✅ | T-shirt + poster; Printful mockup (front+back, strict-only, no local fallback post-approval, M73); front placement options (left/center/right/none); back placement (center/none); left_chest uses named Printful placement + small chest PNG (M76); strict checkout gate; mandatory pre-checkout confirmation screen with checkbox gate + no-refund warning (M85); Shopify checkout; post-purchase poll; preset-driven merch entry (kMerchPresets: recent_trip/this_year/all_time/single_country), MerchCustomisationSheet Layer 2, PrintfulPlacementMapper, _artworkLocked image lock, mockup polling fallback warning (M96); achievement-driven merch entry: `AchievementMerchOptionScreen` generates `PulseMerchOption` items scoped to achievement context; shared rendering layer (`merch_option_list_widgets.dart`) used by both Memory Pulse and Achievement entry points (M98); `MerchContext` shared merch context layer: achievement-type-specific option generation (first-country, country milestones, continent, trip, year), template ordering by achievement type, World Collection only when scope is a strict subset of all countries (M99); 4 template groups (Passport, Flags, Heart Flags, Tour Dates) in both Memory Pulse and Achievement merch screens; `HeartFlagsCard.onAssetsLoaded` hook enables correct SVG-flag off-screen rendering in `CardImageRenderer` (M100, ADR-151); achievement-aware merch context: `Achievement.continentScope`/`regionScope` fields scope merchandise to a continent or sub-region; `kCountrySubRegion` (Mediterranean, SoutheastAsia); continent-explorer, region, and passport stamp milestone achievements in `kAchievements`; `AchievementEngine` evaluates per-continent/region/passport counts; `MerchContext` dispatches to `_buildContinentExplorerItems`, `_buildRegionItems`, `_buildPassportMilestoneItems` (M102, ADR-152); 2 new card templates: `CardTemplateType.typography` (stacked country-name text) + `CardTemplateType.badge` (circular explorer badge); `PulseMerchOption.suggestedShirtColor`; `LocalMockupPreviewScreen.initialColour`; `merchSuggestShirtColor()` helper; `MerchContext` builders include typography + badge per achievement type (M103, ADR-153); intelligent ranked recommendations: `MerchDensityClass` (solo/small/medium/large/massive); `MerchTemplateRanker.rankFor()` pure function; `MerchStory.forOption()` contextual title/subtitle generator; `MerchContext._buildFromRankedTemplates()` replaces 9 hardcoded builder methods; density-capped galleries (4–6 options); `PulseMerchOption.contextLabel` shown in `MerchOptionCard`; 5-tier auto-tune model; density-aware `merchSuggestShirtColor` (M104, ADR-154); `TravelIdentity` (13 variants) + `TravelIdentityInfo.forContext()` resolution cascade; `MerchDrop` + `kCurrentMerchDrops` (Explorer Badge, Passport Series); `MerchOptionFeaturedEntry` + `MerchOptionFeaturedCard` (gold "✦ Best Match" badge, featured preview, featured CTA); drop badge prefixes on section headers; staggered reveal animations on `MerchOptionCard` (60ms/item delay, fade+slide); `_CelebrationHeader` in `AchievementMerchOptionScreen` (identity emoji with elastic scale, gold display name, italic tagline); `MerchShareExporter.share()` + share icon in `LocalMockupPreviewScreen` AppBar (M105, ADR-155) |
 | Commerce (web) | ✅ | `/shop` public landing; auth-aware CTA; web checkout in M28 (not started) |
 | Firebase | ✅ | Anonymous auth; Apple Sign-In; Firestore sync (visits, trips, achievements, merch configs) |
 | Web app | ✅ | `/sign-in`, `/sign-up`, `/map`, `/shop`, `/share/[token]`, `/privacy` |
@@ -29,7 +29,9 @@
 - M31: Web password reset flow
 - M61: Grid Card real-flag SVG upgrade (currently emoji-based)
 - M66: Heart Card gapless SVG repack
-- M87: Passport PDF Generation & Mobile Preview (Option A — Softcover Passport Book)
+- M87: ✅ Complete (2026-05-01) — Passport Book PDF (cover + stamp pages + summary, in-app preview, share)
+- M88: ✅ Complete (2026-05-02) — Native Flutter Globe Spin Physics (Inertia & Decay)
+- M89: Journal Redesign: 3D Trip Carousel & Immersive Details
 - M91: Memory Pulse ✅ Complete (2026-04-30)
 - M92: ✅ Complete (2026-04-30) — label-powered auto titles
 - M93: ✅ Complete (2026-05-01) — photo background compositing for passport + grid cards
@@ -54,12 +56,20 @@
 | Map screen | `lib/features/map/map_screen.dart` |
 | Providers | `lib/core/providers.dart` |
 | Order confirmation | `lib/features/merch/merch_order_confirmation_screen.dart` |
+| Merch preset model | `lib/features/merch/merch_preset.dart` |
+| Merch customisation sheet | `lib/features/merch/merch_customisation_sheet.dart` |
+| Printful placement mapper | `lib/features/merch/printful_placement_mapper.dart` |
+| Merch option shared widgets | `lib/features/merch/merch_option_list_widgets.dart` |
+| Merch context (shared layer) | `lib/features/merch/merch_context.dart` |
+| Achievement merch screen | `lib/features/merch/achievement_merch_option_screen.dart` |
 | Hero image view | `lib/features/shared/hero_image_view.dart` |
 | Hero override picker | `lib/features/shared/hero_override_picker.dart` |
 | Memory pulse service | `lib/features/memory/memory_pulse_service.dart` |
 | Memory pulse card | `lib/features/memory/memory_pulse_card.dart` |
 | Thumbnail channel | `lib/features/shared/thumbnail_channel.dart` |
 | Card background picker | `lib/features/cards/card_background_picker.dart` |
+| Passport PDF service | `lib/features/cards/passport_pdf_service.dart` |
+| Passport book screen | `lib/features/cards/passport_book_screen.dart` |
 | Year in Review | `lib/features/year_in_review/` |
 | Thumbnail plugin (iOS) | `ios/Runner/ThumbnailPlugin.swift` |
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |

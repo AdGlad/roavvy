@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_templates.dart';
+import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
@@ -73,6 +74,7 @@ class CardImageRenderer {
     HeartFlagOrder heartOrder = HeartFlagOrder.randomized,
     String dateLabel = '',
     String? titleOverride,
+    String? subtitleOverride,
     Color? stampColor,
     Color? dateColor,
     bool transparentBackground = false,
@@ -83,6 +85,7 @@ class CardImageRenderer {
     double stampJitterFactor = 0.4,
     Duration assetsTimeout = const Duration(seconds: 10),
     Uint8List? backgroundImageBytes,
+    FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
   }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -101,7 +104,10 @@ class CardImageRenderer {
     // render() returns completer.future immediately, letting the caller pump
     // freely until the capture is complete.
     final assetsCompleter =
-        (template == CardTemplateType.passport || template == CardTemplateType.grid)
+        (template == CardTemplateType.passport ||
+                template == CardTemplateType.grid ||
+                template == CardTemplateType.heart ||
+                template == CardTemplateType.badge)
             ? Completer<void>()
             : null;
 
@@ -162,6 +168,7 @@ class CardImageRenderer {
               heartOrder: heartOrder,
               dateLabel: dateLabel,
               titleOverride: titleOverride,
+              subtitleOverride: subtitleOverride,
               stampColor: stampColor,
               dateColor: dateColor,
               transparentBackground: transparentBackground,
@@ -171,6 +178,7 @@ class CardImageRenderer {
               stampSizeMultiplier: stampSizeMultiplier,
               stampJitterFactor: stampJitterFactor,
               backgroundImageBytes: backgroundImageBytes,
+              gridLayoutMode: gridLayoutMode,
               onAssetsLoaded: assetsCompleter != null
                   ? () {
                       if (!assetsCompleter.isCompleted) {
@@ -211,6 +219,7 @@ class CardImageRenderer {
     HeartFlagOrder heartOrder = HeartFlagOrder.randomized,
     String dateLabel = '',
     String? titleOverride,
+    String? subtitleOverride,
     Color? stampColor,
     Color? dateColor,
     bool transparentBackground = false,
@@ -221,6 +230,7 @@ class CardImageRenderer {
     double stampSizeMultiplier = 1.0,
     double stampJitterFactor = 0.4,
     Uint8List? backgroundImageBytes,
+    FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -235,9 +245,12 @@ class CardImageRenderer {
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
           titleOverride: titleOverride,
+          subtitleOverride: subtitleOverride,
           transparentBackground: transparentBackground,
+          textColor: textColor,
           onAssetsLoaded: onAssetsLoaded,
           backgroundImageBytes: backgroundImageBytes,
+          layoutMode: gridLayoutMode,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(
@@ -247,6 +260,7 @@ class CardImageRenderer {
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
           titleOverride: titleOverride,
+          onAssetsLoaded: onAssetsLoaded,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(
@@ -275,8 +289,24 @@ class CardImageRenderer {
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
           titleOverride: titleOverride,
+          subtitleOverride: subtitleOverride,
           transparentBackground: transparentBackground,
           textColor: textColor,
+        );
+
+      case CardTemplateType.typography:
+        return TypographyCard(
+          codes: codes,
+          titleOverride: titleOverride,
+          transparentBackground: transparentBackground,
+        );
+
+      case CardTemplateType.badge:
+        return BadgeCard(
+          codes: codes,
+          scopeLabel: titleOverride,
+          transparentBackground: transparentBackground,
+          onAssetsLoaded: onAssetsLoaded,
         );
     }
   }

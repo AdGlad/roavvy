@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
@@ -189,7 +190,7 @@ class _HeroOverridePickerState extends ConsumerState<_HeroOverridePicker> {
                                     assetId: assetId,
                                     fallbackColor: widget.fallbackColor,
                                     height: 120,
-                                    thumbnailSize: 300,
+                                    thumbnailSize: const ThumbnailSize.square(300),
                                   ),
                                 ),
                               ),

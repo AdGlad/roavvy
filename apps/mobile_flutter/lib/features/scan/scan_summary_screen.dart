@@ -8,6 +8,7 @@ import '../../core/country_names.dart';
 import '../../core/flag_colours.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../memory/memory_pulse_card.dart';
 import '../map/country_visual_state.dart';
 import '../map/country_celebration_carousel.dart';
 import '../map/discovery_overlay.dart';
@@ -225,7 +226,54 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
     }
 
     if (!mounted) return;
+    await _maybeShowMemoryPulseTray();
+    if (!mounted) return;
     widget.onDone();
+  }
+
+  /// Shows up to 3 memory pulse cards in a bottom sheet after the discovery
+  /// overlay sequence, at most once per day (M95, ADR-141).
+  Future<void> _maybeShowMemoryPulseTray() async {
+    final service = ref.read(memoryPulseServiceProvider);
+    final today = DateTime.now();
+    if (await service.wasShownToday(today)) return;
+
+    final memories = ref.read(todaysMemoriesProvider).valueOrNull;
+    if (memories == null || memories.isEmpty) return;
+
+    await service.markShownToday(today);
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0D1B2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            MemoryPulseCard(
+              memories: memories.take(3).toList(),
+              onViewTrip: (_) => Navigator.of(context).pop(),
+              service: service,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _handleCaughtUp() async {

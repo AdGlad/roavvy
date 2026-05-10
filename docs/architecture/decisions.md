@@ -2892,24 +2892,47 @@ Use **Printful v2 Mockup API** (`POST /v2/mockup-tasks`, `GET /v2/mockup-tasks/{
 - **T-shirt only**: Poster variants have `PRINTFUL_VARIANT_IDS` value `0` — used as the skip signal. When `printfulVariantId === 0`, skip mockup generation and return `mockupUrl: null`.
 - **Colour matters; size does not**: The mockup appearance differs by shirt colour. Size has no visible effect on the rendered mockup. The `catalog_variant_id` already encodes colour × size, so passing it to the mockup API gives the correct shirt colour without extra logic.
 
-**Printful Mockup API shape (v2):**
+**Printful Mockup API shape (v2, current):**
 
 ```
 POST https://api.printful.com/v2/mockup-tasks
 Authorization: Bearer {PRINTFUL_API_KEY}
 {
-  "variant_ids": [536],
-  "files": [{ "placement": "front", "url": "https://storage.googleapis.com/..." }],
-  "format": "jpg"
+  "products": [{
+    "source": "catalog",
+    "catalog_product_id": 12,
+    "catalog_variant_id": 536,
+    "placements": [
+      {
+        "placement": "front",
+        "technique": "dtg",
+        "layers": [{ "type": "file", "url": "https://storage.googleapis.com/...", "position": { "top": 1.12, "left": 6.96, "width": 3.5, "height": 3.5 } }]
+      }
+    ]
+  }]
 }
 
-→ { "data": { "task_key": "abc123" } }
+→ { "data": [{ "id": 597350033, "status": "pending" }] }
 
-GET https://api.printful.com/v2/mockup-tasks/abc123
-→ { "data": { "status": "completed", "mockups": [{ "placement": "front", "mockup_url": "https://..." }] } }
-   OR  { "data": { "status": "waiting" } }
-   OR  { "data": { "status": "error" } }
+GET https://api.printful.com/v2/mockup-tasks?id=597350033
+→ { "data": [{ "status": "completed", "catalog_variant_mockups": [{ "catalog_variant_id": 536, "mockups": [{ "placement": "front", "mockup_url": "https://..." }] }] }] }
+   OR  { "data": [{ "status": "pending" }] }
+   OR  { "data": [{ "status": "failed" }] }
 ```
+
+**Layer position (v2, 2026-05-07):**
+
+Printful v2 `Layer.position` places the design within the print area in inches.
+Gildan 64000 DTG front/back print area: **12"×16"** at 150 DPI (verified via
+`GET /v2/catalog-products/12/mockup-styles?technique=dtg`).
+
+- `center`: omit `position` → Printful auto-centres
+- `left_chest` (wearer's left = viewer's right): `{ top: 1.12, left: 6.96, width: 3.5, height: 3.5 }`
+- `right_chest` (wearer's right = viewer's left): `{ top: 1.12, left: 1.56, width: 3.5, height: 3.5 }`
+
+The mockup image sent is a raw design (no compositing). Compositing is still used for the
+print file that goes to Printful ordering — the mockup uses a separate `mockup_files/{configId}.png`
+upload sized to max 1800×2400 (12"×16" at 150 DPI).
 
 **`createMerchCart` step sequence (updated):**
 1. Write MerchConfig (status=pending)
@@ -4401,3 +4424,164 @@ The `_PlacementToggle` in the bottom bar is shown for all t-shirts in the ready 
 - A Printful API failure surfaces as an explicit error rather than a misleading local preview.
 - `front_left`/`front_right` placement support depends on Printful product configuration; if unsupported, the user sees an error and cannot place an order until a supported position is selected.
 - `_buildLocalMockupArea` remains available for the pre-approval (configuring/rerendering) phases only.
+
+---
+
+## ADR-145 — Globe Inertia & Friction-Based Decay Model (M88)
+
+**Status:** Accepted
+
+**Context:**
+The Roavvy globe currently lacks physical momentum. Gestures are purely displacement-driven, and auto-rotation resumes after a fixed delay. To achieve a premium "physical globe" feel, the interaction must preserve gesture velocity and decay it naturally over time.
+
+**Decision:**
+1.  **Velocity Tracking:** Gesture velocity will be calculated during `onScaleUpdate` as a 2D vector (radians per second) in the spherical coordinate space ($\phi$, $\theta$).
+2.  **Physics Ticker:** The existing `Ticker` used for auto-rotation will be repurposed as a physics integrator. 
+3.  **Euler Integration:** In each frame, when the user is not interacting, rotation will be updated via:
+    $rotation = rotation + velocity \times dt$
+4.  **Exponential Friction:** Velocity will decay exponentially based on time rather than frame count to ensure 60Hz/120Hz parity:
+    $velocity = velocity \times friction^{dt}$ (where $friction$ is a value like $0.15$ per second).
+5.  **State Blending:** Instead of a binary "User vs. Auto" state, a "Blend Zone" will be implemented. When gesture-driven velocity drops below $V_{threshold}$, it will be linearly interpolated towards the fixed auto-rotation velocity ($V_{auto}$).
+6.  **Normalization:** Longitude ($\phi$) will be normalized to the range $[-\pi, \pi]$ on every frame update to prevent floating-point precision loss.
+
+**Consequences:**
+*   **Physicality:** The globe will respond to "flicks," spinning and slowing down realistically.
+*   **Seamlessness:** The transition from user control to idle spin will feel organic rather than jarring.
+*   **Precision:** Normalizing longitude ensures the projection math remains stable during long sessions or high-speed spins.
+*   **Clamping:** Latitude will continue to be clamped to $[-\pi/2, \pi/2]$ to prevent "pole jumping."
+
+---
+
+## ADR-146 — 3D Journal Carousel: Architecture, Dependencies, and State Management (M89)
+
+**Status:** Accepted
+
+**Context:**
+The current Journal screen uses a standard vertical list which lacks the premium, immersive feel required for a travel archive. To elevate the UX, we are redesigning the Journal as a vertical 3D rolodex carousel where each trip is a full-image card. This requires a robust animation system and specialized gesture handling.
+
+**Decision:**
+1.  **Dependencies:** Add `flutter_custom_carousel: ^1.0.0` and `flutter_animate: ^4.5.0` to the mobile app. These libraries provide the high-level declarative API needed for complex transition effects without manual matrix math.
+2.  **Rolodex Physics:** Use `CustomCarousel` with a vertical orientation. Effects will be applied in a specific order (`align` -> `rotateX` -> `scale` -> `fade`) to simulate a mechanical arc. Perspective will be set to `0.001` for consistent 3D depth across screen sizes.
+3.  **State Persistence:** Create a `journalCarouselProvider` (Riverpod) to store the current scroll index. This ensures that when a user navigates to a trip detail and returns, the carousel remains on the same trip.
+4.  **Trip Detail Architecture:** Implement `TripDetailScreen` as a `NestedScrollView`. The `SliverAppBar` will host a `RegionGlobePainter` (from M86) focused on the specific trip's country. Regions will be filtered using the trip's date range to only highlight what was visited during that journey.
+5.  **Hero Image Integration:** Cards will utilize the existing `heroForTripProvider`. To ensure performance, only the focused and adjacent cards will decode full-resolution images; others will use cached thumbnails.
+
+**Consequences:**
+*   **UX Elevation:** The Journal transforms from a functional list to a visually rich browsing experience.
+*   **Build Complexity:** Adding external animation libraries increases the binary size slightly but significantly reduces implementation time and bug surface area for custom transforms.
+*   **Consistency:** Reusing `RegionGlobePainter` ensures that trip details feel like a focused extension of the global map.
+*   **Performance:** Careful management of `HeroImageView` is required to prevent OOM when scrolling through long trip histories.
+
+---
+
+## ADR-147 — M96 Preset-Driven Merch: Preset Model, Placement Validation, Image Lock, and Layer 2 Customisation
+
+**Status:** Accepted
+
+**Context:**
+The current merch entry flow requires the user to build a card in `CardEditorScreen` and then
+navigate to `LocalMockupPreviewScreen` with pre-rendered `artworkImageBytes`. M96 adds a
+preset-driven entry path where artwork is auto-generated from a smart default preset, with no
+card editor step. Key challenges: (a) `LocalMockupPreviewScreen` currently requires
+`artworkImageBytes` to be non-null at construction time; (b) Printful placement values are
+hardcoded strings with no validation guard; (c) the "none" placement currently skips artwork
+upload but does not request a blank-shirt mockup from Printful.
+
+**Decisions:**
+
+1. **`artworkImageBytes` becomes nullable on `LocalMockupPreviewScreen`.** If `null`, the screen
+   enters a "generating" sub-state during `configuring` and auto-renders artwork from
+   `initialPreset` in `addPostFrameCallback`. The "Approve this order" button is disabled until
+   `_artworkBytes != null`. Existing callers that pass bytes are unaffected.
+
+2. **`_artworkLocked` bool guards image mutation.** Set `true` after the first successful
+   artwork render (from preset or passed-in bytes). After locking, artwork may only be replaced
+   by explicit user action (Layer 2 customisation apply). Navigation events, colour changes, and
+   stamp-colour cycling do not replace `_artworkBytes`.
+
+3. **`MerchPreset` / `MerchPresetConfig` are pure Dart value objects in `merch_preset.dart`.**
+   No Riverpod, no Firestore. Four built-in constants: `recent_trip`, `this_year`, `all_time`,
+   `single_country`. `MerchPresetConfig.copyWithOverrides()` applies nullable user overrides on
+   top of a base preset, enabling the override pattern without exposing raw config to the user.
+
+4. **`PrintfulPlacementMapper` is a pure static class in `printful_placement_mapper.dart`.**
+   It maps the app's placement strings (`center`, `left_chest`, `right_chest`, `none`) to
+   validated Printful API placement strings (`front`, `front_left`, `front_right`). `none` maps
+   to the same placement as `center` but with no artwork file sent — this causes Printful to
+   return a blank-shirt mockup rather than no mockup. Unmapped strings throw `ArgumentError`.
+   The mapper is called in `_onApprove()` before the `createMerchCart` payload is assembled,
+   replacing the previous hardcoded string literals.
+
+5. **`MerchCustomisationSheet` is a separate file.** It uses `DraggableScrollableSheet` and
+   returns `Future<MerchPresetConfig?>` via `Navigator.pop`. The "Customise Design" button in
+   `LocalMockupPreviewScreen` is only shown when `_artworkLocked == true` AND
+   `_state == _MockupState.configuring`, ensuring the user has seen the design before entering
+   advanced customisation.
+
+6. **`_kMaxRetries` increased to 2.** After all 3 attempts (1 initial + 2 retries) fail, the
+   screen shows an amber inline warning and re-enables the "Review & Checkout" button so the
+   user can still proceed to checkout even without a Printful photorealistic preview.
+
+**Consequences:**
+- `LocalMockupPreviewScreen` constructor gains two optional params; no existing callers change.
+- `PrintfulPlacementMapper` centralises placement validation; test coverage is straightforward.
+- Layer 2 sheet is self-contained; `LocalMockupPreviewScreen` remains the single screen
+  managing all merch state.
+- No new packages required. No Firestore or Cloud Function changes.
+- No Drift schema changes.
+
+---
+
+## ADR-148 — M97 Gamified Stats Dashboard: Achievement Model Extension, fl_chart, and Merch CTAs
+
+**Status:** Accepted
+
+**Context:**
+The Stats screen currently shows a 3-stat panel (countries, regions, since-year) and a flat 2-column
+achievement grid. There are only 8 achievements, none with progress metadata. The user-facing
+result is a static screen with no sense of progress, curiosity, or next-goal momentum.
+M97 redesigns the screen into a gamified dashboard that drives both engagement (achievement progress)
+and commerce (merch CTAs on unlocked achievements).
+
+**Decisions:**
+
+1. **`Achievement` model gains three fields: `category`, `progressTarget`, `merch?`.**
+   `AchievementCategory` enum: `countries`, `continents`, `trips`, `thisYear`.
+   `MerchTriggerType` enum: `flagGrid`, `passportStamp`, `timeline`, `country`, `milestone`.
+   `progressTarget` is the unlock threshold (e.g. 25 for Globetrotter). `merch` is nullable.
+   All fields are positional-const-compatible; existing 8 achievement IDs are unchanged.
+   The model lives in `packages/shared_models` (ADR-034 pattern).
+
+2. **`kAchievements` expanded from 8 to ~30 trackable achievements.**
+   Categories: country counts (1–195), continent counts (2–6), trip counts (1–50),
+   this-year country counts (3/5/10). Achievements requiring new Drift tables (passport stamps,
+   streaks, check-ins) are deferred to M98+.
+
+3. **`AchievementEngine.evaluate()` signature extended with named optional params.**
+   `static Set<String> evaluate(List<EffectiveVisitedCountry> visits, {int tripCount = 0, int thisYearCountryCount = 0})`
+   Backward-compatible — callers that omit the new params continue to work. The engine evaluates
+   all ~30 achievements from the three input values.
+
+4. **`fl_chart ^0.69.0` used exclusively for the hero PieChart donut ring.**
+   The Next Achievements carousel uses `LinearProgressIndicator` (not fl_chart BarChart) to
+   keep widget complexity low. fl_chart is used only where a custom donut is genuinely
+   superior to a built-in Flutter widget.
+
+5. **Stats screen decomposed into 4 focused widget files under `lib/features/stats/widgets/`.**
+   `travel_progress_hero.dart`, `next_achievements_carousel.dart`, `achievement_gallery.dart`,
+   `merch_moments_section.dart`. `stats_screen.dart` becomes a thin coordinator that wires
+   providers into these widgets.
+
+6. **Merch CTAs navigate to `LocalMockupPreviewScreen` via a `_presetFor()` helper.**
+   Helper maps `MerchTriggerType` → the appropriate `kMerchPresets` entry. No new Printful
+   or Cloud Function changes. Merch Moments section is absent when no merch-eligible
+   achievements are unlocked.
+
+**Consequences:**
+- All existing callers of `AchievementEngine.evaluate()` remain unmodified.
+- `Achievement` constructor changes require updating all 8 existing `kAchievements` entries —
+  contained within `packages/shared_models/lib/src/achievement.dart`.
+- `AchievementsScreen` (standalone push from M86 map stats strip) is preserved; it reuses the
+  tabbed achievement gallery widget.
+- No Firestore schema changes. No Drift schema changes. No new MethodChannels.
+

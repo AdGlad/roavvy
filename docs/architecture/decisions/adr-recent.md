@@ -1,4 +1,89 @@
-<!-- Recent ADRs (ADR-100 to ADR-134). Load when introducing new patterns. -->
+<!-- Recent ADRs (ADR-100 to ADR-149). Load when introducing new patterns. -->
+
+## ADR-149 — M98 Achievement-Driven Merch: Shared Rendering Layer + AchievementMerchOptionScreen
+
+**Status:** Accepted
+
+**Context:**
+M97 wired "Make a Tee" / "Create" buttons in `AchievementGallery` and `MerchMomentsSection`
+to `MerchCountrySelectionScreen` (the legacy blank-slate flow). The correct modern flow —
+preset-driven option selection → `LocalMockupPreviewScreen` → `MerchOrderConfirmationScreen`
+→ Shopify — is already used by Memory Pulse via `PulseMerchOptionScreen`. The rendering
+widgets in that screen (`_OptionCard`, `_CustomOptionCard`, `_SectionHeader`) are private,
+preventing reuse by an achievement-based sibling screen.
+
+**Decisions:**
+
+1. **Extract shared rendering widgets**: The private sealed list-item types (`_ListItem`,
+   `_HeaderItem`, `_OptionItem`, `_CustomiseItem`), auto-tune helpers (`_autoTuneStamps`,
+   `_autoTuneCodes`), `_backCardAspectRatio`, `_templateLabel`, `_SectionHeader`,
+   `_OptionCard`, and `_CustomOptionCard` are extracted from `pulse_merch_option_screen.dart`
+   into a new file `lib/features/merch/merch_option_list_widgets.dart` with public visibility.
+   `MerchOptionCustomCard` simplifies the original by removing the three unused parameters
+   (`hero`, `allTrips`, `allCodes`) that were never accessed in the `onTap` body.
+
+2. **`pulse_merch_option_screen.dart` is a mechanical refactor only**: All private types are
+   replaced with the imported shared equivalents. The public constructor, parameters, and
+   behaviour of `PulseMerchOptionScreen` are unchanged. Memory Pulse regression risk is zero.
+
+3. **`AchievementMerchOptionScreen`**: A `ConsumerWidget` taking only `Achievement achievement`.
+   It reads `effectiveVisitsProvider` + `tripListProvider` itself. Option scope is resolved
+   from the achievement's `category` and `progressTarget` (see resolution table). Options are
+   generated as `PulseMerchOption` instances and rendered using the shared widgets. It navigates
+   to `LocalMockupPreviewScreen` on tap — exactly the same convergence point as `PulseMerchOptionScreen`.
+
+4. **Achievement scope resolution**:
+   - `countries`, target=1 → first visited country only
+   - `countries`, target ≤ 25 → first `progressTarget` countries by `firstSeen`
+   - `countries`, target > 25 → all visited countries
+   - `continents` → all visited countries
+   - `trips` → first `progressTarget` trips by `startedOn`; codes = unique codes from those trips
+   - `thisYear` → countries with `firstSeen.year == currentYear`; trips from that year
+
+5. **Call-site simplicity**: `_MerchChip` (achievement_gallery.dart) and `_MerchMomentTile`
+   (merch_moments_section.dart) each pass only their existing `achievement` field to
+   `AchievementMerchOptionScreen`. No additional data threading required at call sites.
+
+**Consequences:**
+- `pulse_merch_option_screen.dart` is refactored but externally identical.
+- `merch_option_list_widgets.dart` is a new pure UI file; no new providers, services, or DB changes.
+- `achievement_merch_option_screen.dart` is a new screen that reads existing providers.
+- `MerchCountrySelectionScreen` is no longer imported by stats widgets.
+- Downstream pipeline (`LocalMockupPreviewScreen` → `MerchOrderConfirmationScreen`) is unchanged.
+
+---
+
+## ADR-140 — M87 Passport PDF: Raster-Embed Strategy, Page Model, and Preview Architecture
+
+**Status:** Accepted
+
+**Context:**
+M87 generates a multi-page "Passport Book" PDF from the user's stamp collection. The existing rendering pipeline (`StampPainter` + `PassportLayoutEngine`) produces stamps via Flutter `Canvas` / `ui.PictureRecorder`. A PDF generation approach must reuse this pipeline without duplicating drawing logic, fit entirely on-device, and produce a file shareable via iOS share sheet.
+
+**Decisions:**
+
+1. **Raster-embed strategy**: Each PDF page is rendered to a PNG `Uint8List` using `ui.PictureRecorder` + `StampPainter`, then embedded as a full-bleed raster image in the PDF via the `pdf` package (`pw.MemoryImage`). This reuses all existing stamp drawing logic unchanged and avoids reimplementing it in the `pdf` package's coordinate system.
+
+2. **`pdf` package (pure Dart)**: Added as a direct dependency of `mobile_flutter` only. No native code. No Firestore writes. Package boundary is `apps/mobile_flutter/pubspec.yaml` — no changes to `packages/`.
+
+3. **Page coordinate conversion**: PDF uses points (1/72 inch). A6 at 300 DPI = 1240 × 1748 px. Conversion: `pt = px * 72 / 300`. Cover and stamp pages are rendered at pixel dimensions; the PDF page format uses point equivalents.
+
+4. **`PassportPdfResult`**: `generate()` returns a single result object containing both `pdfBytes: Uint8List` and `pages: List<Uint8List>` (per-page PNGs). This avoids double-rendering — the same PNG images are used for both PDF assembly and the in-app `PageView` preview.
+
+5. **Serial page rendering**: Pages are rendered one at a time (`await renderPage()` in a loop) rather than in parallel with `Future.wait`. This bounds peak memory — a 10-page passport at 1240×1748 would consume ~210 MB of image buffers if all were decoded simultaneously. Serial rendering keeps memory closer to ~25 MB per page.
+
+6. **`PassportBookScreen` receives data directly**: Data is passed as constructor parameters (`List<TripRecord> trips, List<String> countryCodes`) — no Riverpod watch inside the screen. The provider read happens in `card_editor_screen.dart` before navigation, consistent with how `CardImageRenderer` and `LocalMockupPreviewScreen` receive their data.
+
+7. **No PDF viewer library**: The in-app preview shows the pre-rendered PNG page images in a `PageView`. No additional PDF viewer dependency needed. The raw PDF file is only accessed at share time.
+
+8. **No caching**: PDFs are generated fresh on each `PassportBookScreen` open and written to `getTemporaryDirectory()`. Caching (keyed by stamp hash) is deferred.
+
+**Consequences:**
+- `pdf: ^3.10.8` added to `apps/mobile_flutter/pubspec.yaml`.
+- No changes to `packages/`, `shared_models`, or any existing repository or service.
+- No Drift schema change.
+- `PassportLayoutEngine.layout(forPrint: true)` is reused per-page with A6 pixel dimensions.
+- `card_editor_screen.dart` gains a "Book" action button (passport template only).
 
 ## ADR-134 — M89 On-Device Hero Image Detection Pipeline
 
@@ -1400,3 +1485,215 @@ and schedules a New Year push notification.
 - The YIR card cannot be used in the merch flow (by design — it is portrait-only 9:16,
   not compatible with t-shirt/poster templates).
 - Notification ID 3 is now reserved; future notifications must use ID 4+.
+
+---
+
+## ADR-155: Social Merch & Travel Identity System (M105)
+
+**Status:** Accepted
+
+**Context:**
+
+The merch gallery previously displayed a flat ranked list of options. The experience lacked
+emotional resonance — nothing connected design options to the user's specific travel
+identity or encouraged sharing. Three pillars are needed: Travel Identity (personalised
+copy), Merch Reveal (cinematic entry + featured lead card), and Social Export.
+
+**Decisions:**
+
+1. **`TravelIdentity` + `TravelIdentityInfo` in `travel_identity.dart`**: 13 identity
+   variants (passportCollector, europeExplorer, asiaExplorer, africaExplorer,
+   americasExplorer, oceaniaExplorer, mediterraneanExplorer, islandExplorer,
+   hemisphereHopper, worldTraveller, globalExplorer, frequentFlyer, adventurer).
+   `TravelIdentityInfo.forContext()` resolves from achievement scope → code count → trip
+   count → stamp count (first-match cascade). Kept in `mobile_flutter` (not
+   `shared_models`) as it is a UI-layer concern.
+
+2. **`MerchDrop` + `kCurrentMerchDrops` in `merch_drop.dart`**: Named curated drop concept
+   with badge string, template list, and active flag. `MerchDrop.forTemplate()` looks up
+   the first active drop for a given template. Drop badge is prepended to section header
+   labels in `MerchContext._buildFromRankedTemplates`. New drops are added to
+   `kCurrentMerchDrops` without changing pipeline logic.
+
+3. **`MerchOptionFeaturedEntry` + `MerchOptionFeaturedCard`**: The top-ranked option per
+   `_buildFromRankedTemplates` is emitted as `MerchOptionFeaturedEntry` (new sealed
+   subtype of `MerchOptionListItem`). The featured card renders a larger back-shirt preview
+   at 160 px height with a gold "✦ Best Match" badge and a prominent "Design This Shirt"
+   CTA, differentiated from the standard `MerchOptionCard` thumbnail pair.
+
+4. **Staggered reveal animations on `MerchOptionCard`**: `index` param + 60 ms per-card
+   delay + `AnimationController` (350 ms) with `FadeTransition` + `SlideTransition`
+   (Offset(0, 0.08) → zero, `Curves.easeOut`). `MerchOptionFeaturedCard` uses a 400 ms
+   controller with no delay (it is always index 0).
+
+5. **`_CelebrationHeader` in `AchievementMerchOptionScreen`**: When `MerchContext.identity`
+   is non-null, the subtitle row is replaced by an animated header showing the identity
+   emoji (scale animation via `TweenAnimationBuilder`, elastic curve), display name in
+   gold (#FFD700), achievement subtitle, and identity tagline in italic white38. Falls back
+   to the plain subtitle when identity is null.
+
+6. **`MerchShareExporter` in `merch_share_exporter.dart`**: Static `share()` method writes
+   artwork bytes to a temp file then calls `Share.shareXFiles()` from `share_plus ^10`.
+   A share icon appears in the `LocalMockupPreviewScreen` AppBar actions whenever
+   `_artworkBytes` is non-null. No custom share card widget — the existing artwork bytes
+   are shared directly as `roavvy_design.png`.
+
+**Consequences:**
+
+- `MerchContext`, `MerchStory`, and `AchievementMerchOptionScreen` now depend on
+  `travel_identity.dart`. The dependency is one-directional and pure.
+- `pulse_merch_option_screen.dart` handles `MerchOptionFeaturedEntry` for consistency,
+  even though that entry point does not currently resolve a `TravelIdentity`.
+- `share_plus ^10.1.4` was already in pubspec; no new dependencies added.
+- `path_provider` is used by `MerchShareExporter` (pre-existing dependency).
+
+---
+
+## ADR-156 — M106 Flag Grid Quality, Layout Engine, and Packed Row Default
+
+**Status:** Accepted
+
+**Context:**
+The existing `GridFlagsCard` used `gridLayout()` (ADR-118) which divided the canvas into
+equal-area rectangular cells. Cell width and cell height were computed independently
+(`width/cols` and `gridH/rows`), so the aspect ratio of each cell rarely matched the natural
+4:3 (or other) aspect ratio of a flag SVG. `FlagTileRenderer._drawImageInRect` used
+`BoxFit.cover` to fill the cell, cropping the flag image on the sides or top/bottom.
+The result was visually distorted or truncated flags on the back of t-shirts and card exports.
+Source quality (flag-icons SVG library) was already high; the issue was purely algorithmic.
+
+**Decisions:**
+
+**1. `FlagGridLayoutMode` enum (3 variants):**
+`packedRow` (default), `normalizedGrid`, `treemap`. Defined in `flag_grid_layout_engine.dart`.
+
+**2. `FlagGridLayoutEngine` — pure static layout factory:**
+`compute(codes, canvasSize, topOffset, bottomOffset, mode, gutter, padding)` returns
+`List<FlagGridTile>`, each with a `code` and a `rect` whose aspect ratio matches the
+flag's natural proportion. The computation is pure and synchronous — no canvas or
+Flutter dependencies.
+
+**3. Packed Row (default):**
+Flags are distributed into `R ≈ sqrt(n × H/W)` sequential rows. For each row, the natural
+height is `(W − internal gutters) / ΣAR`. All row heights are scaled by a common factor so
+the total (plus inter-row gutters) fills the canvas height exactly. Each flag's width is
+`AR × rowH`. Result: all rows fill canvas width; no cropping; no unused space.
+
+**4. Normalized Grid:**
+Reuses `gridLayout()` to compute col/row counts. Each flag gets an identical rectangular
+cell. Rendered with `FlagTileRenderer.drawContained` (new static method, `BoxFit.contain`)
+so the flag fits within its cell with letterbox space rather than being cropped.
+
+**5. Treemap / Mosaic:**
+Greedy row packing: flags are accumulated into a row until adding one more flag would
+exceed 110% of canvas width (at a target row height `sqrt(W×H/ΣAR)`). Row heights then
+scaled to fill canvas height. Produces rows with varying flag counts — editorial layout.
+
+**6. Aspect ratio table:**
+A `_arOverrides` const map handles notable non-4:3 flags (Switzerland 1:1, Nepal 0.64,
+Qatar 2.55). All others default to 4:3. This avoids async loading at layout time.
+
+**7. Representative tile width for SVG cache:**
+`representativeTileWidth(gridSize, n) = sqrt(W×H/n)`. Used as the cache key for all
+three modes, so pre-loading and rendering always agree on the key.
+
+**8. `FilterQuality.high` everywhere:**
+`FlagTileRenderer._drawImageInRect` and `drawContained` both use `FilterQuality.high`
+(was `medium`).
+
+**9. Layout selector UI:**
+`_GridLayoutPicker` (new `SegmentedButton` row) added to `CardEditorScreen` for
+`CardTemplateType.grid` only. Labels: Packed / Grid / Mosaic. Changing mode rebuilds
+the card preview immediately; does not reset flags, orientation, or title.
+
+**10. Default wiring:**
+`GridFlagsCard.layoutMode` defaults to `FlagGridLayoutMode.packedRow`.
+`CardImageRenderer.render(gridLayoutMode:)` optional param defaults to `packedRow`.
+All merch rendering call sites (`MerchOptionCard`, `LocalMockupPreviewScreen`, etc.)
+inherit `packedRow` automatically via the default.
+
+**11. Quality report:**
+SVG source assets (flag-icons 4×3 library) are vector and already high quality.
+No new source assets are required. The visible quality improvement comes from:
+(a) correct aspect ratios — no more cover-crop distortion;
+(b) `FilterQuality.high` during rasterisation.
+
+**Consequences:**
+- `flag_grid_layout_engine.dart` is a new zero-dependency pure-function file.
+- `flag_tile_renderer.dart` gains `drawContained()`.
+- `card_templates.dart`, `card_image_renderer.dart`, `card_editor_screen.dart` extended.
+- All existing call sites use Packed Row by default without any changes.
+- Passport, Heart, Tour Dates, and other card types are not affected.
+
+## ADR-157 — M107 Title & Subtitle Rules and Design Screen Editing
+
+**Status:** Accepted
+
+**Context:**
+Generated merch shirts used robotic titles like "8 Countries · 2024" and a
+legacy branding zone showing "ROAVVY  8 countries  2024". The branding zone
+lacked the structured context needed for premium shirts (continent, region,
+year range). Titles were not editable by users; the Design screen had no way
+to change them.
+
+**Decisions:**
+
+**1. Non-negotiable title rules:**
+- Title MUST NOT include a country count.
+- Subtitle MUST begin with `Roavvy:`.
+- Subtitle MUST include country count.
+- Title/subtitle backgrounds remain transparent.
+- Text colour adapts to shirt colour.
+
+**2. `MerchTitleWordbank` (new file):**
+Curated wordbanks of emotional travel-inspired phrases, segmented by context:
+- `_solo`, `_small`, `_medium`, `_large`, `_massive` (generic by count density)
+- `_continentPhrases` (keyed by continent name)
+- `_regionPhrases` (keyed by sub-region key)
+- `_yearPhrases`, `_tripPhrases`
+Seed-based rotation: `seed % bank.length` cycles without consecutive repeats.
+
+**3. `MerchStory.forOption()` rewrite:**
+All sub-methods now use `MerchTitleWordbank` for titles (no count in title).
+All subtitles use `MerchTitleWordbank.buildSubtitleLine(count, {...})` which
+produces `"Roavvy: N Countries • [context]"` using `•` separator.
+`seed: int = 0` added to `forOption()` for regeneration cycling.
+
+**4. `CardTextRenderer.drawBranding()` — `subtitleLine: String?` param:**
+When non-null, the structured subtitle line is rendered as a single centred text,
+replacing the legacy `ROAVVY + count + date` split layout (ADR-120).
+Legacy behaviour (countryCount + dateLabel + customLabel) unchanged when
+`subtitleLine` is null, preserving backward compatibility.
+
+**5. `subtitleOverride: String?` threading:**
+Added to `GridFlagsCard`, `_GridPainter`, `TimelineCard`, `_TimelinePainter`,
+`CardImageRenderer.render()`, and `CardImageRenderer._cardWidget()`.
+Passed through from `PulseMerchOption.artworkSubtitle` via `MerchContext._addGroup()`.
+
+**6. `PulseMerchOption.artworkSubtitle: String?` (new field):**
+Stores the structured "Roavvy: N Countries • ..." line per option.
+Set from `story.subtitle` in `MerchContext._buildFromRankedTemplates()`.
+The `description` field reverts to the human-readable scope description
+(e.g. "Your first 8 countries").
+
+**7. `LocalMockupPreviewScreen` editable title + subtitle (ADR-157):**
+- `subtitleOverride: String?` constructor param added.
+- `_effectiveTitle` / `_effectiveSubtitle` state vars hold applied values.
+- `TextEditingController`s for live editing.
+- `_applyTextOverrides()` re-renders artwork with current title/subtitle.
+- `_regenerateTitle()` cycles `MerchTitleWordbank.pickGeneric(n, ++seed)`.
+- `_regenerateSubtitle()` rebuilds `buildSubtitleLine(n)`.
+- `_buildTextEditRow()` helper renders labelled field + refresh icon button.
+- Text editing section shown when `_effectiveTitle` or `_effectiveSubtitle` is non-null.
+- Config panel height increased from 280 to 360 to accommodate fields.
+
+**8. Colour auto-adaptation fix:**
+`_loadFrontRibbonImage` isDark heuristic extended to include 'Blue'
+(was missing from `tshirtColors = ['Black', 'White', 'Blue', 'Grey', 'Red']`).
+
+**Consequences:**
+- All shirts from the Achievement merch flow now show emotional, count-free titles.
+- Branding zone reads "Roavvy: 8 Countries • Europe" instead of "ROAVVY  8 countries".
+- Users can edit title and subtitle in the Design screen; each has a Regenerate button.
+- Passport, Heart, Badge, Typography, FrontRibbon templates unaffected (no branding zone change).
+- `flutter analyze` passes with zero errors.

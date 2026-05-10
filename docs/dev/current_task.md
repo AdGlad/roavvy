@@ -1,14 +1,17 @@
-# Active Task: M94 -- Year in Review
+# Active Task: M100 — Expanded Template Variety
 
-Branch: milestone/m94-year-in-review
+Branch: milestone/m100-expanded-template-variety
 
-## Status: ✅ Complete (2026-05-01)
+## Status: ✅ Complete (2026-05-08)
+
+## Goal
+
+Four merch template groups (Passport, Flags, Heart Flags, Tour Dates) available in both Memory Pulse and Achievement merch screens. Heart Flags renders correctly using SVG flags via a new `onAssetsLoaded` hook on `HeartFlagsCard`.
 
 ## Tasks
 
-- [x] T1 -- YearInReviewService + YearInReviewData
-- [x] T2 -- yearInReviewDataProvider (Riverpod)
-- [x] T3 -- YearInReviewCard widget (mosaic card)
-- [x] T4 -- YearInReviewScreen (full-screen summary + share)
-- [x] T5 -- _YearInReviewBanner in map_screen.dart
-- [x] T6 -- NotificationService: scheduleYearInReview (ID 3)
+- [x] 1. Add `onAssetsLoaded` to `HeartFlagsCard` — `lib/features/cards/card_templates.dart`
+- [x] 2. Wire heart into `CardImageRenderer` — `lib/features/cards/card_image_renderer.dart`
+- [x] 3. Add heart group to `MerchContext` — `lib/features/merch/merch_context.dart`
+- [x] 4. Add heart group to `PulseMerchOptionScreen` — `lib/features/merch/pulse_merch_option_screen.dart`
+- [x] 5. `flutter analyze` — 0 new warnings

@@ -66,6 +66,17 @@ export interface MerchConfig {
    */
   backMockupUrl: string | null;
   /**
+   * Lifecycle status of the Printful mockup generation background task.
+   * null         = poster product or not yet started
+   * 'generating' = task submitted to Printful, polling in progress
+   * 'ready'      = mockup URLs written (may still be null if Printful returned nothing)
+   * 'timeout'    = Printful polling exhausted without a result
+   * 'failed'     = unrecoverable error during generation
+   */
+  mockupStatus: 'generating' | 'ready' | 'timeout' | 'failed' | null;
+  /** Error message when mockupStatus === 'failed'. */
+  mockupError: string | null;
+  /**
    * ID of the TravelCard that originated this order (M38: print from card, ADR-093).
    * Null when the order was created from the country selection flow.
    */
