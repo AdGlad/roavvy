@@ -7,6 +7,15 @@
 
 ## Next up (mobile-first order)
 
+### M108 — Cinematic Travel Replay System
+**Goal:** Build a cinematic travel replay on the existing Flutter globe. Animates travel legs between countries with globe rotation, zoom, great-circle arc, moving marker, and arrival highlight. Supports trip / year / all-time / continent modes.
+**Phase:** 23 — Globe Experiences
+**Depends on:** M100
+**Scope in:** `travel_replay_engine.dart` (TravelLeg, TravelReplayScript, TravelReplayScriptBuilder); `travel_replay_controller.dart` (ReplayPhase state machine, AnimationController per phase); `globe_replay_painter.dart` (arc, marker, pulse ring, back-face culling); `globe_replay_widget.dart` (composites existing globe + painter); `replay_entry_sheet.dart` (mode picker bottom sheet); `kCountryCentroids` map; map screen entry point.
+**Scope out:** Video/GIF export; audio layer; continent entry UI; photo animation.
+
+---
+
 ### M106 — Flag Grid Quality, Layout Options, and Packed Row Default
 **Goal:** Improve flag grid artwork so flags preserve their aspect ratios, avoid cropping, and fit cleanly in portrait/landscape outputs. Add three selectable layout algorithms; default all generation to Packed Row.
 **Phase:** 22 — Merch Platform / Visual Quality
