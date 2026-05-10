@@ -2,6 +2,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import 'merch_template_ranker.dart';
+import 'travel_identity.dart';
 
 /// A contextual title and subtitle for a single merch option.
 ///
@@ -24,13 +25,14 @@ class MerchStory {
     required List<String> codes,
     required MerchDensityClass density,
     required int year,
+    TravelIdentityInfo? identity,
   }) {
     if (achievement != null) {
       if (achievement.continentScope != null) {
-        return _continentExplorer(template, achievement, codes);
+        return _continentExplorer(template, achievement, codes, identity);
       }
       if (achievement.regionScope != null) {
-        return _region(template, achievement, codes);
+        return _region(template, achievement, codes, identity);
       }
       if (achievement.category == AchievementCategory.trips &&
           achievement.merch == MerchTriggerType.passportStamp) {
@@ -242,6 +244,7 @@ class MerchStory {
     CardTemplateType template,
     Achievement achievement,
     List<String> codes,
+    TravelIdentityInfo? identity,
   ) {
     final continent = achievement.continentScope!;
     final n = codes.length;
@@ -249,7 +252,7 @@ class MerchStory {
     return switch (template) {
       CardTemplateType.badge => MerchStory(
           title: '$continent Explorer',
-          subtitle: '$n countries in $continent',
+          subtitle: identity?.tagline ?? '$n countries in $continent',
         ),
       CardTemplateType.grid => MerchStory(
           title: '$continent Explorer',
@@ -284,14 +287,14 @@ class MerchStory {
     CardTemplateType template,
     Achievement achievement,
     List<String> codes,
+    TravelIdentityInfo? identity,
   ) {
     final regionName = subRegionDisplayName(achievement.regionScope!);
     final n = codes.length;
 
     // Special-case subtitles for well-known regions.
-    final passportSubtitle = regionName == 'Mediterranean'
-        ? 'Sun, sea, and stamps'
-        : '$n countries stamped';
+    final passportSubtitle = identity?.tagline ??
+        (regionName == 'Mediterranean' ? 'Sun, sea, and stamps' : '$n countries stamped');
 
     return switch (template) {
       CardTemplateType.passport => MerchStory(
@@ -300,7 +303,7 @@ class MerchStory {
         ),
       CardTemplateType.badge => MerchStory(
           title: '$regionName Explorer',
-          subtitle: '$n countries in the region',
+          subtitle: identity?.tagline ?? '$n countries in the region',
         ),
       CardTemplateType.typography => MerchStory(
           title: '$regionName Explorer',

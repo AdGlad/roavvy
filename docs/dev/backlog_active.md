@@ -11,10 +11,10 @@
 **Goal:** Transform merchandise into a social, emotional, and viral engagement system. Users should feel "I unlocked something special" — with a travel identity, cinematic gallery reveal, featured lead card, and social share export.
 **Phase:** 22 — Merch Platform
 **Depends on:** M104
-**Scope in:** `travel_identity.dart` (`TravelIdentity` enum + `TravelIdentityInfo`); `merch_drop.dart` (`MerchDrop` + `kCurrentMerchDrops`); `merch_share_card.dart` + `merch_share_exporter.dart` (social PNG export); staggered reveal animations in `MerchOptionCard`; `MerchOptionFeaturedCard` for top-ranked option; achievement header celebration with identity label + scale animation + shimmer; "Share This Design" in `LocalMockupPreviewScreen`; identity-aware section labels; drop badge labels.
+**Scope in:** `travel_identity.dart` (`TravelIdentity` enum + `TravelIdentityInfo`); `merch_drop.dart` (`MerchDrop` + `kCurrentMerchDrops`); `merch_share_exporter.dart` (social PNG export via share_plus); staggered reveal animations in `MerchOptionCard`; `MerchOptionFeaturedCard` for top-ranked option; achievement header celebration with identity label + scale animation; "Share" icon in `LocalMockupPreviewScreen` AppBar; identity-aware section labels; drop badge labels; ADR-155.
 **Scope out:** New CardTemplateType values; new product types; checkout/Printful changes; animated video exports; social feed; web/Android.
 **Full plan:** `docs/dev/milestones/m105-social-merch-identity-system.md`
-**Status:** Not started.
+**Status:** ✅ Complete (2026-05-10).
 
 ---
 

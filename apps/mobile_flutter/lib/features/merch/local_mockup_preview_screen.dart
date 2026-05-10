@@ -18,6 +18,7 @@ import 'local_mockup_painter.dart';
 import 'merch_customisation_sheet.dart';
 import 'merch_order_confirmation_screen.dart';
 import 'merch_post_purchase_screen.dart';
+import 'merch_share_exporter.dart';
 import 'merch_preset.dart';
 import 'merch_stamp_color.dart';
 import 'merch_variant_lookup.dart';
@@ -1123,6 +1124,12 @@ class _LocalMockupPreviewScreenState
     }
   }
 
+  Future<void> _shareDesign() async {
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    await MerchShareExporter.share(bytes, title: 'My Travel Design');
+  }
+
   void _openConfirmationScreen() {
     final url = _checkoutUrl;
     if (url == null) return;
@@ -1169,6 +1176,14 @@ class _LocalMockupPreviewScreenState
       child: Scaffold(
       appBar: AppBar(
         title: Text('Design your ${_isTshirt ? 'T-Shirt' : 'Poster'}'),
+        actions: [
+          if (_artworkBytes != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Share This Design',
+              onPressed: _shareDesign,
+            ),
+        ],
       ),
       body: Column(
         children: [

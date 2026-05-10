@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/providers.dart';
 import 'merch_context.dart';
 import 'merch_option_list_widgets.dart';
+import 'travel_identity.dart';
 
 /// T-shirt option selection screen entered from an unlocked achievement.
 ///
@@ -121,6 +122,8 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
     final allCodes = merchCtx.allCodes;
     final subtitle = _subtitle(achievement);
 
+    final identity = merchCtx.identity;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
@@ -132,13 +135,16 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Text(
-              subtitle,
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+          if (identity != null)
+            _CelebrationHeader(identity: identity, subtitle: subtitle)
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             ),
-          ),
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
@@ -149,9 +155,14 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
                 return switch (item) {
                   MerchOptionHeaderItem() =>
                     MerchOptionSectionHeader(item.label),
+                  MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
+                      option: item.option,
+                      allCodes: allCodes,
+                    ),
                   MerchOptionEntry() => MerchOptionCard(
                       option: item.option,
                       allCodes: allCodes,
+                      index: i,
                     ),
                   MerchOptionCustomiseEntry() => MerchOptionCustomCard(
                       template: item.template,
@@ -159,6 +170,75 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
                     ),
                 };
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Animated header showing the resolved [TravelIdentityInfo] (ADR-155).
+///
+/// Displays the identity emoji with a scale-in animation, identity display
+/// name in gold, and the identity tagline below the achievement subtitle.
+class _CelebrationHeader extends StatelessWidget {
+  const _CelebrationHeader({
+    required this.identity,
+    required this.subtitle,
+  });
+
+  final TravelIdentityInfo identity;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.4, end: 1.0),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.elasticOut,
+            builder: (_, value, child) =>
+                Transform.scale(scale: value, child: child),
+            child: Text(
+              identity.emoji,
+              style: const TextStyle(fontSize: 36),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  identity.displayName,
+                  style: const TextStyle(
+                    color: Color(0xFFFFD700),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  identity.tagline,
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

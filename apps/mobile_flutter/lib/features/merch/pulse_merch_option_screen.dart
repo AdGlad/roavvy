@@ -194,9 +194,14 @@ class PulseMerchOptionScreen extends StatelessWidget {
                 return switch (item) {
                   MerchOptionHeaderItem() =>
                     MerchOptionSectionHeader(item.label),
+                  MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
+                      option: item.option,
+                      allCodes: allCodes,
+                    ),
                   MerchOptionEntry() => MerchOptionCard(
                       option: item.option,
                       allCodes: allCodes,
+                      index: i,
                     ),
                   MerchOptionCustomiseEntry() => MerchOptionCustomCard(
                       template: item.template,

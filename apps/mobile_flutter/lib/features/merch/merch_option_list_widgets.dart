@@ -37,6 +37,12 @@ class MerchOptionCustomiseEntry extends MerchOptionListItem {
   final String label;
 }
 
+/// The top-ranked option, rendered as a larger [MerchOptionFeaturedCard].
+class MerchOptionFeaturedEntry extends MerchOptionListItem {
+  MerchOptionFeaturedEntry(this.option);
+  final PulseMerchOption option;
+}
+
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
 /// Human-readable label for a [CardTemplateType].
@@ -147,16 +153,24 @@ class MerchOptionCard extends StatefulWidget {
     super.key,
     required this.option,
     required this.allCodes,
+    this.index = 0,
   });
 
   final PulseMerchOption option;
   final List<String> allCodes;
 
+  /// List position used to stagger the entry animation (ADR-155).
+  final int index;
+
   @override
   State<MerchOptionCard> createState() => _MerchOptionCardState();
 }
 
-class _MerchOptionCardState extends State<MerchOptionCard> {
+class _MerchOptionCardState extends State<MerchOptionCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animCtrl;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
   _MerchGenState _state = _MerchGenState.loading;
   Uint8List? _artworkBytes;
   ui.Image? _backArtImage;
@@ -167,11 +181,25 @@ class _MerchOptionCardState extends State<MerchOptionCard> {
   @override
   void initState() {
     super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+    _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+
+    Future.delayed(Duration(milliseconds: widget.index * 60), () {
+      if (mounted) _animCtrl.forward();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
   }
 
   @override
   void dispose() {
+    _animCtrl.dispose();
     _backArtImage?.dispose();
     _frontRibbonImage?.dispose();
     _backShirtImage?.dispose();
@@ -302,27 +330,33 @@ class _MerchOptionCardState extends State<MerchOptionCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF1A3550),
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _state == _MerchGenState.ready ? _navigate : null,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildThumbnailPair(),
-              const SizedBox(width: 12),
-              Expanded(child: _buildInfo()),
-              if (_state == _MerchGenState.ready)
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 13,
-                  color: Colors.white38,
-                ),
-            ],
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Material(
+          color: const Color(0xFF1A3550),
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _state == _MerchGenState.ready ? _navigate : null,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _buildThumbnailPair(),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildInfo()),
+                  if (_state == _MerchGenState.ready)
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 13,
+                      color: Colors.white38,
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -519,6 +553,278 @@ class _MerchOptionCardState extends State<MerchOptionCard> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Featured option card ───────────────────────────────────────────────────────
+
+/// Larger, highlighted card for the top-ranked merch option (ADR-155).
+///
+/// Uses a 2:3 artwork preview instead of the thumbnail pair, with the
+/// identity-driven title prominently displayed.
+class MerchOptionFeaturedCard extends StatefulWidget {
+  const MerchOptionFeaturedCard({
+    super.key,
+    required this.option,
+    required this.allCodes,
+  });
+
+  final PulseMerchOption option;
+  final List<String> allCodes;
+
+  @override
+  State<MerchOptionFeaturedCard> createState() =>
+      _MerchOptionFeaturedCardState();
+}
+
+class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
+    with SingleTickerProviderStateMixin {
+  _MerchGenState _state = _MerchGenState.loading;
+  Uint8List? _artworkBytes;
+  ui.Image? _backArtImage;
+  ui.Image? _backShirtImage;
+
+  late final AnimationController _animCtrl;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+    _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _animCtrl.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    _backArtImage?.dispose();
+    _backShirtImage?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    if (!mounted) return;
+    final opt = widget.option;
+    final aspectRatio = merchBackCardAspectRatio(opt.template);
+    try {
+      final artResult = await CardImageRenderer.render(
+        context,
+        opt.template,
+        codes: opt.codes,
+        trips: opt.trips,
+        transparentBackground: true,
+        entryOnly: opt.entryOnly,
+        stampJitterFactor: opt.jitter,
+        stampSizeMultiplier: opt.stampSizeMultiplier,
+        pixelRatio: 2.5,
+        cardAspectRatio: aspectRatio,
+      );
+      if (!mounted) return;
+
+      final backSpec = ProductMockupSpecs.specsFor(
+        MerchProduct.tshirt,
+        colour: opt.suggestedShirtColor ?? 'Black',
+        placement: 'back',
+      );
+      final backData = await rootBundle.load(backSpec.assetPath);
+      if (!mounted) return;
+
+      Future<ui.Image> decode(Uint8List bytes) async {
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        return frame.image;
+      }
+
+      final backArt = await decode(artResult.bytes);
+      final backShirt = await decode(backData.buffer.asUint8List());
+
+      if (!mounted) {
+        backArt.dispose();
+        backShirt.dispose();
+        return;
+      }
+
+      setState(() {
+        _artworkBytes = artResult.bytes;
+        _backArtImage?.dispose();
+        _backArtImage = backArt;
+        _backShirtImage?.dispose();
+        _backShirtImage = backShirt;
+        _state = _MerchGenState.ready;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _state = _MerchGenState.error);
+    }
+  }
+
+  void _navigate() {
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => LocalMockupPreviewScreen(
+        selectedCodes: widget.option.codes,
+        allCodes: widget.allCodes,
+        trips: widget.option.trips,
+        artworkImageBytes: bytes,
+        initialTemplate: widget.option.template,
+        confirmedAspectRatio: merchBackCardAspectRatio(widget.option.template),
+        confirmedEntryOnly: widget.option.entryOnly,
+        transparentBackground: true,
+        stampJitterFactor: widget.option.jitter,
+        stampSizeMultiplier: widget.option.stampSizeMultiplier,
+        initialColour: widget.option.suggestedShirtColor,
+      ),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Material(
+      color: const Color(0xFF0E2A44),
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _state == _MerchGenState.ready ? _navigate : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildPreview(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                              color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+                        ),
+                        child: const Text(
+                          '✦ Best Match',
+                          style: TextStyle(
+                            color: Color(0xFFFFD700),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.option.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.option.description,
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Design This Shirt',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreview() {
+    const h = 160.0;
+    if (_state == _MerchGenState.loading) {
+      return Container(
+        height: h,
+        color: Colors.white.withValues(alpha: 0.04),
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child:
+                CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+          ),
+        ),
+      );
+    }
+    if (_state == _MerchGenState.error) {
+      return Container(
+        height: h,
+        color: Colors.white.withValues(alpha: 0.04),
+        child: const Center(
+          child: Icon(Icons.broken_image_outlined,
+              color: Colors.white30, size: 28),
+        ),
+      );
+    }
+    final backSpec = ProductMockupSpecs.specsFor(
+      MerchProduct.tshirt,
+      colour: widget.option.suggestedShirtColor ?? 'Black',
+      placement: 'back',
+    );
+    return SizedBox(
+      height: h,
+      child: CustomPaint(
+        painter: LocalMockupPainter(
+          artworkImage: _backArtImage,
+          productImage: _backShirtImage,
+          spec: backSpec,
+          artworkBlendMode: ui.BlendMode.srcOver,
+        ),
+      ),
     );
   }
 }

@@ -260,3 +260,10 @@ Check:
 - commit clean and descriptive
 
 Then run `/compact`.
+
+After milestone completion:
+1. Update local markdown source-of-truth docs.
+2. Run:
+   python3 scripts/index_docs.py
+3. Firebase chunks must be regenerated only from committed/local docs.
+

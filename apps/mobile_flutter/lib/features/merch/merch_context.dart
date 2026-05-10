@@ -1,10 +1,12 @@
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
+import 'merch_drop.dart';
 import 'merch_option_list_widgets.dart';
 import 'merch_story.dart';
 import 'merch_template_ranker.dart';
 import 'pulse_merch_option.dart';
+import 'travel_identity.dart';
 
 /// The resolved travel data and display labels for a merch generation session.
 ///
@@ -35,6 +37,7 @@ class MerchContext {
     required this.allCodes,
     required this.allTrips,
     this.achievement,
+    this.identity,
   });
 
   /// Country codes in scope for this context (may be a subset of [allCodes]).
@@ -60,6 +63,12 @@ class MerchContext {
   /// The achievement that triggered this context, if applicable.
   final Achievement? achievement;
 
+  /// The travel identity resolved from the achievement context (ADR-155).
+  ///
+  /// Used to personalise section labels, story copy, and the celebration
+  /// header in [AchievementMerchOptionScreen].
+  final TravelIdentityInfo? identity;
+
   // ── Factory: from Achievement ──────────────────────────────────────────────
 
   /// Resolves country codes and trips appropriate for [achievement]'s category
@@ -80,6 +89,13 @@ class MerchContext {
     final codes = _resolveCodes(achievement, byDate, allVisits, allTrips);
     final trips = _resolveTrips(achievement, allTrips, codes);
 
+    final identity = TravelIdentityInfo.forContext(
+      achievement: achievement,
+      codes: codes,
+      tripCount: allTrips.length,
+      stampCount: allTrips.length * 2,
+    );
+
     return MerchContext(
       codes: codes,
       trips: trips,
@@ -88,6 +104,7 @@ class MerchContext {
       allCodes: allCodes,
       allTrips: allTrips,
       achievement: achievement,
+      identity: identity,
     );
   }
 
@@ -259,6 +276,7 @@ class MerchContext {
         codes: codes,
         density: density,
         year: year,
+        identity: identity,
       );
 
       // Badge and typography are scoped — don't offer a "World Collection"
@@ -266,14 +284,19 @@ class MerchContext {
       final includeWorld = _hasWorldCollection &&
           rank.template != CardTemplateType.badge;
 
+      // Prefix the section label with any active drop badge.
+      final drop = MerchDrop.forTemplate(rank.template);
+      final label = drop != null ? '${drop.badge} ${rank.label}' : rank.label;
+
       _addGroup(
         items,
-        label: rank.label,
+        label: label,
         template: rank.template,
         scopedTitle: story.title,
         scopedDesc: story.subtitle,
         includeWorldCollection: includeWorld,
         contextLabel: contextLabel,
+        isFeatured: count == 0,
       );
       count++;
     }
@@ -336,6 +359,7 @@ class MerchContext {
     required String scopedDesc,
     bool includeWorldCollection = false,
     String? contextLabel,
+    bool isFeatured = false,
   }) {
     items.add(MerchOptionHeaderItem(label));
 
@@ -349,7 +373,7 @@ class MerchContext {
       final suggestedColour =
           merchSuggestShirtColor(template, density: density);
 
-      items.add(MerchOptionEntry(PulseMerchOption(
+      final option = PulseMerchOption(
         id: '${template.name}_scoped_${achievement?.id ?? 'ctx'}',
         title: scopedTitle,
         description: scopedDesc,
@@ -361,7 +385,10 @@ class MerchContext {
         stampSizeMultiplier: tune.size,
         suggestedShirtColor: suggestedColour,
         contextLabel: contextLabel,
-      )));
+      );
+      items.add(isFeatured
+          ? MerchOptionFeaturedEntry(option)
+          : MerchOptionEntry(option));
 
       if (includeWorldCollection && allCodes.isNotEmpty) {
         final allTune = isPassport

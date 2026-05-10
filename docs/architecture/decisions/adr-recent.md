@@ -1485,3 +1485,64 @@ and schedules a New Year push notification.
 - The YIR card cannot be used in the merch flow (by design — it is portrait-only 9:16,
   not compatible with t-shirt/poster templates).
 - Notification ID 3 is now reserved; future notifications must use ID 4+.
+
+---
+
+## ADR-155: Social Merch & Travel Identity System (M105)
+
+**Status:** Accepted
+
+**Context:**
+
+The merch gallery previously displayed a flat ranked list of options. The experience lacked
+emotional resonance — nothing connected design options to the user's specific travel
+identity or encouraged sharing. Three pillars are needed: Travel Identity (personalised
+copy), Merch Reveal (cinematic entry + featured lead card), and Social Export.
+
+**Decisions:**
+
+1. **`TravelIdentity` + `TravelIdentityInfo` in `travel_identity.dart`**: 13 identity
+   variants (passportCollector, europeExplorer, asiaExplorer, africaExplorer,
+   americasExplorer, oceaniaExplorer, mediterraneanExplorer, islandExplorer,
+   hemisphereHopper, worldTraveller, globalExplorer, frequentFlyer, adventurer).
+   `TravelIdentityInfo.forContext()` resolves from achievement scope → code count → trip
+   count → stamp count (first-match cascade). Kept in `mobile_flutter` (not
+   `shared_models`) as it is a UI-layer concern.
+
+2. **`MerchDrop` + `kCurrentMerchDrops` in `merch_drop.dart`**: Named curated drop concept
+   with badge string, template list, and active flag. `MerchDrop.forTemplate()` looks up
+   the first active drop for a given template. Drop badge is prepended to section header
+   labels in `MerchContext._buildFromRankedTemplates`. New drops are added to
+   `kCurrentMerchDrops` without changing pipeline logic.
+
+3. **`MerchOptionFeaturedEntry` + `MerchOptionFeaturedCard`**: The top-ranked option per
+   `_buildFromRankedTemplates` is emitted as `MerchOptionFeaturedEntry` (new sealed
+   subtype of `MerchOptionListItem`). The featured card renders a larger back-shirt preview
+   at 160 px height with a gold "✦ Best Match" badge and a prominent "Design This Shirt"
+   CTA, differentiated from the standard `MerchOptionCard` thumbnail pair.
+
+4. **Staggered reveal animations on `MerchOptionCard`**: `index` param + 60 ms per-card
+   delay + `AnimationController` (350 ms) with `FadeTransition` + `SlideTransition`
+   (Offset(0, 0.08) → zero, `Curves.easeOut`). `MerchOptionFeaturedCard` uses a 400 ms
+   controller with no delay (it is always index 0).
+
+5. **`_CelebrationHeader` in `AchievementMerchOptionScreen`**: When `MerchContext.identity`
+   is non-null, the subtitle row is replaced by an animated header showing the identity
+   emoji (scale animation via `TweenAnimationBuilder`, elastic curve), display name in
+   gold (#FFD700), achievement subtitle, and identity tagline in italic white38. Falls back
+   to the plain subtitle when identity is null.
+
+6. **`MerchShareExporter` in `merch_share_exporter.dart`**: Static `share()` method writes
+   artwork bytes to a temp file then calls `Share.shareXFiles()` from `share_plus ^10`.
+   A share icon appears in the `LocalMockupPreviewScreen` AppBar actions whenever
+   `_artworkBytes` is non-null. No custom share card widget — the existing artwork bytes
+   are shared directly as `roavvy_design.png`.
+
+**Consequences:**
+
+- `MerchContext`, `MerchStory`, and `AchievementMerchOptionScreen` now depend on
+  `travel_identity.dart`. The dependency is one-directional and pure.
+- `pulse_merch_option_screen.dart` handles `MerchOptionFeaturedEntry` for consistency,
+  even though that entry point does not currently resolve a `TravelIdentity`.
+- `share_plus ^10.1.4` was already in pubspec; no new dependencies added.
+- `path_provider` is used by `MerchShareExporter` (pre-existing dependency).
