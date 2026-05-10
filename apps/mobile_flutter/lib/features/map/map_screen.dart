@@ -25,6 +25,7 @@ import '../year_in_review/year_in_review_providers.dart';
 import '../year_in_review/year_in_review_screen.dart';
 import 'country_detail_sheet.dart';
 import 'country_polygon_layer.dart';
+import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
 import 'region_chips_marker_layer.dart';
@@ -317,6 +318,21 @@ class MapScreen extends ConsumerWidget {
               ),
             ),
           ),
+          // Travel replay button — globe mode only (M108).
+          if (globeMode)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 60,
+              child: Material(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(20),
+                child: IconButton(
+                  icon: const Icon(Icons.play_circle_outline, color: Colors.white),
+                  tooltip: 'Travel Replay',
+                  onPressed: () => showReplayEntrySheet(context),
+                ),
+              ),
+            ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 8,

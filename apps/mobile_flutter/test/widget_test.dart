@@ -297,6 +297,7 @@ void main() {
             'US': CountryAccum(photoCount: 30),
           },
           photoDates: [],
+          photoGps: [],
         ),
       );
 
@@ -339,6 +340,7 @@ void main() {
             'GB': CountryAccum(photoCount: 22),
           },
           photoDates: [],
+          photoGps: [],
         ),
       );
 
@@ -375,6 +377,7 @@ void main() {
         batchResolver: (_) async => BatchResult(
           accum: {'JP': CountryAccum(photoCount: 5)},
           photoDates: [],
+          photoGps: [],
         ),
       );
 
@@ -395,7 +398,7 @@ void main() {
           return null;
         },
         scanEvents: [const ScanDoneEvent(inspected: 50, withLocation: 0)],
-        batchResolver: (_) async => BatchResult(accum: {}, photoDates: []),
+        batchResolver: (_) async => BatchResult(accum: {}, photoDates: [], photoGps: []),
       );
 
       await tester.tap(find.text('Grant Access'));
@@ -437,6 +440,7 @@ void main() {
         batchResolver: (_) async => BatchResult(
           accum: {'GB': CountryAccum(photoCount: 5)},
           photoDates: [],
+          photoGps: [],
         ),
       );
 
@@ -463,6 +467,7 @@ void main() {
         batchResolver: (_) async => BatchResult(
           accum: {'GB': CountryAccum(photoCount: 5)},
           photoDates: [],
+          photoGps: [],
         ),
       );
 
@@ -485,7 +490,7 @@ void main() {
           return null;
         },
         scanEvents: [const ScanDoneEvent(inspected: 20, withLocation: 0)],
-        batchResolver: (_) async => BatchResult(accum: {}, photoDates: []),
+        batchResolver: (_) async => BatchResult(accum: {}, photoDates: [], photoGps: []),
       );
 
       await tester.tap(find.text('Grant Access'));
@@ -516,6 +521,7 @@ void main() {
         batchResolver: (_) async => BatchResult(
           accum: {'GB': CountryAccum(photoCount: 5)},
           photoDates: [],
+          photoGps: [],
         ),
       );
 
@@ -553,6 +559,7 @@ void main() {
         batchResolver: (_) async => BatchResult(
           accum: {'GB': CountryAccum(photoCount: 5)},
           photoDates: [],
+          photoGps: [],
         ),
       );
 

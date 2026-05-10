@@ -1,35 +1,30 @@
-# M107 — Title & Subtitle Rules and Design Screen Editing [COMPLETE]
+# M109 — Accurate Departure & Arrival Coordinates
 
-Branch: milestone/m107-title-subtitle-rules-and-design-screen-editing
+**Branch:** milestone/m109-accurate-departure-arrival-coordinates
+**Status:** In Progress
 
 ## Goal
 
-Emotional, count-free titles + "Roavvy: N Countries •…" structured subtitles on every shirt.
-Both fields editable and regeneratable on the Design Your T-Shirt screen.
-Text colour auto-adapts to shirt colour.
+Replace country-centroid departure/arrival points in the cinematic travel replay with actual GPS coordinates derived from trip photos. Travel arcs originate and terminate at real locations (e.g. Sydney → Santorini instead of Australia centroid → Greece centroid).
 
-## Non-Negotiable Rules
+## Key Architectural Finding
 
-1. Title MUST NOT include country count
-2. Subtitle MUST begin with `Roavvy:`
-3. Subtitle MUST include country count
-4. Title/subtitle backgrounds MUST remain transparent
-5. Text colour MUST adapt to shirt colour
+GPS coordinates are currently discarded after country/region resolution (ADR-002). `TripRecord` and `photo_date_records` carry no GPS. To implement this milestone:
+1. Extend `resolveBatch` to track per-photo GPS during batch processing (in-memory only)
+2. After `inferTrips`, match GPS records to trips by time window to extract first/last coordinates
+3. Store trip GPS endpoints as nullable fields in `TripRecord` + Drift `Trips` table (schema v12)
+4. Document as ADR-157 (extension of ADR-002)
+
+---
 
 ## Tasks
 
-- [ ] Task 1: Audit `CardTextRenderer.drawTitle` + `drawBranding` — confirm transparency,
-  `textColor` threading, current branding content; identify what `subtitleOverride` needs to add
-- [ ] Task 2: Build `TitleWordbank` — curated travel-inspired title phrases per context
-  (country/continent/trip/year/all-time); randomised selection that avoids consecutive repeats
-- [ ] Task 3: Rewrite `MerchStory.forOption()` — titles use `TitleWordbank` (no count);
-  subtitles use "Roavvy: N Countries • [Region] • [Year]" format
-- [ ] Task 4: Add `subtitleOverride` to `GridFlagsCard`, `CardTextRenderer.drawBranding`,
-  and `CardImageRenderer.render`; plumb through all relevant card templates
-- [ ] Task 5: Wire `MerchStory.subtitle` as the `subtitleOverride` throughout the merch
-  rendering pipeline (MerchOptionCard → LocalMockupPreviewScreen → CardImageRenderer)
-- [ ] Task 6: Add title + subtitle edit fields and per-field Regenerate buttons to
-  `LocalMockupPreviewScreen`; re-render artwork on change; preserve shirt colour and other state
-- [ ] Task 7: Verify text colour auto-adaptation covers all tshirtColors; ensure textColor
-  flows to card artwork for all template types in the merch pipeline
-- [ ] Task 8: ADR-157 + update current_state.md, backlog_active.md + flutter analyze clean
+- [ ] 1. ADR-157 — Trip GPS endpoint storage extending ADR-002 (`docs/architecture/decisions/adr-recent.md`)
+- [ ] 2. `PhotoGpsRecord` + `BatchResult.photoGps` — track raw GPS per photo in `resolveBatch` (`scan_screen.dart`)
+- [ ] 3. `TripRecord` GPS fields — add nullable `firstLat/firstLng/lastLat/lastLng` to shared_models `TripRecord`
+- [ ] 4. Drift schema v12 + TripRepository — add nullable GPS columns to `Trips` table; migration; regenerate `.g.dart`; update `upsertAll`/`_rowToRecord`
+- [ ] 5. Scan pipeline GPS enrichment — `_extractTripGps` helper; apply GPS to trips before `upsertAll`
+- [ ] 6. `TravelLeg` GPS fields + `TravelReplayScriptBuilder` — nullable GPS fields on `TravelLeg`; use trip GPS endpoints when building legs
+- [ ] 7. `GlobeReplayPainter` — prefer leg GPS over centroid for arc endpoints + departure dot + arrival pulse
+- [ ] 8. `TravelReplayController` — use leg GPS for camera pan targets in `_runDepartureSettle` + `_runFlight`
+- [ ] 9. `flutter analyze` — 0 new warnings; update docs + milestone status

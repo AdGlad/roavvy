@@ -7,12 +7,24 @@
 
 ## Next up (mobile-first order)
 
+### M109 — Accurate Departure & Arrival Coordinates
+**Goal:** Replace country-centroid start/end points in cinematic travel replay with actual GPS coordinates from trip photos — using the last valid GPS image of the departing segment and the first valid GPS image of the arriving segment. Fallback chain: nearest GPS image → city coordinate → country centroid.
+**Phase:** 23 — Globe Experiences
+**Depends on:** M108
+**Scope in:** Extend `TravelLeg` with `fromLat/fromLng/toLat/toLng` + `resolvedFrom`/`resolvedTo` getters; update `TravelReplayScriptBuilder` GPS extraction helpers; update `GlobeReplayPainter` and `TravelReplayController` to use resolved coordinates; unit tests for GPS and fallback scenarios.
+**Scope out:** City coordinate database (level-2 fallback deferred); per-photo replay mode; video/audio hooks; Android/web.
+**Full plan:** `docs/dev/milestones/m109-accurate-departure-arrival-coordinates.md`
+**Status:** ✅ Complete (2026-05-11)
+
+---
+
 ### M108 — Cinematic Travel Replay System
 **Goal:** Build a cinematic travel replay on the existing Flutter globe. Animates travel legs between countries with globe rotation, zoom, great-circle arc, moving marker, and arrival highlight. Supports trip / year / all-time / continent modes.
 **Phase:** 23 — Globe Experiences
 **Depends on:** M100
 **Scope in:** `travel_replay_engine.dart` (TravelLeg, TravelReplayScript, TravelReplayScriptBuilder); `travel_replay_controller.dart` (ReplayPhase state machine, AnimationController per phase); `globe_replay_painter.dart` (arc, marker, pulse ring, back-face culling); `globe_replay_widget.dart` (composites existing globe + painter); `replay_entry_sheet.dart` (mode picker bottom sheet); `kCountryCentroids` map; map screen entry point.
 **Scope out:** Video/GIF export; audio layer; continent entry UI; photo animation.
+**Status:** ✅ Complete (2026-05-10).
 
 ---
 

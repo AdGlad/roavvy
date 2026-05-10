@@ -1,6 +1,6 @@
 # M108 — Cinematic Travel Replay System
 
-**Status:** Planned
+**Status:** Complete (2026-05-10)
 **Branch:** `milestone/m108-cinematic-travel-replay`
 
 ## Goal

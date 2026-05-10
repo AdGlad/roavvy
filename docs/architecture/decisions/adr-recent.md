@@ -1697,3 +1697,39 @@ The `description` field reverts to the human-readable scope description
 - Users can edit title and subtitle in the Design screen; each has a Regenerate button.
 - Passport, Heart, Badge, Typography, FrontRibbon templates unaffected (no branding zone change).
 - `flutter analyze` passes with zero errors.
+
+---
+
+## ADR-157 — M109 Trip GPS Endpoint Storage: Extending ADR-002
+
+**Status:** Accepted
+
+**Context:**
+ADR-002 established that GPS coordinates are discarded after country/region resolution and never written to the local database. Only derived metadata (`countryCode`, `firstSeen`, `lastSeen`, and later `regionCode` via ADR-050) crosses any persistence boundary.
+
+M109 introduces cinematic travel replay accuracy: travel arcs should originate at the real GPS location where the user's photos were taken (e.g. Sydney → Santorini) rather than at country centroids (Australia → Greece). This requires persisting the first and last GPS coordinate of each trip segment.
+
+**Decision:**
+Extend ADR-002 to permit storing exactly four nullable `REAL` columns on the `Trips` table:
+- `firstLat`, `firstLng` — GPS of the chronologically first geotagged photo in the trip
+- `lastLat`, `lastLng` — GPS of the chronologically last geotagged photo in the trip
+
+These are **derived metadata**: geographic endpoints extracted from a trip segment during the scan pipeline, analogous to `regionCode` (ADR-050). They are:
+- Never raw user photos or full coordinate tracks
+- Not synced to Firestore (stay on-device only, like `assetId` per ADR-060)
+- Nullable — missing for manual trips and for trips scanned before schema v12
+- Populated once during scan; updated on re-scan (upsert semantics)
+
+**Why this does not violate ADR-002:**
+ADR-002's intent is to prevent raw GPS coordinates from being stored long-term or synced. Four endpoint coordinates per trip segment serve a single visualisation purpose (replay arc accuracy), are never exposed outside the replay feature, and never leave the device. This is the same justification used for `regionCode` — derived metadata is permitted; raw coordinate tracking is not.
+
+**Schema:** `schemaVersion` → 12. Migration: `if (from < 12)` adds the four nullable `REAL` columns to `Trips`.
+
+**Fallback:** When GPS endpoints are null (manual trips, pre-v12 trips, photos without GPS), the replay engine falls back to `kCountryCentroids[countryCode]`.
+
+**Consequences:**
+- `TripRecord` gains four nullable `double?` fields.
+- `Trips` Drift table gains four nullable `RealColumn` columns.
+- `TripRepository.upsertAll` and `_rowToRecord` updated to persist/load GPS fields.
+- Scan pipeline: `resolveBatch` tracks a `List<PhotoGpsRecord>` alongside `photoDates`; a `_extractTripGps` helper maps GPS records to trips by time window after `inferTrips`.
+- Existing users upgrading: GPS endpoints are null until the next full rescan. Centroid fallback ensures replay still works correctly.

@@ -2962,6 +2962,50 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _firstLatMeta = const VerificationMeta(
+    'firstLat',
+  );
+  @override
+  late final GeneratedColumn<double> firstLat = GeneratedColumn<double>(
+    'first_lat',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _firstLngMeta = const VerificationMeta(
+    'firstLng',
+  );
+  @override
+  late final GeneratedColumn<double> firstLng = GeneratedColumn<double>(
+    'first_lng',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastLatMeta = const VerificationMeta(
+    'lastLat',
+  );
+  @override
+  late final GeneratedColumn<double> lastLat = GeneratedColumn<double>(
+    'last_lat',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastLngMeta = const VerificationMeta(
+    'lastLng',
+  );
+  @override
+  late final GeneratedColumn<double> lastLng = GeneratedColumn<double>(
+    'last_lng',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2972,6 +3016,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     isManual,
     isDirty,
     syncedAt,
+    firstLat,
+    firstLng,
+    lastLat,
+    lastLng,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3043,6 +3091,30 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
       );
     }
+    if (data.containsKey('first_lat')) {
+      context.handle(
+        _firstLatMeta,
+        firstLat.isAcceptableOrUnknown(data['first_lat']!, _firstLatMeta),
+      );
+    }
+    if (data.containsKey('first_lng')) {
+      context.handle(
+        _firstLngMeta,
+        firstLng.isAcceptableOrUnknown(data['first_lng']!, _firstLngMeta),
+      );
+    }
+    if (data.containsKey('last_lat')) {
+      context.handle(
+        _lastLatMeta,
+        lastLat.isAcceptableOrUnknown(data['last_lat']!, _lastLatMeta),
+      );
+    }
+    if (data.containsKey('last_lng')) {
+      context.handle(
+        _lastLngMeta,
+        lastLng.isAcceptableOrUnknown(data['last_lng']!, _lastLngMeta),
+      );
+    }
     return context;
   }
 
@@ -3091,6 +3163,22 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         DriftSqlType.string,
         data['${effectivePrefix}synced_at'],
       ),
+      firstLat: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}first_lat'],
+      ),
+      firstLng: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}first_lng'],
+      ),
+      lastLat: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}last_lat'],
+      ),
+      lastLng: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}last_lng'],
+      ),
     );
   }
 
@@ -3111,6 +3199,16 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   final int isManual;
   final int isDirty;
   final String? syncedAt;
+
+  /// GPS of the first geotagged photo in this trip (ADR-157). Null when
+  /// unavailable (manual trips, pre-v12 data, or photos without GPS).
+  /// Never synced to Firestore — on-device only.
+  final double? firstLat;
+  final double? firstLng;
+
+  /// GPS of the last geotagged photo in this trip (ADR-157).
+  final double? lastLat;
+  final double? lastLng;
   const TripRow({
     required this.id,
     required this.countryCode,
@@ -3120,6 +3218,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     required this.isManual,
     required this.isDirty,
     this.syncedAt,
+    this.firstLat,
+    this.firstLng,
+    this.lastLat,
+    this.lastLng,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3133,6 +3235,18 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['is_dirty'] = Variable<int>(isDirty);
     if (!nullToAbsent || syncedAt != null) {
       map['synced_at'] = Variable<String>(syncedAt);
+    }
+    if (!nullToAbsent || firstLat != null) {
+      map['first_lat'] = Variable<double>(firstLat);
+    }
+    if (!nullToAbsent || firstLng != null) {
+      map['first_lng'] = Variable<double>(firstLng);
+    }
+    if (!nullToAbsent || lastLat != null) {
+      map['last_lat'] = Variable<double>(lastLat);
+    }
+    if (!nullToAbsent || lastLng != null) {
+      map['last_lng'] = Variable<double>(lastLng);
     }
     return map;
   }
@@ -3150,6 +3264,22 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           syncedAt == null && nullToAbsent
               ? const Value.absent()
               : Value(syncedAt),
+      firstLat:
+          firstLat == null && nullToAbsent
+              ? const Value.absent()
+              : Value(firstLat),
+      firstLng:
+          firstLng == null && nullToAbsent
+              ? const Value.absent()
+              : Value(firstLng),
+      lastLat:
+          lastLat == null && nullToAbsent
+              ? const Value.absent()
+              : Value(lastLat),
+      lastLng:
+          lastLng == null && nullToAbsent
+              ? const Value.absent()
+              : Value(lastLng),
     );
   }
 
@@ -3167,6 +3297,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       isManual: serializer.fromJson<int>(json['isManual']),
       isDirty: serializer.fromJson<int>(json['isDirty']),
       syncedAt: serializer.fromJson<String?>(json['syncedAt']),
+      firstLat: serializer.fromJson<double?>(json['firstLat']),
+      firstLng: serializer.fromJson<double?>(json['firstLng']),
+      lastLat: serializer.fromJson<double?>(json['lastLat']),
+      lastLng: serializer.fromJson<double?>(json['lastLng']),
     );
   }
   @override
@@ -3181,6 +3315,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'isManual': serializer.toJson<int>(isManual),
       'isDirty': serializer.toJson<int>(isDirty),
       'syncedAt': serializer.toJson<String?>(syncedAt),
+      'firstLat': serializer.toJson<double?>(firstLat),
+      'firstLng': serializer.toJson<double?>(firstLng),
+      'lastLat': serializer.toJson<double?>(lastLat),
+      'lastLng': serializer.toJson<double?>(lastLng),
     };
   }
 
@@ -3193,6 +3331,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     int? isManual,
     int? isDirty,
     Value<String?> syncedAt = const Value.absent(),
+    Value<double?> firstLat = const Value.absent(),
+    Value<double?> firstLng = const Value.absent(),
+    Value<double?> lastLat = const Value.absent(),
+    Value<double?> lastLng = const Value.absent(),
   }) => TripRow(
     id: id ?? this.id,
     countryCode: countryCode ?? this.countryCode,
@@ -3202,6 +3344,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     isManual: isManual ?? this.isManual,
     isDirty: isDirty ?? this.isDirty,
     syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+    firstLat: firstLat.present ? firstLat.value : this.firstLat,
+    firstLng: firstLng.present ? firstLng.value : this.firstLng,
+    lastLat: lastLat.present ? lastLat.value : this.lastLat,
+    lastLng: lastLng.present ? lastLng.value : this.lastLng,
   );
   TripRow copyWithCompanion(TripsCompanion data) {
     return TripRow(
@@ -3215,6 +3361,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       isManual: data.isManual.present ? data.isManual.value : this.isManual,
       isDirty: data.isDirty.present ? data.isDirty.value : this.isDirty,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      firstLat: data.firstLat.present ? data.firstLat.value : this.firstLat,
+      firstLng: data.firstLng.present ? data.firstLng.value : this.firstLng,
+      lastLat: data.lastLat.present ? data.lastLat.value : this.lastLat,
+      lastLng: data.lastLng.present ? data.lastLng.value : this.lastLng,
     );
   }
 
@@ -3228,7 +3378,11 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('photoCount: $photoCount, ')
           ..write('isManual: $isManual, ')
           ..write('isDirty: $isDirty, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('firstLat: $firstLat, ')
+          ..write('firstLng: $firstLng, ')
+          ..write('lastLat: $lastLat, ')
+          ..write('lastLng: $lastLng')
           ..write(')'))
         .toString();
   }
@@ -3243,6 +3397,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     isManual,
     isDirty,
     syncedAt,
+    firstLat,
+    firstLng,
+    lastLat,
+    lastLng,
   );
   @override
   bool operator ==(Object other) =>
@@ -3255,7 +3413,11 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.photoCount == this.photoCount &&
           other.isManual == this.isManual &&
           other.isDirty == this.isDirty &&
-          other.syncedAt == this.syncedAt);
+          other.syncedAt == this.syncedAt &&
+          other.firstLat == this.firstLat &&
+          other.firstLng == this.firstLng &&
+          other.lastLat == this.lastLat &&
+          other.lastLng == this.lastLng);
 }
 
 class TripsCompanion extends UpdateCompanion<TripRow> {
@@ -3267,6 +3429,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<int> isManual;
   final Value<int> isDirty;
   final Value<String?> syncedAt;
+  final Value<double?> firstLat;
+  final Value<double?> firstLng;
+  final Value<double?> lastLat;
+  final Value<double?> lastLng;
   final Value<int> rowid;
   const TripsCompanion({
     this.id = const Value.absent(),
@@ -3277,6 +3443,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.isManual = const Value.absent(),
     this.isDirty = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.firstLat = const Value.absent(),
+    this.firstLng = const Value.absent(),
+    this.lastLat = const Value.absent(),
+    this.lastLng = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TripsCompanion.insert({
@@ -3288,6 +3458,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.isManual = const Value.absent(),
     this.isDirty = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.firstLat = const Value.absent(),
+    this.firstLng = const Value.absent(),
+    this.lastLat = const Value.absent(),
+    this.lastLng = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        countryCode = Value(countryCode),
@@ -3303,6 +3477,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<int>? isManual,
     Expression<int>? isDirty,
     Expression<String>? syncedAt,
+    Expression<double>? firstLat,
+    Expression<double>? firstLng,
+    Expression<double>? lastLat,
+    Expression<double>? lastLng,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3314,6 +3492,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (isManual != null) 'is_manual': isManual,
       if (isDirty != null) 'is_dirty': isDirty,
       if (syncedAt != null) 'synced_at': syncedAt,
+      if (firstLat != null) 'first_lat': firstLat,
+      if (firstLng != null) 'first_lng': firstLng,
+      if (lastLat != null) 'last_lat': lastLat,
+      if (lastLng != null) 'last_lng': lastLng,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3327,6 +3509,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<int>? isManual,
     Value<int>? isDirty,
     Value<String?>? syncedAt,
+    Value<double?>? firstLat,
+    Value<double?>? firstLng,
+    Value<double?>? lastLat,
+    Value<double?>? lastLng,
     Value<int>? rowid,
   }) {
     return TripsCompanion(
@@ -3338,6 +3524,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       isManual: isManual ?? this.isManual,
       isDirty: isDirty ?? this.isDirty,
       syncedAt: syncedAt ?? this.syncedAt,
+      firstLat: firstLat ?? this.firstLat,
+      firstLng: firstLng ?? this.firstLng,
+      lastLat: lastLat ?? this.lastLat,
+      lastLng: lastLng ?? this.lastLng,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3369,6 +3559,18 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     if (syncedAt.present) {
       map['synced_at'] = Variable<String>(syncedAt.value);
     }
+    if (firstLat.present) {
+      map['first_lat'] = Variable<double>(firstLat.value);
+    }
+    if (firstLng.present) {
+      map['first_lng'] = Variable<double>(firstLng.value);
+    }
+    if (lastLat.present) {
+      map['last_lat'] = Variable<double>(lastLat.value);
+    }
+    if (lastLng.present) {
+      map['last_lng'] = Variable<double>(lastLng.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3386,6 +3588,10 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('isManual: $isManual, ')
           ..write('isDirty: $isDirty, ')
           ..write('syncedAt: $syncedAt, ')
+          ..write('firstLat: $firstLat, ')
+          ..write('firstLng: $firstLng, ')
+          ..write('lastLat: $lastLat, ')
+          ..write('lastLng: $lastLng, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6567,6 +6773,10 @@ typedef $$TripsTableCreateCompanionBuilder =
       Value<int> isManual,
       Value<int> isDirty,
       Value<String?> syncedAt,
+      Value<double?> firstLat,
+      Value<double?> firstLng,
+      Value<double?> lastLat,
+      Value<double?> lastLng,
       Value<int> rowid,
     });
 typedef $$TripsTableUpdateCompanionBuilder =
@@ -6579,6 +6789,10 @@ typedef $$TripsTableUpdateCompanionBuilder =
       Value<int> isManual,
       Value<int> isDirty,
       Value<String?> syncedAt,
+      Value<double?> firstLat,
+      Value<double?> firstLng,
+      Value<double?> lastLat,
+      Value<double?> lastLng,
       Value<int> rowid,
     });
 
@@ -6628,6 +6842,26 @@ class $$TripsTableFilterComposer
 
   ColumnFilters<String> get syncedAt => $composableBuilder(
     column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get firstLat => $composableBuilder(
+    column: $table.firstLat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get firstLng => $composableBuilder(
+    column: $table.firstLng,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lastLat => $composableBuilder(
+    column: $table.lastLat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lastLng => $composableBuilder(
+    column: $table.lastLng,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6680,6 +6914,26 @@ class $$TripsTableOrderingComposer
     column: $table.syncedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get firstLat => $composableBuilder(
+    column: $table.firstLat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get firstLng => $composableBuilder(
+    column: $table.firstLng,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lastLat => $composableBuilder(
+    column: $table.lastLat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lastLng => $composableBuilder(
+    column: $table.lastLng,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TripsTableAnnotationComposer
@@ -6718,6 +6972,18 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<String> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+
+  GeneratedColumn<double> get firstLat =>
+      $composableBuilder(column: $table.firstLat, builder: (column) => column);
+
+  GeneratedColumn<double> get firstLng =>
+      $composableBuilder(column: $table.firstLng, builder: (column) => column);
+
+  GeneratedColumn<double> get lastLat =>
+      $composableBuilder(column: $table.lastLat, builder: (column) => column);
+
+  GeneratedColumn<double> get lastLng =>
+      $composableBuilder(column: $table.lastLng, builder: (column) => column);
 }
 
 class $$TripsTableTableManager
@@ -6756,6 +7022,10 @@ class $$TripsTableTableManager
                 Value<int> isManual = const Value.absent(),
                 Value<int> isDirty = const Value.absent(),
                 Value<String?> syncedAt = const Value.absent(),
+                Value<double?> firstLat = const Value.absent(),
+                Value<double?> firstLng = const Value.absent(),
+                Value<double?> lastLat = const Value.absent(),
+                Value<double?> lastLng = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TripsCompanion(
                 id: id,
@@ -6766,6 +7036,10 @@ class $$TripsTableTableManager
                 isManual: isManual,
                 isDirty: isDirty,
                 syncedAt: syncedAt,
+                firstLat: firstLat,
+                firstLng: firstLng,
+                lastLat: lastLat,
+                lastLng: lastLng,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6778,6 +7052,10 @@ class $$TripsTableTableManager
                 Value<int> isManual = const Value.absent(),
                 Value<int> isDirty = const Value.absent(),
                 Value<String?> syncedAt = const Value.absent(),
+                Value<double?> firstLat = const Value.absent(),
+                Value<double?> firstLng = const Value.absent(),
+                Value<double?> lastLat = const Value.absent(),
+                Value<double?> lastLng = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TripsCompanion.insert(
                 id: id,
@@ -6788,6 +7066,10 @@ class $$TripsTableTableManager
                 isManual: isManual,
                 isDirty: isDirty,
                 syncedAt: syncedAt,
+                firstLat: firstLat,
+                firstLng: firstLng,
+                lastLat: lastLat,
+                lastLng: lastLng,
                 rowid: rowid,
               ),
           withReferenceMapper:
