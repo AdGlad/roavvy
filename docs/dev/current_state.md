@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M106, 2026-05-10)
+# Roavvy — Current State (updated M111, 2026-05-11)
 
 ## What is built
 
@@ -22,6 +22,7 @@
 | Hero image UI | ✅ | `HeroImageView` widget (shimmer + fallback colour); `ThumbnailPlugin.swift` (`roavvy/thumbnail` channel, NSCache); full-bleed trip card headers in Journal; cover image in country detail sheet; best-shot section in scan summary; `HeroOverridePicker` (isUserSelected guard); `bestHeroForCountryProvider`, `bestHeroFromScanProvider` (M90) |
 | Memory Pulse | ✅ | Travel anniversary detection via strftime SQL; `MemoryPulseService` (checkToday, buildCopy, scheduleNextAnniversaryNotification); `MemoryPulseCard` widget (single + paged); `_MemoryPulseSection` on map screen (slide-in animation); `todaysMemoriesProvider`; `memoriesDismissedProvider`; `scheduleMemoryPulse` notification (ID 2); `pendingMemoryTripId` cold-start routing (M91) |
 | Rovy mascot | ✅ | `RovyBubble`; 5 trigger types; 4s auto-dismiss |
+| Cinematic Travel Replay | ✅ | Full-screen globe replay (M108–M111): per-leg arc animation, globe pan/zoom, `ReplayPhase` state machine; accurate GPS departure/arrival coords with centroid fallback (M109); achievement + stat overlays, summary screen with count-up stats + Share/T-Shirt CTAs (M110); `ReplayPacingRules` (haversine distance → `LegPacing`); distance-aware audio (`ReplayAudioController`, 5 audio slots, `audioplayers`); refined easing curves (`easeInOutQuart`, `easeIn` arc); globe fades to 15% on done; mute toggle + reduced-motion support (M111) |
 
 ## What is NOT built
 
@@ -38,7 +39,7 @@
 - M94: ✅ Complete (2026-05-01) — Year in Review screen, mosaic card, Dec/Jan banner, New Year notification
 - Social / friends features
 - iPad layout (iPhone-only target)
-- Sound effects (separate milestone)
+- Cinematic audio final assets (placeholder MP3s in M111; final production audio is a drop-in replacement)
 
 ## Key files — mobile
 
@@ -51,6 +52,10 @@
 | AI title (Swift) | `ios/Runner/AiTitlePlugin.swift` |
 | Fallback title | `lib/features/cards/title_generation/rule_based_title_generator.dart` |
 | Globe / celebration | `lib/features/map/celebration_globe_widget.dart` |
+| Travel replay engine | `lib/features/globe_replay/travel_replay_engine.dart` |
+| Travel replay controller | `lib/features/globe_replay/travel_replay_controller.dart` |
+| Replay audio controller | `lib/features/globe_replay/replay_audio_controller.dart` |
+| Replay widget | `lib/features/globe_replay/globe_replay_widget.dart` |
 | Discovery overlay | `lib/features/scan/discovery_overlay.dart` |
 | Scan screen | `lib/features/scan/scan_screen.dart` |
 | Map screen | `lib/features/map/map_screen.dart` |

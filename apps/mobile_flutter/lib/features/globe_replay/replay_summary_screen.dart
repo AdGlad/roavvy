@@ -40,20 +40,21 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
   @override
   void initState() {
     super.initState();
+    // M111: longer count-up (1200ms) with easeOutExpo for a more dramatic reveal.
     _countUpCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1200),
     );
     _countUpAnim = CurvedAnimation(
-        parent: _countUpCtrl, curve: Curves.easeOutCubic);
+        parent: _countUpCtrl, curve: Curves.easeOutExpo);
   }
 
   @override
   void didUpdateWidget(ReplaySummaryScreen old) {
     super.didUpdateWidget(old);
     if (widget.isVisible && !old.isVisible) {
-      // Delay count-up slightly so slide animation has started first.
-      Future.delayed(const Duration(milliseconds: 250), () {
+      // Delay count-up slightly so slide animation has started (M111: 350ms).
+      Future.delayed(const Duration(milliseconds: 350), () {
         if (mounted) _countUpCtrl.forward();
       });
     }
@@ -70,9 +71,11 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
 
   @override
   Widget build(BuildContext context) {
+    // M111: easeOutQuart for a weightier slide entrance; stagger delay matches
+    // globe fade (600ms) so summary appears as globe dims.
     return AnimatedSlide(
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutQuart,
       offset: widget.isVisible ? Offset.zero : const Offset(0, 1),
       child: _buildContent(context),
     );
@@ -102,9 +105,9 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
               ),
               const SizedBox(height: 32),
 
-              // Stat rows with staggered fade-in.
+              // Stat rows with staggered fade-in. M111: 180ms stagger (was 150ms).
               ...List.generate(stats.length, (i) {
-                final delay = i * 0.15;
+                final delay = i * 0.18;
                 return _StatRow(
                   stat: stats[i],
                   animation: _countUpAnim,

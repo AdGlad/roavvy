@@ -25,11 +25,6 @@ import 'data/visit_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Override audioplayers' default .playAndRecord session so audio plays
-  // through the speaker even when the ringer switch is off (ADR-124).
-  await AudioPlayer.global.setAudioContext(AudioContext(
-    iOS: AudioContextIOS(category: AVAudioSessionCategory.playback),
-  ));
   tz.initializeTimeZones();
   await NotificationService.instance.init();
   final (countryData, regionData, _) = await (
