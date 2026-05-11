@@ -13,6 +13,7 @@ enum ReplayPhase {
   flight,          // arc draws while camera pans to arrival with scale dip (variable)
   pulse,           // arrival country pulses (300 ms)
   hold,            // brief pause before next leg (200 ms)
+  overlay,         // achievement / stat overlay reveal (M110, 1 600 ms × N events)
   done,            // script complete
 }
 
@@ -43,6 +44,18 @@ class TravelReplayController extends ChangeNotifier {
 
   /// Arrival pulse radius 0.0–1.0. Used by [GlobeReplayPainter].
   double pulseValue = 0.0;
+
+  // ── Overlay state (M110) ───────────────────────────────────────────────────
+
+  /// Events scheduled to show for the current leg (set before [overlay] phase).
+  List<ReplayOverlayEvent> currentOverlayEvents = const [];
+
+  /// Index into [currentOverlayEvents] of the event currently being shown.
+  int currentOverlayEventIndex = 0;
+
+  /// 0.0–1.0 progress of the current overlay event animation.
+  /// Opacity = sin(π × overlayProgress) — bell-curve fade.
+  double overlayProgress = 0.0;
 
   bool get isPlaying =>
       phase != ReplayPhase.idle && phase != ReplayPhase.done;
@@ -85,6 +98,9 @@ class TravelReplayController extends ChangeNotifier {
     phase = ReplayPhase.idle;
     arcProgress = 0.0;
     pulseValue = 0.0;
+    currentOverlayEvents = const [];
+    currentOverlayEventIndex = 0;
+    overlayProgress = 0.0;
     if (!_disposed) notifyListeners();
   }
 
@@ -235,7 +251,49 @@ class TravelReplayController extends ChangeNotifier {
     notifyListeners();
 
     ctrl.addStatusListener((s) {
-      if (s == AnimationStatus.completed) _advanceLeg();
+      if (s == AnimationStatus.completed) _afterHold();
+    });
+    ctrl.forward();
+  }
+
+  /// After hold: run overlay events for this leg (if any), then advance.
+  void _afterHold() {
+    final events = script.overlayEvents[currentLegIndex] ?? const [];
+    if (events.isEmpty) {
+      _advanceLeg();
+    } else {
+      currentOverlayEvents = events;
+      currentOverlayEventIndex = 0;
+      overlayProgress = 0.0;
+      _runOverlay();
+    }
+  }
+
+  /// Shows one overlay event (1 600 ms: 400 fade-in + 800 hold + 400 fade-out).
+  /// Opacity = sin(π × overlayProgress) peaks at 0.5.
+  void _runOverlay() {
+    if (_disposed) return;
+    final ctrl = _makeCtrl(const Duration(milliseconds: 1600));
+    _phaseCtrl = ctrl;
+    phase = ReplayPhase.overlay;
+    overlayProgress = 0.0;
+    notifyListeners();
+
+    ctrl.addListener(() {
+      overlayProgress = ctrl.value;
+      if (!_disposed) notifyListeners();
+    });
+    ctrl.addStatusListener((s) {
+      if (s != AnimationStatus.completed) return;
+      currentOverlayEventIndex++;
+      if (currentOverlayEventIndex < currentOverlayEvents.length) {
+        _runOverlay();
+      } else {
+        currentOverlayEvents = const [];
+        currentOverlayEventIndex = 0;
+        overlayProgress = 0.0;
+        _advanceLeg();
+      }
     });
     ctrl.forward();
   }

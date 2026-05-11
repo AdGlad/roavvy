@@ -56,6 +56,15 @@ final achievementRepositoryProvider = Provider<AchievementRepository>(
   (ref) => AchievementRepository(ref.watch(roavvyDatabaseProvider)),
 );
 
+/// Set of unlocked achievement IDs for the current user (M110).
+/// Used by [ReplayTimelineBuilder] to filter which achievements appear in replay.
+final unlockedAchievementIdsProvider = FutureProvider<Set<String>>(
+  (ref) async {
+    final ids = await ref.watch(achievementRepositoryProvider).loadAll();
+    return ids.toSet();
+  },
+);
+
 final regionRepositoryProvider = Provider<RegionRepository>(
   (ref) => RegionRepository(ref.watch(roavvyDatabaseProvider)),
 );

@@ -7,6 +7,17 @@
 
 ## Next up (mobile-first order)
 
+### M110 — Dynamic Achievements & Replay Stats Overlay
+**Goal:** Enhance cinematic travel replay with contextual achievement reveal moments and travel stats overlays. Achievements appear at the leg where their threshold is crossed; stats appear every 5 legs; a summary frame with Share and Create T-Shirt CTAs closes the experience.
+**Phase:** 23 — Globe Experiences
+**Depends on:** M109
+**Scope in:** `ReplayOverlayEvent` sealed class (`ReplayAchievementEvent`, `ReplayStatEvent`); `TravelReplayScript.overlayEvents`/`summaryStats`; `ReplayTimelineBuilder` (pure precomputed achievement detection + stat placement); `ReplayPhase.overlay` + controller overlay sequencer; `ReplayAchievementOverlay` + `ReplayStatOverlay` widgets; `ReplaySummaryScreen` with count-up stats + Replay/Share/T-Shirt CTAs; wiring in `GlobeReplayWidget` + `replay_entry_sheet.dart`.
+**Scope out:** New achievements; hero image display during overlay; audio; video export; continent entry UI.
+**Full plan:** `docs/dev/milestones/m110-replay-stats-achievement-overlay.md`
+**Status:** ✅ Complete
+
+---
+
 ### M109 — Accurate Departure & Arrival Coordinates
 **Goal:** Replace country-centroid start/end points in cinematic travel replay with actual GPS coordinates from trip photos — using the last valid GPS image of the departing segment and the first valid GPS image of the arriving segment. Fallback chain: nearest GPS image → city coordinate → country centroid.
 **Phase:** 23 — Globe Experiences

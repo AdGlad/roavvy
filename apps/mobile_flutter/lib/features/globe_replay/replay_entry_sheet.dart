@@ -7,6 +7,9 @@ import 'travel_replay_engine.dart';
 
 /// Bottom sheet that lets the user pick a replay mode and start the replay.
 ///
+/// M110: calls [ReplayTimelineBuilder] to pre-compute achievement and stat
+/// overlay events before launching [GlobeReplayWidget].
+///
 /// Call via [showReplayEntrySheet].
 class ReplayEntrySheet extends ConsumerStatefulWidget {
   const ReplayEntrySheet({super.key});
@@ -21,6 +24,7 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final tripsAsync = ref.watch(tripListProvider);
+    final unlockedAsync = ref.watch(unlockedAchievementIdsProvider);
 
     return SafeArea(
       child: Padding(
@@ -79,11 +83,28 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
 
             const SizedBox(height: 20),
 
-            // Play button.
+            // Play button — waits for both trips and unlocked IDs.
             tripsAsync.when(
               data: (trips) {
-                final script = TravelReplayScriptBuilder.build(
+                final unlockedIds = unlockedAsync.valueOrNull ?? const <String>{};
+                final baseScript = TravelReplayScriptBuilder.build(
                     trips: trips, mode: _mode);
+
+                // Pre-compute overlay events.
+                final timeline = ReplayTimelineBuilder.build(
+                  legs: baseScript.legs,
+                  allTrips: trips,
+                  unlockedIds: unlockedIds,
+                  mode: _mode,
+                );
+                final script = TravelReplayScript(
+                  legs: baseScript.legs,
+                  mode: baseScript.mode,
+                  label: baseScript.label,
+                  overlayEvents: timeline.events,
+                  summaryStats: timeline.summary,
+                );
+
                 return FilledButton.icon(
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('Play Replay'),

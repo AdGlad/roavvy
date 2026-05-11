@@ -1,19 +1,16 @@
-# Active Task: M109 — Accurate Departure & Arrival Coordinates
+# Current Task
 
-Branch: milestone/m109-accurate-departure-arrival-coordinates
+**Milestone:** M110 — Dynamic Achievements & Replay Stats Overlay
+**Status:** ✅ Complete
 
-## Status: Complete (2026-05-11)
+All tasks complete. M110 implementation delivered:
 
-## Delivered
-
-- ADR-157: Trip GPS endpoint storage extending ADR-002
-- `PhotoGpsRecord` + `BatchResult.photoGps` — raw GPS tracked during scan batch resolution
-- `TripRecord` — nullable `firstLat/firstLng/lastLat/lastLng` GPS endpoint fields
-- Drift schema v12 — `Trips` table gains four nullable REAL GPS columns; migration added
-- `TripRepository` — `upsertAll` + `_rowToRecord` persist/load GPS fields
-- `_applyTripGps` helper in scan pipeline — matches GPS records to trips by time window after `inferTrips`
-- `TravelLeg` — `fromLat/fromLng/toLat/toLng` nullable GPS fields + `hasFromGps`/`hasToGps` helpers
-- `TravelReplayScriptBuilder` — populates leg GPS from `trip.lastLat/lastLng` (departure) + `trip.firstLat/firstLng` (arrival)
-- `GlobeReplayPainter` — `_resolveUnit`/`_resolveProject` helpers prefer GPS over centroid for arc + dots + pulse
-- `TravelReplayController` — `_runDepartureSettle` + `_runFlight` use leg GPS for camera pan targets
-- flutter analyze: 0 new issues
+- `ReplayOverlayEvent` sealed class + `ReplayAchievementEvent` + `ReplayStatEvent`
+- `TravelReplayScript` extended with `overlayEvents` + `summaryStats`
+- `ReplayTimelineBuilder`: pure precomputed achievement detection + stat placement
+- `ReplayPhase.overlay` + controller overlay sequencer (`_afterHold`, `_runOverlay`)
+- `ReplayAchievementOverlay` + `ReplayStatOverlay` widgets
+- `ReplaySummaryScreen` with count-up stats + Replay/Share/Create T-Shirt CTAs
+- Wired in `GlobeReplayWidget` + `replay_entry_sheet.dart`
+- `unlockedAchievementIdsProvider` in `providers.dart`
+- `flutter analyze`: 0 new warnings (3 errors fixed)

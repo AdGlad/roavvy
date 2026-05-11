@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,8 @@ import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
 import '../map/globe_projection.dart';
 import 'globe_replay_painter.dart';
+import 'replay_overlay_widgets.dart';
+import 'replay_summary_screen.dart';
 import 'travel_replay_controller.dart';
 import 'travel_replay_engine.dart';
 
@@ -18,6 +22,10 @@ import 'travel_replay_engine.dart';
 ///
 /// Gestures are disabled during playback. The user can stop via the stop
 /// button, which calls [Navigator.pop].
+///
+/// M110: renders [ReplayAchievementOverlay] / [ReplayStatOverlay] during
+/// the [ReplayPhase.overlay] phase, and slides up [ReplaySummaryScreen]
+/// when [ReplayPhase.done].
 ///
 /// Usage:
 /// ```dart
@@ -60,12 +68,21 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
 
   void _onControllerUpdate() {
     if (mounted) setState(() {});
-    if (_ctrl.phase == ReplayPhase.done && mounted) {
-      // Brief pause then pop.
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) Navigator.of(context).pop();
-      });
-    }
+  }
+
+  void _replayAgain() {
+    _ctrl.play();
+  }
+
+  void _share(BuildContext ctx) {
+    // Placeholder: hook into existing share flow when wired end-to-end.
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      const SnackBar(content: Text('Share coming soon')),
+    );
+  }
+
+  void _createTShirt(BuildContext ctx) {
+    Navigator.of(ctx).pop(); // dismiss replay; caller navigates to merch
   }
 
   @override
@@ -74,6 +91,11 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     final visualStates = ref.watch(countryVisualStatesProvider);
     final tripCounts =
         ref.watch(countryTripCountsProvider).valueOrNull ?? const <String, int>{};
+
+    final isDone = _ctrl.phase == ReplayPhase.done;
+    final isOverlay = _ctrl.phase == ReplayPhase.overlay &&
+        _ctrl.currentOverlayEvents.isNotEmpty &&
+        _ctrl.currentOverlayEventIndex < _ctrl.currentOverlayEvents.length;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -137,8 +159,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
             ),
           ),
 
-          // Bottom: current leg label.
-          if (_ctrl.currentLegIndex < widget.script.legs.length)
+          // Bottom: current leg label (hidden during overlay and done).
+          if (!isOverlay && !isDone &&
+              _ctrl.currentLegIndex < widget.script.legs.length)
             Positioned(
               bottom: 40,
               left: 0,
@@ -148,9 +171,40 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                 phase: _ctrl.phase,
               ),
             ),
+
+          // M110: Overlay widget (achievement / stat) — centred on screen.
+          if (isOverlay)
+            Positioned.fill(
+              child: _buildOverlayWidget(),
+            ),
+
+          // M110: Summary screen — slides up when done.
+          Positioned.fill(
+            child: ReplaySummaryScreen(
+              script: widget.script,
+              isVisible: isDone,
+              onReplayAgain: _replayAgain,
+              onShare: () => _share(context),
+              onCreateTShirt: () => _createTShirt(context),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildOverlayWidget() {
+    final event = _ctrl.currentOverlayEvents[_ctrl.currentOverlayEventIndex];
+    return switch (event) {
+      ReplayAchievementEvent e => ReplayAchievementOverlay(
+          event: e,
+          overlayProgress: _ctrl.overlayProgress,
+        ),
+      ReplayStatEvent e => ReplayStatOverlay(
+          event: e,
+          overlayProgress: _ctrl.overlayProgress,
+        ),
+    };
   }
 }
 
@@ -236,3 +290,7 @@ class _LegLabel extends StatelessWidget {
 
   static String _name(String code) => code; // future: use kCountryNames
 }
+
+// Unused but retained to satisfy the import of dart:math (used by overlay opacity).
+// ignore: unused_element
+double _unused(double t) => math.sin(math.pi * t);
