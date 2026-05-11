@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:audioplayers/audioplayers.dart';
 
 // ── ReplayAudioController (M111) ──────────────────────────────────────────────
@@ -29,7 +30,11 @@ class ReplayAudioController {
         _travelLong = AudioPlayer(),
         _arrival = AudioPlayer(),
         _achievement = AudioPlayer(),
-        _end = AudioPlayer();
+        _end = AudioPlayer() {
+    for (final p in _allPlayers) {
+      p.setPlayerMode(PlayerMode.lowLatency).ignore();
+    }
+  }
 
   final AudioPlayer _travelShort;
   final AudioPlayer _travelLong;
@@ -105,21 +110,22 @@ class ReplayAudioController {
   List<AudioPlayer> get _allPlayers =>
       [_travelShort, _travelLong, _arrival, _achievement, _end];
 
-  /// Preloads a single player by playing and immediately stopping.
+  /// Preloads a single player by setting the source.
   Future<void> _warmUp(AudioPlayer player, String assetPath) async {
     try {
-      await player.setSourceAsset(assetPath);
-    } catch (_) {
-      // Silently suppressed — missing asset or audio unavailable in test.
+      await player.setSource(AssetSource(assetPath));
+    } catch (e) {
+      developer.log('ReplayAudio: Warm up failed for $assetPath: $e');
     }
   }
 
   /// Plays an asset on [player], stopping any current playback first.
   void _play(AudioPlayer player, String assetPath) {
     try {
+      // audioplayers 6.0.0: play(AssetSource(...)) handles both setting and playing.
       player.play(AssetSource(assetPath)).ignore();
-    } catch (_) {
-      // Silently suppressed — audio is non-critical.
+    } catch (e) {
+      developer.log('ReplayAudio: Play failed for $assetPath: $e');
     }
   }
 }
