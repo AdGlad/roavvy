@@ -16,6 +16,15 @@
 **Full plan:** `docs/dev/milestones/m110-replay-stats-achievement-overlay.md`
 **Status:** ✅ Complete
 
+### M111 — Cinematic Audio & Replay Timing System
+**Goal:** Transform replay into a cinematic travel memory experience through layered sound design, distance-aware pacing, refined easing curves, and emotional timing orchestration. Short arcs feel snappy; long intercontinental arcs feel sweeping and dramatic. Audio (whoosh, arrival chime, achievement swell, end cue) synchronises with replay events. Full mute and reduced-motion support.
+**Phase:** 23 — Globe Experiences
+**Depends on:** M110
+**Scope in:** `ReplayPacingRules` (haversine arc distance → `LegPacing`); `LegPacing` data class; `TravelReplayScript.legPacing`; `TravelReplayController` pacing integration + easing upgrades + `reducedMotion` flag; `ReplayAudioController` (`audioplayers` wrapper; preload, play, mute); audio asset registration (5 OGG slots); audio synchronisation via existing `onLegStart`/`onLegComplete` hooks; globe fade on done; summary screen easing/timing improvements; mute toggle in top bar.
+**Scope out:** Final production audio assets (placeholder OGGs used); hero image thumbnails during overlay; video export; Android/web; replay themes/music packs (architecture supports future extension).
+**Full plan:** `docs/dev/milestones/m111-cinematic-audio-replay-timing.md`
+**Status:** 🔜 Next
+
 ---
 
 ### M109 — Accurate Departure & Arrival Coordinates
