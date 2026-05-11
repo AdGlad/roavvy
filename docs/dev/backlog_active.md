@@ -23,7 +23,7 @@
 **Scope in:** `ReplayPacingRules` (haversine arc distance → `LegPacing`); `LegPacing` data class; `TravelReplayScript.legPacing`; `TravelReplayController` pacing integration + easing upgrades + `reducedMotion` flag; `ReplayAudioController` (`audioplayers` wrapper; preload, play, mute); audio asset registration (5 OGG slots); audio synchronisation via existing `onLegStart`/`onLegComplete` hooks; globe fade on done; summary screen easing/timing improvements; mute toggle in top bar.
 **Scope out:** Final production audio assets (placeholder OGGs used); hero image thumbnails during overlay; video export; Android/web; replay themes/music packs (architecture supports future extension).
 **Full plan:** `docs/dev/milestones/m111-cinematic-audio-replay-timing.md`
-**Status:** 🔜 Next
+**Status:** ✅ Complete (2026-05-11)
 
 ---
 

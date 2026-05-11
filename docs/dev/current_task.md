@@ -1,16 +1,7 @@
 # Current Task
 
-**Milestone:** M110 — Dynamic Achievements & Replay Stats Overlay
-**Status:** ✅ Complete
+**Milestone:** M111 — Cinematic Audio & Replay Timing System
+**Status:** ✅ Complete (2026-05-11)
 
-All tasks complete. M110 implementation delivered:
-
-- `ReplayOverlayEvent` sealed class + `ReplayAchievementEvent` + `ReplayStatEvent`
-- `TravelReplayScript` extended with `overlayEvents` + `summaryStats`
-- `ReplayTimelineBuilder`: pure precomputed achievement detection + stat placement
-- `ReplayPhase.overlay` + controller overlay sequencer (`_afterHold`, `_runOverlay`)
-- `ReplayAchievementOverlay` + `ReplayStatOverlay` widgets
-- `ReplaySummaryScreen` with count-up stats + Replay/Share/Create T-Shirt CTAs
-- Wired in `GlobeReplayWidget` + `replay_entry_sheet.dart`
-- `unlockedAchievementIdsProvider` in `providers.dart`
-- `flutter analyze`: 0 new warnings (3 errors fixed)
+All 10 tasks implemented and committed (`a0c098f`).
+Next milestone: TBD — see `backlog_active.md`.
