@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +8,7 @@ import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
 import '../map/globe_projection.dart';
 import 'globe_replay_painter.dart';
+import 'replay_audio_controller.dart';
 import 'replay_overlay_widgets.dart';
 import 'replay_summary_screen.dart';
 import 'travel_replay_controller.dart';
@@ -26,6 +25,10 @@ import 'travel_replay_engine.dart';
 /// M110: renders [ReplayAchievementOverlay] / [ReplayStatOverlay] during
 /// the [ReplayPhase.overlay] phase, and slides up [ReplaySummaryScreen]
 /// when [ReplayPhase.done].
+///
+/// M111: owns [ReplayAudioController] (preloaded before play); exposes mute
+/// toggle in the top bar; reads [MediaQuery.disableAnimations] to set
+/// [TravelReplayController.reducedMotion]. Globe fades to 15% opacity on done.
 ///
 /// Usage:
 /// ```dart
@@ -45,16 +48,32 @@ class GlobeReplayWidget extends ConsumerStatefulWidget {
 class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     with TickerProviderStateMixin {
   late final TravelReplayController _ctrl;
+  late final ReplayAudioController _audioCtrl;
+  bool _isMuted = false;
 
   @override
   void initState() {
     super.initState();
+    // M111: read reduced-motion preference before constructing controller.
+    // ignore: use_build_context_synchronously — initState is safe here
+    final reduceMotion =
+        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
+            .reduceMotion;
+
     // Inject centroids so the controller can resolve lat/lng from ISO codes.
     TravelReplayController.setCentroids(kCountryCentroids);
     _ctrl = TravelReplayController(script: widget.script, vsync: this);
+    _ctrl.reducedMotion = reduceMotion;
     _ctrl.addListener(_onControllerUpdate);
-    // Auto-play.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    // M111: create and wire audio controller.
+    _audioCtrl = ReplayAudioController();
+    _ctrl.audioController = _audioCtrl;
+
+    // Preload audio then auto-play.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _audioCtrl.preload();
       if (mounted) _ctrl.play();
     });
   }
@@ -63,6 +82,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   void dispose() {
     _ctrl.removeListener(_onControllerUpdate);
     _ctrl.dispose();
+    _audioCtrl.dispose();
     super.dispose();
   }
 
@@ -101,26 +121,31 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Globe + replay arc overlay.
+          // Globe + replay arc overlay. M111: fades to 15% on done.
           Positioned.fill(
-            child: CustomPaint(
-              painter: _CombinedGlobePainter(
-                polygons: polygons,
-                visualStates: visualStates,
-                tripCounts: tripCounts,
-                projection: _ctrl.projection,
-                replayPainter: GlobeReplayPainter(
+            child: AnimatedOpacity(
+              opacity: isDone ? 0.15 : 1.0,
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInQuad,
+              child: CustomPaint(
+                painter: _CombinedGlobePainter(
+                  polygons: polygons,
+                  visualStates: visualStates,
+                  tripCounts: tripCounts,
                   projection: _ctrl.projection,
-                  script: widget.script,
-                  currentLegIndex: _ctrl.currentLegIndex,
-                  arcProgress: _ctrl.arcProgress,
-                  pulseValue: _ctrl.pulseValue,
+                  replayPainter: GlobeReplayPainter(
+                    projection: _ctrl.projection,
+                    script: widget.script,
+                    currentLegIndex: _ctrl.currentLegIndex,
+                    arcProgress: _ctrl.arcProgress,
+                    pulseValue: _ctrl.pulseValue,
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Top bar: script label + stop button.
+          // Top bar: script label + mute + stop.
           Positioned(
             top: 0,
             left: 0,
@@ -144,12 +169,29 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                       current: _ctrl.currentLegIndex,
                       total: widget.script.legs.length,
                     ),
-                    const SizedBox(width: 8),
+                    // M111: mute toggle.
+                    IconButton(
+                      icon: Icon(
+                        _isMuted
+                            ? Icons.volume_off_rounded
+                            : Icons.volume_up_rounded,
+                        color: Colors.white,
+                      ),
+                      tooltip: _isMuted ? 'Unmute' : 'Mute',
+                      onPressed: () {
+                        setState(() {
+                          _isMuted = !_isMuted;
+                          _audioCtrl.isMuted = _isMuted;
+                          if (_isMuted) _audioCtrl.stopAll();
+                        });
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
                       tooltip: 'Stop replay',
                       onPressed: () {
                         _ctrl.stop();
+                        _audioCtrl.stopAll();
                         Navigator.of(context).pop();
                       },
                     ),
@@ -291,6 +333,3 @@ class _LegLabel extends StatelessWidget {
   static String _name(String code) => code; // future: use kCountryNames
 }
 
-// Unused but retained to satisfy the import of dart:math (used by overlay opacity).
-// ignore: unused_element
-double _unused(double t) => math.sin(math.pi * t);

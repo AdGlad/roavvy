@@ -10,6 +10,9 @@ import 'travel_replay_engine.dart';
 /// M110: calls [ReplayTimelineBuilder] to pre-compute achievement and stat
 /// overlay events before launching [GlobeReplayWidget].
 ///
+/// M111: calls [ReplayPacingRules.buildPacingList] to pre-compute per-leg
+/// cinematic timing based on great-circle arc distance.
+///
 /// Call via [showReplayEntrySheet].
 class ReplayEntrySheet extends ConsumerStatefulWidget {
   const ReplayEntrySheet({super.key});
@@ -97,12 +100,15 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
                   unlockedIds: unlockedIds,
                   mode: _mode,
                 );
+                // Pre-compute distance-aware pacing (M111).
+                final pacing = ReplayPacingRules.buildPacingList(baseScript);
                 final script = TravelReplayScript(
                   legs: baseScript.legs,
                   mode: baseScript.mode,
                   label: baseScript.label,
                   overlayEvents: timeline.events,
                   summaryStats: timeline.summary,
+                  legPacing: pacing,
                 );
 
                 return FilledButton.icon(

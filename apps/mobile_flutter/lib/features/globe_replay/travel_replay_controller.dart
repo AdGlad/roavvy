@@ -3,16 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../map/globe_projection.dart';
+import 'replay_audio_controller.dart';
 import 'travel_replay_engine.dart';
 
 /// Animation phases for a single replay leg.
 enum ReplayPhase {
   idle,
-  departureSettle, // rotate + zoom in to departure country (700 ms)
-  departureHold,   // hold on departure before flight (250 ms)
+  departureSettle, // rotate + zoom in to departure country
+  departureHold,   // hold on departure before flight
   flight,          // arc draws while camera pans to arrival with scale dip (variable)
-  pulse,           // arrival country pulses (300 ms)
-  hold,            // brief pause before next leg (200 ms)
+  pulse,           // arrival country pulses
+  hold,            // brief pause before next leg
   overlay,         // achievement / stat overlay reveal (M110, 1 600 ms × N events)
   done,            // script complete
 }
@@ -60,9 +61,25 @@ class TravelReplayController extends ChangeNotifier {
   bool get isPlaying =>
       phase != ReplayPhase.idle && phase != ReplayPhase.done;
 
-  // ── Future hooks (deferred — video export / audio) ─────────────────────────
+  // ── Audio (M111) ───────────────────────────────────────────────────────────
 
-  /// Called when a leg starts. Hook for future audio/music cues.
+  /// Injected by [GlobeReplayWidget] before [play()] is called (M111).
+  ///
+  /// When null, all audio is silently skipped. This keeps the controller
+  /// working in test and non-audio contexts.
+  // ignore: avoid_setters_without_getters
+  set audioController(ReplayAudioController? value) => _audioController = value;
+  ReplayAudioController? _audioController;
+
+  // ── Pacing & accessibility (M111) ─────────────────────────────────────────
+
+  /// When true (set from [MediaQuery.disableAnimations]), all phase durations
+  /// are halved and the scale dip is zeroed.
+  bool reducedMotion = false;
+
+  // ── Hooks ──────────────────────────────────────────────────────────────────
+
+  /// Called when a leg starts. Wired to audio in [GlobeReplayWidget] (M111).
   void Function(int legIndex)? onLegStart;
 
   /// Called when a leg completes.
@@ -76,6 +93,7 @@ class TravelReplayController extends ChangeNotifier {
   AnimationController? _phaseCtrl;
   bool _disposed = false;
 
+  // Fallback constants used when script.legPacing is empty.
   static const _kDepartureSettleDuration = Duration(milliseconds: 700);
   static const _kDepartureHoldDuration = Duration(milliseconds: 250);
   static const _kPulseDuration = Duration(milliseconds: 300);
@@ -110,6 +128,7 @@ class TravelReplayController extends ChangeNotifier {
     if (_disposed) return;
     if (currentLegIndex >= script.legs.length) {
       phase = ReplayPhase.done;
+      _callAudio('end');
       onReplayComplete?.call();
       notifyListeners();
       return;
@@ -124,8 +143,12 @@ class TravelReplayController extends ChangeNotifier {
   ///
   /// Uses the leg's actual GPS departure coordinates when available (M109);
   /// falls back to country centroid.
+  ///
+  /// M111: duration and easing from [LegPacing]. Uses [Curves.easeInOutQuart]
+  /// (more weighted than the previous easeInOutCubic) for a weightier camera.
   void _runDepartureSettle() {
     final leg = script.legs[currentLegIndex];
+    final pacing = _currentPacing();
     final fromLat = leg.hasFromGps
         ? leg.fromLat! * math.pi / 180.0
         : _centroidLat(leg.fromCode);
@@ -133,13 +156,15 @@ class TravelReplayController extends ChangeNotifier {
         ? -(leg.fromLng! * math.pi / 180.0)
         : _centroidLng(leg.fromCode);
 
+    final settleMs =
+        reducedMotion ? pacing.departureSettleMs ~/ 2 : pacing.departureSettleMs;
     final startProjection = projection;
-    final ctrl = _makeCtrl(_kDepartureSettleDuration);
+    final ctrl = _makeCtrl(Duration(milliseconds: settleMs));
     _phaseCtrl = ctrl;
     phase = ReplayPhase.departureSettle;
     notifyListeners();
 
-    final anim = CurvedAnimation(parent: ctrl, curve: Curves.easeInOutCubic);
+    final anim = CurvedAnimation(parent: ctrl, curve: Curves.easeInOutQuart);
     ctrl.addListener(() {
       final t = anim.value;
       projection = projection.copyWith(
@@ -157,7 +182,10 @@ class TravelReplayController extends ChangeNotifier {
 
   /// Phase 2: brief hold on departure before the arc begins.
   void _runDepartureHold() {
-    final ctrl = _makeCtrl(_kDepartureHoldDuration);
+    final pacing = _currentPacing();
+    final holdMs =
+        reducedMotion ? pacing.departureHoldMs ~/ 2 : pacing.departureHoldMs;
+    final ctrl = _makeCtrl(Duration(milliseconds: holdMs));
     _phaseCtrl = ctrl;
     phase = ReplayPhase.departureHold;
     notifyListeners();
@@ -168,15 +196,17 @@ class TravelReplayController extends ChangeNotifier {
   }
 
   /// Phase 3: arc draws while the camera simultaneously pans from departure
-  /// to arrival with a gentle scale dip at mid-flight for cinematic depth.
+  /// to arrival with a scale dip at mid-flight for cinematic depth.
   ///
-  /// Scale curve: departs at 1.7×, dips to ~1.3× at mid-arc, arrives at 1.9×.
-  /// Camera pan uses easeInOutSine so it starts and ends smoothly.
+  /// M111: camera pan uses [Curves.easeInOutCubic] (stronger than easeInOutSine);
+  /// arc draw uses [Curves.easeIn] so the arc launches slowly then accelerates.
+  /// Scale dip magnitude is driven by [LegPacing.scaleDipAmount] — longer arcs
+  /// zoom out more, creating a greater sense of distance.
   ///
-  /// M109: uses leg GPS coordinates when available for both pan targets;
-  /// falls back to country centroids.
+  /// M109: uses leg GPS coordinates when available; falls back to centroids.
   void _runFlight() {
     final leg = script.legs[currentLegIndex];
+    final pacing = _currentPacing();
     final fromLat = leg.hasFromGps
         ? leg.fromLat! * math.pi / 180.0
         : _centroidLat(leg.fromCode);
@@ -190,28 +220,34 @@ class TravelReplayController extends ChangeNotifier {
         ? -(leg.toLng! * math.pi / 180.0)
         : _centroidLng(leg.toCode);
 
-    final legCount = script.legs.length;
-    final flightMs = TravelReplayScriptBuilder.legDurationMs(legCount);
+    final flightMs =
+        reducedMotion ? pacing.flightMs ~/ 2 : pacing.flightMs;
     final ctrl = _makeCtrl(Duration(milliseconds: flightMs));
     _phaseCtrl = ctrl;
     phase = ReplayPhase.flight;
     arcProgress = 0.0;
+    // M111: play travel sound appropriate to arc distance.
+    _callAudio('travel', pacing: pacing);
     notifyListeners();
 
+    final dipAmount = reducedMotion ? 0.0 : pacing.scaleDipAmount;
+
     ctrl.addListener(() {
-      final rawT = ctrl.value; // linear 0→1
-      final smoothT = Curves.easeInOutSine.transform(rawT);
+      final rawT = ctrl.value;
+      // Camera pan: easeInOutCubic — stronger deceleration at arrival.
+      final camT = Curves.easeInOutCubic.transform(rawT);
+      // Arc draw: easeIn — starts slow (rocket launch), accelerates mid-flight.
+      final arcT = Curves.easeIn.transform(rawT);
 
-      // Arc drawing follows the smooth curve.
-      arcProgress = smoothT;
+      arcProgress = arcT;
 
-      // Camera pans smoothly from departure to arrival.
-      final newLat = _lerp(fromLat, toLat, smoothT);
-      final newLng = _lerpAngle(fromLng, toLng, smoothT);
+      final newLat = _lerp(fromLat, toLat, camT);
+      final newLng = _lerpAngle(fromLng, toLng, camT);
 
-      // Scale: 1.7 at departure → dip to ~1.3 at mid-arc → 1.9 at arrival.
-      // sin(π·rawT) peaks at 0.5 so the dip is centred on the flight.
-      final newScale = _lerp(1.7, 1.9, rawT) - 0.5 * math.sin(math.pi * rawT);
+      // Scale: 1.7 at departure → dip at mid-arc → peakScale at arrival.
+      // Dip magnitude scales with arc distance for a sense of global height.
+      final newScale = _lerp(1.7, pacing.peakScale, rawT)
+          - dipAmount * math.sin(math.pi * rawT);
 
       projection = projection.copyWith(
         rotLat: newLat,
@@ -227,10 +263,14 @@ class TravelReplayController extends ChangeNotifier {
   }
 
   void _runPulse() {
-    final ctrl = _makeCtrl(_kPulseDuration);
+    final pacing = _currentPacing();
+    final pulseMs = reducedMotion ? pacing.pulseMs ~/ 2 : pacing.pulseMs;
+    final ctrl = _makeCtrl(Duration(milliseconds: pulseMs));
     _phaseCtrl = ctrl;
     phase = ReplayPhase.pulse;
     pulseValue = 0.0;
+    // M111: arrival chime.
+    _callAudio('arrival');
     notifyListeners();
 
     final anim = CurvedAnimation(parent: ctrl, curve: Curves.elasticOut);
@@ -245,7 +285,9 @@ class TravelReplayController extends ChangeNotifier {
   }
 
   void _runHold() {
-    final ctrl = _makeCtrl(_kHoldDuration);
+    final pacing = _currentPacing();
+    final holdMs = reducedMotion ? pacing.holdMs ~/ 2 : pacing.holdMs;
+    final ctrl = _makeCtrl(Duration(milliseconds: holdMs));
     _phaseCtrl = ctrl;
     phase = ReplayPhase.hold;
     notifyListeners();
@@ -277,6 +319,12 @@ class TravelReplayController extends ChangeNotifier {
     _phaseCtrl = ctrl;
     phase = ReplayPhase.overlay;
     overlayProgress = 0.0;
+    // M111: achievement swell for achievement events; stat events are silent.
+    if (currentOverlayEventIndex == 0 ||
+        currentOverlayEventIndex < currentOverlayEvents.length) {
+      final evt = currentOverlayEvents[currentOverlayEventIndex];
+      if (evt is ReplayAchievementEvent) _callAudio('achievement');
+    }
     notifyListeners();
 
     ctrl.addListener(() {
@@ -309,6 +357,48 @@ class TravelReplayController extends ChangeNotifier {
   AnimationController _makeCtrl(Duration duration) {
     _phaseCtrl?.dispose();
     return AnimationController(vsync: _vsync, duration: duration);
+  }
+
+  /// Dispatches audio cue [kind] to [_audioController].
+  ///
+  /// [kind] is one of: 'travel', 'arrival', 'achievement', 'end'.
+  /// Falls back silently when [_audioController] is null.
+  void _callAudio(String kind, {LegPacing? pacing}) {
+    final ac = _audioController;
+    if (ac == null) return;
+    switch (kind) {
+      case 'travel':
+        final dist = pacing != null
+            ? ReplayPacingRules.legArcDistance(script.legs[currentLegIndex])
+            : 45.0;
+        ac.playTravelMovement(dist);
+      case 'arrival':
+        ac.playArrival();
+      case 'achievement':
+        ac.playAchievement();
+      case 'end':
+        ac.playReplayEnd();
+    }
+  }
+
+  /// Returns the [LegPacing] for the current leg, or a fallback derived from
+  /// the fixed constants when [script.legPacing] is empty (e.g. in tests or
+  /// when the script was built without calling [ReplayPacingRules]).
+  LegPacing _currentPacing() {
+    final pacing = script.legPacing;
+    if (pacing.isNotEmpty && currentLegIndex < pacing.length) {
+      return pacing[currentLegIndex];
+    }
+    // Fallback to fixed constants for backward compatibility.
+    return LegPacing(
+      departureSettleMs: _kDepartureSettleDuration.inMilliseconds,
+      departureHoldMs: _kDepartureHoldDuration.inMilliseconds,
+      flightMs: TravelReplayScriptBuilder.legDurationMs(script.legs.length),
+      pulseMs: _kPulseDuration.inMilliseconds,
+      holdMs: _kHoldDuration.inMilliseconds,
+      peakScale: 1.9,
+      scaleDipAmount: 0.5,
+    );
   }
 
   static double _lerp(double a, double b, double t) => a + (b - a) * t;

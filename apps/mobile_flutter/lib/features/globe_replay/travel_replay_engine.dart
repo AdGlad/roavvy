@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:shared_models/shared_models.dart';
+
+import '../map/country_centroids.dart';
 
 /// Replay mode for the cinematic globe replay (M108).
 enum TravelReplayMode {
@@ -118,6 +122,7 @@ class TravelReplayScript {
     required this.label,
     this.overlayEvents = const {},
     this.summaryStats = const [],
+    this.legPacing = const [],
   });
 
   final List<TravelLeg> legs;
@@ -134,6 +139,11 @@ class TravelReplayScript {
 
   /// Stats shown on the end-of-replay summary screen (M110).
   final List<ReplayStatEvent> summaryStats;
+
+  /// Per-leg cinematic pacing, precomputed by [ReplayPacingRules] (M111).
+  ///
+  /// When empty, [TravelReplayController] falls back to fixed constants.
+  final List<LegPacing> legPacing;
 
   bool get isEmpty => legs.isEmpty;
 }
@@ -201,6 +211,168 @@ class TravelReplayScriptBuilder {
     if (legCount <= 30) return 2000;
     if (legCount <= 80) return 1200;
     return 700;
+  }
+}
+
+// ── LegPacing (M111) ──────────────────────────────────────────────────────────
+
+/// Cinematic timing parameters for a single replay leg.
+///
+/// Computed by [ReplayPacingRules] based on the great-circle arc distance
+/// between departure and arrival. Longer arcs use slower, more dramatic timing;
+/// shorter regional arcs are snappier.
+class LegPacing {
+  const LegPacing({
+    required this.departureSettleMs,
+    required this.departureHoldMs,
+    required this.flightMs,
+    required this.pulseMs,
+    required this.holdMs,
+    required this.peakScale,
+    required this.scaleDipAmount,
+  });
+
+  final int departureSettleMs;
+  final int departureHoldMs;
+  final int flightMs;
+  final int pulseMs;
+  final int holdMs;
+
+  /// Globe zoom scale at arrival (peak). Larger for longer arcs.
+  final double peakScale;
+
+  /// Mid-flight scale reduction magnitude. Larger values create a greater
+  /// sense of distance and height during the arc.
+  final double scaleDipAmount;
+}
+
+// ── ReplayPacingRules (M111) ──────────────────────────────────────────────────
+
+/// Computes cinematic [LegPacing] for each leg based on great-circle arc distance.
+///
+/// Classification:
+/// - **short**  < 20° (e.g. France→Germany)
+/// - **medium** 20–90° (e.g. UK→Thailand)
+/// - **long**   > 90° (e.g. Australia→Europe)
+///
+/// For scripts with >30 legs, flight duration is further compressed proportionally
+/// to preserve reasonable total replay time (uses [TravelReplayScriptBuilder.legDurationMs]
+/// as the ceiling for very large scripts).
+class ReplayPacingRules {
+  const ReplayPacingRules._();
+
+  // ── Pacing tables by distance class ────────────────────────────────────────
+
+  static const _kShort = LegPacing(
+    departureSettleMs: 500,
+    departureHoldMs: 150,
+    flightMs: 800,
+    pulseMs: 250,
+    holdMs: 150,
+    peakScale: 1.8,
+    scaleDipAmount: 0.2,
+  );
+
+  static const _kMedium = LegPacing(
+    departureSettleMs: 700,
+    departureHoldMs: 250,
+    flightMs: 1800,
+    pulseMs: 300,
+    holdMs: 300,
+    peakScale: 1.9,
+    scaleDipAmount: 0.45,
+  );
+
+  static const _kLong = LegPacing(
+    departureSettleMs: 900,
+    departureHoldMs: 400,
+    flightMs: 3000,
+    pulseMs: 400,
+    holdMs: 500,
+    peakScale: 2.0,
+    scaleDipAmount: 0.65,
+  );
+
+  // ── Public API ─────────────────────────────────────────────────────────────
+
+  /// Great-circle arc distance in degrees between two lat/lng points.
+  ///
+  /// Uses the haversine formula; returns a value in [0, 180].
+  static double arcDistanceDeg(
+      double lat1, double lng1, double lat2, double lng2) {
+    final dLat = (lat2 - lat1) * math.pi / 180.0;
+    final dLng = (lng2 - lng1) * math.pi / 180.0;
+    final lat1R = lat1 * math.pi / 180.0;
+    final lat2R = lat2 * math.pi / 180.0;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1R) *
+            math.cos(lat2R) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return c * 180.0 / math.pi;
+  }
+
+  /// Resolves the arc distance for a [TravelLeg], using explicit GPS when
+  /// available and falling back to [kCountryCentroids].
+  static double legArcDistance(TravelLeg leg) {
+    double? fromLat = leg.fromLat;
+    double? fromLng = leg.fromLng;
+    double? toLat = leg.toLat;
+    double? toLng = leg.toLng;
+
+    if (fromLat == null || fromLng == null) {
+      final c = kCountryCentroids[leg.fromCode];
+      if (c != null) { fromLat = c.$1; fromLng = c.$2; }
+    }
+    if (toLat == null || toLng == null) {
+      final c = kCountryCentroids[leg.toCode];
+      if (c != null) { toLat = c.$1; toLng = c.$2; }
+    }
+
+    if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+      return 45.0; // safe medium fallback
+    }
+    return arcDistanceDeg(fromLat, fromLng, toLat, toLng);
+  }
+
+  /// Computes [LegPacing] for a single leg.
+  ///
+  /// [totalLegs] is used to apply a compression cap on flight duration for
+  /// large scripts: the flight duration will not exceed the value returned by
+  /// [TravelReplayScriptBuilder.legDurationMs].
+  static LegPacing compute(TravelLeg leg, int totalLegs) {
+    final dist = legArcDistance(leg);
+    final base = dist < 20.0
+        ? _kShort
+        : dist < 90.0
+            ? _kMedium
+            : _kLong;
+
+    // Apply flight compression for large scripts (>30 legs).
+    final cap = TravelReplayScriptBuilder.legDurationMs(totalLegs);
+    if (base.flightMs <= cap) return base;
+
+    return LegPacing(
+      departureSettleMs: base.departureSettleMs,
+      departureHoldMs: base.departureHoldMs,
+      flightMs: cap,
+      pulseMs: base.pulseMs,
+      holdMs: base.holdMs,
+      peakScale: base.peakScale,
+      scaleDipAmount: base.scaleDipAmount,
+    );
+  }
+
+  /// Precomputes [LegPacing] for all legs in [script].
+  ///
+  /// Call once before replay starts; assign result to
+  /// [TravelReplayScript.legPacing].
+  static List<LegPacing> buildPacingList(TravelReplayScript script) {
+    final totalLegs = script.legs.length;
+    return [
+      for (final leg in script.legs) compute(leg, totalLegs),
+    ];
   }
 }
 
