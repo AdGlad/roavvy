@@ -375,6 +375,7 @@ class _OrderSummaryCard extends StatelessWidget {
         CardTemplateType.frontRibbon => 'Front Ribbon',
         CardTemplateType.typography  => 'Typography',
         CardTemplateType.badge       => 'Explorer Badge',
+        CardTemplateType.wordCloud   => 'Word Cloud',
       };
 }
 

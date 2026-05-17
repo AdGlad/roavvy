@@ -54,6 +54,7 @@ String merchTemplateLabel(CardTemplateType t) => switch (t) {
       CardTemplateType.frontRibbon => 'Ribbon',
       CardTemplateType.typography => 'Typography',
       CardTemplateType.badge => 'Explorer Badge',
+      CardTemplateType.wordCloud => 'Word Cloud',
     };
 
 /// Suggests a suitable shirt colour for a given template and density (ADR-154).
@@ -106,7 +107,7 @@ String merchSuggestShirtColor(
 /// Passport designs remain portrait to match stamp page proportions.
 double merchBackCardAspectRatio(CardTemplateType template) => switch (template) {
       CardTemplateType.grid || CardTemplateType.timeline => 3.0 / 2.0,
-      CardTemplateType.badge || CardTemplateType.typography => 1.0,
+      CardTemplateType.badge || CardTemplateType.typography || CardTemplateType.wordCloud => 1.0,
       _ => 2.0 / 3.0, // passport, heart, frontRibbon — portrait
     };
 
