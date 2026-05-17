@@ -20,6 +20,7 @@ import 'artwork_confirmation_service.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
 import 'front_ribbon_card.dart';
+import 'word_cloud_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
 import 'stamp_preview_screen.dart';
@@ -533,6 +534,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         return BadgeCard(
           codes: codes,
           transparentBackground: false,
+        );
+      case CardTemplateType.wordCloud:
+        return TravelWordCloudCard(
+          codes: codes,
+          trips: trips,
+          titleOverride: _titleOverride,
+          transparentBackground: true,
+          colorMode: WordCloudColorMode.pastel,
         );
     }
   }

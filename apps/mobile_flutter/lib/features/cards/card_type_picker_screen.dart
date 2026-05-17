@@ -9,6 +9,7 @@ import 'card_editor_screen.dart';
 import 'card_templates.dart';
 import 'front_ribbon_card.dart';
 import 'timeline_card.dart';
+import 'word_cloud_card.dart';
 
 /// First screen in the Create Card flow.
 ///
@@ -23,6 +24,7 @@ class CardTypePickerScreen extends ConsumerWidget {
     CardTemplateType.heart,
     CardTemplateType.passport,
     CardTemplateType.timeline,
+    CardTemplateType.wordCloud,
   ];
 
   static const _labels = {
@@ -30,6 +32,7 @@ class CardTypePickerScreen extends ConsumerWidget {
     CardTemplateType.heart: 'Heart',
     CardTemplateType.passport: 'Passport',
     CardTemplateType.timeline: 'Timeline',
+    CardTemplateType.wordCloud: 'Word Cloud',
   };
 
   static const _taglines = {
@@ -37,6 +40,7 @@ class CardTypePickerScreen extends ConsumerWidget {
     CardTemplateType.heart: 'Your travels, made with love',
     CardTemplateType.passport: 'Authentic stamp collection',
     CardTemplateType.timeline: 'Your journey through time',
+    CardTemplateType.wordCloud: 'Your countries, sized by how often you visit',
   };
 
   @override
@@ -286,6 +290,12 @@ class _CardTypeTile extends StatelessWidget {
         return BadgeCard(
           codes: countryCodes,
           transparentBackground: false,
+        );
+      case CardTemplateType.wordCloud:
+        return TravelWordCloudCard(
+          codes: countryCodes,
+          trips: trips,
+          colorMode: WordCloudColorMode.pastel,
         );
     }
   }

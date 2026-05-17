@@ -22,6 +22,10 @@ enum CardTemplateType {
 
   /// Circular explorer badge with flag arc, tick ring, and scope label (M103).
   badge,
+
+  /// Country names rendered as a word cloud with visit-frequency sizing
+  /// on a transparent or solid background (M112).
+  wordCloud,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries
