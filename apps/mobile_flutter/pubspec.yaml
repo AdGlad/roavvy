@@ -33,7 +33,7 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   drift: ^2.22.0
-  drift_flutter: ^0.2.3
+  drift_flutter: ^0.3.0
   flutter_map: ^7.0.2
   latlong2: ^0.9.0
   shared_models:

@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -104,6 +103,7 @@ class _HeroImageViewState extends State<HeroImageView>
   }
 
   Future<void> _loadThumbnail(String assetId) async {
+    if (kIsWeb) return;
     if (!mounted) return;
     setState(() => _loading = true);
 

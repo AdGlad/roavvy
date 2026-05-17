@@ -43,6 +43,7 @@ class NotificationService {
 
   /// Initialises the plugin. Must be called once in [main] before [runApp].
   Future<void> init() async {
+    if (kIsWeb) return;
     if (_initialized) return;
     _initialized = true;
 

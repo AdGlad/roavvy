@@ -1,27 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core/providers.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/shell/main_shell.dart';
+import 'features/web/landing_page.dart';
+
+final _routerProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authStateProvider);
+
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: _AuthRefreshNotifier(ref),
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const LandingPage(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/app',
+        builder: (context, state) => const _OnboardingGate(),
+        redirect: (context, state) {
+          final user = authState.value;
+          if (user == null && !authState.isLoading) {
+            return '/login';
+          }
+          return null;
+        },
+      ),
+    ],
+  );
+});
+
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier(Ref ref) {
+    _subscription = ref.listen(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  late final ProviderSubscription _subscription;
+
+  @override
+  void dispose() {
+    _subscription.close();
+    super.dispose();
+  }
+}
 
 class RoavvyApp extends ConsumerWidget {
   const RoavvyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
-    return MaterialApp(
+    final router = ref.watch(_routerProvider);
+    return MaterialApp.router(
       title: 'Roavvy',
-      home: authState.when(
-        data: (user) {
-          if (user == null) return const SignInScreen();
-          return _OnboardingGate(key: ValueKey(user.uid));
-        },
-        loading: () =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (_, __) => const SignInScreen(),
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF001F3F),
       ),
     );
   }
