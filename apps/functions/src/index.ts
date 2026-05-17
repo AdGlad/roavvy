@@ -86,7 +86,14 @@ async function generatePrintfulMockup(
     placements.push({ placement: 'front', technique: 'dtg', layers: [layer] });
   }
   if (backPrintFileUrl) {
-    placements.push({ placement: 'back', technique: 'dtg', layers: [{ type: 'file', url: backPrintFileUrl }] });
+    // No position needed — image is 3:4 matching the print area, Printful
+    // auto-fills it. The transparent top gap is baked into the image so the
+    // artwork content appears lower on the shirt.
+    placements.push({
+      placement: 'back',
+      technique: 'dtg',
+      layers: [{ type: 'file', url: backPrintFileUrl }],
+    });
   }
 
   if (placements.length === 0) {
@@ -879,6 +886,8 @@ export const shopifyOrderCreated = onRequest(
       }
     }
     if (backPrintFileSignedUrl) {
+      // Image is 3:4 matching the 12×16 in print area. Transparent top gap
+      // is baked into the image so Printful auto-fills full-bleed.
       files.push({ url: backPrintFileSignedUrl, type: 'back' });
     }
 

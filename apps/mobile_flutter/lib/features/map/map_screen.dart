@@ -17,7 +17,6 @@ import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
 import '../cards/card_type_picker_screen.dart';
-import '../merch/merch_country_selection_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import '../memory/memory_pulse_card.dart';
@@ -367,10 +366,6 @@ class MapScreen extends ConsumerWidget {
                     Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const CardTypePickerScreen(),
                     ));
-                  } else if (action == _MapMenuAction.shop) {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const MerchCountrySelectionScreen(),
-                    ));
                   } else if (action == _MapMenuAction.privacyAccount) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const PrivacyAccountScreen(),
@@ -427,14 +422,6 @@ class MapScreen extends ConsumerWidget {
                       child: ListTile(
                         leading: Icon(Icons.style_outlined),
                         title: Text('Create card'),
-                      ),
-                    ),
-                  if (hasVisits)
-                    const PopupMenuItem(
-                      value: _MapMenuAction.shop,
-                      child: ListTile(
-                        leading: Icon(Icons.shopping_bag_outlined),
-                        title: Text('Create a poster'),
                       ),
                     ),
                   PopupMenuItem(
@@ -548,7 +535,6 @@ enum _MapMenuAction {
   deleteHistory,
   shareMyMap,
   createCard,
-  shop,
   privacyAccount,
   signOut,
   filterByYear,
@@ -954,31 +940,10 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
     _fade = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
-
-    // Handle cold-start from memory pulse notification.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tripId = NotificationService.instance.pendingMemoryTripId.value;
-      if (tripId != null && mounted) {
-        NotificationService.instance.pendingMemoryTripId.value = null;
-      }
-    });
-
-    // Watch for foreground notification taps.
-    NotificationService.instance.pendingMemoryTripId.addListener(
-      _onPendingMemoryTripId,
-    );
-  }
-
-  void _onPendingMemoryTripId() {
-    // Foreground tap — the card is already visible; no additional action needed.
-    NotificationService.instance.pendingMemoryTripId.value = null;
   }
 
   @override
   void dispose() {
-    NotificationService.instance.pendingMemoryTripId.removeListener(
-      _onPendingMemoryTripId,
-    );
     _controller.dispose();
     super.dispose();
   }
@@ -1023,9 +988,8 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
           child: MemoryPulseCard(
             memories: visible,
             service: service,
-            onViewTrip: (_) {
-              // Navigate to journal tab (tab index 1).
-              NotificationService.instance.pendingTabIndex.value = 1;
+            onViewTrip: (tripId) {
+              NotificationService.instance.pendingMemoryTripId.value = tripId;
             },
           ),
         ),

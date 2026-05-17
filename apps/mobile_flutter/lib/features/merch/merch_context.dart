@@ -403,7 +403,7 @@ class MerchContext {
             : merchAutoTuneCodes(allCodes.length);
         items.add(MerchOptionEntry(PulseMerchOption(
           id: '${template.name}_world_${achievement?.id ?? 'ctx'}',
-          title: '${merchTemplateLabel(template)} \u2014 World Collection',
+          title: 'World Collection',
           description: '${allCodes.length} countries across all your travels',
           scope: PulseMerchScope.allTime,
           template: template,

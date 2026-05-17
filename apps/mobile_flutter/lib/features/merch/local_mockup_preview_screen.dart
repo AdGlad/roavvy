@@ -231,6 +231,11 @@ class _LocalMockupPreviewScreenState
 
   Color? _gridTextColor;
 
+  // ── Word cloud text colour ─────────────────────────────────────────────────
+  // Auto-derived from shirt colour; dark text on light shirts, light on dark.
+
+  Color? _wordCloudTextColor;
+
   // ── Front ribbon mode (M74) ───────────────────────────────────────────────
   // 'all'      → ribbon uses all-time countries (widget.allCodes)
   // 'selected' → ribbon uses year-filtered selection (widget.selectedCodes)
@@ -307,6 +312,12 @@ class _LocalMockupPreviewScreenState
     _       => Colors.white, // Black, Blue, Red → white
   };
 
+  Color _suggestWordCloudTextColor(String shirtColour) => switch (shirtColour) {
+    'White' => Colors.black,
+    'Grey'  => Colors.black,
+    _       => Colors.white, // Black, Blue, Red → white
+  };
+
   Set<PassportColorMode> _disabledStampColors(String shirtColour) => switch (shirtColour) {
     'Black'        => {PassportColorMode.black, PassportColorMode.multicolor},
     'White'        => {PassportColorMode.white},
@@ -347,6 +358,7 @@ class _LocalMockupPreviewScreenState
     _passportColorMode = _suggestStampColor(_colour);
     _timelineTextColor = _suggestTimelineTextColor(_colour);
     _gridTextColor = _suggestGridTextColor(_colour);
+    _wordCloudTextColor = _suggestWordCloudTextColor(_colour);
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -373,6 +385,10 @@ class _LocalMockupPreviewScreenState
         // Same for grid cards.
         if (_isTshirt && _template == CardTemplateType.grid) {
           unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+        }
+        // Same for word cloud cards.
+        if (_isTshirt && _template == CardTemplateType.wordCloud) {
+          unawaited(_setWordCloudTextColor(_wordCloudTextColor ?? Colors.white));
         }
       } else if (_presetConfig != null) {
         // Preset-driven: auto-generate artwork on first frame.
@@ -509,7 +525,9 @@ class _LocalMockupPreviewScreenState
         trips: widget.trips,
         forPrint: false,
         entryOnly: config.entryOnly,
-        cardAspectRatio: widget.confirmedAspectRatio,
+        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        pixelRatio: _isTshirt ? 7.0 : 3.0,
+        topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         transparentBackground: _isTshirt,
         stampJitterFactor: config.stampJitterFactor,
         stampSizeMultiplier: config.stampSizeMultiplier,
@@ -533,6 +551,9 @@ class _LocalMockupPreviewScreenState
       }
       if (_isTshirt && config.layout == CardTemplateType.grid) {
         unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+      }
+      if (_isTshirt && config.layout == CardTemplateType.wordCloud) {
+        unawaited(_setWordCloudTextColor(_wordCloudTextColor ?? Colors.white));
       }
     } catch (e) {
       debugPrint('[merch] preset generation failed: $e');
@@ -728,10 +749,10 @@ class _LocalMockupPreviewScreenState
       // For t-shirts all variants are transparent (no parchment border on fabric).
       // Index 2 (white) must pass Colors.white explicitly — null falls back to
       // the original stamp colours, not white.
-      final (Color? stampColor, bool transparentBg) = switch (index) {
-        1 => (const Color(0xFF000000), true),            // black stamps
-        2 => (Colors.white, true),                       // white stamps (explicit)
-        _ => (widget.stampColor, _isTshirt || widget.transparentBackground),  // multicolor
+      final (Color? stampColor, Color? stampTextColor, bool transparentBg) = switch (index) {
+        1 => (const Color(0xFF000000), const Color(0xFF000000), true),  // black stamps + black text
+        2 => (Colors.white, Colors.white, true),                         // white stamps + white text
+        _ => (widget.stampColor, null, _isTshirt || widget.transparentBackground),  // multicolor/default
       };
       final result = await CardImageRenderer.render(
         context,
@@ -745,11 +766,14 @@ class _LocalMockupPreviewScreenState
         forPrint: false,
         // T-shirts always show entry + exit stamps regardless of card-editor setting.
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
-        cardAspectRatio: widget.confirmedAspectRatio,
+        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        pixelRatio: _isTshirt ? 7.0 : 3.0,
+        topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: widget.titleOverride,
         subtitleOverride: widget.subtitleOverride,
         stampColor: stampColor,
         dateColor: widget.dateColor,
+        textColor: stampTextColor,
         transparentBackground: transparentBg,
         // Preserve the exact layout the user designed (ADR-133).
         stampSeed: widget.stampLayoutSeed,
@@ -804,7 +828,9 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
-        cardAspectRatio: widget.confirmedAspectRatio,
+        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        pixelRatio: _isTshirt ? 7.0 : 3.0,
+        topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: widget.titleOverride,
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
@@ -835,7 +861,40 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
-        cardAspectRatio: widget.confirmedAspectRatio,
+        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        pixelRatio: _isTshirt ? 7.0 : 3.0,
+        topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
+        titleOverride: widget.titleOverride,
+        subtitleOverride: widget.subtitleOverride,
+        transparentBackground: true,
+        textColor: textColor,
+      );
+      if (!mounted) return;
+      await _decodeArtwork(result.bytes);
+      if (!mounted) return;
+      setState(() => _artworkBytes = result.bytes);
+    } finally {
+      if (mounted) setState(() => _variantLoading = false);
+    }
+  }
+
+  // ── Word cloud text colour selection ──────────────────────────────────────
+
+  Future<void> _setWordCloudTextColor(Color textColor) async {
+    setState(() {
+      _wordCloudTextColor = textColor;
+      _variantLoading = true;
+    });
+    try {
+      if (!context.mounted) return;
+      final result = await CardImageRenderer.render(
+        context,
+        _template,
+        codes: widget.selectedCodes,
+        trips: widget.trips,
+        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        pixelRatio: _isTshirt ? 7.0 : 3.0,
+        topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: widget.titleOverride,
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
@@ -884,22 +943,28 @@ class _LocalMockupPreviewScreenState
     if (colourChanged && _isTshirt && _template == CardTemplateType.grid) {
       unawaited(_setGridTextColor(_suggestGridTextColor(colour)));
     }
+    if (colourChanged && _isTshirt && _template == CardTemplateType.wordCloud) {
+      unawaited(_setWordCloudTextColor(_suggestWordCloudTextColor(colour)));
+    }
   }
 
   // ── Upload helpers ─────────────────────────────────────────────────────────
 
   /// Downscales [pngBytes] to [maxWidth] pixels wide before upload.
   ///
-  /// The server resizes to print dimensions (4500×5400) regardless, so sending
-  /// full device-resolution PNG wastes bandwidth. Transparent PNG is preserved —
-  /// no JPEG conversion. Reduces the back-artwork payload from ~1.7 MB base64
-  /// to ~400 KB.
+  /// Max upload width for front/chest artwork (small print area, 600 px is enough).
   static const int _kUploadMaxWidth = 600;
 
-  Future<Uint8List> _resizeForUpload(Uint8List pngBytes) async {
+  /// Max upload width for back artwork. At 12 in × 150 DPI the print requires
+  /// 1800 px; rendering at 7× logical (340 px) gives 2380 px (~198 DPI).
+  /// Cap at 2400 so the full render is sent with no downscaling.
+  static const int _kBackUploadMaxWidth = 2400;
+
+  Future<Uint8List> _resizeForUpload(Uint8List pngBytes,
+      {int maxWidth = _kUploadMaxWidth}) async {
     final codec = await ui.instantiateImageCodec(
       pngBytes,
-      targetWidth: _kUploadMaxWidth,
+      targetWidth: maxWidth,
     );
     final frame = await codec.getNextFrame();
     final byteData =
@@ -1021,8 +1086,8 @@ class _LocalMockupPreviewScreenState
       // Resize images for upload — the server upscales to print dimensions anyway.
       // Reduces the back-artwork payload from ~1.7 MB to ~400 KB (transparent PNG preserved).
       final encSw = Stopwatch()..start();
-      final uploadBackBytes  = sendBackImage  ? await _resizeForUpload(artworkBytes)        : null;
-      final uploadFrontBytes = sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!)  : null;
+      final uploadBackBytes  = sendBackImage  ? await _resizeForUpload(artworkBytes, maxWidth: _kBackUploadMaxWidth) : null;
+      final uploadFrontBytes = sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!)                           : null;
       final backImageBase64  = uploadBackBytes  != null ? base64Encode(uploadBackBytes)  : null;
       final frontImageBase64 = uploadFrontBytes != null ? base64Encode(uploadFrontBytes) : null;
       encSw.stop();

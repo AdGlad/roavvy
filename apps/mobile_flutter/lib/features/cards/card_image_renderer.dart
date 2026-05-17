@@ -87,6 +87,14 @@ class CardImageRenderer {
     Duration assetsTimeout = const Duration(seconds: 10),
     Uint8List? backgroundImageBytes,
     FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
+    /// Fraction of the total canvas height reserved as a transparent gap at
+    /// the top of the image. Use this to shift artwork downward within a
+    /// fixed print area without changing the overall canvas aspect ratio.
+    ///
+    /// Example: `topPaddingFraction = 1/16` with `cardAspectRatio = 4/5`
+    /// produces a 3:4 overall canvas where the top 1/16 is transparent and
+    /// the artwork fills the remaining 15/16.
+    double topPaddingFraction = 0.0,
   }) {
     final repaintKey = GlobalKey();
     final completer = Completer<CardRenderResult>();
@@ -150,6 +158,47 @@ class CardImageRenderer {
       });
     }
 
+    // When topPaddingFraction > 0, the overall canvas is taller than the card
+    // alone. The transparent gap height is derived so that:
+    //   gap / (gap + cardHeight) == topPaddingFraction
+    // → gap = cardHeight * topPaddingFraction / (1 - topPaddingFraction)
+    final topGapHeight = topPaddingFraction > 0
+        ? (_logicalWidth / cardAspectRatio) *
+              topPaddingFraction /
+              (1 - topPaddingFraction)
+        : 0.0;
+
+    final cardWidgetInstance = _cardWidget(
+      template,
+      codes,
+      trips,
+      forPrint: forPrint,
+      onWasForced: forPrint ? (v) { wasForced = v; } : null,
+      entryOnly: entryOnly,
+      cardAspectRatio: cardAspectRatio,
+      heartOrder: heartOrder,
+      dateLabel: dateLabel,
+      titleOverride: titleOverride,
+      subtitleOverride: subtitleOverride,
+      stampColor: stampColor,
+      dateColor: dateColor,
+      transparentBackground: transparentBackground,
+      travelerLevel: travelerLevel,
+      textColor: textColor,
+      stampSeed: stampSeed,
+      stampSizeMultiplier: stampSizeMultiplier,
+      stampJitterFactor: stampJitterFactor,
+      backgroundImageBytes: backgroundImageBytes,
+      gridLayoutMode: gridLayoutMode,
+      onAssetsLoaded: assetsCompleter != null
+          ? () {
+              if (!assetsCompleter.isCompleted) {
+                assetsCompleter.complete();
+              }
+            }
+          : null,
+    );
+
     entry = OverlayEntry(
       builder: (_) => Positioned(
         // Place far off-screen so it is invisible to the user.
@@ -159,36 +208,15 @@ class CardImageRenderer {
           width: _logicalWidth,
           child: RepaintBoundary(
             key: repaintKey,
-            child: _cardWidget(
-              template,
-              codes,
-              trips,
-              forPrint: forPrint,
-              onWasForced: forPrint ? (v) { wasForced = v; } : null,
-              entryOnly: entryOnly,
-              cardAspectRatio: cardAspectRatio,
-              heartOrder: heartOrder,
-              dateLabel: dateLabel,
-              titleOverride: titleOverride,
-              subtitleOverride: subtitleOverride,
-              stampColor: stampColor,
-              dateColor: dateColor,
-              transparentBackground: transparentBackground,
-              travelerLevel: travelerLevel,
-              textColor: textColor,
-              stampSeed: stampSeed,
-              stampSizeMultiplier: stampSizeMultiplier,
-              stampJitterFactor: stampJitterFactor,
-              backgroundImageBytes: backgroundImageBytes,
-              gridLayoutMode: gridLayoutMode,
-              onAssetsLoaded: assetsCompleter != null
-                  ? () {
-                      if (!assetsCompleter.isCompleted) {
-                        assetsCompleter.complete();
-                      }
-                    }
-                  : null,
-            ),
+            child: topGapHeight > 0
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(height: topGapHeight), // transparent gap
+                      cardWidgetInstance,
+                    ],
+                  )
+                : cardWidgetInstance,
           ),
         ),
       ),
@@ -275,6 +303,7 @@ class CardImageRenderer {
           titleOverride: titleOverride,
           stampColor: stampColor,
           dateColor: dateColor,
+          textColor: textColor,
           transparentBackground: transparentBackground,
           onWasForced: onWasForced,
           onAssetsLoaded: onAssetsLoaded,

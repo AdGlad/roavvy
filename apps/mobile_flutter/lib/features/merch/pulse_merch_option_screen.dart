@@ -3,6 +3,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import 'merch_option_list_widgets.dart';
+import 'merch_title_wordbank.dart';
 import 'pulse_merch_option.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
@@ -41,7 +42,6 @@ class PulseMerchOptionScreen extends StatelessWidget {
     required List<TripRecord> countryTrips,
     required List<String> allCodes,
   }) {
-    final prefix = merchTemplateLabel(template);
     final isPassport = template == CardTemplateType.passport;
 
     ({double jitter, double size}) tune(
@@ -57,7 +57,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
     final t1 = tune(tripList, [hero.countryCode]);
     options.add(PulseMerchOption(
       id: '${template.name}_trip',
-      title: '$prefix — $countryName $year',
+      title: '$countryName $year',
       description: 'Your $countryName trip',
       scope: PulseMerchScope.pulseTrip,
       template: template,
@@ -65,6 +65,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
       trips: tripList,
       jitter: t1.jitter,
       stampSizeMultiplier: t1.size,
+      artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(1, year: year),
     ));
 
     // 2. Year in review (only when multiple countries that year)
@@ -72,7 +73,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
       final t2 = tune(yearTrips, yearCodes);
       options.add(PulseMerchOption(
         id: '${template.name}_year',
-        title: '$prefix — $year Travels',
+        title: '$year Travels',
         description: '${yearCodes.length} countries visited in $year',
         scope: PulseMerchScope.pulseYear,
         template: template,
@@ -80,6 +81,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
         trips: yearTrips,
         jitter: t2.jitter,
         stampSizeMultiplier: t2.size,
+        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(yearCodes.length, year: year),
       ));
     }
 
@@ -87,7 +89,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
     final t3 = tune(countryTrips, [hero.countryCode]);
     options.add(PulseMerchOption(
       id: '${template.name}_country',
-      title: '$prefix — $countryName Memories',
+      title: '$countryName Memories',
       description: countryTrips.isEmpty
           ? 'All your $countryName stamps'
           : '${countryTrips.length} '
@@ -98,6 +100,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
       trips: countryTrips,
       jitter: t3.jitter,
       stampSizeMultiplier: t3.size,
+      artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(1),
     ));
 
     // 4. All-time collection (only when more than one country exists)
@@ -105,7 +108,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
       final t4 = tune(allTrips, allCodes);
       options.add(PulseMerchOption(
         id: '${template.name}_alltime',
-        title: '$prefix — World Collection',
+        title: 'World Collection',
         description: '${allCodes.length} countries across all your travels',
         scope: PulseMerchScope.allTime,
         template: template,
@@ -113,6 +116,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
         trips: allTrips,
         jitter: t4.jitter,
         stampSizeMultiplier: t4.size,
+        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(allCodes.length),
       ));
     }
 

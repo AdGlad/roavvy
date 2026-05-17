@@ -744,6 +744,7 @@ class PassportStampsCard extends StatelessWidget {
     this.titleOverride,
     this.stampColor,
     this.dateColor,
+    this.textColor,
     this.transparentBackground = false,
     this.seed,
     this.sizeMultiplier = 1.0,
@@ -777,6 +778,10 @@ class PassportStampsCard extends StatelessWidget {
 
   /// Optional user-override for all stamp date labels (ADR-117).
   final Color? dateColor;
+
+  /// Optional text colour for the title and branding zones.
+  /// When null, defaults to the passport amber `Color(0xFF8B6914)`.
+  final Color? textColor;
 
   /// When `true`, the parchment background tint is removed (ADR-117).
   final bool transparentBackground;
@@ -826,6 +831,7 @@ class PassportStampsCard extends StatelessWidget {
                   titleOverride: titleOverride,
                   stampColor: stampColor,
                   dateColor: dateColor,
+                  textColor: textColor,
                   transparentBackground: transparentBackground,
                   seed: seed,
                   sizeMultiplier: sizeMultiplier,
@@ -873,6 +879,7 @@ class _PassportPagePainter extends StatefulWidget {
     this.titleOverride,
     this.stampColor,
     this.dateColor,
+    this.textColor,
     this.transparentBackground = false,
     this.seed,
     this.sizeMultiplier = 1.0,
@@ -890,6 +897,7 @@ class _PassportPagePainter extends StatefulWidget {
   final String? titleOverride;
   final Color? stampColor;
   final Color? dateColor;
+  final Color? textColor;
   final bool transparentBackground;
   final int? seed;
   final double sizeMultiplier;
@@ -1049,6 +1057,7 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         transparentBackground: widget.transparentBackground,
         countryCount: widget.countryCodes.length,
         backgroundImage: _backgroundImage,
+        textColor: widget.textColor,
       ),
     );
   }
@@ -1070,6 +1079,7 @@ class _MultiStampPainter extends CustomPainter {
     this.transparentBackground = false,
     required this.countryCount,
     this.backgroundImage,
+    this.textColor,
   });
 
   final List<StampData> stamps;
@@ -1084,6 +1094,9 @@ class _MultiStampPainter extends CustomPainter {
 
   /// Optional decoded background photo (M93, ADR-138).
   final ui.Image? backgroundImage;
+
+  /// Optional text colour for title and branding zones. Defaults to passport amber.
+  final Color? textColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1160,11 +1173,11 @@ class _MultiStampPainter extends CustomPainter {
     // 3. Integrated Text Rendering: Title and Branding (ADR-117)
     // Drawn AFTER saveLayer so they are not affected by multiply blend,
     // ensuring pure white/black text if needed and no artifacts.
-    final textColor = const Color(0xFF8B6914);
-    _drawBranding(canvas, size, countryCount, dateLabel, textColor);
+    final effectiveTextColor = textColor ?? const Color(0xFF8B6914);
+    _drawBranding(canvas, size, countryCount, dateLabel, effectiveTextColor);
 
     final defaultTitle = '$countryCount Countries \u00B7 $dateLabel';
-    _drawTitle(canvas, size, titleOverride ?? defaultTitle, textColor);
+    _drawTitle(canvas, size, titleOverride ?? defaultTitle, effectiveTextColor);
 
     // 4. Vignette: paper-only effect.
     // Skip when transparentBackground=true (POD / white-ink mode).
@@ -1382,7 +1395,8 @@ class _MultiStampPainter extends CustomPainter {
   bool shouldRepaint(_MultiStampPainter old) =>
       old.stamps != stamps ||
       old.assets != assets ||
-      old.backgroundImage != backgroundImage;
+      old.backgroundImage != backgroundImage ||
+      old.textColor != textColor;
 }
 
 // ── TypographyCard ────────────────────────────────────────────────────────────

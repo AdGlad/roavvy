@@ -16,7 +16,7 @@ abstract final class MerchTitleWordbank {
     'New Horizons',
     'Beginning of the Road',
     'A Journey Starts Here',
-    'Passport: Day One',
+    'Day One',
   ];
 
   static const _small = [
@@ -35,7 +35,7 @@ abstract final class MerchTitleWordbank {
     'Roads Taken',
     'Somewhere Out There',
     'The Long Way Round',
-    'Passport Pages',
+    'Open Pages',
     'Miles Apart',
     'Over the Horizon',
     'Distant Places',
