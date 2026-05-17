@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
@@ -33,22 +32,31 @@ Future<void> main() async {
 
     try {
       await NotificationService.instance.init();
-      final (countryData, regionData, _) = await (
+
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
+      // On web we only serve the public landing page — SQLite is not available
+      // without a WASM worker, and the landing page needs neither the DB nor
+      // the geodata binary assets.  Run a minimal ProviderScope so GoRouter
+      // can render the landing page without touching any native-only code.
+      if (kIsWeb) {
+        runApp(const ProviderScope(child: RoavvyApp()));
+        return;
+      }
+
+      // ── Native (iOS / Android) path ──────────────────────────────────────
+
+      final (countryData, regionData) = await (
         rootBundle.load('assets/geodata/ne_countries.bin'),
         rootBundle.load('assets/geodata/ne_admin1.bin'),
-        Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        ),
       ).wait;
 
-      // On web, persistence is handled differently or enabled by default.
-      // Mobile-only persistence setting can cause crashes on some web environments.
-      if (!kIsWeb) {
-        FirebaseFirestore.instance.settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-        );
-      }
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
 
       final countryBytes = countryData.buffer
           .asUint8List(countryData.offsetInBytes, countryData.lengthInBytes);
@@ -107,7 +115,8 @@ Future<void> main() async {
                     Text(e.toString(), textAlign: TextAlign.center),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: () => WidgetsBinding.instance.handleBeginFrame(Duration.zero),
+                      onPressed: () =>
+                          WidgetsBinding.instance.handleBeginFrame(Duration.zero),
                       child: const Text('Retry'),
                     ),
                   ],
