@@ -15,6 +15,7 @@ import '../data/region_repository.dart';
 import '../data/trip_repository.dart';
 import '../data/visit_repository.dart';
 import '../data/xp_repository.dart';
+import '../features/memory/memory_anniversary_photo.dart';
 import '../features/memory/memory_pulse_service.dart';
 import '../features/scan/hero_image_repository.dart';
 import '../features/xp/xp_event.dart';
@@ -215,41 +216,57 @@ final scanNudgeDismissedProvider = StateProvider<bool>((ref) => false);
 
 // ── M91 Memory Pulse providers ────────────────────────────────────────────
 
-/// Provides the [MemoryPulseService] instance (M91, ADR-136).
+/// Provides the [MemoryPulseService] instance (M91, M114, ADR-136).
 final memoryPulseServiceProvider = Provider<MemoryPulseService>(
-  (ref) => MemoryPulseService(
-    heroRepo: HeroImageRepository(ref.watch(roavvyDatabaseProvider)),
-    notifications: NotificationService.instance,
-  ),
-);
-
-/// Debug-only toggle: when true, [todaysMemoriesProvider] returns all rank-1
-/// heroes regardless of anniversary date. Ignored in release builds.
-final memoryPulseDebugOverrideProvider = StateProvider<bool>((ref) => false);
-
-/// Today's memory pulse heroes — one-shot per app session (M91, ADR-136).
-///
-/// Returns up to 3 [HeroImage] records for trips whose anniversaries fall
-/// today, filtered for undismissed entries. Empty list when none.
-///
-/// In debug builds, set [memoryPulseDebugOverrideProvider] to true to force-
-/// show all rank-1 heroes regardless of date.
-final todaysMemoriesProvider = FutureProvider<List<HeroImage>>(
   (ref) {
-    if (kDebugMode && ref.watch(memoryPulseDebugOverrideProvider)) {
-      return HeroImageRepository(ref.watch(roavvyDatabaseProvider))
-          .getHeroesForRank1();
-    }
-    return ref
-        .watch(memoryPulseServiceProvider)
-        .checkToday(DateTime.now());
+    final db = ref.watch(roavvyDatabaseProvider);
+    return MemoryPulseService(
+      heroRepo: HeroImageRepository(db),
+      notifications: NotificationService.instance,
+      db: db,
+    );
   },
 );
 
-/// Session-scoped set of tripIds dismissed by the user this session.
+/// Debug-only toggle: when true, [todaysMemoriesProvider] ignores anniversary
+/// date filtering. Ignored in release builds.
+final memoryPulseDebugOverrideProvider = StateProvider<bool>((ref) => false);
+
+/// Today's memory pulse photos — one-shot per app session (M114, ADR-136).
 ///
-/// When the user taps Dismiss on a [MemoryPulseCard], their tripId is added
-/// here so the card vanishes immediately without re-querying the DB (ADR-136).
+/// Returns up to 3 [MemoryAnniversaryPhoto] records sourced directly from the
+/// device photo library whose capture date matches today's month+day in a past
+/// year. Returns empty list when none found or permission is denied.
+///
+/// In debug builds, set [memoryPulseDebugOverrideProvider] to true to force-
+/// fire without the anniversary date filter (falls back to checkToday).
+final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>(
+  (ref) async {
+    if (kDebugMode && ref.watch(memoryPulseDebugOverrideProvider)) {
+      // In debug override mode, use the hero-image path so tester can see
+      // cards without needing an actual anniversary date.
+      final heroes = await HeroImageRepository(ref.watch(roavvyDatabaseProvider))
+          .getHeroesForRank1();
+      return heroes
+          .take(3)
+          .map((h) => MemoryAnniversaryPhoto(
+                assetId: h.assetId,
+                capturedAt: h.capturedAt,
+                countryCode: h.countryCode,
+                tripId: h.tripId,
+              ))
+          .toList();
+    }
+    return ref
+        .watch(memoryPulseServiceProvider)
+        .checkTodayFromPhotoLibrary(DateTime.now());
+  },
+);
+
+/// Session-scoped set of assetIds dismissed by the user this session.
+///
+/// When the user taps Dismiss on a [MemoryPulseCard], their assetId is added
+/// here so the card vanishes immediately without re-querying the library (ADR-136).
 final memoriesDismissedProvider = StateProvider<Set<String>>((ref) => {});
 
 // ─────────────────────────────────────────────────────────────────────────────

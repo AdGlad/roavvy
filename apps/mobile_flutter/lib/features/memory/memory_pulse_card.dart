@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
+import '../memory/memory_anniversary_photo.dart';
 import '../memory/memory_pulse_service.dart';
 import '../memory/memory_reveal_sheet.dart';
 import '../shared/hero_image_view.dart';
 
-/// In-app travel anniversary card, shown on the map screen (M91, ADR-136).
+/// In-app travel anniversary card, shown on the map screen (M91, M114, ADR-136).
 ///
-/// Displays a 80×80 hero thumbnail, years-ago copy, country name, top labels,
-/// and action buttons ("View trip" + dismiss). Calls [onViewTrip] when the
-/// user taps "View trip" and dismisses itself (via [memoriesDismissedProvider]
-/// + SharedPreferences) when the user taps the dismiss button.
-///
-/// Multiple anniversaries are shown as a horizontally paged [PageView] (max 3).
+/// Displays a 72×72 photo thumbnail, years-ago copy, and action buttons
+/// ("Reveal" + dismiss). Multiple anniversaries are shown as a horizontally
+/// paged [PageView] (max 3).
 class MemoryPulseCard extends ConsumerWidget {
   const MemoryPulseCard({
     super.key,
@@ -24,9 +21,10 @@ class MemoryPulseCard extends ConsumerWidget {
     required this.service,
   });
 
-  final List<HeroImage> memories;
+  final List<MemoryAnniversaryPhoto> memories;
 
-  /// Called with the tripId when the user taps "View trip".
+  /// Called with the tripId when the user taps "View trip". Only invoked when
+  /// [MemoryAnniversaryPhoto.tripId] is non-null.
   final void Function(String tripId) onViewTrip;
 
   final MemoryPulseService service;
@@ -34,7 +32,7 @@ class MemoryPulseCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dismissed = ref.watch(memoriesDismissedProvider);
-    final visible = memories.where((m) => !dismissed.contains(m.tripId)).toList();
+    final visible = memories.where((m) => !dismissed.contains(m.assetId)).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
     if (visible.length == 1) {
@@ -62,7 +60,7 @@ class _SingleCard extends ConsumerWidget {
     required this.service,
   });
 
-  final HeroImage hero;
+  final MemoryAnniversaryPhoto hero;
   final void Function(String tripId) onViewTrip;
   final MemoryPulseService service;
 
@@ -76,8 +74,8 @@ class _SingleCard extends ConsumerWidget {
   }
 
   Future<void> _dismiss(WidgetRef ref) async {
-    ref.read(memoriesDismissedProvider.notifier).update((s) => {...s, hero.tripId});
-    await service.dismiss(hero.tripId, DateTime.now());
+    ref.read(memoriesDismissedProvider.notifier).update((s) => {...s, hero.assetId});
+    await service.dismiss(hero.assetId, DateTime.now());
   }
 }
 
@@ -90,7 +88,7 @@ class _PagedCards extends StatefulWidget {
     required this.service,
   });
 
-  final List<HeroImage> memories;
+  final List<MemoryAnniversaryPhoto> memories;
   final void Function(String tripId) onViewTrip;
   final MemoryPulseService service;
 
@@ -119,8 +117,8 @@ class _PagedCardsState extends State<_PagedCards> {
                   onDismiss: () async {
                     ref
                         .read(memoriesDismissedProvider.notifier)
-                        .update((s) => {...s, hero.tripId});
-                    await widget.service.dismiss(hero.tripId, DateTime.now());
+                        .update((s) => {...s, hero.assetId});
+                    await widget.service.dismiss(hero.assetId, DateTime.now());
                   },
                   service: widget.service,
                 ),
@@ -173,7 +171,7 @@ class _CardBody extends StatelessWidget {
     required this.service,
   });
 
-  final HeroImage hero;
+  final MemoryAnniversaryPhoto hero;
   final VoidCallback onDismiss;
   final MemoryPulseService service;
 
@@ -181,7 +179,7 @@ class _CardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final today = DateTime.now();
-    final yearsAgo = today.year - hero.capturedAt.year;
+    final yearsAgo = hero.yearsAgo(today);
     final question = service.buildQuestion(hero, yearsAgo);
 
     return Container(
@@ -195,7 +193,7 @@ class _CardBody extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hero thumbnail
+          // Photo thumbnail
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: SizedBox(
@@ -216,7 +214,6 @@ class _CardBody extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Question text — curiosity teaser
                 Text(
                   question,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -229,7 +226,6 @@ class _CardBody extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    // Reveal chip
                     FilledButton(
                       onPressed: () => MemoryRevealSheet.show(
                         context,

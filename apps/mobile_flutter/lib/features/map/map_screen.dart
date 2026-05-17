@@ -955,7 +955,7 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
     final service = ref.read(memoryPulseServiceProvider);
 
     final memories = memoriesAsync.valueOrNull ?? const [];
-    final visible = memories.where((m) => !dismissed.contains(m.tripId)).toList();
+    final visible = memories.where((m) => !dismissed.contains(m.assetId)).toList();
 
     if (visible.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -971,7 +971,7 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
     });
 
     // Schedule the next notification once memories are known (fire-and-forget).
-    ref.listen<AsyncValue<List<HeroImage>>>(todaysMemoriesProvider, (_, next) {
+    ref.listen(todaysMemoriesProvider, (_, next) {
       if (next.hasValue) {
         service.scheduleNextAnniversaryNotification(DateTime.now());
       }

@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
+import 'memory_anniversary_photo.dart';
 
 /// Generates an on-device 1080×1080 memory share card and opens the share sheet.
 ///
@@ -20,20 +20,23 @@ class MemoryShareService {
 
   static const double _kSize = 1080;
 
-  /// Loads the hero image, composites a 1080×1080 share card, writes it to
+  /// Loads the photo, composites a 1080×1080 share card, writes it to
   /// the temp directory, and opens the iOS share sheet.
   ///
-  /// Falls back to a continent colour gradient when [hero.assetId] is null
-  /// or fails to load.
+  /// Falls back to a continent colour gradient when the asset fails to load
+  /// or when [hero.countryCode] is null.
   static Future<void> generateAndShare(
     BuildContext context,
-    HeroImage hero,
+    MemoryAnniversaryPhoto hero,
   ) async {
-    final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
-    final flagEmoji = _flagEmoji(hero.countryCode);
+    final countryCode = hero.countryCode ?? '';
+    final countryName = countryCode.isNotEmpty
+        ? (kCountryNames[countryCode] ?? countryCode)
+        : 'A travel memory';
+    final flagEmoji = countryCode.isNotEmpty ? _flagEmoji(countryCode) : '';
     final dateStr = _formatDate(hero.capturedAt);
 
-    // Load hero photo bytes (null → use gradient fallback).
+    // Load photo bytes (null → use gradient fallback).
     ui.Image? heroImage;
     if (hero.assetId.isNotEmpty) {
       try {
@@ -57,7 +60,7 @@ class MemoryShareService {
 
     final bytes = await _composite(
       heroImage: heroImage,
-      countryCode: hero.countryCode,
+      countryCode: countryCode,
       countryName: countryName,
       flagEmoji: flagEmoji,
       dateStr: dateStr,

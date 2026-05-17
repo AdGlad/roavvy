@@ -1,21 +1,34 @@
-# M111 — Cinematic Audio & Replay Timing System
+# M114 — Memory Pulse: Photo Library Anniversary Query
 
-**Branch:** milestone/m111-cinematic-audio-replay-timing
+**Branch:** milestone/m114-memory-pulse-photo-library-query
 **Status:** In Progress
 
 ## Goal
 
-Transform replay into a cinematic travel memory experience through distance-aware pacing, refined easing curves, layered sound design, and emotional timing orchestration.
+Replace the hero-image-based anniversary lookup with a direct `photo_manager` query.
+On the anniversary date the app queries the device photo library for photos taken on
+today's month+day in any past year, picks the best photo per year, and shows up to 3
+pulse cards. If no photos exist for that date, no pulse fires.
 
 ## Tasks
 
-- [ ] 1. `LegPacing` + `ReplayPacingRules` — pure class in `travel_replay_engine.dart`; haversine arc distance, classification (short/medium/long), pacing table, `buildPacingList`; add `legPacing` to `TravelReplayScript`; unit tests
-- [ ] 2. `replay_entry_sheet.dart` wiring — call `ReplayPacingRules.buildPacingList` and pass into script
-- [ ] 3. `TravelReplayController` pacing + easing — use `LegPacing` per-leg durations/scales; upgrade easing curves; improve scale dip; add `reducedMotion` flag
-- [ ] 4. `ReplayAudioController` — `audioplayers` wrapper; 5 slots; preload, play, mute, stopAll, dispose
-- [ ] 5. Audio assets — copy `celebration.mp3` → 5 placeholder files; register all in `pubspec.yaml`
-- [ ] 6. Audio synchronisation + mute button — inject `ReplayAudioController` into controller; wire `_runFlight`/`_runPulse`/`_runOverlay`/done; mute toggle in `GlobeReplayWidget` top bar
-- [ ] 7. Cinematic end sequence — globe `AnimatedOpacity` fade on done; `ReplaySummaryScreen` easing/curve/duration upgrades
-- [ ] 8. Reduced-motion — read `MediaQuery.disableAnimations` in `GlobeReplayWidget.initState`; set `_ctrl.reducedMotion`
-- [ ] 9. `flutter analyze` — 0 new warnings; fix any issues
-- [ ] 10. Docs + index — milestone status, backlog, `current_state.md`, `python3 scripts/index_docs.py`
+- [ ] 1. Create `MemoryAnniversaryPhoto` model in `lib/features/memory/memory_anniversary_photo.dart`
+- [ ] 2. Add `checkTodayFromPhotoLibrary(DateTime today)` to `MemoryPulseService`
+        — request photo library permission, fetch AssetEntity list filtered by month+day
+        across all years ≥ 1 year ago, group by year, pick best photo per year (selection
+        criteria from milestone doc), resolve countryCode via photo_date_records and tripId
+        via hero_images Drift tables, return List<MemoryAnniversaryPhoto> (max 3)
+- [ ] 3. Update `scheduleNextAnniversaryNotification` in `MemoryPulseService`
+        — fetch photo library assets, build set of (month, day) pairs with photos ≥ 1 year old,
+        find nearest future date in that set, schedule notification
+- [ ] 4. Update `buildCopy()` and `buildQuestion()` in `MemoryPulseService`
+        — accept `MemoryAnniversaryPhoto` instead of `HeroImage`; scene/mood/landmark will
+        be null; fall back to default copy templates gracefully
+- [ ] 5. Update providers — wire `checkTodayFromPhotoLibrary` in map_screen.dart (or wherever
+        `checkToday` is called); update any Riverpod providers that reference `HeroImage` pulse
+- [ ] 6. Update `MemoryPulseCard` — change `List<HeroImage>` → `List<MemoryAnniversaryPhoto>`;
+        dismiss key from `hero.tripId` → `hero.assetId`; hide "View trip" when tripId is null
+- [ ] 7. Update `MemoryRevealSheet` — change `HeroImage hero` → `MemoryAnniversaryPhoto hero`;
+        hide country chip when countryCode is null; hide "View trip" when tripId is null
+- [ ] 8. Validate: `flutter analyze` zero new warnings; confirm HeroImage-based code still compiles;
+        update milestone doc status, backlog, current_state.md, run `python3 scripts/index_docs.py`

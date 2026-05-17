@@ -2,7 +2,7 @@
 
 **Phase:** 22 — Engagement & Personalisation
 **Depends on:** M91 (memory pulse foundation), M95 (question-style copy)
-**Status:** Not started
+**Status:** Complete
 **Created:** 2026-05-17
 
 ---
@@ -171,18 +171,18 @@ New logic for `scheduleNextAnniversaryNotification`:
 
 ## Acceptance criteria
 
-- [ ] On a date with anniversary photos, up to 3 pulse cards appear, one per year,
+- [x] On a date with anniversary photos, up to 3 pulse cards appear, one per year,
       most recent first.
-- [ ] Each card shows the actual photo from the device library (not a pre-selected
+- [x] Each card shows the actual photo from the device library (not a pre-selected
       hero image).
-- [ ] On a date with no anniversary photos, no pulse card appears.
-- [ ] Pulse card dismiss works correctly using `assetId` as the key.
-- [ ] "View trip" button is hidden when no matching trip exists in Drift.
-- [ ] Country chip is hidden when the photo has no Drift scan entry.
-- [ ] Reveal sheet opens correctly for photo-library-sourced memories.
-- [ ] Notification scheduling finds the next anniversary date from photo library.
-- [ ] Existing `HeroImage`-based code compiles without errors (not deleted).
-- [ ] `flutter analyze`: zero new warnings.
+- [x] On a date with no anniversary photos, no pulse card appears.
+- [x] Pulse card dismiss works correctly using `assetId` as the key.
+- [x] "View trip" button is hidden when no matching trip exists in Drift.
+- [x] Country chip is hidden when the photo has no Drift scan entry.
+- [x] Reveal sheet opens correctly for photo-library-sourced memories.
+- [x] Notification scheduling finds the next anniversary date from photo library.
+- [x] Existing `HeroImage`-based code compiles without errors (not deleted).
+- [x] `flutter analyze`: zero new warnings.
 
 ---
 

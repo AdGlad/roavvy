@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
+import '../memory/memory_anniversary_photo.dart';
 import 'merch_option_list_widgets.dart';
 import 'merch_title_wordbank.dart';
 import 'pulse_merch_option.dart';
@@ -26,7 +27,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
     required this.allVisits,
   });
 
-  final HeroImage hero;
+  final MemoryAnniversaryPhoto hero;
   final List<TripRecord> allTrips;
   final List<EffectiveVisitedCountry> allVisits;
 
@@ -54,14 +55,15 @@ class PulseMerchOptionScreen extends StatelessWidget {
 
     // 1. This trip
     final tripList = heroTrip != null ? [heroTrip] : const <TripRecord>[];
-    final t1 = tune(tripList, [hero.countryCode]);
+    final heroCountryCode = hero.countryCode ?? '';
+    final t1 = tune(tripList, [heroCountryCode]);
     options.add(PulseMerchOption(
       id: '${template.name}_trip',
       title: '$countryName $year',
       description: 'Your $countryName trip',
       scope: PulseMerchScope.pulseTrip,
       template: template,
-      codes: [hero.countryCode],
+      codes: [heroCountryCode],
       trips: tripList,
       jitter: t1.jitter,
       stampSizeMultiplier: t1.size,
@@ -86,7 +88,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
     }
 
     // 3. All visits to this country
-    final t3 = tune(countryTrips, [hero.countryCode]);
+    final t3 = tune(countryTrips, [heroCountryCode]);
     options.add(PulseMerchOption(
       id: '${template.name}_country',
       title: '$countryName Memories',
@@ -96,7 +98,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
               '${countryTrips.length == 1 ? "trip" : "trips"} to $countryName',
       scope: PulseMerchScope.allVisitsToCountry,
       template: template,
-      codes: [hero.countryCode],
+      codes: [heroCountryCode],
       trips: countryTrips,
       jitter: t3.jitter,
       stampSizeMultiplier: t3.size,
@@ -125,12 +127,18 @@ class PulseMerchOptionScreen extends StatelessWidget {
 
   List<MerchOptionListItem> _buildItems() {
     final year = hero.capturedAt.year;
-    final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
-    final heroTrip = allTrips.where((t) => t.id == hero.tripId).firstOrNull;
+    final heroCountryCode = hero.countryCode ?? '';
+    final countryName = heroCountryCode.isNotEmpty
+        ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
+        : 'Your travels';
+    final heroTrip = hero.tripId != null
+        ? allTrips.where((t) => t.id == hero.tripId).firstOrNull
+        : null;
     final yearTrips = allTrips.where((t) => t.startedOn.year == year).toList();
     final yearCodes = yearTrips.map((t) => t.countryCode).toSet().toList();
-    final countryTrips =
-        allTrips.where((t) => t.countryCode == hero.countryCode).toList();
+    final countryTrips = heroCountryCode.isNotEmpty
+        ? allTrips.where((t) => t.countryCode == heroCountryCode).toList()
+        : const <TripRecord>[];
     final allCodes = allVisits.map((v) => v.countryCode).toList();
 
     const groups = [
@@ -168,7 +176,10 @@ class PulseMerchOptionScreen extends StatelessWidget {
     final items = _buildItems();
     final allCodes = allVisits.map((v) => v.countryCode).toList();
     final year = hero.capturedAt.year;
-    final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
+    final heroCountryCode = hero.countryCode ?? '';
+    final countryName = heroCountryCode.isNotEmpty
+        ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
+        : 'Your travels';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
