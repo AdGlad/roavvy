@@ -22,5 +22,19 @@
         "serviceId": "com.roavvy.prod"
       }
     }
+  },
+  "hosting": {
+    "public": "apps/mobile_flutter/build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

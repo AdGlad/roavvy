@@ -177,6 +177,22 @@ class TravelReplayScriptBuilder {
     final sorted = filtered.toList()
       ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
+    // For year mode: if the user was already in a different country at the start
+    // of the year (trip started before targetYear), seed the leg list with that
+    // trip so the cross-year departure leg is captured.
+    // e.g. AU stay started in 2025, first 2026 trip is JP → we get AU→JP as leg 0.
+    if (mode == TravelReplayMode.year && sorted.isNotEmpty) {
+      final allSorted = trips.toList()
+        ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+      final lastBefore = allSorted
+          .where((t) => t.startedOn.year < targetYear)
+          .lastOrNull;
+      if (lastBefore != null &&
+          lastBefore.countryCode != sorted.first.countryCode) {
+        sorted.insert(0, lastBefore);
+      }
+    }
+
     // Build legs from consecutive country changes.
     // M109: use actual trip GPS endpoints — last GPS of departing trip as
     // departure point; first GPS of arriving trip as arrival point (ADR-157).
@@ -421,7 +437,28 @@ class ReplayTimelineBuilder {
 
     // ── Achievement detection ─────────────────────────────────────────────────
     final events = <int, List<ReplayOverlayEvent>>{};
+
+    // Pre-seed prevUnlocked with achievements already earned before this scope.
+    // Without this, achievements like "First Trip" would appear during a year
+    // replay even though they were actually unlocked in a prior year.
     var prevUnlocked = <String>{};
+    if (mode == TravelReplayMode.year) {
+      final preScope = allTrips
+          .where((t) => t.startedOn.year < targetYear)
+          .toList();
+      if (preScope.isNotEmpty) {
+        final preCodes = preScope.map((t) => t.countryCode).toSet();
+        final preVisits = preCodes
+            .map((c) => EffectiveVisitedCountry(
+                  countryCode: c,
+                  hasPhotoEvidence: true,
+                ))
+            .toList();
+        prevUnlocked =
+            AchievementEngine.evaluate(preVisits, tripCount: preScope.length);
+      }
+    }
+
     final seenCodes = <String>{};
     var seenTripCount = 0;
 
@@ -497,7 +534,7 @@ class ReplayTimelineBuilder {
         sum + t.endedOn.difference(t.startedOn).inDays + 1);
 
     final summary = [
-      ReplayStatEvent(label: 'Countries', value: '${legs.map((l) => l.toCode).toSet().length}'),
+      ReplayStatEvent(label: 'Countries', value: '${allSeenCodes.length}'),
       ReplayStatEvent(label: 'Continents', value: '${continents.length}'),
       ReplayStatEvent(label: 'Photos', value: '$totalPhotos'),
       ReplayStatEvent(label: 'Days', value: '$totalDays'),

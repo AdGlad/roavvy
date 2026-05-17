@@ -2,6 +2,7 @@ import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
@@ -105,17 +106,110 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     Navigator.of(ctx).pop(); // dismiss replay; caller navigates to merch
   }
 
+  /// Builds a visual-state map driven by replay progress.
+  ///
+  /// Starts blank so the globe appears unhighlighted at replay start.
+  /// Countries are added as visited as legs complete.
+  Map<String, CountryVisualState> _buildReplayVisualStates() {
+    final result = <String, CountryVisualState>{};
+    final total = widget.script.legs.length;
+    final cur = _ctrl.currentLegIndex;
+
+    void markVisited(String code) {
+      result[code] = CountryVisualState.visited;
+    }
+
+    // Departure of the first leg is visible as soon as replay starts.
+    if (total > 0) markVisited(widget.script.legs[0].fromCode);
+
+    // All fully completed legs: both endpoints are highlighted.
+    for (var i = 0; i < cur && i < total; i++) {
+      markVisited(widget.script.legs[i].fromCode);
+      markVisited(widget.script.legs[i].toCode);
+    }
+
+    // Current leg: fromCode always visible; toCode appears on arrival.
+    if (cur < total) {
+      markVisited(widget.script.legs[cur].fromCode);
+      if (_ctrl.phase == ReplayPhase.pulse ||
+          _ctrl.phase == ReplayPhase.hold ||
+          _ctrl.phase == ReplayPhase.overlay) {
+        markVisited(widget.script.legs[cur].toCode);
+      }
+    }
+
+    // Done: all countries highlighted.
+    if (_ctrl.phase == ReplayPhase.done) {
+      for (final leg in widget.script.legs) {
+        markVisited(leg.fromCode);
+        markVisited(leg.toCode);
+      }
+    }
+
+    return result;
+  }
+
+  /// ISO code of the arrival country during the pulse phase (for expand halo).
+  String? _currentArrivalCode() {
+    if (_ctrl.phase != ReplayPhase.pulse) return null;
+    final cur = _ctrl.currentLegIndex;
+    if (cur >= widget.script.legs.length) return null;
+    return widget.script.legs[cur].toCode;
+  }
+
+  /// Returns visited country codes in the order they were first arrived at.
+  List<String> _visitedCountriesInOrder() {
+    final codes = <String>[];
+    final seen = <String>{};
+
+    void add(String code) {
+      if (seen.add(code)) codes.add(code);
+    }
+
+    final total = widget.script.legs.length;
+    final cur = _ctrl.currentLegIndex;
+
+    if (total > 0) add(widget.script.legs[0].fromCode);
+
+    for (var i = 0; i < cur && i < total; i++) {
+      add(widget.script.legs[i].fromCode);
+      add(widget.script.legs[i].toCode);
+    }
+
+    if (cur < total) {
+      add(widget.script.legs[cur].fromCode);
+      if (_ctrl.phase == ReplayPhase.pulse ||
+          _ctrl.phase == ReplayPhase.hold ||
+          _ctrl.phase == ReplayPhase.overlay) {
+        add(widget.script.legs[cur].toCode);
+      }
+    }
+
+    if (_ctrl.phase == ReplayPhase.done) {
+      for (final leg in widget.script.legs) {
+        add(leg.fromCode);
+        add(leg.toCode);
+      }
+    }
+
+    return codes;
+  }
+
   @override
   Widget build(BuildContext context) {
     final polygons = ref.watch(polygonsProvider);
-    final visualStates = ref.watch(countryVisualStatesProvider);
-    final tripCounts =
-        ref.watch(countryTripCountsProvider).valueOrNull ?? const <String, int>{};
+    // countryVisualStatesProvider not used during replay — we build states from
+    // controller progress so the globe starts blank and reveals countries live.
+    ref.watch(countryVisualStatesProvider); // keep dependency for hot-reload
 
     final isDone = _ctrl.phase == ReplayPhase.done;
     final isOverlay = _ctrl.phase == ReplayPhase.overlay &&
         _ctrl.currentOverlayEvents.isNotEmpty &&
         _ctrl.currentOverlayEventIndex < _ctrl.currentOverlayEvents.length;
+
+    final replayVisualStates = _buildReplayVisualStates();
+    final arrivalCode = _currentArrivalCode();
+    final visitedCodes = _visitedCountriesInOrder();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -130,9 +224,11 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               child: CustomPaint(
                 painter: _CombinedGlobePainter(
                   polygons: polygons,
-                  visualStates: visualStates,
-                  tripCounts: tripCounts,
+                  visualStates: replayVisualStates,
+                  tripCounts: const {},
                   projection: _ctrl.projection,
+                  highlightedCode: arrivalCode,
+                  pulseValue: _ctrl.pulseValue,
                   replayPainter: GlobeReplayPainter(
                     projection: _ctrl.projection,
                     script: widget.script,
@@ -201,16 +297,33 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
             ),
           ),
 
-          // Bottom: current leg label (hidden during overlay and done).
-          if (!isOverlay && !isDone &&
-              _ctrl.currentLegIndex < widget.script.legs.length)
+          // Bottom: growing flag list + leg label (hidden during overlay and done).
+          if (!isDone)
             Positioned(
-              bottom: 40,
+              bottom: 0,
               left: 0,
               right: 0,
-              child: _LegLabel(
-                leg: widget.script.legs[_ctrl.currentLegIndex],
-                phase: _ctrl.phase,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (visitedCodes.isNotEmpty)
+                        _ReplayFlagList(countryCodes: visitedCodes),
+                      if (!isOverlay &&
+                          _ctrl.currentLegIndex < widget.script.legs.length)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: _LegLabel(
+                            leg: widget.script.legs[_ctrl.currentLegIndex],
+                            phase: _ctrl.phase,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -258,6 +371,8 @@ class _CombinedGlobePainter extends CustomPainter {
     required this.tripCounts,
     required this.projection,
     required this.replayPainter,
+    this.highlightedCode,
+    this.pulseValue = 0.0,
   });
 
   final List<CountryPolygon> polygons;
@@ -266,6 +381,12 @@ class _CombinedGlobePainter extends CustomPainter {
   final GlobeProjection projection;
   final GlobeReplayPainter replayPainter;
 
+  /// Arrival country during pulse phase — passed to [GlobePainter] for halo.
+  final String? highlightedCode;
+
+  /// Pulse progress 0.0–1.0 driving the arrival halo size/opacity.
+  final double pulseValue;
+
   @override
   void paint(canvas, size) {
     GlobePainter(
@@ -273,6 +394,8 @@ class _CombinedGlobePainter extends CustomPainter {
       visualStates: visualStates,
       tripCounts: tripCounts,
       projection: projection,
+      highlightedCode: highlightedCode,
+      pulseValue: pulseValue,
     ).paint(canvas, size);
     replayPainter.paint(canvas, size);
   }
@@ -309,7 +432,7 @@ class _LegLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = '${_name(leg.fromCode)} → ${_name(leg.toCode)}';
+    final text = '${_label(leg.fromCode)} → ${_label(leg.toCode)}';
     return Align(
       alignment: Alignment.center,
       child: Container(
@@ -330,6 +453,57 @@ class _LegLabel extends StatelessWidget {
     );
   }
 
-  static String _name(String code) => code; // future: use kCountryNames
+  /// Returns "🇦🇺 Australia" style label for a country code.
+  static String _label(String code) {
+    final flag = _flag(code);
+    final name = kCountryNames[code.toUpperCase()] ?? code;
+    return '$flag $name';
+  }
+
+  static String _flag(String code) {
+    if (code.length != 2) return '';
+    final upper = code.toUpperCase();
+    final a = upper.codeUnitAt(0) - 0x41 + 0x1F1E6;
+    final b = upper.codeUnitAt(1) - 0x41 + 0x1F1E6;
+    return String.fromCharCode(a) + String.fromCharCode(b);
+  }
+}
+
+/// Horizontally scrollable row of emoji flags for all countries visited so far.
+///
+/// Grows by one flag each time a new country is arrived at during replay.
+class _ReplayFlagList extends StatelessWidget {
+  const _ReplayFlagList({required this.countryCodes});
+
+  final List<String> countryCodes;
+
+  static String _flag(String code) {
+    if (code.length != 2) return '';
+    final upper = code.toUpperCase();
+    final a = upper.codeUnitAt(0) - 0x41 + 0x1F1E6;
+    final b = upper.codeUnitAt(1) - 0x41 + 0x1F1E6;
+    return String.fromCharCode(a) + String.fromCharCode(b);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final code in countryCodes)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Text(
+                _flag(code),
+                style: const TextStyle(fontSize: 22),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 

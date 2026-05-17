@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/providers.dart';
@@ -52,6 +54,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           password: password,
         );
       }
+      if (mounted) context.go('/app');
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() => _error = _friendlyError(e.code));
@@ -137,8 +140,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     });
     try {
       await FirebaseAuth.instance.signInAnonymously();
+      if (mounted) context.go('/app');
     } on FirebaseAuthException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message ?? 'Sign in failed. Try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -209,21 +213,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         : 'No account? Create one',
                   ),
                 ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: _signInWithApple,
-                  child: const Text('Sign in with Apple'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: _signInWithGoogle,
-                  child: const Text('Sign in with Google'),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: _signInWithFacebook,
-                  child: const Text('Sign in with Facebook'),
-                ),
+                if (!kIsWeb) ...[
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _signInWithApple,
+                    child: const Text('Sign in with Apple'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _signInWithGoogle,
+                    child: const Text('Sign in with Google'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _signInWithFacebook,
+                    child: const Text('Sign in with Facebook'),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: _continueAnonymously,

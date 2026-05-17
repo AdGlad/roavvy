@@ -95,9 +95,35 @@ The Cloud Function `generateDualPlacementMockups()` already requests both `front
 
 ---
 
-## ADR-001 — iOS-first mobile app in Flutter with a Swift platform bridge
+---
+
+## ADR-153 — M112 Web Deployment & Routing Strategy
 
 **Status:** Accepted
+
+**Context:**
+Roavvy needs a web presence at `www.roavvy.com`. This includes a public landing page and access to the authenticated app features (Map, Achievements, Journal, Merchandise). The existing mobile app is built in Flutter. The goal is to reuse the existing Flutter codebase for the web experience while maintaining privacy (on-device scan data) and adding a public-facing entry point.
+
+**Decision:**
+1. **Single Flutter Web App** — Deploy the mobile app as a Flutter Web app. Reuses 100% of domain models, Riverpod state, and UI.
+2. **URL-based Routing (`go_router`)** — Migrate from basic `MaterialApp` home-switching to `GoRouter`. Enables clean URLs (`/`, `/app`, `/app/achievements`) and browser back-button support.
+3. **Public Landing Page (`/`)** — A new `LandingPage` widget is shown to unauthenticated users. It provides marketing content and a "Sign In" CTA.
+4. **Authenticated Route (`/app`)** — The core app experience (the "Main Shell") lives under this prefix. Access is guarded by `authStateProvider`. Unauthenticated access redirects to `/`.
+5. **Mobile-Only Feature Guards** — 
+   - **Photo Scanning**: On web, the Scan tab is replaced with a "Mobile Only" message and a QR code/link to the App Store.
+   - **Notifications**: Initialization is skipped on web.
+   - **Local Storage**: Drift handles web persistence via IndexedDB (via `drift_flutter`).
+6. **Firebase Hosting** — Single-site configuration with SPA rewrites to `index.html`.
+
+**Consequences:**
+- Unified codebase for mobile and web.
+- `photo_manager` and other mobile-native plugins require `kIsWeb` guards to prevent runtime crashes.
+- Web users can view their synced travel history but must use the iOS app to perform initial photo scans (preserving on-device privacy logic).
+- Transition to `go_router` requires refactoring `MainShell` and `OnboardingFlow` entry points.
+- SEO for the landing page is limited by Flutter Web's canvas-based rendering (acceptable for the initial launch).
+
+---
+
 
 **Context:** The core feature (scanning the photo library) requires PhotoKit, which is an iOS-only framework written in Objective-C/Swift. React Native, Capacitor, and pure Flutter all require a native Swift layer to access PhotoKit. The web app target (travel map, sharing) is independent of the scanning capability.
 

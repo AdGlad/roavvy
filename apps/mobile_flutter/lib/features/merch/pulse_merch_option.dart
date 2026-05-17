@@ -79,5 +79,6 @@ class PulseMerchOption {
         CardTemplateType.frontRibbon => 'Ribbon',
         CardTemplateType.typography => 'Typography',
         CardTemplateType.badge => 'Explorer Badge',
+        CardTemplateType.wordCloud => 'Word Cloud',
       };
 }

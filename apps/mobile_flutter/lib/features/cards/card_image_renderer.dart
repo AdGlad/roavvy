@@ -12,6 +12,7 @@ import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
+import 'word_cloud_card.dart';
 
 /// The result of a [CardImageRenderer.render] call.
 ///
@@ -107,7 +108,8 @@ class CardImageRenderer {
         (template == CardTemplateType.passport ||
                 template == CardTemplateType.grid ||
                 template == CardTemplateType.heart ||
-                template == CardTemplateType.badge)
+                template == CardTemplateType.badge ||
+                template == CardTemplateType.wordCloud)
             ? Completer<void>()
             : null;
 
@@ -306,6 +308,17 @@ class CardImageRenderer {
           codes: codes,
           scopeLabel: titleOverride,
           transparentBackground: transparentBackground,
+          onAssetsLoaded: onAssetsLoaded,
+        );
+
+      case CardTemplateType.wordCloud:
+        return TravelWordCloudCard(
+          codes: codes,
+          trips: trips,
+          titleOverride: titleOverride,
+          subtitleOverride: subtitleOverride,
+          transparentBackground: transparentBackground,
+          textColor: textColor,
           onAssetsLoaded: onAssetsLoaded,
         );
     }

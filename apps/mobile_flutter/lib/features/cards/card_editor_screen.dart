@@ -26,6 +26,7 @@ import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
 import 'timeline_card.dart';
+import 'word_cloud_card.dart';
 import 'title_generation/title_generation_models.dart';
 import 'title_generation/title_generation_provider.dart';
 import 'travel_card_service.dart';
@@ -183,6 +184,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         CardTemplateType.frontRibbon => 'Front Ribbon',
         CardTemplateType.typography => 'Typography',
         CardTemplateType.badge => 'Explorer Badge',
+        CardTemplateType.wordCloud => 'Word Cloud',
       };
 
   @override
@@ -771,6 +773,15 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           scopeLabel: _titleOverride,
           transparentBackground: true,
         );
+      case CardTemplateType.wordCloud:
+        return TravelWordCloudCard(
+          codes: codes,
+          trips: trips,
+          titleOverride: _titleOverride,
+          subtitleOverride: _subtitleOverride,
+          transparentBackground: true,
+          colorMode: WordCloudColorMode.pastel,
+        );
     }
   }
 
@@ -942,7 +953,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           subtitleOverride: effectiveSubtitle,
           stampColor: null,
           dateColor: null,
-          transparentBackground: widget.templateType == CardTemplateType.grid,
+          transparentBackground: widget.templateType == CardTemplateType.grid ||
+              widget.templateType == CardTemplateType.wordCloud,
           textColor: widget.templateType == CardTemplateType.grid
               ? Colors.black
               : null,

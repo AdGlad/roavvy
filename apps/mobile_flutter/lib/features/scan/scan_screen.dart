@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:confetti/confetti.dart';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
@@ -672,73 +673,124 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _PermissionPanel(
-                    status: _permission,
-                    onRequestPermission: _requestPermission,
-                    onOpenSettings: _openSettings,
-                  ),
-                  const SizedBox(height: 12),
-                  // Scan mode selector — only visible after the first scan.
-                  if (_hasCompletedFirstScan) ...[
-                    SegmentedButton<bool>(
-                      segments: [
-                        ButtonSegment(
-                          value: false,
-                          label: Text(_lastScanAt != null
-                              ? 'New photos (since ${_fmtDate(_lastScanAt!)})'
-                              : 'New photos'),
-                          icon: const Icon(Icons.update),
+              child: kIsWeb
+                  ? _WebFallbackView(effectiveVisits: _effectiveVisits)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _PermissionPanel(
+                          status: _permission,
+                          onRequestPermission: _requestPermission,
+                          onOpenSettings: _openSettings,
                         ),
-                        const ButtonSegment(
-                          value: true,
-                          label: Text('All photos'),
-                          icon: Icon(Icons.refresh),
+                        const SizedBox(height: 12),
+                        // Scan mode selector — only visible after the first scan.
+                        if (_hasCompletedFirstScan) ...[
+                          SegmentedButton<bool>(
+                            segments: [
+                              ButtonSegment(
+                                value: false,
+                                label: Text(_lastScanAt != null
+                                    ? 'New photos (since ${_fmtDate(_lastScanAt!)})'
+                                    : 'New photos'),
+                                icon: const Icon(Icons.update),
+                              ),
+                              const ButtonSegment(
+                                value: true,
+                                label: Text('All photos'),
+                                icon: Icon(Icons.refresh),
+                              ),
+                            ],
+                            selected: {_forceFullScan},
+                            onSelectionChanged: _scanning
+                                ? null
+                                : (s) => setState(() => _forceFullScan = s.first),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        FilledButton.tonal(
+                          onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
+                          child: const Text('Scan my photo library'),
                         ),
+                        const SizedBox(height: 12),
+                        if (_error != null) _ErrorView(message: _error!),
+                        // Scanning pill: shown immediately when scan starts before first batch arrives.
+                        if (_scanning && (_scanProgress?.processed ?? 0) == 0 && _effectiveVisits.isNotEmpty)
+                          const _ScanningPill(),
+                        // M78: Unified persistent view — globe + country list + stamps always visible
+                        // when the user has data. _ScanningView controls its own progress indicator
+                        // via isScanning; existingCodes drives pre-population at rest.
+                        if (_effectiveVisits.isNotEmpty || _scanning)
+                          Expanded(
+                            child: _ScanningView(
+                              progress: _scanProgress,
+                              liveNewCodes: List.unmodifiable(_liveNewCodes),
+                              existingCodes: _scanning
+                                  ? _existingCodesAtScanStart
+                                  : _effectiveVisits.map((v) => v.countryCode).toList(),
+                              isScanning: _scanning,
+                            ),
+                          )
+                        // No data yet paths:
+                        else if (_hasCompletedFirstScan) ...[
+                          const SizedBox(height: 16),
+                          const _EmptyResultsHint(),
+                        ] else ...[
+                          const SizedBox(height: 16),
+                          const _NoScanYetHint(),
+                        ],
                       ],
-                      selected: {_forceFullScan},
-                      onSelectionChanged: _scanning
-                          ? null
-                          : (s) => setState(() => _forceFullScan = s.first),
                     ),
-                    const SizedBox(height: 8),
-                  ],
-                  FilledButton.tonal(
-                    onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
-                    child: const Text('Scan my photo library'),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_error != null) _ErrorView(message: _error!),
-                  // Scanning pill: shown immediately when scan starts before first batch arrives.
-                  if (_scanning && (_scanProgress?.processed ?? 0) == 0 && _effectiveVisits.isNotEmpty)
-                    const _ScanningPill(),
-                  // M78: Unified persistent view — globe + country list + stamps always visible
-                  // when the user has data. _ScanningView controls its own progress indicator
-                  // via isScanning; existingCodes drives pre-population at rest.
-                  if (_effectiveVisits.isNotEmpty || _scanning)
-                    Expanded(
-                      child: _ScanningView(
-                        progress: _scanProgress,
-                        liveNewCodes: List.unmodifiable(_liveNewCodes),
-                        existingCodes: _scanning
-                            ? _existingCodesAtScanStart
-                            : _effectiveVisits.map((v) => v.countryCode).toList(),
-                        isScanning: _scanning,
-                      ),
-                    )
-                  // No data yet paths:
-                  else if (_hasCompletedFirstScan) ...[
-                    const SizedBox(height: 16),
-                    const _EmptyResultsHint(),
-                  ] else ...[
-                    const SizedBox(height: 16),
-                    const _NoScanYetHint(),
-                  ],
-                ],
-              ),
             ),
+    );
+  }
+}
+
+class _WebFallbackView extends StatelessWidget {
+  const _WebFallbackView({required this.effectiveVisits});
+  final List<EffectiveVisitedCountry> effectiveVisits;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.phone_iphone, size: 80, color: Colors.blueGrey),
+        const SizedBox(height: 24),
+        const Text(
+          'Photo Scanning is Mobile Only',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'To protect your privacy, Roavvy scans your photo metadata directly on your device. This feature is only available in the Roavvy iOS app.',
+          style: TextStyle(fontSize: 16, color: Colors.black54),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        if (effectiveVisits.isNotEmpty) ...[
+          const Text(
+            'You have travel data synced!',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Check your World Map or Achievements tabs to see your history.',
+            style: TextStyle(color: Colors.black54),
+          ),
+        ] else ...[
+          const Text(
+            'Download Roavvy on your iPhone to get started.',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+        ],
+        const SizedBox(height: 48),
+        Image.network(
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Download_on_the_App_Store_Badge.svg/1200px-Download_on_the_App_Store_Badge.svg.png',
+          height: 60,
+        ),
+      ],
     );
   }
 }
