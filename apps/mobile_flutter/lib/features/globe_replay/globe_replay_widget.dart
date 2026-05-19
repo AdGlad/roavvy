@@ -51,6 +51,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   late final TravelReplayController _ctrl;
   late final ReplayAudioController _audioCtrl;
   bool _isMuted = false;
+  double _speedMultiplier = 1.0;
 
   @override
   void initState() {
@@ -297,7 +298,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
             ),
           ),
 
-          // Bottom: growing flag list + leg label (hidden during overlay and done).
+          // Bottom: speed selector + growing flag list + leg label (hidden when done).
           if (!isDone)
             Positioned(
               bottom: 0,
@@ -310,6 +311,17 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Speed selector — always visible during playback.
+                      _SpeedSelector(
+                        value: _speedMultiplier,
+                        onChanged: (v) {
+                          setState(() {
+                            _speedMultiplier = v;
+                            _ctrl.speedMultiplier = v;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 6),
                       if (visitedCodes.isNotEmpty)
                         _ReplayFlagList(countryCodes: visitedCodes),
                       if (!isOverlay &&
@@ -466,6 +478,64 @@ class _LegLabel extends StatelessWidget {
     final a = upper.codeUnitAt(0) - 0x41 + 0x1F1E6;
     final b = upper.codeUnitAt(1) - 0x41 + 0x1F1E6;
     return String.fromCharCode(a) + String.fromCharCode(b);
+  }
+}
+
+/// Row of 1× / 2× / 3× speed buttons for the replay bottom bar.
+class _SpeedSelector extends StatelessWidget {
+  const _SpeedSelector({required this.value, required this.onChanged});
+
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  static const _speeds = [1.0, 2.0, 3.0];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final s in _speeds) ...[
+          if (s != _speeds.first) const SizedBox(width: 6),
+          _SpeedChip(speed: s, selected: value == s, onTap: () => onChanged(s)),
+        ],
+      ],
+    );
+  }
+}
+
+class _SpeedChip extends StatelessWidget {
+  const _SpeedChip({
+    required this.speed,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final double speed;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? Colors.amber : Colors.white12,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '${speed.toInt()}×',
+          style: TextStyle(
+            color: selected ? Colors.black87 : Colors.white70,
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
   }
 }
 

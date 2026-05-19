@@ -77,6 +77,13 @@ class TravelReplayController extends ChangeNotifier {
   /// are halved and the scale dip is zeroed.
   bool reducedMotion = false;
 
+  /// Playback speed multiplier. 1.0 = normal, 2.0 = 2× faster, etc.
+  ///
+  /// Takes effect at the start of the next animation phase; the currently
+  /// running phase is not interrupted. Set via the speed selector in
+  /// [GlobeReplayWidget].
+  double speedMultiplier = 1.0;
+
   // ── Hooks ──────────────────────────────────────────────────────────────────
 
   /// Called when a leg starts. Wired to audio in [GlobeReplayWidget] (M111).
@@ -356,7 +363,10 @@ class TravelReplayController extends ChangeNotifier {
 
   AnimationController _makeCtrl(Duration duration) {
     _phaseCtrl?.dispose();
-    return AnimationController(vsync: _vsync, duration: duration);
+    final ms = speedMultiplier <= 1.0
+        ? duration.inMilliseconds
+        : (duration.inMilliseconds / speedMultiplier).round().clamp(30, duration.inMilliseconds);
+    return AnimationController(vsync: _vsync, duration: Duration(milliseconds: ms));
   }
 
   /// Dispatches audio cue [kind] to [_audioController].

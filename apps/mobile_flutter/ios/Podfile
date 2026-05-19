@@ -43,4 +43,37 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
     end
   end
+
+  # Re-sign frameworks embedded by Flutter's Native Assets pipeline.
+  #
+  # Flutter Native Assets (used by the sqlite3 package) produces frameworks
+  # that are initially ad-hoc signed (no Team ID). When the app is installed
+  # on a real device iOS rejects them with error 0xe8008014.
+  #
+  # This block adds a Run Script build phase to Runner.xcodeproj (once) that
+  # re-signs every .framework inside the app bundle using the app's own
+  # code-signing identity, immediately after Flutter embeds them.
+  require 'xcodeproj'
+  project_path = File.expand_path('../Runner.xcodeproj', __FILE__)
+  project = Xcodeproj::Project.open(project_path)
+
+  project.targets.each do |target|
+    next unless target.name == 'Runner'
+    next if target.shell_script_build_phases.any? { |p| p.name == 'Re-sign Embedded Frameworks' }
+
+    phase = target.new_shell_script_build_phase('Re-sign Embedded Frameworks')
+    phase.shell_script = <<~SHELL
+      # Re-sign frameworks embedded by Flutter Native Assets (e.g. sqlite3.framework).
+      # Fixes error 0xe8008014 ("invalid signature") on real-device installs.
+      FRAMEWORKS="${CODESIGNING_FOLDER_PATH}/Frameworks"
+      if [ -d "${FRAMEWORKS}" ] && [ "${CODE_SIGNING_REQUIRED}" = "YES" ]; then
+        find "${FRAMEWORKS}" -maxdepth 1 -name "*.framework" | while read FW; do
+          codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY}" \
+            --preserve-metadata=identifier,entitlements "${FW}" || true
+        done
+      fi
+    SHELL
+  end
+
+  project.save
 end

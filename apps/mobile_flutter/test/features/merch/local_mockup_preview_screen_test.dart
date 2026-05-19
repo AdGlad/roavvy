@@ -60,7 +60,7 @@ void main() {
       tester.takeException();
       await tester.pump();
 
-      expect(find.text('Design your T-Shirt'), findsOneWidget);
+      expect(find.text('T-Shirt Design'), findsOneWidget);
     });
 
     testWidgets('shows "Approve this order" CTA when no template change',

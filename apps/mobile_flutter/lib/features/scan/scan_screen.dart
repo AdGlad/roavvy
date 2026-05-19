@@ -440,7 +440,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 existing == null ? entry.value : existing.merge(entry.value);
           }
           allPhotoDates.addAll(batchResult.photoDates);
-          allPhotoGps.addAll(batchResult.photoGps);
+          // ADR-157 fix: GPS must cover ALL photos in the batch (including
+          // previously-known ones filtered by T3) so that trip endpoints use
+          // actual photo coordinates rather than country centroids. The T3
+          // filter guards accum and photoDates only — GPS collection is exempt.
+          final gpsSource = filteredPhotos.length < event.photos.length
+              ? await _resolveBatch(event.photos)
+              : batchResult;
+          allPhotoGps.addAll(gpsSource.photoGps);
           // Progress counts the raw batch size (pre-filter) so the number
           // reflects photos inspected, not just new ones resolved.
           totalProcessed += event.photos.length;
@@ -486,9 +493,36 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       // Re-infer all trips from the full photo date history and persist.
       final allDates = await _repo.loadPhotoDates();
+      // Load existing GPS before re-inferring so incremental scans do not
+      // overwrite previously-stored GPS coordinates with null (ADR-157 fix).
+      // On an incremental scan allPhotoGps only contains new photos, so trips
+      // not covered by this batch would lose their GPS without this fallback.
+      final existingGps = {
+        for (final t in await _tripRepo.loadAll())
+          if (t.firstLat != null || t.lastLat != null) t.id: t,
+      };
       final rawTrips = inferTrips(allDates);
       // M109: enrich inferred trips with GPS endpoints from scan (ADR-157).
-      final inferredTrips = _applyTripGps(rawTrips, allPhotoGps);
+      final withGps = _applyTripGps(rawTrips, allPhotoGps);
+      final inferredTrips = withGps.map((t) {
+        // If this scan batch already provided GPS, use it.
+        if (t.firstLat != null || t.lastLat != null) return t;
+        // Otherwise preserve previously-stored GPS from the database.
+        final prev = existingGps[t.id];
+        if (prev == null) return t;
+        return TripRecord(
+          id: t.id,
+          countryCode: t.countryCode,
+          startedOn: t.startedOn,
+          endedOn: t.endedOn,
+          photoCount: t.photoCount,
+          isManual: t.isManual,
+          firstLat: prev.firstLat,
+          firstLng: prev.firstLng,
+          lastLat: prev.lastLat,
+          lastLng: prev.lastLng,
+        );
+      }).toList();
       await _tripRepo.upsertAll(inferredTrips);
       await _regionRepo.upsertAll(inferRegionVisits(allDates, inferredTrips));
 

@@ -1296,37 +1296,223 @@ class _LocalMockupPreviewScreenState
         }
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Text('Design your ${_isTshirt ? 'T-Shirt' : 'Poster'}'),
-        actions: [
-          if (_artworkBytes != null)
-            IconButton(
-              icon: const Icon(Icons.share_outlined),
-              tooltip: 'Share This Design',
-              onPressed: _shareDesign,
+        backgroundColor: theme.colorScheme.surface,
+        appBar: AppBar(
+          title: Text('${_isTshirt ? 'T-Shirt' : 'Poster'} Design'),
+          actions: [
+            if (_artworkBytes != null)
+              IconButton(
+                icon: const Icon(Icons.share_outlined),
+                tooltip: 'Share Design',
+                onPressed: _shareDesign,
+              ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            // ── Background Mockup Canvas (Full Screen) ──────────────────────
+            Positioned.fill(
+              bottom: 80, // Leave some space for the floating bottom bar
+              child: _buildMockupArea(theme),
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // ── Mockup canvas (fills available space) ────────────────────────
-          Expanded(
-            child: _buildMockupArea(theme),
-          ),
 
-          // ── Inline config panel (M75) ─────────────────────────────────
-          if (_state != _MockupState.ready && _isTshirt)
-            _buildInlineConfigPanel(theme),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: _buildBottomBar(),
+            // ── Immersive Config Tray (Draggable) ───────────────────────────
+            if (_state != _MockupState.ready && _isTshirt)
+              _buildDraggableConfigTray(theme),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: _buildBottomBar(),
+          ),
         ),
       ),
-    ),   // end Scaffold
-    );   // end PopScope
+    );
+  }
+
+  Widget _buildDraggableConfigTray(ThemeData theme) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.38,
+      minChildSize: 0.08,
+      maxChildSize: 0.85,
+      snap: true,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+          ),
+          child: Column(
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: _buildCompactConfigContent(theme),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCompactConfigContent(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Main Header & Flip Toggle ─────────────────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Design Options', 
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            TextButton.icon(
+              onPressed: () => setState(() {
+                _showingFront = !_showingFront;
+                _flipViewKey++;
+              }),
+              icon: const Icon(Icons.flip, size: 18),
+              label: Text(_showingFront ? 'See Back' : 'See Front'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // ── Grid Layout: Colour & Size ───────────────────────────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SectionLabel('Colour'),
+                  _ColourSwatchRow(
+                    selected: _colour,
+                    onChanged: (c) => _onVariantOptionChanged(colour: c),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SectionLabel('Size'),
+                  _SegmentedPicker(
+                    options: tshirtSizes,
+                    selected: _tshirtSize,
+                    onChanged: (v) => setState(() => _tshirtSize = v),
+                    compact: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Placements ───────────────────────────────────────────────────
+        const _SectionLabel('Front Placement'),
+        _SegmentedPicker(
+          options: const ['Left', 'Center', 'Right', 'None'],
+          selected: switch (_frontPosition) {
+            'center'      => 'Center',
+            'right_chest' => 'Right',
+            'none'        => 'None',
+            _             => 'Left',
+          },
+          onChanged: (v) => _onVariantOptionChanged(
+            frontPosition: switch (v) {
+              'Center' => 'center',
+              'Right'  => 'right_chest',
+              'None'   => 'none',
+              _        => 'left_chest',
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _SectionLabel('Back Placement'),
+        _SegmentedPicker(
+          options: const ['Center', 'None'],
+          selected: _backPosition == 'none' ? 'None' : 'Center',
+          onChanged: (v) => _onVariantOptionChanged(
+              backPosition: v == 'None' ? 'none' : 'center'),
+        ),
+
+        // ── Advanced/Style (Passport/Timeline/Ribbon) ─────────────────────
+        if (_template == CardTemplateType.passport || 
+            _template == CardTemplateType.timeline ||
+            widget.allCodes.length != widget.selectedCodes.length) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(),
+          ),
+          Text('Advanced Styling', 
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            )),
+          const SizedBox(height: 12),
+          
+          if (_template == CardTemplateType.passport) ...[
+            const _SectionLabel('Stamp Style'),
+            _buildStampColorPicker(),
+            const SizedBox(height: 16),
+          ],
+          if (_template == CardTemplateType.timeline) ...[
+            const _SectionLabel('Text Colour'),
+            _buildTimelineColorPicker(),
+            const SizedBox(height: 16),
+          ],
+          if (widget.allCodes.length != widget.selectedCodes.length) ...[
+            const _SectionLabel('Ribbon Countries'),
+            _SegmentedPicker(
+              options: const ['Selected', 'All'],
+              selected: _frontRibbonMode == 'all' ? 'All' : 'Selected',
+              onChanged: (v) {
+                setState(() => _frontRibbonMode = v == 'All' ? 'all' : 'selected');
+                _loadFrontRibbonImage();
+              },
+            ),
+          ],
+        ],
+      ],
+    );
   }
 
   // ── Mockup area ────────────────────────────────────────────────────────────
@@ -1678,72 +1864,70 @@ class _LocalMockupPreviewScreenState
           top: BorderSide(color: theme.dividerColor, width: 0.5),
         ),
       ),
-      constraints: const BoxConstraints(maxHeight: 360),
+      constraints: const BoxConstraints(maxHeight: 380),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Passport: stamp colour is the only adjustable image param ─
-            // T-shirt colour/size/placement controls are still shown so the
-            // user can choose the garment they want; only card re-renders are
-            // locked to the original design (ADR-133).
-            if (_template == CardTemplateType.passport) ...[
-              _buildStampColorPicker(),
-              const SizedBox(height: 12),
-            ],
-
-            // ── Colour + Flip ─────────────────────────────────────────────
+            // ── View Front/Back Toggle ────────────────────────────────────
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Colour', style: theme.textTheme.labelLarge),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => setState(() {
+                const _SectionLabel('Product Options'),
+                TextButton.icon(
+                  onPressed: () => setState(() {
                     _showingFront = !_showingFront;
                     _flipViewKey++;
                   }),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.flip,
-                          size: 16,
-                          color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Text(
-                        _showingFront ? 'View back' : 'View front',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                  icon: const Icon(Icons.flip, size: 18),
+                  label: Text(_showingFront ? 'See Back' : 'See Front'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
+
+            // ── Colour ───────────────────────────────────────────────────
+            const _SectionLabel('Colour'),
+            const SizedBox(height: 4),
             _ColourSwatchRow(
               selected: _colour,
               onChanged: (c) => _onVariantOptionChanged(colour: c),
             ),
-            // Non-passport stamp/timeline colour pickers
-            if (_template != CardTemplateType.passport &&
-                _template == CardTemplateType.timeline)
+            
+            // Passport/Timeline specific colour pickers
+            if (_template == CardTemplateType.passport) ...[
+              const SizedBox(height: 12),
+              const _SectionLabel('Stamp Style'),
+              _buildStampColorPicker(),
+            ],
+            if (_template == CardTemplateType.timeline) ...[
+              const SizedBox(height: 12),
+              const _SectionLabel('Text Colour'),
               _buildTimelineColorPicker(),
-            const SizedBox(height: 12),
+            ],
+
+            const SizedBox(height: 16),
 
             // ── Size ──────────────────────────────────────────────────────
             const _SectionLabel('Size'),
+            const SizedBox(height: 4),
             _SegmentedPicker(
               options: tshirtSizes,
               selected: _tshirtSize,
               onChanged: (v) => setState(() => _tshirtSize = v),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // ── Front design ──────────────────────────────────────────────
-            const _SectionLabel('Front design'),
+            const _SectionLabel('Front Placement'),
+            const SizedBox(height: 4),
             _SegmentedPicker(
               options: const ['Left', 'Center', 'Right', 'None'],
               selected: switch (_frontPosition) {
@@ -1764,23 +1948,25 @@ class _LocalMockupPreviewScreenState
 
             // ── Ribbon countries (conditional) ────────────────────────────
             if (widget.allCodes.length != widget.selectedCodes.length) ...[
-              const SizedBox(height: 12),
-              const _SectionLabel('Ribbon countries'),
+              const SizedBox(height: 16),
+              const _SectionLabel('Ribbon Countries'),
+              const SizedBox(height: 4),
               _SegmentedPicker(
-                options: const ['Year selection', 'All time'],
+                options: const ['Selected', 'All'],
                 selected:
-                    _frontRibbonMode == 'all' ? 'All time' : 'Year selection',
+                    _frontRibbonMode == 'all' ? 'All' : 'Selected',
                 onChanged: (v) {
                   setState(() =>
-                      _frontRibbonMode = v == 'All time' ? 'all' : 'selected');
+                      _frontRibbonMode = v == 'All' ? 'all' : 'selected');
                   _loadFrontRibbonImage();
                 },
               ),
             ],
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             // ── Back design ───────────────────────────────────────────────
-            const _SectionLabel('Back design'),
+            const _SectionLabel('Back Placement'),
+            const SizedBox(height: 4),
             _SegmentedPicker(
               options: const ['Center', 'None'],
               selected: _backPosition == 'none' ? 'None' : 'Center',
@@ -1803,84 +1989,101 @@ class _LocalMockupPreviewScreenState
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Fallback warning when mockup polling timed out (ADR-147).
           if (_mockupFailed)
             Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.15),
-                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.amber.withValues(alpha: 0.1),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      size: 16, color: Colors.amber),
+                  const Icon(Icons.info_outline, size: 18, color: Colors.amber),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Preview unavailable \u2014 you can still proceed',
+                      'Preview skipped due to connection \u2014 you can still proceed.',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.amber.shade700,
+                        color: Colors.amber.shade800,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: mockupReady ? _openConfirmationScreen : null,
-                  child: Text(
-                    mockupReady ? 'Review & Checkout' : 'Loading preview\u2026',
-                  ),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: mockupReady ? _openConfirmationScreen : null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-            ],
+              child: Text(
+                mockupReady ? 'Review & Checkout' : 'Loading Preview\u2026',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       );
     }
 
-    // Artwork not yet generated (preset-driven entry loading state).
     final artworkReady = _artworkBytes != null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // "Customise Design" button — only after artwork is locked (ADR-147).
         if (_artworkLocked && _state == _MockupState.configuring)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 12),
             child: SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
+              child: OutlinedButton.icon(
                 onPressed: _openCustomisationSheet,
-                child: const Text('Customise Design'),
+                icon: const Icon(Icons.tune, size: 18),
+                label: const Text('Customise Layout & Detail'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ),
         Row(
           children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Edit card design'),
-            ),
-            const SizedBox(width: 8),
             Expanded(
+              flex: 2,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: BorderSide(color: theme.dividerColor),
+                ),
+                child: const Text('Change Design'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 3,
               child: FilledButton(
                 onPressed: artworkReady && _state == _MockupState.configuring
                     ? _onApprove
                     : null,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 child: Text(
                   _state == _MockupState.approving
-                      ? 'Preparing your order\u2026'
+                      ? 'Preparing\u2026'
                       : !artworkReady
-                          ? 'Generating design\u2026'
-                          : 'Approve this order',
+                          ? 'Generating\u2026'
+                          : 'Approve & Preview',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -2033,8 +2236,6 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onHorizontalDragStart: _onHorizontalDragStart,
-      onHorizontalDragEnd: _onHorizontalDragEnd,
       onVerticalDragStart: _onVerticalDragStart,
       onVerticalDragEnd: _onVerticalDragEnd,
       onDoubleTap: () => _transformationController.value = Matrix4.identity(),
@@ -2336,25 +2537,29 @@ class _SegmentedPicker extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.onChanged,
+    this.compact = false,
   });
 
   final List<String> options;
   final String selected;
   final ValueChanged<String> onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: compact ? 6 : 8,
+      runSpacing: compact ? 6 : 8,
       children: options.map((opt) {
         final isSelected = opt == selected;
         return ChoiceChip(
-          label: Text(opt),
+          label: Text(opt, style: TextStyle(fontSize: compact ? 12 : 14)),
           selected: isSelected,
           onSelected: (_) => onChanged(opt),
           selectedColor: theme.colorScheme.primaryContainer,
+          padding: compact ? const EdgeInsets.symmetric(horizontal: 4) : null,
+          visualDensity: compact ? VisualDensity.compact : null,
         );
       }).toList(),
     );
