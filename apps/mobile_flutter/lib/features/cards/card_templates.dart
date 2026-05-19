@@ -19,7 +19,218 @@ import 'passport_stamp_model.dart';
 import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
-// ── Shared constants ─────────────────────────────────────────────────────────
+import '../../core/landmark_icons.dart';
+
+// ── LandmarkFlagsCard ─────────────────────────────────────────────────────────
+
+/// Travel card template: stylized landmark icons arranged in a grid.
+class LandmarkFlagsCard extends StatefulWidget {
+  const LandmarkFlagsCard({
+    super.key,
+    required this.countryCodes,
+    this.aspectRatio = 3.0 / 2.0,
+    this.dateLabel = '',
+    this.titleOverride,
+    this.subtitleOverride,
+    this.transparentBackground = false,
+    this.textColor,
+    this.onAssetsLoaded,
+    this.layoutMode = FlagGridLayoutMode.packedRow,
+  });
+
+  final List<String> countryCodes;
+  final double aspectRatio;
+  final String? titleOverride;
+  final String? subtitleOverride;
+  final String dateLabel;
+  final bool transparentBackground;
+  final Color? textColor;
+  final VoidCallback? onAssetsLoaded;
+  final FlagGridLayoutMode layoutMode;
+
+  @override
+  State<LandmarkFlagsCard> createState() => _LandmarkFlagsCardState();
+}
+
+class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
+  final _repaintNotifier = ValueNotifier<int>(0);
+  bool _preloadStarted = false;
+  bool _onAssetsLoadedFired = false;
+
+  @override
+  void didUpdateWidget(LandmarkFlagsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.countryCodes != widget.countryCodes) {
+      _preloadStarted = false;
+      _onAssetsLoadedFired = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _repaintNotifier.dispose();
+    super.dispose();
+  }
+
+  void _preloadLandmarks(double reprWidth) {
+    if (reprWidth <= 0 || _preloadStarted) return;
+    _preloadStarted = true;
+
+    final List<(String, String)> toLoad = [];
+    for (final code in widget.countryCodes) {
+      final path = getLandmarkPath(code);
+      if (path != null && _LandmarkPainter._sharedCache.get('landmark_$code', reprWidth) == null) {
+        toLoad.add((code, path));
+      }
+    }
+
+    if (toLoad.isEmpty) {
+      _fireOnAssetsLoaded();
+      return;
+    }
+
+    var remaining = toLoad.length;
+    for (final entry in toLoad) {
+      LandmarkTileRenderer.loadLandmarkToCache(entry.$1, entry.$2, reprWidth, _LandmarkPainter._sharedCache)
+          .then((img) {
+        if (mounted && img != null) _repaintNotifier.value++;
+        remaining--;
+        if (remaining == 0) _fireOnAssetsLoaded();
+      });
+    }
+  }
+
+  void _fireOnAssetsLoaded() {
+    if (_onAssetsLoadedFired) return;
+    _onAssetsLoadedFired = true;
+    widget.onAssetsLoaded?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveTitle = widget.titleOverride ??
+        '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
+            '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
+
+    return AspectRatio(
+      aspectRatio: widget.aspectRatio,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+          const topH = CardTextRenderer.titleZoneH;
+          const botH = CardTextRenderer.brandingZoneH;
+          final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
+          final gridSize = Size(size.width, gridH);
+          final reprWidth = FlagGridLayoutEngine.representativeTileWidth(
+              gridSize, widget.countryCodes.length);
+          _preloadLandmarks(reprWidth);
+
+          return CustomPaint(
+            size: size,
+            painter: _LandmarkPainter(
+              countryCodes: widget.countryCodes,
+              canvasSize: size,
+              repaintNotifier: _repaintNotifier,
+              title: effectiveTitle,
+              dateLabel: widget.dateLabel,
+              subtitleOverride: widget.subtitleOverride,
+              layoutMode: widget.layoutMode,
+              reprWidth: reprWidth,
+              transparentBackground: widget.transparentBackground,
+              textColor: widget.textColor,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LandmarkPainter extends CustomPainter {
+  _LandmarkPainter({
+    required this.countryCodes,
+    required this.canvasSize,
+    required ValueNotifier<int> repaintNotifier,
+    required this.title,
+    required this.dateLabel,
+    this.subtitleOverride,
+    this.layoutMode = FlagGridLayoutMode.packedRow,
+    required this.reprWidth,
+    this.transparentBackground = false,
+    this.textColor,
+  }) : super(repaint: repaintNotifier);
+
+  final List<String> countryCodes;
+  final Size canvasSize;
+  final String title;
+  final String dateLabel;
+  final String? subtitleOverride;
+  final FlagGridLayoutMode layoutMode;
+  final double reprWidth;
+  final bool transparentBackground;
+  final Color? textColor;
+
+  static final _sharedCache = FlagImageCache();
+  static const _topH = CardTextRenderer.titleZoneH;
+  static const _botH = CardTextRenderer.brandingZoneH;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!transparentBackground) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF0D2137));
+    }
+
+    final effectiveTextColor = textColor ?? CardTextRenderer.defaultTextColor;
+    final effectiveStripColor = transparentBackground ? Colors.transparent : CardTextRenderer.defaultStripColor;
+
+    CardTextRenderer.drawTitle(canvas, size, title, textColor: effectiveTextColor, stripColor: effectiveStripColor);
+    CardTextRenderer.drawBranding(canvas, size, countryCount: countryCodes.length, dateLabel: dateLabel, subtitleLine: subtitleOverride, textColor: effectiveTextColor, stripColor: effectiveStripColor);
+
+    if (countryCodes.isEmpty) return;
+    
+    final tiles = FlagGridLayoutEngine.compute(
+      codes: countryCodes,
+      canvasSize: size,
+      topOffset: _topH,
+      bottomOffset: _botH,
+      mode: layoutMode,
+    );
+
+    for (final tile in tiles) {
+      final path = getLandmarkPath(tile.code);
+      if (path != null) {
+        LandmarkTileRenderer.renderFromCache(
+          canvas, 
+          tile.code, 
+          tile.rect, 
+          _sharedCache,
+          color: effectiveTextColor, // Draw landmarks in title/text color for consistency
+        );
+      } else {
+        // Fallback to emoji flag if no landmark icon available
+        _drawEmoji(canvas, tile.code, tile.rect);
+      }
+    }
+  }
+
+  void _drawEmoji(Canvas canvas, String code, Rect dst) {
+    final emoji = _flagEmoji(code);
+    final tp = TextPainter(
+      text: TextSpan(text: emoji, style: TextStyle(fontSize: dst.width * 0.7)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(dst.left + (dst.width - tp.width) / 2, dst.top + (dst.height - tp.height) / 2));
+  }
+
+  String _flagEmoji(String code) {
+    if (code.length != 2) return '';
+    const base = 0x1F1E6;
+    return String.fromCharCode(base + code.codeUnitAt(0) - 65) + String.fromCharCode(base + code.codeUnitAt(1) - 65);
+  }
+
+  @override
+  bool shouldRepaint(_LandmarkPainter old) => true;
+}
 
 String _flag(String code) {
   if (code.length != 2) return '';

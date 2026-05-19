@@ -185,6 +185,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         CardTemplateType.typography => 'Typography',
         CardTemplateType.badge => 'Explorer Badge',
         CardTemplateType.wordCloud => 'Word Cloud',
+        CardTemplateType.landmark => 'Landmark',
       };
 
   @override
@@ -781,6 +782,15 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           subtitleOverride: _subtitleOverride,
           transparentBackground: true,
           colorMode: WordCloudColorMode.pastel,
+        );
+      case CardTemplateType.landmark:
+        return LandmarkFlagsCard(
+          countryCodes: codes,
+          aspectRatio: _aspectRatio,
+          dateLabel: dateLabel,
+          titleOverride: _titleOverride,
+          subtitleOverride: _subtitleOverride,
+          transparentBackground: true,
         );
     }
   }

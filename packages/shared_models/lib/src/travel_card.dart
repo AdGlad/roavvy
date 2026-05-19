@@ -26,6 +26,10 @@ enum CardTemplateType {
   /// Country names rendered as a word cloud with visit-frequency sizing
   /// on a transparent or solid background (M112).
   wordCloud,
+
+  /// Stylized line-art landmark icons (e.g. Eiffel Tower, Big Ben) representing
+  /// visited countries, arranged in a grid (M113).
+  landmark,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries

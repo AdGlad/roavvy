@@ -25,6 +25,7 @@ class CardTypePickerScreen extends ConsumerWidget {
     CardTemplateType.passport,
     CardTemplateType.timeline,
     CardTemplateType.wordCloud,
+    CardTemplateType.landmark,
   ];
 
   static const _labels = {
@@ -33,6 +34,7 @@ class CardTypePickerScreen extends ConsumerWidget {
     CardTemplateType.passport: 'Passport',
     CardTemplateType.timeline: 'Timeline',
     CardTemplateType.wordCloud: 'Word Cloud',
+    CardTemplateType.landmark: 'Landmark',
   };
 
   static const _taglines = {
@@ -41,6 +43,7 @@ class CardTypePickerScreen extends ConsumerWidget {
     CardTemplateType.passport: 'Authentic stamp collection',
     CardTemplateType.timeline: 'Your journey through time',
     CardTemplateType.wordCloud: 'Your countries, sized by how often you visit',
+    CardTemplateType.landmark: 'Landmark icons from your travels',
   };
 
   @override
@@ -296,6 +299,10 @@ class _CardTypeTile extends StatelessWidget {
           codes: countryCodes,
           trips: trips,
           colorMode: WordCloudColorMode.pastel,
+        );
+      case CardTemplateType.landmark:
+        return LandmarkFlagsCard(
+          countryCodes: countryCodes,
         );
     }
   }

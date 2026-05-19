@@ -543,6 +543,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           transparentBackground: true,
           colorMode: WordCloudColorMode.pastel,
         );
+      case CardTemplateType.landmark:
+        return LandmarkFlagsCard(
+          countryCodes: codes,
+          aspectRatio: _aspectRatio,
+          dateLabel: _computeDateLabel(trips),
+          titleOverride: _titleOverride,
+          transparentBackground: true,
+        );
     }
   }
 

@@ -444,6 +444,8 @@ class _ArtworkConfirmationScreenState
         return 'Explorer Badge';
       case CardTemplateType.wordCloud:
         return 'Word Cloud';
+      case CardTemplateType.landmark:
+        return 'Landmark';
     }
   }
 }

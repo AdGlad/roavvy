@@ -201,11 +201,21 @@ class FlagTileRenderer {
     double targetSize,
     FlagImageCache cache,
   ) async {
-    final existing = cache.get(code, targetSize);
+    final path = svgAssetPath(code);
+    return _loadSvgPathToCache(code, path, targetSize, cache);
+  }
+
+  static Future<ui.Image?> _loadSvgPathToCache(
+    String key,
+    String path,
+    double targetSize,
+    FlagImageCache cache,
+  ) async {
+    final existing = cache.get(key, targetSize);
     if (existing != null) return existing;
 
     try {
-      final loader = SvgAssetLoader(svgAssetPath(code));
+      final loader = SvgAssetLoader(path);
       final pictureInfo = await vg.loadPicture(loader, null);
       final recorder = ui.PictureRecorder();
       final c = Canvas(recorder);
@@ -225,10 +235,71 @@ class FlagTileRenderer {
           await picture.toImage(targetSize.round(), imgH);
       picture.dispose();
 
-      cache.put(code, targetSize, image);
+      cache.put(key, targetSize, image);
       return image;
     } catch (_) {
       return null;
+    }
+  }
+}
+
+// ── LandmarkTileRenderer ──────────────────────────────────────────────────────
+
+/// Renders a landmark icon onto [canvas].
+class LandmarkTileRenderer {
+  const LandmarkTileRenderer._();
+
+  static String landmarkAssetPath(String path) => path;
+
+  /// Loads a landmark SVG into a [ui.Image] at [targetSize] and stores in [cache].
+  static Future<ui.Image?> loadLandmarkToCache(
+    String countryCode,
+    String assetPath,
+    double targetSize,
+    FlagImageCache cache,
+  ) async {
+    // Reuse the same cache logic as flags.
+    return FlagTileRenderer._loadSvgPathToCache(
+      'landmark_$countryCode',
+      assetPath,
+      targetSize,
+      cache,
+    );
+  }
+
+  /// Draws the landmark for [countryCode] onto [canvas].
+  static void renderFromCache(
+    Canvas canvas,
+    String countryCode,
+    Rect dst,
+    FlagImageCache cache, {
+    Color? color,
+  }) {
+    final cached = cache.get('landmark_$countryCode', dst.width);
+    if (cached != null) {
+      final paint = Paint()..filterQuality = FilterQuality.high;
+      if (color != null) {
+        paint.colorFilter = ColorFilter.mode(color, BlendMode.srcIn);
+      }
+
+      final imgW = cached.width.toDouble();
+      final imgH = cached.height.toDouble();
+      final scale = math.min(dst.width / imgW, dst.height / imgH);
+      final fitW = imgW * scale;
+      final fitH = imgH * scale;
+      final fitDst = Rect.fromLTWH(
+        dst.left + (dst.width - fitW) / 2,
+        dst.top + (dst.height - fitH) / 2,
+        fitW,
+        fitH,
+      );
+
+      canvas.drawImageRect(
+        cached,
+        Rect.fromLTWH(0, 0, imgW, imgH),
+        fitDst,
+        paint,
+      );
     }
   }
 }

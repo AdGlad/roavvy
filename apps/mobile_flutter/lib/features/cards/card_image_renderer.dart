@@ -350,6 +350,19 @@ class CardImageRenderer {
           textColor: textColor,
           onAssetsLoaded: onAssetsLoaded,
         );
+
+      case CardTemplateType.landmark:
+        return LandmarkFlagsCard(
+          countryCodes: codes,
+          aspectRatio: cardAspectRatio,
+          dateLabel: dateLabel,
+          titleOverride: titleOverride,
+          subtitleOverride: subtitleOverride,
+          transparentBackground: transparentBackground,
+          textColor: textColor,
+          onAssetsLoaded: onAssetsLoaded,
+          layoutMode: gridLayoutMode,
+        );
     }
   }
 }

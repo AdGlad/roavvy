@@ -55,6 +55,7 @@ String merchTemplateLabel(CardTemplateType t) => switch (t) {
       CardTemplateType.typography => 'Typography',
       CardTemplateType.badge => 'Explorer Badge',
       CardTemplateType.wordCloud => 'Word Cloud',
+      CardTemplateType.landmark => 'Landmark',
     };
 
 /// Suggests a suitable shirt colour for a given template and density (ADR-154).

@@ -152,6 +152,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         CardTemplateType.typography => 'Typography',
         CardTemplateType.badge => 'Explorer Badge',
         CardTemplateType.wordCloud => 'Word Cloud',
+        CardTemplateType.landmark => 'Landmark',
       };
 
   static CardTemplateType _templateFromLabel(String label) => switch (label) {

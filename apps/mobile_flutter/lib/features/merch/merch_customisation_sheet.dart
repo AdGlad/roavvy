@@ -125,15 +125,20 @@ class _MerchCustomisationSheetState extends State<_MerchCustomisationSheet> {
                     _SectionLabel('Layout', theme),
                     const SizedBox(height: 8),
                     _OptionRow(
-                      options: const ['Passport', 'Grid'],
-                      selected: _config.layout == CardTemplateType.passport
-                          ? 'Passport'
-                          : 'Grid',
+                      options: const ['Passport', 'Grid', 'Landmark'],
+                      selected: switch (_config.layout) {
+                        CardTemplateType.passport => 'Passport',
+                        CardTemplateType.grid     => 'Grid',
+                        CardTemplateType.landmark => 'Landmark',
+                        _                         => 'Grid',
+                      },
                       onChanged: (v) => setState(() {
                         _config = _config.copyWithOverrides(
-                          layout: v == 'Passport'
-                              ? CardTemplateType.passport
-                              : CardTemplateType.grid,
+                          layout: switch (v) {
+                            'Passport' => CardTemplateType.passport,
+                            'Landmark' => CardTemplateType.landmark,
+                            _          => CardTemplateType.grid,
+                          },
                         );
                       }),
                     ),
