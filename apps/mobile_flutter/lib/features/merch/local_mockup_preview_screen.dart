@@ -1382,41 +1382,62 @@ class _LocalMockupPreviewScreenState
   Widget _buildCompactConfigContent(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Main Header & Flip Toggle ─────────────────────────────────────
+        // ── Header row ───────────────────────────────────────────────────
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Design Options', 
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            TextButton.icon(
-              onPressed: () => setState(() {
+            Text(
+              'Design',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => setState(() {
                 _showingFront = !_showingFront;
                 _flipViewKey++;
               }),
-              icon: const Icon(Icons.flip, size: 18),
-              label: Text(_showingFront ? 'See Back' : 'See Front'),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flip, size: 13, color: theme.colorScheme.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      _showingFront ? 'See Back' : 'See Front',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // ── Grid Layout: Colour & Size ───────────────────────────────────
+        // ── Colour + Size (one row) ──────────────────────────────────────
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 3,
+              flex: 5,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _SectionLabel('Colour'),
+                  const _MiniLabel('Colour'),
+                  const SizedBox(height: 4),
                   _ColourSwatchRow(
                     selected: _colour,
                     onChanged: (c) => _onVariantOptionChanged(colour: c),
@@ -1424,83 +1445,119 @@ class _LocalMockupPreviewScreenState
                 ],
               ),
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 16),
             Expanded(
-              flex: 4,
+              flex: 5,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _SectionLabel('Size'),
-                  _SegmentedPicker(
-                    options: tshirtSizes,
-                    selected: _tshirtSize,
-                    onChanged: (v) => setState(() => _tshirtSize = v),
-                    compact: true,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const _MiniLabel('Size'),
+                      Text(
+                        _tshirtSize,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                      activeTrackColor: theme.colorScheme.primary,
+                      inactiveTrackColor: theme.colorScheme.outline.withValues(alpha: 0.25),
+                      thumbColor: theme.colorScheme.primary,
+                    ),
+                    child: Slider(
+                      value: tshirtSizes.indexOf(_tshirtSize).toDouble(),
+                      min: 0,
+                      max: (tshirtSizes.length - 1).toDouble(),
+                      divisions: tshirtSizes.length - 1,
+                      onChanged: (v) =>
+                          setState(() => _tshirtSize = tshirtSizes[v.round()]),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(tshirtSizes.first,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 9,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            )),
+                        Text(tshirtSizes.last,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 9,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            )),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ],
         ),
+        const SizedBox(height: 14),
 
-        const SizedBox(height: 20),
-
-        // ── Placements ───────────────────────────────────────────────────
-        const _SectionLabel('Front Placement'),
-        _SegmentedPicker(
-          options: const ['Left', 'Center', 'Right', 'None'],
-          selected: switch (_frontPosition) {
-            'center'      => 'Center',
-            'right_chest' => 'Right',
-            'none'        => 'None',
-            _             => 'Left',
-          },
-          onChanged: (v) => _onVariantOptionChanged(
-            frontPosition: switch (v) {
-              'Center' => 'center',
-              'Right'  => 'right_chest',
-              'None'   => 'none',
-              _        => 'left_chest',
-            },
-          ),
+        // ── Front placement ──────────────────────────────────────────────
+        const _MiniLabel('Front'),
+        const SizedBox(height: 6),
+        _PlacementSelector(
+          options: const [
+            _PlacementOptionData('left_chest',  'Left'),
+            _PlacementOptionData('center',       'Centre'),
+            _PlacementOptionData('right_chest', 'Right'),
+            _PlacementOptionData('none',         'None'),
+          ],
+          selected: _frontPosition,
+          isFront: true,
+          onChanged: (v) => _onVariantOptionChanged(frontPosition: v),
         ),
-        const SizedBox(height: 16),
-        const _SectionLabel('Back Placement'),
-        _SegmentedPicker(
-          options: const ['Center', 'None'],
-          selected: _backPosition == 'none' ? 'None' : 'Center',
-          onChanged: (v) => _onVariantOptionChanged(
-              backPosition: v == 'None' ? 'none' : 'center'),
+        const SizedBox(height: 10),
+
+        // ── Back placement ───────────────────────────────────────────────
+        const _MiniLabel('Back'),
+        const SizedBox(height: 6),
+        _PlacementSelector(
+          options: const [
+            _PlacementOptionData('center', 'Centre'),
+            _PlacementOptionData('none',   'None'),
+          ],
+          selected: _backPosition,
+          isFront: false,
+          onChanged: (v) => _onVariantOptionChanged(backPosition: v),
         ),
 
-        // ── Advanced/Style (Passport/Timeline/Ribbon) ─────────────────────
-        if (_template == CardTemplateType.passport || 
+        // ── Advanced styling (conditional) ──────────────────────────────
+        if (_template == CardTemplateType.passport ||
             _template == CardTemplateType.timeline ||
             widget.allCodes.length != widget.selectedCodes.length) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(),
-          ),
-          Text('Advanced Styling', 
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            )),
           const SizedBox(height: 12),
-          
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.5)),
+          const SizedBox(height: 10),
           if (_template == CardTemplateType.passport) ...[
-            const _SectionLabel('Stamp Style'),
+            const _MiniLabel('Stamp Style'),
+            const SizedBox(height: 6),
             _buildStampColorPicker(),
-            const SizedBox(height: 16),
           ],
           if (_template == CardTemplateType.timeline) ...[
-            const _SectionLabel('Text Colour'),
+            if (_template == CardTemplateType.passport) const SizedBox(height: 10),
+            const _MiniLabel('Text Colour'),
+            const SizedBox(height: 6),
             _buildTimelineColorPicker(),
-            const SizedBox(height: 16),
           ],
           if (widget.allCodes.length != widget.selectedCodes.length) ...[
-            const _SectionLabel('Ribbon Countries'),
+            const SizedBox(height: 10),
+            const _MiniLabel('Ribbon Countries'),
+            const SizedBox(height: 6),
             _SegmentedPicker(
               options: const ['Selected', 'All'],
               selected: _frontRibbonMode == 'all' ? 'All' : 'Selected',
@@ -1508,6 +1565,7 @@ class _LocalMockupPreviewScreenState
                 setState(() => _frontRibbonMode = v == 'All' ? 'all' : 'selected');
                 _loadFrontRibbonImage();
               },
+              compact: true,
             ),
           ],
         ],
@@ -2033,63 +2091,25 @@ class _LocalMockupPreviewScreenState
 
     final artworkReady = _artworkBytes != null;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (_artworkLocked && _state == _MockupState.configuring)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _openCustomisationSheet,
-                icon: const Icon(Icons.tune, size: 18),
-                label: const Text('Customise Layout & Detail'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  side: BorderSide(color: theme.dividerColor),
-                ),
-                child: const Text('Change Design'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 3,
-              child: FilledButton(
-                onPressed: artworkReady && _state == _MockupState.configuring
-                    ? _onApprove
-                    : null,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text(
-                  _state == _MockupState.approving
-                      ? 'Preparing\u2026'
-                      : !artworkReady
-                          ? 'Generating\u2026'
-                          : 'Approve & Preview',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: artworkReady && _state == _MockupState.configuring
+            ? _onApprove
+            : null,
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-      ],
+        child: Text(
+          _state == _MockupState.approving
+              ? 'Preparing\u2026'
+              : !artworkReady
+                  ? 'Generating\u2026'
+                  : 'Approve & Preview',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
     );
   }
 
@@ -2530,6 +2550,26 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
+// ── Mini label (compact section header) ──────────────────────────────────────
+
+class _MiniLabel extends StatelessWidget {
+  const _MiniLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      label,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
 // ── Segmented picker ──────────────────────────────────────────────────────────
 
 class _SegmentedPicker extends StatelessWidget {
@@ -2671,4 +2711,203 @@ class _MockupPageViewState extends State<_MockupPageView> {
       ],
     );
   }
+}
+
+// ── Visual placement selector ─────────────────────────────────────────────────
+
+/// Immutable data for a single placement option.
+@immutable
+class _PlacementOptionData {
+  const _PlacementOptionData(this.value, this.label);
+  final String value;
+  final String label;
+}
+
+/// A row of mini t-shirt silhouettes, each indicating an artwork placement zone.
+///
+/// Selected tile animates to a highlighted border + tinted background.
+/// Tapping a tile immediately calls [onChanged] and updates the preview.
+class _PlacementSelector extends StatelessWidget {
+  const _PlacementSelector({
+    required this.options,
+    required this.selected,
+    required this.isFront,
+    required this.onChanged,
+  });
+
+  final List<_PlacementOptionData> options;
+  final String selected;
+  final bool isFront;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (int i = 0; i < options.length; i++) ...[
+          Expanded(
+            child: _PlacementTile(
+              option: options[i],
+              isSelected: options[i].value == selected,
+              isFront: isFront,
+              onTap: () => onChanged(options[i].value),
+            ),
+          ),
+          if (i < options.length - 1) const SizedBox(width: 6),
+        ],
+      ],
+    );
+  }
+}
+
+class _PlacementTile extends StatelessWidget {
+  const _PlacementTile({
+    required this.option,
+    required this.isSelected,
+    required this.isFront,
+    required this.onTap,
+  });
+
+  final _PlacementOptionData option;
+  final bool isSelected;
+  final bool isFront;
+  final VoidCallback onTap;
+
+  /// Normalised artwork rect (0–1) for each placement value.
+  static Rect? _artRect(String value, bool isFront) {
+    if (value == 'none') return null;
+    if (isFront) {
+      return switch (value) {
+        'left_chest'  => const Rect.fromLTWH(0.18, 0.38, 0.30, 0.25),
+        'right_chest' => const Rect.fromLTWH(0.52, 0.38, 0.30, 0.25),
+        _             => const Rect.fromLTWH(0.20, 0.40, 0.60, 0.42),
+      };
+    }
+    return const Rect.fromLTWH(0.20, 0.36, 0.60, 0.46);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rect = _artRect(option.value, isFront);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline.withValues(alpha: 0.2),
+                width: isSelected ? 1.5 : 1.0,
+              ),
+            ),
+            child: AspectRatio(
+              aspectRatio: 0.82,
+              child: CustomPaint(
+                painter: _TShirtSilhouettePainter(
+                  shirtColor: isSelected
+                      ? theme.colorScheme.primary.withValues(alpha: 0.85)
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                  artworkRect: rect,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 180),
+            style: (theme.textTheme.labelSmall ?? const TextStyle()).copyWith(
+              fontSize: 9,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+            ),
+            child: Text(option.label, textAlign: TextAlign.center),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── T-shirt silhouette painter ─────────────────────────────────────────────────
+
+/// Draws a simplified T-shirt silhouette with an optional white artwork zone.
+class _TShirtSilhouettePainter extends CustomPainter {
+  const _TShirtSilhouettePainter({
+    required this.shirtColor,
+    this.artworkRect,
+  });
+
+  final Color shirtColor;
+
+  /// Normalised (0–1) rect indicating the artwork placement zone.
+  /// Null when placement is 'none'.
+  final Rect? artworkRect;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // Draw shirt body.
+    final shirtPaint = Paint()
+      ..color = shirtColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(_shirtPath(w, h), shirtPaint);
+
+    // Draw artwork placement zone (white rectangle).
+    if (artworkRect != null) {
+      final r = artworkRect!;
+      final artRect = Rect.fromLTWH(
+        r.left * w, r.top * h, r.width * w, r.height * h,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(artRect, const Radius.circular(2)),
+        Paint()..color = Colors.white.withValues(alpha: 0.9),
+      );
+    }
+  }
+
+  static Path _shirtPath(double w, double h) {
+    final path = Path();
+    // Neck opening left side.
+    path.moveTo(w * 0.30, 0);
+    // Neck arc (scooped collar).
+    path.arcToPoint(
+      Offset(w * 0.70, 0),
+      radius: Radius.elliptical(w * 0.22, h * 0.13),
+      clockwise: false,
+    );
+    // Right shoulder → sleeve tip → sleeve bottom.
+    path.lineTo(w * 1.00, h * 0.24);
+    path.lineTo(w * 0.80, h * 0.38);
+    // Right body → bottom right.
+    path.lineTo(w * 0.84, h * 1.00);
+    // Bottom edge → bottom left.
+    path.lineTo(w * 0.16, h * 1.00);
+    // Left body → left sleeve bottom → sleeve tip.
+    path.lineTo(w * 0.20, h * 0.38);
+    path.lineTo(w * 0.00, h * 0.24);
+    // Back to neck.
+    path.lineTo(w * 0.30, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(_TShirtSilhouettePainter old) =>
+      old.shirtColor != shirtColor || old.artworkRect != artworkRect;
 }
