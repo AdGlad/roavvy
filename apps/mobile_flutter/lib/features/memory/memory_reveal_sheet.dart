@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:shared_models/shared_models.dart';
-
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../journal/trip_detail_screen.dart';
 import '../merch/pulse_merch_option_screen.dart';
 import '../shared/hero_image_view.dart';
+import 'memory_anniversary_photo.dart';
 import 'memory_pulse_service.dart';
 import 'memory_share_service.dart';
 
-/// Full-screen modal bottom sheet with a two-phase memory reveal (M95).
+/// Full-screen modal bottom sheet with a two-phase memory reveal (M95, M114).
 ///
 /// Phase 1 (question): large centred question, hint text, amber "Reveal" button.
-/// Phase 2 (revealed): hero image animates in (350ms FadeTransition +
-/// SlideTransition), overlaid with flag, country, date, label chips, share
-/// button, and "View trip" link.
+/// Phase 2 (revealed): photo animates in (350ms FadeTransition +
+/// SlideTransition), overlaid with flag, country, date, and action buttons.
 ///
-/// Drag-to-dismiss is provided by [showModalBottomSheet] default behaviour.
+/// Country chip is hidden when [MemoryAnniversaryPhoto.countryCode] is null.
+/// "View trip" is hidden when [MemoryAnniversaryPhoto.tripId] is null.
 class MemoryRevealSheet extends ConsumerStatefulWidget {
   const MemoryRevealSheet({
     super.key,
@@ -28,7 +27,7 @@ class MemoryRevealSheet extends ConsumerStatefulWidget {
     required this.service,
   });
 
-  final HeroImage hero;
+  final MemoryAnniversaryPhoto hero;
   final int yearsAgo;
   final String question;
   final MemoryPulseService service;
@@ -36,7 +35,7 @@ class MemoryRevealSheet extends ConsumerStatefulWidget {
   /// Convenience factory: builds the question and shows the bottom sheet.
   static Future<void> show(
     BuildContext context, {
-    required HeroImage hero,
+    required MemoryAnniversaryPhoto hero,
     required int yearsAgo,
     required MemoryPulseService service,
   }) {
@@ -91,7 +90,7 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
   void _reveal() {
     setState(() => _revealed = true);
     _controller.forward();
-    widget.service.markRevealed(widget.hero.tripId, DateTime.now());
+    widget.service.markRevealed(widget.hero.assetId, DateTime.now());
   }
 
   @override
@@ -192,27 +191,26 @@ class _RevealedContent extends ConsumerWidget {
     required this.service,
   });
 
-  final HeroImage hero;
+  final MemoryAnniversaryPhoto hero;
   final int yearsAgo;
   final double screenWidth;
   final MemoryPulseService service;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
-    final flagEmoji = _flagEmoji(hero.countryCode);
+    final countryName = hero.countryCode != null
+        ? (kCountryNames[hero.countryCode] ?? hero.countryCode!)
+        : null;
+    final flagEmoji =
+        hero.countryCode != null ? _flagEmoji(hero.countryCode!) : null;
     final dateStr = _formatDate(hero.capturedAt, yearsAgo);
-    final topLabels = [
-      if (hero.primaryScene != null) hero.primaryScene!,
-      ...hero.mood.take(1),
-    ].take(2).toList();
 
     final physicalWidth = (screenWidth * MediaQuery.devicePixelRatioOf(context)).toInt();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Hero image with gradient overlay
+        // Photo with gradient overlay
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: SizedBox(
@@ -232,8 +230,8 @@ class _RevealedContent extends ConsumerWidget {
                   right: 0,
                   bottom: 0,
                   height: 120,
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
@@ -242,22 +240,23 @@ class _RevealedContent extends ConsumerWidget {
                     ),
                   ),
                 ),
-                // Flag + country
-                Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 36,
-                  child: Text(
-                    '$flagEmoji  $countryName',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                // Flag + country (only when country is known)
+                if (flagEmoji != null && countryName != null)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 36,
+                    child: Text(
+                      '$flagEmoji  $countryName',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
                 // Date string
                 Positioned(
                   left: 12,
@@ -276,30 +275,6 @@ class _RevealedContent extends ConsumerWidget {
           ),
         ),
 
-        // Label chips
-        if (topLabels.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            children: topLabels
-                .map(
-                  (l) => Chip(
-                    label: Text(
-                      l.replaceAll('_', ' '),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    backgroundColor: Colors.white12,
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-
         const SizedBox(height: 24),
 
         // Share button
@@ -315,13 +290,13 @@ class _RevealedContent extends ConsumerWidget {
 
         const SizedBox(height: 8),
 
-        // Print merch CTA
-        _PrintMerchButton(hero: hero),
+        // Print merch CTA (only when country is known)
+        if (hero.countryCode != null) _PrintMerchButton(hero: hero),
 
-        const SizedBox(height: 8),
+        if (hero.countryCode != null) const SizedBox(height: 8),
 
-        // View trip
-        _ViewTripButton(tripId: hero.tripId),
+        // View trip (only when trip is known)
+        if (hero.tripId != null) _ViewTripButton(tripId: hero.tripId!),
       ],
     );
   }
@@ -347,7 +322,7 @@ class _RevealedContent extends ConsumerWidget {
 class _PrintMerchButton extends ConsumerWidget {
   const _PrintMerchButton({required this.hero});
 
-  final HeroImage hero;
+  final MemoryAnniversaryPhoto hero;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

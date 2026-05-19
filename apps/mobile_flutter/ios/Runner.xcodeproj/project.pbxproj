@@ -12,14 +12,14 @@
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		652BCF6050A74874974600E3 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F5AE2D868D16D38334BA09FF /* Pods_Runner.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
-		A1B2C3D4E5F60001A2B3C4D5 /* AiTitlePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000A2B3C4D5 /* AiTitlePlugin.swift */; };
-		A1B2C3D4E5F60003A2B3C4D5 /* HeroImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */; };
-		A1B2C3D4E5F60005A2B3C4D5 /* LabelNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */; };
-		A1B2C3D4E5F60007A2B3C4D5 /* ThumbnailPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */; };
 		8464B38E72B508561C26D015 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CD05B006EC8C1AAF7DFB60FC /* Pods_RunnerTests.framework */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A1B2C3D4E5F60001A2B3C4D5 /* AiTitlePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000A2B3C4D5 /* AiTitlePlugin.swift */; };
+		A1B2C3D4E5F60003A2B3C4D5 /* HeroImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */; };
+		A1B2C3D4E5F60005A2B3C4D5 /* LabelNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */; };
+		A1B2C3D4E5F60007A2B3C4D5 /* ThumbnailPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */; };
 		FBFBF3DA2F64EB04006D2734 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FBFBF3D92F64EB04006D2734 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
@@ -57,10 +57,6 @@
 		5C84AADE07FEFC966FEB5930 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60000A2B3C4D5 /* AiTitlePlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AiTitlePlugin.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HeroImageAnalyzer.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LabelNormalizer.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ThumbnailPlugin.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -69,6 +65,10 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1B2C3D4E5F60000A2B3C4D5 /* AiTitlePlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AiTitlePlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HeroImageAnalyzer.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LabelNormalizer.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ThumbnailPlugin.swift; sourceTree = "<group>"; };
 		A6373D658F2989F718ECD2E4 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		BF4F4D3200A7772453D03D20 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		CD05B006EC8C1AAF7DFB60FC /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -214,6 +214,7 @@
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				BB87C090B3FC0785219D3F40 /* [CP] Copy Pods Resources */,
 				D3F1AD89A3E3487623EBE20A /* [CP] Embed Pods Frameworks */,
+				6FC8B43D6C76A1265142684B /* Re-sign Embedded Frameworks */,
 			);
 			buildRules = (
 			);
@@ -323,6 +324,24 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		6FC8B43D6C76A1265142684B /* Re-sign Embedded Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Re-sign Embedded Frameworks";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Re-sign frameworks embedded by Flutter Native Assets (e.g. sqlite3.framework).\n# Fixes error 0xe8008014 (\"invalid signature\") on real-device installs.\nFRAMEWORKS=\"${CODESIGNING_FOLDER_PATH}/Frameworks\"\nif [ -d \"${FRAMEWORKS}\" ] && [ \"${CODE_SIGNING_REQUIRED}\" = \"YES\" ]; then\n  find \"${FRAMEWORKS}\" -maxdepth 1 -name \"*.framework\" | while read FW; do\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\"       --preserve-metadata=identifier,entitlements \"${FW}\" || true\n  done\nfi\n";
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;

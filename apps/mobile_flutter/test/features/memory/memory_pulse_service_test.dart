@@ -2,93 +2,90 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/notification_service.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
+import 'package:mobile_flutter/features/memory/memory_anniversary_photo.dart';
 import 'package:mobile_flutter/features/memory/memory_pulse_service.dart';
 import 'package:mobile_flutter/features/scan/hero_image_repository.dart';
-import 'package:shared_models/shared_models.dart';
 
-MemoryPulseService _makeService() => MemoryPulseService(
-      heroRepo: HeroImageRepository(RoavvyDatabase(NativeDatabase.memory())),
-      notifications: NotificationService.instance,
-    );
+MemoryPulseService _makeService() {
+  final db = RoavvyDatabase(NativeDatabase.memory());
+  return MemoryPulseService(
+    heroRepo: HeroImageRepository(db),
+    notifications: NotificationService.instance,
+    db: db,
+  );
+}
 
-HeroImage _hero({
-  String id = 'h1',
-  String countryCode = 'GR',
-  String? primaryScene = 'beach',
-  List<String> mood = const ['sunset'],
-  List<String> activity = const [],
+MemoryAnniversaryPhoto _photo({
+  String assetId = 'asset_1',
+  String? countryCode = 'GR',
+  String? tripId = 'trip_1',
+  DateTime? capturedAt,
 }) {
-  final capturedAt = DateTime.utc(2022, 7, 12, 10);
-  return HeroImage(
-    id: id,
-    assetId: 'asset_$id',
-    tripId: 'trip_1',
+  return MemoryAnniversaryPhoto(
+    assetId: assetId,
+    capturedAt: capturedAt ?? DateTime.utc(2022, 7, 12, 10),
     countryCode: countryCode,
-    capturedAt: capturedAt,
-    heroScore: 0.9,
-    rank: 1,
-    isUserSelected: false,
-    primaryScene: primaryScene,
-    mood: mood,
-    activity: activity,
-    createdAt: capturedAt,
-    updatedAt: capturedAt,
+    tripId: tripId,
   );
 }
 
 void main() {
   group('MemoryPulseService.buildCopy', () {
-    test('title includes yearsAgo count, country name and mood emoji', () {
+    test('body includes country name when countryCode is known', () {
       final service = _makeService();
-      final copy = service.buildCopy(_hero(countryCode: 'GR', mood: ['sunset']), 3);
-      expect(copy.title, contains('3 years ago'));
-      expect(copy.title, contains('Greece'));
-      expect(copy.title, contains('🌅'));
+      final copy = service.buildCopy(_photo(countryCode: 'GR'), 3);
+      expect(copy.body, contains('Greece'));
+      expect(copy.body, contains('3 years ago'));
     });
 
-    test('title uses singular "year" when yearsAgo == 1', () {
+    test('body uses singular "year" when yearsAgo == 1', () {
       final service = _makeService();
-      final copy = service.buildCopy(_hero(countryCode: 'FR', mood: []), 1);
-      expect(copy.title, contains('1 year ago'));
-      expect(copy.title, isNot(contains('1 years ago')));
+      final copy = service.buildCopy(_photo(countryCode: 'FR'), 1);
+      expect(copy.body, contains('1 year ago'));
+      expect(copy.body, isNot(contains('1 years ago')));
     });
 
-    test('body includes capitalised primaryScene', () {
+    test('body falls back to "today" phrase when countryCode is null', () {
       final service = _makeService();
-      final copy = service.buildCopy(_hero(primaryScene: 'mountain', mood: []), 2);
-      expect(copy.body, contains('Mountain'));
+      final copy = service.buildCopy(_photo(countryCode: null), 2);
+      expect(copy.body, contains('2 years ago today'));
     });
 
-    test('body falls back to country + years when no labels', () {
+    test('title ends with 👀', () {
       final service = _makeService();
-      final emptyHero = HeroImage(
-        id: 'h_empty',
-        assetId: 'a',
-        tripId: 'trip_1',
-        countryCode: 'IT',
-        capturedAt: DateTime.utc(2022),
-        heroScore: 0.5,
-        rank: 1,
-        isUserSelected: false,
-        createdAt: DateTime.utc(2022),
-        updatedAt: DateTime.utc(2022),
-      );
-      final copy = service.buildCopy(emptyHero, 2);
-      expect(copy.body, contains('Italy'));
-      expect(copy.body, contains('2 years ago'));
-    });
-
-    test('no emoji suffix when label has no emoji mapping', () {
-      final service = _makeService();
-      // 'countryside' is not in the emoji map
-      final hero = _hero(mood: [], activity: [], primaryScene: 'countryside');
-      final copy = service.buildCopy(hero, 2);
-      // Title should not contain any known mood emoji
-      expect(copy.title.endsWith(' '), isFalse);
+      final copy = service.buildCopy(_photo(), 3);
+      expect(copy.title, endsWith('👀'));
     });
   });
 
-  group('MemoryPulseService.checkToday', () {
+  group('MemoryPulseService.buildQuestion', () {
+    test('returns one-year question when yearsAgo == 1', () {
+      final service = _makeService();
+      final q = service.buildQuestion(_photo(), 1);
+      expect(q, contains('one year ago'));
+    });
+
+    test('returns milestone question when yearsAgo == 5 and country known', () {
+      final service = _makeService();
+      final q = service.buildQuestion(_photo(countryCode: 'JP'), 5);
+      expect(q, contains('5 years'));
+      expect(q, contains('Japan'));
+    });
+
+    test('includes country name when known and yearsAgo > 1', () {
+      final service = _makeService();
+      final q = service.buildQuestion(_photo(countryCode: 'IT'), 3);
+      expect(q, contains('Italy'));
+    });
+
+    test('falls back to "today" phrasing when countryCode is null', () {
+      final service = _makeService();
+      final q = service.buildQuestion(_photo(countryCode: null), 4);
+      expect(q, contains('4 years ago today'));
+    });
+  });
+
+  group('MemoryPulseService.checkToday (legacy)', () {
     test('returns empty list when no heroes exist', () async {
       final service = _makeService();
       final result = await service.checkToday(DateTime.now());
@@ -97,8 +94,6 @@ void main() {
 
     test('limits result to 3 entries', () async {
       final service = _makeService();
-      // We can't easily insert 4 matching rows in this test without a full DB
-      // setup, so just verify the method runs without error.
       final result = await service.checkToday(DateTime.now());
       expect(result.length, lessThanOrEqualTo(3));
     });
