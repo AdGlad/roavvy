@@ -186,6 +186,8 @@ class _LocalMockupPreviewScreenState
   ui.Image? _backShirtImage;
   ui.Image? _frontRibbonImage;
   Uint8List? _frontRibbonBytes;
+  // Ribbon rendered with ALL codes — for mini preview tiles.
+  ui.Image? _frontRibbonAllImage;
 
   // ── Screen state machine ───────────────────────────────────────────────────
 
@@ -407,6 +409,7 @@ class _LocalMockupPreviewScreenState
     // Artwork image is decoded directly from bytes (not cached) — screen owns it.
     _artworkImage?.dispose();
     _frontRibbonImage?.dispose();
+    _frontRibbonAllImage?.dispose();
     super.dispose();
   }
 
@@ -468,8 +471,6 @@ class _LocalMockupPreviewScreenState
     if (!_isTshirt || !mounted) return;
 
     final levelLabel = ref.read(xpNotifierProvider).levelLabel;
-    // For timeline cards use the user-selected text color so the front ribbon
-    // matches the back card. For other templates auto-calculate from shirt color.
     final Color textColor;
     if (_template == CardTemplateType.timeline && _timelineTextColor != null) {
       textColor = _timelineTextColor!;
@@ -477,11 +478,11 @@ class _LocalMockupPreviewScreenState
       final isDark = _colour == 'Black' || _colour == 'Blue' || _colour == 'Navy' || _colour == 'Red';
       textColor = isDark ? Colors.white : Colors.black;
     }
-    // Use all-time codes when the user has selected 'all' ribbon mode.
     final ribbonCodes = _frontRibbonMode == 'all'
         ? widget.allCodes
         : widget.selectedCodes;
 
+    // Render the active ribbon (used for the shirt mockup).
     try {
       final result = await CardImageRenderer.render(
         context,
@@ -505,6 +506,32 @@ class _LocalMockupPreviewScreenState
         _frontRibbonImage = frame.image;
       });
     } catch (_) {}
+
+    // Also render the "all codes" version for mini preview tiles
+    // (only needed when there is a difference between selected and all).
+    if (!mounted) return;
+    if (widget.allCodes.length != widget.selectedCodes.length) {
+      try {
+        final allResult = await CardImageRenderer.render(
+          context,
+          CardTemplateType.frontRibbon,
+          codes: widget.allCodes,
+          travelerLevel: levelLabel,
+          textColor: textColor,
+          pixelRatio: 2.0,
+        );
+        final codec2 = await ui.instantiateImageCodec(allResult.bytes);
+        final frame2 = await codec2.getNextFrame();
+        if (!mounted) {
+          frame2.image.dispose();
+          return;
+        }
+        setState(() {
+          _frontRibbonAllImage?.dispose();
+          _frontRibbonAllImage = frame2.image;
+        });
+      } catch (_) {}
+    }
   }
 
   // ── Preset-driven artwork generation (ADR-147) ────────────────────────────
@@ -1482,23 +1509,26 @@ class _LocalMockupPreviewScreenState
                           setState(() => _tshirtSize = tshirtSizes[v.round()]),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(tshirtSizes.first,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (final s in tshirtSizes)
+                        Expanded(
+                          child: Text(
+                            s,
+                            textAlign: TextAlign.center,
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontSize: 9,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            )),
-                        Text(tshirtSizes.last,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: 9,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            )),
-                      ],
-                    ),
+                              color: s == _tshirtSize
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: s == _tshirtSize
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -1519,6 +1549,10 @@ class _LocalMockupPreviewScreenState
           ],
           selected: _frontPosition,
           isFront: true,
+          colour: _colour,
+          product: _product,
+          shirtImage: _frontShirtImage,
+          artworkImage: _frontRibbonImage,
           onChanged: (v) => _onVariantOptionChanged(frontPosition: v),
         ),
         const SizedBox(height: 10),
@@ -1533,6 +1567,10 @@ class _LocalMockupPreviewScreenState
           ],
           selected: _backPosition,
           isFront: false,
+          colour: _colour,
+          product: _product,
+          shirtImage: _backShirtImage,
+          artworkImage: _artworkImage,
           onChanged: (v) => _onVariantOptionChanged(backPosition: v),
         ),
 
@@ -1558,14 +1596,20 @@ class _LocalMockupPreviewScreenState
             const SizedBox(height: 10),
             const _MiniLabel('Ribbon Countries'),
             const SizedBox(height: 6),
-            _SegmentedPicker(
-              options: const ['Selected', 'All'],
-              selected: _frontRibbonMode == 'all' ? 'All' : 'Selected',
+            _MiniRibbonSelector(
+              selectedImage: _frontRibbonMode == 'selected'
+                  ? _frontRibbonImage
+                  : _frontRibbonAllImage,
+              allImage: _frontRibbonMode == 'all'
+                  ? _frontRibbonImage
+                  : _frontRibbonAllImage,
+              selectedCount: widget.selectedCodes.length,
+              allCount: widget.allCodes.length,
+              mode: _frontRibbonMode,
               onChanged: (v) {
-                setState(() => _frontRibbonMode = v == 'All' ? 'all' : 'selected');
+                setState(() => _frontRibbonMode = v);
                 _loadFrontRibbonImage();
               },
-              compact: true,
             ),
           ],
         ],
@@ -1664,7 +1708,24 @@ class _LocalMockupPreviewScreenState
       );
 
       // _ShirtFlipView owns AnimationController + GestureDetector + zoom (M58-03/05).
-      area = _ShirtFlipView(
+      // Colour change → wipe right-to-left (new shirt slides in from the right).
+      area = AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        transitionBuilder: (child, animation) => ClipRect(
+          child: SlideTransition(
+            position: Tween<Offset>(
+                    begin: const Offset(1.0, 0.0), end: Offset.zero)
+                .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+            child: child,
+          ),
+        ),
+        layoutBuilder: (currentChild, previousChildren) => Stack(
+          fit: StackFit.expand,
+          children: [...previousChildren, if (currentChild != null) currentChild],
+        ),
+        child: SizedBox.expand(
+          key: ValueKey(_colour),
+          child: _ShirtFlipView(
         key: ValueKey('${_flipViewKey}_$showFront'),
         frontArtwork: _frontPosition != 'none' ? _frontRibbonImage : null,
         backArtwork: _backPosition != 'none' ? artworkImage : null,
@@ -1683,6 +1744,8 @@ class _LocalMockupPreviewScreenState
           _onVariantOptionChanged(colour: tshirtColors[idx]);
         },
         onSwipeUp: null,
+          ),
+        ),
       );
     } else {
       // Poster: simple InteractiveViewer with edge-to-edge artwork.
@@ -2717,27 +2780,36 @@ class _MockupPageViewState extends State<_MockupPageView> {
 
 /// Immutable data for a single placement option.
 @immutable
+
 class _PlacementOptionData {
   const _PlacementOptionData(this.value, this.label);
   final String value;
   final String label;
 }
 
-/// A row of mini t-shirt silhouettes, each indicating an artwork placement zone.
+/// A row of mini actual shirt mockups, each showing the ribbon at a placement.
 ///
-/// Selected tile animates to a highlighted border + tinted background.
-/// Tapping a tile immediately calls [onChanged] and updates the preview.
+/// Passes [shirtImage] + [artworkImage] + per-placement [ProductMockupSpec]
+/// to [LocalMockupPainter] so the tiles are pixel-accurate mini previews.
 class _PlacementSelector extends StatelessWidget {
   const _PlacementSelector({
     required this.options,
     required this.selected,
     required this.isFront,
+    required this.colour,
+    required this.product,
     required this.onChanged,
+    this.shirtImage,
+    this.artworkImage,
   });
 
   final List<_PlacementOptionData> options;
   final String selected;
   final bool isFront;
+  final String colour;
+  final MerchProduct product;
+  final ui.Image? shirtImage;
+  final ui.Image? artworkImage;
   final ValueChanged<String> onChanged;
 
   @override
@@ -2750,10 +2822,14 @@ class _PlacementSelector extends StatelessWidget {
               option: options[i],
               isSelected: options[i].value == selected,
               isFront: isFront,
+              colour: colour,
+              product: product,
+              shirtImage: shirtImage,
+              artworkImage: options[i].value == 'none' ? null : artworkImage,
               onTap: () => onChanged(options[i].value),
             ),
           ),
-          if (i < options.length - 1) const SizedBox(width: 6),
+          if (i < options.length - 1) const SizedBox(width: 5),
         ],
       ],
     );
@@ -2765,31 +2841,38 @@ class _PlacementTile extends StatelessWidget {
     required this.option,
     required this.isSelected,
     required this.isFront,
+    required this.colour,
+    required this.product,
     required this.onTap,
+    this.shirtImage,
+    this.artworkImage,
   });
 
   final _PlacementOptionData option;
   final bool isSelected;
   final bool isFront;
+  final String colour;
+  final MerchProduct product;
+  final ui.Image? shirtImage;
+  final ui.Image? artworkImage;
   final VoidCallback onTap;
 
-  /// Normalised artwork rect (0–1) for each placement value.
-  static Rect? _artRect(String value, bool isFront) {
-    if (value == 'none') return null;
+  ProductMockupSpec _spec() {
     if (isFront) {
-      return switch (value) {
-        'left_chest'  => const Rect.fromLTWH(0.18, 0.38, 0.30, 0.25),
-        'right_chest' => const Rect.fromLTWH(0.52, 0.38, 0.30, 0.25),
-        _             => const Rect.fromLTWH(0.20, 0.40, 0.60, 0.42),
-      };
+      return ProductMockupSpecs.specsFor(
+        product,
+        colour: colour,
+        placement: 'front',
+        frontPosition: option.value == 'none' ? 'left_chest' : option.value,
+      );
     }
-    return const Rect.fromLTWH(0.20, 0.36, 0.60, 0.46);
+    return ProductMockupSpecs.specsFor(product, colour: colour, placement: 'back');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rect = _artRect(option.value, isFront);
+    final spec = _spec();
 
     return GestureDetector(
       onTap: onTap,
@@ -2799,12 +2882,9 @@ class _PlacementTile extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.all(5),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
               border: Border.all(
                 color: isSelected
                     ? theme.colorScheme.primary
@@ -2812,14 +2892,18 @@ class _PlacementTile extends StatelessWidget {
                 width: isSelected ? 1.5 : 1.0,
               ),
             ),
-            child: AspectRatio(
-              aspectRatio: 0.82,
-              child: CustomPaint(
-                painter: _TShirtSilhouettePainter(
-                  shirtColor: isSelected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.85)
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.65),
-                  artworkRect: rect,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: AspectRatio(
+                aspectRatio: 0.75,
+                child: CustomPaint(
+                  painter: LocalMockupPainter(
+                    artworkImage: artworkImage,
+                    productImage: shirtImage,
+                    spec: spec,
+                    artworkBlendMode: ui.BlendMode.srcOver,
+                  ),
+                  child: const SizedBox.expand(),
                 ),
               ),
             ),
@@ -2842,72 +2926,143 @@ class _PlacementTile extends StatelessWidget {
   }
 }
 
-// ── T-shirt silhouette painter ─────────────────────────────────────────────────
+// ── Mini ribbon country selector ───────────────────────────────────────────────
 
-/// Draws a simplified T-shirt silhouette with an optional white artwork zone.
-class _TShirtSilhouettePainter extends CustomPainter {
-  const _TShirtSilhouettePainter({
-    required this.shirtColor,
-    this.artworkRect,
+/// Shows two tappable mini ribbon card previews for the "Ribbon Countries"
+/// option — one for selected codes, one for all codes.
+///
+/// Each tile renders the [ui.Image] (already-rendered FrontRibbonCard PNG)
+/// cropped to show just the ribbon artwork.
+class _MiniRibbonSelector extends StatelessWidget {
+  const _MiniRibbonSelector({
+    required this.selectedImage,
+    required this.allImage,
+    required this.selectedCount,
+    required this.allCount,
+    required this.mode,
+    required this.onChanged,
   });
 
-  final Color shirtColor;
-
-  /// Normalised (0–1) rect indicating the artwork placement zone.
-  /// Null when placement is 'none'.
-  final Rect? artworkRect;
+  final ui.Image? selectedImage;
+  final ui.Image? allImage;
+  final int selectedCount;
+  final int allCount;
+  final String mode;
+  final ValueChanged<String> onChanged;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // Draw shirt body.
-    final shirtPaint = Paint()
-      ..color = shirtColor
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(_shirtPath(w, h), shirtPaint);
-
-    // Draw artwork placement zone (white rectangle).
-    if (artworkRect != null) {
-      final r = artworkRect!;
-      final artRect = Rect.fromLTWH(
-        r.left * w, r.top * h, r.width * w, r.height * h,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(artRect, const Radius.circular(2)),
-        Paint()..color = Colors.white.withValues(alpha: 0.9),
-      );
-    }
-  }
-
-  static Path _shirtPath(double w, double h) {
-    final path = Path();
-    // Neck opening left side.
-    path.moveTo(w * 0.30, 0);
-    // Neck arc (scooped collar).
-    path.arcToPoint(
-      Offset(w * 0.70, 0),
-      radius: Radius.elliptical(w * 0.22, h * 0.13),
-      clockwise: false,
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _MiniRibbonTile(
+            image: selectedImage,
+            label: '$selectedCount countries',
+            sublabel: 'Selected',
+            isSelected: mode == 'selected',
+            onTap: () => onChanged('selected'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _MiniRibbonTile(
+            image: allImage,
+            label: '$allCount countries',
+            sublabel: 'All',
+            isSelected: mode == 'all',
+            onTap: () => onChanged('all'),
+          ),
+        ),
+      ],
     );
-    // Right shoulder → sleeve tip → sleeve bottom.
-    path.lineTo(w * 1.00, h * 0.24);
-    path.lineTo(w * 0.80, h * 0.38);
-    // Right body → bottom right.
-    path.lineTo(w * 0.84, h * 1.00);
-    // Bottom edge → bottom left.
-    path.lineTo(w * 0.16, h * 1.00);
-    // Left body → left sleeve bottom → sleeve tip.
-    path.lineTo(w * 0.20, h * 0.38);
-    path.lineTo(w * 0.00, h * 0.24);
-    // Back to neck.
-    path.lineTo(w * 0.30, 0);
-    path.close();
-    return path;
   }
+}
+
+class _MiniRibbonTile extends StatelessWidget {
+  const _MiniRibbonTile({
+    required this.image,
+    required this.label,
+    required this.sublabel,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final ui.Image? image;
+  final String label;
+  final String sublabel;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
-  bool shouldRepaint(_TShirtSilhouettePainter old) =>
-      old.shirtColor != shirtColor || old.artworkRect != artworkRect;
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: 0.07)
+              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.2),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Ribbon artwork preview (show the card image directly).
+            SizedBox(
+              height: 40,
+              child: image != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: RawImage(
+                        image: image,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              sublabel,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 9,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface,
+              ),
+            ),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 8,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
