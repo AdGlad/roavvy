@@ -35,6 +35,20 @@ ios/
     AiTitlePlugin.swift
 ```
 
+## Mobile UI Rules
+
+Before making Flutter UI changes, read:
+
+`docs/design/mobile-design-system.md`
+
+Use it as the source of truth for:
+- layout
+- colours
+- typography
+- merch UI
+- motion
+- interaction patterns
+
 ## Testing
 
 - Unit tests for all repository + domain logic.
