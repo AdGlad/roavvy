@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
-import '../../merch/merch_country_selection_screen.dart';
+import '../../merch/achievement_merch_option_screen.dart';
 
 /// Gamified hero card for the Stats screen (M97, ADR-148).
 ///
@@ -113,11 +113,16 @@ class TravelProgressHero extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const MerchCountrySelectionScreen(),
-                ),
-              ),
+              onPressed: () {
+                final achievement = _topAchievement(unlockedIds);
+                if (achievement == null) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        AchievementMerchOptionScreen(achievement: achievement),
+                  ),
+                );
+              },
               child: const Text('Create your travel tee'),
             ),
           ],
@@ -127,7 +132,11 @@ class TravelProgressHero extends StatelessWidget {
   }
 
   /// Returns the title of the highest unlocked country achievement, or null.
-  String? _tierLabel(Set<String> unlockedIds) {
+  String? _tierLabel(Set<String> unlockedIds) =>
+      _topAchievement(unlockedIds)?.title;
+
+  /// Returns the highest unlocked country-count achievement, or null.
+  Achievement? _topAchievement(Set<String> unlockedIds) {
     const order = [
       'countries_195',
       'countries_150',
@@ -147,7 +156,7 @@ class TravelProgressHero extends StatelessWidget {
     ];
     for (final id in order) {
       if (unlockedIds.contains(id)) {
-        return kAchievements.firstWhere((a) => a.id == id).title;
+        return kAchievements.firstWhere((a) => a.id == id);
       }
     }
     return null;
