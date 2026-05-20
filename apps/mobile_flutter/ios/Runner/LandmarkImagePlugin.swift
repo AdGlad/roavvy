@@ -19,26 +19,39 @@ public class LandmarkImagePlugin: NSObject {
 
     private let channel: FlutterMethodChannel
     private var pendingResult: FlutterResult?
-    private weak var rootViewController: UIViewController?
 
     // MARK: - Registration
 
-    public static func register(
-        with messenger: FlutterBinaryMessenger,
-        rootViewController: UIViewController
-    ) -> LandmarkImagePlugin {
+    public static func register(with messenger: FlutterBinaryMessenger) -> LandmarkImagePlugin {
         let channel = FlutterMethodChannel(
             name: "roavvy/landmark_image",
             binaryMessenger: messenger
         )
-        let instance = LandmarkImagePlugin(channel: channel, rootVC: rootViewController)
+        let instance = LandmarkImagePlugin(channel: channel)
         channel.setMethodCallHandler(instance.handle)
         return instance
     }
 
-    private init(channel: FlutterMethodChannel, rootVC: UIViewController) {
+    private init(channel: FlutterMethodChannel) {
         self.channel = channel
-        self.rootViewController = rootVC
+    }
+
+    // MARK: - VC resolution
+
+    /// Resolves the topmost presented view controller at call time, so we never
+    /// hold a stale weak reference captured at app-launch.
+    private func topViewController() -> UIViewController? {
+        guard
+            let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }),
+            let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        else { return nil }
+        var top: UIViewController = root
+        while let presented = top.presentedViewController {
+            top = presented
+        }
+        return top
     }
 
     // MARK: - Method handler
@@ -84,10 +97,10 @@ public class LandmarkImagePlugin: NSObject {
             return
         }
 
-        guard let vc = rootViewController else {
+        guard let vc = topViewController() else {
             result(FlutterError(
                 code: "NO_VIEW_CONTROLLER",
-                message: "Root view controller is not available",
+                message: "Could not resolve a presenting view controller",
                 details: nil
             ))
             return
@@ -125,20 +138,6 @@ public class LandmarkImagePlugin: NSObject {
         }
     }
 
-    // MARK: - Helpers
-
-    private func resolveTopVC(_ base: UIViewController) -> UIViewController {
-        if let presented = base.presentedViewController {
-            return resolveTopVC(presented)
-        }
-        if let nav = base as? UINavigationController, let top = nav.topViewController {
-            return resolveTopVC(top)
-        }
-        if let tab = base as? UITabBarController, let sel = tab.selectedViewController {
-            return resolveTopVC(sel)
-        }
-        return base
-    }
 }
 
 // MARK: - ImagePlaygroundViewController.Delegate

@@ -17,6 +17,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A1B2C3D4E5F60001A2B3C4D5 /* AiTitlePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000A2B3C4D5 /* AiTitlePlugin.swift */; };
+		A1B2C3D4E5F60009A2B3C4D5 /* LandmarkImagePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60008A2B3C4D5 /* LandmarkImagePlugin.swift */; };
 		A1B2C3D4E5F60003A2B3C4D5 /* HeroImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */; };
 		A1B2C3D4E5F60005A2B3C4D5 /* LabelNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */; };
 		A1B2C3D4E5F60007A2B3C4D5 /* ThumbnailPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */; };
@@ -69,6 +70,7 @@
 		A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HeroImageAnalyzer.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LabelNormalizer.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ThumbnailPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60008A2B3C4D5 /* LandmarkImagePlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LandmarkImagePlugin.swift; sourceTree = "<group>"; };
 		A6373D658F2989F718ECD2E4 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		BF4F4D3200A7772453D03D20 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		CD05B006EC8C1AAF7DFB60FC /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -161,6 +163,7 @@
 				A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */,
 				A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */,
 				A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */,
+				A1B2C3D4E5F60008A2B3C4D5 /* LandmarkImagePlugin.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -434,6 +437,7 @@
 				A1B2C3D4E5F60003A2B3C4D5 /* HeroImageAnalyzer.swift in Sources */,
 				A1B2C3D4E5F60005A2B3C4D5 /* LabelNormalizer.swift in Sources */,
 				A1B2C3D4E5F60007A2B3C4D5 /* ThumbnailPlugin.swift in Sources */,
+				A1B2C3D4E5F60009A2B3C4D5 /* LandmarkImagePlugin.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

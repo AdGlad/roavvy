@@ -81,11 +81,8 @@ import UIKit
         }
 
         // Landmark image generation channel (M116).
-        if #available(iOS 18.1, *), let rootVC = window?.rootViewController {
-            landmarkImagePlugin = LandmarkImagePlugin.register(
-                with: messenger,
-                rootViewController: rootVC
-            )
+        if #available(iOS 18.1, *) {
+            landmarkImagePlugin = LandmarkImagePlugin.register(with: messenger)
         }
 
         // Hero image analysis channel (M89, ADR-134).
