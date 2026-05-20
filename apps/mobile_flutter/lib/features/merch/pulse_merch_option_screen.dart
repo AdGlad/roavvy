@@ -146,6 +146,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
       (label: 'Flags', template: CardTemplateType.grid),
       (label: 'Heart Flags', template: CardTemplateType.heart),
       (label: 'Tour Dates', template: CardTemplateType.timeline),
+      (label: 'Landmarks', template: CardTemplateType.landmark),
     ];
 
     final items = <MerchOptionListItem>[];

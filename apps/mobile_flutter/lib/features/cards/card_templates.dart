@@ -20,6 +20,7 @@ import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
 import '../../core/landmark_icons.dart';
+import 'landmark_painter.dart';
 
 // ── LandmarkFlagsCard ─────────────────────────────────────────────────────────
 
@@ -214,6 +215,17 @@ class _LandmarkPainter extends CustomPainter {
   }
 
   void _drawEmoji(Canvas canvas, String code, Rect dst) {
+    // Try procedural landmark shape first.
+    canvas.save();
+    canvas.translate(dst.left, dst.top);
+    final paint = Paint()
+      ..color = textColor ?? Colors.white
+      ..style = PaintingStyle.fill;
+    final drawn = LandmarkShapePainter.draw(canvas, dst.width, dst.height, code, paint);
+    canvas.restore();
+    if (drawn) return;
+
+    // Fallback: flag emoji (devices without landmark art or unknown country).
     final emoji = _flagEmoji(code);
     final tp = TextPainter(
       text: TextSpan(text: emoji, style: TextStyle(fontSize: dst.width * 0.7)),
