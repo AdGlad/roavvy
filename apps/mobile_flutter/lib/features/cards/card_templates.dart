@@ -113,11 +113,27 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
       .toList();
 
   Future<void> _generateMissingIcons() async {
-    final missing = _missingCodes;
-    if (missing.isEmpty || _generating) return;
+    await _runGeneration(_missingCodes);
+  }
+
+  Future<void> _regenerateAll() async {
+    final nonProcedural = widget.countryCodes
+        .where((c) => !LandmarkShapePainter.supports(c))
+        .toList();
+    // Clear disk cache so Image Playground opens fresh.
+    for (final code in nonProcedural) {
+      await LandmarkImageService.clearCachedIcon(code);
+    }
+    if (!mounted) return;
+    setState(() => _generatedImages = {});
+    await _runGeneration(nonProcedural);
+  }
+
+  Future<void> _runGeneration(List<String> codes) async {
+    if (codes.isEmpty || _generating) return;
     setState(() => _generating = true);
 
-    for (final code in missing) {
+    for (final code in codes) {
       final countryName = kCountryNames[code.toUpperCase()] ?? code;
       final bytes = await LandmarkImageService.generateIcon(code, countryName);
       if (!mounted) return;
@@ -153,7 +169,8 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
     final missing = _cacheLoaded ? _missingCodes : const <String>[];
-    final showGenerate = _aiAvailable && missing.isNotEmpty;
+    final hasGenerated = _generatedImages.isNotEmpty;
+    final showGenerate = _aiAvailable && _cacheLoaded && (missing.isNotEmpty || hasGenerated);
 
     final card = AspectRatio(
       aspectRatio: widget.aspectRatio,
@@ -195,25 +212,37 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
         card,
         Positioned(
           bottom: 12,
-          child: FilledButton.icon(
-            onPressed: _generating ? null : _generateMissingIcons,
-            icon: _generating
-                ? const SizedBox(
+          child: _generating
+              ? FilledButton.icon(
+                  onPressed: null,
+                  icon: const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.auto_fix_high, size: 18),
-            label: Text(
-              _generating
-                  ? 'Generating\u2026'
-                  : 'Generate ${missing.length} icon${missing.length > 1 ? "s" : ""}',
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-          ),
+                  ),
+                  label: const Text('Generating\u2026'),
+                )
+              : missing.isNotEmpty
+                  ? FilledButton.icon(
+                      onPressed: _generateMissingIcons,
+                      icon: const Icon(Icons.auto_fix_high, size: 18),
+                      label: Text(
+                        'Generate ${missing.length} icon${missing.length > 1 ? "s" : ""}',
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.black87,
+                        foregroundColor: Colors.white,
+                      ),
+                    )
+                  : IconButton.filled(
+                      onPressed: _regenerateAll,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      tooltip: 'Regenerate icons',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black45,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
         ),
       ],
     );

@@ -17,33 +17,35 @@ import 'landmark_painter.dart';
 //      Returns PNG bytes on confirmation, null on cancel/error.
 //   4. The caller is responsible for caching via saveToDisk().
 
-/// Known landmark names by ISO code — used to seed Image Playground concepts.
-const Map<String, String> _kLandmarkNames = {
-  'FR': 'Eiffel Tower',
-  'GB': 'Big Ben',
-  'IT': 'Colosseum',
-  'US': 'Statue of Liberty',
-  'EG': 'Pyramids of Giza',
-  'IN': 'Taj Mahal',
-  'JP': 'Torii Gate',
-  'CN': 'Great Wall of China',
-  'AU': 'Sydney Opera House',
-  'BR': 'Christ the Redeemer',
-  'GR': 'Parthenon',
-  'RU': "St Basil's Cathedral",
-  'ES': 'Sagrada Família',
-  'DE': 'Brandenburg Gate',
-  'NL': 'Dutch Windmill',
-  'PE': 'Machu Picchu',
-  'MX': 'Chichen Itza',
-  'CA': 'CN Tower',
-  'JO': 'Petra',
-  'AE': 'Burj Khalifa',
-  'SG': 'Merlion',
-  'KH': 'Angkor Wat',
-  'TH': 'Wat Arun',
-  'KR': 'N Seoul Tower',
-  'TR': 'Hagia Sophia',
+/// Rich landmark descriptions by ISO code.
+/// Used as the primary Image Playground concept — specific name + city context
+/// produces far better results than a bare landmark name.
+const Map<String, String> _kLandmarkDescriptions = {
+  'FR': 'Eiffel Tower iron lattice structure, Paris, France',
+  'GB': 'Big Ben clock tower at the Palace of Westminster, London',
+  'IT': 'Roman Colosseum ancient amphitheatre, Rome, Italy',
+  'US': 'Statue of Liberty copper torch, New York',
+  'EG': 'Great Pyramids of Giza with sphinx, Egypt desert',
+  'IN': 'Taj Mahal white marble mausoleum with minarets, Agra, India',
+  'JP': 'Shinto torii gate at Fushimi Inari shrine, Kyoto, Japan',
+  'CN': 'Great Wall of China winding across mountain ridges',
+  'AU': 'Sydney Opera House sail roof, Sydney Harbour',
+  'BR': 'Christ the Redeemer statue on Corcovado mountain, Rio de Janeiro',
+  'GR': 'Parthenon ancient temple on the Acropolis, Athens, Greece',
+  'RU': "Saint Basil's Cathedral colourful onion domes, Red Square Moscow",
+  'ES': 'Sagrada Família cathedral organic stone spires, Barcelona',
+  'DE': 'Brandenburg Gate neoclassical columns, Berlin',
+  'NL': 'Traditional Dutch windmill in tulip fields, Netherlands',
+  'PE': 'Machu Picchu Inca citadel stone ruins in the Andes mountains',
+  'MX': 'Chichen Itza El Castillo pyramid, Mexico',
+  'CA': 'CN Tower concrete observation tower, Toronto skyline',
+  'JO': 'Petra rose-red rock-carved Treasury facade, Jordan',
+  'AE': 'Burj Khalifa tallest skyscraper, Dubai cityscape',
+  'SG': 'Merlion fountain statue, Marina Bay Singapore',
+  'KH': 'Angkor Wat temple towers reflected in water, Cambodia',
+  'TH': 'Wat Arun Temple of Dawn with spires on Chao Phraya river, Bangkok',
+  'KR': 'N Seoul Tower on Namsan mountain, Seoul South Korea',
+  'TR': 'Hagia Sophia dome and minarets, Istanbul',
 };
 
 class LandmarkImageService {
@@ -75,14 +77,15 @@ class LandmarkImageService {
     String countryName,
   ) async {
     final code = isoCode.toUpperCase();
-    final landmarkName = _kLandmarkNames[code];
+    final description = _kLandmarkDescriptions[code];
     try {
       final result = await _channel.invokeMethod<Uint8List>(
         'generateLandmarkIcon',
         {
           'isoCode': code,
           'countryName': countryName,
-          if (landmarkName != null) 'landmarkName': landmarkName,
+          // description is the rich prompt; absent for unknown countries
+          if (description != null) 'description': description,
         },
       );
       if (result != null) {

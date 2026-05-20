@@ -73,8 +73,8 @@ public class LandmarkImagePlugin: NSObject {
                 ))
                 return
             }
-            let landmarkName = args["landmarkName"] as? String
-            presentPlayground(countryName: countryName, landmarkName: landmarkName, result: result)
+            let description = args["description"] as? String
+            presentPlayground(countryName: countryName, description: description, result: result)
 
         default:
             result(FlutterMethodNotImplemented)
@@ -85,7 +85,7 @@ public class LandmarkImagePlugin: NSObject {
 
     private func presentPlayground(
         countryName: String,
-        landmarkName: String?,
+        description: String?,
         result: @escaping FlutterResult
     ) {
         guard ImagePlaygroundViewController.isAvailable else {
@@ -122,16 +122,16 @@ public class LandmarkImagePlugin: NSObject {
             let playgroundVC = ImagePlaygroundViewController()
             playgroundVC.delegate = self
 
-            // Build concept list for the prompt.
+            // Build concept list.
+            // Image Playground responds best to a specific subject description
+            // followed by a concise style tag. Keep it to 2–3 concepts.
             var concepts: [ImagePlaygroundConcept] = []
-            if let landmark = landmarkName, !landmark.isEmpty {
-                concepts.append(.text(landmark))
+            if let desc = description, !desc.isEmpty {
+                concepts.append(.text(desc))
             } else {
-                concepts.append(.text("\(countryName) landmark"))
+                concepts.append(.text("iconic landmark of \(countryName)"))
             }
-            concepts.append(.text("minimalist monochrome icon"))
-            concepts.append(.text("bold silhouette"))
-            concepts.append(.text("black on white"))
+            concepts.append(.text("travel sticker illustration"))
             playgroundVC.concepts = concepts
 
             vc.present(playgroundVC, animated: true)
