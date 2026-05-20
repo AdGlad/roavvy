@@ -198,34 +198,24 @@ class _LandmarkPainter extends CustomPainter {
     );
 
     for (final tile in tiles) {
-      final path = getLandmarkPath(tile.code);
-      if (path != null) {
-        LandmarkTileRenderer.renderFromCache(
-          canvas, 
-          tile.code, 
-          tile.rect, 
-          _sharedCache,
-          color: effectiveTextColor, // Draw landmarks in title/text color for consistency
-        );
-      } else {
-        // Fallback to emoji flag if no landmark icon available
-        _drawEmoji(canvas, tile.code, tile.rect);
-      }
+      _drawLandmark(canvas, tile.code, tile.rect, effectiveTextColor);
     }
   }
 
-  void _drawEmoji(Canvas canvas, String code, Rect dst) {
-    // Try procedural landmark shape first.
+  void _drawLandmark(Canvas canvas, String code, Rect dst, Color color) {
     canvas.save();
     canvas.translate(dst.left, dst.top);
     final paint = Paint()
-      ..color = textColor ?? Colors.white
+      ..color = color
       ..style = PaintingStyle.fill;
     final drawn = LandmarkShapePainter.draw(canvas, dst.width, dst.height, code, paint);
     canvas.restore();
     if (drawn) return;
+    // No procedural shape for this country — fall back to flag emoji.
+    _drawEmoji(canvas, code, dst);
+  }
 
-    // Fallback: flag emoji (devices without landmark art or unknown country).
+  void _drawEmoji(Canvas canvas, String code, Rect dst) {
     final emoji = _flagEmoji(code);
     final tp = TextPainter(
       text: TextSpan(text: emoji, style: TextStyle(fontSize: dst.width * 0.7)),
