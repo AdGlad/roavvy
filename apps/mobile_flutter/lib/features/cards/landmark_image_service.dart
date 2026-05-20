@@ -128,4 +128,65 @@ class LandmarkImageService {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/landmark_ai_${isoCode.toLowerCase()}.png');
   }
+
+  // ── Collage (single full-bleed image for all landmarks) ──────────────────
+
+  /// Opens the Image Playground sheet once, building a concept list from all
+  /// known landmark descriptions in [isoCodes].
+  ///
+  /// Returns PNG bytes on confirmation, null if cancelled/unavailable.
+  static Future<Uint8List?> generateCollage(List<String> isoCodes) async {
+    final codes = isoCodes.map((c) => c.toUpperCase()).toList()..sort();
+    final descriptions = codes
+        .map((c) => _kLandmarkDescriptions[c])
+        .whereType<String>()
+        .toList();
+    if (descriptions.isEmpty) return null;
+    try {
+      final result = await _channel.invokeMethod<Uint8List>(
+        'generateLandmarkCollage',
+        {'descriptions': descriptions},
+      );
+      if (result != null) {
+        await _saveCollageToDisk(codes, result);
+      }
+      return result;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// Reads a previously generated collage from disk, or null if not found.
+  static Future<Uint8List?> loadCachedCollage(List<String> isoCodes) async {
+    try {
+      final file = await _collageFile(isoCodes);
+      if (await file.exists()) return await file.readAsBytes();
+    } catch (_) {}
+    return null;
+  }
+
+  /// Deletes the cached collage for [isoCodes] if it exists.
+  static Future<void> clearCachedCollage(List<String> isoCodes) async {
+    try {
+      final file = await _collageFile(isoCodes);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  static Future<void> _saveCollageToDisk(
+      List<String> sortedCodes, Uint8List bytes) async {
+    try {
+      final file = await _collageFile(sortedCodes);
+      await file.writeAsBytes(bytes, flush: true);
+    } catch (_) {}
+  }
+
+  /// Cache file for the collage — keyed on the sorted, joined set of codes
+  /// so that different country selections never collide.
+  static Future<File> _collageFile(List<String> isoCodes) async {
+    final key =
+        (isoCodes.map((c) => c.toLowerCase()).toList()..sort()).join('_');
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/landmark_collage_$key.png');
+  }
 }

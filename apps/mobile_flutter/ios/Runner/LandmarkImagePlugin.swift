@@ -76,6 +76,21 @@ public class LandmarkImagePlugin: NSObject {
             let description = args["description"] as? String
             presentPlayground(countryName: countryName, description: description, result: result)
 
+        case "generateLandmarkCollage":
+            guard
+                let args = call.arguments as? [String: Any],
+                let descriptions = args["descriptions"] as? [String],
+                !descriptions.isEmpty
+            else {
+                result(FlutterError(
+                    code: "INVALID_ARGS",
+                    message: "generateLandmarkCollage requires non-empty descriptions array",
+                    details: nil
+                ))
+                return
+            }
+            presentCollagePlayground(descriptions: descriptions, result: result)
+
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -132,6 +147,60 @@ public class LandmarkImagePlugin: NSObject {
                 concepts.append(.text("iconic landmark of \(countryName)"))
             }
             concepts.append(.text("travel sticker illustration"))
+            playgroundVC.concepts = concepts
+
+            vc.present(playgroundVC, animated: true)
+        }
+    }
+
+    // MARK: - Collage Playground
+
+    /// Opens a single Image Playground session seeded with one concept per
+    /// landmark (up to 6) plus a unifying style concept.
+    private func presentCollagePlayground(
+        descriptions: [String],
+        result: @escaping FlutterResult
+    ) {
+        guard ImagePlaygroundViewController.isAvailable else {
+            result(FlutterError(
+                code: "UNAVAILABLE",
+                message: "Image Playground is not available on this device or OS version",
+                details: nil
+            ))
+            return
+        }
+
+        guard let vc = topViewController() else {
+            result(FlutterError(
+                code: "NO_VIEW_CONTROLLER",
+                message: "Could not resolve a presenting view controller",
+                details: nil
+            ))
+            return
+        }
+
+        if pendingResult != nil {
+            result(FlutterError(
+                code: "BUSY",
+                message: "A generation is already in progress",
+                details: nil
+            ))
+            return
+        }
+
+        pendingResult = result
+
+        DispatchQueue.main.async {
+            let playgroundVC = ImagePlaygroundViewController()
+            playgroundVC.delegate = self
+
+            // Seed up to 6 landmark subjects so the model composes a collage.
+            // More than ~6 concepts tend to confuse the model.
+            var concepts: [ImagePlaygroundConcept] = []
+            for desc in descriptions.prefix(6) {
+                concepts.append(.text(desc))
+            }
+            concepts.append(.text("world landmarks travel poster illustration"))
             playgroundVC.concepts = concepts
 
             vc.present(playgroundVC, animated: true)

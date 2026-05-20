@@ -62,6 +62,8 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
 
   // AI-generated images keyed by uppercase ISO code.
   Map<String, ui.Image> _generatedImages = {};
+  // Single collage image replacing the individual-icon grid when present.
+  ui.Image? _collageImage;
   bool _aiAvailable = false;
   bool _generating = false;
   bool _cacheLoaded = false;
@@ -77,6 +79,7 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.countryCodes != widget.countryCodes) {
       _cacheLoaded = false;
+      _collageImage = null;
       _checkAiAndLoadCache();
     }
   }
@@ -89,71 +92,64 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
 
   Future<void> _checkAiAndLoadCache() async {
     final available = await LandmarkImageService.isAvailable();
-    // Load any icons already generated and cached on disk.
+
+    // Try loading a cached collage first (preferred rendering path).
+    final collageBytes =
+        await LandmarkImageService.loadCachedCollage(widget.countryCodes);
+    ui.Image? collage;
+    if (collageBytes != null) {
+      collage = await _decodeImage(collageBytes);
+    }
+
+    // Load any per-icon cache for the grid fallback.
     final loaded = <String, ui.Image>{};
-    for (final code in widget.countryCodes) {
-      if (!LandmarkShapePainter.supports(code)) {
-        final bytes = await LandmarkImageService.loadCachedIcon(code);
-        if (bytes != null && mounted) {
-          final img = await _decodeImage(bytes);
-          if (img != null) loaded[code.toUpperCase()] = img;
+    if (collage == null) {
+      for (final code in widget.countryCodes) {
+        if (!LandmarkShapePainter.supports(code)) {
+          final bytes = await LandmarkImageService.loadCachedIcon(code);
+          if (bytes != null && mounted) {
+            final img = await _decodeImage(bytes);
+            if (img != null) loaded[code.toUpperCase()] = img;
+          }
         }
       }
     }
+
     if (!mounted) return;
     setState(() {
       _aiAvailable = available;
+      _collageImage = collage;
       _generatedImages = {..._generatedImages, ...loaded};
       _cacheLoaded = true;
-      if (loaded.isNotEmpty) _repaintNotifier.value++;
+      if (collage != null || loaded.isNotEmpty) _repaintNotifier.value++;
     });
     widget.onAssetsLoaded?.call();
   }
 
-  List<String> get _missingCodes => widget.countryCodes
-      .where((c) =>
-          !LandmarkShapePainter.supports(c) &&
-          !_generatedImages.containsKey(c.toUpperCase()))
-      .toList();
-
-  Future<void> _generateMissingIcons() async {
-    await _runGeneration(_missingCodes);
-  }
-
-  Future<void> _regenerateAll() async {
-    final nonProcedural = widget.countryCodes
-        .where((c) => !LandmarkShapePainter.supports(c))
-        .toList();
-    // Clear disk cache so Image Playground opens fresh.
-    for (final code in nonProcedural) {
-      await LandmarkImageService.clearCachedIcon(code);
-    }
-    if (!mounted) return;
-    setState(() => _generatedImages = {});
-    await _runGeneration(nonProcedural);
-  }
-
-  Future<void> _runGeneration(List<String> codes) async {
-    if (codes.isEmpty || _generating) return;
+  Future<void> _generateCollage() async {
+    if (_generating) return;
     setState(() => _generating = true);
-
-    for (final code in codes) {
-      final countryName = kCountryNames[code.toUpperCase()] ?? code;
-      final bytes = await LandmarkImageService.generateIcon(code, countryName);
+    final bytes =
+        await LandmarkImageService.generateCollage(widget.countryCodes);
+    if (!mounted) return;
+    if (bytes != null) {
+      final img = await _decodeImage(bytes);
       if (!mounted) return;
-      if (bytes != null) {
-        final img = await _decodeImage(bytes);
-        if (!mounted) return;
-        if (img != null) {
-          setState(() {
-            _generatedImages = {..._generatedImages, code.toUpperCase(): img};
-            _repaintNotifier.value++;
-          });
-        }
+      if (img != null) {
+        setState(() {
+          _collageImage = img;
+          _repaintNotifier.value++;
+        });
       }
     }
-
     if (mounted) setState(() => _generating = false);
+  }
+
+  Future<void> _regenerateCollage() async {
+    await LandmarkImageService.clearCachedCollage(widget.countryCodes);
+    if (!mounted) return;
+    setState(() => _collageImage = null);
+    await _generateCollage();
   }
 
   static Future<ui.Image?> _decodeImage(Uint8List bytes) async {
@@ -172,9 +168,8 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
         '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
-    final missing = _cacheLoaded ? _missingCodes : const <String>[];
-    final hasGenerated = _generatedImages.isNotEmpty;
-    final showGenerate = widget.showGenerateButton && _aiAvailable && _cacheLoaded && (missing.isNotEmpty || hasGenerated);
+    final showGenerate =
+        widget.showGenerateButton && _aiAvailable && _cacheLoaded;
 
     final card = AspectRatio(
       aspectRatio: widget.aspectRatio,
@@ -202,6 +197,7 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
               transparentBackground: widget.transparentBackground,
               textColor: widget.textColor,
               generatedImages: _generatedImages,
+              collageImage: _collageImage,
             ),
           );
         },
@@ -222,26 +218,25 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
                   icon: const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   ),
                   label: const Text('Generating\u2026'),
                 )
-              : missing.isNotEmpty
+              : _collageImage == null
                   ? FilledButton.icon(
-                      onPressed: _generateMissingIcons,
-                      icon: const Icon(Icons.auto_fix_high, size: 18),
-                      label: Text(
-                        'Generate ${missing.length} icon${missing.length > 1 ? "s" : ""}',
-                      ),
+                      onPressed: _generateCollage,
+                      icon: const Icon(Icons.auto_awesome, size: 18),
+                      label: const Text('Generate Collage'),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.black87,
                         foregroundColor: Colors.white,
                       ),
                     )
                   : IconButton.filled(
-                      onPressed: _regenerateAll,
+                      onPressed: _regenerateCollage,
                       icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: 'Regenerate icons',
+                      tooltip: 'Regenerate collage',
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.black45,
                         foregroundColor: Colors.white,
@@ -266,6 +261,7 @@ class _LandmarkPainter extends CustomPainter {
     this.transparentBackground = false,
     this.textColor,
     this.generatedImages = const {},
+    this.collageImage,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -279,6 +275,8 @@ class _LandmarkPainter extends CustomPainter {
   final Color? textColor;
   /// AI-generated images keyed by uppercase ISO code.
   final Map<String, ui.Image> generatedImages;
+  /// Single collage image that replaces the individual-icon grid when present.
+  final ui.Image? collageImage;
 
   static final _sharedCache = FlagImageCache();
   static const _topH = CardTextRenderer.titleZoneH;
@@ -297,7 +295,15 @@ class _LandmarkPainter extends CustomPainter {
     CardTextRenderer.drawBranding(canvas, size, countryCount: countryCodes.length, dateLabel: dateLabel, subtitleLine: subtitleOverride, textColor: effectiveTextColor, stripColor: effectiveStripColor);
 
     if (countryCodes.isEmpty) return;
-    
+
+    // If a collage image is available render it full-bleed in the grid area
+    // and skip individual tiles entirely.
+    if (collageImage != null) {
+      final gridRect = Rect.fromLTRB(0, _topH, size.width, size.height - _botH);
+      _drawCollage(canvas, collageImage!, gridRect);
+      return;
+    }
+
     final tiles = FlagGridLayoutEngine.compute(
       codes: countryCodes,
       canvasSize: size,
@@ -309,6 +315,15 @@ class _LandmarkPainter extends CustomPainter {
     for (final tile in tiles) {
       _drawLandmark(canvas, tile.code, tile.rect, effectiveTextColor);
     }
+  }
+
+  void _drawCollage(Canvas canvas, ui.Image img, Rect dst) {
+    canvas.drawImageRect(
+      img,
+      Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+      dst,
+      Paint()..filterQuality = FilterQuality.high,
+    );
   }
 
   void _drawLandmark(Canvas canvas, String code, Rect dst, Color color) {
