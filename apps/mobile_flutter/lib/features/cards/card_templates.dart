@@ -37,7 +37,6 @@ class LandmarkFlagsCard extends StatefulWidget {
     this.textColor,
     this.onAssetsLoaded,
     this.layoutMode = FlagGridLayoutMode.packedRow,
-    this.showGenerateButton = false,
   });
 
   final List<String> countryCodes;
@@ -49,9 +48,6 @@ class LandmarkFlagsCard extends StatefulWidget {
   final Color? textColor;
   final VoidCallback? onAssetsLoaded;
   final FlagGridLayoutMode layoutMode;
-  /// When false (default) the Generate / Regenerate button is never shown.
-  /// Set to true only in dedicated icon-editing contexts.
-  final bool showGenerateButton;
 
   @override
   State<LandmarkFlagsCard> createState() => _LandmarkFlagsCardState();
@@ -64,9 +60,6 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
   Map<String, ui.Image> _generatedImages = {};
   // Single collage image replacing the individual-icon grid when present.
   ui.Image? _collageImage;
-  bool _aiAvailable = false;
-  bool _generating = false;
-  bool _cacheLoaded = false;
 
   @override
   void initState() {
@@ -78,7 +71,6 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
   void didUpdateWidget(LandmarkFlagsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.countryCodes != widget.countryCodes) {
-      _cacheLoaded = false;
       _collageImage = null;
       _checkAiAndLoadCache();
     }
@@ -91,8 +83,6 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
   }
 
   Future<void> _checkAiAndLoadCache() async {
-    final available = await LandmarkImageService.isAvailable();
-
     // Try loading a cached collage first (preferred rendering path).
     final collageBytes =
         await LandmarkImageService.loadCachedCollage(widget.countryCodes);
@@ -117,39 +107,11 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
 
     if (!mounted) return;
     setState(() {
-      _aiAvailable = available;
       _collageImage = collage;
       _generatedImages = {..._generatedImages, ...loaded};
-      _cacheLoaded = true;
       if (collage != null || loaded.isNotEmpty) _repaintNotifier.value++;
     });
     widget.onAssetsLoaded?.call();
-  }
-
-  Future<void> _generateCollage() async {
-    if (_generating) return;
-    setState(() => _generating = true);
-    final bytes =
-        await LandmarkImageService.generateCollage(widget.countryCodes);
-    if (!mounted) return;
-    if (bytes != null) {
-      final img = await _decodeImage(bytes);
-      if (!mounted) return;
-      if (img != null) {
-        setState(() {
-          _collageImage = img;
-          _repaintNotifier.value++;
-        });
-      }
-    }
-    if (mounted) setState(() => _generating = false);
-  }
-
-  Future<void> _regenerateCollage() async {
-    await LandmarkImageService.clearCachedCollage(widget.countryCodes);
-    if (!mounted) return;
-    setState(() => _collageImage = null);
-    await _generateCollage();
   }
 
   static Future<ui.Image?> _decodeImage(Uint8List bytes) async {
@@ -167,9 +129,6 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
     final effectiveTitle = widget.titleOverride ??
         '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
-
-    final showGenerate =
-        widget.showGenerateButton && _aiAvailable && _cacheLoaded;
 
     final card = AspectRatio(
       aspectRatio: widget.aspectRatio,
@@ -204,47 +163,7 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
       ),
     );
 
-    if (!showGenerate) return card;
-
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        card,
-        Positioned(
-          bottom: 12,
-          child: _generating
-              ? FilledButton.icon(
-                  onPressed: null,
-                  icon: const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  ),
-                  label: const Text('Generating\u2026'),
-                )
-              : _collageImage == null
-                  ? FilledButton.icon(
-                      onPressed: _generateCollage,
-                      icon: const Icon(Icons.auto_awesome, size: 18),
-                      label: const Text('Generate Collage'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black87,
-                        foregroundColor: Colors.white,
-                      ),
-                    )
-                  : IconButton.filled(
-                      onPressed: _regenerateCollage,
-                      icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: 'Regenerate collage',
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black45,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-        ),
-      ],
-    );
+    return card;
   }
 }
 
