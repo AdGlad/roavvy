@@ -155,10 +155,23 @@ const MerchPreset kPresetSingleCountry = MerchPreset(
   ),
 );
 
+const MerchPreset kPresetLandmarks = MerchPreset(
+  id: 'landmarks',
+  label: 'Landmarks',
+  config: MerchPresetConfig(
+    layout:    CardTemplateType.landmark,
+    source:    MerchCountrySource.allTime,
+    jitter:    0.0,
+    density:   MerchDensity.balanced,
+    stampMode: MerchStampMode.entryOnly,
+  ),
+);
+
 /// All built-in presets in display order.
 const List<MerchPreset> kMerchPresets = [
   kPresetRecentTrip,
   kPresetThisYear,
   kPresetAllTime,
+  kPresetLandmarks,
   kPresetSingleCountry,
 ];
