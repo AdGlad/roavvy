@@ -37,6 +37,7 @@ class LandmarkFlagsCard extends StatefulWidget {
     this.textColor,
     this.onAssetsLoaded,
     this.layoutMode = FlagGridLayoutMode.packedRow,
+    this.showGenerateButton = false,
   });
 
   final List<String> countryCodes;
@@ -48,6 +49,9 @@ class LandmarkFlagsCard extends StatefulWidget {
   final Color? textColor;
   final VoidCallback? onAssetsLoaded;
   final FlagGridLayoutMode layoutMode;
+  /// When false (default) the Generate / Regenerate button is never shown.
+  /// Set to true only in dedicated icon-editing contexts.
+  final bool showGenerateButton;
 
   @override
   State<LandmarkFlagsCard> createState() => _LandmarkFlagsCardState();
@@ -170,7 +174,7 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
 
     final missing = _cacheLoaded ? _missingCodes : const <String>[];
     final hasGenerated = _generatedImages.isNotEmpty;
-    final showGenerate = _aiAvailable && _cacheLoaded && (missing.isNotEmpty || hasGenerated);
+    final showGenerate = widget.showGenerateButton && _aiAvailable && _cacheLoaded && (missing.isNotEmpty || hasGenerated);
 
     final card = AspectRatio(
       aspectRatio: widget.aspectRatio,
