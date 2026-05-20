@@ -37,6 +37,7 @@ class LandmarkFlagsCard extends StatefulWidget {
     this.textColor,
     this.onAssetsLoaded,
     this.layoutMode = FlagGridLayoutMode.packedRow,
+    this.autoGenerate = false,
   });
 
   final List<String> countryCodes;
@@ -48,6 +49,9 @@ class LandmarkFlagsCard extends StatefulWidget {
   final Color? textColor;
   final VoidCallback? onAssetsLoaded;
   final FlagGridLayoutMode layoutMode;
+  /// When true and no collage is cached, automatically opens Image Playground
+  /// to generate one. Use this in design contexts (not read-only previews).
+  final bool autoGenerate;
 
   @override
   State<LandmarkFlagsCard> createState() => _LandmarkFlagsCardState();
@@ -60,6 +64,7 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
   Map<String, ui.Image> _generatedImages = {};
   // Single collage image replacing the individual-icon grid when present.
   ui.Image? _collageImage;
+  bool _generating = false;
 
   @override
   void initState() {
@@ -112,6 +117,33 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
       if (collage != null || loaded.isNotEmpty) _repaintNotifier.value++;
     });
     widget.onAssetsLoaded?.call();
+
+    // Auto-generate: if no collage is cached and this widget was created with
+    // autoGenerate=true (e.g. card designer), open Image Playground now.
+    if (collage == null && widget.autoGenerate) {
+      _generateCollage();
+    }
+  }
+
+  Future<void> _generateCollage() async {
+    if (_generating) return;
+    final available = await LandmarkImageService.isAvailable();
+    if (!available || !mounted) return;
+    setState(() => _generating = true);
+    final bytes =
+        await LandmarkImageService.generateCollage(widget.countryCodes);
+    if (!mounted) return;
+    if (bytes != null) {
+      final img = await _decodeImage(bytes);
+      if (!mounted) return;
+      if (img != null) {
+        setState(() {
+          _collageImage = img;
+          _repaintNotifier.value++;
+        });
+      }
+    }
+    if (mounted) setState(() => _generating = false);
   }
 
   static Future<ui.Image?> _decodeImage(Uint8List bytes) async {
