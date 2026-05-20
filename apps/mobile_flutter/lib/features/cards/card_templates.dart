@@ -19,7 +19,7 @@ import 'passport_stamp_model.dart';
 import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
-import '../../core/landmark_icons.dart';
+import 'landmark_image_service.dart';
 import 'landmark_painter.dart';
 
 // ── LandmarkFlagsCard ─────────────────────────────────────────────────────────
@@ -55,15 +55,25 @@ class LandmarkFlagsCard extends StatefulWidget {
 
 class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
   final _repaintNotifier = ValueNotifier<int>(0);
-  bool _preloadStarted = false;
-  bool _onAssetsLoadedFired = false;
+
+  // AI-generated images keyed by uppercase ISO code.
+  Map<String, ui.Image> _generatedImages = {};
+  bool _aiAvailable = false;
+  bool _generating = false;
+  bool _cacheLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAiAndLoadCache();
+  }
 
   @override
   void didUpdateWidget(LandmarkFlagsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.countryCodes != widget.countryCodes) {
-      _preloadStarted = false;
-      _onAssetsLoadedFired = false;
+      _cacheLoaded = false;
+      _checkAiAndLoadCache();
     }
   }
 
@@ -73,38 +83,67 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
     super.dispose();
   }
 
-  void _preloadLandmarks(double reprWidth) {
-    if (reprWidth <= 0 || _preloadStarted) return;
-    _preloadStarted = true;
-
-    final List<(String, String)> toLoad = [];
+  Future<void> _checkAiAndLoadCache() async {
+    final available = await LandmarkImageService.isAvailable();
+    // Load any icons already generated and cached on disk.
+    final loaded = <String, ui.Image>{};
     for (final code in widget.countryCodes) {
-      final path = getLandmarkPath(code);
-      if (path != null && _LandmarkPainter._sharedCache.get('landmark_$code', reprWidth) == null) {
-        toLoad.add((code, path));
+      if (!LandmarkShapePainter.supports(code)) {
+        final bytes = await LandmarkImageService.loadCachedIcon(code);
+        if (bytes != null && mounted) {
+          final img = await _decodeImage(bytes);
+          if (img != null) loaded[code.toUpperCase()] = img;
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _aiAvailable = available;
+      _generatedImages = {..._generatedImages, ...loaded};
+      _cacheLoaded = true;
+      if (loaded.isNotEmpty) _repaintNotifier.value++;
+    });
+    widget.onAssetsLoaded?.call();
+  }
+
+  List<String> get _missingCodes => widget.countryCodes
+      .where((c) =>
+          !LandmarkShapePainter.supports(c) &&
+          !_generatedImages.containsKey(c.toUpperCase()))
+      .toList();
+
+  Future<void> _generateMissingIcons() async {
+    final missing = _missingCodes;
+    if (missing.isEmpty || _generating) return;
+    setState(() => _generating = true);
+
+    for (final code in missing) {
+      final countryName = kCountryNames[code.toUpperCase()] ?? code;
+      final bytes = await LandmarkImageService.generateIcon(code, countryName);
+      if (!mounted) return;
+      if (bytes != null) {
+        final img = await _decodeImage(bytes);
+        if (!mounted) return;
+        if (img != null) {
+          setState(() {
+            _generatedImages = {..._generatedImages, code.toUpperCase(): img};
+            _repaintNotifier.value++;
+          });
+        }
       }
     }
 
-    if (toLoad.isEmpty) {
-      _fireOnAssetsLoaded();
-      return;
-    }
-
-    var remaining = toLoad.length;
-    for (final entry in toLoad) {
-      LandmarkTileRenderer.loadLandmarkToCache(entry.$1, entry.$2, reprWidth, _LandmarkPainter._sharedCache)
-          .then((img) {
-        if (mounted && img != null) _repaintNotifier.value++;
-        remaining--;
-        if (remaining == 0) _fireOnAssetsLoaded();
-      });
-    }
+    if (mounted) setState(() => _generating = false);
   }
 
-  void _fireOnAssetsLoaded() {
-    if (_onAssetsLoadedFired) return;
-    _onAssetsLoadedFired = true;
-    widget.onAssetsLoaded?.call();
+  static Future<ui.Image?> _decodeImage(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -113,7 +152,10 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
         '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
-    return AspectRatio(
+    final missing = _cacheLoaded ? _missingCodes : const <String>[];
+    final showGenerate = _aiAvailable && missing.isNotEmpty;
+
+    final card = AspectRatio(
       aspectRatio: widget.aspectRatio,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -124,7 +166,6 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
           final gridSize = Size(size.width, gridH);
           final reprWidth = FlagGridLayoutEngine.representativeTileWidth(
               gridSize, widget.countryCodes.length);
-          _preloadLandmarks(reprWidth);
 
           return CustomPaint(
             size: size,
@@ -139,10 +180,42 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
               reprWidth: reprWidth,
               transparentBackground: widget.transparentBackground,
               textColor: widget.textColor,
+              generatedImages: _generatedImages,
             ),
           );
         },
       ),
+    );
+
+    if (!showGenerate) return card;
+
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        card,
+        Positioned(
+          bottom: 12,
+          child: FilledButton.icon(
+            onPressed: _generating ? null : _generateMissingIcons,
+            icon: _generating
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.auto_fix_high, size: 18),
+            label: Text(
+              _generating
+                  ? 'Generating\u2026'
+                  : 'Generate ${missing.length} icon${missing.length > 1 ? "s" : ""}',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -159,6 +232,7 @@ class _LandmarkPainter extends CustomPainter {
     required this.reprWidth,
     this.transparentBackground = false,
     this.textColor,
+    this.generatedImages = const {},
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -170,6 +244,8 @@ class _LandmarkPainter extends CustomPainter {
   final double reprWidth;
   final bool transparentBackground;
   final Color? textColor;
+  /// AI-generated images keyed by uppercase ISO code.
+  final Map<String, ui.Image> generatedImages;
 
   static final _sharedCache = FlagImageCache();
   static const _topH = CardTextRenderer.titleZoneH;
@@ -203,6 +279,7 @@ class _LandmarkPainter extends CustomPainter {
   }
 
   void _drawLandmark(Canvas canvas, String code, Rect dst, Color color) {
+    // 1. Procedural shape (instant, no assets).
     canvas.save();
     canvas.translate(dst.left, dst.top);
     final paint = Paint()
@@ -211,8 +288,36 @@ class _LandmarkPainter extends CustomPainter {
     final drawn = LandmarkShapePainter.draw(canvas, dst.width, dst.height, code, paint);
     canvas.restore();
     if (drawn) return;
-    // No procedural shape for this country — fall back to flag emoji.
+
+    // 2. AI-generated image cached from Image Playground.
+    final generated = generatedImages[code.toUpperCase()];
+    if (generated != null) {
+      _drawGeneratedImage(canvas, generated, dst);
+      return;
+    }
+
+    // 3. Emoji flag fallback while no icon is available.
     _drawEmoji(canvas, code, dst);
+  }
+
+  void _drawGeneratedImage(Canvas canvas, ui.Image img, Rect dst) {
+    final imgW = img.width.toDouble();
+    final imgH = img.height.toDouble();
+    final scale = math.min(dst.width / imgW, dst.height / imgH);
+    final fitW = imgW * scale;
+    final fitH = imgH * scale;
+    final fitDst = Rect.fromLTWH(
+      dst.left + (dst.width - fitW) / 2,
+      dst.top + (dst.height - fitH) / 2,
+      fitW,
+      fitH,
+    );
+    canvas.drawImageRect(
+      img,
+      Rect.fromLTWH(0, 0, imgW, imgH),
+      fitDst,
+      Paint()..filterQuality = FilterQuality.high,
+    );
   }
 
   void _drawEmoji(Canvas canvas, String code, Rect dst) {

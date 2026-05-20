@@ -11,6 +11,7 @@ import UIKit
     private var photoMethodChannel: FlutterMethodChannel?
     private var photoEventChannel: FlutterEventChannel?
     private var aiTitlePlugin: AnyObject? // holds AiTitlePlugin on iOS 26+
+    private var landmarkImagePlugin: AnyObject? // holds LandmarkImagePlugin on iOS 18.1+
     private var heroAnalysisChannel: FlutterMethodChannel?
     private let heroAnalyzer = HeroImageAnalyzer()
     private let thumbnailPlugin = ThumbnailPlugin()
@@ -77,6 +78,14 @@ import UIKit
         // AI title generation channel (ADR-124).
         if #available(iOS 26.0, *) {
             aiTitlePlugin = AiTitlePlugin.register(with: messenger)
+        }
+
+        // Landmark image generation channel (M116).
+        if #available(iOS 18.1, *), let rootVC = window?.rootViewController {
+            landmarkImagePlugin = LandmarkImagePlugin.register(
+                with: messenger,
+                rootViewController: rootVC
+            )
         }
 
         // Hero image analysis channel (M89, ADR-134).

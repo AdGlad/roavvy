@@ -20,6 +20,40 @@ abstract final class LandmarkShapePainter {
   /// [paint] should have `style = PaintingStyle.fill` and the desired colour.
   /// Returns `true` if a landmark was drawn, `false` when no shape is defined
   /// for [isoCode] (caller may render a fallback).
+  /// Returns true if a procedural shape is defined for [isoCode].
+  static bool supports(String isoCode) {
+    switch (isoCode.toUpperCase()) {
+      case 'FR':
+      case 'GB':
+      case 'IT':
+      case 'US':
+      case 'EG':
+      case 'IN':
+      case 'JP':
+      case 'CN':
+      case 'AU':
+      case 'BR':
+      case 'GR':
+      case 'RU':
+      case 'ES':
+      case 'DE':
+      case 'NL':
+      case 'PE':
+      case 'MX':
+      case 'CA':
+      case 'JO':
+      case 'AE':
+      case 'SG':
+      case 'KH':
+      case 'TH':
+      case 'KR':
+      case 'TR':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   static bool draw(
     Canvas canvas,
     double w,
