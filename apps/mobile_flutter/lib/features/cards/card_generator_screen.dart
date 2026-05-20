@@ -550,6 +550,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           dateLabel: _computeDateLabel(trips),
           titleOverride: _titleOverride,
           transparentBackground: true,
+          showGenerateButton: true,
         );
     }
   }

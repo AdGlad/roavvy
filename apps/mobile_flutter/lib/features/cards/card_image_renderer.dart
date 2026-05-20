@@ -117,7 +117,8 @@ class CardImageRenderer {
                 template == CardTemplateType.grid ||
                 template == CardTemplateType.heart ||
                 template == CardTemplateType.badge ||
-                template == CardTemplateType.wordCloud)
+                template == CardTemplateType.wordCloud ||
+                template == CardTemplateType.landmark)
             ? Completer<void>()
             : null;
 
