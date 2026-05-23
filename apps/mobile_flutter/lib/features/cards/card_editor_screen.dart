@@ -791,6 +791,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           titleOverride: _titleOverride,
           subtitleOverride: _subtitleOverride,
           transparentBackground: true,
+          autoGenerate: true,
         );
     }
   }

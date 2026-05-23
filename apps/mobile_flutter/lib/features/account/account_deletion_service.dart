@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../data/visit_repository.dart';
+import '../legal/terms_service.dart';
 import '../sharing/share_token_service.dart';
 
 /// Orchestrates permanent account deletion per ADR-043.
@@ -47,6 +48,10 @@ class AccountDeletionService {
 
     // Step 3: clear local SQLite data.
     await _repo.clearAll();
+
+    // Step 3b: clear accepted T&C version so the user must re-accept on
+    // next sign-up (M117).
+    await TermsService.clear();
 
     // Step 4: batch-delete Firestore subcollections.
     for (final sub in _subcollections) {

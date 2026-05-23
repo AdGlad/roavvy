@@ -6,6 +6,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../cards/card_editor_screen.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_template_ranker.dart';
@@ -212,6 +213,16 @@ class _MerchOptionCardState extends State<MerchOptionCard>
   Future<void> _generate() async {
     if (!mounted) return;
     final opt = widget.option;
+
+    // For the Landmark template, always open Image Playground so the user can
+    // generate (or regenerate) the collage before the shirt preview renders.
+    // Cancel keeps any existing cached image; confirm replaces it.
+    if (opt.template == CardTemplateType.landmark &&
+        await LandmarkImageService.isAvailable()) {
+      if (!mounted) return;
+      await LandmarkImageService.generateCollage(opt.codes);
+      if (!mounted) return;
+    }
 
     final stampCount = opt.template == CardTemplateType.passport
         ? opt.trips.length * (opt.entryOnly ? 1 : 2)

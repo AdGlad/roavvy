@@ -20,6 +20,10 @@
 	<string>0ac2eee8af8a198f16fd070bcc8314a3</string>
 	<key>FacebookDisplayName</key>
 	<string>Roavvy</string>
+	<key>FacebookAdvertiserIDCollectionEnabled</key>
+	<false/>
+	<key>FacebookAutoLogAppEventsEnabled</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

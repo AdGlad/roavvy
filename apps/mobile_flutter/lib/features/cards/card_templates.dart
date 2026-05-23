@@ -75,7 +75,7 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
   @override
   void didUpdateWidget(LandmarkFlagsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.countryCodes != widget.countryCodes) {
+    if (!listEquals(oldWidget.countryCodes, widget.countryCodes)) {
       _collageImage = null;
       _checkAiAndLoadCache();
     }
@@ -118,9 +118,10 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
     });
     widget.onAssetsLoaded?.call();
 
-    // Auto-generate: if no collage is cached and this widget was created with
-    // autoGenerate=true (e.g. card designer), open Image Playground now.
-    if (collage == null && widget.autoGenerate) {
+    // Auto-generate: open Image Playground whenever this widget is created with
+    // autoGenerate=true (e.g. card designer/editor), even when a cached collage
+    // exists. The user can confirm a new image or cancel to keep the old one.
+    if (widget.autoGenerate) {
       _generateCollage();
     }
   }

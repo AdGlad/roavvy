@@ -21,6 +21,19 @@ import '../features/scan/hero_image_repository.dart';
 import '../features/xp/xp_event.dart';
 import '../features/xp/xp_notifier.dart';
 import 'notification_service.dart';
+import '../features/cards/landmark_image_service.dart';
+import '../features/legal/terms_service.dart';
+
+/// True when Image Playground (Apple Intelligence) is available on this device.
+/// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
+final imagePlaygroundAvailableProvider = FutureProvider<bool>(
+  (_) => LandmarkImageService.isAvailable(),
+);
+
+/// True when the user has accepted the current T&C version.
+final termsAcceptedProvider = FutureProvider<bool>(
+  (_) => TermsService.hasAcceptedCurrent(),
+);
 
 final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),

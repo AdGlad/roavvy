@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers.dart';
 import '../account/account_deletion_service.dart';
+import '../legal/terms_screen.dart';
 import '../merch/merch_orders_screen.dart';
 import '../sharing/share_token_service.dart';
 
@@ -243,6 +244,7 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
                 _SectionHeader('Account'),
                 _deleteAccountTile(),
                 _SectionHeader('Legal'),
+                _termsTile(),
                 _privacyPolicyTile(),
               ],
             ),
@@ -284,6 +286,19 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const MerchOrdersScreen()),
+      ),
+    );
+  }
+
+  Widget _termsTile() {
+    return ListTile(
+      leading: const Icon(Icons.gavel_outlined),
+      title: const Text('Terms & Conditions'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const TermsScreen(requireAccept: false),
+        ),
       ),
     );
   }

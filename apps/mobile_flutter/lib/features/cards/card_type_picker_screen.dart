@@ -19,7 +19,7 @@ import 'word_cloud_card.dart';
 class CardTypePickerScreen extends ConsumerWidget {
   const CardTypePickerScreen({super.key});
 
-  static const _types = [
+  static const _allTypes = [
     CardTemplateType.grid,
     CardTemplateType.heart,
     CardTemplateType.passport,
@@ -50,6 +50,13 @@ class CardTypePickerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
     final tripsAsync = ref.watch(tripListProvider);
+    final landmarkAvailable =
+        ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
+    final types = landmarkAvailable
+        ? _allTypes
+        : _allTypes
+            .where((t) => t != CardTemplateType.landmark)
+            .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create Card')),
@@ -109,10 +116,10 @@ class CardTypePickerScreen extends ConsumerWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                  itemCount: _types.length,
+                  itemCount: types.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 16),
                   itemBuilder: (context, index) {
-                    final type = _types[index];
+                    final type = types[index];
                     return _CardTypeTile(
                       type: type,
                       label: _labels[type]!,

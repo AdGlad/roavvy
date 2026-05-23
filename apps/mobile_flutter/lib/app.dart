@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/providers.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/legal/terms_screen.dart';
 import 'features/onboarding/onboarding_flow.dart';
 import 'features/shell/main_shell.dart';
 import 'features/web/landing_page.dart';
@@ -147,15 +148,44 @@ class _OnboardingGate extends ConsumerStatefulWidget {
 
 class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
   int _initialTab = 0;
+  bool _termsShowing = false;
 
   Future<void> _completeOnboarding({bool goToScan = false}) async {
     if (mounted) setState(() => _initialTab = goToScan ? 3 : 0);
     ref.invalidate(onboardingCompleteProvider);
   }
 
+  Future<void> _pushTerms() async {
+    if (_termsShowing) return;
+    _termsShowing = true;
+    final accepted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => const TermsScreen(requireAccept: true),
+      ),
+    );
+    _termsShowing = false;
+    if (accepted == true && mounted) {
+      ref.invalidate(termsAcceptedProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final termsAsync = ref.watch(termsAcceptedProvider);
     final onboardingAsync = ref.watch(onboardingCompleteProvider);
+
+    // Show loading until both are resolved.
+    if (termsAsync.isLoading || onboardingAsync.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final termsAccepted = termsAsync.valueOrNull ?? false;
+    if (!termsAccepted) {
+      // Auto-push terms screen on the next frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _pushTerms());
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return onboardingAsync.when(
       data: (complete) => complete
           ? MainShell(initialTab: _initialTab)

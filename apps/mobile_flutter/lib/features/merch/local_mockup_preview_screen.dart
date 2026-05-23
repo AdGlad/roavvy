@@ -16,6 +16,7 @@ import '../cards/card_image_renderer.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
 import 'merch_customisation_sheet.dart';
+import 'merch_title_wordbank.dart';
 import 'merch_order_confirmation_screen.dart';
 import 'merch_post_purchase_screen.dart';
 import 'merch_share_exporter.dart';
@@ -244,6 +245,12 @@ class _LocalMockupPreviewScreenState
   // Only visible when allCodes differs from selectedCodes.
   String _frontRibbonMode = 'selected';
 
+  // ── Back artwork title editing ─────────────────────────────────────────────
+  late String? _titleOverride;
+  int _titleSeed = 0;
+  late TextEditingController _titleController;
+  Timer? _titleDebounce;
+
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
 
@@ -261,9 +268,9 @@ class _LocalMockupPreviewScreenState
   static const int _kMaxRetries = 2;
   // 30 s — function now returns after cart creation (~5–10 s); mockup is async.
   static const Duration _kCallTimeout = Duration(seconds: 30);
-  // Realtime listener timeout: Printful can take up to ~75 s (25 polls × 3 s).
-  // 120 s gives comfortable headroom.
-  static const Duration _kMockupListenerTimeout = Duration(seconds: 120);
+  // Realtime listener timeout: Printful can take up to ~150 s (50 polls × 3 s).
+  // 240 s gives comfortable headroom.
+  static const Duration _kMockupListenerTimeout = Duration(seconds: 240);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -357,6 +364,9 @@ class _LocalMockupPreviewScreenState
       _template = _presetConfig!.layout;
     }
 
+    _titleOverride = widget.titleOverride;
+    _titleController = TextEditingController(text: _titleOverride ?? '');
+
     _passportColorMode = _suggestStampColor(_colour);
     _timelineTextColor = _suggestTimelineTextColor(_colour);
     _gridTextColor = _suggestGridTextColor(_colour);
@@ -401,6 +411,8 @@ class _LocalMockupPreviewScreenState
 
   @override
   void dispose() {
+    _titleController.dispose();
+    _titleDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
     _mockupSubscription?.cancel();
@@ -796,7 +808,7 @@ class _LocalMockupPreviewScreenState
         cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
-        titleOverride: widget.titleOverride,
+        titleOverride: _titleOverride,
         subtitleOverride: widget.subtitleOverride,
         stampColor: stampColor,
         dateColor: widget.dateColor,
@@ -858,7 +870,7 @@ class _LocalMockupPreviewScreenState
         cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
-        titleOverride: widget.titleOverride,
+        titleOverride: _titleOverride,
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
@@ -891,7 +903,7 @@ class _LocalMockupPreviewScreenState
         cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
-        titleOverride: widget.titleOverride,
+        titleOverride: _titleOverride,
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
@@ -922,7 +934,7 @@ class _LocalMockupPreviewScreenState
         cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
-        titleOverride: widget.titleOverride,
+        titleOverride: _titleOverride,
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
@@ -934,6 +946,25 @@ class _LocalMockupPreviewScreenState
     } finally {
       if (mounted) setState(() => _variantLoading = false);
     }
+  }
+
+  // ── Back title cycling / editing ───────────────────────────────────────────
+
+  void _cycleTitle() {
+    _titleSeed++;
+    final next = MerchTitleWordbank.pickGeneric(
+        widget.selectedCodes.length, _titleSeed);
+    _titleController.text = next;
+    setState(() => _titleOverride = next);
+    unawaited(_renderVariant(_artworkVariantIndex));
+  }
+
+  void _onTitleChanged(String text) {
+    setState(() => _titleOverride = text.isEmpty ? null : text);
+    _titleDebounce?.cancel();
+    _titleDebounce = Timer(const Duration(milliseconds: 600), () {
+      if (mounted) unawaited(_renderVariant(_artworkVariantIndex));
+    });
   }
 
   // ── Colour / placement change handler ─────────────────────────────────────
@@ -1365,9 +1396,13 @@ class _LocalMockupPreviewScreenState
       maxChildSize: 0.85,
       snap: true,
       builder: (context, scrollController) {
-        return Container(
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: theme.colorScheme.surface.withValues(alpha: 0.82),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
@@ -1400,6 +1435,8 @@ class _LocalMockupPreviewScreenState
                 ),
               ),
             ],
+          ),
+        ),
           ),
         );
       },
@@ -1557,27 +1594,138 @@ class _LocalMockupPreviewScreenState
         ),
         const SizedBox(height: 10),
 
-        // ── Back placement ───────────────────────────────────────────────
-        const _MiniLabel('Back'),
-        const SizedBox(height: 6),
-        _PlacementSelector(
-          options: const [
-            _PlacementOptionData('center', 'Centre'),
-            _PlacementOptionData('none',   'None'),
+        // ── Back Title ───────────────────────────────────────────────────
+        const _MiniLabel('Back Title'),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _titleController,
+                onChanged: _onTitleChanged,
+                style: theme.textTheme.bodySmall,
+                maxLines: 1,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                  ),
+                  hintText: 'Enter a title…',
+                  hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
+                      fontSize: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Tooltip(
+              message: 'New suggestion',
+              child: IconButton(
+                onPressed: _variantLoading ? null : _cycleTitle,
+                icon: _variantLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh_rounded),
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ],
-          selected: _backPosition,
-          isFront: false,
-          colour: _colour,
-          product: _product,
-          shirtImage: _backShirtImage,
-          artworkImage: _artworkImage,
-          onChanged: (v) => _onVariantOptionChanged(backPosition: v),
+        ),
+        const SizedBox(height: 10),
+
+        // ── Back placement + Ribbon Countries (side by side) ─────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 145,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _MiniLabel('Back'),
+                  const SizedBox(height: 6),
+                  _PlacementSelector(
+                    options: const [
+                      _PlacementOptionData('center', 'Centre'),
+                      _PlacementOptionData('none',   'None'),
+                    ],
+                    selected: _backPosition,
+                    isFront: false,
+                    colour: _colour,
+                    product: _product,
+                    shirtImage: _backShirtImage,
+                    artworkImage: _artworkImage,
+                    onChanged: (v) => _onVariantOptionChanged(backPosition: v),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _MiniLabel('Ribbon'),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MiniRibbonTile(
+                          image: _frontRibbonMode == 'selected'
+                              ? _frontRibbonImage
+                              : _frontRibbonAllImage,
+                          label: '${widget.selectedCodes.length}',
+                          sublabel: 'Selected',
+                          isSelected: _frontRibbonMode == 'selected',
+                          imageHeight: 26,
+                          onTap: () {
+                            setState(() => _frontRibbonMode = 'selected');
+                            _loadFrontRibbonImage();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _MiniRibbonTile(
+                          image: _frontRibbonMode == 'all'
+                              ? _frontRibbonImage
+                              : _frontRibbonAllImage,
+                          label: '${widget.allCodes.length}',
+                          sublabel: 'All',
+                          isSelected: _frontRibbonMode == 'all',
+                          imageHeight: 26,
+                          onTap: () {
+                            setState(() => _frontRibbonMode = 'all');
+                            _loadFrontRibbonImage();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
 
-        // ── Advanced styling (conditional) ──────────────────────────────
+        // ── Advanced styling (passport/timeline specific) ────────────────
         if (_template == CardTemplateType.passport ||
-            _template == CardTemplateType.timeline ||
-            widget.allCodes.length != widget.selectedCodes.length) ...[
+            _template == CardTemplateType.timeline) ...[
           const SizedBox(height: 12),
           Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.5)),
           const SizedBox(height: 10),
@@ -1587,30 +1735,9 @@ class _LocalMockupPreviewScreenState
             _buildStampColorPicker(),
           ],
           if (_template == CardTemplateType.timeline) ...[
-            if (_template == CardTemplateType.passport) const SizedBox(height: 10),
             const _MiniLabel('Text Colour'),
             const SizedBox(height: 6),
             _buildTimelineColorPicker(),
-          ],
-          if (widget.allCodes.length != widget.selectedCodes.length) ...[
-            const SizedBox(height: 10),
-            const _MiniLabel('Ribbon Countries'),
-            const SizedBox(height: 6),
-            _MiniRibbonSelector(
-              selectedImage: _frontRibbonMode == 'selected'
-                  ? _frontRibbonImage
-                  : _frontRibbonAllImage,
-              allImage: _frontRibbonMode == 'all'
-                  ? _frontRibbonImage
-                  : _frontRibbonAllImage,
-              selectedCount: widget.selectedCodes.length,
-              allCount: widget.allCodes.length,
-              mode: _frontRibbonMode,
-              onChanged: (v) {
-                setState(() => _frontRibbonMode = v);
-                _loadFrontRibbonImage();
-              },
-            ),
           ],
         ],
       ],
@@ -2553,8 +2680,8 @@ class _ColourSwatchRow extends StatelessWidget {
               onTap: () => onChanged(entry.key),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: entry.value,
@@ -2814,24 +2941,28 @@ class _PlacementSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (int i = 0; i < options.length; i++) ...[
-          Expanded(
-            child: _PlacementTile(
-              option: options[i],
-              isSelected: options[i].value == selected,
-              isFront: isFront,
-              colour: colour,
-              product: product,
-              shirtImage: shirtImage,
-              artworkImage: options[i].value == 'none' ? null : artworkImage,
-              onTap: () => onChanged(options[i].value),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (int i = 0; i < options.length; i++) ...[
+            SizedBox(
+              width: 68,
+              child: _PlacementTile(
+                option: options[i],
+                isSelected: options[i].value == selected,
+                isFront: isFront,
+                colour: colour,
+                product: product,
+                shirtImage: shirtImage,
+                artworkImage: options[i].value == 'none' ? null : artworkImage,
+                onTap: () => onChanged(options[i].value),
+              ),
             ),
-          ),
-          if (i < options.length - 1) const SizedBox(width: 5),
+            if (i < options.length - 1) const SizedBox(width: 5),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -2985,6 +3116,7 @@ class _MiniRibbonTile extends StatelessWidget {
     required this.sublabel,
     required this.isSelected,
     required this.onTap,
+    this.imageHeight = 40,
   });
 
   final ui.Image? image;
@@ -2992,6 +3124,7 @@ class _MiniRibbonTile extends StatelessWidget {
   final String sublabel;
   final bool isSelected;
   final VoidCallback onTap;
+  final double imageHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -3019,7 +3152,7 @@ class _MiniRibbonTile extends StatelessWidget {
           children: [
             // Ribbon artwork preview (show the card image directly).
             SizedBox(
-              height: 40,
+              height: imageHeight,
               child: image != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(3),

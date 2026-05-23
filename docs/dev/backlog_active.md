@@ -7,6 +7,15 @@
 
 ## Next up (mobile-first order)
 
+### M117 — Terms & Conditions Acceptance Gate
+**Goal:** Display and require acceptance of Roavvy T&Cs before a user can access the app. Persisted via SharedPreferences. Re-prompts when `kCurrentTermsVersion` is bumped.
+**Phase:** 24 — Legal & Compliance
+**Scope in:** `legal/terms_service.dart`, `legal/terms_screen.dart`, `app.dart` (_OnboardingGate), `providers.dart` (termsAcceptedProvider), `privacy_account_screen.dart`, `account_deletion_service.dart`.
+**Full plan:** `docs/dev/milestones/m117-terms-and-conditions-acceptance-gate.md`
+**Status:** ✅ Complete (2026-05-23)
+
+---
+
 ### M110 — Dynamic Achievements & Replay Stats Overlay
 **Goal:** Enhance cinematic travel replay with contextual achievement reveal moments and travel stats overlays. Achievements appear at the leg where their threshold is crossed; stats appear every 5 legs; a summary frame with Share and Create T-Shirt CTAs closes the experience.
 **Phase:** 23 — Globe Experiences

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
+import '../../core/providers.dart';
 import '../memory/memory_anniversary_photo.dart';
 import 'merch_option_list_widgets.dart';
 import 'merch_title_wordbank.dart';
@@ -19,7 +21,7 @@ import 'pulse_merch_option.dart';
 ///
 /// Rendering widgets are shared with [AchievementMerchOptionScreen] via
 /// [merch_option_list_widgets.dart] (ADR-149).
-class PulseMerchOptionScreen extends StatelessWidget {
+class PulseMerchOptionScreen extends ConsumerWidget {
   const PulseMerchOptionScreen({
     super.key,
     required this.hero,
@@ -125,7 +127,7 @@ class PulseMerchOptionScreen extends StatelessWidget {
     return options;
   }
 
-  List<MerchOptionListItem> _buildItems() {
+  List<MerchOptionListItem> _buildItems({required bool landmarkAvailable}) {
     final year = hero.capturedAt.year;
     final heroCountryCode = hero.countryCode ?? '';
     final countryName = heroCountryCode.isNotEmpty
@@ -141,12 +143,13 @@ class PulseMerchOptionScreen extends StatelessWidget {
         : const <TripRecord>[];
     final allCodes = allVisits.map((v) => v.countryCode).toList();
 
-    const groups = [
+    final groups = [
       (label: 'Passport', template: CardTemplateType.passport),
       (label: 'Flags', template: CardTemplateType.grid),
       (label: 'Heart Flags', template: CardTemplateType.heart),
       (label: 'Tour Dates', template: CardTemplateType.timeline),
-      (label: 'Landmarks', template: CardTemplateType.landmark),
+      if (landmarkAvailable)
+        (label: 'Landmarks', template: CardTemplateType.landmark),
     ];
 
     final items = <MerchOptionListItem>[];
@@ -173,8 +176,10 @@ class PulseMerchOptionScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final items = _buildItems();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final landmarkAvailable =
+        ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
+    final items = _buildItems(landmarkAvailable: landmarkAvailable);
     final allCodes = allVisits.map((v) => v.countryCode).toList();
     final year = hero.capturedAt.year;
     final heroCountryCode = hero.countryCode ?? '';

@@ -134,7 +134,7 @@ async function generatePrintfulMockup(
   }
   console.log(`[mockup] ${elapsed()} v2 task submitted — taskId=${taskId}, polling...`);
 
-  const maxAttempts = 25;
+  const maxAttempts = 50;
   const intervalMs = 3000;
   let frontMockupUrl: string | null = null;
   let backMockupUrl: string | null = null;

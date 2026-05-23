@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/providers.dart';
 import 'merch_preset.dart';
 
 /// Opens the Layer 2 advanced customisation sheet and returns the updated
@@ -26,17 +28,18 @@ Future<MerchPresetConfig?> showMerchCustomisationSheet(
   );
 }
 
-class _MerchCustomisationSheet extends StatefulWidget {
+class _MerchCustomisationSheet extends ConsumerStatefulWidget {
   const _MerchCustomisationSheet({required this.config});
 
   final MerchPresetConfig config;
 
   @override
-  State<_MerchCustomisationSheet> createState() =>
+  ConsumerState<_MerchCustomisationSheet> createState() =>
       _MerchCustomisationSheetState();
 }
 
-class _MerchCustomisationSheetState extends State<_MerchCustomisationSheet> {
+class _MerchCustomisationSheetState
+    extends ConsumerState<_MerchCustomisationSheet> {
   late MerchPresetConfig _config;
 
   @override
@@ -53,6 +56,8 @@ class _MerchCustomisationSheetState extends State<_MerchCustomisationSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
+    final landmarkAvailable =
+        ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.70,
@@ -125,11 +130,16 @@ class _MerchCustomisationSheetState extends State<_MerchCustomisationSheet> {
                     _SectionLabel('Layout', theme),
                     const SizedBox(height: 8),
                     _OptionRow(
-                      options: const ['Passport', 'Grid', 'Landmark'],
+                      options: [
+                        'Passport',
+                        'Grid',
+                        if (landmarkAvailable) 'Landmark',
+                      ],
                       selected: switch (_config.layout) {
                         CardTemplateType.passport => 'Passport',
                         CardTemplateType.grid     => 'Grid',
-                        CardTemplateType.landmark => 'Landmark',
+                        CardTemplateType.landmark =>
+                          landmarkAvailable ? 'Landmark' : 'Grid',
                         _                         => 'Grid',
                       },
                       onChanged: (v) => setState(() {
