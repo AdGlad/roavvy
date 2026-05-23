@@ -30,6 +30,22 @@
         "GOOGLE_API_KEY": "${GOOGLE_API_KEY}",
         "GOOGLE_SEARCH_ENGINE_ID": "${GOOGLE_SEARCH_ENGINE_ID}"
       }
+    },
+    "lottiefiles": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-lottiefiles"
+      ]
+    },
+    "lottie-creator": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@lottiefiles/creator-mcp@latest"
+      ]
     }
   }
 }
