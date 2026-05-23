@@ -11,6 +11,10 @@ const int _kAchievementNotificationId = 1;
 const int _kMemoryPulseNotificationId = 2;
 const int _kYearInReviewNotificationId = 3;
 
+/// Base ID for the memory pulse batch (IDs 200–229, max 30 slots).
+const int _kMemoryPulseBatchBase = 200;
+const int _kMemoryPulseBatchSize = 30;
+
 /// Singleton service for local push notifications (ADR-056).
 ///
 /// Schedules:
@@ -34,6 +38,10 @@ class NotificationService {
   /// Emits the tripId of a memory pulse notification tapped by the user.
   /// [_MemoryPulseSection] on the map screen listens to this (M91, ADR-136).
   final ValueNotifier<String?> pendingMemoryTripId = ValueNotifier(null);
+
+  /// Emits the country code when a memory pulse notification is tapped.
+  /// [MainShell] listens to this and navigates to [CountryDetailSheet].
+  final ValueNotifier<String?> pendingMemoryCountryCode = ValueNotifier(null);
 
   /// Emits the review year when a Year in Review notification is tapped.
   /// [_YearInReviewBanner] on the map screen listens to this (M94, ADR-139).
@@ -66,7 +74,11 @@ class NotificationService {
     if (payload.startsWith('tab:')) {
       final tabIndex = int.tryParse(payload.substring(4));
       if (tabIndex != null) pendingTabIndex.value = tabIndex;
+    } else if (payload.startsWith('memoryPulse:country:')) {
+      // New format (M118): "memoryPulse:country:XX"
+      pendingMemoryCountryCode.value = payload.substring(20);
     } else if (payload.startsWith('memoryPulse:')) {
+      // Legacy format: "memoryPulse:{tripId}" — map tab fallback.
       pendingMemoryTripId.value = payload.substring(12);
     } else if (payload.startsWith('yearInReview:')) {
       final year = int.tryParse(payload.substring(13));
@@ -96,15 +108,27 @@ class NotificationService {
     return int.tryParse(payload.substring(13));
   }
 
-  /// Returns the tripId if a memory pulse notification cold-started the app,
-  /// or null otherwise (M91, ADR-136).
+  /// Returns the tripId if a legacy memory pulse notification cold-started the
+  /// app, or null otherwise (M91, ADR-136).
   Future<String?> getLaunchMemoryTripId() async {
     if (!_initialized) return null;
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details == null || !details.didNotificationLaunchApp) return null;
     final payload = details.notificationResponse?.payload;
     if (payload == null || !payload.startsWith('memoryPulse:')) return null;
+    if (payload.startsWith('memoryPulse:country:')) return null; // handled separately
     return payload.substring(12);
+  }
+
+  /// Returns the country code if a memory pulse notification cold-started the
+  /// app with the new "memoryPulse:country:XX" format, or null otherwise (M118).
+  Future<String?> getLaunchMemoryCountryCode() async {
+    if (!_initialized) return null;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details == null || !details.didNotificationLaunchApp) return null;
+    final payload = details.notificationResponse?.payload;
+    if (payload == null || !payload.startsWith('memoryPulse:country:')) return null;
+    return payload.substring(20);
   }
 
   /// Requests notification permission from iOS. Returns true if granted.
@@ -174,6 +198,46 @@ class NotificationService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
+  }
+
+  /// Replaces the entire anniversary notification batch with [anniversaries].
+  ///
+  /// Each entry is a (deliverAt, countryCode) pair. Up to
+  /// [_kMemoryPulseBatchSize] entries are scheduled using IDs
+  /// [_kMemoryPulseBatchBase] … [_kMemoryPulseBatchBase + batchSize - 1].
+  ///
+  /// Tapping any of these switches to the country detail screen via
+  /// `pendingMemoryCountryCode` (payload `memoryPulse:country:XX`). (M118)
+  Future<void> scheduleMemoryPulseBatch(
+    List<({DateTime deliverAt, String countryCode, String title, String body})>
+        anniversaries,
+  ) async {
+    if (!_initialized) return;
+
+    // Cancel all existing batch slots.
+    for (var i = 0; i < _kMemoryPulseBatchSize; i++) {
+      await _plugin.cancel(_kMemoryPulseBatchBase + i);
+    }
+
+    final slots = anniversaries.take(_kMemoryPulseBatchSize).toList();
+    for (var i = 0; i < slots.length; i++) {
+      final a = slots[i];
+      await _plugin.zonedSchedule(
+        _kMemoryPulseBatchBase + i,
+        a.title,
+        a.body,
+        tz.TZDateTime.from(a.deliverAt, tz.local),
+        const NotificationDetails(
+          iOS: DarwinNotificationDetails(
+            interruptionLevel: InterruptionLevel.active,
+          ),
+        ),
+        payload: 'memoryPulse:country:${a.countryCode}',
+        androidScheduleMode: AndroidScheduleMode.inexact,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
   }
 
   /// Cancels any existing Year in Review notification and schedules a new one

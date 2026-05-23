@@ -164,14 +164,14 @@ class MemoryPulseService {
 
   // ── Notification scheduling ───────────────────────────────────────────────
 
-  /// Schedules the next anniversary notification from the photo library.
+  /// Schedules notifications for ALL upcoming anniversary dates in the next
+  /// year (up to 30), each carrying the country code of the best photo for
+  /// that day. Replaces the previous batch atomically.
   ///
-  /// Fetches up to [_kNotificationPageSize] assets, builds the set of
-  /// (month, day) pairs that have at least one photo ≥ 1 year old, finds the
-  /// nearest future date in that set, and schedules a notification.
-  ///
-  /// Skips if a notification was already scheduled today (dedup guard).
-  Future<void> scheduleNextAnniversaryNotification(DateTime today) async {
+  /// Runs once per calendar day (dedup guard). Safe to call on every app open.
+  /// This means notifications keep firing even when the app is closed for
+  /// months, because they are pre-scheduled in advance (M118).
+  Future<void> scheduleAnniversaryNotifications(DateTime today) async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getString(_kLastNotificationDateKey) == _dateKey(today)) return;
 
@@ -185,45 +185,86 @@ class MemoryPulseService {
     final oneYearAgoMs =
         utcNow.subtract(const Duration(days: 365)).millisecondsSinceEpoch;
 
-    // Build set of MM-DD pairs with at least one old photo.
-    final mmddPairs = <String>{};
+    // Build map: MM-DD → best asset for that day (oldest photos = more memorable).
+    final mmddToAssets = <String, List<AssetEntity>>{};
     for (final a in assets) {
       if (a.createDateTime.millisecondsSinceEpoch < oneYearAgoMs) {
-        final dt = a.createDateTime;
-        mmddPairs.add(_mmdd(dt));
+        mmddToAssets.putIfAbsent(_mmdd(a.createDateTime), () => []).add(a);
       }
     }
-    if (mmddPairs.isEmpty) return;
+    if (mmddToAssets.isEmpty) return;
 
-    // Find the nearest future date (search up to 366 days ahead).
-    DateTime? nextDate;
-    for (var offset = 1; offset <= 366; offset++) {
-      final candidate = utcNow.add(Duration(days: offset));
-      if (mmddPairs.contains(_mmdd(candidate))) {
-        nextDate = candidate;
-        break;
-      }
-    }
-    if (nextDate == null) return;
-
-    const copy = MemoryPulseCopy(
-      title: 'You have a travel memory from this day 👀',
-      body: 'Tap to see what you were up to',
-    );
+    // Look up country codes for all candidate assets.
+    final allIds = mmddToAssets.values.expand((l) => l).map((a) => a.id).toList();
+    final countryByAssetId = await _lookupCountryCodes(allIds);
 
     final hour = await AppOpenTracker.preferredHour();
-    final deliverAt = _deliverAtHour(nextDate, nextDate.year, hour);
-    if (deliverAt.isBefore(DateTime.now())) return;
 
-    await _notifications.scheduleMemoryPulse(
-      title: copy.title,
-      body: copy.body,
-      tripId: 'anniversary',
-      deliverAt: deliverAt,
-    );
+    // Find the next 30 upcoming anniversary dates and build notification entries.
+    final anniversaries =
+        <({DateTime deliverAt, String countryCode, String title, String body})>[];
 
+    for (var offset = 1; offset <= 366 && anniversaries.length < 30; offset++) {
+      final candidate = utcNow.add(Duration(days: offset));
+      final key = _mmdd(candidate);
+      final dayAssets = mmddToAssets[key];
+      if (dayAssets == null) continue;
+
+      final best = _pickBestPhoto(dayAssets, countryByAssetId);
+      if (best == null) continue;
+
+      final countryCode = countryByAssetId[best.id];
+      if (countryCode == null) continue;
+
+      final deliverAt = _deliverAtHour(candidate, candidate.year, hour);
+      if (deliverAt.isBefore(DateTime.now())) continue;
+
+      final yearsAgo = candidate.year - best.createDateTime.year;
+      final countryName = kCountryNames[countryCode] ?? countryCode;
+      final (title, body) = _buildBatchCopy(countryName, yearsAgo);
+
+      anniversaries.add((
+        deliverAt: deliverAt,
+        countryCode: countryCode,
+        title: title,
+        body: body,
+      ));
+    }
+
+    if (anniversaries.isEmpty) return;
+
+    await _notifications.scheduleMemoryPulseBatch(anniversaries);
     await prefs.setString(_kLastNotificationDateKey, _dateKey(today));
   }
+
+  /// Generates notification copy for a scheduled anniversary (M118).
+  (String, String) _buildBatchCopy(String countryName, int yearsAgo) {
+    final yearsWord = yearsAgo == 1 ? 'year' : 'years';
+    if (yearsAgo == 1) {
+      return (
+        'Do you remember where you were exactly one year ago? 👀',
+        'You were in $countryName',
+      );
+    }
+    if (yearsAgo == 5 || yearsAgo == 10) {
+      return (
+        "Can you believe it's been $yearsAgo years since $countryName? 👀",
+        'Tap to relive the memory',
+      );
+    }
+    return (
+      'Where were you $yearsAgo $yearsWord ago? 👀',
+      'You were in $countryName — tap to see your photos',
+    );
+  }
+
+  /// Schedules the next anniversary notification from the photo library.
+  ///
+  /// Deprecated: replaced by [scheduleAnniversaryNotifications] (M118) which
+  /// schedules the full annual batch. Kept for call-site compatibility.
+  @Deprecated('Use scheduleAnniversaryNotifications instead')
+  Future<void> scheduleNextAnniversaryNotification(DateTime today) =>
+      scheduleAnniversaryNotifications(today);
 
   // ── Copy generation ───────────────────────────────────────────────────────
 

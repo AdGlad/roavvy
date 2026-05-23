@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import '../memory/app_open_tracker.dart';
 import '../journal/journal_screen.dart';
 import '../journal/trip_detail_screen.dart';
+import '../map/country_detail_sheet.dart';
 import '../map/map_screen.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
@@ -43,9 +44,15 @@ class _MainShellState extends ConsumerState<MainShell> {
     _selectedIndex = widget.initialTab;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleLaunchNotification();
+      // Schedule the full anniversary batch on every app open so notifications
+      // keep firing even if the app is never opened again (M118).
+      ref
+          .read(memoryPulseServiceProvider)
+          .scheduleAnniversaryNotifications(DateTime.now());
     });
     NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.addListener(_onPendingMemoryTripId);
+    NotificationService.instance.pendingMemoryCountryCode.addListener(_onPendingMemoryCountryCode);
     AppOpenTracker.recordNow();
   }
 
@@ -53,6 +60,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   void dispose() {
     NotificationService.instance.pendingTabIndex.removeListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.removeListener(_onPendingMemoryTripId);
+    NotificationService.instance.pendingMemoryCountryCode.removeListener(_onPendingMemoryCountryCode);
     super.dispose();
   }
 
@@ -60,6 +68,13 @@ class _MainShellState extends ConsumerState<MainShell> {
   Future<void> _handleLaunchNotification() async {
     final tab = await NotificationService.instance.getLaunchTab();
     if (tab != null && mounted) setState(() => _selectedIndex = tab);
+
+    final countryCode =
+        await NotificationService.instance.getLaunchMemoryCountryCode();
+    if (countryCode != null && mounted) {
+      _navigateToCountry(countryCode);
+      return;
+    }
 
     final tripId = await NotificationService.instance.getLaunchMemoryTripId();
     if (tripId != null && mounted) {
@@ -76,12 +91,21 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
   }
 
-  /// Handles foreground / background notification taps for memory pulses.
+  /// Handles foreground / background notification taps for memory pulses (legacy).
   void _onPendingMemoryTripId() {
     final tripId = NotificationService.instance.pendingMemoryTripId.value;
     if (tripId != null && mounted) {
       _navigateToTrip(tripId);
       NotificationService.instance.pendingMemoryTripId.value = null;
+    }
+  }
+
+  /// Handles foreground / background memory pulse taps with country code (M118).
+  void _onPendingMemoryCountryCode() {
+    final code = NotificationService.instance.pendingMemoryCountryCode.value;
+    if (code != null && mounted) {
+      _navigateToCountry(code);
+      NotificationService.instance.pendingMemoryCountryCode.value = null;
     }
   }
 
@@ -92,6 +116,17 @@ class _MainShellState extends ConsumerState<MainShell> {
         MaterialPageRoute(builder: (_) => TripDetailScreen(trip: trip)),
       );
     }
+  }
+
+  /// Navigates to the country detail screen for [isoCode]. Switches to the
+  /// Map tab first so the sheet sits above the correct context.
+  void _navigateToCountry(String isoCode) {
+    setState(() => _selectedIndex = 0); // switch to Map
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CountryDetailSheet(isoCode: isoCode),
+      ),
+    );
   }
 
   void _goToMap() => setState(() => _selectedIndex = 0);

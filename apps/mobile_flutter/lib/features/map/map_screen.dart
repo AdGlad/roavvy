@@ -973,7 +973,7 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
     // Schedule the next notification once memories are known (fire-and-forget).
     ref.listen(todaysMemoriesProvider, (_, next) {
       if (next.hasValue) {
-        service.scheduleNextAnniversaryNotification(DateTime.now());
+        service.scheduleAnniversaryNotifications(DateTime.now());
       }
     });
 
