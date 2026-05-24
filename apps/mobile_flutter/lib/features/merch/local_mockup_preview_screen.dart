@@ -15,6 +15,8 @@ import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
+import 'merch_cart_item.dart';
+import 'merch_cart_repository.dart';
 import 'merch_customisation_sheet.dart';
 import 'merch_title_wordbank.dart';
 import 'merch_order_confirmation_screen.dart';
@@ -179,6 +181,10 @@ class _LocalMockupPreviewScreenState
 
   String? _artworkConfirmationId;
   String? _mockupApprovalId;
+
+  /// Cart item ID created at "Approve & Preview" time (M120 / ADR-167).
+  /// Cached so retries reuse the same cart item rather than creating duplicates.
+  String? _cartItemId;
 
   // ── Decoded images ─────────────────────────────────────────────────────────
 
@@ -739,6 +745,15 @@ class _LocalMockupPreviewScreenState
             _mockupFailed = true;
           }
         });
+        // ── Update cart item with async mockup URLs (M120) ──────────────────
+        final cid = _cartItemId;
+        if (cid != null && (frontUrl != null || backUrl != null)) {
+          MerchCartRepository(FirebaseFirestore.instance).updateMockupUrls(
+            uid, cid,
+            frontMockupUrl: frontUrl,
+            backMockupUrl:  backUrl,
+          ).catchError((e) => debugPrint('[mockup] cart updateMockupUrls failed: $e'));
+        }
       },
       onError: (Object e) {
         debugPrint('[mockup] listener error: $e');
@@ -1037,6 +1052,16 @@ class _LocalMockupPreviewScreenState
     setState(() => _showingFront = showFront);
   }
 
+  // ── Cart item helpers (M120) ───────────────────────────────────────────────
+
+  void _markCartItemFailed(String uid, String reason) {
+    final cid = _cartItemId;
+    if (cid == null) return;
+    MerchCartRepository(FirebaseFirestore.instance)
+        .markFailed(uid, cid, reason: reason)
+        .catchError((e) => debugPrint('[mockup] cart markFailed error: $e'));
+  }
+
   // ── Approval handler ───────────────────────────────────────────────────────
 
   Future<void> _onApprove() async {
@@ -1069,6 +1094,41 @@ class _LocalMockupPreviewScreenState
       _state = _MockupState.approving;
       _retryMessage = null;
     });
+
+    // ── Cart item creation (M120 / ADR-167) ──────────────────────────────────
+    // Create (or reuse) a cart item so the design survives app restarts or
+    // navigation-away before checkout completes.
+    if (_cartItemId == null) {
+      final cartRepo = MerchCartRepository(FirebaseFirestore.instance);
+      final newId = 'ci-${DateTime.now().microsecondsSinceEpoch}';
+      final now = DateTime.now().toUtc();
+      final cartItem = MerchCartItem(
+        id:                   newId,
+        status:               MerchCartItemStatus.mockupGenerating,
+        productType:          _isTshirt ? 'tshirt' : 'poster',
+        variantId:            _resolvedVariantGid,
+        templateType:         _template.name,
+        colour:               _colour,
+        size:                 _isTshirt ? _tshirtSize : _posterSize,
+        frontPosition:        _frontPosition,
+        backPosition:         _backPosition,
+        selectedCountryCodes: widget.selectedCodes,
+        createdAt:            now,
+        updatedAt:            now,
+        title:                _titleOverride,
+        cardId:               widget.cardId,
+        artworkConfirmationId: _artworkConfirmationId,
+      );
+      try {
+        await cartRepo.create(uid, cartItem);
+        if (mounted) setState(() => _cartItemId = newId);
+        debugPrint('[mockup]   cartItemId=$newId ✓ (created)');
+      } catch (e) {
+        debugPrint('[mockup]   cart item creation failed (non-fatal): $e');
+      }
+    } else {
+      debugPrint('[mockup]   cartItemId=$_cartItemId ✓ (reused)');
+    }
 
     try {
       // ── Step 1: artwork confirmation ────────────────────────────────────────
@@ -1219,6 +1279,17 @@ class _LocalMockupPreviewScreenState
             _checkoutUrl   = checkoutUrl;
             _merchConfigId = merchConfigId;
           });
+          // ── Update cart item → mockupReady (M120) ──────────────────────────
+          final cid = _cartItemId;
+          if (cid != null) {
+            MerchCartRepository(FirebaseFirestore.instance).markMockupReady(
+              uid, cid,
+              checkoutUrl:    checkoutUrl,
+              frontMockupUrl: mockupUrl,
+              backMockupUrl:  backMockupUrl,
+              merchConfigId:  merchConfigId,
+            ).catchError((e) => debugPrint('[mockup] cart markMockupReady failed: $e'));
+          }
           if ((mockupUrl == null || mockupUrl.isEmpty) && merchConfigId != null) {
             _startMockupListener(merchConfigId, uid);
           }
@@ -1262,6 +1333,7 @@ class _LocalMockupPreviewScreenState
       debugPrint('[mockup]   code=${e.code}');
       debugPrint('[mockup]   message=${e.message}');
       debugPrint('[mockup]   details=${e.details}');
+      _markCartItemFailed(uid, 'FirebaseFunctionsException: ${e.code} ${e.message}');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1275,6 +1347,7 @@ class _LocalMockupPreviewScreenState
       setState(() { _state = _MockupState.configuring; _retryMessage = null; });
     } on SocketException catch (e) {
       debugPrint('[mockup] ❌ SocketException (final): $e');
+      _markCartItemFailed(uid, 'SocketException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No internet connection. Please try again.')),
@@ -1282,6 +1355,7 @@ class _LocalMockupPreviewScreenState
       setState(() { _state = _MockupState.configuring; _retryMessage = null; });
     } on TimeoutException catch (e) {
       debugPrint('[mockup] ❌ TimeoutException (final): $e');
+      _markCartItemFailed(uid, 'TimeoutException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1293,6 +1367,7 @@ class _LocalMockupPreviewScreenState
     } catch (e, stack) {
       debugPrint('[mockup] ❌ unexpected error: $e');
       debugPrint('[mockup]   $stack');
+      _markCartItemFailed(uid, 'Unexpected: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1327,7 +1402,17 @@ class _LocalMockupPreviewScreenState
           templateType:      _template,
           checkoutUrl:       url,
           isTshirt:          _isTshirt,
-          onCheckoutLaunched: () { _checkoutLaunched = true; },
+          onCheckoutLaunched: () {
+            _checkoutLaunched = true;
+            // Mark cart item as checkout started (M120).
+            final uid = ref.read(currentUidProvider);
+            final cid = _cartItemId;
+            if (uid != null && cid != null) {
+              MerchCartRepository(FirebaseFirestore.instance)
+                  .markCheckoutStarted(uid, cid)
+                  .catchError((e) => debugPrint('[mockup] cart markCheckoutStarted: $e'));
+            }
+          },
         ),
       ),
     );

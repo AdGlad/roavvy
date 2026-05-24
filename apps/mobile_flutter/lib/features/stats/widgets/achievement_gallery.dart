@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../../core/theme/roavvy_colours.dart';
 import '../../merch/achievement_merch_option_screen.dart';
 
 /// Tabbed achievement gallery for the Stats screen (M97, ADR-148).
@@ -152,10 +153,19 @@ class _AchievementRow extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-          color: isUnlocked ? const Color(0xFFFFF8E1) : theme.colorScheme.surfaceContainerHighest,
+          color: isUnlocked ? RoavvyColours.roavvyGold.withOpacity(0.12) : theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
           border: isUnlocked
-              ? const Border(left: BorderSide(color: Color(0xFFFFB300), width: 3))
+              ? const Border(left: BorderSide(color: RoavvyColours.roavvyGold, width: 3))
+              : null,
+          boxShadow: isUnlocked
+              ? [
+                  BoxShadow(
+                    color: RoavvyColours.roavvyGold.withOpacity(0.35),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                  ),
+                ]
               : null,
         ),
         child: Padding(
@@ -168,7 +178,7 @@ class _AchievementRow extends StatelessWidget {
                   Icon(
                     isUnlocked ? Icons.emoji_events_outlined : Icons.lock_outline,
                     size: 20,
-                    color: isUnlocked ? Colors.amber[700] : theme.colorScheme.onSurfaceVariant,
+                    color: isUnlocked ? RoavvyColours.roavvyGold : theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -253,7 +263,8 @@ class _MerchChip extends StatelessWidget {
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         textStyle: Theme.of(context).textTheme.labelSmall,
-        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        side: const BorderSide(color: RoavvyColours.roavvyCoral),
       ),
       child: const Text('Make tee'),
     );

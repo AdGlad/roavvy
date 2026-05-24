@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import 'local_mockup_preview_screen.dart';
 
 // ── Data model ─────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ class MerchOrderSummary {
     required this.countryCount,
     required this.createdAt,
     required this.status,
+    this.selectedCountryCodes = const [],
   });
 
   final String configId;
@@ -26,6 +28,9 @@ class MerchOrderSummary {
   /// Raw status string from Firestore (e.g. 'cart_created', 'ordered').
   final String status;
 
+  /// Country codes from the original order — used for "Buy Again" (M120).
+  final List<String> selectedCountryCodes;
+
   factory MerchOrderSummary.fromDoc(
     String id,
     Map<String, dynamic> data,
@@ -35,8 +40,9 @@ class MerchOrderSummary {
     final productName =
         variantId.contains('Poster') ? 'Travel Poster' : 'Roavvy Test Tee';
 
-    final codes = data['selectedCountryCodes'];
-    final countryCount = codes is List ? codes.length : 0;
+    final codesRaw = data['selectedCountryCodes'];
+    final codes = codesRaw is List ? codesRaw.cast<String>() : <String>[];
+    final countryCount = codes.length;
 
     DateTime createdAt;
     final ts = data['createdAt'];
@@ -52,6 +58,7 @@ class MerchOrderSummary {
       countryCount: countryCount,
       createdAt: createdAt,
       status: data['status'] as String? ?? 'pending',
+      selectedCountryCodes: codes,
     );
   }
 }
@@ -138,26 +145,53 @@ class MerchOrdersScreen extends ConsumerWidget {
   }
 }
 
-class _OrderTile extends StatelessWidget {
+class _OrderTile extends ConsumerWidget {
   const _OrderTile({required this.order});
 
   final MerchOrderSummary order;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final date = _formatDate(order.createdAt);
     final n = order.countryCount;
     final noun = n == 1 ? 'country' : 'countries';
+    final canBuyAgain = order.selectedCountryCodes.isNotEmpty;
 
     return ListTile(
       title: Text(order.productName),
       subtitle: Text('$n $noun · $date'),
       trailing: _StatusBadge(status: order.status),
+      onTap: canBuyAgain ? () => _buyAgain(context, ref) : null,
+    );
+  }
+
+  /// Navigates to [LocalMockupPreviewScreen] using the saved country codes
+  /// from this order, loading current visits/trips from providers (M120).
+  Future<void> _buyAgain(BuildContext context, WidgetRef ref) async {
+    final selectedCodes = order.selectedCountryCodes;
+    if (selectedCodes.isEmpty) return;
+
+    // Load current context data required by LocalMockupPreviewScreen.
+    final visits = await ref.read(effectiveVisitsProvider.future);
+    final trips  = await ref.read(tripListProvider.future);
+
+    final allCodes = visits.map((v) => v.countryCode).toList();
+
+    if (!context.mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LocalMockupPreviewScreen(
+          selectedCodes: selectedCodes,
+          allCodes: allCodes,
+          trips: trips,
+        ),
+      ),
     );
   }
 
   String _formatDate(DateTime dt) {
-    final months = [
+    const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];

@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../../core/theme/roavvy_colours.dart';
 import '../../merch/achievement_merch_option_screen.dart';
 
 /// Gamified hero card for the Stats screen (M97, ADR-148).
@@ -35,7 +36,21 @@ class TravelProgressHero extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
@@ -91,14 +106,14 @@ class TravelProgressHero extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E1),
+                  color: RoavvyColours.roavvyGold.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFFD54F)),
+                  border: Border.all(color: RoavvyColours.roavvyGold),
                 ),
                 child: Text(
                   tier,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFFF57F17),
+                    color: RoavvyColours.roavvyGold,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -127,6 +142,7 @@ class TravelProgressHero extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -1,7 +1,7 @@
 # Current Task
 
-**Milestone:** M119 — UNESCO World Heritage Site Detection & Achievements
+**Milestone:** M120 — Merch Cart, Saved Mockups & Order History
 **Status:** ✅ Complete (2026-05-24)
 
-All tasks implemented. See `docs/dev/milestones/m119-world-heritage-site-detection.md`.
+All tasks implemented. See `docs/dev/milestones/m120-merch-cart-order-history.md`.
 Next milestone: TBD — see `backlog_active.md`.
