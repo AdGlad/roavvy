@@ -53,6 +53,8 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
       AchievementCategory.thisYear =>
         'Celebrating ${achievement.progressTarget} countries'
             ' in ${DateTime.now().year}',
+      AchievementCategory.heritageSites =>
+        'Celebrating UNESCO World Heritage Sites visited',
     };
   }
 

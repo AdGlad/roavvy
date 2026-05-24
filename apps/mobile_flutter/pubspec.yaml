@@ -99,6 +99,7 @@ flutter:
   assets:
     - assets/geodata/ne_countries.bin
     - assets/geodata/ne_admin1.bin
+    - assets/geodata/whs_sites.json
     - assets/flags/svg/
     - assets/mobile_meta/
     - assets/mobile_png/

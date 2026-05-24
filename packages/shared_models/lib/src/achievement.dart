@@ -1,5 +1,5 @@
 /// Categories used to group achievements in the Stats dashboard (M97).
-enum AchievementCategory { countries, continents, trips, thisYear }
+enum AchievementCategory { countries, continents, trips, thisYear, heritageSites }
 
 /// Merch product suggestion type attached to an unlocked achievement (M97).
 enum MerchTriggerType { flagGrid, passportStamp, timeline, country, milestone }
@@ -421,6 +421,74 @@ const List<Achievement> kAchievements = [
     category: AchievementCategory.trips,
     progressTarget: 25,
     merch: MerchTriggerType.passportStamp,
+  ),
+
+  // ── World Heritage Sites (M119, ADR-163–166) ─────────────────────────────
+  // Count-based — keyed on total visited WHS count.
+  Achievement(
+    id: 'whs_1',
+    title: 'First Heritage Site',
+    description: 'Visited your first UNESCO World Heritage Site.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 1,
+  ),
+  Achievement(
+    id: 'whs_5',
+    title: 'Heritage Explorer',
+    description: 'Visited 5 UNESCO World Heritage Sites.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 5,
+  ),
+  Achievement(
+    id: 'whs_10',
+    title: 'Heritage Hunter',
+    description: 'Visited 10 UNESCO World Heritage Sites.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 10,
+  ),
+  Achievement(
+    id: 'whs_25',
+    title: 'Heritage Enthusiast',
+    description: 'Visited 25 UNESCO World Heritage Sites.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 25,
+  ),
+  Achievement(
+    id: 'whs_50',
+    title: 'Heritage Scholar',
+    description: 'Visited 50 UNESCO World Heritage Sites.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 50,
+  ),
+  Achievement(
+    id: 'whs_100',
+    title: 'World Heritage Legend',
+    description: 'Visited 100 UNESCO World Heritage Sites.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 100,
+  ),
+
+  // Category-based — one per UNESCO category.
+  Achievement(
+    id: 'whs_natural_1',
+    title: 'Natural Wonder',
+    description: 'Visited a UNESCO Natural World Heritage Site.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 1,
+  ),
+  Achievement(
+    id: 'whs_cultural_1',
+    title: 'Cultural Explorer',
+    description: 'Visited a UNESCO Cultural World Heritage Site.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 1,
+  ),
+  Achievement(
+    id: 'whs_mixed_1',
+    title: 'Mixed Heritage',
+    description: 'Visited a UNESCO Mixed World Heritage Site.',
+    category: AchievementCategory.heritageSites,
+    progressTarget: 1,
   ),
 
   // ── This year ────────────────────────────────────────────────────────────

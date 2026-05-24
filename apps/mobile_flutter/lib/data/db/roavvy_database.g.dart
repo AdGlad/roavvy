@@ -5019,6 +5019,740 @@ class HeroImagesCompanion extends UpdateCompanion<HeroImageRow> {
   }
 }
 
+class $VisitedHeritageSitesTable extends VisitedHeritageSites
+    with TableInfo<$VisitedHeritageSitesTable, VisitedHeritageSiteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VisitedHeritageSitesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _siteIdMeta = const VerificationMeta('siteId');
+  @override
+  late final GeneratedColumn<String> siteId = GeneratedColumn<String>(
+    'site_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countryCodeMeta = const VerificationMeta(
+    'countryCode',
+  );
+  @override
+  late final GeneratedColumn<String> countryCode = GeneratedColumn<String>(
+    'country_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _inscriptionYearMeta = const VerificationMeta(
+    'inscriptionYear',
+  );
+  @override
+  late final GeneratedColumn<int> inscriptionYear = GeneratedColumn<int>(
+    'inscription_year',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _firstSeenMeta = const VerificationMeta(
+    'firstSeen',
+  );
+  @override
+  late final GeneratedColumn<DateTime> firstSeen = GeneratedColumn<DateTime>(
+    'first_seen',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastSeenMeta = const VerificationMeta(
+    'lastSeen',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSeen = GeneratedColumn<DateTime>(
+    'last_seen',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _photoCountMeta = const VerificationMeta(
+    'photoCount',
+  );
+  @override
+  late final GeneratedColumn<int> photoCount = GeneratedColumn<int>(
+    'photo_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _confidenceMeta = const VerificationMeta(
+    'confidence',
+  );
+  @override
+  late final GeneratedColumn<String> confidence = GeneratedColumn<String>(
+    'confidence',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nearestDistanceKmMeta = const VerificationMeta(
+    'nearestDistanceKm',
+  );
+  @override
+  late final GeneratedColumn<double> nearestDistanceKm =
+      GeneratedColumn<double>(
+        'nearest_distance_km',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    siteId,
+    name,
+    countryCode,
+    category,
+    latitude,
+    longitude,
+    inscriptionYear,
+    firstSeen,
+    lastSeen,
+    photoCount,
+    confidence,
+    nearestDistanceKm,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'visited_heritage_sites';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VisitedHeritageSiteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('site_id')) {
+      context.handle(
+        _siteIdMeta,
+        siteId.isAcceptableOrUnknown(data['site_id']!, _siteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_siteIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('country_code')) {
+      context.handle(
+        _countryCodeMeta,
+        countryCode.isAcceptableOrUnknown(
+          data['country_code']!,
+          _countryCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_countryCodeMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_latitudeMeta);
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_longitudeMeta);
+    }
+    if (data.containsKey('inscription_year')) {
+      context.handle(
+        _inscriptionYearMeta,
+        inscriptionYear.isAcceptableOrUnknown(
+          data['inscription_year']!,
+          _inscriptionYearMeta,
+        ),
+      );
+    }
+    if (data.containsKey('first_seen')) {
+      context.handle(
+        _firstSeenMeta,
+        firstSeen.isAcceptableOrUnknown(data['first_seen']!, _firstSeenMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_firstSeenMeta);
+    }
+    if (data.containsKey('last_seen')) {
+      context.handle(
+        _lastSeenMeta,
+        lastSeen.isAcceptableOrUnknown(data['last_seen']!, _lastSeenMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lastSeenMeta);
+    }
+    if (data.containsKey('photo_count')) {
+      context.handle(
+        _photoCountMeta,
+        photoCount.isAcceptableOrUnknown(data['photo_count']!, _photoCountMeta),
+      );
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+        _confidenceMeta,
+        confidence.isAcceptableOrUnknown(data['confidence']!, _confidenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_confidenceMeta);
+    }
+    if (data.containsKey('nearest_distance_km')) {
+      context.handle(
+        _nearestDistanceKmMeta,
+        nearestDistanceKm.isAcceptableOrUnknown(
+          data['nearest_distance_km']!,
+          _nearestDistanceKmMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nearestDistanceKmMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {siteId};
+  @override
+  VisitedHeritageSiteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VisitedHeritageSiteRow(
+      siteId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}site_id'],
+          )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      countryCode:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}country_code'],
+          )!,
+      category:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}category'],
+          )!,
+      latitude:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}latitude'],
+          )!,
+      longitude:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}longitude'],
+          )!,
+      inscriptionYear:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}inscription_year'],
+          )!,
+      firstSeen:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}first_seen'],
+          )!,
+      lastSeen:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}last_seen'],
+          )!,
+      photoCount:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}photo_count'],
+          )!,
+      confidence:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}confidence'],
+          )!,
+      nearestDistanceKm:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}nearest_distance_km'],
+          )!,
+    );
+  }
+
+  @override
+  $VisitedHeritageSitesTable createAlias(String alias) {
+    return $VisitedHeritageSitesTable(attachedDatabase, alias);
+  }
+}
+
+class VisitedHeritageSiteRow extends DataClass
+    implements Insertable<VisitedHeritageSiteRow> {
+  final String siteId;
+  final String name;
+  final String countryCode;
+  final String category;
+  final double latitude;
+  final double longitude;
+  final int inscriptionYear;
+  final DateTime firstSeen;
+  final DateTime lastSeen;
+  final int photoCount;
+  final String confidence;
+  final double nearestDistanceKm;
+  const VisitedHeritageSiteRow({
+    required this.siteId,
+    required this.name,
+    required this.countryCode,
+    required this.category,
+    required this.latitude,
+    required this.longitude,
+    required this.inscriptionYear,
+    required this.firstSeen,
+    required this.lastSeen,
+    required this.photoCount,
+    required this.confidence,
+    required this.nearestDistanceKm,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['site_id'] = Variable<String>(siteId);
+    map['name'] = Variable<String>(name);
+    map['country_code'] = Variable<String>(countryCode);
+    map['category'] = Variable<String>(category);
+    map['latitude'] = Variable<double>(latitude);
+    map['longitude'] = Variable<double>(longitude);
+    map['inscription_year'] = Variable<int>(inscriptionYear);
+    map['first_seen'] = Variable<DateTime>(firstSeen);
+    map['last_seen'] = Variable<DateTime>(lastSeen);
+    map['photo_count'] = Variable<int>(photoCount);
+    map['confidence'] = Variable<String>(confidence);
+    map['nearest_distance_km'] = Variable<double>(nearestDistanceKm);
+    return map;
+  }
+
+  VisitedHeritageSitesCompanion toCompanion(bool nullToAbsent) {
+    return VisitedHeritageSitesCompanion(
+      siteId: Value(siteId),
+      name: Value(name),
+      countryCode: Value(countryCode),
+      category: Value(category),
+      latitude: Value(latitude),
+      longitude: Value(longitude),
+      inscriptionYear: Value(inscriptionYear),
+      firstSeen: Value(firstSeen),
+      lastSeen: Value(lastSeen),
+      photoCount: Value(photoCount),
+      confidence: Value(confidence),
+      nearestDistanceKm: Value(nearestDistanceKm),
+    );
+  }
+
+  factory VisitedHeritageSiteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VisitedHeritageSiteRow(
+      siteId: serializer.fromJson<String>(json['siteId']),
+      name: serializer.fromJson<String>(json['name']),
+      countryCode: serializer.fromJson<String>(json['countryCode']),
+      category: serializer.fromJson<String>(json['category']),
+      latitude: serializer.fromJson<double>(json['latitude']),
+      longitude: serializer.fromJson<double>(json['longitude']),
+      inscriptionYear: serializer.fromJson<int>(json['inscriptionYear']),
+      firstSeen: serializer.fromJson<DateTime>(json['firstSeen']),
+      lastSeen: serializer.fromJson<DateTime>(json['lastSeen']),
+      photoCount: serializer.fromJson<int>(json['photoCount']),
+      confidence: serializer.fromJson<String>(json['confidence']),
+      nearestDistanceKm: serializer.fromJson<double>(json['nearestDistanceKm']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'siteId': serializer.toJson<String>(siteId),
+      'name': serializer.toJson<String>(name),
+      'countryCode': serializer.toJson<String>(countryCode),
+      'category': serializer.toJson<String>(category),
+      'latitude': serializer.toJson<double>(latitude),
+      'longitude': serializer.toJson<double>(longitude),
+      'inscriptionYear': serializer.toJson<int>(inscriptionYear),
+      'firstSeen': serializer.toJson<DateTime>(firstSeen),
+      'lastSeen': serializer.toJson<DateTime>(lastSeen),
+      'photoCount': serializer.toJson<int>(photoCount),
+      'confidence': serializer.toJson<String>(confidence),
+      'nearestDistanceKm': serializer.toJson<double>(nearestDistanceKm),
+    };
+  }
+
+  VisitedHeritageSiteRow copyWith({
+    String? siteId,
+    String? name,
+    String? countryCode,
+    String? category,
+    double? latitude,
+    double? longitude,
+    int? inscriptionYear,
+    DateTime? firstSeen,
+    DateTime? lastSeen,
+    int? photoCount,
+    String? confidence,
+    double? nearestDistanceKm,
+  }) => VisitedHeritageSiteRow(
+    siteId: siteId ?? this.siteId,
+    name: name ?? this.name,
+    countryCode: countryCode ?? this.countryCode,
+    category: category ?? this.category,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    inscriptionYear: inscriptionYear ?? this.inscriptionYear,
+    firstSeen: firstSeen ?? this.firstSeen,
+    lastSeen: lastSeen ?? this.lastSeen,
+    photoCount: photoCount ?? this.photoCount,
+    confidence: confidence ?? this.confidence,
+    nearestDistanceKm: nearestDistanceKm ?? this.nearestDistanceKm,
+  );
+  VisitedHeritageSiteRow copyWithCompanion(VisitedHeritageSitesCompanion data) {
+    return VisitedHeritageSiteRow(
+      siteId: data.siteId.present ? data.siteId.value : this.siteId,
+      name: data.name.present ? data.name.value : this.name,
+      countryCode:
+          data.countryCode.present ? data.countryCode.value : this.countryCode,
+      category: data.category.present ? data.category.value : this.category,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      inscriptionYear:
+          data.inscriptionYear.present
+              ? data.inscriptionYear.value
+              : this.inscriptionYear,
+      firstSeen: data.firstSeen.present ? data.firstSeen.value : this.firstSeen,
+      lastSeen: data.lastSeen.present ? data.lastSeen.value : this.lastSeen,
+      photoCount:
+          data.photoCount.present ? data.photoCount.value : this.photoCount,
+      confidence:
+          data.confidence.present ? data.confidence.value : this.confidence,
+      nearestDistanceKm:
+          data.nearestDistanceKm.present
+              ? data.nearestDistanceKm.value
+              : this.nearestDistanceKm,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedHeritageSiteRow(')
+          ..write('siteId: $siteId, ')
+          ..write('name: $name, ')
+          ..write('countryCode: $countryCode, ')
+          ..write('category: $category, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('inscriptionYear: $inscriptionYear, ')
+          ..write('firstSeen: $firstSeen, ')
+          ..write('lastSeen: $lastSeen, ')
+          ..write('photoCount: $photoCount, ')
+          ..write('confidence: $confidence, ')
+          ..write('nearestDistanceKm: $nearestDistanceKm')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    siteId,
+    name,
+    countryCode,
+    category,
+    latitude,
+    longitude,
+    inscriptionYear,
+    firstSeen,
+    lastSeen,
+    photoCount,
+    confidence,
+    nearestDistanceKm,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VisitedHeritageSiteRow &&
+          other.siteId == this.siteId &&
+          other.name == this.name &&
+          other.countryCode == this.countryCode &&
+          other.category == this.category &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.inscriptionYear == this.inscriptionYear &&
+          other.firstSeen == this.firstSeen &&
+          other.lastSeen == this.lastSeen &&
+          other.photoCount == this.photoCount &&
+          other.confidence == this.confidence &&
+          other.nearestDistanceKm == this.nearestDistanceKm);
+}
+
+class VisitedHeritageSitesCompanion
+    extends UpdateCompanion<VisitedHeritageSiteRow> {
+  final Value<String> siteId;
+  final Value<String> name;
+  final Value<String> countryCode;
+  final Value<String> category;
+  final Value<double> latitude;
+  final Value<double> longitude;
+  final Value<int> inscriptionYear;
+  final Value<DateTime> firstSeen;
+  final Value<DateTime> lastSeen;
+  final Value<int> photoCount;
+  final Value<String> confidence;
+  final Value<double> nearestDistanceKm;
+  final Value<int> rowid;
+  const VisitedHeritageSitesCompanion({
+    this.siteId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.countryCode = const Value.absent(),
+    this.category = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.inscriptionYear = const Value.absent(),
+    this.firstSeen = const Value.absent(),
+    this.lastSeen = const Value.absent(),
+    this.photoCount = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.nearestDistanceKm = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VisitedHeritageSitesCompanion.insert({
+    required String siteId,
+    required String name,
+    required String countryCode,
+    required String category,
+    required double latitude,
+    required double longitude,
+    this.inscriptionYear = const Value.absent(),
+    required DateTime firstSeen,
+    required DateTime lastSeen,
+    this.photoCount = const Value.absent(),
+    required String confidence,
+    required double nearestDistanceKm,
+    this.rowid = const Value.absent(),
+  }) : siteId = Value(siteId),
+       name = Value(name),
+       countryCode = Value(countryCode),
+       category = Value(category),
+       latitude = Value(latitude),
+       longitude = Value(longitude),
+       firstSeen = Value(firstSeen),
+       lastSeen = Value(lastSeen),
+       confidence = Value(confidence),
+       nearestDistanceKm = Value(nearestDistanceKm);
+  static Insertable<VisitedHeritageSiteRow> custom({
+    Expression<String>? siteId,
+    Expression<String>? name,
+    Expression<String>? countryCode,
+    Expression<String>? category,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<int>? inscriptionYear,
+    Expression<DateTime>? firstSeen,
+    Expression<DateTime>? lastSeen,
+    Expression<int>? photoCount,
+    Expression<String>? confidence,
+    Expression<double>? nearestDistanceKm,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (siteId != null) 'site_id': siteId,
+      if (name != null) 'name': name,
+      if (countryCode != null) 'country_code': countryCode,
+      if (category != null) 'category': category,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (inscriptionYear != null) 'inscription_year': inscriptionYear,
+      if (firstSeen != null) 'first_seen': firstSeen,
+      if (lastSeen != null) 'last_seen': lastSeen,
+      if (photoCount != null) 'photo_count': photoCount,
+      if (confidence != null) 'confidence': confidence,
+      if (nearestDistanceKm != null) 'nearest_distance_km': nearestDistanceKm,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VisitedHeritageSitesCompanion copyWith({
+    Value<String>? siteId,
+    Value<String>? name,
+    Value<String>? countryCode,
+    Value<String>? category,
+    Value<double>? latitude,
+    Value<double>? longitude,
+    Value<int>? inscriptionYear,
+    Value<DateTime>? firstSeen,
+    Value<DateTime>? lastSeen,
+    Value<int>? photoCount,
+    Value<String>? confidence,
+    Value<double>? nearestDistanceKm,
+    Value<int>? rowid,
+  }) {
+    return VisitedHeritageSitesCompanion(
+      siteId: siteId ?? this.siteId,
+      name: name ?? this.name,
+      countryCode: countryCode ?? this.countryCode,
+      category: category ?? this.category,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      inscriptionYear: inscriptionYear ?? this.inscriptionYear,
+      firstSeen: firstSeen ?? this.firstSeen,
+      lastSeen: lastSeen ?? this.lastSeen,
+      photoCount: photoCount ?? this.photoCount,
+      confidence: confidence ?? this.confidence,
+      nearestDistanceKm: nearestDistanceKm ?? this.nearestDistanceKm,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (siteId.present) {
+      map['site_id'] = Variable<String>(siteId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (countryCode.present) {
+      map['country_code'] = Variable<String>(countryCode.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (inscriptionYear.present) {
+      map['inscription_year'] = Variable<int>(inscriptionYear.value);
+    }
+    if (firstSeen.present) {
+      map['first_seen'] = Variable<DateTime>(firstSeen.value);
+    }
+    if (lastSeen.present) {
+      map['last_seen'] = Variable<DateTime>(lastSeen.value);
+    }
+    if (photoCount.present) {
+      map['photo_count'] = Variable<int>(photoCount.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<String>(confidence.value);
+    }
+    if (nearestDistanceKm.present) {
+      map['nearest_distance_km'] = Variable<double>(nearestDistanceKm.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedHeritageSitesCompanion(')
+          ..write('siteId: $siteId, ')
+          ..write('name: $name, ')
+          ..write('countryCode: $countryCode, ')
+          ..write('category: $category, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('inscriptionYear: $inscriptionYear, ')
+          ..write('firstSeen: $firstSeen, ')
+          ..write('lastSeen: $lastSeen, ')
+          ..write('photoCount: $photoCount, ')
+          ..write('confidence: $confidence, ')
+          ..write('nearestDistanceKm: $nearestDistanceKm, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RoavvyDatabase extends GeneratedDatabase {
   _$RoavvyDatabase(QueryExecutor e) : super(e);
   $RoavvyDatabaseManager get managers => $RoavvyDatabaseManager(this);
@@ -5039,6 +5773,8 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
   late final $TripsTable trips = $TripsTable(this);
   late final $XpEventsTable xpEvents = $XpEventsTable(this);
   late final $HeroImagesTable heroImages = $HeroImagesTable(this);
+  late final $VisitedHeritageSitesTable visitedHeritageSites =
+      $VisitedHeritageSitesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5055,6 +5791,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
     trips,
     xpEvents,
     heroImages,
+    visitedHeritageSites,
   ];
 }
 
@@ -7778,6 +8515,375 @@ typedef $$HeroImagesTableProcessedTableManager =
       HeroImageRow,
       PrefetchHooks Function()
     >;
+typedef $$VisitedHeritageSitesTableCreateCompanionBuilder =
+    VisitedHeritageSitesCompanion Function({
+      required String siteId,
+      required String name,
+      required String countryCode,
+      required String category,
+      required double latitude,
+      required double longitude,
+      Value<int> inscriptionYear,
+      required DateTime firstSeen,
+      required DateTime lastSeen,
+      Value<int> photoCount,
+      required String confidence,
+      required double nearestDistanceKm,
+      Value<int> rowid,
+    });
+typedef $$VisitedHeritageSitesTableUpdateCompanionBuilder =
+    VisitedHeritageSitesCompanion Function({
+      Value<String> siteId,
+      Value<String> name,
+      Value<String> countryCode,
+      Value<String> category,
+      Value<double> latitude,
+      Value<double> longitude,
+      Value<int> inscriptionYear,
+      Value<DateTime> firstSeen,
+      Value<DateTime> lastSeen,
+      Value<int> photoCount,
+      Value<String> confidence,
+      Value<double> nearestDistanceKm,
+      Value<int> rowid,
+    });
+
+class $$VisitedHeritageSitesTableFilterComposer
+    extends Composer<_$RoavvyDatabase, $VisitedHeritageSitesTable> {
+  $$VisitedHeritageSitesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get countryCode => $composableBuilder(
+    column: $table.countryCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get inscriptionYear => $composableBuilder(
+    column: $table.inscriptionYear,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get firstSeen => $composableBuilder(
+    column: $table.firstSeen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSeen => $composableBuilder(
+    column: $table.lastSeen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get photoCount => $composableBuilder(
+    column: $table.photoCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get nearestDistanceKm => $composableBuilder(
+    column: $table.nearestDistanceKm,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VisitedHeritageSitesTableOrderingComposer
+    extends Composer<_$RoavvyDatabase, $VisitedHeritageSitesTable> {
+  $$VisitedHeritageSitesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get countryCode => $composableBuilder(
+    column: $table.countryCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get inscriptionYear => $composableBuilder(
+    column: $table.inscriptionYear,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get firstSeen => $composableBuilder(
+    column: $table.firstSeen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSeen => $composableBuilder(
+    column: $table.lastSeen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get photoCount => $composableBuilder(
+    column: $table.photoCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get nearestDistanceKm => $composableBuilder(
+    column: $table.nearestDistanceKm,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VisitedHeritageSitesTableAnnotationComposer
+    extends Composer<_$RoavvyDatabase, $VisitedHeritageSitesTable> {
+  $$VisitedHeritageSitesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get siteId =>
+      $composableBuilder(column: $table.siteId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get countryCode => $composableBuilder(
+    column: $table.countryCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<int> get inscriptionYear => $composableBuilder(
+    column: $table.inscriptionYear,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get firstSeen =>
+      $composableBuilder(column: $table.firstSeen, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSeen =>
+      $composableBuilder(column: $table.lastSeen, builder: (column) => column);
+
+  GeneratedColumn<int> get photoCount => $composableBuilder(
+    column: $table.photoCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get nearestDistanceKm => $composableBuilder(
+    column: $table.nearestDistanceKm,
+    builder: (column) => column,
+  );
+}
+
+class $$VisitedHeritageSitesTableTableManager
+    extends
+        RootTableManager<
+          _$RoavvyDatabase,
+          $VisitedHeritageSitesTable,
+          VisitedHeritageSiteRow,
+          $$VisitedHeritageSitesTableFilterComposer,
+          $$VisitedHeritageSitesTableOrderingComposer,
+          $$VisitedHeritageSitesTableAnnotationComposer,
+          $$VisitedHeritageSitesTableCreateCompanionBuilder,
+          $$VisitedHeritageSitesTableUpdateCompanionBuilder,
+          (
+            VisitedHeritageSiteRow,
+            BaseReferences<
+              _$RoavvyDatabase,
+              $VisitedHeritageSitesTable,
+              VisitedHeritageSiteRow
+            >,
+          ),
+          VisitedHeritageSiteRow,
+          PrefetchHooks Function()
+        > {
+  $$VisitedHeritageSitesTableTableManager(
+    _$RoavvyDatabase db,
+    $VisitedHeritageSitesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$VisitedHeritageSitesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer:
+              () => $$VisitedHeritageSitesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer:
+              () => $$VisitedHeritageSitesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> siteId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> countryCode = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<double> latitude = const Value.absent(),
+                Value<double> longitude = const Value.absent(),
+                Value<int> inscriptionYear = const Value.absent(),
+                Value<DateTime> firstSeen = const Value.absent(),
+                Value<DateTime> lastSeen = const Value.absent(),
+                Value<int> photoCount = const Value.absent(),
+                Value<String> confidence = const Value.absent(),
+                Value<double> nearestDistanceKm = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VisitedHeritageSitesCompanion(
+                siteId: siteId,
+                name: name,
+                countryCode: countryCode,
+                category: category,
+                latitude: latitude,
+                longitude: longitude,
+                inscriptionYear: inscriptionYear,
+                firstSeen: firstSeen,
+                lastSeen: lastSeen,
+                photoCount: photoCount,
+                confidence: confidence,
+                nearestDistanceKm: nearestDistanceKm,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String siteId,
+                required String name,
+                required String countryCode,
+                required String category,
+                required double latitude,
+                required double longitude,
+                Value<int> inscriptionYear = const Value.absent(),
+                required DateTime firstSeen,
+                required DateTime lastSeen,
+                Value<int> photoCount = const Value.absent(),
+                required String confidence,
+                required double nearestDistanceKm,
+                Value<int> rowid = const Value.absent(),
+              }) => VisitedHeritageSitesCompanion.insert(
+                siteId: siteId,
+                name: name,
+                countryCode: countryCode,
+                category: category,
+                latitude: latitude,
+                longitude: longitude,
+                inscriptionYear: inscriptionYear,
+                firstSeen: firstSeen,
+                lastSeen: lastSeen,
+                photoCount: photoCount,
+                confidence: confidence,
+                nearestDistanceKm: nearestDistanceKm,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VisitedHeritageSitesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RoavvyDatabase,
+      $VisitedHeritageSitesTable,
+      VisitedHeritageSiteRow,
+      $$VisitedHeritageSitesTableFilterComposer,
+      $$VisitedHeritageSitesTableOrderingComposer,
+      $$VisitedHeritageSitesTableAnnotationComposer,
+      $$VisitedHeritageSitesTableCreateCompanionBuilder,
+      $$VisitedHeritageSitesTableUpdateCompanionBuilder,
+      (
+        VisitedHeritageSiteRow,
+        BaseReferences<
+          _$RoavvyDatabase,
+          $VisitedHeritageSitesTable,
+          VisitedHeritageSiteRow
+        >,
+      ),
+      VisitedHeritageSiteRow,
+      PrefetchHooks Function()
+    >;
 
 class $RoavvyDatabaseManager {
   final _$RoavvyDatabase _db;
@@ -7804,4 +8910,6 @@ class $RoavvyDatabaseManager {
       $$XpEventsTableTableManager(_db, _db.xpEvents);
   $$HeroImagesTableTableManager get heroImages =>
       $$HeroImagesTableTableManager(_db, _db.heroImages);
+  $$VisitedHeritageSitesTableTableManager get visitedHeritageSites =>
+      $$VisitedHeritageSitesTableTableManager(_db, _db.visitedHeritageSites);
 }

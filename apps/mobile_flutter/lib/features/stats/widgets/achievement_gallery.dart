@@ -29,6 +29,7 @@ class AchievementGallery extends StatelessWidget {
         AchievementCategory.continents => continentCount,
         AchievementCategory.trips => tripCount,
         AchievementCategory.thisYear => thisYearCount,
+        AchievementCategory.heritageSites => 0, // M119: wired up in future polish
       };
 
   List<Achievement> _forCategory(AchievementCategory cat) =>

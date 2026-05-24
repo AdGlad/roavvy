@@ -21,9 +21,11 @@ import '../map/globe_projection.dart';
 import '../xp/xp_event.dart';
 import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
+import '../../data/heritage_repository.dart';
 import '../../data/region_repository.dart';
 import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
+import '../heritage/world_heritage_lookup_service.dart';
 import '../../photo_scan_channel.dart';
 import '../visits/review_screen.dart';
 import 'hero_analysis_channel.dart';
@@ -279,6 +281,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   late final AchievementRepository _achievementRepo;
   late final TripRepository _tripRepo;
   late final RegionRepository _regionRepo;
+  late final HeritageRepository _heritageRepo;
 
   PhotoPermissionStatus? _permission;
   bool _loading = true;
@@ -314,6 +317,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     _achievementRepo = ref.read(achievementRepositoryProvider);
     _tripRepo = ref.read(tripRepositoryProvider);
     _regionRepo = ref.read(regionRepositoryProvider);
+    _heritageRepo = ref.read(heritageRepositoryProvider);
     _loadPersisted();
   }
 
@@ -422,6 +426,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final allPhotoGps = <PhotoGpsRecord>[];
       var totalProcessed = 0;
 
+      // M119: WHS accumulator keyed by siteId; merged across all batches.
+      final whsAccum = <String, VisitedHeritageSite>{};
+      // Snapshot of already-visited siteIds for new-discovery detection.
+      final preScanHeritageSiteIds =
+          (await _heritageRepo.loadAll()).map((s) => s.siteId).toSet();
+
       final scanStream = widget.scanStarter != null
           ? widget.scanStarter!(limit: 100000)
           : startPhotoScan(limit: 100000, sinceDate: sinceDate);
@@ -448,6 +458,54 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               ? await _resolveBatch(event.photos)
               : batchResult;
           allPhotoGps.addAll(gpsSource.photoGps);
+
+          // M119: WHS lookup — fast in-memory, no isolate needed (ADR-163).
+          if (gpsSource.photoGps.isNotEmpty) {
+            final gpsRecords = gpsSource.photoGps
+                .map((r) => (r.lat, r.lng, r.countryCode))
+                .toList();
+            final whsMatches = WorldHeritageLookupService.findBatch(gpsRecords);
+            for (int i = 0; i < whsMatches.length; i++) {
+              final match = whsMatches[i];
+              if (match == null) continue;
+              final gps = gpsSource.photoGps[i];
+              final siteId = match.site.siteId;
+              final existing = whsAccum[siteId];
+              if (existing == null) {
+                whsAccum[siteId] = VisitedHeritageSite(
+                  siteId: siteId,
+                  name: match.site.name,
+                  countryCode: match.site.countryCode,
+                  category: match.site.category,
+                  latitude: match.site.latitude,
+                  longitude: match.site.longitude,
+                  inscriptionYear: match.site.inscriptionYear,
+                  firstSeen: gps.capturedAt,
+                  lastSeen: gps.capturedAt,
+                  photoCount: 1,
+                  confidence: match.confidence,
+                  nearestDistanceKm: match.distanceKm,
+                );
+              } else {
+                whsAccum[siteId] = existing.copyWith(
+                  firstSeen: gps.capturedAt.isBefore(existing.firstSeen)
+                      ? gps.capturedAt
+                      : existing.firstSeen,
+                  lastSeen: gps.capturedAt.isAfter(existing.lastSeen)
+                      ? gps.capturedAt
+                      : existing.lastSeen,
+                  photoCount: existing.photoCount + 1,
+                  confidence: (existing.confidence == 'strong' ||
+                          match.confidence == 'strong')
+                      ? 'strong'
+                      : 'nearby',
+                  nearestDistanceKm:
+                      math.min(existing.nearestDistanceKm, match.distanceKm),
+                );
+              }
+            }
+          }
+
           // Progress counts the raw batch size (pre-filter) so the number
           // reflects photos inspected, not just new ones resolved.
           totalProcessed += event.photos.length;
@@ -538,15 +596,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       final effective = await _repo.loadEffective();
 
+      // M119: persist WHS visits and compute newly discovered sites.
+      await _heritageRepo.upsertAll(whsAccum.values.toList());
+      final newlyDiscoveredHeritageSites = whsAccum.values
+          .where((s) => !preScanHeritageSiteIds.contains(s.siteId))
+          .toList();
+      // Invalidate heritage provider so map layer refreshes.
+      if (mounted) ref.invalidate(visitedHeritageProvider);
+
       // Evaluate achievements and persist any newly unlocked ones.
       final priorIds = (await _achievementRepo.loadAll()).toSet();
       final tripCount = (await _tripRepo.loadAll()).length;
       final thisYear = DateTime.now().year;
       final thisYearCount = effective.where((v) => v.firstSeen?.year == thisYear).length;
+      // M119: pass heritage counts for WHS achievements (ADR-166).
+      final heritageCount = await _heritageRepo.loadVisitedCount();
+      final heritageByCategory = await _heritageRepo.loadVisitedCountByCategory();
       final unlockedIds = AchievementEngine.evaluate(
         effective,
         tripCount: tripCount,
         thisYearCountryCount: thisYearCount,
+        heritageCount: heritageCount,
+        heritageByCategory: heritageByCategory,
       );
       final newlyUnlockedIds = unlockedIds.difference(priorIds);
       if (newlyUnlockedIds.isNotEmpty) {
@@ -595,6 +666,22 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               awardedAt: preScanTimestamp,
             )));
           }
+        }
+
+        // M119: show heritage discovery toast (non-blocking, before summary nav).
+        if (newlyDiscoveredHeritageSites.isNotEmpty) {
+          final count = newlyDiscoveredHeritageSites.length;
+          final message = count == 1
+              ? 'World Heritage Site found — ${newlyDiscoveredHeritageSites.first.name}'
+              : '$count World Heritage Sites found';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              duration: const Duration(seconds: 4),
+              backgroundColor: const Color(0xFF1E3A5F),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
 
         if (scanResult is _NewCountriesFound) {

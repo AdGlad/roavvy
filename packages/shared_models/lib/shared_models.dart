@@ -25,3 +25,4 @@ export 'src/artwork_confirmation.dart';
 export 'src/mockup_approval.dart';
 export 'src/hero_image.dart';
 export 'src/hero_scoring_engine.dart';
+export 'src/world_heritage_site.dart';
