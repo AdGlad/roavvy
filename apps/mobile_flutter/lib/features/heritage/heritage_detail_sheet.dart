@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
-import '../../core/theme/roavvy_colours.dart';
 
 /// Shows a modal bottom sheet with details about a visited [VisitedHeritageSite].
 ///

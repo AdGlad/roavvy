@@ -8,6 +8,7 @@ import '../journal/journal_screen.dart';
 import '../journal/trip_detail_screen.dart';
 import '../map/country_detail_sheet.dart';
 import '../map/map_screen.dart';
+import '../merch/merch_cart_screen.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
 
@@ -147,29 +148,66 @@ class _MainShellState extends ConsumerState<MainShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map),
             label: 'Map',
           ),
           NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
+            icon: _CartBadgeIcon(
+              icon: Icons.list_alt_outlined,
+              cartCount: ref.watch(merchCartCountProvider),
+            ),
+            selectedIcon: _CartBadgeIcon(
+              icon: Icons.list_alt,
+              cartCount: ref.watch(merchCartCountProvider),
+            ),
             label: 'Journal',
           ),
           NavigationDestination(
-            icon: Icon(Icons.leaderboard_outlined),
-            selectedIcon: Icon(Icons.leaderboard),
+            icon: _CartBadgeIcon(
+              icon: Icons.leaderboard_outlined,
+              cartCount: ref.watch(merchCartCountProvider),
+            ),
+            selectedIcon: _CartBadgeIcon(
+              icon: Icons.leaderboard,
+              cartCount: ref.watch(merchCartCountProvider),
+            ),
             label: 'Stats',
           ),
           NavigationDestination(
-            icon: Icon(Icons.camera_alt_outlined),
-            selectedIcon: Icon(Icons.camera_alt),
+            icon: _CartBadgeIcon(
+              icon: Icons.camera_alt_outlined,
+              cartCount: ref.watch(merchCartCountProvider),
+            ),
+            selectedIcon: _CartBadgeIcon(
+              icon: Icons.camera_alt,
+              cartCount: ref.watch(merchCartCountProvider),
+            ),
             label: 'Scan',
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Cart badge icon ───────────────────────────────────────────────────────────
+
+/// Navigation icon with a small dot badge when there are active cart items.
+class _CartBadgeIcon extends StatelessWidget {
+  const _CartBadgeIcon({required this.icon, required this.cartCount});
+
+  final IconData icon;
+  final int cartCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (cartCount == 0) return Icon(icon);
+    return Badge(
+      isLabelVisible: true,
+      child: Icon(icon),
     );
   }
 }

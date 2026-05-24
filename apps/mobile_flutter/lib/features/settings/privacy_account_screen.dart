@@ -10,7 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers.dart';
 import '../account/account_deletion_service.dart';
 import '../legal/terms_screen.dart';
-import '../merch/merch_cart_screen.dart';
 import '../merch/merch_orders_screen.dart';
 import '../sharing/share_token_service.dart';
 
@@ -241,7 +240,6 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
                 _SectionHeader('Sharing'),
                 _shareToken != null ? _activeShareTile() : _inactiveShareTile(),
                 _SectionHeader('Orders'),
-                _cartTile(),
                 _ordersTile(),
                 _SectionHeader('Account'),
                 _deleteAccountTile(),
@@ -277,18 +275,6 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       trailing: TextButton(
         onPressed: _onCreateLink,
         child: const Text('Create link'),
-      ),
-    );
-  }
-
-  Widget _cartTile() {
-    return ListTile(
-      leading: const Icon(Icons.shopping_cart_outlined),
-      title: const Text('Your cart'),
-      subtitle: const Text('Saved designs & in-progress mockups'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const MerchCartScreen()),
       ),
     );
   }

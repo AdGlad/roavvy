@@ -16,6 +16,11 @@ final merchCartProvider = FutureProvider<List<MerchCartItem>>((ref) async {
   return MerchCartRepository(FirebaseFirestore.instance).loadActive(uid);
 });
 
+/// Count of active cart items — used for the nav-bar badge (M120).
+final merchCartCountProvider = Provider<int>((ref) {
+  return ref.watch(merchCartProvider).valueOrNull?.length ?? 0;
+});
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 /// Displays in-progress and saved merch designs for the current user.
