@@ -1,6 +1,6 @@
 # M119 — UNESCO World Heritage Site Detection & Achievements
 
-**Status:** Not started
+**Status:** Complete (2026-05-24)
 
 ## Goal
 
