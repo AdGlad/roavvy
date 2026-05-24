@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
 import '../../core/country_names.dart';
+import '../../core/theme/roavvy_colours.dart';
 import '../../core/providers.dart';
 import '../journal/trip_detail_screen.dart';
 import '../merch/pulse_merch_option_screen.dart';
@@ -43,7 +44,7 @@ class MemoryRevealSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: RoavvyColours.backgroundDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -143,8 +144,8 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
                 FilledButton(
                   onPressed: _reveal,
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.black87,
+                    backgroundColor: RoavvyColours.roavvyGold,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 40,
                       vertical: 14,
@@ -283,8 +284,8 @@ class _RevealedContent extends ConsumerWidget {
           icon: const Icon(Icons.share_outlined),
           label: const Text('Share memory'),
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.amber,
-            foregroundColor: Colors.black87,
+            backgroundColor: RoavvyColours.roavvyGold,
+            foregroundColor: Colors.white,
           ),
         ),
 

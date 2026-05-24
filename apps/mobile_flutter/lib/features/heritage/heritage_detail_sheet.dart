@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
+import '../../core/theme/roavvy_colours.dart';
 
 /// Shows a modal bottom sheet with details about a visited [VisitedHeritageSite].
 ///
@@ -27,10 +30,14 @@ class _HeritageDetailSheet extends StatelessWidget {
     final categoryLabel = _categoryLabel(site.category);
     final categoryColor = _categoryColor(site.category);
 
-    return Container(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D2137),
+        color: Colors.black.withOpacity(0.75),
         borderRadius: BorderRadius.circular(20),
       ),
       child: SafeArea(
@@ -151,6 +158,8 @@ class _HeritageDetailSheet extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
+import '../../core/theme/roavvy_colours.dart';
 import 'merch_context.dart';
 import 'merch_option_list_widgets.dart';
 import 'travel_identity.dart';
@@ -65,9 +66,9 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
 
     if (visitsAsync.isLoading || tripsAsync.isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0D1B2A),
+        backgroundColor: RoavvyColours.backgroundDark,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0D1B2A),
+          backgroundColor: RoavvyColours.backgroundDark,
           foregroundColor: Colors.white,
           title: const Text('Your travel shirt ideas'),
           elevation: 0,
@@ -80,9 +81,9 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
 
     if (visitsAsync.hasError || tripsAsync.hasError) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0D1B2A),
+        backgroundColor: RoavvyColours.backgroundDark,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0D1B2A),
+          backgroundColor: RoavvyColours.backgroundDark,
           foregroundColor: Colors.white,
           title: const Text('Your travel shirt ideas'),
           elevation: 0,
@@ -96,15 +97,18 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
                 style: TextStyle(color: Colors.white54),
               ),
               const SizedBox(height: 12),
-              TextButton(
+              ElevatedButton(
                 onPressed: () {
                   ref.invalidate(effectiveVisitsProvider);
                   ref.invalidate(tripListProvider);
                 },
-                child: const Text(
-                  'Retry',
-                  style: TextStyle(color: Colors.amber),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: RoavvyColours.roavvyCoral,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
                 ),
+                child: const Text('Retry'),
               ),
             ],
           ),
@@ -127,9 +131,9 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
     final identity = merchCtx.identity;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: RoavvyColours.backgroundDark,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D1B2A),
+        backgroundColor: RoavvyColours.backgroundDark,
         foregroundColor: Colors.white,
         title: const Text('Your travel shirt ideas'),
         elevation: 0,
