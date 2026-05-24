@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "roavvy-prod"
+    "default": "roavvy-prod",
+    "dev": "roavvy-dev"
   },
   "targets": {},
   "etags": {}
