@@ -19,12 +19,18 @@ class AchievementEngine {
   /// that do not yet supply this value — backward-compatible, ADR-148).
   /// [thisYearCountryCount] is the number of distinct countries first seen in
   /// the current calendar year (default 0 — backward-compatible).
+  /// [heritageCount] is the total number of visited UNESCO World Heritage Sites
+  /// (default 0 — backward-compatible, ADR-166).
+  /// [heritageByCategory] is a breakdown of visited WHS by category string
+  /// (`"cultural"`, `"natural"`, `"mixed"`). Default empty — backward-compatible.
   ///
   /// The returned [Set] contains only the IDs defined in [kAchievements].
   static Set<String> evaluate(
     List<EffectiveVisitedCountry> visits, {
     int tripCount = 0,
     int thisYearCountryCount = 0,
+    int heritageCount = 0,
+    Map<String, int> heritageByCategory = const {},
   }) {
     final countryCount = visits.length;
 
@@ -114,6 +120,17 @@ class AchievementEngine {
     if (stampCount >= 10) unlocked.add('passport_10');
     if (stampCount >= 25) unlocked.add('passport_25');
     if (stampCount >= 50) unlocked.add('passport_50');
+
+    // ── World Heritage Sites (M119, ADR-166) ───────────────────────────────
+    if (heritageCount >= 1) unlocked.add('whs_1');
+    if (heritageCount >= 5) unlocked.add('whs_5');
+    if (heritageCount >= 10) unlocked.add('whs_10');
+    if (heritageCount >= 25) unlocked.add('whs_25');
+    if (heritageCount >= 50) unlocked.add('whs_50');
+    if (heritageCount >= 100) unlocked.add('whs_100');
+    if ((heritageByCategory['natural'] ?? 0) >= 1) unlocked.add('whs_natural_1');
+    if ((heritageByCategory['cultural'] ?? 0) >= 1) unlocked.add('whs_cultural_1');
+    if ((heritageByCategory['mixed'] ?? 0) >= 1) unlocked.add('whs_mixed_1');
 
     return unlocked;
   }

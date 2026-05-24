@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../data/achievement_repository.dart';
+import '../data/heritage_repository.dart';
 import '../data/level_up_repository.dart';
 import '../data/milestone_repository.dart';
 import '../data/db/roavvy_database.dart';
@@ -68,6 +69,17 @@ final tripRepositoryProvider = Provider<TripRepository>(
 
 final achievementRepositoryProvider = Provider<AchievementRepository>(
   (ref) => AchievementRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+final heritageRepositoryProvider = Provider<HeritageRepository>(
+  (ref) => HeritageRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+/// All visited UNESCO World Heritage Sites for the current user.
+///
+/// Invalidated after each scan so the map layer and achievement screen refresh.
+final visitedHeritageProvider = FutureProvider<List<VisitedHeritageSite>>(
+  (ref) => ref.watch(heritageRepositoryProvider).loadAll(),
 );
 
 /// Set of unlocked achievement IDs for the current user (M110).

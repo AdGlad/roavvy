@@ -28,6 +28,7 @@ import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
 import 'region_chips_marker_layer.dart';
+import 'world_heritage_marker_layer.dart';
 import 'region_progress_notifier.dart';
 import 'rovy_bubble.dart';
 import 'stats_strip.dart';
@@ -258,6 +259,7 @@ class MapScreen extends ConsumerWidget {
                 CountryPolygonLayer(),
                 TargetCountryLayer(),
                 RegionChipsMarkerLayer(),
+                WorldHeritageMarkerLayer(),
               ],
             ),
           const Align(

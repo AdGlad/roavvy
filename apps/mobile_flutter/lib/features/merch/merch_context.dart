@@ -158,6 +158,7 @@ class MerchContext {
               v.firstSeen!.year == DateTime.now().year)
           .map((v) => v.countryCode)
           .toList(),
+      AchievementCategory.heritageSites => allCodes,
     };
   }
 
@@ -208,6 +209,7 @@ class MerchContext {
       AchievementCategory.trips when n == 1 => 'First Trip',
       AchievementCategory.trips => '$n Trips',
       AchievementCategory.thisYear => '$year Travels',
+      AchievementCategory.heritageSites => 'Heritage Sites',
     };
   }
 
@@ -229,6 +231,8 @@ class MerchContext {
       AchievementCategory.trips when n == 1 => 'Your first trip',
       AchievementCategory.trips => '$n trips around the world',
       AchievementCategory.thisYear => '$n countries visited in $year',
+      AchievementCategory.heritageSites =>
+        '$n UNESCO World Heritage ${n == 1 ? 'Site' : 'Sites'}',
     };
   }
 

@@ -26,6 +26,7 @@ class NextAchievementsCarousel extends StatelessWidget {
         AchievementCategory.continents => continentCount,
         AchievementCategory.trips => tripCount,
         AchievementCategory.thisYear => thisYearCount,
+        AchievementCategory.heritageSites => 0, // M119: wired up in future polish
       };
 
   @override
@@ -159,6 +160,7 @@ class _NextAchievementCard extends StatelessWidget {
         AchievementCategory.continents => 'continents',
         AchievementCategory.trips => 'trips',
         AchievementCategory.thisYear => 'countries this year',
+        AchievementCategory.heritageSites => 'heritage sites',
       };
 
   String _merchLabel(MerchTriggerType type) => switch (type) {

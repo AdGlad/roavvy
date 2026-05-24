@@ -15,6 +15,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'app.dart';
 import 'core/notification_service.dart';
 import 'core/providers.dart';
+import 'features/heritage/world_heritage_lookup_service.dart';
 import 'data/achievement_repository.dart';
 import 'data/bootstrap_service.dart';
 import 'data/db/roavvy_database.dart';
@@ -64,6 +65,11 @@ Future<void> main() async {
           .asUint8List(regionData.offsetInBytes, regionData.lengthInBytes);
       initCountryLookup(countryBytes);
       initRegionLookup(regionBytes);
+
+      // M119: load World Heritage Site dataset (ADR-164).
+      final whsJson =
+          await rootBundle.loadString('assets/geodata/whs_sites.json');
+      WorldHeritageLookupService.init(whsJson);
 
       final db = RoavvyDatabase(driftDatabase(name: 'roavvy'));
       final visitRepo = VisitRepository(db);

@@ -266,6 +266,35 @@ class Trips extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Stores one row per visited UNESCO World Heritage Site (M119, ADR-163).
+///
+/// Primary key is [siteId] (UNESCO `id_no` as a string) so each site appears
+/// exactly once regardless of how many photos matched it or from how many
+/// member countries a transboundary site was discovered.
+///
+/// [confidence] is the strongest match level ever observed: `"strong"` (≤ 2 km)
+/// or `"nearby"` (≤ 10 km). (ADR-165)
+///
+/// Never synced to Firestore in MVP — local-only.
+@DataClassName('VisitedHeritageSiteRow')
+class VisitedHeritageSites extends Table {
+  TextColumn get siteId => text()();
+  TextColumn get name => text()();
+  TextColumn get countryCode => text()();
+  TextColumn get category => text()();
+  RealColumn get latitude => real()();
+  RealColumn get longitude => real()();
+  IntColumn get inscriptionYear => integer().withDefault(const Constant(0))();
+  DateTimeColumn get firstSeen => dateTime()();
+  DateTimeColumn get lastSeen => dateTime()();
+  IntColumn get photoCount => integer().withDefault(const Constant(0))();
+  TextColumn get confidence => text()();
+  RealColumn get nearestDistanceKm => real()();
+
+  @override
+  Set<Column> get primaryKey => {siteId};
+}
+
 @DriftDatabase(tables: [
   ScanMetadata,
   InferredCountryVisits,
@@ -278,12 +307,13 @@ class Trips extends Table {
   Trips,
   XpEvents,
   HeroImages,
+  VisitedHeritageSites,
 ])
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -331,6 +361,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
         await m.addColumn(trips, trips.firstLng);
         await m.addColumn(trips, trips.lastLat);
         await m.addColumn(trips, trips.lastLng);
+      }
+      if (from < 13) {
+        await m.createTable(visitedHeritageSites);
       }
     },
   );

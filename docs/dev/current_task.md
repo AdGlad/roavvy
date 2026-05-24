@@ -1,7 +1,7 @@
 # Current Task
 
-**Milestone:** M117 — Terms & Conditions Acceptance Gate
-**Status:** ✅ Complete (2026-05-23)
+**Milestone:** M119 — UNESCO World Heritage Site Detection & Achievements
+**Status:** ✅ Complete (2026-05-24)
 
-All tasks implemented. See `docs/dev/milestones/m117-terms-and-conditions-acceptance-gate.md`.
+All tasks implemented. See `docs/dev/milestones/m119-world-heritage-site-detection.md`.
 Next milestone: TBD — see `backlog_active.md`.
