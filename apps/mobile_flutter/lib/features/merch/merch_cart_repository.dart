@@ -97,6 +97,19 @@ class MerchCartRepository {
         .toList();
   }
 
+  /// Real-time stream of active cart items ordered newest-first.
+  /// Automatically excludes purchased items client-side.
+  Stream<List<MerchCartItem>> watchActive(String uid) {
+    return _col(uid)
+        .orderBy('updatedAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => MerchCartItem.fromDoc(d.id, d.data()))
+            .where((item) => item.status != MerchCartItemStatus.purchased)
+            .toList());
+  }
+
   // ── Delete ──────────────────────────────────────────────────────────────────
 
   Future<void> delete(String uid, String itemId) async {

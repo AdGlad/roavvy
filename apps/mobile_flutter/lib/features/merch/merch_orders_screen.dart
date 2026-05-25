@@ -114,33 +114,55 @@ class MerchOrdersScreen extends ConsumerWidget {
       );
     }
 
-    final ordersAsync = ref.watch(merchOrdersProvider);
-
     return Scaffold(
       appBar: AppBar(title: const Text('My orders')),
-      body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Could not load orders: $e')),
-        data: (orders) {
-          if (orders.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'No orders yet. Head to the Shop to order your first '
-                  'personalised item.',
-                  textAlign: TextAlign.center,
-                ),
+      body: const MerchOrdersBody(),
+    );
+  }
+}
+
+/// Body-only orders widget — embeddable in tab views (e.g. MerchShopScreen).
+class MerchOrdersBody extends ConsumerWidget {
+  const MerchOrdersBody({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(authStateProvider);
+    final user = userAsync.valueOrNull;
+
+    if (user == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text('Sign in to view your orders.', textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    final ordersAsync = ref.watch(merchOrdersProvider);
+
+    return ordersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Could not load orders: $e')),
+      data: (orders) {
+        if (orders.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Text(
+                'No orders yet. Head to the Shop to order your first '
+                'personalised item.',
+                textAlign: TextAlign.center,
               ),
-            );
-          }
-          return ListView.separated(
-            itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) => _OrderTile(order: orders[i]),
+            ),
           );
-        },
-      ),
+        }
+        return ListView.separated(
+          itemCount: orders.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, i) => _OrderTile(order: orders[i]),
+        );
+      },
     );
   }
 }

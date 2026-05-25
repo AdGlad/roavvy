@@ -17,8 +17,6 @@ import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
 import '../cards/card_type_picker_screen.dart';
-import '../merch/merch_cart_screen.dart';
-import '../merch/merch_orders_screen.dart';
 import '../settings/privacy_account_screen.dart';
 import '../sharing/travel_card_share.dart';
 import '../memory/memory_pulse_card.dart';
@@ -336,6 +334,20 @@ class MapScreen extends ConsumerWidget {
                 ),
               ),
             ),
+          // Scan button — quick access without leaving the Map tab.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 56,
+            child: Material(
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(20),
+              child: IconButton(
+                icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
+                tooltip: 'Scan Photos',
+                onPressed: onNavigateToScan,
+              ),
+            ),
+          ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 8,
@@ -369,14 +381,6 @@ class MapScreen extends ConsumerWidget {
                   } else if (action == _MapMenuAction.createCard) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
                       builder: (_) => const CardTypePickerScreen(),
-                    ));
-                  } else if (action == _MapMenuAction.cart) {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const MerchCartScreen(),
-                    ));
-                  } else if (action == _MapMenuAction.orders) {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const MerchOrdersScreen(),
                     ));
                   } else if (action == _MapMenuAction.privacyAccount) {
                     Navigator.of(context).push(MaterialPageRoute<void>(
@@ -436,20 +440,6 @@ class MapScreen extends ConsumerWidget {
                         title: Text('Create card'),
                       ),
                     ),
-                  const PopupMenuItem(
-                    value: _MapMenuAction.cart,
-                    child: ListTile(
-                      leading: Icon(Icons.shopping_cart_outlined),
-                      title: Text('Your cart'),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: _MapMenuAction.orders,
-                    child: ListTile(
-                      leading: Icon(Icons.shopping_bag_outlined),
-                      title: Text('My orders'),
-                    ),
-                  ),
                   PopupMenuItem(
                     value: _MapMenuAction.deleteHistory,
                     child: ListTile(
@@ -561,8 +551,6 @@ enum _MapMenuAction {
   deleteHistory,
   shareMyMap,
   createCard,
-  cart,
-  orders,
   privacyAccount,
   signOut,
   filterByYear,

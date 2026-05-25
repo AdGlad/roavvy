@@ -6,14 +6,17 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
+import 'merch_order_confirmation_screen.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
-/// Loads active (non-purchased) cart items for the current user (M120).
-final merchCartProvider = FutureProvider<List<MerchCartItem>>((ref) async {
+/// Real-time stream of active (non-purchased) cart items for the current user (M120).
+/// Uses a Firestore snapshot stream so the cart updates automatically when items
+/// are added or updated (e.g. after createMerchCart completes).
+final merchCartProvider = StreamProvider<List<MerchCartItem>>((ref) {
   final uid = ref.watch(currentUidProvider);
-  if (uid == null) return const [];
-  return MerchCartRepository(FirebaseFirestore.instance).loadActive(uid);
+  if (uid == null) return Stream.value(const <MerchCartItem>[]);
+  return MerchCartRepository(FirebaseFirestore.instance).watchActive(uid);
 });
 
 /// Count of active cart items — used for the nav-bar badge (M120).
@@ -144,7 +147,7 @@ class _CartItemTile extends StatelessWidget {
     // Navigate to the confirmation screen for this cart item.
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _CartItemCheckoutScreen(item: item),
+        builder: (_) => CartItemCheckoutScreen(item: item),
       ),
     );
   }
@@ -268,17 +271,17 @@ class _StatusBadge extends StatelessWidget {
 /// Minimal screen that shows the saved cart item and launches checkout.
 ///
 /// Reached by tapping a `mockupReady` cart item.
-class _CartItemCheckoutScreen extends StatefulWidget {
-  const _CartItemCheckoutScreen({required this.item});
+class CartItemCheckoutScreen extends StatefulWidget {
+  const CartItemCheckoutScreen({super.key, required this.item});
 
   final MerchCartItem item;
 
   @override
-  State<_CartItemCheckoutScreen> createState() =>
+  State<CartItemCheckoutScreen> createState() =>
       _CartItemCheckoutScreenState();
 }
 
-class _CartItemCheckoutScreenState extends State<_CartItemCheckoutScreen> {
+class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
   bool _confirmed = false;
 
   Future<void> _launchCheckout() async {
@@ -292,6 +295,13 @@ class _CartItemCheckoutScreenState extends State<_CartItemCheckoutScreen> {
       );
     }
   }
+
+  static String _positionLabel(String position) => switch (position) {
+        'center'      => 'Centre',
+        'left_chest'  => 'Left Chest',
+        'right_chest' => 'Right Chest',
+        _             => 'None',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -352,6 +362,16 @@ class _CartItemCheckoutScreenState extends State<_CartItemCheckoutScreen> {
                             _Row(label: 'Colour', value: item.colour),
                             const SizedBox(height: 8),
                             _Row(label: 'Size', value: item.size),
+                            const SizedBox(height: 8),
+                            _Row(
+                              label: 'Front print',
+                              value: _positionLabel(item.frontPosition),
+                            ),
+                            const SizedBox(height: 8),
+                            _Row(
+                              label: 'Back print',
+                              value: _positionLabel(item.backPosition),
+                            ),
                           ] else
                             _Row(label: 'Size', value: item.size),
                           const SizedBox(height: 8),
@@ -364,12 +384,15 @@ class _CartItemCheckoutScreenState extends State<_CartItemCheckoutScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  const MerchCustomProductWarning(),
+                  const SizedBox(height: 16),
                   CheckboxListTile(
                     value: _confirmed,
                     onChanged: (v) => setState(() => _confirmed = v ?? false),
                     controlAffinity: ListTileControlAffinity.leading,
                     title: const Text(
-                      'I confirm the size, colour, and design shown above are correct.',
+                      'I confirm the size, colour, design, and print positions '
+                      'shown above are correct.',
                     ),
                   ),
                 ],

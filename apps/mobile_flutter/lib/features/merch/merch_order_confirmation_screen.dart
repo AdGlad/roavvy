@@ -125,7 +125,7 @@ class _MerchOrderConfirmationScreenState
                     isTshirt: widget.isTshirt,
                   ),
                   const SizedBox(height: 16),
-                  const _WarningBox(),
+                  const MerchCustomProductWarning(),
                   const SizedBox(height: 16),
                   CheckboxListTile(
                     value: _confirmed,
@@ -413,8 +413,10 @@ class _SummaryRow extends StatelessWidget {
 
 // ── Warning box ───────────────────────────────────────────────────────────────
 
-class _WarningBox extends StatelessWidget {
-  const _WarningBox();
+/// Amber warning box shown before checkout reminding users this is a
+/// custom-made, non-refundable product. Shared between confirmation flows.
+class MerchCustomProductWarning extends StatelessWidget {
+  const MerchCustomProductWarning({super.key});
 
   @override
   Widget build(BuildContext context) {

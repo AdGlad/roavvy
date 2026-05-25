@@ -9,16 +9,20 @@ import '../journal/trip_detail_screen.dart';
 import '../map/country_detail_sheet.dart';
 import '../map/map_screen.dart';
 import '../merch/merch_cart_screen.dart';
+import '../merch/merch_shop_screen.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
 
-/// Bottom navigation shell with four tabs: Map · Journal · Stats · Scan.
+/// Bottom navigation shell with four tabs: Map · Journal · Stats · Shop.
 ///
 /// Tab index contract (ADR-052):
 ///   0 — Map
 ///   1 — Journal
 ///   2 — Stats
-///   3 — Scan
+///   3 — Shop (Cart + Orders)
+///
+/// Scan is no longer a nav tab. It is accessible via the Scan button on the
+/// Map screen (top-right floating button) and from Journal/Map empty states.
 ///
 /// Uses [IndexedStack] to keep all screens alive, preserving scroll position
 /// and map state on tab switch. After a scan completes, [ScanScreen] calls
@@ -131,7 +135,17 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   void _goToMap() => setState(() => _selectedIndex = 0);
-  void _goToScan() => setState(() => _selectedIndex = 3);
+
+  /// Pushes the Scan screen as a full-screen modal.
+  /// Scan is no longer a nav-bar tab — it's accessed from the Map button.
+  void _goToScan() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ScanScreen(onScanComplete: _goToMap),
+        fullscreenDialog: true,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +156,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           MapScreen(onNavigateToScan: _goToScan),
           JournalScreen(onNavigateToScan: _goToScan),
           const StatsScreen(),
-          ScanScreen(onScanComplete: _goToMap),
+          const MerchShopScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -154,38 +168,26 @@ class _MainShellState extends ConsumerState<MainShell> {
             selectedIcon: Icon(Icons.map),
             label: 'Map',
           ),
-          NavigationDestination(
-            icon: _CartBadgeIcon(
-              icon: Icons.list_alt_outlined,
-              cartCount: ref.watch(merchCartCountProvider),
-            ),
-            selectedIcon: _CartBadgeIcon(
-              icon: Icons.list_alt,
-              cartCount: ref.watch(merchCartCountProvider),
-            ),
+          const NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt),
             label: 'Journal',
           ),
-          NavigationDestination(
-            icon: _CartBadgeIcon(
-              icon: Icons.leaderboard_outlined,
-              cartCount: ref.watch(merchCartCountProvider),
-            ),
-            selectedIcon: _CartBadgeIcon(
-              icon: Icons.leaderboard,
-              cartCount: ref.watch(merchCartCountProvider),
-            ),
+          const NavigationDestination(
+            icon: Icon(Icons.leaderboard_outlined),
+            selectedIcon: Icon(Icons.leaderboard),
             label: 'Stats',
           ),
           NavigationDestination(
             icon: _CartBadgeIcon(
-              icon: Icons.camera_alt_outlined,
+              icon: Icons.storefront_outlined,
               cartCount: ref.watch(merchCartCountProvider),
             ),
             selectedIcon: _CartBadgeIcon(
-              icon: Icons.camera_alt,
+              icon: Icons.storefront,
               cartCount: ref.watch(merchCartCountProvider),
             ),
-            label: 'Scan',
+            label: 'Shop',
           ),
         ],
       ),

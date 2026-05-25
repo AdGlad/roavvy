@@ -17,6 +17,7 @@ import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
+import 'merch_cart_screen.dart';
 import 'merch_customisation_sheet.dart';
 import 'merch_title_wordbank.dart';
 import 'merch_order_confirmation_screen.dart';
@@ -1418,6 +1419,23 @@ class _LocalMockupPreviewScreenState
     );
   }
 
+  /// Navigates to the cart screen so the user can return to their saved design later.
+  /// The cart item is already persisted in Firestore at this point (created during
+  /// [_onApprove]), so no additional write is needed.
+  void _saveToCartAndNavigate() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Design saved to your cart.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const MerchCartScreen(),
+      ),
+    );
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -1441,7 +1459,7 @@ class _LocalMockupPreviewScreenState
       child: Scaffold(
         backgroundColor: theme.colorScheme.surface,
         appBar: AppBar(
-          title: Text('${_isTshirt ? 'T-Shirt' : 'Poster'} Design'),
+          title: Text('${_isTshirt ? 'T-Shirt' : 'Poster'} Preview'),
           actions: [
             if (_artworkBytes != null)
               IconButton(
@@ -2318,7 +2336,12 @@ class _LocalMockupPreviewScreenState
     final theme = Theme.of(context);
 
     if (_state == _MockupState.ready) {
-      final mockupReady = _mockupUrl != null || _mockupFailed;
+      // Checkout is only allowed when Printful returned an actual mockup URL.
+      // If the mockup timed out or failed, the user can only save to cart and
+      // return later — we do not want them purchasing without seeing the preview.
+      final mockupLoaded = _mockupUrl != null;
+      final mockupStillLoading = !mockupLoaded && !_mockupFailed;
+
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -2337,7 +2360,8 @@ class _LocalMockupPreviewScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Preview skipped due to connection \u2014 you can still proceed.',
+                      'Your preview couldn\u2019t be generated right now. '
+                      'Save to cart and come back later to checkout.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.amber.shade800,
                       ),
@@ -2349,15 +2373,27 @@ class _LocalMockupPreviewScreenState
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: mockupReady ? _openConfirmationScreen : null,
+              onPressed: mockupLoaded ? _openConfirmationScreen : null,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                mockupReady ? 'Review & Checkout' : 'Loading Preview\u2026',
+                mockupStillLoading ? 'Loading Preview\u2026' : 'Review & Checkout',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => _saveToCartAndNavigate(),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Save to Cart'),
             ),
           ),
         ],
