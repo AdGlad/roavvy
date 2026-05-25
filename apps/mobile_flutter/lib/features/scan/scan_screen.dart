@@ -3,6 +3,7 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:confetti/confetti.dart';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
@@ -1171,6 +1172,9 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   DateTime? _toastShownAt;
   Timer? _toastReplaceTimer;
 
+  // ── Audio (M124) ─────────────────────────────────────────────────────────────
+  final AudioPlayer _scanAudio = AudioPlayer();
+
   // ── Heritage toast state (T4, M123) ──────────────────────────────────────────
   String? _heritageToastSiteName;
   int _heritageToastExtraCount = 0;
@@ -1323,6 +1327,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   void _showHeritageToast(List<String> siteNames) {
     _heritageToastTimer?.cancel();
     if (!mounted || siteNames.isEmpty) return;
+    _scanAudio.play(AssetSource('audio/scan_heritage_discovery.wav'));
     setState(() {
       _heritageToastSiteName = siteNames.first;
       _heritageToastExtraCount = siteNames.length - 1;
@@ -1350,10 +1355,13 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     switch (level) {
       case _CelebrationLevel.micro:
         _microCtrl?.play();
+        _scanAudio.play(AssetSource('audio/scan_country_discovery.wav'));
       case _CelebrationLevel.medium:
         _mediumCtrl?.play();
+        _scanAudio.play(AssetSource('audio/scan_continent_discovery.wav'));
       case _CelebrationLevel.full:
         _fullCtrl?.play();
+        _scanAudio.play(AssetSource('audio/scan_major_milestone.wav'));
     }
   }
 
@@ -1365,6 +1373,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     _heritageToastTimer?.cancel();
     _heritageToastDelayTimer?.cancel();
     _heritageToastCtrl?.dispose();
+    _scanAudio.dispose();
     _microCtrl?.dispose();
     _mediumCtrl?.dispose();
     _fullCtrl?.dispose();
