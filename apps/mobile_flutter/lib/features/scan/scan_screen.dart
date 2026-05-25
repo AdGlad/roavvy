@@ -310,6 +310,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// Unmodifiable; derived from [_effectiveVisits] before scanning begins.
   List<_DiscoveryEntry> _existingEntriesAtScanStart = const [];
 
+  /// Number of unique heritage sites found so far in the current scan (T2, M123).
+  /// Updated live from [whsAccum.length] in the scan loop. Reset at scan start.
+  int _liveHeritageCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -405,6 +409,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _error = null;
       _scanProgress = const _ScanProgress(processed: 0);
       _liveNewEntries.clear();
+      _liveHeritageCount = 0;
       // T1/T2: expose snapshot to build() immediately (T4: pill shown now).
       _existingEntriesAtScanStart = existingEntriesSnapshot;
     });
@@ -542,6 +547,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 countriesFound: _liveNewEntries.length,
               );
               // _liveNewEntries is updated in-place; setState triggers rebuild.
+              // Update live heritage count from whsAccum (T2, M123).
+              _liveHeritageCount = whsAccum.length;
             });
           }
         }
@@ -759,6 +766,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _scanning = false;
           _scanProgress = null;
           _existingEntriesAtScanStart = const [];
+          _liveHeritageCount = 0;
         });
       }
     }
@@ -886,6 +894,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                         firstSeenYear: v.firstSeen?.year,
                                       )).toList(),
                               isScanning: _scanning,
+                              liveHeritageCount: _liveHeritageCount,
                             ),
                           )
                         // No data yet paths:
@@ -1128,6 +1137,7 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.liveNewEntries = const [],
     this.existingEntries = const [],
     this.isScanning = false,
+    this.liveHeritageCount = 0,
   });
 
   final _ScanProgress? progress;
@@ -1144,12 +1154,15 @@ class _ScanningView extends ConsumerStatefulWidget {
   /// and count text visibility — false at rest (M78).
   final bool isScanning;
 
+  /// Number of unique UNESCO heritage sites found so far in this scan (T2, M123).
+  final int liveHeritageCount;
+
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
 }
 
 class _ScanningViewState extends ConsumerState<_ScanningView> {
-  // ── Toast state ──────────────────────────────────────────────────────────────
+  // ── Country toast state ───────────────────────────────────────────────────────
   _DiscoveryEntry? _toastEntry;
   AnimationController? _toastCtrl;
   Animation<Offset>? _toastSlide;
@@ -1157,6 +1170,14 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   // Rate-limiting: don't replace a toast that has been shown for less than 500ms (T5, M122).
   DateTime? _toastShownAt;
   Timer? _toastReplaceTimer;
+
+  // ── Heritage toast state (T4, M123) ──────────────────────────────────────────
+  String? _heritageToastSiteName;
+  int _heritageToastExtraCount = 0;
+  AnimationController? _heritageToastCtrl;
+  Animation<Offset>? _heritageToastSlide;
+  Timer? _heritageToastTimer;
+  Timer? _heritageToastDelayTimer;
 
   // ── Confetti ─────────────────────────────────────────────────────────────────
   // Three priority tiers (M122, ADR-169): micro = country, medium = new continent,
@@ -1204,6 +1225,13 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
         });
         _showToast(newEntry);
         _burst(_celebrationLevelFor(addedEntries));
+        // Heritage discovery toast — fires 400ms after country toast (T4, M123).
+        if (newEntry.heritageSiteNames.isNotEmpty) {
+          _heritageToastDelayTimer?.cancel();
+          _heritageToastDelayTimer = Timer(const Duration(milliseconds: 400), () {
+            if (mounted) _showHeritageToast(newEntry.heritageSiteNames);
+          });
+        }
         // First-country cinematic — only when no existing countries before scan.
         if (!_firstCountryCinematicShown && widget.existingEntries.isEmpty) {
           _firstCountryCinematicShown = true;
@@ -1292,6 +1320,31 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     });
   }
 
+  void _showHeritageToast(List<String> siteNames) {
+    _heritageToastTimer?.cancel();
+    if (!mounted || siteNames.isEmpty) return;
+    setState(() {
+      _heritageToastSiteName = siteNames.first;
+      _heritageToastExtraCount = siteNames.length - 1;
+    });
+    _heritageToastCtrl?.dispose();
+    _heritageToastCtrl = AnimationController(
+      vsync: Navigator.of(context),
+      duration: const Duration(milliseconds: 300),
+    );
+    _heritageToastSlide = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _heritageToastCtrl!, curve: Curves.easeOut));
+    _heritageToastCtrl!.forward();
+    _heritageToastTimer = Timer(const Duration(milliseconds: 3000), () {
+      if (!mounted) return;
+      _heritageToastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _heritageToastSiteName = null);
+      });
+    });
+  }
+
   void _burst(_CelebrationLevel level) {
     if (MediaQuery.disableAnimationsOf(context)) return;
     switch (level) {
@@ -1309,6 +1362,9 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     _toastTimer?.cancel();
     _toastReplaceTimer?.cancel();
     _toastCtrl?.dispose();
+    _heritageToastTimer?.cancel();
+    _heritageToastDelayTimer?.cancel();
+    _heritageToastCtrl?.dispose();
     _microCtrl?.dispose();
     _mediumCtrl?.dispose();
     _fullCtrl?.dispose();
@@ -1390,10 +1446,11 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
           children: [
             // Emotional phase header — only during active scan (T1, M121).
             if (widget.isScanning) _buildScanHeader(theme),
-            // Live stats bar — countries · continents · photos (T3, M122).
+            // Live stats bar — countries · continents · heritage (T3, M122/M123).
             _ScanStatsBar(
               liveNewEntries: widget.liveNewEntries,
               existingEntries: widget.existingEntries,
+              liveHeritageCount: widget.liveHeritageCount,
               visible: widget.isScanning,
             ),
             // Globe — flexible hero (T2, M121).
@@ -1416,7 +1473,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
             ),
           ],
         ),
-        // Toast overlay (T5, M121 — enhanced with firstSeenYear).
+        // Country toast overlay (T5, M121 — enhanced with firstSeenYear).
         if (_toastEntry != null && _toastSlide != null)
           Positioned(
             top: 0,
@@ -1425,6 +1482,21 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
             child: SlideTransition(
               position: _toastSlide!,
               child: _DiscoveryToastBanner(entry: _toastEntry!),
+            ),
+          ),
+        // Heritage toast overlay — gold-themed, fires 400ms after country toast (T4, M123).
+        if (_heritageToastSiteName != null && _heritageToastSlide != null && !reduceMotion)
+          Positioned(
+            // Offset below country toast when both are active simultaneously.
+            top: _toastEntry != null ? 68.0 : 0.0,
+            left: 0,
+            right: 0,
+            child: SlideTransition(
+              position: _heritageToastSlide!,
+              child: _HeritageToastBanner(
+                siteName: _heritageToastSiteName!,
+                extraCount: _heritageToastExtraCount,
+              ),
             ),
           ),
         // Confetti — three priority tiers (M122, ADR-169). Skip when reduce-motion enabled.
@@ -1486,21 +1558,28 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   }
 }
 
-// ── Live scan stats bar (T3, M122) ────────────────────────────────────────────
+// ── Live scan stats bar (T3, M122/M123) ───────────────────────────────────────
 
-/// Single-line stats row shown only while scanning: "14 countries · 3 continents · 1,204 photos".
+/// Single-line stats row shown only while scanning.
+///
+/// Format: "14/244 countries · 3/7 continents [· 7/1,157 heritage sites]"
 ///
 /// Fades in when [visible] is true, fades out when false.
 class _ScanStatsBar extends StatelessWidget {
   const _ScanStatsBar({
     required this.liveNewEntries,
     required this.existingEntries,
+    required this.liveHeritageCount,
     required this.visible,
   });
 
   final List<_DiscoveryEntry> liveNewEntries;
   final List<_DiscoveryEntry> existingEntries;
+  final int liveHeritageCount;
   final bool visible;
+
+  static const int _totalCountries = 244;
+  static const int _totalContinents = 7;
 
   @override
   Widget build(BuildContext context) {
@@ -1512,12 +1591,13 @@ class _ScanStatsBar extends StatelessWidget {
         .whereType<String>()
         .toSet()
         .length;
-    final photosCount = allEntries.fold<int>(0, (sum, e) => sum + e.photoCount);
+    final totalHeritage = WorldHeritageLookupService.totalSiteCount;
 
     final parts = <String>[
-      '$countriesCount ${countriesCount == 1 ? 'country' : 'countries'}',
-      '$continentsCount ${continentsCount == 1 ? 'continent' : 'continents'}',
-      if (photosCount > 0) _fmtCount(photosCount),
+      '$countriesCount/$_totalCountries countries',
+      '$continentsCount/$_totalContinents continents',
+      if (liveHeritageCount > 0 && totalHeritage > 0)
+        '$liveHeritageCount/${_fmtN(totalHeritage)} heritage',
     ];
 
     return AnimatedOpacity(
@@ -1536,11 +1616,15 @@ class _ScanStatsBar extends StatelessWidget {
     );
   }
 
-  static String _fmtCount(int n) {
-    if (n >= 1000) {
-      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}k photos';
+  /// Format integer with comma thousands separator (e.g. 1157 → "1,157").
+  static String _fmtN(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
     }
-    return '$n photos';
+    return buf.toString();
   }
 }
 
@@ -1672,6 +1756,74 @@ class _DiscoveryToastBanner extends StatelessWidget {
   static String _heritageText(List<String> names) {
     if (names.length == 1) return '🏛 ${names.first}';
     return '🏛 ${names.length} World Heritage Sites';
+  }
+}
+
+// ── Heritage discovery toast (T4, M123) ───────────────────────────────────────
+
+/// Gold-themed toast shown when a new UNESCO World Heritage Site is discovered.
+///
+/// Distinct from [_DiscoveryToastBanner] — fires 400 ms after the country toast
+/// when both occur in the same batch, positioned below the country toast.
+class _HeritageToastBanner extends StatelessWidget {
+  const _HeritageToastBanner({
+    required this.siteName,
+    required this.extraCount,
+  });
+
+  final String siteName;
+  final int extraCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = extraCount > 0 ? '$siteName +$extraCount more' : siteName;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.amber[700]!.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('🏛', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'World Heritage Site',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

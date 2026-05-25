@@ -13,7 +13,7 @@
 **Scope in:** `WorldHeritageLookupService.totalSiteCount` getter; `_liveHeritageCount` state field; `_ScanStatsBar` totals; `_HeritageToastBanner` widget; `_ScanningView` heritage toast wiring.
 **Scope out:** Sound design, achievements during scan, gold pulse on map, heritage progress widget.
 **Full plan:** `docs/dev/milestones/m123-scan-live-heritage-stats-totals.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-05-25)
 
 ---
 
