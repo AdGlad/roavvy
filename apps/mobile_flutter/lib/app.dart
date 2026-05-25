@@ -147,11 +147,11 @@ class _OnboardingGate extends ConsumerStatefulWidget {
 }
 
 class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
-  int _initialTab = 0;
+  bool _openScanOnLoad = false;
   bool _termsShowing = false;
 
   Future<void> _completeOnboarding({bool goToScan = false}) async {
-    if (mounted) setState(() => _initialTab = goToScan ? 3 : 0);
+    if (mounted) setState(() => _openScanOnLoad = goToScan);
     ref.invalidate(onboardingCompleteProvider);
   }
 
@@ -188,7 +188,7 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
 
     return onboardingAsync.when(
       data: (complete) => complete
-          ? MainShell(initialTab: _initialTab)
+          ? MainShell(openScanOnLoad: _openScanOnLoad)
           : OnboardingFlow(onComplete: _completeOnboarding),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),

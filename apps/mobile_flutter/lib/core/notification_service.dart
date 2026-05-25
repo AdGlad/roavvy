@@ -3,8 +3,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 // Tab index contract from ADR-052 / MainShell:
+// Scan is no longer a nav tab (removed when Shop was added). Nudge
+// notifications navigate to Map (0) where the Scan button is prominent.
 const int _kStatsTab = 2;
-const int _kScanTab = 3;
+const int _kScanTab = 0; // Map tab — Scan is a modal launched from Map
 
 const int _kNudgeNotificationId = 0;
 const int _kAchievementNotificationId = 1;
@@ -263,7 +265,7 @@ class NotificationService {
   }
 
   /// Cancels any pending scan nudge and schedules a new one 30 days from now.
-  /// Tapping it switches to the Scan tab (index 3).
+  /// Tapping it navigates to the Map tab (index 0) where the Scan button lives.
   Future<void> scheduleNudge() async {
     if (!_initialized) return;
     await _plugin.cancel(_kNudgeNotificationId);
