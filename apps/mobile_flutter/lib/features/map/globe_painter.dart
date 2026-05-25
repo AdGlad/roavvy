@@ -52,6 +52,10 @@ class GlobePainter extends CustomPainter {
     required this.projection,
     this.highlightedCode,
     this.pulseValue = 0.0,
+    this.culturalSiteCoords = const [],
+    this.naturalSiteCoords = const [],
+    this.unvisitedHeritageSiteCoords = const [],
+    this.heritagePulseValue = 0.0,
   });
 
   final List<CountryPolygon> polygons;
@@ -64,6 +68,18 @@ class GlobePainter extends CustomPainter {
 
   /// Animation value 0.0–1.0 driving the halo opacity and size. 0.0 = hidden.
   final double pulseValue;
+
+  /// GPS coords of Cultural/Mixed UNESCO sites (amber dots) (M126/M128).
+  final List<(double lat, double lng)> culturalSiteCoords;
+
+  /// GPS coords of Natural UNESCO sites (green dots) (M128).
+  final List<(double lat, double lng)> naturalSiteCoords;
+
+  /// GPS coords of unvisited UNESCO sites — dim static amber (M129).
+  final List<(double lat, double lng)> unvisitedHeritageSiteCoords;
+
+  /// Animation value 0.0–1.0 driving heritage site dot pulse. 0.0 = hidden glow.
+  final double heritagePulseValue;
 
   static const _kSuppressed = {'AQ'};
   static const _kStrokeWidth = 0.3;
@@ -128,6 +144,47 @@ class GlobePainter extends CustomPainter {
           );
         }
       }
+    }
+
+    // 5. Heritage site dots (M126/M128).
+    // Cultural/Mixed = amber; Natural = green.
+    // Inner dot always visible; outer glow ring pulses.
+    void paintHeritageDots(
+        List<(double, double)> coords, Color dotColor, Color glowColor) {
+      for (final coord in coords) {
+        final pt = projection.project(coord.$1, coord.$2, size);
+        if (pt == null) continue;
+        if (heritagePulseValue > 0.0) {
+          canvas.drawCircle(
+            pt,
+            r * 0.04 * (1.0 + heritagePulseValue * 0.6),
+            Paint()..color = glowColor.withValues(alpha: heritagePulseValue * 0.30),
+          );
+        }
+        canvas.drawCircle(pt, r * 0.018,
+            Paint()..color = dotColor.withValues(alpha: 0.90));
+      }
+    }
+
+    // Unvisited sites — dim amber static dots (no pulse), drawn first (M129).
+    if (unvisitedHeritageSiteCoords.isNotEmpty) {
+      for (final coord in unvisitedHeritageSiteCoords) {
+        final pt = projection.project(coord.$1, coord.$2, size);
+        if (pt == null) continue;
+        canvas.drawCircle(
+          pt,
+          r * 0.010,
+          Paint()..color = Colors.amber[200]!.withValues(alpha: 0.40),
+        );
+      }
+    }
+    if (culturalSiteCoords.isNotEmpty) {
+      paintHeritageDots(
+          culturalSiteCoords, Colors.amber[300]!, Colors.amber[400]!);
+    }
+    if (naturalSiteCoords.isNotEmpty) {
+      paintHeritageDots(
+          naturalSiteCoords, Colors.green[400]!, Colors.green[300]!);
     }
   }
 
@@ -201,5 +258,9 @@ class GlobePainter extends CustomPainter {
       !identical(tripCounts, old.tripCounts) ||
       !identical(polygons, old.polygons) ||
       highlightedCode != old.highlightedCode ||
-      pulseValue != old.pulseValue;
+      pulseValue != old.pulseValue ||
+      !identical(culturalSiteCoords, old.culturalSiteCoords) ||
+      !identical(naturalSiteCoords, old.naturalSiteCoords) ||
+      !identical(unvisitedHeritageSiteCoords, old.unvisitedHeritageSiteCoords) ||
+      heritagePulseValue != old.heritagePulseValue;
 }

@@ -29,12 +29,14 @@ import '../stats/stats_screen.dart';
 /// [_goToMap] to return to Map (index 0).
 ///
 /// [initialTab] sets the selected tab on first render (default 0 = Map).
-/// Used by [_OnboardingGate] to open directly on the Scan tab when the user
-/// taps "Scan my photos" in onboarding.
+/// [openScanOnLoad] — when true, the scan modal is pushed automatically after
+/// the first frame. Used by [_OnboardingGate] when the user tapped "Scan my
+/// photos" during onboarding (Scan is no longer a nav tab — ADR-052).
 class MainShell extends ConsumerStatefulWidget {
-  const MainShell({super.key, this.initialTab = 0});
+  const MainShell({super.key, this.initialTab = 0, this.openScanOnLoad = false});
 
   final int initialTab;
+  final bool openScanOnLoad;
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -48,6 +50,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.initState();
     _selectedIndex = widget.initialTab;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.openScanOnLoad) _goToScan();
       _handleLaunchNotification();
       // Schedule the full anniversary batch on every app open so notifications
       // keep firing even if the app is never opened again (M118).

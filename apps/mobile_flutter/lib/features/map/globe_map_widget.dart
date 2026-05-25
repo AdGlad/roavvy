@@ -5,8 +5,11 @@ import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_models/shared_models.dart';
 
 import '../../core/providers.dart';
+import '../heritage/world_heritage_lookup_service.dart';
 import 'country_visual_state.dart';
 import 'globe_painter.dart';
 import 'globe_projection.dart';
@@ -61,6 +64,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   late final AnimationController _zoomController;
   Animation<double>? _zoomAnim;
 
+  // Heritage dots pulse (M129)
+  static const _kHeritagePrefKey = 'heritage_dots_enabled';
+  late final AnimationController _heritagePulseCtrl;
+
+  List<(double, double)> _culturalCoords = const [];
+  List<(double, double)> _naturalCoords = const [];
+  List<(double, double)> _unvisitedCoords = const [];
+
   @override
   void initState() {
     super.initState();
@@ -75,7 +86,18 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       duration: const Duration(milliseconds: _kZoomTotalMs),
     )..addListener(_onZoomTick);
 
+    _heritagePulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
     _rotationTicker = createTicker(_onRotationTick)..start();
+
+    SharedPreferences.getInstance().then((prefs) {
+      if (!mounted) return;
+      final enabled = prefs.getBool(_kHeritagePrefKey) ?? false;
+      ref.read(heritageDotsEnabledProvider.notifier).state = enabled;
+    });
   }
 
   @override
@@ -83,6 +105,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     _rotationTicker.dispose();
     _snapController.dispose();
     _zoomController.dispose();
+    _heritagePulseCtrl.dispose();
     super.dispose();
   }
 
@@ -267,12 +290,61 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     if (isoCode != null) widget.onCountryTap(isoCode);
   }
 
+  void _rebuildHeritageLists(bool enabled, List<VisitedHeritageSite> visited) {
+    if (!enabled) {
+      setState(() {
+        _culturalCoords = const [];
+        _naturalCoords = const [];
+        _unvisitedCoords = const [];
+      });
+      return;
+    }
+    final visitedIds = {for (final s in visited) s.siteId};
+    final cultural = <(double, double)>[];
+    final natural = <(double, double)>[];
+    final unvisited = <(double, double)>[];
+    for (final site in WorldHeritageLookupService.allSites) {
+      if (visitedIds.contains(site.siteId)) {
+        if (site.category == 'natural') {
+          natural.add((site.latitude, site.longitude));
+        } else {
+          cultural.add((site.latitude, site.longitude));
+        }
+      } else {
+        unvisited.add((site.latitude, site.longitude));
+      }
+    }
+    setState(() {
+      _culturalCoords = cultural;
+      _naturalCoords = natural;
+      _unvisitedCoords = unvisited;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final polygons = ref.watch(polygonsProvider);
     final visualStates = ref.watch(countryVisualStatesProvider);
     final tripCounts =
         ref.watch(countryTripCountsProvider).valueOrNull ?? const <String, int>{};
+
+    final heritageEnabled = ref.watch(heritageDotsEnabledProvider);
+    final visitedHeritage =
+        ref.watch(visitedHeritageProvider).valueOrNull ?? const <VisitedHeritageSite>[];
+
+    ref.listen<bool>(heritageDotsEnabledProvider, (_, enabled) {
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setBool(_kHeritagePrefKey, enabled),
+      );
+      _rebuildHeritageLists(enabled, visitedHeritage);
+    });
+
+    ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider,
+        (_, next) {
+      if (heritageEnabled) {
+        _rebuildHeritageLists(true, next.valueOrNull ?? const []);
+      }
+    });
 
     ref.listen<(double, double)?>(globeTargetProvider, (_, target) {
       if (target != null) {
@@ -298,6 +370,11 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
               visualStates: visualStates,
               tripCounts: tripCounts,
               projection: _projection,
+              culturalSiteCoords: _culturalCoords,
+              naturalSiteCoords: _naturalCoords,
+              unvisitedHeritageSiteCoords: _unvisitedCoords,
+              heritagePulseValue:
+                  heritageEnabled ? _heritagePulseCtrl.value : 0.0,
             ),
           ),
         );

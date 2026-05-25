@@ -75,5 +75,47 @@ post_install do |installer|
     SHELL
   end
 
+  # Generate sqlite3.framework.dSYM for App Store Connect symbol upload.
+  # Flutter's Native Assets pipeline builds sqlite3 with embedded debug symbols;
+  # this extracts them into a separate dSYM bundle at archive time so the
+  # upload tool can find them.
+  project.targets.each do |target|
+    next unless target.name == 'Runner'
+    # Remove stale version so the script below is always kept up to date
+    target.shell_script_build_phases.select { |p| p.name == 'Generate sqlite3 dSYM' }.each(&:remove_from_project)
+
+    phase = target.new_shell_script_build_phase('Generate sqlite3 dSYM')
+    phase.shell_script = <<~SHELL
+      # Generate sqlite3.framework.dSYM for App Store Connect symbol upload.
+      # Flutter Native Assets embeds sqlite3 inside the app bundle; this script
+      # locates it and produces the dSYM the upload tool requires.
+      OUT="${DWARF_DSYM_FOLDER_PATH}/sqlite3.framework.dSYM"
+      [ -d "${OUT}" ] && exit 0          # already present
+      [ -z "${DWARF_DSYM_FOLDER_PATH}" ] && exit 0  # not archiving
+
+      # 1. Copy a pre-built dSYM if the build system already produced one
+      for DIR in \
+        "${BUILT_PRODUCTS_DIR}" \
+        "${BUILD_DIR}/${CONFIGURATION}-iphoneos" \
+        "${OBJROOT}/UninstalledProducts/iphoneos"; do
+        SRC="${DIR}/sqlite3.framework.dSYM"
+        if [ -d "${SRC}" ]; then
+          cp -R "${SRC}" "${OUT}" && exit 0
+        fi
+      done
+
+      # 2. Extract from the embedded binary (dwarf format – symbols still inside)
+      for FW in \
+        "${CODESIGNING_FOLDER_PATH}/Frameworks/sqlite3.framework/sqlite3" \
+        "${BUILT_PRODUCTS_DIR}/sqlite3.framework/sqlite3"; do
+        if [ -f "${FW}" ]; then
+          xcrun dsymutil "${FW}" -o "${OUT}" 2>/dev/null && exit 0
+        fi
+      done
+
+      echo "warning: sqlite3.framework dSYM could not be generated; App Store symbol upload may warn"
+    SHELL
+  end
+
   project.save
 end

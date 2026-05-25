@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../heritage/world_heritage_lookup_service.dart';
 import '../stats/achievements_screen.dart';
 import '../stats/countries_list_screen.dart';
 
@@ -19,6 +20,9 @@ class StatsStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(travelSummaryProvider);
+    final heritageEnabled = ref.watch(heritageDotsEnabledProvider);
+    final heritageCount =
+        heritageEnabled ? (ref.watch(visitedHeritageProvider).valueOrNull?.length ?? 0) : 0;
 
     return summaryAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -53,6 +57,12 @@ class StatsStrip extends ConsumerWidget {
                   builder: (_) => const AchievementsScreen(),
                 )),
               ),
+              if (heritageEnabled)
+                _Stat(
+                  label: 'UNESCO',
+                  value:
+                      '$heritageCount / ${WorldHeritageLookupService.totalSiteCount}',
+                ),
             ],
           ),
         );

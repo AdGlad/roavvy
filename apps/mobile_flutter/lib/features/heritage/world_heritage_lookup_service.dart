@@ -29,6 +29,17 @@ class WorldHeritageLookupService {
   /// considered unrelated to the site.
   static const double _nearbyKm = 10.0;
 
+  /// Total number of UNESCO World Heritage Sites in the dataset.
+  ///
+  /// Returns 0 before [init] is called. Safe to call at any time.
+  static int get totalSiteCount =>
+      _index.values.fold(0, (sum, list) => sum + list.length);
+
+  /// All indexed sites as a flat iterable (M129).
+  /// Transboundary sites appear once per member country.
+  static Iterable<WorldHeritageSite> get allSites =>
+      _index.values.expand((list) => list);
+
   /// Initialises the service from the bundled JSON string.
   ///
   /// Safe to call multiple times; subsequent calls are no-ops.

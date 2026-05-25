@@ -375,6 +375,12 @@ class RoavvyDatabase extends _$RoavvyDatabase {
     return row?.hasSeenOnboardingAt != null;
   }
 
+  /// Clears the onboarding-seen flag so the user is returned to onboarding.
+  Future<void> resetOnboarding() async {
+    await (update(scanMetadata)..where((t) => t.id.equals(1)))
+        .write(const ScanMetadataCompanion(hasSeenOnboardingAt: Value(null)));
+  }
+
   /// Marks onboarding as seen by writing the current UTC timestamp.
   ///
   /// Creates the singleton row (id=1) if it does not yet exist (ADR-053).

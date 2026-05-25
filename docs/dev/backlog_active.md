@@ -7,6 +7,95 @@
 
 ## Next up (mobile-first order)
 
+### M130 — Scan: Cinematic Pacing & Orchestration Engine
+**Goal:** Decouple scan detection speed from celebration delivery speed. Introduce a discovery event buffer → priority queue → cinematic presentation engine. P1–P4 priority tiers control timing (1.2–5s windows), a presentation lock prevents overlapping celebrations, four audio categories (passport stamp, heritage chime, achievement rise, orchestral swell) route by event type, and a queue depth indicator shows queued discoveries.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M122 ✅, M123 ✅, M125 ✅
+**Scope in:** `_DiscoveryEvent` sealed class + `_PriorityQueue`; `_CinematicPresentationEngine` drain loop + presentation lock; `_AudioCategory` enum + 4-category audio routing; queue depth indicator; UNESCO heritage distinct presentation; P4 cooldown (max 1 per 6–8s); `_ScanPhase` progressive intensity; mute toggle.
+**Full plan:** `docs/dev/milestones/m130-scan-cinematic-pacing-orchestration.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M129 — Heritage Pulse on Main Map
+**Goal:** Show UNESCO World Heritage Site locations as ambient pulsing amber dots on the main map globe outside of scan; visited sites pulse brightly, unvisited sites appear as dim static dots; toggle chip persists in SharedPreferences.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M119 ✅, M126 ✅
+**Scope in:** `GlobePainter` — `visitedHeritageSiteCoords` + `unvisitedHeritageSiteCoords` params; map screen heritage toggle chip + animation controller; `VisitRepository` visited WHS query; heritage count in map stats footer.
+**Full plan:** `docs/dev/milestones/m129-heritage-pulse-main-map.md`
+**Status:** Not started. No tasks written.
+
+---
+
+### M128 — Heritage Scan Enhancements
+**Goal:** Three focused heritage improvements during scan: persistent progress bar (N/1,157 sites), tappable globe dots with site name tooltip, and colour-coded dots (cultural = amber, natural = green).
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M123 ✅, M126 ✅
+**Scope in:** `_liveHeritageSites: List<VisitedHeritageSite>` replaces coord-only list; `GlobePainter` split into `culturalSiteCoords` + `naturalSiteCoords` (amber/green); `_ScanStatsBar` animated `LinearProgressIndicator`; `_ScanGlobeWidget` tap-to-tooltip + `_HeritageTooltip` widget.
+**Full plan:** `docs/dev/milestones/m128-heritage-scan-enhancements.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M127 — Scan Summary Screen
+**Goal:** After scan completes, show a staged "Spotify Wrapped"-style reveal screen: new countries (flag chips), new continents, heritage sites found, achievements unlocked, trip count — with confetti and staggered animation.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M121 ✅, M122 ✅, M123 ✅, M125 ✅, M126 ✅
+**Scope in:** `ScanSummaryScreen` (existed); added `newHeritageSiteNames` + `totalTripCount` params; `_HeritageSitesSection` widget; "across N trips" hero subtitle; threaded from `scan_screen.dart` completion handler.
+**Full plan:** `docs/dev/milestones/m127-scan-summary-screen.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M126 — Scan: Globe Heritage Pulse
+**Goal:** Render animated gold/amber pulse dots at UNESCO World Heritage Site GPS coordinates on the spinning globe when sites are discovered during a scan.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M125
+**Scope in:** `GlobePainter` — `heritageSiteCoords` + `heritagePulseValue` params; `_ScanGlobeWidget` — `heritageSiteCoords` prop + `_heritagePulseCtrl`; thread coords from `_ScanScreenState` through `_ScanningView`.
+**Full plan:** `docs/dev/milestones/m126-scan-globe-heritage-pulse.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M125 — Scan: Live Achievement Toasts & Live Trip Count
+**Goal:** Fire a deep-purple "Achievement Unlocked" toast when a country-count threshold is crossed during scan; add live inferred trip count to the stats bar.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `_AchievementToastBanner`; `_toastedAchievements` set; `_liveTripCount` state field + `inferTrips()` per batch; `_ScanStatsBar` trip segment; `_ScanningView` props.
+**Full plan:** `docs/dev/milestones/m125-scan-live-achievements-trip-count.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M123 — Scan: Live Heritage Discovery & Stats Totals
+**Goal:** Close remaining gaps from M121/M122 design brief — stats bar with "14/244 countries · 3/7 continents · 7/1,223 heritage sites" totals; dedicated gold-themed heritage discovery toast ("🏛 Acropolis of Athens") fires 400ms after country toast when new UNESCO site found.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `WorldHeritageLookupService.totalSiteCount` getter; `_liveHeritageCount` state field; `_ScanStatsBar` totals; `_HeritageToastBanner` widget; `_ScanningView` heritage toast wiring.
+**Scope out:** Sound design, achievements during scan, gold pulse on map, heritage progress widget.
+**Full plan:** `docs/dev/milestones/m123-scan-live-heritage-stats-totals.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M122 — Scan: Momentum & Discovery Density
+**Goal:** Evolve the scan screen from celebration-first to continuous forward momentum. Convert horizontal discovery cards to compact vertical chips (newest-first, 40 px rows). Add three-tier confetti (micro/medium/full keyed to country/continent/major milestone). Add live stats bar (countries · continents · photos) visible during scanning. Compact scan mode selector. Toast rate-limiting for rapid discoveries.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `scan_screen.dart` — `_DiscoveryChip` replaces `_DiscoveryCard`, `_CelebrationLevel` confetti tiers, `_ScanStatsBar`, compact `SegmentedButton` labels, toast rate-limit.
+**Scope out:** Heritage during scan, sound design, achievements during scan, trip count live display.
+**Full plan:** `docs/dev/milestones/m122-scan-momentum-discovery-density.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
+### M121 — Scan: Emotional Discovery Experience
+**Goal:** Transform the scan screen from a technical progress display into an emotional travel discovery experience. Replace split country-list/stamp panel with a live horizontal discovery feed; expand globe to ~55 % of screen; replace photo-count copy with phase-aware discovery language; add first-country cinematic overlay; enhance discovery toast with contextual first-visit year.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `scan_screen.dart` only — layout, copy, new `_DiscoveryFeed`/`_DiscoveryCard` widgets, `_FirstCountryCinematic` overlay, `_DiscoveryEntry` data class, enhanced toast, emotional empty states.
+**Scope out:** Rovy mascot, Travel Identity Score, background scan, audio, Memory Pulse during scan, ScanSummaryScreen.
+**Full plan:** `docs/dev/milestones/m121-scan-emotional-discovery-experience.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
 ### M117 — Terms & Conditions Acceptance Gate
 **Goal:** Display and require acceptance of Roavvy T&Cs before a user can access the app. Persisted via SharedPreferences. Re-prompts when `kCurrentTermsVersion` is bumped.
 **Phase:** 24 — Legal & Compliance

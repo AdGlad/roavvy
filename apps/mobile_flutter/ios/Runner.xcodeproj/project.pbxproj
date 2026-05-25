@@ -17,10 +17,10 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A1B2C3D4E5F60001A2B3C4D5 /* AiTitlePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60000A2B3C4D5 /* AiTitlePlugin.swift */; };
-		A1B2C3D4E5F60009A2B3C4D5 /* LandmarkImagePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60008A2B3C4D5 /* LandmarkImagePlugin.swift */; };
 		A1B2C3D4E5F60003A2B3C4D5 /* HeroImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002A2B3C4D5 /* HeroImageAnalyzer.swift */; };
 		A1B2C3D4E5F60005A2B3C4D5 /* LabelNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60004A2B3C4D5 /* LabelNormalizer.swift */; };
 		A1B2C3D4E5F60007A2B3C4D5 /* ThumbnailPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60006A2B3C4D5 /* ThumbnailPlugin.swift */; };
+		A1B2C3D4E5F60009A2B3C4D5 /* LandmarkImagePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60008A2B3C4D5 /* LandmarkImagePlugin.swift */; };
 		FBFBF3DA2F64EB04006D2734 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FBFBF3D92F64EB04006D2734 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
@@ -218,6 +218,7 @@
 				BB87C090B3FC0785219D3F40 /* [CP] Copy Pods Resources */,
 				D3F1AD89A3E3487623EBE20A /* [CP] Embed Pods Frameworks */,
 				6FC8B43D6C76A1265142684B /* Re-sign Embedded Frameworks */,
+				039CA450D7C36799E3BFD50A /* Generate sqlite3 dSYM */,
 			);
 			buildRules = (
 			);
@@ -290,6 +291,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		039CA450D7C36799E3BFD50A /* Generate sqlite3 dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate sqlite3 dSYM";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Generate sqlite3.framework.dSYM for App Store Connect symbol upload.\n# Flutter Native Assets embeds sqlite3 inside the app bundle; this script\n# locates it and produces the dSYM the upload tool requires.\nOUT=\"${DWARF_DSYM_FOLDER_PATH}/sqlite3.framework.dSYM\"\n[ -d \"${OUT}\" ] && exit 0          # already present\n[ -z \"${DWARF_DSYM_FOLDER_PATH}\" ] && exit 0  # not archiving\n\n# 1. Copy a pre-built dSYM if the build system already produced one\nfor DIR in   \"${BUILT_PRODUCTS_DIR}\"   \"${BUILD_DIR}/${CONFIGURATION}-iphoneos\"   \"${OBJROOT}/UninstalledProducts/iphoneos\"; do\n  SRC=\"${DIR}/sqlite3.framework.dSYM\"\n  if [ -d \"${SRC}\" ]; then\n    cp -R \"${SRC}\" \"${OUT}\" && exit 0\n  fi\ndone\n\n# 2. Extract from the embedded binary (dwarf format – symbols still inside)\nfor FW in   \"${CODESIGNING_FOLDER_PATH}/Frameworks/sqlite3.framework/sqlite3\"   \"${BUILT_PRODUCTS_DIR}/sqlite3.framework/sqlite3\"; do\n  if [ -f \"${FW}\" ]; then\n    xcrun dsymutil \"${FW}\" -o \"${OUT}\" 2>/dev/null && exit 0\n  fi\ndone\n\necho \"warning: sqlite3.framework dSYM could not be generated; App Store symbol upload may warn\"\n";
+		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -48,6 +49,17 @@ Future<void> main() async {
       }
 
       // ── Native (iOS / Android) path ──────────────────────────────────────
+
+      // Configure iOS audio session before any AudioPlayer is used.
+      // AVAudioSessionCategory.ambient: mixes with other apps, silences on
+      // the hardware mute switch — appropriate for UI sound effects.
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.ambient,
+          ),
+        ),
+      );
 
       final (countryData, regionData) = await (
         rootBundle.load('assets/geodata/ne_countries.bin'),

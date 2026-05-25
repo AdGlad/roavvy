@@ -107,7 +107,6 @@ flutter:
     - assets/mobile_svg/
     - assets/mockups/
     - assets/onboarding/
-    - assets/audio/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
