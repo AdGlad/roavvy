@@ -3,7 +3,6 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:confetti/confetti.dart';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
@@ -1240,8 +1239,10 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   Timer? _toastReplaceTimer;
 
   // ── Audio (M124) ─────────────────────────────────────────────────────────────
-  // No persistent player — each sound creates a fresh AudioPlayer and disposes
-  // it on completion to avoid iOS "invalid reuse after initialization failure".
+  // Scan sounds are disabled until real audio assets replace the placeholder
+  // WAV tones. Placeholder files (Python-generated) cause iOS AVAudioPlayer
+  // initialization failures. Re-enable _playSound() calls when proper assets
+  // are available.
 
   // ── Achievement toast state (T4, M125) ───────────────────────────────────────
   String? _achievementToastId;
@@ -1414,7 +1415,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   void _showHeritageToast(List<String> siteNames) {
     _heritageToastTimer?.cancel();
     if (!mounted || siteNames.isEmpty) return;
-    _playSound('audio/scan_heritage_discovery.wav');
+    // _playSound('audio/scan_heritage_discovery.wav'); // re-enable with real asset
     setState(() {
       _heritageToastSiteName = siteNames.first;
       _heritageToastExtraCount = siteNames.length - 1;
@@ -1460,30 +1461,15 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     });
   }
 
-  /// Plays a short scan sound. Creates a fresh [AudioPlayer] per call so iOS
-  /// never reuses a player that failed or completed — avoids "invalid reuse
-  /// after initialization failure" from the audioplayers native layer.
-  void _playSound(String asset) {
-    final player = AudioPlayer();
-    player.play(AssetSource(asset)).then((_) {
-      player.onPlayerComplete.first.then((_) => player.dispose()).catchError((_) => player.dispose());
-    }).catchError((_) {
-      player.dispose();
-    });
-  }
-
   void _burst(_CelebrationLevel level) {
     if (MediaQuery.disableAnimationsOf(context)) return;
     switch (level) {
       case _CelebrationLevel.micro:
         _microCtrl?.play();
-        _playSound('audio/scan_country_discovery.wav');
       case _CelebrationLevel.medium:
         _mediumCtrl?.play();
-        _playSound('audio/scan_continent_discovery.wav');
       case _CelebrationLevel.full:
         _fullCtrl?.play();
-        _playSound('audio/scan_major_milestone.wav');
     }
   }
 
