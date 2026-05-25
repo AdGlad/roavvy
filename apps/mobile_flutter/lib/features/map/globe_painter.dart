@@ -52,7 +52,8 @@ class GlobePainter extends CustomPainter {
     required this.projection,
     this.highlightedCode,
     this.pulseValue = 0.0,
-    this.heritageSiteCoords = const [],
+    this.culturalSiteCoords = const [],
+    this.naturalSiteCoords = const [],
     this.heritagePulseValue = 0.0,
   });
 
@@ -67,9 +68,11 @@ class GlobePainter extends CustomPainter {
   /// Animation value 0.0–1.0 driving the halo opacity and size. 0.0 = hidden.
   final double pulseValue;
 
-  /// GPS coordinates of discovered UNESCO World Heritage Sites (M126).
-  /// Each entry is a `(lat, lng)` record in degrees.
-  final List<(double lat, double lng)> heritageSiteCoords;
+  /// GPS coords of Cultural/Mixed UNESCO sites (amber dots) (M126/M128).
+  final List<(double lat, double lng)> culturalSiteCoords;
+
+  /// GPS coords of Natural UNESCO sites (green dots) (M128).
+  final List<(double lat, double lng)> naturalSiteCoords;
 
   /// Animation value 0.0–1.0 driving heritage site dot pulse. 0.0 = hidden glow.
   final double heritagePulseValue;
@@ -139,29 +142,33 @@ class GlobePainter extends CustomPainter {
       }
     }
 
-    // 5. Heritage site gold pulse dots (M126).
-    // Inner dot always visible (full alpha); outer glow ring pulses.
-    if (heritageSiteCoords.isNotEmpty) {
-      for (final coord in heritageSiteCoords) {
+    // 5. Heritage site dots (M126/M128).
+    // Cultural/Mixed = amber; Natural = green.
+    // Inner dot always visible; outer glow ring pulses.
+    void paintHeritageDots(
+        List<(double, double)> coords, Color dotColor, Color glowColor) {
+      for (final coord in coords) {
         final pt = projection.project(coord.$1, coord.$2, size);
         if (pt == null) continue;
-        // Outer glow ring — animated.
         if (heritagePulseValue > 0.0) {
           canvas.drawCircle(
             pt,
             r * 0.04 * (1.0 + heritagePulseValue * 0.6),
-            Paint()
-              ..color =
-                  Colors.amber[400]!.withValues(alpha: heritagePulseValue * 0.30),
+            Paint()..color = glowColor.withValues(alpha: heritagePulseValue * 0.30),
           );
         }
-        // Inner solid dot — always visible.
-        canvas.drawCircle(
-          pt,
-          r * 0.018,
-          Paint()..color = Colors.amber[300]!.withValues(alpha: 0.90),
-        );
+        canvas.drawCircle(pt, r * 0.018,
+            Paint()..color = dotColor.withValues(alpha: 0.90));
       }
+    }
+
+    if (culturalSiteCoords.isNotEmpty) {
+      paintHeritageDots(
+          culturalSiteCoords, Colors.amber[300]!, Colors.amber[400]!);
+    }
+    if (naturalSiteCoords.isNotEmpty) {
+      paintHeritageDots(
+          naturalSiteCoords, Colors.green[400]!, Colors.green[300]!);
     }
   }
 
@@ -236,6 +243,7 @@ class GlobePainter extends CustomPainter {
       !identical(polygons, old.polygons) ||
       highlightedCode != old.highlightedCode ||
       pulseValue != old.pulseValue ||
-      !identical(heritageSiteCoords, old.heritageSiteCoords) ||
+      !identical(culturalSiteCoords, old.culturalSiteCoords) ||
+      !identical(naturalSiteCoords, old.naturalSiteCoords) ||
       heritagePulseValue != old.heritagePulseValue;
 }

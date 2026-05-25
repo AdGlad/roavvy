@@ -21,9 +21,9 @@
 **Goal:** Three focused heritage improvements during scan: persistent progress bar (N/1,157 sites), tappable globe dots with site name tooltip, and colour-coded dots (cultural = amber, natural = green).
 **Phase:** 25 — Scan UX Transformation
 **Depends on:** M123 ✅, M126 ✅
-**Scope in:** Heritage progress bar in `_ScanStatsBar`; split heritage coords by category; `GlobePainter` two-colour rendering; tap-to-tooltip on `_ScanGlobeWidget`.
+**Scope in:** `_liveHeritageSites: List<VisitedHeritageSite>` replaces coord-only list; `GlobePainter` split into `culturalSiteCoords` + `naturalSiteCoords` (amber/green); `_ScanStatsBar` animated `LinearProgressIndicator`; `_ScanGlobeWidget` tap-to-tooltip + `_HeritageTooltip` widget.
 **Full plan:** `docs/dev/milestones/m128-heritage-scan-enhancements.md`
-**Status:** Not started. No tasks written.
+**Status:** ✅ Complete (2026-05-25)
 
 ---
 

@@ -1,6 +1,6 @@
 # M128 — Heritage Scan Enhancements
 
-**Status:** Not started
+**Status:** Complete (2026-05-25)
 **Phase:** Scan UX
 **Depends on:** M123 ✅, M126 ✅
 

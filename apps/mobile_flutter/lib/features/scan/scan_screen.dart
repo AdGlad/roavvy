@@ -325,8 +325,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// Inferred trip count from accumulated photo dates, updated each batch (T2, M125).
   int _liveTripCount = 0;
 
-  /// GPS coordinates of UNESCO sites discovered so far in this scan (T1, M126).
-  List<(double lat, double lng)> _liveHeritageSiteCoords = const [];
+  /// Heritage sites discovered so far in this scan — full objects for
+  /// colour-coding (cultural=amber, natural=green) and tap-tooltip (M128).
+  List<VisitedHeritageSite> _liveHeritageSites = const [];
 
   @override
   void initState() {
@@ -426,7 +427,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _liveHeritageCount = 0;
       _achievementsUnlockedInOrder.clear();
       _liveTripCount = 0;
-      _liveHeritageSiteCoords = const [];
+      _liveHeritageSites = const [];
       // Pre-populate with thresholds already satisfied by existing countries
       // so we only toast achievements that are NEW during this scan (T1, M125).
       _achievementsToastedThisScan
@@ -586,10 +587,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               }
               // T2, M125: live trip count from in-memory inference.
               _liveTripCount = inferTrips(allPhotoDates).length;
-              // T1, M126: thread heritage GPS coords for globe pulse dots.
-              _liveHeritageSiteCoords = whsAccum.values
-                  .map((s) => (s.latitude, s.longitude))
-                  .toList();
+              // T1, M126/M128: thread heritage sites for colour-coded globe dots.
+              _liveHeritageSites = whsAccum.values.toList();
             });
           }
         }
@@ -814,7 +813,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _existingEntriesAtScanStart = const [];
           _liveHeritageCount = 0;
           _liveTripCount = 0;
-          _liveHeritageSiteCoords = const [];
+          _liveHeritageSites = const [];
           _achievementsUnlockedInOrder.clear();
           _achievementsToastedThisScan.clear();
         });
@@ -954,7 +953,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                               achievementsUnlocked: List.unmodifiable(
                                   _achievementsUnlockedInOrder),
                               liveTripCount: _liveTripCount,
-                              liveHeritageSiteCoords: _liveHeritageSiteCoords,
+                              liveHeritageSites: _liveHeritageSites,
                             ),
                           )
                         // No data yet paths:
@@ -1200,7 +1199,7 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.liveHeritageCount = 0,
     this.achievementsUnlocked = const [],
     this.liveTripCount = 0,
-    this.liveHeritageSiteCoords = const [],
+    this.liveHeritageSites = const [],
   });
 
   final _ScanProgress? progress;
@@ -1227,8 +1226,9 @@ class _ScanningView extends ConsumerStatefulWidget {
   /// Live inferred trip count from accumulated photo dates (T2, M125).
   final int liveTripCount;
 
-  /// GPS coordinates of UNESCO heritage sites discovered so far (T1, M126).
-  final List<(double lat, double lng)> liveHeritageSiteCoords;
+  /// UNESCO heritage sites discovered so far — full objects for colour-coded
+  /// globe dots (cultural=amber, natural=green) and tap-tooltip (M128).
+  final List<VisitedHeritageSite> liveHeritageSites;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -1589,7 +1589,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: _ScanGlobeWidget(
                 liveNewCodes: liveNewCodes,
                 existingCodes: existingCodes,
-                heritageSiteCoords: widget.liveHeritageSiteCoords,
+                heritageSites: widget.liveHeritageSites,
               ),
             ),
             const SizedBox(height: 8),
@@ -1750,17 +1750,45 @@ class _ScanStatsBar extends StatelessWidget {
       if (liveTripCount > 0) '$liveTripCount ${liveTripCount == 1 ? 'trip' : 'trips'}',
     ];
 
+    final showProgress = liveHeritageCount > 0 && totalHeritage > 0;
+    final heritageProgress =
+        showProgress ? liveHeritageCount / totalHeritage : 0.0;
+
     return AnimatedOpacity(
       opacity: visible && countriesCount > 0 ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 200),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 4),
-        child: Text(
-          parts.join(' \u00b7 '),
-          textAlign: TextAlign.center,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              parts.join(' \u00b7 '),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            if (showProgress) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: heritageProgress),
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOut,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 3,
+                    backgroundColor:
+                        theme.colorScheme.onSurface.withValues(alpha: 0.12),
+                    color: Colors.amber[400],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -2065,7 +2093,7 @@ class _ScanGlobeWidget extends ConsumerStatefulWidget {
   const _ScanGlobeWidget({
     required this.liveNewCodes,
     this.existingCodes = const [],
-    this.heritageSiteCoords = const [],
+    this.heritageSites = const [],
   });
   final List<String> liveNewCodes;
 
@@ -2073,8 +2101,9 @@ class _ScanGlobeWidget extends ConsumerStatefulWidget {
   /// triggering travel animations (ADR-130).
   final List<String> existingCodes;
 
-  /// GPS coordinates of UNESCO sites discovered this scan (M126).
-  final List<(double lat, double lng)> heritageSiteCoords;
+  /// UNESCO sites discovered this scan — used for colour-coded dots and
+  /// tap-to-tooltip (M126/M128).
+  final List<VisitedHeritageSite> heritageSites;
 
   @override
   ConsumerState<_ScanGlobeWidget> createState() => _ScanGlobeWidgetState();
@@ -2108,6 +2137,11 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
 
   // ISO code of the country currently highlighted (newest).
   String? _highlightedCode;
+
+  // Tap-tooltip state for heritage dots (M128).
+  String? _tooltipName;
+  String? _tooltipCategory;
+  Timer? _tooltipTimer;
 
   @override
   void initState() {
@@ -2242,6 +2276,7 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
     _spinCtrl.dispose();
     _pulseCtrl.dispose();
     _heritagePulseCtrl.dispose();
+    _tooltipTimer?.cancel();
     super.dispose();
   }
 
@@ -2265,10 +2300,22 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
       visualStates[_highlightedCode!] = CountryVisualState.newlyDiscovered;
     }
 
+    // Split heritage sites by category for colour-coded dots (M128).
+    final culturalCoords = <(double, double)>[];
+    final naturalCoords = <(double, double)>[];
+    for (final s in widget.heritageSites) {
+      final coord = (s.latitude, s.longitude);
+      if (s.category == 'natural') {
+        naturalCoords.add(coord);
+      } else {
+        // 'cultural' and 'mixed' → amber.
+        culturalCoords.add(coord);
+      }
+    }
+
     return AnimatedBuilder(
       animation: Listenable.merge([_spinCtrl, _pulseCtrl, _heritagePulseCtrl]),
       builder: (context, _) {
-        // Compute inside builder so values update every animation tick.
         final isIdle = (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
             (_zoomOutCtrl == null || !_zoomOutCtrl!.isAnimating);
         final displayProjection = (isIdle && !reduceMotion)
@@ -2282,23 +2329,146 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
         final heritagePulseValue =
             reduceMotion ? 0.0 : _heritagePulseCtrl.value;
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: CustomPaint(
-            painter: GlobePainter(
-              polygons: polygons,
-              visualStates: visualStates,
-              tripCounts: const {},
-              projection: displayProjection,
-              highlightedCode: _highlightedCode,
-              pulseValue: pulseValue,
-              heritageSiteCoords: widget.heritageSiteCoords,
-              heritagePulseValue: heritagePulseValue,
+        return Stack(
+          children: [
+            GestureDetector(
+              onTapUp: (details) =>
+                  _handleGlobeTap(details.localPosition, displayProjection),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CustomPaint(
+                  painter: GlobePainter(
+                    polygons: polygons,
+                    visualStates: visualStates,
+                    tripCounts: const {},
+                    projection: displayProjection,
+                    highlightedCode: _highlightedCode,
+                    pulseValue: pulseValue,
+                    culturalSiteCoords: culturalCoords,
+                    naturalSiteCoords: naturalCoords,
+                    heritagePulseValue: heritagePulseValue,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
             ),
-            child: const SizedBox.expand(),
-          ),
+            if (_tooltipName != null)
+              Positioned(
+                bottom: 8,
+                left: 8,
+                right: 8,
+                child: IgnorePointer(
+                  child: _HeritageTooltip(
+                    name: _tooltipName!,
+                    category: _tooltipCategory ?? '',
+                  ),
+                ),
+              ),
+          ],
         );
       },
+    );
+  }
+
+  /// Hit-tests [tapPos] against visible heritage dots. Shows tooltip for the
+  /// nearest site within 24 px; auto-dismisses after 3 s.
+  void _handleGlobeTap(Offset tapPos, GlobeProjection proj) {
+    if (widget.heritageSites.isEmpty) return;
+
+    // We need the render box size to call projection.project.
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final size = box.size;
+
+    VisitedHeritageSite? nearest;
+    double nearestDist = 24.0; // px threshold
+
+    for (final site in widget.heritageSites) {
+      final pt = proj.project(site.latitude, site.longitude, size);
+      if (pt == null) continue;
+      final d = (pt - tapPos).distance;
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearest = site;
+      }
+    }
+
+    if (nearest == null) {
+      setState(() {
+        _tooltipName = null;
+        _tooltipCategory = null;
+      });
+      return;
+    }
+
+    _tooltipTimer?.cancel();
+    setState(() {
+      _tooltipName = nearest!.name;
+      _tooltipCategory = nearest.category;
+    });
+    _tooltipTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() { _tooltipName = null; _tooltipCategory = null; });
+    });
+  }
+}
+
+// ── Heritage dot tooltip (M128) ───────────────────────────────────────────────
+
+/// Semi-transparent pill shown at the bottom of the globe when the user taps
+/// a heritage dot. Auto-dismissed after 3 seconds.
+class _HeritageTooltip extends StatelessWidget {
+  const _HeritageTooltip({required this.name, required this.category});
+
+  final String name;
+  final String category;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final categoryLabel = category == 'natural'
+        ? 'Natural'
+        : category == 'mixed'
+            ? 'Mixed'
+            : 'Cultural';
+    final categoryColor =
+        category == 'natural' ? Colors.green[400]! : Colors.amber[400]!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.account_balance_outlined, size: 14, color: categoryColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'UNESCO $categoryLabel Heritage Site',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: categoryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
