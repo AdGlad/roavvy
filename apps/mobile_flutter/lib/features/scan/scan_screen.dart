@@ -1195,6 +1195,9 @@ enum _EventPriority { p2, p3, p4 }
 /// Scan phase — controls presentation richness (M130, T7).
 enum _ScanPhase { early, building, revealing }
 
+/// Four audio categories routed by event type (M130, T4).
+enum _AudioCategory { passportStamp, heritageChime, achievementRise, orchestralSwell }
+
 sealed class _DiscoveryEvent {
   const _DiscoveryEvent({required this.priority, required this.arrivedAt});
   final _EventPriority priority;
@@ -1362,6 +1365,8 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   _ScanPhase _scanPhase = _ScanPhase.early;
   Timer? _drainTimer;
   int _queueDepth = 0; // for depth indicator
+  // GlobalKey to trigger P4 globe pulse (T6).
+  final _globeKey = GlobalKey<_ScanGlobeWidgetState>();
   // Continents encountered during this scan — used to detect first-continent events.
   final Set<String> _continentsSeenDuringScan = {};
 
@@ -1520,12 +1525,27 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     }
   }
 
+  // M130, T4: routes to the correct ScanAudioController slot by category.
+  void _playAudio(_AudioCategory category) {
+    if (_muted) return;
+    switch (category) {
+      case _AudioCategory.passportStamp:
+        _scanAudio.playCountryDiscovery();
+      case _AudioCategory.heritageChime:
+        _scanAudio.playHeritageDiscovery();
+      case _AudioCategory.achievementRise:
+        _scanAudio.playContinentDiscovery();
+      case _AudioCategory.orchestralSwell:
+        _scanAudio.playMajorMilestone();
+    }
+  }
+
   Future<void> _presentCountryDiscovery(_CountryEvent event) async {
     if (!mounted) return;
     final showYear = _scanPhase != _ScanPhase.early;
     _doShowToast(event.entry, showYear: showYear);
     _burstConfetti(_CelebrationLevel.micro);
-    if (!_muted) _scanAudio.playCountryDiscovery();
+    _playAudio(_AudioCategory.passportStamp);
     await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) {
       _toastCtrl?.reverse().then((_) {
@@ -1539,7 +1559,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     if (!mounted) return;
     _doShowHeritageToast(event.siteName, event.extraCount, event.siteType);
     await Future.delayed(const Duration(milliseconds: 200));
-    if (!_muted) _scanAudio.playHeritageDiscovery();
+    _playAudio(_AudioCategory.heritageChime);
     await Future.delayed(const Duration(milliseconds: 2000));
     if (mounted) {
       _heritageToastCtrl?.reverse().then((_) {
@@ -1552,11 +1572,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   Future<void> _presentAchievementOrContinent(String label, {required bool isContinent}) async {
     if (!mounted) return;
     _doShowAchievementToast(label);
-    if (!_muted) {
-      isContinent
-          ? _scanAudio.playContinentDiscovery()
-          : _scanAudio.playCountryDiscovery();
-    }
+    _playAudio(_AudioCategory.achievementRise);
     await Future.delayed(const Duration(milliseconds: 2500));
     if (mounted) {
       _achievementToastCtrl?.reverse().then((_) {
@@ -1571,11 +1587,12 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     final label = 'countries_${event.countryCount}';
     _doShowAchievementToast(label);
     _burstConfetti(_CelebrationLevel.full);
-    if (!_muted && _scanPhase == _ScanPhase.revealing) {
-      _scanAudio.playMajorMilestone();
-    } else if (!_muted) {
-      _scanAudio.playCountryDiscovery();
-    }
+    // Orchestral swell only in revealing phase; stamp otherwise.
+    _playAudio(_scanPhase == _ScanPhase.revealing
+        ? _AudioCategory.orchestralSwell
+        : _AudioCategory.passportStamp);
+    // T6: trigger globe pulse to mark the major milestone.
+    _globeKey.currentState?.triggerMilestonePulse();
     await Future.delayed(const Duration(milliseconds: 4000));
     if (mounted) {
       _achievementToastCtrl?.reverse().then((_) {
@@ -1776,6 +1793,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
             Flexible(
               flex: 55,
               child: _ScanGlobeWidget(
+                key: _globeKey,
                 liveNewCodes: liveNewCodes,
                 existingCodes: existingCodes,
                 heritageSites: widget.liveHeritageSites,
@@ -2341,6 +2359,7 @@ class _AchievementToastBanner extends StatelessWidget {
 /// [CountryVisualState.visited] from the start with no animation (ADR-130).
 class _ScanGlobeWidget extends ConsumerStatefulWidget {
   const _ScanGlobeWidget({
+    super.key,
     required this.liveNewCodes,
     this.existingCodes = const [],
     this.heritageSites = const [],
@@ -2408,6 +2427,11 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+  }
+
+  /// Triggers a single extra heritage pulse amplitude to mark a P4 major milestone (M130, T6).
+  void triggerMilestonePulse() {
+    _heritagePulseCtrl.forward(from: 0.0);
   }
 
   @override
