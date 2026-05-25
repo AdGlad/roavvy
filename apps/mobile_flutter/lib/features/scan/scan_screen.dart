@@ -315,6 +315,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// Updated live from [whsAccum.length] in the scan loop. Reset at scan start.
   int _liveHeritageCount = 0;
 
+  /// Country-count achievement IDs unlocked so far in this scan, in order (T1, M125).
+  /// Passed to [_ScanningView] to fire toast banners in real time.
+  final List<String> _achievementsUnlockedInOrder = [];
+
+  /// Deduplication guard — prevents the same achievement from firing twice per scan.
+  final Set<String> _achievementsToastedThisScan = {};
+
+  /// Inferred trip count from accumulated photo dates, updated each batch (T2, M125).
+  int _liveTripCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -411,6 +421,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _scanProgress = const _ScanProgress(processed: 0);
       _liveNewEntries.clear();
       _liveHeritageCount = 0;
+      _achievementsUnlockedInOrder.clear();
+      _liveTripCount = 0;
+      // Pre-populate with thresholds already satisfied by existing countries
+      // so we only toast achievements that are NEW during this scan (T1, M125).
+      _achievementsToastedThisScan
+        ..clear()
+        ..addAll(_kAchievementThresholds
+            .where((t) => existingEntriesSnapshot.length >= t)
+            .map((t) => 'countries_$t'));
       // T1/T2: expose snapshot to build() immediately (T4: pill shown now).
       _existingEntriesAtScanStart = existingEntriesSnapshot;
     });
@@ -550,6 +569,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               // _liveNewEntries is updated in-place; setState triggers rebuild.
               // Update live heritage count from whsAccum (T2, M123).
               _liveHeritageCount = whsAccum.length;
+              // T1, M125: detect country-count achievement unlocks live.
+              final totalCountries =
+                  _liveNewEntries.length + _existingEntriesAtScanStart.length;
+              for (final threshold in _kAchievementThresholds) {
+                final id = 'countries_$threshold';
+                if (totalCountries >= threshold &&
+                    !_achievementsToastedThisScan.contains(id)) {
+                  _achievementsToastedThisScan.add(id);
+                  _achievementsUnlockedInOrder.add(id);
+                }
+              }
+              // T2, M125: live trip count from in-memory inference.
+              _liveTripCount = inferTrips(allPhotoDates).length;
             });
           }
         }
@@ -768,10 +800,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _scanProgress = null;
           _existingEntriesAtScanStart = const [];
           _liveHeritageCount = 0;
+          _liveTripCount = 0;
+          _achievementsUnlockedInOrder.clear();
+          _achievementsToastedThisScan.clear();
         });
       }
     }
   }
+
+  /// Country-count thresholds that unlock achievements (T1, M125).
+  /// Must stay in sync with [kAchievements] in shared_models.
+  static const _kAchievementThresholds = [
+    1, 3, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 125, 150, 195,
+  ];
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -896,6 +937,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                       )).toList(),
                               isScanning: _scanning,
                               liveHeritageCount: _liveHeritageCount,
+                              achievementsUnlocked: List.unmodifiable(
+                                  _achievementsUnlockedInOrder),
+                              liveTripCount: _liveTripCount,
                             ),
                           )
                         // No data yet paths:
@@ -1139,6 +1183,8 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.existingEntries = const [],
     this.isScanning = false,
     this.liveHeritageCount = 0,
+    this.achievementsUnlocked = const [],
+    this.liveTripCount = 0,
   });
 
   final _ScanProgress? progress;
@@ -1158,6 +1204,13 @@ class _ScanningView extends ConsumerStatefulWidget {
   /// Number of unique UNESCO heritage sites found so far in this scan (T2, M123).
   final int liveHeritageCount;
 
+  /// Country-count achievement IDs unlocked this scan, in order (T1, M125).
+  /// Growing list — [_ScanningViewState] detects new additions via length delta.
+  final List<String> achievementsUnlocked;
+
+  /// Live inferred trip count from accumulated photo dates (T2, M125).
+  final int liveTripCount;
+
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
 }
@@ -1174,6 +1227,18 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
 
   // ── Audio (M124) ─────────────────────────────────────────────────────────────
   final AudioPlayer _scanAudio = AudioPlayer();
+
+  // ── Achievement toast state (T4, M125) ───────────────────────────────────────
+  String? _achievementToastId;
+  AnimationController? _achievementToastCtrl;
+  Animation<Offset>? _achievementToastSlide;
+  Timer? _achievementToastTimer;
+
+  /// Titles keyed by achievement id — built from [kAchievements] at class level.
+  static final Map<String, String> _kAchievementTitles = {
+    for (final a in kAchievements.where((a) => a.id.startsWith('countries_')))
+      a.id: a.title,
+  };
 
   // ── Heritage toast state (T4, M123) ──────────────────────────────────────────
   String? _heritageToastSiteName;
@@ -1242,6 +1307,13 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
           _triggerCinematic(newEntry);
         }
       }
+    }
+    // Achievement toast — checked independently; fires when a new achievement
+    // is unlocked during this scan (T4, M125). Runs outside reduce-motion guard
+    // because the toast text is informational, not just decorative.
+    if (widget.achievementsUnlocked.length > oldWidget.achievementsUnlocked.length) {
+      final newId = widget.achievementsUnlocked[oldWidget.achievementsUnlocked.length];
+      _showAchievementToast(newId);
     }
   }
 
@@ -1350,6 +1422,29 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     });
   }
 
+  void _showAchievementToast(String achievementId) {
+    _achievementToastTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _achievementToastId = achievementId);
+    _achievementToastCtrl?.dispose();
+    _achievementToastCtrl = AnimationController(
+      vsync: Navigator.of(context),
+      duration: const Duration(milliseconds: 300),
+    );
+    _achievementToastSlide = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(
+        CurvedAnimation(parent: _achievementToastCtrl!, curve: Curves.easeOut));
+    _achievementToastCtrl!.forward();
+    _achievementToastTimer = Timer(const Duration(milliseconds: 3000), () {
+      if (!mounted) return;
+      _achievementToastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _achievementToastId = null);
+      });
+    });
+  }
+
   void _burst(_CelebrationLevel level) {
     if (MediaQuery.disableAnimationsOf(context)) return;
     switch (level) {
@@ -1373,6 +1468,8 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     _heritageToastTimer?.cancel();
     _heritageToastDelayTimer?.cancel();
     _heritageToastCtrl?.dispose();
+    _achievementToastTimer?.cancel();
+    _achievementToastCtrl?.dispose();
     _scanAudio.dispose();
     _microCtrl?.dispose();
     _mediumCtrl?.dispose();
@@ -1460,6 +1557,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               liveNewEntries: widget.liveNewEntries,
               existingEntries: widget.existingEntries,
               liveHeritageCount: widget.liveHeritageCount,
+              liveTripCount: widget.liveTripCount,
               visible: widget.isScanning,
             ),
             // Globe — flexible hero (T2, M121).
@@ -1505,6 +1603,22 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: _HeritageToastBanner(
                 siteName: _heritageToastSiteName!,
                 extraCount: _heritageToastExtraCount,
+              ),
+            ),
+          ),
+        // Achievement toast overlay — deep purple, fires on country-count threshold (T4, M125).
+        if (_achievementToastId != null && _achievementToastSlide != null)
+          Positioned(
+            // Stack below country + heritage toasts when both are active.
+            top: (_toastEntry != null ? 68.0 : 0.0) +
+                (_heritageToastSiteName != null ? 68.0 : 0.0),
+            left: 0,
+            right: 0,
+            child: SlideTransition(
+              position: _achievementToastSlide!,
+              child: _AchievementToastBanner(
+                achievementId: _achievementToastId!,
+                titleMap: _kAchievementTitles,
               ),
             ),
           ),
@@ -1580,12 +1694,14 @@ class _ScanStatsBar extends StatelessWidget {
     required this.existingEntries,
     required this.liveHeritageCount,
     required this.visible,
+    this.liveTripCount = 0,
   });
 
   final List<_DiscoveryEntry> liveNewEntries;
   final List<_DiscoveryEntry> existingEntries;
   final int liveHeritageCount;
   final bool visible;
+  final int liveTripCount;
 
   static const int _totalCountries = 244;
   static const int _totalContinents = 7;
@@ -1607,6 +1723,7 @@ class _ScanStatsBar extends StatelessWidget {
       '$continentsCount/$_totalContinents continents',
       if (liveHeritageCount > 0 && totalHeritage > 0)
         '$liveHeritageCount/${_fmtN(totalHeritage)} heritage',
+      if (liveTripCount > 0) '$liveTripCount ${liveTripCount == 1 ? 'trip' : 'trips'}',
     ];
 
     return AnimatedOpacity(
@@ -1820,6 +1937,78 @@ class _HeritageToastBanner extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Achievement toast banner (T4, M125) ───────────────────────────────────────
+
+/// Deep-purple toast that fires when a country-count achievement is unlocked
+/// during a live scan. Distinct from the amber [_HeritageToastBanner] and the
+/// primary-colour [_DiscoveryToastBanner].
+class _AchievementToastBanner extends StatelessWidget {
+  const _AchievementToastBanner({
+    required this.achievementId,
+    required this.titleMap,
+  });
+
+  final String achievementId;
+  final Map<String, String> titleMap;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = titleMap[achievementId] ?? achievementId;
+    // Parse threshold count from id (e.g. 'countries_25' → 25).
+    final parts = achievementId.split('_');
+    final count = parts.length >= 2 ? int.tryParse(parts.last) : null;
+    final subtitle = count != null ? '$title \u2014 $count countries!' : title;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple[600]!.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('\u{1F3C6}', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Achievement Unlocked',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

@@ -1,7 +1,13 @@
 # Current Task
 
-**Milestone:** M123 — Scan: Live Heritage Discovery & Stats Totals
-**Status:** Complete (2026-05-25)
+**Milestone:** M125 — Scan: Live Achievement Toasts & Live Trip Count
+**Status:** In Progress (2026-05-25)
 
-All tasks implemented. See `docs/dev/milestones/m123-scan-live-heritage-stats-totals.md`.
-Next milestone: TBD — see `backlog_active.md`.
+Tasks:
+- [ ] T1: `_toastedAchievements` set + threshold detection in `_ScanScreenState`
+- [ ] T2: `_liveTripCount` state field + `inferTrips()` per batch
+- [ ] T3: `_ScanStatsBar` trip segment
+- [ ] T4: `_AchievementToastBanner` + `_ScanningViewState` wiring
+- [ ] T5: Docs & validation
+
+See `docs/dev/milestones/m125-scan-live-achievements-trip-count.md`.

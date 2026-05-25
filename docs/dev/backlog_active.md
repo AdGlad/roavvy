@@ -7,6 +7,25 @@
 
 ## Next up (mobile-first order)
 
+### M126 — Scan: Globe Heritage Pulse
+**Goal:** Render animated gold/amber pulse dots at UNESCO World Heritage Site GPS coordinates on the spinning globe when sites are discovered during a scan.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M125
+**Scope in:** `GlobePainter` — `heritageSiteCoords` + `heritagePulseValue` params; `_ScanGlobeWidget` — `heritageSiteCoords` prop + `_heritagePulseCtrl`; thread coords from `_ScanScreenState` through `_ScanningView`.
+**Full plan:** `docs/dev/milestones/m126-scan-globe-heritage-pulse.md`
+**Status:** Planned
+
+---
+
+### M125 — Scan: Live Achievement Toasts & Live Trip Count
+**Goal:** Fire a deep-purple "Achievement Unlocked" toast when a country-count threshold is crossed during scan; add live inferred trip count to the stats bar.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `_AchievementToastBanner`; `_toastedAchievements` set; `_liveTripCount` state field + `inferTrips()` per batch; `_ScanStatsBar` trip segment; `_ScanningView` props.
+**Full plan:** `docs/dev/milestones/m125-scan-live-achievements-trip-count.md`
+**Status:** In Progress (2026-05-25)
+
+---
+
 ### M123 — Scan: Live Heritage Discovery & Stats Totals
 **Goal:** Close remaining gaps from M121/M122 design brief — stats bar with "14/244 countries · 3/7 continents · 7/1,223 heritage sites" totals; dedicated gold-themed heritage discovery toast ("🏛 Acropolis of Athens") fires 400ms after country toast when new UNESCO site found.
 **Phase:** 25 — Scan UX Transformation
