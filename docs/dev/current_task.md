@@ -1,7 +1,7 @@
 # Current Task
 
-**Milestone:** M122 — Scan: Momentum & Discovery Density
-**Status:** Complete (2026-05-25)
+**Milestone:** M123 — Scan: Live Heritage Discovery & Stats Totals
+**Status:** Not started
 
-All tasks implemented. See `docs/dev/milestones/m122-scan-momentum-discovery-density.md`.
-Next milestone: TBD — see `backlog_active.md`.
+Next milestone. See `docs/dev/milestones/m123-scan-live-heritage-stats-totals.md`.
+Run `/next-milestone` to begin.

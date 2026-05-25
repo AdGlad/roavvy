@@ -94,12 +94,14 @@ class MapScreen extends ConsumerWidget {
     );
     if (confirmed != true) return;
     await ref.read(visitRepositoryProvider).clearAll();
+    await ref.read(roavvyDatabaseProvider).resetOnboarding();
     ref.invalidate(effectiveVisitsProvider);
     ref.invalidate(travelSummaryProvider);
     ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
     ref.invalidate(regionCountProvider);    // ADR-082: refresh Stats regions count
     ref.invalidate(countryTripCountsProvider);
     ref.invalidate(earliestVisitYearProvider);
+    ref.invalidate(onboardingCompleteProvider);
   }
 
   Future<void> _onSignInWithApple(BuildContext context, WidgetRef ref) async {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,29 @@ import 'celebration_globe_widget.dart';
 const int kCelebrationGapMs = 300;
 
 final _firstVisitedFmt = DateFormat('MMMM y');
+
+/// 5-pointed star particle path for confetti.
+Path _drawStar(Size size) {
+  const n = 5;
+  final cx = size.width / 2;
+  final cy = size.height / 2;
+  final outer = size.width / 2;
+  final inner = outer * 0.4;
+  final path = Path();
+  for (var i = 0; i < n * 2; i++) {
+    final r = i.isEven ? outer : inner;
+    final angle = (i * math.pi / n) - math.pi / 2;
+    final x = cx + r * math.cos(angle);
+    final y = cy + r * math.sin(angle);
+    if (i == 0) {
+      path.moveTo(x, y);
+    } else {
+      path.lineTo(x, y);
+    }
+  }
+  path.close();
+  return path;
+}
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
 String _flagEmoji(String code) {
@@ -86,7 +111,7 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
     super.initState();
     _audioPlayer = AudioPlayer();
     _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 3000));
+        ConfettiController(duration: const Duration(milliseconds: 1500));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -106,9 +131,16 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
     });
   }
 
+  static const _celebrationSounds = [
+    'audio/celebration.mp3',
+    'audio/replay_arrival.mp3',
+    'audio/replay_achievement.mp3',
+  ];
+
   Future<void> _playCelebrationAudio() async {
     try {
-      await _audioPlayer.play(AssetSource('audio/celebration.mp3'));
+      final sound = _celebrationSounds[math.Random().nextInt(_celebrationSounds.length)];
+      await _audioPlayer.play(AssetSource(sound));
     } catch (_) {
       // Silently suppressed in test environments (MissingPluginException).
     }
@@ -251,8 +283,11 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
             child: ConfettiWidget(
               confettiController: _confettiController,
               blastDirectionality: BlastDirectionality.explosive,
-              emissionFrequency: 0.04,
-              gravity: 0.2,
+              emissionFrequency: 0.08,
+              numberOfParticles: 12,
+              gravity: 0.4,
+              shouldLoop: false,
+              createParticlePath: _drawStar,
               colors: _confettiColors,
             ),
           ),

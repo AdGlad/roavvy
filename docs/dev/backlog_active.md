@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M123 — Scan: Live Heritage Discovery & Stats Totals
+**Goal:** Close remaining gaps from M121/M122 design brief — stats bar with "14/244 countries · 3/7 continents · 7/1,223 heritage sites" totals; dedicated gold-themed heritage discovery toast ("🏛 Acropolis of Athens") fires 400ms after country toast when new UNESCO site found.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `WorldHeritageLookupService.totalSiteCount` getter; `_liveHeritageCount` state field; `_ScanStatsBar` totals; `_HeritageToastBanner` widget; `_ScanningView` heritage toast wiring.
+**Scope out:** Sound design, achievements during scan, gold pulse on map, heritage progress widget.
+**Full plan:** `docs/dev/milestones/m123-scan-live-heritage-stats-totals.md`
+**Status:** Not started
+
+---
+
 ### M122 — Scan: Momentum & Discovery Density
 **Goal:** Evolve the scan screen from celebration-first to continuous forward momentum. Convert horizontal discovery cards to compact vertical chips (newest-first, 40 px rows). Add three-tier confetti (micro/medium/full keyed to country/continent/major milestone). Add live stats bar (countries · continents · photos) visible during scanning. Compact scan mode selector. Toast rate-limiting for rapid discoveries.
 **Phase:** 25 — Scan UX Transformation

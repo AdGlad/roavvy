@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
+import '../../core/flag_colours.dart';
 import '../../core/providers.dart';
 import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
@@ -526,6 +527,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 isoCode: code,
                 photoCount: entry.value.photoCount,
                 firstSeenYear: entry.value.firstSeen?.year,
+                heritageSiteNames: whsAccum.values
+                    .where((s) => s.countryCode == code)
+                    .map((s) => s.name)
+                    .toList(),
               ));
             }
           }
@@ -967,6 +972,7 @@ class _DiscoveryEntry {
     required this.isoCode,
     required this.photoCount,
     this.firstSeenYear,
+    this.heritageSiteNames = const [],
   });
 
   final String isoCode;
@@ -974,6 +980,9 @@ class _DiscoveryEntry {
 
   /// Year of first photo evidence (null when unknown or not yet computed).
   final int? firstSeenYear;
+
+  /// Names of newly discovered World Heritage Sites in this country (empty for pre-scan entries).
+  final List<String> heritageSiteNames;
 }
 
 // ── Sub-widgets ────────────────────────────────────────────────────────────────
@@ -1155,6 +1164,8 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   ConfettiController? _microCtrl;
   ConfettiController? _mediumCtrl;
   ConfettiController? _fullCtrl;
+  // Updated to the discovered country's flag colours when a new entry arrives.
+  List<Color> _confettiColors = const [Colors.amber, Colors.orange, Colors.blue];
   // Continents encountered during this scan — used to detect first-continent events.
   final Set<String> _continentsSeenDuringScan = {};
 
@@ -1170,9 +1181,9 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     super.initState();
     // Three ConfettiControllers for priority tiers (M122, ADR-169).
     // Reduce-motion guard applied in _burst() and build().
-    _microCtrl  = ConfettiController(duration: const Duration(milliseconds: 400));
-    _mediumCtrl = ConfettiController(duration: const Duration(milliseconds: 800));
-    _fullCtrl   = ConfettiController(duration: const Duration(milliseconds: 1400));
+    _microCtrl  = ConfettiController(duration: const Duration(milliseconds: 250));
+    _mediumCtrl = ConfettiController(duration: const Duration(milliseconds: 450));
+    _fullCtrl   = ConfettiController(duration: const Duration(milliseconds: 750));
   }
 
   @override
@@ -1187,6 +1198,10 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
       final newEntry = widget.liveNewEntries.last;
       final addedEntries = widget.liveNewEntries.sublist(oldWidget.liveNewEntries.length);
       if (!MediaQuery.disableAnimationsOf(context)) {
+        // Load flag colours for confetti; burst immediately with current colours.
+        flagColours(newEntry.isoCode).then((colors) {
+          if (mounted && colors != null) setState(() => _confettiColors = colors);
+        });
         _showToast(newEntry);
         _burst(_celebrationLevelFor(addedEntries));
         // First-country cinematic — only when no existing countries before scan.
@@ -1362,7 +1377,6 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final colorScheme = theme.colorScheme;
 
     // Extract ISO codes for the globe (which only needs codes).
     final liveNewCodes = widget.liveNewEntries.map((e) => e.isoCode).toList();
@@ -1421,11 +1435,12 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: ConfettiWidget(
                 confettiController: _microCtrl!,
                 blastDirectionality: BlastDirectionality.explosive,
-                emissionFrequency: 0.4,
-                numberOfParticles: 6,
-                gravity: 0.15,
+                emissionFrequency: 0.25,
+                numberOfParticles: 4,
+                gravity: 0.35,
                 shouldLoop: false,
-                colors: [colorScheme.primary, colorScheme.secondary, Colors.amber[400]!],
+                createParticlePath: _drawStar,
+                colors: _confettiColors,
               ),
             ),
           if (_mediumCtrl != null)
@@ -1434,16 +1449,12 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: ConfettiWidget(
                 confettiController: _mediumCtrl!,
                 blastDirectionality: BlastDirectionality.explosive,
-                emissionFrequency: 0.6,
-                numberOfParticles: 18,
-                gravity: 0.1,
+                emissionFrequency: 0.4,
+                numberOfParticles: 10,
+                gravity: 0.3,
                 shouldLoop: false,
-                colors: [
-                  colorScheme.primary,
-                  colorScheme.secondary,
-                  Colors.amber[400]!,
-                  Colors.amber[700]!,
-                ],
+                createParticlePath: _drawStar,
+                colors: _confettiColors,
               ),
             ),
           if (_fullCtrl != null)
@@ -1452,17 +1463,12 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: ConfettiWidget(
                 confettiController: _fullCtrl!,
                 blastDirectionality: BlastDirectionality.explosive,
-                emissionFrequency: 0.8,
-                numberOfParticles: 35,
-                gravity: 0.08,
+                emissionFrequency: 0.55,
+                numberOfParticles: 18,
+                gravity: 0.25,
                 shouldLoop: false,
-                colors: [
-                  colorScheme.primary,
-                  colorScheme.secondary,
-                  Colors.amber[400]!,
-                  Colors.amber[700]!,
-                  colorScheme.tertiary,
-                ],
+                createParticlePath: _drawStar,
+                colors: _confettiColors,
               ),
             ),
         ],
@@ -1637,6 +1643,16 @@ class _DiscoveryToastBanner extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (entry.heritageSiteNames.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _heritageText(entry.heritageSiteNames),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.85),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1651,6 +1667,11 @@ class _DiscoveryToastBanner extends StatelessWidget {
     final now = DateTime.now().year;
     if (firstSeenYear == now) return 'First discovery!';
     return 'First discovered in $firstSeenYear';
+  }
+
+  static String _heritageText(List<String> names) {
+    if (names.length == 1) return '🏛 ${names.first}';
+    return '🏛 ${names.length} World Heritage Sites';
   }
 }
 
@@ -2081,6 +2102,11 @@ class _DiscoveryChipState extends State<_DiscoveryChip>
             ),
           ),
         ],
+        // Heritage badge.
+        if (entry.heritageSiteNames.isNotEmpty) ...[
+          const SizedBox(width: 4),
+          const Text('🏛', style: TextStyle(fontSize: 10)),
+        ],
         // Photo count.
         if (entry.photoCount > 0) ...[
           const SizedBox(width: 6),
@@ -2154,6 +2180,29 @@ class _FirstCountryCinematic extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 5-pointed star particle path for confetti.
+Path _drawStar(Size size) {
+  const n = 5;
+  final cx = size.width / 2;
+  final cy = size.height / 2;
+  final outer = size.width / 2;
+  final inner = outer * 0.4;
+  final path = Path();
+  for (var i = 0; i < n * 2; i++) {
+    final r = i.isEven ? outer : inner;
+    final angle = (i * math.pi / n) - math.pi / 2;
+    final x = cx + r * math.cos(angle);
+    final y = cy + r * math.sin(angle);
+    if (i == 0) {
+      path.moveTo(x, y);
+    } else {
+      path.lineTo(x, y);
+    }
+  }
+  path.close();
+  return path;
 }
 
 /// Returns the Unicode flag emoji for a 2-letter ISO country code.
