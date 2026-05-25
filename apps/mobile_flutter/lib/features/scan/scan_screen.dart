@@ -1240,7 +1240,8 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   Timer? _toastReplaceTimer;
 
   // ── Audio (M124) ─────────────────────────────────────────────────────────────
-  final AudioPlayer _scanAudio = AudioPlayer();
+  // No persistent player — each sound creates a fresh AudioPlayer and disposes
+  // it on completion to avoid iOS "invalid reuse after initialization failure".
 
   // ── Achievement toast state (T4, M125) ───────────────────────────────────────
   String? _achievementToastId;
@@ -1413,7 +1414,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   void _showHeritageToast(List<String> siteNames) {
     _heritageToastTimer?.cancel();
     if (!mounted || siteNames.isEmpty) return;
-    _scanAudio.play(AssetSource('audio/scan_heritage_discovery.wav'));
+    _playSound('audio/scan_heritage_discovery.wav');
     setState(() {
       _heritageToastSiteName = siteNames.first;
       _heritageToastExtraCount = siteNames.length - 1;
@@ -1459,18 +1460,30 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     });
   }
 
+  /// Plays a short scan sound. Creates a fresh [AudioPlayer] per call so iOS
+  /// never reuses a player that failed or completed — avoids "invalid reuse
+  /// after initialization failure" from the audioplayers native layer.
+  void _playSound(String asset) {
+    final player = AudioPlayer();
+    player.play(AssetSource(asset)).then((_) {
+      player.onPlayerComplete.first.then((_) => player.dispose()).catchError((_) => player.dispose());
+    }).catchError((_) {
+      player.dispose();
+    });
+  }
+
   void _burst(_CelebrationLevel level) {
     if (MediaQuery.disableAnimationsOf(context)) return;
     switch (level) {
       case _CelebrationLevel.micro:
         _microCtrl?.play();
-        _scanAudio.play(AssetSource('audio/scan_country_discovery.wav'));
+        _playSound('audio/scan_country_discovery.wav');
       case _CelebrationLevel.medium:
         _mediumCtrl?.play();
-        _scanAudio.play(AssetSource('audio/scan_continent_discovery.wav'));
+        _playSound('audio/scan_continent_discovery.wav');
       case _CelebrationLevel.full:
         _fullCtrl?.play();
-        _scanAudio.play(AssetSource('audio/scan_major_milestone.wav'));
+        _playSound('audio/scan_major_milestone.wav');
     }
   }
 
@@ -1484,7 +1497,6 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     _heritageToastCtrl?.dispose();
     _achievementToastTimer?.cancel();
     _achievementToastCtrl?.dispose();
-    _scanAudio.dispose();
     _microCtrl?.dispose();
     _mediumCtrl?.dispose();
     _fullCtrl?.dispose();
