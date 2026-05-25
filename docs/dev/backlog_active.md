@@ -13,7 +13,7 @@
 **Depends on:** M122 ✅, M123 ✅, M125 ✅
 **Scope in:** `_DiscoveryEvent` sealed class + `_PriorityQueue`; `_CinematicPresentationEngine` drain loop + presentation lock; `_AudioCategory` enum + 4-category audio routing; queue depth indicator; UNESCO heritage distinct presentation; P4 cooldown (max 1 per 6–8s); `_ScanPhase` progressive intensity; mute toggle.
 **Full plan:** `docs/dev/milestones/m130-scan-cinematic-pacing-orchestration.md`
-**Status:** Not started. No tasks written.
+**Status:** ✅ Complete (2026-05-25)
 
 ---
 

@@ -1188,6 +1188,90 @@ class _RestrictedPanel extends StatelessWidget {
 
 enum _CelebrationLevel { micro, medium, full }
 
+// ── M130: Cinematic pacing infrastructure ─────────────────────────────────────
+
+enum _EventPriority { p2, p3, p4 }
+
+/// Scan phase — controls presentation richness (M130, T7).
+enum _ScanPhase { early, building, revealing }
+
+sealed class _DiscoveryEvent {
+  const _DiscoveryEvent({required this.priority, required this.arrivedAt});
+  final _EventPriority priority;
+  final DateTime arrivedAt;
+}
+
+class _CountryEvent extends _DiscoveryEvent {
+  const _CountryEvent({required this.entry, required super.arrivedAt})
+      : super(priority: _EventPriority.p2);
+  final _DiscoveryEntry entry;
+}
+
+class _HeritageEvent extends _DiscoveryEvent {
+  const _HeritageEvent({
+    required this.siteName,
+    required this.extraCount,
+    required this.siteType,
+    required super.arrivedAt,
+  }) : super(priority: _EventPriority.p2);
+  final String siteName;
+  final int extraCount;
+  final String? siteType; // 'cultural' | 'natural' | null
+}
+
+class _AchievementEvent extends _DiscoveryEvent {
+  const _AchievementEvent({required this.achievementId, required super.arrivedAt})
+      : super(priority: _EventPriority.p3);
+  final String achievementId;
+}
+
+class _ContinentEvent extends _DiscoveryEvent {
+  const _ContinentEvent({required this.continentName, required super.arrivedAt})
+      : super(priority: _EventPriority.p3);
+  final String continentName;
+}
+
+class _MajorMilestoneEvent extends _DiscoveryEvent {
+  const _MajorMilestoneEvent({required this.countryCount, required super.arrivedAt})
+      : super(priority: _EventPriority.p4);
+  final int countryCount;
+}
+
+/// Priority queue: highest priority first, oldest arrivedAt first within same tier.
+/// Capped at 50 events; oldest P2 dropped when full (P3/P4 always kept).
+class _PriorityQueue {
+  final _events = <_DiscoveryEvent>[];
+
+  int get length => _events.length;
+  bool get isEmpty => _events.isEmpty;
+
+  void enqueue(_DiscoveryEvent event) {
+    if (_events.length >= 50) {
+      final dropIdx =
+          _events.lastIndexWhere((e) => e.priority == _EventPriority.p2);
+      if (dropIdx != -1) {
+        _events.removeAt(dropIdx);
+      } else {
+        return;
+      }
+    }
+    int i = 0;
+    while (i < _events.length) {
+      final e = _events[i];
+      if (e.priority.index < event.priority.index) { break; }
+      if (e.priority == event.priority &&
+          e.arrivedAt.isAfter(event.arrivedAt)) { break; }
+      i++;
+    }
+    _events.insert(i, event);
+  }
+
+  _DiscoveryEvent? dequeue() =>
+      _events.isEmpty ? null : _events.removeAt(0);
+
+  void clear() => _events.clear();
+}
+
 // ── _ScanningView (Tasks 146, 147, 148 — M43; M121 emotional rewrite) ─────────
 
 class _ScanningView extends ConsumerStatefulWidget {
@@ -1240,14 +1324,10 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   AnimationController? _toastCtrl;
   Animation<Offset>? _toastSlide;
   Timer? _toastTimer;
-  // Rate-limiting: don't replace a toast that has been shown for less than 500ms (T5, M122).
-  DateTime? _toastShownAt;
-  Timer? _toastReplaceTimer;
 
   // ── Audio (M124) ─────────────────────────────────────────────────────────────
-  // Synthesised in Dart via ScanToneGenerator + BytesSource — same approach as
-  // ReplayAudioController, which avoids iOS file-URL resolution issues entirely.
   final ScanAudioController _scanAudio = ScanAudioController();
+  bool _muted = false; // M130 mute toggle
 
   // ── Achievement toast state (T4, M125) ───────────────────────────────────────
   String? _achievementToastId;
@@ -1264,19 +1344,24 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   // ── Heritage toast state (T4, M123) ──────────────────────────────────────────
   String? _heritageToastSiteName;
   int _heritageToastExtraCount = 0;
+  String? _heritageToastSiteType;
   AnimationController? _heritageToastCtrl;
   Animation<Offset>? _heritageToastSlide;
   Timer? _heritageToastTimer;
-  Timer? _heritageToastDelayTimer;
 
   // ── Confetti ─────────────────────────────────────────────────────────────────
-  // Three priority tiers (M122, ADR-169): micro = country, medium = new continent,
-  // full = crossing 10/25/50 total countries.
   ConfettiController? _microCtrl;
   ConfettiController? _mediumCtrl;
   ConfettiController? _fullCtrl;
-  // Updated to the discovered country's flag colours when a new entry arrives.
   List<Color> _confettiColors = const [Colors.amber, Colors.orange, Colors.blue];
+
+  // ── M130: Cinematic pacing ────────────────────────────────────────────────────
+  final _buffer = _PriorityQueue();
+  bool _presentationLocked = false;
+  DateTime? _lastP4DeliveredAt;
+  _ScanPhase _scanPhase = _ScanPhase.early;
+  Timer? _drainTimer;
+  int _queueDepth = 0; // for depth indicator
   // Continents encountered during this scan — used to detect first-continent events.
   final Set<String> _continentsSeenDuringScan = {};
 
@@ -1290,13 +1375,14 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   @override
   void initState() {
     super.initState();
-    // Three ConfettiControllers for priority tiers (M122, ADR-169).
-    // Reduce-motion guard applied in _burst() and build().
     _microCtrl  = ConfettiController(duration: const Duration(milliseconds: 250));
     _mediumCtrl = ConfettiController(duration: const Duration(milliseconds: 450));
     _fullCtrl   = ConfettiController(duration: const Duration(milliseconds: 750));
-    // Pre-warm scan audio players (async, non-blocking).
     _scanAudio.preload();
+    // M130: drain queue every 100 ms when presentation lock is free.
+    _drainTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (mounted) _drainQueue();
+    });
   }
 
   @override
@@ -1305,59 +1391,210 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     // Reset continent tracking when a new scan begins.
     if (!oldWidget.isScanning && widget.isScanning) {
       _continentsSeenDuringScan.clear();
+      _buffer.clear();
+      _scanPhase = _ScanPhase.early;
     }
+
     if (widget.liveNewEntries.length > oldWidget.liveNewEntries.length) {
-      // If multiple entries arrived in one update, only toast the last one (T5, M122).
-      final newEntry = widget.liveNewEntries.last;
-      final addedEntries = widget.liveNewEntries.sublist(oldWidget.liveNewEntries.length);
+      final addedEntries =
+          widget.liveNewEntries.sublist(oldWidget.liveNewEntries.length);
+      final now = DateTime.now();
+      final totalAfter =
+          widget.liveNewEntries.length + widget.existingEntries.length;
+
+      // Update scan phase (M130, T7).
+      if (_scanPhase == _ScanPhase.early && totalAfter >= 10) {
+        _scanPhase = _ScanPhase.building;
+      } else if (_scanPhase == _ScanPhase.building && totalAfter >= 30) {
+        _scanPhase = _ScanPhase.revealing;
+      }
+
       if (!MediaQuery.disableAnimationsOf(context)) {
-        // Load flag colours for confetti; burst immediately with current colours.
-        flagColours(newEntry.isoCode).then((colors) {
-          if (mounted && colors != null) setState(() => _confettiColors = colors);
-        });
-        _showToast(newEntry);
-        _burst(_celebrationLevelFor(addedEntries));
-        // Heritage discovery toast — fires 400ms after country toast (T4, M123).
-        if (newEntry.heritageSiteNames.isNotEmpty) {
-          _heritageToastDelayTimer?.cancel();
-          _heritageToastDelayTimer = Timer(const Duration(milliseconds: 400), () {
-            if (mounted) _showHeritageToast(newEntry.heritageSiteNames);
+        for (final entry in addedEntries) {
+          // P1: update flag colours live (no lock needed).
+          flagColours(entry.isoCode).then((colors) {
+            if (mounted && colors != null) setState(() => _confettiColors = colors);
           });
+
+          // First-country cinematic — runs immediately, outside queue (P1).
+          if (!_firstCountryCinematicShown && widget.existingEntries.isEmpty) {
+            _firstCountryCinematicShown = true;
+            _triggerCinematic(entry);
+          }
+
+          // Determine P3/P4 event types for this entry.
+          final totalBefore = totalAfter - addedEntries.length;
+          const majorThresholds = {10, 25, 50};
+          bool isMajor = false;
+          for (final t in majorThresholds) {
+            if (totalBefore < t && totalAfter >= t) {
+              _buffer.enqueue(_MajorMilestoneEvent(
+                  countryCount: t, arrivedAt: now));
+              isMajor = true;
+              break;
+            }
+          }
+
+          if (!isMajor) {
+            final continent = kCountryContinent[entry.isoCode];
+            if (continent != null && _continentsSeenDuringScan.add(continent)) {
+              _buffer.enqueue(_ContinentEvent(
+                  continentName: continent, arrivedAt: now));
+            }
+          }
+
+          // P2 country event.
+          _buffer.enqueue(_CountryEvent(entry: entry, arrivedAt: now));
+
+          // P2 heritage events (one per site, queued after country).
+          if (entry.heritageSiteNames.isNotEmpty) {
+            final sites = widget.liveHeritageSites
+                .where((s) => entry.heritageSiteNames.contains(s.name))
+                .toList();
+            for (int i = 0; i < entry.heritageSiteNames.length; i++) {
+              _buffer.enqueue(_HeritageEvent(
+                siteName: entry.heritageSiteNames[i],
+                extraCount: 0,
+                siteType: i < sites.length ? sites[i].category : null,
+                arrivedAt: now,
+              ));
+            }
+          }
         }
-        // First-country cinematic — only when no existing countries before scan.
-        if (!_firstCountryCinematicShown && widget.existingEntries.isEmpty) {
-          _firstCountryCinematicShown = true;
-          _triggerCinematic(newEntry);
-        }
+        setState(() => _queueDepth = _buffer.length);
       }
     }
-    // Achievement toast — checked independently; fires when a new achievement
-    // is unlocked during this scan (T4, M125). Runs outside reduce-motion guard
-    // because the toast text is informational, not just decorative.
+
+    // Achievement toast — enqueue as P3 (outside reduce-motion guard).
     if (widget.achievementsUnlocked.length > oldWidget.achievementsUnlocked.length) {
-      final newId = widget.achievementsUnlocked[oldWidget.achievementsUnlocked.length];
-      _showAchievementToast(newId);
+      final newId =
+          widget.achievementsUnlocked[oldWidget.achievementsUnlocked.length];
+      _buffer.enqueue(_AchievementEvent(achievementId: newId, arrivedAt: DateTime.now()));
     }
   }
 
-  // Determine the highest-priority celebration level for a batch of new entries.
-  _CelebrationLevel _celebrationLevelFor(List<_DiscoveryEntry> newEntries) {
-    final totalAfter =
-        widget.liveNewEntries.length + widget.existingEntries.length;
-    const majorThresholds = {10, 25, 50};
-    final totalBefore = totalAfter - newEntries.length;
-    // Check if any threshold was crossed.
-    for (final t in majorThresholds) {
-      if (totalBefore < t && totalAfter >= t) return _CelebrationLevel.full;
-    }
-    // Check for first country in a new continent.
-    for (final entry in newEntries) {
-      final continent = kCountryContinent[entry.isoCode];
-      if (continent != null && _continentsSeenDuringScan.add(continent)) {
-        return _CelebrationLevel.medium;
+  // ── M130: Cinematic presentation engine ───────────────────────────────────────
+
+  Future<void> _drainQueue() async {
+    if (_presentationLocked) return;
+    final event = _buffer.dequeue();
+    if (event == null) return;
+
+    // P4 cooldown — downgrade to P3 if a P4 was delivered within 6 seconds.
+    final effectiveEvent = () {
+      if (event is _MajorMilestoneEvent) {
+        final last = _lastP4DeliveredAt;
+        if (last != null &&
+            DateTime.now().difference(last).inSeconds < 6) {
+          return _AchievementEvent(
+              achievementId: 'countries_${event.countryCount}',
+              arrivedAt: event.arrivedAt);
+        }
       }
+      return event;
+    }();
+
+    _presentationLocked = true;
+    if (mounted) setState(() => _queueDepth = _buffer.length);
+    try {
+      await _dispatchPresentation(effectiveEvent);
+    } finally {
+      _presentationLocked = false;
+      if (mounted) setState(() => _queueDepth = _buffer.length);
     }
-    return _CelebrationLevel.micro;
+  }
+
+  Future<void> _dispatchPresentation(_DiscoveryEvent event) async {
+    switch (event) {
+      case _CountryEvent():
+        await _presentCountryDiscovery(event);
+      case _HeritageEvent():
+        await _presentHeritageDiscovery(event);
+      case _AchievementEvent():
+        await _presentAchievementOrContinent(event.achievementId, isContinent: false);
+      case _ContinentEvent():
+        await _presentAchievementOrContinent(event.continentName, isContinent: true);
+      case _MajorMilestoneEvent():
+        _lastP4DeliveredAt = DateTime.now();
+        await _presentMajorMilestone(event);
+    }
+  }
+
+  Future<void> _presentCountryDiscovery(_CountryEvent event) async {
+    if (!mounted) return;
+    final showYear = _scanPhase != _ScanPhase.early;
+    _doShowToast(event.entry, showYear: showYear);
+    _burstConfetti(_CelebrationLevel.micro);
+    if (!_muted) _scanAudio.playCountryDiscovery();
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (mounted) {
+      _toastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _toastEntry = null);
+      });
+    }
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  Future<void> _presentHeritageDiscovery(_HeritageEvent event) async {
+    if (!mounted) return;
+    _doShowHeritageToast(event.siteName, event.extraCount, event.siteType);
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!_muted) _scanAudio.playHeritageDiscovery();
+    await Future.delayed(const Duration(milliseconds: 2000));
+    if (mounted) {
+      _heritageToastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _heritageToastSiteName = null);
+      });
+    }
+    await Future.delayed(const Duration(milliseconds: 400));
+  }
+
+  Future<void> _presentAchievementOrContinent(String label, {required bool isContinent}) async {
+    if (!mounted) return;
+    _doShowAchievementToast(label);
+    if (!_muted) {
+      isContinent
+          ? _scanAudio.playContinentDiscovery()
+          : _scanAudio.playCountryDiscovery();
+    }
+    await Future.delayed(const Duration(milliseconds: 2500));
+    if (mounted) {
+      _achievementToastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _achievementToastId = null);
+      });
+    }
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
+  Future<void> _presentMajorMilestone(_MajorMilestoneEvent event) async {
+    if (!mounted) return;
+    final label = 'countries_${event.countryCount}';
+    _doShowAchievementToast(label);
+    _burstConfetti(_CelebrationLevel.full);
+    if (!_muted && _scanPhase == _ScanPhase.revealing) {
+      _scanAudio.playMajorMilestone();
+    } else if (!_muted) {
+      _scanAudio.playCountryDiscovery();
+    }
+    await Future.delayed(const Duration(milliseconds: 4000));
+    if (mounted) {
+      _achievementToastCtrl?.reverse().then((_) {
+        if (mounted) setState(() => _achievementToastId = null);
+      });
+    }
+    await Future.delayed(const Duration(milliseconds: 1500));
+  }
+
+  void _burstConfetti(_CelebrationLevel level) {
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    switch (level) {
+      case _CelebrationLevel.micro:
+        _microCtrl?.play();
+      case _CelebrationLevel.medium:
+        _mediumCtrl?.play();
+      case _CelebrationLevel.full:
+        _fullCtrl?.play();
+    }
   }
 
   void _triggerCinematic(_DiscoveryEntry entry) {
@@ -1380,26 +1617,12 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     });
   }
 
-  void _showToast(_DiscoveryEntry entry) {
-    // Rate-limit: if current toast has been shown for less than 500ms, delay replacement.
-    final now = DateTime.now();
-    final shownAt = _toastShownAt;
-    if (shownAt != null && now.difference(shownAt).inMilliseconds < 500) {
-      _toastReplaceTimer?.cancel();
-      final remaining = 500 - now.difference(shownAt).inMilliseconds;
-      _toastReplaceTimer = Timer(Duration(milliseconds: remaining), () {
-        if (mounted) _doShowToast(entry);
-      });
-      return;
-    }
-    _doShowToast(entry);
-  }
+  // Internal helpers called by _presentX methods (no timer side-effects — timing
+  // is controlled by the cinematic engine via Future.delayed).
 
-  void _doShowToast(_DiscoveryEntry entry) {
+  void _doShowToast(_DiscoveryEntry entry, {bool showYear = true}) {
     _toastTimer?.cancel();
-    _toastReplaceTimer?.cancel();
     if (!mounted) return;
-    _toastShownAt = DateTime.now();
     setState(() => _toastEntry = entry);
     _toastCtrl?.dispose();
     _toastCtrl = AnimationController(
@@ -1411,21 +1634,15 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _toastCtrl!, curve: Curves.easeOut));
     _toastCtrl!.forward();
-    _toastTimer = Timer(const Duration(milliseconds: 2500), () {
-      if (!mounted) return;
-      _toastCtrl?.reverse().then((_) {
-        if (mounted) setState(() => _toastEntry = null);
-      });
-    });
   }
 
-  void _showHeritageToast(List<String> siteNames) {
+  void _doShowHeritageToast(String siteName, int extraCount, String? siteType) {
     _heritageToastTimer?.cancel();
-    if (!mounted || siteNames.isEmpty) return;
-    _scanAudio.playHeritageDiscovery();
+    if (!mounted) return;
     setState(() {
-      _heritageToastSiteName = siteNames.first;
-      _heritageToastExtraCount = siteNames.length - 1;
+      _heritageToastSiteName = siteName;
+      _heritageToastExtraCount = extraCount;
+      _heritageToastSiteType = siteType;
     });
     _heritageToastCtrl?.dispose();
     _heritageToastCtrl = AnimationController(
@@ -1437,15 +1654,9 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _heritageToastCtrl!, curve: Curves.easeOut));
     _heritageToastCtrl!.forward();
-    _heritageToastTimer = Timer(const Duration(milliseconds: 3000), () {
-      if (!mounted) return;
-      _heritageToastCtrl?.reverse().then((_) {
-        if (mounted) setState(() => _heritageToastSiteName = null);
-      });
-    });
   }
 
-  void _showAchievementToast(String achievementId) {
+  void _doShowAchievementToast(String achievementId) {
     _achievementToastTimer?.cancel();
     if (!mounted) return;
     setState(() => _achievementToastId = achievementId);
@@ -1460,36 +1671,14 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     ).animate(
         CurvedAnimation(parent: _achievementToastCtrl!, curve: Curves.easeOut));
     _achievementToastCtrl!.forward();
-    _achievementToastTimer = Timer(const Duration(milliseconds: 3000), () {
-      if (!mounted) return;
-      _achievementToastCtrl?.reverse().then((_) {
-        if (mounted) setState(() => _achievementToastId = null);
-      });
-    });
-  }
-
-  void _burst(_CelebrationLevel level) {
-    if (MediaQuery.disableAnimationsOf(context)) return;
-    switch (level) {
-      case _CelebrationLevel.micro:
-        _microCtrl?.play();
-        _scanAudio.playCountryDiscovery();
-      case _CelebrationLevel.medium:
-        _mediumCtrl?.play();
-        _scanAudio.playContinentDiscovery();
-      case _CelebrationLevel.full:
-        _fullCtrl?.play();
-        _scanAudio.playMajorMilestone();
-    }
   }
 
   @override
   void dispose() {
+    _drainTimer?.cancel();
     _toastTimer?.cancel();
-    _toastReplaceTimer?.cancel();
     _toastCtrl?.dispose();
     _heritageToastTimer?.cancel();
-    _heritageToastDelayTimer?.cancel();
     _heritageToastCtrl?.dispose();
     _achievementToastTimer?.cancel();
     _achievementToastCtrl?.dispose();
@@ -1604,7 +1793,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
             ),
           ],
         ),
-        // Country toast overlay (T5, M121 — enhanced with firstSeenYear).
+        // Country toast overlay — one at a time via cinematic engine (M130).
         if (_toastEntry != null && _toastSlide != null)
           Positioned(
             top: 0,
@@ -1615,11 +1804,10 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: _DiscoveryToastBanner(entry: _toastEntry!),
             ),
           ),
-        // Heritage toast overlay — gold-themed, fires 400ms after country toast (T4, M123).
+        // Heritage toast overlay (M130 — amber, sequential, chimed).
         if (_heritageToastSiteName != null && _heritageToastSlide != null && !reduceMotion)
           Positioned(
-            // Offset below country toast when both are active simultaneously.
-            top: _toastEntry != null ? 68.0 : 0.0,
+            top: 0,
             left: 0,
             right: 0,
             child: SlideTransition(
@@ -1627,15 +1815,14 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: _HeritageToastBanner(
                 siteName: _heritageToastSiteName!,
                 extraCount: _heritageToastExtraCount,
+                siteType: _heritageToastSiteType,
               ),
             ),
           ),
-        // Achievement toast overlay — deep purple, fires on country-count threshold (T4, M125).
+        // Achievement/milestone toast overlay (M130 — one at a time).
         if (_achievementToastId != null && _achievementToastSlide != null)
           Positioned(
-            // Stack below country + heritage toasts when both are active.
-            top: (_toastEntry != null ? 68.0 : 0.0) +
-                (_heritageToastSiteName != null ? 68.0 : 0.0),
+            top: 0,
             left: 0,
             right: 0,
             child: SlideTransition(
@@ -1644,6 +1831,47 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
                 achievementId: _achievementToastId!,
                 titleMap: _kAchievementTitles,
               ),
+            ),
+          ),
+        // Queue depth indicator — appears when 3+ events queued (M130, T3).
+        if (_queueDepth >= 3)
+          Positioned(
+            top: 68,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  key: ValueKey(_queueDepth),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Next discoveries queued: $_queueDepth',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        // Mute toggle — top right (M130, T4).
+        if (widget.isScanning)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: IconButton(
+              icon: Icon(
+                _muted ? Icons.volume_off_outlined : Icons.volume_up_outlined,
+                size: 20,
+              ),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              tooltip: _muted ? 'Unmute' : 'Mute scan sounds',
+              onPressed: () => setState(() => _muted = !_muted),
             ),
           ),
         // Confetti — three priority tiers (M122, ADR-169). Skip when reduce-motion enabled.
@@ -1947,14 +2175,18 @@ class _HeritageToastBanner extends StatelessWidget {
   const _HeritageToastBanner({
     required this.siteName,
     required this.extraCount,
+    this.siteType, // 'cultural' | 'natural' | null (M130, T6)
   });
 
   final String siteName;
   final int extraCount;
+  final String? siteType;
 
   @override
   Widget build(BuildContext context) {
     final label = extraCount > 0 ? '$siteName +$extraCount more' : siteName;
+    final chipColor = siteType == 'natural' ? Colors.green[700] : Colors.amber[900];
+    final chipLabel = siteType == 'natural' ? 'Natural' : (siteType == 'cultural' ? 'Cultural' : null);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1996,6 +2228,24 @@ class _HeritageToastBanner extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
+                if (chipLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: chipColor!.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      chipLabel,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
