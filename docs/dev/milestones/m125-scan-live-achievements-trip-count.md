@@ -1,6 +1,6 @@
 # M125 — Scan: Live Achievement Toasts & Live Trip Count
 
-**Status:** In Progress (2026-05-25)
+**Status:** Complete (2026-05-25)
 **Branch:** `milestone/m123-scan-live-heritage-stats-totals`
 **Phase:** 25 — Scan UX Transformation
 

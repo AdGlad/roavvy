@@ -325,6 +325,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// Inferred trip count from accumulated photo dates, updated each batch (T2, M125).
   int _liveTripCount = 0;
 
+  /// GPS coordinates of UNESCO sites discovered so far in this scan (T1, M126).
+  List<(double lat, double lng)> _liveHeritageSiteCoords = const [];
+
   @override
   void initState() {
     super.initState();
@@ -423,6 +426,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _liveHeritageCount = 0;
       _achievementsUnlockedInOrder.clear();
       _liveTripCount = 0;
+      _liveHeritageSiteCoords = const [];
       // Pre-populate with thresholds already satisfied by existing countries
       // so we only toast achievements that are NEW during this scan (T1, M125).
       _achievementsToastedThisScan
@@ -582,6 +586,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               }
               // T2, M125: live trip count from in-memory inference.
               _liveTripCount = inferTrips(allPhotoDates).length;
+              // T1, M126: thread heritage GPS coords for globe pulse dots.
+              _liveHeritageSiteCoords = whsAccum.values
+                  .map((s) => (s.latitude, s.longitude))
+                  .toList();
             });
           }
         }
@@ -801,6 +809,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _existingEntriesAtScanStart = const [];
           _liveHeritageCount = 0;
           _liveTripCount = 0;
+          _liveHeritageSiteCoords = const [];
           _achievementsUnlockedInOrder.clear();
           _achievementsToastedThisScan.clear();
         });
@@ -940,6 +949,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                               achievementsUnlocked: List.unmodifiable(
                                   _achievementsUnlockedInOrder),
                               liveTripCount: _liveTripCount,
+                              liveHeritageSiteCoords: _liveHeritageSiteCoords,
                             ),
                           )
                         // No data yet paths:
@@ -1185,6 +1195,7 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.liveHeritageCount = 0,
     this.achievementsUnlocked = const [],
     this.liveTripCount = 0,
+    this.liveHeritageSiteCoords = const [],
   });
 
   final _ScanProgress? progress;
@@ -1210,6 +1221,9 @@ class _ScanningView extends ConsumerStatefulWidget {
 
   /// Live inferred trip count from accumulated photo dates (T2, M125).
   final int liveTripCount;
+
+  /// GPS coordinates of UNESCO heritage sites discovered so far (T1, M126).
+  final List<(double lat, double lng)> liveHeritageSiteCoords;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -1566,6 +1580,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: _ScanGlobeWidget(
                 liveNewCodes: liveNewCodes,
                 existingCodes: existingCodes,
+                heritageSiteCoords: widget.liveHeritageSiteCoords,
               ),
             ),
             const SizedBox(height: 8),
@@ -2041,12 +2056,16 @@ class _ScanGlobeWidget extends ConsumerStatefulWidget {
   const _ScanGlobeWidget({
     required this.liveNewCodes,
     this.existingCodes = const [],
+    this.heritageSiteCoords = const [],
   });
   final List<String> liveNewCodes;
 
   /// ISO codes already known before this scan. Pre-populate the globe without
   /// triggering travel animations (ADR-130).
   final List<String> existingCodes;
+
+  /// GPS coordinates of UNESCO sites discovered this scan (M126).
+  final List<(double lat, double lng)> heritageSiteCoords;
 
   @override
   ConsumerState<_ScanGlobeWidget> createState() => _ScanGlobeWidgetState();
@@ -2070,6 +2089,9 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
   // Pulse halo for the newest country.
   late final AnimationController _pulseCtrl;
 
+  // Gold pulse animation for heritage site dots (M126). Distinct timing from _pulseCtrl.
+  late final AnimationController _heritagePulseCtrl;
+
   // Projection at the start of the last travel animation.
   GlobeProjection _fromProjection = const GlobeProjection(scale: 1.0);
   // Target projection for the current travel animation.
@@ -2088,6 +2110,10 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _heritagePulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
   }
 
@@ -2206,6 +2232,7 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
     _zoomOutCtrl?.dispose();
     _spinCtrl.dispose();
     _pulseCtrl.dispose();
+    _heritagePulseCtrl.dispose();
     super.dispose();
   }
 
@@ -2230,7 +2257,7 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
     }
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_spinCtrl, _pulseCtrl]),
+      animation: Listenable.merge([_spinCtrl, _pulseCtrl, _heritagePulseCtrl]),
       builder: (context, _) {
         // Compute inside builder so values update every animation tick.
         final isIdle = (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
@@ -2243,6 +2270,8 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
               )
             : _projection;
         final pulseValue = reduceMotion ? 0.0 : _pulseCtrl.value;
+        final heritagePulseValue =
+            reduceMotion ? 0.0 : _heritagePulseCtrl.value;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -2254,6 +2283,8 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
               projection: displayProjection,
               highlightedCode: _highlightedCode,
               pulseValue: pulseValue,
+              heritageSiteCoords: widget.heritageSiteCoords,
+              heritagePulseValue: heritagePulseValue,
             ),
             child: const SizedBox.expand(),
           ),

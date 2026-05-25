@@ -1,7 +1,7 @@
 # M126 — Scan: Globe Heritage Pulse
 
-**Status:** Planned
-**Branch:** TBD
+**Status:** Complete (2026-05-25)
+**Branch:** `milestone/m123-scan-live-heritage-stats-totals`
 **Phase:** 25 — Scan UX Transformation
 
 ---

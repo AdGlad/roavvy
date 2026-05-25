@@ -52,6 +52,8 @@ class GlobePainter extends CustomPainter {
     required this.projection,
     this.highlightedCode,
     this.pulseValue = 0.0,
+    this.heritageSiteCoords = const [],
+    this.heritagePulseValue = 0.0,
   });
 
   final List<CountryPolygon> polygons;
@@ -64,6 +66,13 @@ class GlobePainter extends CustomPainter {
 
   /// Animation value 0.0–1.0 driving the halo opacity and size. 0.0 = hidden.
   final double pulseValue;
+
+  /// GPS coordinates of discovered UNESCO World Heritage Sites (M126).
+  /// Each entry is a `(lat, lng)` record in degrees.
+  final List<(double lat, double lng)> heritageSiteCoords;
+
+  /// Animation value 0.0–1.0 driving heritage site dot pulse. 0.0 = hidden glow.
+  final double heritagePulseValue;
 
   static const _kSuppressed = {'AQ'};
   static const _kStrokeWidth = 0.3;
@@ -127,6 +136,31 @@ class GlobePainter extends CustomPainter {
                   Colors.white.withValues(alpha: pulseValue * 0.35),
           );
         }
+      }
+    }
+
+    // 5. Heritage site gold pulse dots (M126).
+    // Inner dot always visible (full alpha); outer glow ring pulses.
+    if (heritageSiteCoords.isNotEmpty) {
+      for (final coord in heritageSiteCoords) {
+        final pt = projection.project(coord.$1, coord.$2, size);
+        if (pt == null) continue;
+        // Outer glow ring — animated.
+        if (heritagePulseValue > 0.0) {
+          canvas.drawCircle(
+            pt,
+            r * 0.04 * (1.0 + heritagePulseValue * 0.6),
+            Paint()
+              ..color =
+                  Colors.amber[400]!.withValues(alpha: heritagePulseValue * 0.30),
+          );
+        }
+        // Inner solid dot — always visible.
+        canvas.drawCircle(
+          pt,
+          r * 0.018,
+          Paint()..color = Colors.amber[300]!.withValues(alpha: 0.90),
+        );
       }
     }
   }
@@ -201,5 +235,7 @@ class GlobePainter extends CustomPainter {
       !identical(tripCounts, old.tripCounts) ||
       !identical(polygons, old.polygons) ||
       highlightedCode != old.highlightedCode ||
-      pulseValue != old.pulseValue;
+      pulseValue != old.pulseValue ||
+      !identical(heritageSiteCoords, old.heritageSiteCoords) ||
+      heritagePulseValue != old.heritagePulseValue;
 }

@@ -13,7 +13,7 @@
 **Depends on:** M125
 **Scope in:** `GlobePainter` — `heritageSiteCoords` + `heritagePulseValue` params; `_ScanGlobeWidget` — `heritageSiteCoords` prop + `_heritagePulseCtrl`; thread coords from `_ScanScreenState` through `_ScanningView`.
 **Full plan:** `docs/dev/milestones/m126-scan-globe-heritage-pulse.md`
-**Status:** Planned
+**Status:** ✅ Complete (2026-05-25)
 
 ---
 
@@ -22,7 +22,7 @@
 **Phase:** 25 — Scan UX Transformation
 **Scope in:** `_AchievementToastBanner`; `_toastedAchievements` set; `_liveTripCount` state field + `inferTrips()` per batch; `_ScanStatsBar` trip segment; `_ScanningView` props.
 **Full plan:** `docs/dev/milestones/m125-scan-live-achievements-trip-count.md`
-**Status:** In Progress (2026-05-25)
+**Status:** ✅ Complete (2026-05-25)
 
 ---
 
