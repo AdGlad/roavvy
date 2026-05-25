@@ -1,34 +1,47 @@
-# M114 — Memory Pulse: Photo Library Anniversary Query
+# M121 — Scan: Emotional Discovery Experience
 
-**Branch:** milestone/m114-memory-pulse-photo-library-query
+**Branch:** milestone/m121-scan-emotional-discovery-experience
 **Status:** In Progress
-
-## Goal
-
-Replace the hero-image-based anniversary lookup with a direct `photo_manager` query.
-On the anniversary date the app queries the device photo library for photos taken on
-today's month+day in any past year, picks the best photo per year, and shows up to 3
-pulse cards. If no photos exist for that date, no pulse fires.
 
 ## Tasks
 
-- [ ] 1. Create `MemoryAnniversaryPhoto` model in `lib/features/memory/memory_anniversary_photo.dart`
-- [ ] 2. Add `checkTodayFromPhotoLibrary(DateTime today)` to `MemoryPulseService`
-        — request photo library permission, fetch AssetEntity list filtered by month+day
-        across all years ≥ 1 year ago, group by year, pick best photo per year (selection
-        criteria from milestone doc), resolve countryCode via photo_date_records and tripId
-        via hero_images Drift tables, return List<MemoryAnniversaryPhoto> (max 3)
-- [ ] 3. Update `scheduleNextAnniversaryNotification` in `MemoryPulseService`
-        — fetch photo library assets, build set of (month, day) pairs with photos ≥ 1 year old,
-        find nearest future date in that set, schedule notification
-- [ ] 4. Update `buildCopy()` and `buildQuestion()` in `MemoryPulseService`
-        — accept `MemoryAnniversaryPhoto` instead of `HeroImage`; scene/mood/landmark will
-        be null; fall back to default copy templates gracefully
-- [ ] 5. Update providers — wire `checkTodayFromPhotoLibrary` in map_screen.dart (or wherever
-        `checkToday` is called); update any Riverpod providers that reference `HeroImage` pulse
-- [ ] 6. Update `MemoryPulseCard` — change `List<HeroImage>` → `List<MemoryAnniversaryPhoto>`;
-        dismiss key from `hero.tripId` → `hero.assetId`; hide "View trip" when tripId is null
-- [ ] 7. Update `MemoryRevealSheet` — change `HeroImage hero` → `MemoryAnniversaryPhoto hero`;
-        hide country chip when countryCode is null; hide "View trip" when tripId is null
-- [ ] 8. Validate: `flutter analyze` zero new warnings; confirm HeroImage-based code still compiles;
-        update milestone doc status, backlog, current_state.md, run `python3 scripts/index_docs.py`
+- [ ] T1 — Emotional progress copy & phase messaging
+       Replace `"X photos processed…"` with phase-aware discovery language.
+       Add `countriesFound` to `_ScanProgress`. Add `_buildScanHeader()` helper to `_ScanningView`.
+       Three phases: Discovering / Building / Almost there.
+
+- [ ] T2 — Globe as dominant hero
+       Remove fixed `SizedBox(height: 260)` from `_ScanGlobeWidget.build()`.
+       In `_ScanningView`, wrap globe in `Flexible(flex: 55)` and discovery feed in `Flexible(flex: 45)`.
+
+- [ ] T3 — _DiscoveryEntry data class + wiring
+       Add `_DiscoveryEntry {isoCode, photoCount, firstSeenYear}` private class.
+       Change `_liveNewCodes: List<String>` → `_liveNewEntries: List<_DiscoveryEntry>`.
+       Change `_existingCodesAtScanStart: List<String>` → `_existingEntriesAtScanStart: List<_DiscoveryEntry>`.
+       Build existing entries from `_effectiveVisits` at scan start.
+       Build live entries from `CountryAccum` as scan runs.
+       Update `_ScanningView` props + all call sites.
+       Extract codes for `_ScanGlobeWidget` from entries.
+
+- [ ] T4 — _DiscoveryFeed + _DiscoveryCard widgets
+       Horizontal `ListView` of `_DiscoveryCard` widgets.
+       Existing entries → muted grey cards. New entries → primary-colour border, slide+fade in.
+       Auto-scroll to newest card on arrival.
+       Remove `_LiveCountryList`, `_ScanPassportPreview`, `_LiveCountryRow`.
+
+- [ ] T5 — First-country cinematic overlay
+       `_FirstCountryCinematic` widget: dark scrim + "Welcome to your world." + flag + country name.
+       Fire only when `_existingEntriesAtScanStart.isEmpty` and first entry arrives.
+       Auto-dismiss after 2.5 s (400 ms fade in + 1.5 s hold + 400 ms fade out).
+       `_firstCountryCinematicShown` bool guard. Respects reduce-motion (skip if enabled).
+
+- [ ] T6 — Enhanced discovery toast
+       Add `firstSeenYear: int?` to `_DiscoveryToastBanner`.
+       Show subtitle: "First discovered in {year}" or "First discovery!" for new/null year.
+       Pass firstSeenYear from `_liveNewEntries.last` in `_ScanningViewState.didUpdateWidget`.
+
+- [ ] T7 — Emotional empty states + docs
+       `_NoScanYetHint`: "Your travel story is waiting." copy.
+       `_EmptyResultsHint`: "No travel photos found yet." copy.
+       Update milestone doc status + `current_task.md` + `backlog_active.md`.
+       Run `flutter analyze` and `python3 scripts/index_docs.py`.

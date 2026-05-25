@@ -1,7 +1,7 @@
 # Current Task
 
-**Milestone:** M120 — Merch Cart, Saved Mockups & Order History
-**Status:** ✅ Complete (2026-05-24)
+**Milestone:** M121 — Scan: Emotional Discovery Experience
+**Status:** ✅ Complete (2026-05-25)
 
-All tasks implemented. See `docs/dev/milestones/m120-merch-cart-order-history.md`.
+All tasks implemented. See `docs/dev/milestones/m121-scan-emotional-discovery-experience.md`.
 Next milestone: TBD — see `backlog_active.md`.

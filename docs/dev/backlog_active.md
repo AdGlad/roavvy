@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M121 — Scan: Emotional Discovery Experience
+**Goal:** Transform the scan screen from a technical progress display into an emotional travel discovery experience. Replace split country-list/stamp panel with a live horizontal discovery feed; expand globe to ~55 % of screen; replace photo-count copy with phase-aware discovery language; add first-country cinematic overlay; enhance discovery toast with contextual first-visit year.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `scan_screen.dart` only — layout, copy, new `_DiscoveryFeed`/`_DiscoveryCard` widgets, `_FirstCountryCinematic` overlay, `_DiscoveryEntry` data class, enhanced toast, emotional empty states.
+**Scope out:** Rovy mascot, Travel Identity Score, background scan, audio, Memory Pulse during scan, ScanSummaryScreen.
+**Full plan:** `docs/dev/milestones/m121-scan-emotional-discovery-experience.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
 ### M117 — Terms & Conditions Acceptance Gate
 **Goal:** Display and require acceptance of Roavvy T&Cs before a user can access the app. Persisted via SharedPreferences. Re-prompts when `kCurrentTermsVersion` is bumped.
 **Phase:** 24 — Legal & Compliance
