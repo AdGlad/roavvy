@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M122 — Scan: Momentum & Discovery Density
+**Goal:** Evolve the scan screen from celebration-first to continuous forward momentum. Convert horizontal discovery cards to compact vertical chips (newest-first, 40 px rows). Add three-tier confetti (micro/medium/full keyed to country/continent/major milestone). Add live stats bar (countries · continents · photos) visible during scanning. Compact scan mode selector. Toast rate-limiting for rapid discoveries.
+**Phase:** 25 — Scan UX Transformation
+**Scope in:** `scan_screen.dart` — `_DiscoveryChip` replaces `_DiscoveryCard`, `_CelebrationLevel` confetti tiers, `_ScanStatsBar`, compact `SegmentedButton` labels, toast rate-limit.
+**Scope out:** Heritage during scan, sound design, achievements during scan, trip count live display.
+**Full plan:** `docs/dev/milestones/m122-scan-momentum-discovery-density.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
 ### M121 — Scan: Emotional Discovery Experience
 **Goal:** Transform the scan screen from a technical progress display into an emotional travel discovery experience. Replace split country-list/stamp panel with a live horizontal discovery feed; expand globe to ~55 % of screen; replace photo-count copy with phase-aware discovery language; add first-country cinematic overlay; enhance discovery toast with contextual first-visit year.
 **Phase:** 25 — Scan UX Transformation

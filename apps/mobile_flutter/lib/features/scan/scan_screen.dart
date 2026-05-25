@@ -819,20 +819,22 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                           onOpenSettings: _openSettings,
                         ),
                         const SizedBox(height: 12),
-                        // Scan mode selector — only visible after the first scan.
+                        // Scan mode selector — only visible after the first scan (M122: compact).
                         if (_hasCompletedFirstScan) ...[
                           SegmentedButton<bool>(
-                            segments: [
+                            style: SegmentedButton.styleFrom(
+                              minimumSize: const Size(0, 32),
+                              textStyle: Theme.of(context).textTheme.labelMedium,
+                            ),
+                            segments: const [
                               ButtonSegment(
                                 value: false,
-                                label: Text(_lastScanAt != null
-                                    ? 'New photos (since ${_fmtDate(_lastScanAt!)})'
-                                    : 'New photos'),
-                                icon: const Icon(Icons.update),
+                                label: Text('New'),
+                                icon: Icon(Icons.update),
                               ),
-                              const ButtonSegment(
+                              ButtonSegment(
                                 value: true,
-                                label: Text('All photos'),
+                                label: Text('All'),
                                 icon: Icon(Icons.refresh),
                               ),
                             ],
@@ -841,6 +843,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                 ? null
                                 : (s) => setState(() => _forceFullScan = s.first),
                           ),
+                          if (_lastScanAt != null && !_forceFullScan)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Text(
+                                'Last scanned: ${_fmtDate(_lastScanAt!)}',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ),
                           const SizedBox(height: 8),
                         ],
                         FilledButton.tonal(
@@ -1094,6 +1107,10 @@ class _RestrictedPanel extends StatelessWidget {
   }
 }
 
+// ── Celebration level (M122, ADR-169) ─────────────────────────────────────────
+
+enum _CelebrationLevel { micro, medium, full }
+
 // ── _ScanningView (Tasks 146, 147, 148 — M43; M121 emotional rewrite) ─────────
 
 class _ScanningView extends ConsumerStatefulWidget {
@@ -1128,11 +1145,18 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   AnimationController? _toastCtrl;
   Animation<Offset>? _toastSlide;
   Timer? _toastTimer;
+  // Rate-limiting: don't replace a toast that has been shown for less than 500ms (T5, M122).
+  DateTime? _toastShownAt;
+  Timer? _toastReplaceTimer;
 
   // ── Confetti ─────────────────────────────────────────────────────────────────
-  ConfettiController? _confettiCtrl;
-  int _burstCount = 0;
-  Timer? _burstCooldown;
+  // Three priority tiers (M122, ADR-169): micro = country, medium = new continent,
+  // full = crossing 10/25/50 total countries.
+  ConfettiController? _microCtrl;
+  ConfettiController? _mediumCtrl;
+  ConfettiController? _fullCtrl;
+  // Continents encountered during this scan — used to detect first-continent events.
+  final Set<String> _continentsSeenDuringScan = {};
 
   // ── First-country cinematic ───────────────────────────────────────────────────
   bool _firstCountryCinematicShown = false;
@@ -1144,19 +1168,27 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   @override
   void initState() {
     super.initState();
-    // ConfettiController created unconditionally; reduce-motion guard applied
-    // in _maybeBurst() and build() where MediaQuery is safely accessible.
-    _confettiCtrl = ConfettiController(duration: const Duration(milliseconds: 800));
+    // Three ConfettiControllers for priority tiers (M122, ADR-169).
+    // Reduce-motion guard applied in _burst() and build().
+    _microCtrl  = ConfettiController(duration: const Duration(milliseconds: 400));
+    _mediumCtrl = ConfettiController(duration: const Duration(milliseconds: 800));
+    _fullCtrl   = ConfettiController(duration: const Duration(milliseconds: 1400));
   }
 
   @override
   void didUpdateWidget(_ScanningView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Reset continent tracking when a new scan begins.
+    if (!oldWidget.isScanning && widget.isScanning) {
+      _continentsSeenDuringScan.clear();
+    }
     if (widget.liveNewEntries.length > oldWidget.liveNewEntries.length) {
+      // If multiple entries arrived in one update, only toast the last one (T5, M122).
       final newEntry = widget.liveNewEntries.last;
+      final addedEntries = widget.liveNewEntries.sublist(oldWidget.liveNewEntries.length);
       if (!MediaQuery.disableAnimationsOf(context)) {
         _showToast(newEntry);
-        _maybeBurst();
+        _burst(_celebrationLevelFor(addedEntries));
         // First-country cinematic — only when no existing countries before scan.
         if (!_firstCountryCinematicShown && widget.existingEntries.isEmpty) {
           _firstCountryCinematicShown = true;
@@ -1164,6 +1196,26 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
         }
       }
     }
+  }
+
+  // Determine the highest-priority celebration level for a batch of new entries.
+  _CelebrationLevel _celebrationLevelFor(List<_DiscoveryEntry> newEntries) {
+    final totalAfter =
+        widget.liveNewEntries.length + widget.existingEntries.length;
+    const majorThresholds = {10, 25, 50};
+    final totalBefore = totalAfter - newEntries.length;
+    // Check if any threshold was crossed.
+    for (final t in majorThresholds) {
+      if (totalBefore < t && totalAfter >= t) return _CelebrationLevel.full;
+    }
+    // Check for first country in a new continent.
+    for (final entry in newEntries) {
+      final continent = kCountryContinent[entry.isoCode];
+      if (continent != null && _continentsSeenDuringScan.add(continent)) {
+        return _CelebrationLevel.medium;
+      }
+    }
+    return _CelebrationLevel.micro;
   }
 
   void _triggerCinematic(_DiscoveryEntry entry) {
@@ -1187,8 +1239,25 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
   }
 
   void _showToast(_DiscoveryEntry entry) {
+    // Rate-limit: if current toast has been shown for less than 500ms, delay replacement.
+    final now = DateTime.now();
+    final shownAt = _toastShownAt;
+    if (shownAt != null && now.difference(shownAt).inMilliseconds < 500) {
+      _toastReplaceTimer?.cancel();
+      final remaining = 500 - now.difference(shownAt).inMilliseconds;
+      _toastReplaceTimer = Timer(Duration(milliseconds: remaining), () {
+        if (mounted) _doShowToast(entry);
+      });
+      return;
+    }
+    _doShowToast(entry);
+  }
+
+  void _doShowToast(_DiscoveryEntry entry) {
     _toastTimer?.cancel();
+    _toastReplaceTimer?.cancel();
     if (!mounted) return;
+    _toastShownAt = DateTime.now();
     setState(() => _toastEntry = entry);
     _toastCtrl?.dispose();
     _toastCtrl = AnimationController(
@@ -1208,20 +1277,26 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
     });
   }
 
-  void _maybeBurst() {
-    if (_burstCount >= 5) return;
-    if (_burstCooldown?.isActive == true) return;
-    _confettiCtrl?.play();
-    _burstCount++;
-    _burstCooldown = Timer(const Duration(seconds: 8), () {});
+  void _burst(_CelebrationLevel level) {
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    switch (level) {
+      case _CelebrationLevel.micro:
+        _microCtrl?.play();
+      case _CelebrationLevel.medium:
+        _mediumCtrl?.play();
+      case _CelebrationLevel.full:
+        _fullCtrl?.play();
+    }
   }
 
   @override
   void dispose() {
     _toastTimer?.cancel();
+    _toastReplaceTimer?.cancel();
     _toastCtrl?.dispose();
-    _burstCooldown?.cancel();
-    _confettiCtrl?.dispose();
+    _microCtrl?.dispose();
+    _mediumCtrl?.dispose();
+    _fullCtrl?.dispose();
     _cinematicTimer?.cancel();
     super.dispose();
   }
@@ -1301,6 +1376,12 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
           children: [
             // Emotional phase header — only during active scan (T1, M121).
             if (widget.isScanning) _buildScanHeader(theme),
+            // Live stats bar — countries · continents · photos (T3, M122).
+            _ScanStatsBar(
+              liveNewEntries: widget.liveNewEntries,
+              existingEntries: widget.existingEntries,
+              visible: widget.isScanning,
+            ),
             // Globe — flexible hero (T2, M121).
             Flexible(
               flex: 55,
@@ -1332,25 +1413,59 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
               child: _DiscoveryToastBanner(entry: _toastEntry!),
             ),
           ),
-        // Confetti — skip when reduce-motion is enabled.
-        if (_confettiCtrl != null && !reduceMotion)
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiCtrl!,
-              blastDirectionality: BlastDirectionality.explosive,
-              emissionFrequency: 0.6,
-              numberOfParticles: 8,
-              gravity: 0.1,
-              shouldLoop: false,
-              colors: [
-                colorScheme.primary,
-                colorScheme.secondary,
-                Colors.amber[400]!,
-                Colors.amber[700]!,
-              ],
+        // Confetti — three priority tiers (M122, ADR-169). Skip when reduce-motion enabled.
+        if (!reduceMotion) ...[
+          if (_microCtrl != null)
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _microCtrl!,
+                blastDirectionality: BlastDirectionality.explosive,
+                emissionFrequency: 0.4,
+                numberOfParticles: 6,
+                gravity: 0.15,
+                shouldLoop: false,
+                colors: [colorScheme.primary, colorScheme.secondary, Colors.amber[400]!],
+              ),
             ),
-          ),
+          if (_mediumCtrl != null)
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _mediumCtrl!,
+                blastDirectionality: BlastDirectionality.explosive,
+                emissionFrequency: 0.6,
+                numberOfParticles: 18,
+                gravity: 0.1,
+                shouldLoop: false,
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.secondary,
+                  Colors.amber[400]!,
+                  Colors.amber[700]!,
+                ],
+              ),
+            ),
+          if (_fullCtrl != null)
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _fullCtrl!,
+                blastDirectionality: BlastDirectionality.explosive,
+                emissionFrequency: 0.8,
+                numberOfParticles: 35,
+                gravity: 0.08,
+                shouldLoop: false,
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.secondary,
+                  Colors.amber[400]!,
+                  Colors.amber[700]!,
+                  colorScheme.tertiary,
+                ],
+              ),
+            ),
+        ],
         // First-country cinematic overlay (T5, M121).
         if (_showCinematic && _cinematicEntry != null)
           Positioned.fill(
@@ -1362,6 +1477,64 @@ class _ScanningViewState extends ConsumerState<_ScanningView> {
           ),
       ],
     );
+  }
+}
+
+// ── Live scan stats bar (T3, M122) ────────────────────────────────────────────
+
+/// Single-line stats row shown only while scanning: "14 countries · 3 continents · 1,204 photos".
+///
+/// Fades in when [visible] is true, fades out when false.
+class _ScanStatsBar extends StatelessWidget {
+  const _ScanStatsBar({
+    required this.liveNewEntries,
+    required this.existingEntries,
+    required this.visible,
+  });
+
+  final List<_DiscoveryEntry> liveNewEntries;
+  final List<_DiscoveryEntry> existingEntries;
+  final bool visible;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final allEntries = [...existingEntries, ...liveNewEntries];
+    final countriesCount = allEntries.length;
+    final continentsCount = allEntries
+        .map((e) => kCountryContinent[e.isoCode])
+        .whereType<String>()
+        .toSet()
+        .length;
+    final photosCount = allEntries.fold<int>(0, (sum, e) => sum + e.photoCount);
+
+    final parts = <String>[
+      '$countriesCount ${countriesCount == 1 ? 'country' : 'countries'}',
+      '$continentsCount ${continentsCount == 1 ? 'continent' : 'continents'}',
+      if (photosCount > 0) _fmtCount(photosCount),
+    ];
+
+    return AnimatedOpacity(
+      opacity: visible && countriesCount > 0 ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 200),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(
+          parts.join(' \u00b7 '),
+          textAlign: TextAlign.center,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _fmtCount(int n) {
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}k photos';
+    }
+    return '$n photos';
   }
 }
 
@@ -1719,12 +1892,12 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
   }
 }
 
-// ── Discovery feed (M121 — replaces split panel) ──────────────────────────────
+// ── Discovery feed (M121 — replaces split panel; M122 — compact chip rows) ─────
 
-/// Horizontal scrolling feed of discovery cards shown during and after scanning.
+/// Vertical list of compact discovery chip rows, newest-first.
 ///
-/// Existing countries (pre-scan) appear as muted grey cards immediately.
-/// New discoveries slide in from the right as they are found.
+/// Existing countries (pre-scan) appear immediately as muted rows.
+/// New discoveries slide in from the top as they are found (newest-first prepend).
 class _DiscoveryFeed extends StatefulWidget {
   const _DiscoveryFeed({
     required this.liveNewEntries,
@@ -1746,13 +1919,13 @@ class _DiscoveryFeedState extends State<_DiscoveryFeed> {
   @override
   void didUpdateWidget(_DiscoveryFeed oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Auto-scroll to reveal the newest card when a new entry arrives.
+    // Scroll to top to show newest chip when a new entry arrives.
     if (widget.liveNewEntries.length > oldWidget.liveNewEntries.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollCtrl.hasClients) {
+        if (_scrollCtrl.hasClients && _scrollCtrl.position.minScrollExtent == 0) {
           _scrollCtrl.animateTo(
-            _scrollCtrl.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 350),
+            0,
+            duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
           );
         }
@@ -1768,10 +1941,12 @@ class _DiscoveryFeedState extends State<_DiscoveryFeed> {
 
   @override
   Widget build(BuildContext context) {
-    final allExisting = widget.existingEntries;
-    final allNew = widget.liveNewEntries;
+    // Newest-first: live new entries reversed, then existing entries reversed.
+    final newReversed = widget.liveNewEntries.reversed.toList();
+    final existingReversed = widget.existingEntries.reversed.toList();
+    final allItems = [...newReversed, ...existingReversed];
 
-    if (allExisting.isEmpty && allNew.isEmpty) {
+    if (allItems.isEmpty) {
       return Center(
         child: Text(
           'Countries will appear here\u2026',
@@ -1781,36 +1956,36 @@ class _DiscoveryFeedState extends State<_DiscoveryFeed> {
       );
     }
 
-    final newestCode = allNew.isNotEmpty ? allNew.last.isoCode : null;
+    final newestCode = widget.liveNewEntries.isNotEmpty
+        ? widget.liveNewEntries.last.isoCode
+        : null;
+    final newCodes = widget.liveNewEntries.map((e) => e.isoCode).toSet();
 
-    return ListView(
+    return ListView.builder(
       controller: _scrollCtrl,
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      children: [
-        for (final entry in allExisting)
-          _DiscoveryCard(
-            entry: entry,
-            isNew: false,
-            isNewest: false,
-            reduceMotion: widget.reduceMotion,
-          ),
-        for (final entry in allNew)
-          _DiscoveryCard(
-            entry: entry,
-            isNew: true,
-            isNewest: entry.isoCode == newestCode,
-            reduceMotion: widget.reduceMotion,
-          ),
-      ],
+      itemCount: allItems.length,
+      itemExtent: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      itemBuilder: (context, index) {
+        final entry = allItems[index];
+        final isNew = newCodes.contains(entry.isoCode);
+        return _DiscoveryChip(
+          key: ValueKey(entry.isoCode),
+          entry: entry,
+          isNew: isNew,
+          isNewest: entry.isoCode == newestCode,
+          reduceMotion: widget.reduceMotion,
+        );
+      },
     );
   }
 }
 
-// ── Discovery card ─────────────────────────────────────────────────────────────
+// ── Discovery chip (M122 — compact row replacing M121 card) ───────────────────
 
-class _DiscoveryCard extends StatefulWidget {
-  const _DiscoveryCard({
+class _DiscoveryChip extends StatefulWidget {
+  const _DiscoveryChip({
+    super.key,
     required this.entry,
     required this.isNew,
     required this.isNewest,
@@ -1823,10 +1998,10 @@ class _DiscoveryCard extends StatefulWidget {
   final bool reduceMotion;
 
   @override
-  State<_DiscoveryCard> createState() => _DiscoveryCardState();
+  State<_DiscoveryChip> createState() => _DiscoveryChipState();
 }
 
-class _DiscoveryCardState extends State<_DiscoveryCard>
+class _DiscoveryChipState extends State<_DiscoveryChip>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _opacity;
@@ -1839,11 +2014,12 @@ class _DiscoveryCardState extends State<_DiscoveryCard>
       vsync: this,
       duration: widget.reduceMotion || !widget.isNew
           ? Duration.zero
-          : const Duration(milliseconds: 350),
+          : const Duration(milliseconds: 200),
     );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    // Slide in from above (newest-first list, new items prepend at top).
     _slide = Tween<Offset>(
-      begin: const Offset(0.4, 0),
+      begin: const Offset(0, -0.5),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _ctrl.forward();
@@ -1861,68 +2037,70 @@ class _DiscoveryCardState extends State<_DiscoveryCard>
     final entry = widget.entry;
     final flag = _flagEmoji(entry.isoCode);
     final name = kCountryNames[entry.isoCode] ?? entry.isoCode;
+    final textColor = widget.isNew
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onSurface.withValues(alpha: 0.4);
 
-    final card = Container(
-      width: 110,
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: widget.isNew
-            ? theme.colorScheme.primaryContainer
-            : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: widget.isNewest
-            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-            : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(flag, style: const TextStyle(fontSize: 26)),
-          const SizedBox(height: 6),
-          Text(
+    final chip = Row(
+      children: [
+        // Left accent bar for newest entry.
+        if (widget.isNewest)
+          Container(
+            width: 2,
+            height: 24,
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          )
+        else
+          const SizedBox(width: 8),
+        // Flag.
+        Text(flag, style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 8),
+        // Country name.
+        Expanded(
+          child: Text(
             name,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: widget.isNew
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              color: textColor,
             ),
           ),
-          if (entry.firstSeenYear != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              _yearLabel(entry.firstSeenYear!),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: widget.isNew
-                    ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
+        ),
+        // Year label (if known).
+        if (entry.firstSeenYear != null) ...[
+          const SizedBox(width: 4),
+          Text(
+            _yearLabel(entry.firstSeenYear!),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColor.withValues(alpha: widget.isNew ? 0.7 : 0.6),
             ),
-          ],
-          if (entry.photoCount > 0) ...[
-            const SizedBox(height: 2),
-            Text(
-              '${entry.photoCount} ${entry.photoCount == 1 ? 'photo' : 'photos'}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: widget.isNew
-                    ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.6)
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.35),
-              ),
-            ),
-          ],
+          ),
         ],
-      ),
+        // Photo count.
+        if (entry.photoCount > 0) ...[
+          const SizedBox(width: 6),
+          Text(
+            '${entry.photoCount}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: textColor.withValues(alpha: widget.isNew ? 0.55 : 0.4),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ] else
+          const SizedBox(width: 8),
+      ],
     );
 
-    if (!widget.isNew || widget.reduceMotion) return card;
+    if (!widget.isNew || widget.reduceMotion) return chip;
 
     return FadeTransition(
       opacity: _opacity,
-      child: SlideTransition(position: _slide, child: card),
+      child: SlideTransition(position: _slide, child: chip),
     );
   }
 

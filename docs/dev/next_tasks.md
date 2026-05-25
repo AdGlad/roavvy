@@ -1,47 +1,46 @@
-# M121 — Scan: Emotional Discovery Experience
+# M122 — Scan: Momentum & Discovery Density
 
-**Branch:** milestone/m121-scan-emotional-discovery-experience
+**Branch:** milestone/m122-scan-momentum-discovery-density
 **Status:** In Progress
 
 ## Tasks
 
-- [ ] T1 — Emotional progress copy & phase messaging
-       Replace `"X photos processed…"` with phase-aware discovery language.
-       Add `countriesFound` to `_ScanProgress`. Add `_buildScanHeader()` helper to `_ScanningView`.
-       Three phases: Discovering / Building / Almost there.
+- [ ] T1 — Compact discovery chips
+       Replace `_DiscoveryCard`/`_DiscoveryCardState` with `_DiscoveryChip` (StatefulWidget).
+       Vertical `ListView` (newest-first), `itemExtent: 40`.
+       Each row: flag (20px) · country name · year label · photo count right-aligned.
+       New chips slide in from top (Y offset -0.5 → 0, 200ms ease-out).
+       Newest chip: 2px left accent bar in primary colour. Existing: 40% opacity.
+       Keep class name `_DiscoveryFeed`/`_DiscoveryFeedState` at call sites.
 
-- [ ] T2 — Globe as dominant hero
-       Remove fixed `SizedBox(height: 260)` from `_ScanGlobeWidget.build()`.
-       In `_ScanningView`, wrap globe in `Flexible(flex: 55)` and discovery feed in `Flexible(flex: 45)`.
+- [ ] T2 — Confetti priority tiers
+       Add `enum _CelebrationLevel { micro, medium, full }`.
+       `_maybeBurst(_CelebrationLevel level)` replaces zero-arg `_maybeBurst()`.
+       micro: 400ms, 6 particles, freq 0.4 — fires for every new country.
+       medium: 800ms, 18 particles, freq 0.6 — fires when a new continent is first seen.
+       full: 1400ms, 35 particles, freq 0.8 — fires when total countries crosses 10/25/50.
+       Track `_continentsSeenDuringScan: Set<String>` on `_ScanningViewState`.
+       Use `kCountryContinent` from `region_lookup` for continent lookup.
+       Remove 5-burst cap and 8s cooldown; rate-limit naturally via priority gate.
 
-- [ ] T3 — _DiscoveryEntry data class + wiring
-       Add `_DiscoveryEntry {isoCode, photoCount, firstSeenYear}` private class.
-       Change `_liveNewCodes: List<String>` → `_liveNewEntries: List<_DiscoveryEntry>`.
-       Change `_existingCodesAtScanStart: List<String>` → `_existingEntriesAtScanStart: List<_DiscoveryEntry>`.
-       Build existing entries from `_effectiveVisits` at scan start.
-       Build live entries from `CountryAccum` as scan runs.
-       Update `_ScanningView` props + all call sites.
-       Extract codes for `_ScanGlobeWidget` from entries.
+- [ ] T3 — Live scan stats bar
+       New `_ScanStatsBar` widget: `"14 countries · 3 continents · 1,204 photos"` row.
+       Only visible when `isScanning == true`; `AnimatedOpacity` fade in/out (200ms).
+       `countriesCount` = liveNewEntries.length + existingEntries.length.
+       `continentsCount` = distinct continents via `kCountryContinent`.
+       `photosCount` = sum photoCount across all entries.
+       Position: between phase-copy header and globe in `_ScanningView.build()`.
 
-- [ ] T4 — _DiscoveryFeed + _DiscoveryCard widgets
-       Horizontal `ListView` of `_DiscoveryCard` widgets.
-       Existing entries → muted grey cards. New entries → primary-colour border, slide+fade in.
-       Auto-scroll to newest card on arrival.
-       Remove `_LiveCountryList`, `_ScanPassportPreview`, `_LiveCountryRow`.
+- [ ] T4 — Compact scan mode selector
+       Shorten `SegmentedButton` labels to `"New"` / `"All"` (icons kept).
+       Add `style` override: `minimumSize: Size(0, 32)`, `textStyle: labelMedium`.
+       Move last-scan date out of button label; show as `labelSmall` subtitle below toggle:
+       `"Last scanned: 24 May 2026"` — only when `_lastScanAt != null`.
 
-- [ ] T5 — First-country cinematic overlay
-       `_FirstCountryCinematic` widget: dark scrim + "Welcome to your world." + flag + country name.
-       Fire only when `_existingEntriesAtScanStart.isEmpty` and first entry arrives.
-       Auto-dismiss after 2.5 s (400 ms fade in + 1.5 s hold + 400 ms fade out).
-       `_firstCountryCinematicShown` bool guard. Respects reduce-motion (skip if enabled).
-
-- [ ] T6 — Enhanced discovery toast
-       Add `firstSeenYear: int?` to `_DiscoveryToastBanner`.
-       Show subtitle: "First discovered in {year}" or "First discovery!" for new/null year.
-       Pass firstSeenYear from `_liveNewEntries.last` in `_ScanningViewState.didUpdateWidget`.
-
-- [ ] T7 — Emotional empty states + docs
-       `_NoScanYetHint`: "Your travel story is waiting." copy.
-       `_EmptyResultsHint`: "No travel photos found yet." copy.
+- [ ] T5 — Toast rate-limiting + docs
+       In `didUpdateWidget`: if multiple new entries arrived in one update, toast only the
+       last new entry. Track `_toastShownAt: DateTime?`; if toast was shown < 500ms ago,
+       delay replacement until 500ms has elapsed (use `Future.delayed`).
        Update milestone doc status + `current_task.md` + `backlog_active.md`.
-       Run `flutter analyze` and `python3 scripts/index_docs.py`.
+       Run `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt`.
+       Run `python3 scripts/index_docs.py` in background.
