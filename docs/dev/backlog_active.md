@@ -7,6 +7,36 @@
 
 ## Next up (mobile-first order)
 
+### M129 — Heritage Pulse on Main Map
+**Goal:** Show UNESCO World Heritage Site locations as ambient pulsing amber dots on the main map globe outside of scan; visited sites pulse brightly, unvisited sites appear as dim static dots; toggle chip persists in SharedPreferences.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M119 ✅, M126 ✅
+**Scope in:** `GlobePainter` — `visitedHeritageSiteCoords` + `unvisitedHeritageSiteCoords` params; map screen heritage toggle chip + animation controller; `VisitRepository` visited WHS query; heritage count in map stats footer.
+**Full plan:** `docs/dev/milestones/m129-heritage-pulse-main-map.md`
+**Status:** Not started. No tasks written.
+
+---
+
+### M128 — Heritage Scan Enhancements
+**Goal:** Three focused heritage improvements during scan: persistent progress bar (N/1,157 sites), tappable globe dots with site name tooltip, and colour-coded dots (cultural = amber, natural = green).
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M123 ✅, M126 ✅
+**Scope in:** Heritage progress bar in `_ScanStatsBar`; split heritage coords by category; `GlobePainter` two-colour rendering; tap-to-tooltip on `_ScanGlobeWidget`.
+**Full plan:** `docs/dev/milestones/m128-heritage-scan-enhancements.md`
+**Status:** Not started. No tasks written.
+
+---
+
+### M127 — Scan Summary Screen
+**Goal:** After scan completes, show a staged "Spotify Wrapped"-style reveal screen: new countries (flag chips), new continents, heritage sites found, achievements unlocked, trip count — with confetti and staggered animation.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M121 ✅, M122 ✅, M123 ✅, M125 ✅, M126 ✅
+**Scope in:** `ScanSummaryScreen` (existed); added `newHeritageSiteNames` + `totalTripCount` params; `_HeritageSitesSection` widget; "across N trips" hero subtitle; threaded from `scan_screen.dart` completion handler.
+**Full plan:** `docs/dev/milestones/m127-scan-summary-screen.md`
+**Status:** ✅ Complete (2026-05-25)
+
+---
+
 ### M126 — Scan: Globe Heritage Pulse
 **Goal:** Render animated gold/amber pulse dots at UNESCO World Heritage Site GPS coordinates on the spinning globe when sites are discovered during a scan.
 **Phase:** 25 — Scan UX Transformation

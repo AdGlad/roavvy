@@ -55,6 +55,8 @@ class ScanSummaryScreen extends ConsumerStatefulWidget {
     required this.onDone,
     this.lastScanAt,
     this.newTripIds = const [],
+    this.newHeritageSiteNames = const [],
+    this.totalTripCount,
   });
 
   /// Countries that are new since the pre-save snapshot.
@@ -76,6 +78,12 @@ class ScanSummaryScreen extends ConsumerStatefulWidget {
   /// Trip IDs newly inferred in this scan. When non-empty, the best-shot
   /// section queries [bestHeroFromScanProvider] (M90, ADR-135).
   final List<String> newTripIds;
+
+  /// Names of UNESCO World Heritage Sites discovered during this scan (M127).
+  final List<String> newHeritageSiteNames;
+
+  /// Total inferred trip count after this scan — shown as subtitle (M127).
+  final int? totalTripCount;
 
   @override
   ConsumerState<ScanSummaryScreen> createState() => _ScanSummaryScreenState();
@@ -298,6 +306,8 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
                 newAchievementIds: widget.newAchievementIds,
                 newCodes: widget.newCodes,
                 newTripIds: widget.newTripIds,
+                newHeritageSiteNames: widget.newHeritageSiteNames,
+                totalTripCount: widget.totalTripCount,
                 onDone: _handleDone,
               ),
       ),
@@ -314,12 +324,16 @@ class _NewDiscoveriesState extends ConsumerStatefulWidget {
     required this.newCodes,
     required this.onDone,
     this.newTripIds = const [],
+    this.newHeritageSiteNames = const [],
+    this.totalTripCount,
   });
 
   final List<EffectiveVisitedCountry> newCountries;
   final List<String> newAchievementIds;
   final List<String> newCodes;
   final List<String> newTripIds;
+  final List<String> newHeritageSiteNames;
+  final int? totalTripCount;
   final Future<void> Function() onDone;
 
   @override
@@ -456,6 +470,15 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (widget.totalTripCount != null && widget.totalTripCount! > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'across ${widget.totalTripCount} ${widget.totalTripCount == 1 ? 'trip' : 'trips'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -481,6 +504,11 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                     const SizedBox(height: 24),
                     _AchievementsSection(
                         achievementIds: widget.newAchievementIds),
+                  ],
+                  if (widget.newHeritageSiteNames.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    _HeritageSitesSection(
+                        siteNames: widget.newHeritageSiteNames),
                   ],
                   // Best shot — only shown when hero analysis has completed
                   // and returned a result for the new trips (M90, ADR-135).
@@ -815,6 +843,43 @@ class _AchievementsSection extends StatelessWidget {
               ),
             );
           }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Heritage sites section (M127) ─────────────────────────────────────────────
+
+class _HeritageSitesSection extends StatelessWidget {
+  const _HeritageSitesSection({required this.siteNames});
+
+  final List<String> siteNames;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final n = siteNames.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          n == 1 ? 'World Heritage Site found' : 'World Heritage Sites found',
+          style: theme.textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: siteNames.map((name) => Chip(
+            avatar: const Icon(Icons.account_balance_outlined, size: 16,
+                color: Colors.amber),
+            label: Text(name, overflow: TextOverflow.ellipsis),
+            backgroundColor:
+                Colors.amber.withValues(alpha: 0.12),
+          )).toList(),
         ),
       ],
     );

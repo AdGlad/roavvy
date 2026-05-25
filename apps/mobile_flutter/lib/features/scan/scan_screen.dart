@@ -770,6 +770,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 newAchievementIds: newlyUnlockedIds.toList(),
                 newCodes: newCodesList,
                 newTripIds: newTripIds,
+                newHeritageSiteNames: newlyDiscoveredHeritageSites
+                    .map((s) => s.name)
+                    .toList(),
+                totalTripCount: inferredTrips.length,
                 onDone: () {
                   nav.pop();
                   widget.onScanComplete?.call();
@@ -788,6 +792,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 newAchievementIds: newlyUnlockedIds.toList(),
                 newCodes: const [],
                 lastScanAt: preScanTimestamp,
+                totalTripCount: inferredTrips.length,
                 onDone: () {
                   nav.pop();
                   widget.onScanComplete?.call();
