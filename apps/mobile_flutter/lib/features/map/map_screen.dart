@@ -238,6 +238,7 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
+    final heritageDotsEnabled = ref.watch(heritageDotsEnabledProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D2137), // dark navy ocean (ADR-080)
@@ -333,6 +334,30 @@ class MapScreen extends ConsumerWidget {
                   icon: const Icon(Icons.play_circle_outline, color: Colors.white),
                   tooltip: 'Travel Replay',
                   onPressed: () => showReplayEntrySheet(context),
+                ),
+              ),
+            ),
+          // Heritage sites toggle — globe mode only (M129).
+          if (globeMode)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 112,
+              child: Material(
+                color: heritageDotsEnabled
+                    ? Colors.amber.withValues(alpha: 0.85)
+                    : Colors.black45,
+                borderRadius: BorderRadius.circular(20),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.account_balance_outlined,
+                    color: heritageDotsEnabled ? Colors.black87 : Colors.white,
+                  ),
+                  tooltip: heritageDotsEnabled
+                      ? 'Hide heritage sites'
+                      : 'Show heritage sites',
+                  onPressed: () => ref
+                      .read(heritageDotsEnabledProvider.notifier)
+                      .state = !heritageDotsEnabled,
                 ),
               ),
             ),

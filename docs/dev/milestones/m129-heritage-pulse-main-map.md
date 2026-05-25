@@ -1,6 +1,6 @@
 # M129 — Heritage Pulse on Main Map
 
-**Status:** Not started
+**Status:** Complete (2026-05-25)
 **Phase:** Map UX
 **Depends on:** M119 ✅, M126 ✅
 
@@ -77,10 +77,10 @@ Alternatively, persist a `visitedWhsIds: Set<int>` in a new `WhsVisitRepository`
 
 ## Acceptance Criteria
 
-- [ ] "Show heritage sites" toggle visible on map screen
-- [ ] When toggle is on, visited sites show as bright amber pulsing dots
-- [ ] When toggle is on, all unvisited sites show as dim amber static dots
-- [ ] Toggle state persists across app restarts
-- [ ] Heritage site count shown in map stats when toggle is on
-- [ ] No perceptible frame-rate drop when rendering heritage dots
-- [ ] No `flutter analyze` warnings introduced
+- [x] "Show heritage sites" toggle visible on map screen
+- [x] When toggle is on, visited sites show as bright amber pulsing dots
+- [x] When toggle is on, all unvisited sites show as dim amber static dots
+- [x] Toggle state persists across app restarts
+- [x] Heritage site count shown in map stats when toggle is on
+- [x] No perceptible frame-rate drop when rendering heritage dots
+- [x] No `flutter analyze` warnings introduced
