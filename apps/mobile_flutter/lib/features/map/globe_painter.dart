@@ -54,6 +54,7 @@ class GlobePainter extends CustomPainter {
     this.pulseValue = 0.0,
     this.culturalSiteCoords = const [],
     this.naturalSiteCoords = const [],
+    this.unvisitedHeritageSiteCoords = const [],
     this.heritagePulseValue = 0.0,
   });
 
@@ -73,6 +74,9 @@ class GlobePainter extends CustomPainter {
 
   /// GPS coords of Natural UNESCO sites (green dots) (M128).
   final List<(double lat, double lng)> naturalSiteCoords;
+
+  /// GPS coords of unvisited UNESCO sites — dim static amber (M129).
+  final List<(double lat, double lng)> unvisitedHeritageSiteCoords;
 
   /// Animation value 0.0–1.0 driving heritage site dot pulse. 0.0 = hidden glow.
   final double heritagePulseValue;
@@ -162,6 +166,18 @@ class GlobePainter extends CustomPainter {
       }
     }
 
+    // Unvisited sites — dim amber static dots (no pulse), drawn first (M129).
+    if (unvisitedHeritageSiteCoords.isNotEmpty) {
+      for (final coord in unvisitedHeritageSiteCoords) {
+        final pt = projection.project(coord.$1, coord.$2, size);
+        if (pt == null) continue;
+        canvas.drawCircle(
+          pt,
+          r * 0.010,
+          Paint()..color = Colors.amber[200]!.withValues(alpha: 0.40),
+        );
+      }
+    }
     if (culturalSiteCoords.isNotEmpty) {
       paintHeritageDots(
           culturalSiteCoords, Colors.amber[300]!, Colors.amber[400]!);
@@ -245,5 +261,6 @@ class GlobePainter extends CustomPainter {
       pulseValue != old.pulseValue ||
       !identical(culturalSiteCoords, old.culturalSiteCoords) ||
       !identical(naturalSiteCoords, old.naturalSiteCoords) ||
+      !identical(unvisitedHeritageSiteCoords, old.unvisitedHeritageSiteCoords) ||
       heritagePulseValue != old.heritagePulseValue;
 }

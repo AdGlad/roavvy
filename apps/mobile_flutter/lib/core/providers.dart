@@ -186,6 +186,10 @@ final yearFilterProvider = StateProvider<int?>((ref) => null);
 /// Whether the globe map is active. true = globe (default). (ADR-116)
 final globeModeProvider = StateProvider<bool>((ref) => true);
 
+/// Whether heritage site dots are shown on the main map globe (M129).
+/// Persisted to SharedPreferences by [GlobeMapWidget].
+final heritageDotsEnabledProvider = StateProvider<bool>((ref) => false);
+
 /// Target (lat, lng) in degrees to animate the globe to. Set from outside
 /// (e.g. country flag strip); the globe resets this to null after arriving.
 /// No-op when [globeModeProvider] is false. (M86)

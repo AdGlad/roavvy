@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M130 — Scan: Cinematic Pacing & Orchestration Engine
+**Goal:** Decouple scan detection speed from celebration delivery speed. Introduce a discovery event buffer → priority queue → cinematic presentation engine. P1–P4 priority tiers control timing (1.2–5s windows), a presentation lock prevents overlapping celebrations, four audio categories (passport stamp, heritage chime, achievement rise, orchestral swell) route by event type, and a queue depth indicator shows queued discoveries.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M122 ✅, M123 ✅, M125 ✅
+**Scope in:** `_DiscoveryEvent` sealed class + `_PriorityQueue`; `_CinematicPresentationEngine` drain loop + presentation lock; `_AudioCategory` enum + 4-category audio routing; queue depth indicator; UNESCO heritage distinct presentation; P4 cooldown (max 1 per 6–8s); `_ScanPhase` progressive intensity; mute toggle.
+**Full plan:** `docs/dev/milestones/m130-scan-cinematic-pacing-orchestration.md`
+**Status:** Not started. No tasks written.
+
+---
+
 ### M129 — Heritage Pulse on Main Map
 **Goal:** Show UNESCO World Heritage Site locations as ambient pulsing amber dots on the main map globe outside of scan; visited sites pulse brightly, unvisited sites appear as dim static dots; toggle chip persists in SharedPreferences.
 **Phase:** 25 — Scan UX Transformation
