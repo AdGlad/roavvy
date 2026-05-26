@@ -369,16 +369,20 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         _loading = false;
       });
       // Auto-start scan when triggered from the main-screen action bar.
+      // Allow null / notDetermined so the platform channel can show the system
+      // permission dialog on first use. Only skip if denied or restricted.
       if (widget.autoStart &&
-          (_permission == PhotoPermissionStatus.authorized ||
-           _permission == PhotoPermissionStatus.limited)) {
+          _permission != PhotoPermissionStatus.denied &&
+          _permission != PhotoPermissionStatus.restricted) {
         unawaited(_scan());
       }
 
       // Check permission status silently so the scan button reflects current
       // access without showing a dialog (M78: auto-scan removed — user must
       // explicitly choose Incremental or Full and tap the button).
-      if (lastScanAt != null) {
+      // Also check when autoStart is true so _permission is known before
+      // the auto-scan decision below.
+      if (lastScanAt != null || widget.autoStart) {
         try {
           final permission = await requestPhotoPermission();
           if (!mounted) return;
