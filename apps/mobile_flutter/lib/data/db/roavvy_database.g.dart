@@ -5753,6 +5753,450 @@ class VisitedHeritageSitesCompanion
   }
 }
 
+class $DailyChallengeProgressTableTable extends DailyChallengeProgressTable
+    with
+        TableInfo<
+          $DailyChallengeProgressTableTable,
+          DailyChallengeProgressRow
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyChallengeProgressTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _siteIdMeta = const VerificationMeta('siteId');
+  @override
+  late final GeneratedColumn<String> siteId = GeneratedColumn<String>(
+    'site_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cluesRevealedMeta = const VerificationMeta(
+    'cluesRevealed',
+  );
+  @override
+  late final GeneratedColumn<int> cluesRevealed = GeneratedColumn<int>(
+    'clues_revealed',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _guessesMeta = const VerificationMeta(
+    'guesses',
+  );
+  @override
+  late final GeneratedColumn<String> guesses = GeneratedColumn<String>(
+    'guesses',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _solvedMeta = const VerificationMeta('solved');
+  @override
+  late final GeneratedColumn<int> solved = GeneratedColumn<int>(
+    'solved',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _solvedAtClueMeta = const VerificationMeta(
+    'solvedAtClue',
+  );
+  @override
+  late final GeneratedColumn<int> solvedAtClue = GeneratedColumn<int>(
+    'solved_at_clue',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    date,
+    siteId,
+    cluesRevealed,
+    guesses,
+    solved,
+    solvedAtClue,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_challenge_progress_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyChallengeProgressRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('site_id')) {
+      context.handle(
+        _siteIdMeta,
+        siteId.isAcceptableOrUnknown(data['site_id']!, _siteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_siteIdMeta);
+    }
+    if (data.containsKey('clues_revealed')) {
+      context.handle(
+        _cluesRevealedMeta,
+        cluesRevealed.isAcceptableOrUnknown(
+          data['clues_revealed']!,
+          _cluesRevealedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('guesses')) {
+      context.handle(
+        _guessesMeta,
+        guesses.isAcceptableOrUnknown(data['guesses']!, _guessesMeta),
+      );
+    }
+    if (data.containsKey('solved')) {
+      context.handle(
+        _solvedMeta,
+        solved.isAcceptableOrUnknown(data['solved']!, _solvedMeta),
+      );
+    }
+    if (data.containsKey('solved_at_clue')) {
+      context.handle(
+        _solvedAtClueMeta,
+        solvedAtClue.isAcceptableOrUnknown(
+          data['solved_at_clue']!,
+          _solvedAtClueMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {date};
+  @override
+  DailyChallengeProgressRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyChallengeProgressRow(
+      date:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}date'],
+          )!,
+      siteId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}site_id'],
+          )!,
+      cluesRevealed:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}clues_revealed'],
+          )!,
+      guesses:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}guesses'],
+          )!,
+      solved:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}solved'],
+          )!,
+      solvedAtClue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}solved_at_clue'],
+      ),
+    );
+  }
+
+  @override
+  $DailyChallengeProgressTableTable createAlias(String alias) {
+    return $DailyChallengeProgressTableTable(attachedDatabase, alias);
+  }
+}
+
+class DailyChallengeProgressRow extends DataClass
+    implements Insertable<DailyChallengeProgressRow> {
+  /// UTC date string `YYYY-MM-DD`. Primary key.
+  final String date;
+
+  /// Matches [WorldHeritageSite.siteId] in the bundled whs_sites.json.
+  final String siteId;
+
+  /// Number of clues revealed so far (1–5). Starts at 1.
+  final int cluesRevealed;
+
+  /// JSON-encoded list of wrong guess strings. e.g. `'["Taj Mahal","Agra"]'`.
+  final String guesses;
+
+  /// 1 if the user has correctly identified the site, 0 otherwise.
+  final int solved;
+
+  /// Which clue index (1–5) was showing when the user solved. Null until solved.
+  final int? solvedAtClue;
+  const DailyChallengeProgressRow({
+    required this.date,
+    required this.siteId,
+    required this.cluesRevealed,
+    required this.guesses,
+    required this.solved,
+    this.solvedAtClue,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['date'] = Variable<String>(date);
+    map['site_id'] = Variable<String>(siteId);
+    map['clues_revealed'] = Variable<int>(cluesRevealed);
+    map['guesses'] = Variable<String>(guesses);
+    map['solved'] = Variable<int>(solved);
+    if (!nullToAbsent || solvedAtClue != null) {
+      map['solved_at_clue'] = Variable<int>(solvedAtClue);
+    }
+    return map;
+  }
+
+  DailyChallengeProgressTableCompanion toCompanion(bool nullToAbsent) {
+    return DailyChallengeProgressTableCompanion(
+      date: Value(date),
+      siteId: Value(siteId),
+      cluesRevealed: Value(cluesRevealed),
+      guesses: Value(guesses),
+      solved: Value(solved),
+      solvedAtClue:
+          solvedAtClue == null && nullToAbsent
+              ? const Value.absent()
+              : Value(solvedAtClue),
+    );
+  }
+
+  factory DailyChallengeProgressRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyChallengeProgressRow(
+      date: serializer.fromJson<String>(json['date']),
+      siteId: serializer.fromJson<String>(json['siteId']),
+      cluesRevealed: serializer.fromJson<int>(json['cluesRevealed']),
+      guesses: serializer.fromJson<String>(json['guesses']),
+      solved: serializer.fromJson<int>(json['solved']),
+      solvedAtClue: serializer.fromJson<int?>(json['solvedAtClue']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'date': serializer.toJson<String>(date),
+      'siteId': serializer.toJson<String>(siteId),
+      'cluesRevealed': serializer.toJson<int>(cluesRevealed),
+      'guesses': serializer.toJson<String>(guesses),
+      'solved': serializer.toJson<int>(solved),
+      'solvedAtClue': serializer.toJson<int?>(solvedAtClue),
+    };
+  }
+
+  DailyChallengeProgressRow copyWith({
+    String? date,
+    String? siteId,
+    int? cluesRevealed,
+    String? guesses,
+    int? solved,
+    Value<int?> solvedAtClue = const Value.absent(),
+  }) => DailyChallengeProgressRow(
+    date: date ?? this.date,
+    siteId: siteId ?? this.siteId,
+    cluesRevealed: cluesRevealed ?? this.cluesRevealed,
+    guesses: guesses ?? this.guesses,
+    solved: solved ?? this.solved,
+    solvedAtClue: solvedAtClue.present ? solvedAtClue.value : this.solvedAtClue,
+  );
+  DailyChallengeProgressRow copyWithCompanion(
+    DailyChallengeProgressTableCompanion data,
+  ) {
+    return DailyChallengeProgressRow(
+      date: data.date.present ? data.date.value : this.date,
+      siteId: data.siteId.present ? data.siteId.value : this.siteId,
+      cluesRevealed:
+          data.cluesRevealed.present
+              ? data.cluesRevealed.value
+              : this.cluesRevealed,
+      guesses: data.guesses.present ? data.guesses.value : this.guesses,
+      solved: data.solved.present ? data.solved.value : this.solved,
+      solvedAtClue:
+          data.solvedAtClue.present
+              ? data.solvedAtClue.value
+              : this.solvedAtClue,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyChallengeProgressRow(')
+          ..write('date: $date, ')
+          ..write('siteId: $siteId, ')
+          ..write('cluesRevealed: $cluesRevealed, ')
+          ..write('guesses: $guesses, ')
+          ..write('solved: $solved, ')
+          ..write('solvedAtClue: $solvedAtClue')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(date, siteId, cluesRevealed, guesses, solved, solvedAtClue);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyChallengeProgressRow &&
+          other.date == this.date &&
+          other.siteId == this.siteId &&
+          other.cluesRevealed == this.cluesRevealed &&
+          other.guesses == this.guesses &&
+          other.solved == this.solved &&
+          other.solvedAtClue == this.solvedAtClue);
+}
+
+class DailyChallengeProgressTableCompanion
+    extends UpdateCompanion<DailyChallengeProgressRow> {
+  final Value<String> date;
+  final Value<String> siteId;
+  final Value<int> cluesRevealed;
+  final Value<String> guesses;
+  final Value<int> solved;
+  final Value<int?> solvedAtClue;
+  final Value<int> rowid;
+  const DailyChallengeProgressTableCompanion({
+    this.date = const Value.absent(),
+    this.siteId = const Value.absent(),
+    this.cluesRevealed = const Value.absent(),
+    this.guesses = const Value.absent(),
+    this.solved = const Value.absent(),
+    this.solvedAtClue = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyChallengeProgressTableCompanion.insert({
+    required String date,
+    required String siteId,
+    this.cluesRevealed = const Value.absent(),
+    this.guesses = const Value.absent(),
+    this.solved = const Value.absent(),
+    this.solvedAtClue = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : date = Value(date),
+       siteId = Value(siteId);
+  static Insertable<DailyChallengeProgressRow> custom({
+    Expression<String>? date,
+    Expression<String>? siteId,
+    Expression<int>? cluesRevealed,
+    Expression<String>? guesses,
+    Expression<int>? solved,
+    Expression<int>? solvedAtClue,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (date != null) 'date': date,
+      if (siteId != null) 'site_id': siteId,
+      if (cluesRevealed != null) 'clues_revealed': cluesRevealed,
+      if (guesses != null) 'guesses': guesses,
+      if (solved != null) 'solved': solved,
+      if (solvedAtClue != null) 'solved_at_clue': solvedAtClue,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyChallengeProgressTableCompanion copyWith({
+    Value<String>? date,
+    Value<String>? siteId,
+    Value<int>? cluesRevealed,
+    Value<String>? guesses,
+    Value<int>? solved,
+    Value<int?>? solvedAtClue,
+    Value<int>? rowid,
+  }) {
+    return DailyChallengeProgressTableCompanion(
+      date: date ?? this.date,
+      siteId: siteId ?? this.siteId,
+      cluesRevealed: cluesRevealed ?? this.cluesRevealed,
+      guesses: guesses ?? this.guesses,
+      solved: solved ?? this.solved,
+      solvedAtClue: solvedAtClue ?? this.solvedAtClue,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (siteId.present) {
+      map['site_id'] = Variable<String>(siteId.value);
+    }
+    if (cluesRevealed.present) {
+      map['clues_revealed'] = Variable<int>(cluesRevealed.value);
+    }
+    if (guesses.present) {
+      map['guesses'] = Variable<String>(guesses.value);
+    }
+    if (solved.present) {
+      map['solved'] = Variable<int>(solved.value);
+    }
+    if (solvedAtClue.present) {
+      map['solved_at_clue'] = Variable<int>(solvedAtClue.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyChallengeProgressTableCompanion(')
+          ..write('date: $date, ')
+          ..write('siteId: $siteId, ')
+          ..write('cluesRevealed: $cluesRevealed, ')
+          ..write('guesses: $guesses, ')
+          ..write('solved: $solved, ')
+          ..write('solvedAtClue: $solvedAtClue, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RoavvyDatabase extends GeneratedDatabase {
   _$RoavvyDatabase(QueryExecutor e) : super(e);
   $RoavvyDatabaseManager get managers => $RoavvyDatabaseManager(this);
@@ -5775,6 +6219,8 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
   late final $HeroImagesTable heroImages = $HeroImagesTable(this);
   late final $VisitedHeritageSitesTable visitedHeritageSites =
       $VisitedHeritageSitesTable(this);
+  late final $DailyChallengeProgressTableTable dailyChallengeProgressTable =
+      $DailyChallengeProgressTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5792,6 +6238,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
     xpEvents,
     heroImages,
     visitedHeritageSites,
+    dailyChallengeProgressTable,
   ];
 }
 
@@ -8884,6 +9331,255 @@ typedef $$VisitedHeritageSitesTableProcessedTableManager =
       VisitedHeritageSiteRow,
       PrefetchHooks Function()
     >;
+typedef $$DailyChallengeProgressTableTableCreateCompanionBuilder =
+    DailyChallengeProgressTableCompanion Function({
+      required String date,
+      required String siteId,
+      Value<int> cluesRevealed,
+      Value<String> guesses,
+      Value<int> solved,
+      Value<int?> solvedAtClue,
+      Value<int> rowid,
+    });
+typedef $$DailyChallengeProgressTableTableUpdateCompanionBuilder =
+    DailyChallengeProgressTableCompanion Function({
+      Value<String> date,
+      Value<String> siteId,
+      Value<int> cluesRevealed,
+      Value<String> guesses,
+      Value<int> solved,
+      Value<int?> solvedAtClue,
+      Value<int> rowid,
+    });
+
+class $$DailyChallengeProgressTableTableFilterComposer
+    extends Composer<_$RoavvyDatabase, $DailyChallengeProgressTableTable> {
+  $$DailyChallengeProgressTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cluesRevealed => $composableBuilder(
+    column: $table.cluesRevealed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get guesses => $composableBuilder(
+    column: $table.guesses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get solved => $composableBuilder(
+    column: $table.solved,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get solvedAtClue => $composableBuilder(
+    column: $table.solvedAtClue,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyChallengeProgressTableTableOrderingComposer
+    extends Composer<_$RoavvyDatabase, $DailyChallengeProgressTableTable> {
+  $$DailyChallengeProgressTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cluesRevealed => $composableBuilder(
+    column: $table.cluesRevealed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get guesses => $composableBuilder(
+    column: $table.guesses,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get solved => $composableBuilder(
+    column: $table.solved,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get solvedAtClue => $composableBuilder(
+    column: $table.solvedAtClue,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyChallengeProgressTableTableAnnotationComposer
+    extends Composer<_$RoavvyDatabase, $DailyChallengeProgressTableTable> {
+  $$DailyChallengeProgressTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get siteId =>
+      $composableBuilder(column: $table.siteId, builder: (column) => column);
+
+  GeneratedColumn<int> get cluesRevealed => $composableBuilder(
+    column: $table.cluesRevealed,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get guesses =>
+      $composableBuilder(column: $table.guesses, builder: (column) => column);
+
+  GeneratedColumn<int> get solved =>
+      $composableBuilder(column: $table.solved, builder: (column) => column);
+
+  GeneratedColumn<int> get solvedAtClue => $composableBuilder(
+    column: $table.solvedAtClue,
+    builder: (column) => column,
+  );
+}
+
+class $$DailyChallengeProgressTableTableTableManager
+    extends
+        RootTableManager<
+          _$RoavvyDatabase,
+          $DailyChallengeProgressTableTable,
+          DailyChallengeProgressRow,
+          $$DailyChallengeProgressTableTableFilterComposer,
+          $$DailyChallengeProgressTableTableOrderingComposer,
+          $$DailyChallengeProgressTableTableAnnotationComposer,
+          $$DailyChallengeProgressTableTableCreateCompanionBuilder,
+          $$DailyChallengeProgressTableTableUpdateCompanionBuilder,
+          (
+            DailyChallengeProgressRow,
+            BaseReferences<
+              _$RoavvyDatabase,
+              $DailyChallengeProgressTableTable,
+              DailyChallengeProgressRow
+            >,
+          ),
+          DailyChallengeProgressRow,
+          PrefetchHooks Function()
+        > {
+  $$DailyChallengeProgressTableTableTableManager(
+    _$RoavvyDatabase db,
+    $DailyChallengeProgressTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$DailyChallengeProgressTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer:
+              () => $$DailyChallengeProgressTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer:
+              () => $$DailyChallengeProgressTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> date = const Value.absent(),
+                Value<String> siteId = const Value.absent(),
+                Value<int> cluesRevealed = const Value.absent(),
+                Value<String> guesses = const Value.absent(),
+                Value<int> solved = const Value.absent(),
+                Value<int?> solvedAtClue = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyChallengeProgressTableCompanion(
+                date: date,
+                siteId: siteId,
+                cluesRevealed: cluesRevealed,
+                guesses: guesses,
+                solved: solved,
+                solvedAtClue: solvedAtClue,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String date,
+                required String siteId,
+                Value<int> cluesRevealed = const Value.absent(),
+                Value<String> guesses = const Value.absent(),
+                Value<int> solved = const Value.absent(),
+                Value<int?> solvedAtClue = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyChallengeProgressTableCompanion.insert(
+                date: date,
+                siteId: siteId,
+                cluesRevealed: cluesRevealed,
+                guesses: guesses,
+                solved: solved,
+                solvedAtClue: solvedAtClue,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyChallengeProgressTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RoavvyDatabase,
+      $DailyChallengeProgressTableTable,
+      DailyChallengeProgressRow,
+      $$DailyChallengeProgressTableTableFilterComposer,
+      $$DailyChallengeProgressTableTableOrderingComposer,
+      $$DailyChallengeProgressTableTableAnnotationComposer,
+      $$DailyChallengeProgressTableTableCreateCompanionBuilder,
+      $$DailyChallengeProgressTableTableUpdateCompanionBuilder,
+      (
+        DailyChallengeProgressRow,
+        BaseReferences<
+          _$RoavvyDatabase,
+          $DailyChallengeProgressTableTable,
+          DailyChallengeProgressRow
+        >,
+      ),
+      DailyChallengeProgressRow,
+      PrefetchHooks Function()
+    >;
 
 class $RoavvyDatabaseManager {
   final _$RoavvyDatabase _db;
@@ -8912,4 +9608,10 @@ class $RoavvyDatabaseManager {
       $$HeroImagesTableTableManager(_db, _db.heroImages);
   $$VisitedHeritageSitesTableTableManager get visitedHeritageSites =>
       $$VisitedHeritageSitesTableTableManager(_db, _db.visitedHeritageSites);
+  $$DailyChallengeProgressTableTableTableManager
+  get dailyChallengeProgressTable =>
+      $$DailyChallengeProgressTableTableTableManager(
+        _db,
+        _db.dailyChallengeProgressTable,
+      );
 }

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,6 +25,8 @@ import '../features/xp/xp_notifier.dart';
 import 'notification_service.dart';
 import '../features/cards/landmark_image_service.dart';
 import '../features/legal/terms_service.dart';
+import '../data/daily_challenge_repository.dart';
+import '../features/challenge/daily_challenge_service.dart';
 
 /// True when Image Playground (Apple Intelligence) is available on this device.
 /// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
@@ -297,6 +300,27 @@ final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>(
 /// When the user taps Dismiss on a [MemoryPulseCard], their assetId is added
 /// here so the card vanishes immediately without re-querying the library (ADR-136).
 final memoriesDismissedProvider = StateProvider<Set<String>>((ref) => {});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── M133 Daily Heritage Challenge ─────────────────────────────────────────────
+
+final dailyChallengeRepositoryProvider = Provider<DailyChallengeRepository>(
+  (ref) => DailyChallengeRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+/// Fetches today's challenge from Firestore. Re-fetches only on invalidation.
+final dailyChallengeProvider = FutureProvider<DailyChallenge>(
+  (_) => const DailyChallengeService().fetchToday(),
+);
+
+/// Today's local progress (clues revealed, guesses, solved state).
+/// Null when the user has not yet opened the challenge today.
+final dailyChallengeProgressProvider =
+    FutureProvider<DailyChallengeProgress?>((ref) {
+  final today = DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
+  return ref.watch(dailyChallengeRepositoryProvider).loadToday(today);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 

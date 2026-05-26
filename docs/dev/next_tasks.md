@@ -1,32 +1,47 @@
-# M130 — Scan: Cinematic Pacing & Orchestration Engine
+# M133 — Daily Heritage Challenge: Backend & Data Layer
 
 ## Tasks
 
-### T1 — Event infrastructure (sealed classes + priority queue)
-Add before `_ScanningView` in `scan_screen.dart`:
-- `_EventPriority` enum (p1, p2, p3, p4)
-- `_ScanPhase` enum (early, building, revealing)
-- `_DiscoveryEvent` sealed class + 5 subclasses
-- `_PriorityQueue` (sorted list, enqueue/dequeue/length)
+### T1 — Cloud Function: daily challenge scheduler
+- New `apps/functions/src/dailyChallenge.ts`
+- `scheduleDailyChallenge` (pub/sub, 00:00 UTC daily) + `getDailyChallenge` (onCall, for testing)
+- Deterministic picker: sort siteIds lexicographically, `epochDay % sites.length`
+- `buildClues(site)` → string[5] from site fields
+- Idempotent write to `daily_challenge/{YYYY-MM-DD}`
+- Copy `whs_sites.json` to `apps/functions/src/assets/`
+- Register exports in `apps/functions/src/index.ts`
+- Verify: `cd apps/functions && npm run build`
 
-### T2 — Wire buffer into _ScanningViewState + drain timer
-- Replace direct toast calls in `didUpdateWidget` with `_buffer.enqueue()`
-- Add drain timer (100ms periodic), presentation lock, _ScanPhase tracking
-- Remove old rate-limit timer + heritage delay timer
+### T2 — DailyChallenge + DailyChallengeProgress models
+- New `packages/shared_models/lib/src/daily_challenge.dart`
+- `DailyChallenge` (siteId, clues: List<String>)
+- `DailyChallengeProgress` (date, siteId, cluesRevealed, guesses, solved, solvedAtClue) + copyWith
+- Export from `shared_models.dart`
 
-### T3 — Cinematic presentation engine (_drainQueue + _presentX)
-- `_drainQueue()` checks lock, dequeues, dispatches
-- `_presentCountryDiscovery`, `_presentHeritageDiscovery`, `_presentAchievement`,
-  `_presentContinent`, `_presentMajorMilestone` — each async with timing + audio
+### T3 — Drift table + migration (v13 → v14)
+- Add `DailyChallengeProgressTable` to `roavvy_database.dart`
+- Increment schemaVersion to 14
+- Add `if (from < 14)` migration block
+- Run codegen: `dart run build_runner build --delete-conflicting-outputs`
 
-### T4 — Mute toggle + queue depth indicator
-- `_muted: bool` state + speaker IconButton
-- Queue depth pill (AnimatedSwitcher, shows when 3+ queued)
+### T4 — DailyChallengeRepository
+- New `apps/mobile_flutter/lib/data/daily_challenge_repository.dart`
+- `loadToday(date)` and `save(progress)` methods
+- JSON encode/decode guesses list via `dart:convert`
 
-### T5 — UNESCO site type chip + _ScanPhase modulation
-- `siteType` param on `_HeritageToastBanner` → Cultural/Natural chip
-- Phase modulates toast richness and audio category
+### T5 — DailyChallengeService + providers
+- New `apps/mobile_flutter/lib/features/challenge/daily_challenge_service.dart`
+- Fetches `daily_challenge/{YYYY-MM-DD}` from Firestore
+- `DailyChallengeUnavailable` exception for missing/network-error cases
+- Add 3 providers to `lib/core/providers.dart`:
+  `dailyChallengeRepositoryProvider`, `dailyChallengeProvider`, `dailyChallengeProgressProvider`
 
-### T6 — Docs + validation
-- Mark M130 complete, update backlog + current_task
-- flutter analyze + index_docs
+### T6 — Unit tests
+- `test/features/challenge/clue_builder_test.dart` — clue content, hemisphere, flag emoji, first word
+- `test/data/daily_challenge_repository_test.dart` — round-trip, null for wrong date, JSON guesses
+
+### T7 — Deploy + verify + docs
+- `firebase deploy --only functions:scheduleDailyChallenge,functions:getDailyChallenge`
+- Verify Firestore document written for today
+- `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt`
+- Update `docs/dev/current_task.md` and `docs/dev/backlog.md`

@@ -1,17 +1,18 @@
 # Current Task
 
-**Milestone:** M130 — Scan: Cinematic Pacing & Orchestration Engine
-**Status:** Complete (2026-05-25)
+**Milestone:** M133 — Daily Heritage Challenge: Backend & Data Layer
+**Status:** Complete (2026-05-27)
 
 All tasks implemented:
-- T1: `_DiscoveryEvent` sealed class hierarchy + `_PriorityQueue`
-- T2: `_ScanningViewState` wired to buffer; drain timer; `_ScanPhase` tracking
-- T3: `_drainQueue()` + `_presentX()` cinematic presentation methods
-- T4: Mute toggle + `_muted` guard on audio calls
-- T5: Queue depth indicator (AnimatedSwitcher pill, shows when 3+ queued)
-- T6: UNESCO `siteType` chip on `_HeritageToastBanner` (Cultural/Natural)
-- T7: `_ScanPhase` progressive intensity (early/building/revealing)
+- T1: `apps/functions/src/dailyChallenge.ts` — `scheduleDailyChallenge` + `getDailyChallenge` Cloud Functions
+- T2: `DailyChallenge` + `DailyChallengeProgress` models in `shared_models`
+- T3: `DailyChallengeProgressTable` Drift table, schema v14 migration
+- T4: `DailyChallengeRepository` — loadToday + save with JSON guesses
+- T5: `DailyChallengeService` — Firestore fetch; 3 providers in `providers.dart`
+- T6: TypeScript tests (13/13 ✓) + Dart repository tests (6/6 ✓)
+- T7: Firestore security rule added for `daily_challenge/{date}`
 
-See: `docs/dev/milestones/m130-scan-cinematic-pacing-orchestration.md`
+Deploy pending: `firebase deploy --only functions:scheduleDailyChallenge,functions:getDailyChallenge`
 
-Next milestone: see `backlog_active.md`.
+Next milestone: M134 — Daily Heritage Challenge: UI & Integration
+See: `docs/dev/milestones/m134-daily-challenge-ui.md`
