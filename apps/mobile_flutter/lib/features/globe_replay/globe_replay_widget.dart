@@ -8,6 +8,7 @@ import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
 import '../map/globe_projection.dart';
+import '../map/replay_globe_frame.dart';
 import 'globe_replay_painter.dart';
 import 'live_scan_replay_controller.dart';
 import 'replay_audio_controller.dart';
@@ -131,6 +132,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      // Seed an initial frame immediately so GlobeMapWidget switches to replay
+      // state before the first controller tick fires.
+      _writeGlobeFrame();
       await _audioCtrl.preload();
       if (!mounted) return;
       if (_isLiveMode) {
@@ -153,7 +157,34 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     _audioCtrl.dispose();
     _heritagePulseCtrl.dispose();
     _confettiCtrl.dispose();
+    // Clear the main globe frame so GlobeMapWidget returns to normal state.
+    if (widget.embedded) {
+      ref.read(replayGlobeFrameProvider.notifier).state = null;
+    }
     super.dispose();
+  }
+
+  // ── Embedded: drive main globe frame ─────────────────────────────────────
+
+  void _writeGlobeFrame() {
+    if (!widget.embedded || !mounted) return;
+    final isDone = _phase == ReplayPhase.done;
+    final painterScript = _isLiveMode ? _liveScript : widget.script!;
+    ref.read(replayGlobeFrameProvider.notifier).state = ReplayGlobeFrame(
+      projection: _projection,
+      visualStates: _buildReplayVisualStates(),
+      afterPainter: GlobeReplayPainter(
+        projection: _projection,
+        script: painterScript,
+        currentLegIndex: _currentLegIndex,
+        arcProgress: _arcProgress,
+        pulseValue: _pulseValue,
+      ),
+      highlightedCode: _currentArrivalCode(),
+      pulseValue: _pulseValue,
+      heritageSiteCoords: _heritageSiteCoords,
+      opacity: isDone ? 0.15 : 1.0,
+    );
   }
 
   void _onControllerUpdate() {
@@ -165,6 +196,8 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
         if (mounted) widget.onScanComplete!.call();
       });
     }
+    // Drive the main globe with the current frame when embedded.
+    _writeGlobeFrame();
     // M133: trigger confetti when first entering flagReveal for a new country.
     if (_phase == ReplayPhase.flagReveal) {
       final code = _currentLeg?.toCode;
@@ -344,9 +377,12 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     // Script for painter: historical uses widget.script; live builds a virtual one.
     final painterScript = _isLiveMode ? _liveScript : widget.script!;
 
+    // In embedded mode the main GlobeMapWidget renders the globe driven by
+    // replayGlobeFrameProvider — we only render the transparent UI overlay.
     final stack = Stack(
       children: [
-          // Globe + replay arc overlay.
+          if (!widget.embedded)
+          // Globe + replay arc — non-embedded (full-screen route) only.
           Positioned.fill(
             child: AnimatedOpacity(
               opacity: isDone ? 0.15 : 1.0,

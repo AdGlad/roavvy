@@ -56,6 +56,7 @@ class GlobePainter extends CustomPainter {
     this.naturalSiteCoords = const [],
     this.unvisitedHeritageSiteCoords = const [],
     this.heritagePulseValue = 0.0,
+    this.afterPainter,
   });
 
   final List<CountryPolygon> polygons;
@@ -80,6 +81,9 @@ class GlobePainter extends CustomPainter {
 
   /// Animation value 0.0–1.0 driving heritage site dot pulse. 0.0 = hidden glow.
   final double heritagePulseValue;
+
+  /// Optional painter called after the globe is drawn (e.g. replay arc layer).
+  final CustomPainter? afterPainter;
 
   static const _kSuppressed = {'AQ'};
   static const _kStrokeWidth = 0.3;
@@ -186,6 +190,9 @@ class GlobePainter extends CustomPainter {
       paintHeritageDots(
           naturalSiteCoords, Colors.green[400]!, Colors.green[300]!);
     }
+
+    // 6. Optional overlay painter (e.g. replay arc layer — M134).
+    afterPainter?.paint(canvas, size);
   }
 
   void _paintRing(
@@ -262,5 +269,6 @@ class GlobePainter extends CustomPainter {
       !identical(culturalSiteCoords, old.culturalSiteCoords) ||
       !identical(naturalSiteCoords, old.naturalSiteCoords) ||
       !identical(unvisitedHeritageSiteCoords, old.unvisitedHeritageSiteCoords) ||
-      heritagePulseValue != old.heritagePulseValue;
+      heritagePulseValue != old.heritagePulseValue ||
+      afterPainter != old.afterPainter;
 }

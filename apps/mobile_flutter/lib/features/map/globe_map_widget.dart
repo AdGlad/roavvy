@@ -13,6 +13,7 @@ import '../heritage/world_heritage_lookup_service.dart';
 import 'country_visual_state.dart';
 import 'globe_painter.dart';
 import 'globe_projection.dart';
+import 'replay_globe_frame.dart';
 
 // Total zoom sequence duration: zoom-in 400 ms + hold 5 000 ms + zoom-out 1 500 ms.
 const _kZoomInMs   = 400;
@@ -355,29 +356,50 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       }
     });
 
+    // M134: when a replay/scan frame is active, drive the globe with its state.
+    final frame = ref.watch(replayGlobeFrameProvider);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-        return GestureDetector(
-          onScaleStart: _onScaleStart,
-          onScaleUpdate: _onScaleUpdate,
-          onScaleEnd: _onScaleEnd,
-          onTapUp: _onTapUp,
+
+        final globe = GestureDetector(
+          // Disable interaction while replay/scan is running.
+          onScaleStart: frame != null ? null : _onScaleStart,
+          onScaleUpdate: frame != null ? null : _onScaleUpdate,
+          onScaleEnd: frame != null ? null : _onScaleEnd,
+          onTapUp: frame != null ? null : _onTapUp,
           child: CustomPaint(
             size: _canvasSize,
             painter: GlobePainter(
               polygons: polygons,
-              visualStates: visualStates,
-              tripCounts: tripCounts,
-              projection: _projection,
-              culturalSiteCoords: _culturalCoords,
-              naturalSiteCoords: _naturalCoords,
-              unvisitedHeritageSiteCoords: _unvisitedCoords,
-              heritagePulseValue:
-                  heritageEnabled ? _heritagePulseCtrl.value : 0.0,
+              visualStates: frame?.visualStates ?? visualStates,
+              tripCounts: frame != null ? const {} : tripCounts,
+              projection: frame?.projection ?? _projection,
+              highlightedCode: frame?.highlightedCode,
+              pulseValue: frame?.pulseValue ?? 0.0,
+              culturalSiteCoords:
+                  frame != null ? frame.heritageSiteCoords : _culturalCoords,
+              naturalSiteCoords: frame != null ? const [] : _naturalCoords,
+              unvisitedHeritageSiteCoords:
+                  frame != null ? const [] : _unvisitedCoords,
+              heritagePulseValue: frame != null
+                  ? 0.0
+                  : (heritageEnabled ? _heritagePulseCtrl.value : 0.0),
+              afterPainter: frame?.afterPainter,
             ),
           ),
         );
+
+        if (frame != null) {
+          return AnimatedOpacity(
+            opacity: frame.opacity,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInQuad,
+            child: globe,
+          );
+        }
+        return globe;
       },
     );
   }

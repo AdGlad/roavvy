@@ -11,6 +11,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
 import '../../data/firestore_sync_service.dart';
@@ -247,6 +248,9 @@ class MapScreen extends ConsumerWidget {
 
     final globeMode = ref.watch(globeModeProvider);
     final heritageDotsEnabled = ref.watch(heritageDotsEnabledProvider);
+    // M134: hide map UI controls while replay/scan overlay is active so only
+    // the globe and the replay HUD are visible.
+    final overlayActive = ref.watch(globeOverlayProvider).isActive;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D2137), // dark navy ocean (ADR-080)
@@ -273,6 +277,8 @@ class MapScreen extends ConsumerWidget {
                 WorldHeritageMarkerLayer(),
               ],
             ),
+          // All map UI is hidden while replay/scan overlay is active (M134).
+          if (!overlayActive) ...[
           const Align(
             alignment: Alignment.topCenter,
             child: XpLevelBar(),
@@ -508,6 +514,7 @@ class MapScreen extends ConsumerWidget {
           ),
           // App-open scan prompt gate (Task 150 — M43)
           _ScanPromptGate(onNavigateToScan: onNavigateToScan),
+          ], // end !overlayActive
         ],
       ),
     );
