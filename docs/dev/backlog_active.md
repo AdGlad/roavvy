@@ -554,7 +554,7 @@ Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium
 **Goal:** Replace emoji flags with real SVG flag images; adaptive tile sizing; portrait/landscape re-layout; shared editable title state across Grid/Passport/Heart.
 **Phase:** 15 — Visual Design Upgrade
 **Scope out:** Web card generator changes
-**Status:** Not started. No tasks written.
+**Status:** ✅ Superseded by M106 (SVG flags, FlagGridLayoutEngine, FilterQuality.high, Packed Row layout)
 
 ---
 
@@ -594,7 +594,7 @@ Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium
 **API:** `gift.subject` + `gift.message` on `POST /orders` (Printful v1).
 **Scope in:** `local_mockup_preview_screen.dart` (gift toggle + field); `createMerchCart` request type; `shopifyOrderCreated` (pass gift to Printful).
 **Scope out:** Shopify-level gift wrapping; web checkout.
-**Status:** Not started. No tasks written.
+**Status:** ✅ Complete (2026-05-26)
 
 ---
 
