@@ -140,7 +140,7 @@ async function generatePrintfulMockup(printfulVariantId, frontMockupFileUrl, bac
         return { frontMockupUrl: null, backMockupUrl: null };
     }
     console.log(`[mockup] ${elapsed()} v2 task submitted — taskId=${taskId}, polling...`);
-    const maxAttempts = 25;
+    const maxAttempts = 50;
     const intervalMs = 3000;
     let frontMockupUrl = null;
     let backMockupUrl = null;
@@ -230,7 +230,7 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
     const uid = request.auth.uid;
     console.log(`[cart] ${fnElapsed()} auth ok uid=${uid}`);
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition } = request.data;
+    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition, giftSubject, giftMessage } = request.data;
     // 'left_chest' | 'center' | 'right_chest' | 'none' — defaults to 'center'
     const effectiveFrontPosition = (typeof frontPosition === 'string' && frontPosition.length > 0) ? frontPosition : 'center';
     // 'center' | 'none' — defaults to 'center'
@@ -298,6 +298,11 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
         mockupApprovalId: typeof mockupApprovalId === 'string' ? mockupApprovalId : null,
         // M76 field (ADR-128): front placement so shopifyOrderCreated can use the correct Printful placement
         frontPosition: effectiveFrontPosition,
+        // M81: gift message forwarded to Printful `gift` field in shopifyOrderCreated
+        giftSubject: (typeof giftSubject === 'string' && giftSubject.trim().length > 0)
+            ? giftSubject.trim().slice(0, 200) : null,
+        giftMessage: (typeof giftMessage === 'string' && giftMessage.trim().length > 0)
+            ? giftMessage.trim().slice(0, 200) : null,
     };
     await configRef.set(configData);
     console.log(`[cart] ${fnElapsed()} step1 done — configId=${configId}`);
@@ -784,6 +789,25 @@ exports.shopifyOrderCreated = (0, https_1.onRequest)({ invoker: 'public' }, asyn
                         files,
                     },
                 ],
+                // M79: Roavvy-branded packing slip on every order.
+                packing_slip: {
+                    ...(process.env['ROAVVY_LOGO_URL']
+                        ? { logo_url: process.env['ROAVVY_LOGO_URL'] }
+                        : {}),
+                    message: 'Thank you for your Roavvy order! Made with your travel memories. 🌍',
+                    email: 'support@roavvy.com',
+                    store_name: 'Roavvy',
+                    custom_order_id: `ROAVVY-${shopifyOrderId}`,
+                },
+                // M81: forward gift message to Printful when the user marked it as a gift.
+                ...(config.giftSubject || config.giftMessage
+                    ? {
+                        gift: {
+                            subject: (config.giftSubject ?? '').slice(0, 200),
+                            message: (config.giftMessage ?? '').slice(0, 200),
+                        },
+                    }
+                    : {}),
             }),
         });
         const printfulData = (await printfulRes.json());
