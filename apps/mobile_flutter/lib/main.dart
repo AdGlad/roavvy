@@ -51,12 +51,16 @@ Future<void> main() async {
       // ── Native (iOS / Android) path ──────────────────────────────────────
 
       // Configure iOS audio session before any AudioPlayer is used.
-      // AVAudioSessionCategory.ambient: mixes with other apps, silences on
-      // the hardware mute switch — appropriate for UI sound effects.
+      // playback + mixWithOthers: sounds play even when the ringer switch is
+      // off, and layer over background music without interrupting it.
+      // Must match AppDelegate.configureAudioSession() (M111).
       await AudioPlayer.global.setAudioContext(
         AudioContext(
           iOS: AudioContextIOS(
-            category: AVAudioSessionCategory.ambient,
+            category: AVAudioSessionCategory.playback,
+            options: {
+              AVAudioSessionOptions.mixWithOthers,
+            },
           ),
         ),
       );
