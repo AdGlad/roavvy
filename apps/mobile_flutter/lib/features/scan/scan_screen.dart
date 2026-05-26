@@ -31,8 +31,10 @@ import '../visits/review_screen.dart';
 import 'hero_analysis_channel.dart';
 import 'scan_audio_controller.dart';
 import '../globe_replay/globe_replay_widget.dart';
+import '../globe_replay/live_scan_replay_controller.dart';
+import '../globe_replay/replay_data_source.dart';
 import '../globe_replay/travel_replay_controller.dart';
-import '../globe_replay/travel_replay_engine.dart';
+import 'live_scan_replay_data_source.dart';
 import 'hero_analysis_service.dart';
 import 'hero_image_repository.dart';
 import 'scan_summary_screen.dart';
@@ -409,6 +411,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   }
 
   Future<void> _scan() async {
+    // Capture navigator before any async gap.
+    final nav = Navigator.of(context);
+
     // Snapshot before scan starts to diff new countries afterwards (ADR-024).
     final preScanCodes = _effectiveVisits.map((v) => v.countryCode).toSet();
 
@@ -441,6 +446,38 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // T1/T2: expose snapshot to build() immediately (T4: pill shown now).
       _existingEntriesAtScanStart = existingEntriesSnapshot;
     });
+
+    // M132: push live replay immediately so the user watches their travels
+    // unfold in real time as batches arrive. The replay and the scan run
+    // concurrently; liveSource bridges them.
+    TravelReplayController.setCentroids(kCountryCentroids);
+    LiveScanReplayController.setCentroids(kCountryCentroids);
+    final liveSource = LiveScanReplayDataSource();
+
+    // Mutable closure variable set just before liveSource.markScanComplete()
+    // so that onScanComplete can push the correct ScanSummaryScreen.
+    ScanSummaryScreen Function()? buildSummary;
+
+    unawaited(nav.push(MaterialPageRoute<void>(
+      builder: (_) => GlobeReplayWidget(
+        dataSource: liveSource,
+        onScanComplete: () {
+          nav.pop(); // dismiss replay
+          final factory = buildSummary;
+          if (factory != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              nav.push(MaterialPageRoute<void>(builder: (_) => factory()));
+            });
+          }
+        },
+      ),
+    )));
+
+    // Per-batch tracking state for chronological event emission.
+    String? lastEmittedCountryCode;
+    final emittedYears = <int>{};
+    final emittedCountryCodes = <String>{};
+    final emittedAchievementIds = <String>{};
 
     try {
       // T3 (ADR-129): load all known assetIds once before the batch loop.
@@ -594,6 +631,93 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               _liveHeritageSites = whsAccum.values.toList();
             });
           }
+
+          // M132: feed newly discovered countries as live replay events,
+          // sorted chronologically by firstSeen so replay is in date order.
+          final newBatchCodes = batchResult.accum.keys
+              .where((c) =>
+                  !preScanCodes.contains(c) &&
+                  !emittedCountryCodes.contains(c))
+              .toList()
+            ..sort((a, b) {
+              final aDate = accum[a]?.firstSeen ?? DateTime(9999);
+              final bDate = accum[b]?.firstSeen ?? DateTime(9999);
+              return aDate.compareTo(bDate);
+            });
+
+          for (final code in newBatchCodes) {
+            final firstSeen = accum[code]?.firstSeen;
+
+            // Year banner when year changes.
+            if (firstSeen != null && emittedYears.add(firstSeen.year)) {
+              liveSource.addEvent(YearStartedEvent(year: firstSeen.year));
+            }
+
+            // Leg event: from last emitted country to this country.
+            final from = lastEmittedCountryCode ?? code;
+            if (from != code) {
+              // Resolve GPS for leg endpoints from allPhotoGps.
+              final fromGps = allPhotoGps
+                  .where((g) => g.countryCode == from)
+                  .toList()
+                ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+              final toGps = allPhotoGps
+                  .where((g) => g.countryCode == code)
+                  .toList()
+                ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+              liveSource.addEvent(CountryDiscoveredEvent(
+                fromCode: from,
+                toCode: code,
+                date: firstSeen ?? DateTime.now(),
+                fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
+                fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
+                toLat: toGps.isNotEmpty ? toGps.first.lat : null,
+                toLng: toGps.isNotEmpty ? toGps.first.lng : null,
+              ));
+            }
+            lastEmittedCountryCode = code;
+            emittedCountryCodes.add(code);
+
+            // Heritage sites already discovered for this country.
+            for (final site
+                in whsAccum.values.where((s) => s.countryCode == code)) {
+              liveSource.addEvent(HeritageSiteDiscoveredEvent(
+                countryCode: code,
+                siteName: site.name,
+                siteType: site.category,
+              ));
+            }
+          }
+
+          // Newly unlocked achievement events.
+          final totalNow =
+              _liveNewEntries.length + _existingEntriesAtScanStart.length;
+          for (final threshold in _kAchievementThresholds) {
+            final id = 'countries_$threshold';
+            if (totalNow >= threshold && emittedAchievementIds.add(id)) {
+              // Find the achievement definition.
+              String? title, subtitle;
+              for (final a in kAchievements) {
+                if (a.id == id) {
+                  title = a.title;
+                  subtitle = a.description;
+                  break;
+                }
+              }
+              if (title != null) {
+                liveSource.addEvent(AchievementUnlockedEvent(
+                  achievementId: id,
+                  title: title,
+                  subtitle: subtitle!,
+                  countryCode: lastEmittedCountryCode,
+                ));
+              }
+            }
+          }
+
+          // Progress update for "Scanning live…" chip.
+          liveSource
+              .addEvent(ScanProgressUpdatedEvent(processedCount: totalProcessed));
         }
       }
 
@@ -737,77 +861,56 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           }
         }
 
+        // M132: wire the buildSummary factory before marking scan complete.
+        // By the time onScanComplete fires (after replay drains), buildSummary
+        // is already set.
         if (scanResult is _NewCountriesFound) {
-          // M131: Push cinematic GlobeReplayWidget first; on completion push
-          // ScanSummaryScreen. Heritage and achievement overlays are woven into
-          // the replay legs so the user sees them chronologically.
-          final newCodesList = scanResult.newCodes; // sorted List<String>
+          final newCodesList = scanResult.newCodes;
           final newCodesSet = newCodesList.toSet();
-          final newCountries =
-              effective.where((v) => newCodesSet.contains(v.countryCode)).toList();
-          // M90: trip IDs for new countries — passed to best-shot section.
+          final newCountries = effective
+              .where((v) => newCodesSet.contains(v.countryCode))
+              .toList();
           final newTripIds = inferredTrips
               .where((t) => newCodesSet.contains(t.countryCode))
               .map((t) => t.id)
               .toList();
-          final nav = Navigator.of(context);
-          TravelReplayController.setCentroids(kCountryCentroids);
-          final script = _buildScanReplayScript(
-            trips: inferredTrips,
-            heritageSites: newlyDiscoveredHeritageSites,
-            unlockedIds: newlyUnlockedIds,
-          );
-          await nav.push(
-            MaterialPageRoute<void>(
-              builder: (_) => GlobeReplayWidget(
-                script: script,
-                onScanComplete: () {
-                  nav.pop(); // dismiss replay
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    nav.push(MaterialPageRoute<void>(
-                      builder: (_) => ScanSummaryScreen(
-                        newCountries: newCountries,
-                        newAchievementIds: newlyUnlockedIds.toList(),
-                        newCodes: newCodesList,
-                        newTripIds: newTripIds,
-                        newHeritageSiteNames: newlyDiscoveredHeritageSites
-                            .map((s) => s.name)
-                            .toList(),
-                        totalTripCount: inferredTrips.length,
-                        onDone: () {
-                          nav.pop();
-                          widget.onScanComplete?.call();
-                        },
-                      ),
-                    ));
-                  });
-                },
-              ),
-            ),
-          );
-        } else if (scanResult is _NothingNew) {
-          // M78: All scan outcomes go through ScanSummaryScreen (T3).
-          // State B ("All up to date") handles milestone/level-up checks + Rovy message.
-          final nav = Navigator.of(context);
-          await nav.push(
-            MaterialPageRoute<void>(
-              builder: (_) => ScanSummaryScreen(
-                newCountries: const [],
-                newAchievementIds: newlyUnlockedIds.toList(),
-                newCodes: const [],
-                lastScanAt: preScanTimestamp,
-                totalTripCount: inferredTrips.length,
+          final heritageNames =
+              newlyDiscoveredHeritageSites.map((s) => s.name).toList();
+          final achievementIds = newlyUnlockedIds.toList();
+          final tripCount = inferredTrips.length;
+          buildSummary = () => ScanSummaryScreen(
+                newCountries: newCountries,
+                newAchievementIds: achievementIds,
+                newCodes: newCodesList,
+                newTripIds: newTripIds,
+                newHeritageSiteNames: heritageNames,
+                totalTripCount: tripCount,
                 onDone: () {
                   nav.pop();
                   widget.onScanComplete?.call();
                 },
-              ),
-            ),
-          );
+              );
+        } else if (scanResult is _NothingNew) {
+          final achievementIds = newlyUnlockedIds.toList();
+          final tripCount = inferredTrips.length;
+          buildSummary = () => ScanSummaryScreen(
+                newCountries: const [],
+                newAchievementIds: achievementIds,
+                newCodes: const [],
+                lastScanAt: preScanTimestamp,
+                totalTripCount: tripCount,
+                onDone: () {
+                  nav.pop();
+                  widget.onScanComplete?.call();
+                },
+              );
         }
-        // else: effective.isEmpty — no geotagged photos found at all.
-        // Stay on scan screen; _EmptyResultsHint is shown when !_scanning.
+        // else: effective.isEmpty — no geotagged photos; onScanComplete just pops.
       }
+
+      // M132: signal replay to drain and complete. Must come after buildSummary
+      // is set so onScanComplete can push the correct screen.
+      liveSource.markScanComplete();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -862,58 +965,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       setState(() => _effectiveVisits = updated);
       ref.invalidate(effectiveVisitsProvider);
     }
-  }
-
-  /// Builds a [TravelReplayScript] from [trips] with heritage and achievement
-  /// overlay events woven in per leg, ready for [GlobeReplayWidget].
-  TravelReplayScript _buildScanReplayScript({
-    required List<TripRecord> trips,
-    required List<VisitedHeritageSite> heritageSites,
-    required Set<String> unlockedIds,
-  }) {
-    final baseScript = TravelReplayScriptBuilder.build(
-      trips: trips,
-      mode: TravelReplayMode.allTime,
-    );
-    if (baseScript.isEmpty) return baseScript;
-
-    final pacing = ReplayPacingRules.buildPacingList(baseScript);
-
-    final timeline = ReplayTimelineBuilder.build(
-      legs: baseScript.legs,
-      allTrips: trips,
-      unlockedIds: unlockedIds,
-      mode: TravelReplayMode.allTime,
-    );
-
-    // Group newly discovered heritage sites by country code.
-    final heritageByCountry = <String, List<VisitedHeritageSite>>{};
-    for (final site in heritageSites) {
-      heritageByCountry.putIfAbsent(site.countryCode, () => []).add(site);
-    }
-
-    // Prepend heritage events before achievement/stat events for each leg.
-    final enrichedEvents = Map<int, List<ReplayOverlayEvent>>.from(timeline.events);
-    for (var i = 0; i < baseScript.legs.length; i++) {
-      final sites = heritageByCountry[baseScript.legs[i].toCode] ?? [];
-      if (sites.isEmpty) continue;
-      final heritageEvents = sites
-          .map((s) => ReplayHeritageEvent(siteName: s.name, siteType: s.category))
-          .toList();
-      enrichedEvents[i] = [...heritageEvents, ...enrichedEvents[i] ?? []];
-    }
-
-    return TravelReplayScript(
-      legs: baseScript.legs,
-      mode: TravelReplayMode.allTime,
-      label: 'Your Travel Story',
-      overlayEvents: enrichedEvents,
-      summaryStats: timeline.summary,
-      legPacing: pacing,
-      visitedHeritageSiteCoords: heritageSites
-          .map((s) => (s.latitude, s.longitude))
-          .toList(),
-    );
   }
 
   @override

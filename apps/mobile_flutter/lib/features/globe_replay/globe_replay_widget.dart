@@ -9,7 +9,9 @@ import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
 import '../map/globe_projection.dart';
 import 'globe_replay_painter.dart';
+import 'live_scan_replay_controller.dart';
 import 'replay_audio_controller.dart';
+import 'replay_data_source.dart';
 import 'replay_overlay_widgets.dart';
 import 'replay_summary_screen.dart';
 import 'travel_replay_controller.dart';
@@ -17,37 +19,35 @@ import 'travel_replay_engine.dart';
 
 /// Full-screen cinematic travel replay overlay (M108).
 ///
-/// Composites [GlobePainter] (the existing globe) with [GlobeReplayPainter]
-/// (arc, marker, pulse) driven by [TravelReplayController].
+/// Supports two modes:
+/// - **Historical** (`script` param): drives [TravelReplayController] from a
+///   pre-built [TravelReplayScript]. Used from the map entry sheet.
+/// - **Live scan** (`dataSource` param): drives [LiveScanReplayController]
+///   from a [ReplayDataSource] fed in real time by [_ScanScreenState].
 ///
-/// M110: renders achievement / stat / heritage overlay events during the
-/// [ReplayPhase.overlay] phase, and slides up [ReplaySummaryScreen] when done.
+/// Exactly one of [script] or [dataSource] must be provided.
 ///
-/// M111: owns [ReplayAudioController] (preloaded before play); exposes mute
-/// toggle; reads [MediaQuery.disableAnimations] for reduced-motion support.
-///
-/// [onScanComplete]: when provided (scan use-case), called instead of showing
-/// [ReplaySummaryScreen] when replay finishes. The caller is responsible for
-/// navigating to the next screen.
-///
-/// Usage:
-/// ```dart
-/// Navigator.of(context).push(MaterialPageRoute(
-///   builder: (_) => GlobeReplayWidget(script: script),
-/// ));
-/// ```
+/// [onScanComplete]: called when replay finishes (either mode). The caller is
+/// responsible for navigating to the next screen.
 class GlobeReplayWidget extends ConsumerStatefulWidget {
   const GlobeReplayWidget({
     super.key,
-    required this.script,
+    this.script,
+    this.dataSource,
     this.onScanComplete,
-  });
+  }) : assert(
+          script != null || dataSource != null,
+          'Either script or dataSource must be provided',
+        );
 
-  final TravelReplayScript script;
+  /// Historical replay script. Provide either this or [dataSource].
+  final TravelReplayScript? script;
+
+  /// Live scan data source. Provide either this or [script].
+  final ReplayDataSource? dataSource;
 
   /// When non-null, replay completion calls this instead of showing
-  /// [ReplaySummaryScreen]. Used when [GlobeReplayWidget] is pushed from
-  /// the scan flow to chain into [ScanSummaryScreen].
+  /// [ReplaySummaryScreen].
   final VoidCallback? onScanComplete;
 
   @override
@@ -56,59 +56,77 @@ class GlobeReplayWidget extends ConsumerStatefulWidget {
 
 class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     with TickerProviderStateMixin {
-  late final TravelReplayController _ctrl;
+  TravelReplayController? _ctrl;
+  LiveScanReplayController? _liveCtrl;
   late final ReplayAudioController _audioCtrl;
   late final AnimationController _heritagePulseCtrl;
   bool _isMuted = false;
   double _speedMultiplier = 1.0;
   bool _scanCompleteCalled = false;
 
+  bool get _isLiveMode => widget.dataSource != null;
+
   @override
   void initState() {
     super.initState();
-    // M111: read reduced-motion preference before constructing controller.
-    // ignore: use_build_context_synchronously — initState is safe here
     final reduceMotion =
         WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
             .reduceMotion;
 
-    // Inject centroids so the controller can resolve lat/lng from ISO codes.
     TravelReplayController.setCentroids(kCountryCentroids);
-    _ctrl = TravelReplayController(script: widget.script, vsync: this);
-    _ctrl.reducedMotion = reduceMotion;
-    _ctrl.addListener(_onControllerUpdate);
+    LiveScanReplayController.setCentroids(kCountryCentroids);
 
-    // M111: create and wire audio controller.
     _audioCtrl = ReplayAudioController();
-    _ctrl.audioController = _audioCtrl;
 
-    // Heritage site pulse animation — 1400 ms repeating, same cadence as scan globe.
     _heritagePulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    // Preload audio then auto-play.
+    if (_isLiveMode) {
+      _liveCtrl = LiveScanReplayController(
+        dataSource: widget.dataSource!,
+        vsync: this,
+      );
+      _liveCtrl!.reducedMotion = reduceMotion;
+      _liveCtrl!.audioController = _audioCtrl;
+      _liveCtrl!.addListener(_onControllerUpdate);
+    } else {
+      _ctrl = TravelReplayController(script: widget.script!, vsync: this);
+      _ctrl!.reducedMotion = reduceMotion;
+      _ctrl!.audioController = _audioCtrl;
+      _ctrl!.addListener(_onControllerUpdate);
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await _audioCtrl.preload();
-      if (mounted) _ctrl.play();
+      if (!mounted) return;
+      if (_isLiveMode) {
+        _liveCtrl!.start();
+      } else {
+        _ctrl!.play();
+      }
     });
   }
 
   @override
   void dispose() {
-    _ctrl.removeListener(_onControllerUpdate);
-    _ctrl.dispose();
+    if (_isLiveMode) {
+      _liveCtrl!.removeListener(_onControllerUpdate);
+      _liveCtrl!.dispose();
+    } else {
+      _ctrl!.removeListener(_onControllerUpdate);
+      _ctrl!.dispose();
+    }
     _audioCtrl.dispose();
     _heritagePulseCtrl.dispose();
     super.dispose();
   }
 
   void _onControllerUpdate() {
-    // Scan-mode completion: call onScanComplete instead of showing summary.
     if (!_scanCompleteCalled &&
-        _ctrl.phase == ReplayPhase.done &&
+        _phase == ReplayPhase.done &&
         widget.onScanComplete != null) {
       _scanCompleteCalled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -118,56 +136,98 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     if (mounted) setState(() {});
   }
 
-  void _replayAgain() {
-    _ctrl.play();
-  }
+  void _replayAgain() => _ctrl?.play();
 
   void _share(BuildContext ctx) {
-    // Placeholder: hook into existing share flow when wired end-to-end.
     ScaffoldMessenger.of(ctx).showSnackBar(
       const SnackBar(content: Text('Share coming soon')),
     );
   }
 
   void _createTShirt(BuildContext ctx) {
-    Navigator.of(ctx).pop(); // dismiss replay; caller navigates to merch
+    Navigator.of(ctx).pop();
   }
 
-  /// Builds a visual-state map driven by replay progress.
-  ///
-  /// Starts blank so the globe appears unhighlighted at replay start.
-  /// Countries are added as visited as legs complete.
+  // ── Getter shims ────────────────────────────────────────────────────────────
+
+  ReplayPhase get _phase =>
+      _isLiveMode ? _liveCtrl!.phase : _ctrl!.phase;
+
+  GlobeProjection get _projection =>
+      _isLiveMode ? _liveCtrl!.projection : _ctrl!.projection;
+
+  double get _arcProgress =>
+      _isLiveMode ? _liveCtrl!.arcProgress : _ctrl!.arcProgress;
+
+  double get _pulseValue =>
+      _isLiveMode ? _liveCtrl!.pulseValue : _ctrl!.pulseValue;
+
+  int get _currentLegIndex =>
+      _isLiveMode ? _liveCtrl!.completedLegs.length : _ctrl!.currentLegIndex;
+
+  List<ReplayOverlayEvent> get _currentOverlayEvents =>
+      _isLiveMode ? _liveCtrl!.currentOverlayEvents : _ctrl!.currentOverlayEvents;
+
+  int get _currentOverlayEventIndex =>
+      _isLiveMode ? _liveCtrl!.currentOverlayEventIndex : _ctrl!.currentOverlayEventIndex;
+
+  double get _overlayProgress =>
+      _isLiveMode ? _liveCtrl!.overlayProgress : _ctrl!.overlayProgress;
+
+  List<(double, double)> get _heritageSiteCoords => _isLiveMode
+      ? _liveCtrl!.visitedHeritageSiteCoords
+      : widget.script!.visitedHeritageSiteCoords;
+
+  /// All legs known so far (historical: all legs; live: completed + active).
+  List<TravelLeg> get _currentLegs {
+    if (_isLiveMode) {
+      final active = _liveCtrl!.activeLeg;
+      return [
+        ..._liveCtrl!.completedLegs,
+        if (active != null) active,
+      ];
+    }
+    return widget.script!.legs;
+  }
+
+  /// Current active leg (null if none).
+  TravelLeg? get _currentLeg {
+    if (_isLiveMode) return _liveCtrl!.activeLeg;
+    final idx = _ctrl!.currentLegIndex;
+    final legs = widget.script!.legs;
+    if (idx >= legs.length) return null;
+    return legs[idx];
+  }
+
+  // ── Visual state helpers ────────────────────────────────────────────────────
+
   Map<String, CountryVisualState> _buildReplayVisualStates() {
     final result = <String, CountryVisualState>{};
-    final total = widget.script.legs.length;
-    final cur = _ctrl.currentLegIndex;
+    final legs = _currentLegs;
+    final cur = _currentLegIndex;
 
     void markVisited(String code) {
       result[code] = CountryVisualState.visited;
     }
 
-    // Departure of the first leg is visible as soon as replay starts.
-    if (total > 0) markVisited(widget.script.legs[0].fromCode);
+    if (legs.isNotEmpty) markVisited(legs[0].fromCode);
 
-    // All fully completed legs: both endpoints are highlighted.
-    for (var i = 0; i < cur && i < total; i++) {
-      markVisited(widget.script.legs[i].fromCode);
-      markVisited(widget.script.legs[i].toCode);
+    for (var i = 0; i < cur && i < legs.length; i++) {
+      markVisited(legs[i].fromCode);
+      markVisited(legs[i].toCode);
     }
 
-    // Current leg: fromCode always visible; toCode appears on arrival.
-    if (cur < total) {
-      markVisited(widget.script.legs[cur].fromCode);
-      if (_ctrl.phase == ReplayPhase.pulse ||
-          _ctrl.phase == ReplayPhase.hold ||
-          _ctrl.phase == ReplayPhase.overlay) {
-        markVisited(widget.script.legs[cur].toCode);
+    if (cur < legs.length) {
+      markVisited(legs[cur].fromCode);
+      if (_phase == ReplayPhase.pulse ||
+          _phase == ReplayPhase.hold ||
+          _phase == ReplayPhase.overlay) {
+        markVisited(legs[cur].toCode);
       }
     }
 
-    // Done: all countries highlighted.
-    if (_ctrl.phase == ReplayPhase.done) {
-      for (final leg in widget.script.legs) {
+    if (_phase == ReplayPhase.done) {
+      for (final leg in legs) {
         markVisited(leg.fromCode);
         markVisited(leg.toCode);
       }
@@ -176,15 +236,14 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     return result;
   }
 
-  /// ISO code of the arrival country during the pulse phase (for expand halo).
   String? _currentArrivalCode() {
-    if (_ctrl.phase != ReplayPhase.pulse) return null;
-    final cur = _ctrl.currentLegIndex;
-    if (cur >= widget.script.legs.length) return null;
-    return widget.script.legs[cur].toCode;
+    if (_phase != ReplayPhase.pulse) return null;
+    final legs = _currentLegs;
+    final cur = _currentLegIndex;
+    if (cur >= legs.length) return null;
+    return legs[cur].toCode;
   }
 
-  /// Returns visited country codes in the order they were first arrived at.
   List<String> _visitedCountriesInOrder() {
     final codes = <String>[];
     final seen = <String>{};
@@ -193,27 +252,27 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       if (seen.add(code)) codes.add(code);
     }
 
-    final total = widget.script.legs.length;
-    final cur = _ctrl.currentLegIndex;
+    final legs = _currentLegs;
+    final cur = _currentLegIndex;
 
-    if (total > 0) add(widget.script.legs[0].fromCode);
+    if (legs.isNotEmpty) add(legs[0].fromCode);
 
-    for (var i = 0; i < cur && i < total; i++) {
-      add(widget.script.legs[i].fromCode);
-      add(widget.script.legs[i].toCode);
+    for (var i = 0; i < cur && i < legs.length; i++) {
+      add(legs[i].fromCode);
+      add(legs[i].toCode);
     }
 
-    if (cur < total) {
-      add(widget.script.legs[cur].fromCode);
-      if (_ctrl.phase == ReplayPhase.pulse ||
-          _ctrl.phase == ReplayPhase.hold ||
-          _ctrl.phase == ReplayPhase.overlay) {
-        add(widget.script.legs[cur].toCode);
+    if (cur < legs.length) {
+      add(legs[cur].fromCode);
+      if (_phase == ReplayPhase.pulse ||
+          _phase == ReplayPhase.hold ||
+          _phase == ReplayPhase.overlay) {
+        add(legs[cur].toCode);
       }
     }
 
-    if (_ctrl.phase == ReplayPhase.done) {
-      for (final leg in widget.script.legs) {
+    if (_phase == ReplayPhase.done) {
+      for (final leg in legs) {
         add(leg.fromCode);
         add(leg.toCode);
       }
@@ -222,27 +281,39 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     return codes;
   }
 
+  /// Builds a virtual [TravelReplayScript] from current legs for
+  /// [GlobeReplayPainter] in live mode.
+  TravelReplayScript get _liveScript {
+    return TravelReplayScript(
+      legs: _currentLegs,
+      mode: TravelReplayMode.allTime,
+      label: '',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final polygons = ref.watch(polygonsProvider);
-    // countryVisualStatesProvider not used during replay — we build states from
-    // controller progress so the globe starts blank and reveals countries live.
-    ref.watch(countryVisualStatesProvider); // keep dependency for hot-reload
+    ref.watch(countryVisualStatesProvider);
 
-    final isDone = _ctrl.phase == ReplayPhase.done;
-    final isOverlay = _ctrl.phase == ReplayPhase.overlay &&
-        _ctrl.currentOverlayEvents.isNotEmpty &&
-        _ctrl.currentOverlayEventIndex < _ctrl.currentOverlayEvents.length;
+    final isDone = _phase == ReplayPhase.done;
+    final isOverlay = _phase == ReplayPhase.overlay &&
+        _currentOverlayEvents.isNotEmpty &&
+        _currentOverlayEventIndex < _currentOverlayEvents.length;
 
     final replayVisualStates = _buildReplayVisualStates();
     final arrivalCode = _currentArrivalCode();
     final visitedCodes = _visitedCountriesInOrder();
+    final currentLegs = _currentLegs;
+
+    // Script for painter: historical uses widget.script; live builds a virtual one.
+    final painterScript = _isLiveMode ? _liveScript : widget.script!;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Globe + replay arc overlay. M111: fades to 15% on done.
+          // Globe + replay arc overlay.
           Positioned.fill(
             child: AnimatedOpacity(
               opacity: isDone ? 0.15 : 1.0,
@@ -253,36 +324,39 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                   polygons: polygons,
                   visualStates: replayVisualStates,
                   tripCounts: const {},
-                  projection: _ctrl.projection,
+                  projection: _projection,
                   highlightedCode: arrivalCode,
-                  pulseValue: _ctrl.pulseValue,
-                  heritageSiteCoords: widget.script.visitedHeritageSiteCoords,
+                  pulseValue: _pulseValue,
+                  heritageSiteCoords: _heritageSiteCoords,
                   heritagePulseValue: _heritagePulseCtrl.value,
                   replayPainter: GlobeReplayPainter(
-                    projection: _ctrl.projection,
-                    script: widget.script,
-                    currentLegIndex: _ctrl.currentLegIndex,
-                    arcProgress: _ctrl.arcProgress,
-                    pulseValue: _ctrl.pulseValue,
+                    projection: _projection,
+                    script: painterScript,
+                    currentLegIndex: _currentLegIndex,
+                    arcProgress: _arcProgress,
+                    pulseValue: _pulseValue,
                   ),
                 ),
               ),
             ),
           ),
 
-          // Top bar: script label + mute + stop.
+          // Top bar: label + mute + stop.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
-                        widget.script.label,
+                        _isLiveMode
+                            ? 'Scanning your travels…'
+                            : widget.script!.label,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -291,10 +365,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                       ),
                     ),
                     _LegCounter(
-                      current: _ctrl.currentLegIndex,
-                      total: widget.script.legs.length,
+                      current: _currentLegIndex,
+                      total: _isLiveMode ? null : currentLegs.length,
                     ),
-                    // M111: mute toggle.
                     IconButton(
                       icon: Icon(
                         _isMuted
@@ -315,7 +388,11 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                       icon: const Icon(Icons.close, color: Colors.white),
                       tooltip: 'Stop replay',
                       onPressed: () {
-                        _ctrl.stop();
+                        if (_isLiveMode) {
+                          _liveCtrl!.stop();
+                        } else {
+                          _ctrl!.stop();
+                        }
                         _audioCtrl.stopAll();
                         Navigator.of(context).pop();
                       },
@@ -326,7 +403,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
             ),
           ),
 
-          // Bottom: speed selector + growing flag list + leg label (hidden when done).
+          // Bottom: flag list + leg label + speed selector (hidden in live mode).
           if (!isDone)
             Positioned(
               bottom: 0,
@@ -339,26 +416,26 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Speed selector — always visible during playback.
-                      _SpeedSelector(
-                        value: _speedMultiplier,
-                        onChanged: (v) {
-                          setState(() {
-                            _speedMultiplier = v;
-                            _ctrl.speedMultiplier = v;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 6),
+                      // Speed selector — historical mode only.
+                      if (!_isLiveMode)
+                        _SpeedSelector(
+                          value: _speedMultiplier,
+                          onChanged: (v) {
+                            setState(() {
+                              _speedMultiplier = v;
+                              _ctrl!.speedMultiplier = v;
+                            });
+                          },
+                        ),
+                      if (!_isLiveMode) const SizedBox(height: 6),
                       if (visitedCodes.isNotEmpty)
                         _ReplayFlagList(countryCodes: visitedCodes),
-                      if (!isOverlay &&
-                          _ctrl.currentLegIndex < widget.script.legs.length)
+                      if (!isOverlay && _currentLeg != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: _LegLabel(
-                            leg: widget.script.legs[_ctrl.currentLegIndex],
-                            phase: _ctrl.phase,
+                            leg: _currentLeg!,
+                            phase: _phase,
                           ),
                         ),
                     ],
@@ -367,17 +444,44 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               ),
             ),
 
-          // M110: Overlay widget (achievement / stat) — centred on screen.
+          // Overlay widget (achievement / stat / heritage) — centred on screen.
           if (isOverlay)
             Positioned.fill(
               child: _buildOverlayWidget(),
             ),
 
-          // M110: Summary screen — slides up when done (suppressed in scan mode).
+          // Live-mode: "Scanning live…" chip when waiting for events.
+          if (_isLiveMode &&
+              _liveCtrl!.liveState == LiveScanReplayState.waitingForEvents)
+            Positioned(
+              top: 80,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: _ScanningLiveChip(
+                    processedCount: _liveCtrl!.processedCount),
+              ),
+            ),
+
+          // Live-mode: queue depth badge.
+          if (_isLiveMode && _liveCtrl!.queuedLegCount >= 2)
+            Positioned(
+              top: 80,
+              right: 16,
+              child: _QueueDepthBadge(count: _liveCtrl!.queuedLegCount),
+            ),
+
+          // Live-mode: year banner overlay.
+          if (_isLiveMode && _liveCtrl!.activeYearBanner != null)
+            Positioned.fill(
+              child: _YearBannerOverlay(year: _liveCtrl!.activeYearBanner!),
+            ),
+
+          // Summary screen — slides up when done (suppressed in scan mode).
           if (widget.onScanComplete == null)
             Positioned.fill(
               child: ReplaySummaryScreen(
-                script: widget.script,
+                script: widget.script!,
                 isVisible: isDone,
                 onReplayAgain: _replayAgain,
                 onShare: () => _share(context),
@@ -390,19 +494,19 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   }
 
   Widget _buildOverlayWidget() {
-    final event = _ctrl.currentOverlayEvents[_ctrl.currentOverlayEventIndex];
+    final event = _currentOverlayEvents[_currentOverlayEventIndex];
     return switch (event) {
       ReplayAchievementEvent e => ReplayAchievementOverlay(
           event: e,
-          overlayProgress: _ctrl.overlayProgress,
+          overlayProgress: _overlayProgress,
         ),
       ReplayStatEvent e => ReplayStatOverlay(
           event: e,
-          overlayProgress: _ctrl.overlayProgress,
+          overlayProgress: _overlayProgress,
         ),
       ReplayHeritageEvent e => ReplayHeritageOverlay(
           event: e,
-          overlayProgress: _ctrl.overlayProgress,
+          overlayProgress: _overlayProgress,
         ),
     };
   }
@@ -427,17 +531,9 @@ class _CombinedGlobePainter extends CustomPainter {
   final Map<String, int> tripCounts;
   final GlobeProjection projection;
   final GlobeReplayPainter replayPainter;
-
-  /// Arrival country during pulse phase — passed to [GlobePainter] for halo.
   final String? highlightedCode;
-
-  /// Pulse progress 0.0–1.0 driving the arrival halo size/opacity.
   final double pulseValue;
-
-  /// Visited UNESCO heritage site coords — rendered as amber dots.
   final List<(double lat, double lng)> heritageSiteCoords;
-
-  /// Animation value 0.0–1.0 driving heritage dot pulse glow.
   final double heritagePulseValue;
 
   @override
@@ -462,10 +558,13 @@ class _CombinedGlobePainter extends CustomPainter {
 class _LegCounter extends StatelessWidget {
   const _LegCounter({required this.current, required this.total});
   final int current;
-  final int total;
+  final int? total;
 
   @override
   Widget build(BuildContext context) {
+    final label = total != null
+        ? '${(current + 1).clamp(1, total!)} / $total'
+        : '${current + 1}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -473,7 +572,7 @@ class _LegCounter extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        '${(current + 1).clamp(1, total)} / $total',
+        label,
         style: const TextStyle(color: Colors.white70, fontSize: 13),
       ),
     );
@@ -508,7 +607,6 @@ class _LegLabel extends StatelessWidget {
     );
   }
 
-  /// Returns "🇦🇺 Australia" style label for a country code.
   static String _label(String code) {
     final flag = _flag(code);
     final name = kCountryNames[code.toUpperCase()] ?? code;
@@ -583,8 +681,6 @@ class _SpeedChip extends StatelessWidget {
 }
 
 /// Horizontally scrollable row of emoji flags for all countries visited so far.
-///
-/// Grows by one flag each time a new country is arrived at during replay.
 class _ReplayFlagList extends StatelessWidget {
   const _ReplayFlagList({required this.countryCodes});
 
@@ -620,3 +716,86 @@ class _ReplayFlagList extends StatelessWidget {
   }
 }
 
+// ── Live-mode-only widgets ─────────────────────────────────────────────────────
+
+/// Pulsing "Scanning live… N photos" pill shown when waiting for events.
+class _ScanningLiveChip extends StatelessWidget {
+  const _ScanningLiveChip({required this.processedCount});
+  final int processedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 10,
+            height: 10,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Scanning… $processedCount photos',
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Subtle badge showing how many country legs are queued.
+class _QueueDepthBadge extends StatelessWidget {
+  const _QueueDepthBadge({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '+$count queued',
+        style: const TextStyle(color: Colors.amber, fontSize: 12),
+      ),
+    );
+  }
+}
+
+/// Full-screen dimmed year-number overlay shown during a [YearStartedEvent].
+class _YearBannerOverlay extends StatelessWidget {
+  const _YearBannerOverlay({required this.year});
+  final int year;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        color: Colors.black54,
+        alignment: Alignment.center,
+        child: Text(
+          '$year',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 72,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 4,
+          ),
+        ),
+      ),
+    );
+  }
+}
