@@ -91,6 +91,7 @@ class TravelLeg {
     this.fromLng,
     this.toLat,
     this.toLng,
+    this.isFirstVisit = false,
   });
 
   /// ISO 3166-1 alpha-2 departure country.
@@ -110,6 +111,10 @@ class TravelLeg {
   /// Actual GPS of the first photo in the arriving trip segment.
   final double? toLat;
   final double? toLng;
+
+  /// True when this leg is the first time the user visits [toCode].
+  /// Used to trigger the flag-reveal + confetti discovery animation.
+  final bool isFirstVisit;
 
   /// True when this leg has explicit GPS coordinates for the departure point.
   bool get hasFromGps => fromLat != null && fromLng != null;
@@ -216,6 +221,11 @@ class TravelReplayScriptBuilder {
     // M109: use actual trip GPS endpoints — last GPS of departing trip as
     // departure point; first GPS of arriving trip as arrival point (ADR-157).
     final legs = <TravelLeg>[];
+    // Track destinations seen so far for first-visit detection (M133).
+    final seenDestinations = <String>{};
+    // The starting country is implicitly "already visited" so it never
+    // triggers a first-visit animation.
+    if (sorted.isNotEmpty) seenDestinations.add(sorted.first.countryCode);
     for (var i = 0; i + 1 < sorted.length; i++) {
       final from = sorted[i];
       final to = sorted[i + 1];
@@ -228,6 +238,7 @@ class TravelReplayScriptBuilder {
         fromLng: from.lastLng,
         toLat: to.firstLat,
         toLng: to.firstLng,
+        isFirstVisit: seenDestinations.add(to.countryCode), // true = newly seen
       ));
     }
 

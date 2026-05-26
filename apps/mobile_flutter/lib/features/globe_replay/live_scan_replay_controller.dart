@@ -64,6 +64,12 @@ class LiveScanReplayController extends ChangeNotifier {
   bool reducedMotion = false;
   double speedMultiplier = 1.0;
 
+  // ── First-visit discovery (M133) ───────────────────────────────────────────
+  double flagRevealProgress = 0.0;
+  double flagFlightProgress = 0.0;
+  /// Countries committed to the bottom collection row after fly-in animation.
+  List<String> collectedCodes = const [];
+
   // ── Live-only observable state ─────────────────────────────────────────────
 
   /// Last processed photo count from [ScanProgressUpdatedEvent].
@@ -122,6 +128,8 @@ class LiveScanReplayController extends ChangeNotifier {
     _phaseCtrl = null;
     phase = ReplayPhase.idle;
     liveState = LiveScanReplayState.idle;
+    flagRevealProgress = 0.0;
+    flagFlightProgress = 0.0;
     if (!_disposed) notifyListeners();
   }
 
@@ -161,6 +169,7 @@ class LiveScanReplayController extends ChangeNotifier {
             fromLng: e.fromLng,
             toLat: e.toLat,
             toLng: e.toLng,
+            isFirstVisit: e.isFirstVisit,
           ),
         );
       case HeritageSiteDiscoveredEvent e:
@@ -214,6 +223,11 @@ class LiveScanReplayController extends ChangeNotifier {
     final prev = _activeLeg;
     if (prev != null) _completedLegs.add(prev);
     _activeLeg = leg;
+
+    // Ensure the origin country is always in the collection row.
+    if (!collectedCodes.contains(leg.fromCode)) {
+      collectedCodes = [...collectedCodes, leg.fromCode];
+    }
 
     // Drain pending overlay events accumulated before this leg.
     final overlays = List<ReplayOverlayEvent>.from(_pendingOverlayEvents);
@@ -358,6 +372,57 @@ class LiveScanReplayController extends ChangeNotifier {
   }
 
   void _afterHold(List<ReplayOverlayEvent> overlays) {
+    if (_activeLeg?.isFirstVisit == true) {
+      _runFlagReveal(overlays);
+    } else {
+      _proceedToOverlays(overlays);
+    }
+  }
+
+  void _runFlagReveal(List<ReplayOverlayEvent> overlays) {
+    if (_disposed) return;
+    phase = ReplayPhase.flagReveal;
+    flagRevealProgress = 0.0;
+    _callAudio('discovery');
+    notifyListeners();
+    final ctrl = _makeCtrl(const Duration(milliseconds: 1500));
+    _phaseCtrl = ctrl;
+    ctrl.addListener(() {
+      flagRevealProgress = ctrl.value;
+      if (!_disposed) notifyListeners();
+    });
+    ctrl.addStatusListener((s) {
+      if (s == AnimationStatus.completed) _runFlagFlight(overlays);
+    });
+    ctrl.forward();
+  }
+
+  void _runFlagFlight(List<ReplayOverlayEvent> overlays) {
+    if (_disposed) return;
+    phase = ReplayPhase.flagFlight;
+    flagFlightProgress = 0.0;
+    _callAudio('collection');
+    notifyListeners();
+    final ctrl = _makeCtrl(const Duration(milliseconds: 1000));
+    _phaseCtrl = ctrl;
+    ctrl.addListener(() {
+      flagFlightProgress = ctrl.value;
+      if (!_disposed) notifyListeners();
+    });
+    ctrl.addStatusListener((s) {
+      if (s == AnimationStatus.completed) {
+        final toCode = _activeLeg?.toCode;
+        if (toCode != null && !collectedCodes.contains(toCode)) {
+          collectedCodes = [...collectedCodes, toCode];
+        }
+        notifyListeners();
+        _proceedToOverlays(overlays);
+      }
+    });
+    ctrl.forward();
+  }
+
+  void _proceedToOverlays(List<ReplayOverlayEvent> overlays) {
     if (overlays.isEmpty) {
       currentLegIndex++;
       _processNextEvent();
@@ -459,6 +524,10 @@ class LiveScanReplayController extends ChangeNotifier {
         ac.playAchievement();
       case 'heritage':
         ac.playHeritage();
+      case 'discovery':
+        ac.playDiscovery();
+      case 'collection':
+        ac.playCollection();
       case 'end':
         ac.playScanComplete();
     }

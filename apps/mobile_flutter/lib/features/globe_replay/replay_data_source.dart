@@ -30,11 +30,15 @@ class CountryDiscoveredEvent extends ReplayEvent {
     this.fromLng,
     this.toLat,
     this.toLng,
+    this.isFirstVisit = false,
   });
   final String fromCode;
   final String toCode;
   final DateTime date;
   final double? fromLat, fromLng, toLat, toLng;
+  /// True when this is the first time [toCode] is visited in this replay.
+  /// Drives the flag-reveal + confetti discovery animation (M133).
+  final bool isFirstVisit;
 }
 
 /// A UNESCO heritage site discovered in the currently active country.
@@ -130,6 +134,7 @@ class HistoricalReplayDataSource extends ChangeNotifier
         fromLng: leg.fromLng,
         toLat: leg.toLat,
         toLng: leg.toLng,
+        isFirstVisit: leg.isFirstVisit,
       ));
       // Per-leg overlay events (heritage, achievements).
       for (final oe in script.overlayEvents[i] ?? const []) {

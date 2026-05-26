@@ -44,6 +44,12 @@ class ReplayToneGenerator {
   /// Rising two-note for year transitions — C5 (523 Hz) → G5 (784 Hz) (≈ 0.40 s).
   static Uint8List yearTransition() => _wav(_yearRise());
 
+  /// Rich discovery chime when the flag appears over a first-visit country (≈ 1.0 s).
+  static Uint8List discovery() => _wav(_discoveryChime());
+
+  /// Soft collection pop when the flag joins the row (≈ 0.35 s).
+  static Uint8List collection() => _wav(_collectionPop());
+
   // ── Synthesis ──────────────────────────────────────────────────────────────
 
   /// Band-limited noise burst with a rising sine tone.
@@ -184,6 +190,47 @@ class ReplayToneGenerator {
       final nt = t - ni * noteSec;
       final env = nt < 0.01 ? nt / 0.01 : math.exp(-(nt - 0.01) * 8.0);
       final s = math.sin(2 * math.pi * freq * t) * env * _vol;
+      return (s * 32767).round().clamp(-32767, 32767);
+    });
+  }
+
+  /// Three ascending notes E5→G5→C6 with warm harmonic overtones.
+  static List<int> _discoveryChime() {
+    const freqs = [659.25, 783.99, 1046.50];
+    const noteSec = 0.28;
+    const tail = 0.18;
+    final n = ((noteSec * freqs.length + tail) * _sr).round();
+    return List.generate(n, (i) {
+      final t = i / _sr;
+      final ni = (t / noteSec).floor().clamp(0, freqs.length - 1);
+      final freq = freqs[ni];
+      final nt = t - ni * noteSec;
+      final env = nt < 0.015 ? nt / 0.015 : math.exp(-(nt - 0.015) * 4.5);
+      final s = (
+            math.sin(2 * math.pi * freq * t) * 0.60 +
+            math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
+            math.sin(2 * math.pi * freq * 3.0 * t) * 0.10
+          ) *
+          env *
+          _vol;
+      return (s * 32767).round().clamp(-32767, 32767);
+    });
+  }
+
+  /// Gentle two-frequency pop with quick attack and soft decay.
+  static List<int> _collectionPop() {
+    const dur = 0.35;
+    final n = (dur * _sr).round();
+    return List.generate(n, (i) {
+      final t = i / _sr;
+      final env = t < 0.008 ? t / 0.008 : math.exp(-(t - 0.008) * 9.0);
+      final s = (
+            math.sin(2 * math.pi * 660.0 * t) * 0.55 +
+            math.sin(2 * math.pi * 990.0 * t) * 0.35 +
+            math.sin(2 * math.pi * 1320.0 * t) * 0.08
+          ) *
+          env *
+          _vol;
       return (s * 32767).round().clamp(-32767, 32767);
     });
   }

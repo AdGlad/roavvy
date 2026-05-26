@@ -32,7 +32,9 @@ class ReplayAudioController {
         _achievement = AudioPlayer(),
         _end = AudioPlayer(),
         _heritage = AudioPlayer(),
-        _yearChange = AudioPlayer() {
+        _yearChange = AudioPlayer(),
+        _discovery = AudioPlayer(),
+        _collection = AudioPlayer() {
     for (final p in _allPlayers) {
       p.setReleaseMode(ReleaseMode.stop).ignore();
     }
@@ -45,6 +47,8 @@ class ReplayAudioController {
   final AudioPlayer _end;
   final AudioPlayer _heritage;
   final AudioPlayer _yearChange;
+  final AudioPlayer _discovery;
+  final AudioPlayer _collection;
 
   /// When true, all [play*] methods are no-ops. Audio already in progress is
   /// stopped. Toggle from the mute button in [GlobeReplayWidget].
@@ -58,6 +62,8 @@ class ReplayAudioController {
   Uint8List? _endBytes;
   Uint8List? _heritageBytes;
   Uint8List? _yearBytes;
+  Uint8List? _discoveryBytes;
+  Uint8List? _collectionBytes;
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -74,6 +80,8 @@ class ReplayAudioController {
     _endBytes ??= ReplayToneGenerator.replayEnd();
     _heritageBytes ??= ReplayToneGenerator.heritage();
     _yearBytes ??= ReplayToneGenerator.yearTransition();
+    _discoveryBytes ??= ReplayToneGenerator.discovery();
+    _collectionBytes ??= ReplayToneGenerator.collection();
 
     // Warm up each player by setting the source without playing.
     await Future.wait([
@@ -84,6 +92,8 @@ class ReplayAudioController {
       _warmUp(_end, _endBytes!),
       _warmUp(_heritage, _heritageBytes!),
       _warmUp(_yearChange, _yearBytes!),
+      _warmUp(_discovery, _discoveryBytes!),
+      _warmUp(_collection, _collectionBytes!),
     ]);
   }
 
@@ -127,6 +137,18 @@ class ReplayAudioController {
     _play(_yearChange, _yearBytes);
   }
 
+  /// Plays the first-visit discovery chime.
+  void playDiscovery() {
+    if (isMuted) return;
+    _play(_discovery, _discoveryBytes);
+  }
+
+  /// Plays the soft collection pop when flag joins the row.
+  void playCollection() {
+    if (isMuted) return;
+    _play(_collection, _collectionBytes);
+  }
+
   /// Plays the scan complete fanfare (reuses end player).
   void playScanComplete() {
     if (isMuted) return;
@@ -149,7 +171,7 @@ class ReplayAudioController {
   // ── Internal ───────────────────────────────────────────────────────────────
 
   List<AudioPlayer> get _allPlayers =>
-      [_travelShort, _travelLong, _arrival, _achievement, _end, _heritage, _yearChange];
+      [_travelShort, _travelLong, _arrival, _achievement, _end, _heritage, _yearChange, _discovery, _collection];
 
   Future<void> _warmUp(AudioPlayer player, Uint8List bytes) async {
     try {

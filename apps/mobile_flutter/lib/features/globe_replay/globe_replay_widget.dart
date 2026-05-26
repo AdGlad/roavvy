@@ -12,6 +12,10 @@ import 'globe_replay_painter.dart';
 import 'live_scan_replay_controller.dart';
 import 'replay_audio_controller.dart';
 import 'replay_data_source.dart';
+import 'package:confetti/confetti.dart';
+
+import '../../core/flag_colours.dart';
+import 'country_discovery_overlay.dart';
 import 'replay_overlay_widgets.dart';
 import 'replay_summary_screen.dart';
 import 'travel_replay_controller.dart';
@@ -64,6 +68,12 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   double _speedMultiplier = 1.0;
   bool _scanCompleteCalled = false;
 
+  // ── First-visit discovery (M133) ───────────────────────────────────────────
+  late final ConfettiController _confettiCtrl;
+  String? _confettiCountry;
+  List<Color> _confettiColors = const [Colors.amber, Colors.white70];
+  int _slotPulseTrigger = 0;
+
   bool get _isLiveMode => widget.dataSource != null;
 
   @override
@@ -82,6 +92,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+
+    _confettiCtrl = ConfettiController(
+      duration: const Duration(milliseconds: 600),
+    );
 
     if (_isLiveMode) {
       _liveCtrl = LiveScanReplayController(
@@ -122,6 +136,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     }
     _audioCtrl.dispose();
     _heritagePulseCtrl.dispose();
+    _confettiCtrl.dispose();
     super.dispose();
   }
 
@@ -134,7 +149,36 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
         if (mounted) widget.onScanComplete!.call();
       });
     }
+    // M133: trigger confetti when first entering flagReveal for a new country.
+    if (_phase == ReplayPhase.flagReveal) {
+      final code = _currentLeg?.toCode;
+      if (code != null && code != _confettiCountry) {
+        _confettiCountry = code;
+        _triggerConfetti(code);
+      }
+    }
+    // M133: pulse the newly inserted slot when flagFlight completes.
+    if (_phase == ReplayPhase.overlay || _phase == ReplayPhase.hold ||
+        (_phase != ReplayPhase.flagFlight && _lastPhaseWasFlagFlight)) {
+      if (_lastPhaseWasFlagFlight) {
+        _slotPulseTrigger++;
+      }
+    }
+    _lastPhaseWasFlagFlight = _phase == ReplayPhase.flagFlight;
     if (mounted) setState(() {});
+  }
+
+  bool _lastPhaseWasFlagFlight = false;
+
+  Future<void> _triggerConfetti(String countryCode) async {
+    final colors = await flagColours(countryCode);
+    if (!mounted || _confettiCountry != countryCode) return;
+    setState(() {
+      _confettiColors = colors != null && colors.isNotEmpty
+          ? colors
+          : const [Colors.amber, Colors.white70];
+    });
+    _confettiCtrl.play();
   }
 
   void _replayAgain() => _ctrl?.play();
@@ -174,6 +218,15 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
 
   double get _overlayProgress =>
       _isLiveMode ? _liveCtrl!.overlayProgress : _ctrl!.overlayProgress;
+
+  double get _flagRevealProgress =>
+      _isLiveMode ? _liveCtrl!.flagRevealProgress : _ctrl!.flagRevealProgress;
+
+  double get _flagFlightProgress =>
+      _isLiveMode ? _liveCtrl!.flagFlightProgress : _ctrl!.flagFlightProgress;
+
+  List<String> get _collectedCodes =>
+      _isLiveMode ? _liveCtrl!.collectedCodes : (_ctrl!.collectedCodes);
 
   List<(double, double)> get _heritageSiteCoords => _isLiveMode
       ? _liveCtrl!.visitedHeritageSiteCoords
@@ -245,43 +298,6 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     return legs[cur].toCode;
   }
 
-  List<String> _visitedCountriesInOrder() {
-    final codes = <String>[];
-    final seen = <String>{};
-
-    void add(String code) {
-      if (seen.add(code)) codes.add(code);
-    }
-
-    final legs = _currentLegs;
-    final cur = _currentLegIndex;
-
-    if (legs.isNotEmpty) add(legs[0].fromCode);
-
-    for (var i = 0; i < cur && i < legs.length; i++) {
-      add(legs[i].fromCode);
-      add(legs[i].toCode);
-    }
-
-    if (cur < legs.length) {
-      add(legs[cur].fromCode);
-      if (_phase == ReplayPhase.pulse ||
-          _phase == ReplayPhase.hold ||
-          _phase == ReplayPhase.overlay) {
-        add(legs[cur].toCode);
-      }
-    }
-
-    if (_phase == ReplayPhase.done) {
-      for (final leg in legs) {
-        add(leg.fromCode);
-        add(leg.toCode);
-      }
-    }
-
-    return codes;
-  }
-
   /// Builds a virtual [TravelReplayScript] from current legs for
   /// [GlobeReplayPainter] in live mode.
   TravelReplayScript get _liveScript {
@@ -301,10 +317,12 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     final isOverlay = _phase == ReplayPhase.overlay &&
         _currentOverlayEvents.isNotEmpty &&
         _currentOverlayEventIndex < _currentOverlayEvents.length;
+    final isFlagReveal = _phase == ReplayPhase.flagReveal;
+    final isFlagFlight = _phase == ReplayPhase.flagFlight;
 
     final replayVisualStates = _buildReplayVisualStates();
     final arrivalCode = _currentArrivalCode();
-    final visitedCodes = _visitedCountriesInOrder();
+    final collectedCodes = _collectedCodes;
     final currentLegs = _currentLegs;
 
     // Script for painter: historical uses widget.script; live builds a virtual one.
@@ -429,8 +447,11 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                           },
                         ),
                       if (!_isLiveMode) const SizedBox(height: 6),
-                      if (visitedCodes.isNotEmpty)
-                        _ReplayFlagList(countryCodes: visitedCodes),
+                      if (collectedCodes.isNotEmpty)
+                        _CollectedFlagRow(
+                          countryCodes: collectedCodes,
+                          slotPulseTrigger: _slotPulseTrigger,
+                        ),
                       if (!isOverlay && _currentLeg != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
@@ -449,6 +470,26 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
           if (isOverlay)
             Positioned.fill(
               child: _buildOverlayWidget(),
+            ),
+
+          // M133: first-visit flag reveal — large emoji + confetti.
+          if (isFlagReveal && _currentLeg != null)
+            Positioned.fill(
+              child: CountryDiscoveryOverlay(
+                countryCode: _currentLeg!.toCode,
+                revealProgress: _flagRevealProgress,
+                confettiCtrl: _confettiCtrl,
+                confettiColors: _confettiColors,
+              ),
+            ),
+
+          // M133: flag flight — animates from centre to bottom row.
+          if (isFlagFlight && _currentLeg != null)
+            Positioned.fill(
+              child: FlagFlightOverlay(
+                countryCode: _currentLeg!.toCode,
+                flightProgress: _flagFlightProgress,
+              ),
             ),
 
           // Live-mode: "Scanning live…" chip when waiting for events.
@@ -681,41 +722,55 @@ class _SpeedChip extends StatelessWidget {
   }
 }
 
-/// Horizontally scrollable row of emoji flags for all countries visited so far.
-class _ReplayFlagList extends StatelessWidget {
-  const _ReplayFlagList({required this.countryCodes});
+/// Bottom collection row — shows only countries that have completed their
+/// fly-in animation (committed to [collectedCodes]).
+///
+/// The last slot pulses when [slotPulseTrigger] increments.
+class _CollectedFlagRow extends StatelessWidget {
+  const _CollectedFlagRow({
+    required this.countryCodes,
+    required this.slotPulseTrigger,
+  });
 
   final List<String> countryCodes;
-
-  static String _flag(String code) {
-    if (code.length != 2) return '';
-    final upper = code.toUpperCase();
-    final a = upper.codeUnitAt(0) - 0x41 + 0x1F1E6;
-    final b = upper.codeUnitAt(1) - 0x41 + 0x1F1E6;
-    return String.fromCharCode(a) + String.fromCharCode(b);
-  }
+  final int slotPulseTrigger;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final code in countryCodes)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: Text(
-                _flag(code),
-                style: const TextStyle(fontSize: 22),
-              ),
-            ),
-        ],
+    if (countryCodes.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: countryCodes.length,
+        itemBuilder: (context, index) {
+          final code = countryCodes[index];
+          final isLast = index == countryCodes.length - 1;
+          final flag = Text(
+            _emojiFlagFromCode(code),
+            style: const TextStyle(fontSize: 24),
+          );
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: isLast
+                ? SlotPulse(trigger: slotPulseTrigger, child: flag)
+                : flag,
+          );
+        },
       ),
     );
   }
+
+  static String _emojiFlagFromCode(String code) {
+    final upper = code.toUpperCase();
+    final a = upper.codeUnitAt(0) - 0x41 + 0x1F1E6;
+    final b = upper.codeUnitAt(1) - 0x41 + 0x1F1E6;
+    return String.fromCharCodes([a, b]);
+  }
 }
+
+
 
 // ── Live-mode-only widgets ─────────────────────────────────────────────────────
 

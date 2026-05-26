@@ -503,6 +503,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // fire in order as countries accumulate, matching the historical replay.
       var liveSeenCountryCodes = <String>{};
       var liveSeenAchievementIds = <String>{};
+      // M133: track countries seen in replay so far for first-visit detection.
+      final liveFirstVisitCodes = <String>{};
 
       final accum = <String, CountryAccum>{};
       final allPhotoDates = <PhotoDateRecord>[];
@@ -682,6 +684,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
                 toLat: toGps.isNotEmpty ? toGps.first.lat : null,
                 toLng: toGps.isNotEmpty ? toGps.first.lng : null,
+                isFirstVisit: liveFirstVisitCodes.add(toCode),
               ));
             }
             liveLastCountry = toCode;
@@ -949,6 +952,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
             toLat: toGps.isNotEmpty ? toGps.first.lat : null,
             toLng: toGps.isNotEmpty ? toGps.first.lng : null,
+            isFirstVisit: liveFirstVisitCodes.add(toCode),
           ));
         }
         liveLastCountry = toCode;

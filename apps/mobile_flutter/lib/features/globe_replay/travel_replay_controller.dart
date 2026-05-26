@@ -14,6 +14,8 @@ enum ReplayPhase {
   flight,          // arc draws while camera pans to arrival with scale dip (variable)
   pulse,           // arrival country pulses
   hold,            // brief pause before next leg
+  flagReveal,      // large emoji flag appears over country + confetti (M133, first visit only)
+  flagFlight,      // flag flies down into collection row (M133)
   overlay,         // achievement / stat overlay reveal (M110, 1 600 ms × N events)
   done,            // script complete
 }
@@ -57,6 +59,18 @@ class TravelReplayController extends ChangeNotifier {
   /// 0.0–1.0 progress of the current overlay event animation.
   /// Opacity = sin(π × overlayProgress) — bell-curve fade.
   double overlayProgress = 0.0;
+
+  // ── First-visit discovery (M133) ───────────────────────────────────────────
+
+  /// Progress 0.0–1.0 of the [flagReveal] phase (flag scale-in).
+  double flagRevealProgress = 0.0;
+
+  /// Progress 0.0–1.0 of the [flagFlight] phase (flag flies to row).
+  double flagFlightProgress = 0.0;
+
+  /// Country codes that have completed their discovery animation and are
+  /// committed to the bottom collection row. The flag row only shows these.
+  List<String> collectedCodes = const [];
 
   bool get isPlaying =>
       phase != ReplayPhase.idle && phase != ReplayPhase.done;
@@ -113,6 +127,8 @@ class TravelReplayController extends ChangeNotifier {
     currentLegIndex = 0;
     arcProgress = 0.0;
     pulseValue = 0.0;
+    // Seed collection row with the starting country (leg[0].fromCode).
+    collectedCodes = script.legs.isNotEmpty ? [script.legs[0].fromCode] : const [];
     _startLeg();
   }
 
@@ -126,6 +142,8 @@ class TravelReplayController extends ChangeNotifier {
     currentOverlayEvents = const [];
     currentOverlayEventIndex = 0;
     overlayProgress = 0.0;
+    flagRevealProgress = 0.0;
+    flagFlightProgress = 0.0;
     if (!_disposed) notifyListeners();
   }
 
@@ -305,8 +323,60 @@ class TravelReplayController extends ChangeNotifier {
     ctrl.forward();
   }
 
-  /// After hold: run overlay events for this leg (if any), then advance.
+  /// After hold: show flag reveal for first visits, then overlays.
   void _afterHold() {
+    final leg = script.legs[currentLegIndex];
+    if (leg.isFirstVisit) {
+      _runFlagReveal();
+    } else {
+      _proceedToOverlays();
+    }
+  }
+
+  void _runFlagReveal() {
+    if (_disposed) return;
+    phase = ReplayPhase.flagReveal;
+    flagRevealProgress = 0.0;
+    _callAudio('discovery');
+    notifyListeners();
+    final ctrl = _makeCtrl(const Duration(milliseconds: 1500));
+    _phaseCtrl = ctrl;
+    ctrl.addListener(() {
+      flagRevealProgress = ctrl.value;
+      if (!_disposed) notifyListeners();
+    });
+    ctrl.addStatusListener((s) {
+      if (s == AnimationStatus.completed) _runFlagFlight();
+    });
+    ctrl.forward();
+  }
+
+  void _runFlagFlight() {
+    if (_disposed) return;
+    phase = ReplayPhase.flagFlight;
+    flagFlightProgress = 0.0;
+    _callAudio('collection');
+    notifyListeners();
+    final ctrl = _makeCtrl(const Duration(milliseconds: 1000));
+    _phaseCtrl = ctrl;
+    ctrl.addListener(() {
+      flagFlightProgress = ctrl.value;
+      if (!_disposed) notifyListeners();
+    });
+    ctrl.addStatusListener((s) {
+      if (s == AnimationStatus.completed) {
+        final toCode = script.legs[currentLegIndex].toCode;
+        if (!collectedCodes.contains(toCode)) {
+          collectedCodes = [...collectedCodes, toCode];
+        }
+        _proceedToOverlays();
+      }
+    });
+    ctrl.forward();
+  }
+
+  /// Run overlay events for this leg (if any), then advance to the next leg.
+  void _proceedToOverlays() {
     final events = script.overlayEvents[currentLegIndex] ?? const [];
     if (events.isEmpty) {
       _advanceLeg();
@@ -386,6 +456,10 @@ class TravelReplayController extends ChangeNotifier {
         ac.playArrival();
       case 'achievement':
         ac.playAchievement();
+      case 'discovery':
+        ac.playDiscovery();
+      case 'collection':
+        ac.playCollection();
       case 'end':
         ac.playReplayEnd();
     }
