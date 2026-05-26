@@ -95,6 +95,79 @@ class ReplayAchievementOverlay extends StatelessWidget {
   }
 }
 
+// ── Heritage overlay ──────────────────────────────────────────────────────────
+
+/// Cinematic heritage site reveal shown during [ReplayPhase.overlay]
+/// for a [ReplayHeritageEvent].
+///
+/// Styled in amber to match the heritage dot colour on the globe.
+class ReplayHeritageOverlay extends StatelessWidget {
+  const ReplayHeritageOverlay({
+    super.key,
+    required this.event,
+    required this.overlayProgress,
+  });
+
+  final ReplayHeritageEvent event;
+  final double overlayProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final opacity = replayOverlayOpacity(overlayProgress);
+    final isNatural = event.siteType == 'natural';
+    final accentColor = isNatural ? Colors.green[400]! : Colors.amber[400]!;
+    final categoryLabel = isNatural
+        ? 'Natural Heritage'
+        : event.siteType == 'mixed'
+            ? 'Mixed Heritage'
+            : 'Cultural Heritage';
+
+    return Opacity(
+      opacity: opacity,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: accentColor.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.account_balance_outlined, color: accentColor, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'UNESCO $categoryLabel Site',
+                style: TextStyle(
+                  color: accentColor.withValues(alpha: 0.9),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                event.siteName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Stat overlay ──────────────────────────────────────────────────────────────
 
 /// Minimal cinematic stat pill shown during [ReplayPhase.overlay]

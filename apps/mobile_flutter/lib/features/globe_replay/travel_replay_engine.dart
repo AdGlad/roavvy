@@ -41,6 +41,20 @@ class ReplayStatEvent extends ReplayOverlayEvent {
   final String value;
 }
 
+/// A UNESCO World Heritage Site discovery shown after arriving at a country.
+///
+/// Displayed in the same [ReplayPhase.overlay] slot as achievements and stats —
+/// heritage sites are inserted before achievement events for each leg.
+class ReplayHeritageEvent extends ReplayOverlayEvent {
+  const ReplayHeritageEvent({required this.siteName, this.siteType});
+
+  /// Display name of the heritage site.
+  final String siteName;
+
+  /// UNESCO category: 'cultural', 'natural', 'mixed', or null.
+  final String? siteType;
+}
+
 /// An achievement reveal moment triggered by arriving at a country (M110).
 ///
 /// Only shows achievements that are already unlocked — no new business logic.
@@ -123,6 +137,7 @@ class TravelReplayScript {
     this.overlayEvents = const {},
     this.summaryStats = const [],
     this.legPacing = const [],
+    this.visitedHeritageSiteCoords = const [],
   });
 
   final List<TravelLeg> legs;
@@ -144,6 +159,10 @@ class TravelReplayScript {
   ///
   /// When empty, [TravelReplayController] falls back to fixed constants.
   final List<LegPacing> legPacing;
+
+  /// Lat/lng coordinates of visited UNESCO heritage sites, rendered as
+  /// ambient dots on the globe during replay.
+  final List<(double lat, double lng)> visitedHeritageSiteCoords;
 
   bool get isEmpty => legs.isEmpty;
 }

@@ -20,16 +20,15 @@ import 'travel_replay_engine.dart';
 /// Composites [GlobePainter] (the existing globe) with [GlobeReplayPainter]
 /// (arc, marker, pulse) driven by [TravelReplayController].
 ///
-/// Gestures are disabled during playback. The user can stop via the stop
-/// button, which calls [Navigator.pop].
-///
-/// M110: renders [ReplayAchievementOverlay] / [ReplayStatOverlay] during
-/// the [ReplayPhase.overlay] phase, and slides up [ReplaySummaryScreen]
-/// when [ReplayPhase.done].
+/// M110: renders achievement / stat / heritage overlay events during the
+/// [ReplayPhase.overlay] phase, and slides up [ReplaySummaryScreen] when done.
 ///
 /// M111: owns [ReplayAudioController] (preloaded before play); exposes mute
-/// toggle in the top bar; reads [MediaQuery.disableAnimations] to set
-/// [TravelReplayController.reducedMotion]. Globe fades to 15% opacity on done.
+/// toggle; reads [MediaQuery.disableAnimations] for reduced-motion support.
+///
+/// [onScanComplete]: when provided (scan use-case), called instead of showing
+/// [ReplaySummaryScreen] when replay finishes. The caller is responsible for
+/// navigating to the next screen.
 ///
 /// Usage:
 /// ```dart
@@ -38,9 +37,18 @@ import 'travel_replay_engine.dart';
 /// ));
 /// ```
 class GlobeReplayWidget extends ConsumerStatefulWidget {
-  const GlobeReplayWidget({super.key, required this.script});
+  const GlobeReplayWidget({
+    super.key,
+    required this.script,
+    this.onScanComplete,
+  });
 
   final TravelReplayScript script;
+
+  /// When non-null, replay completion calls this instead of showing
+  /// [ReplaySummaryScreen]. Used when [GlobeReplayWidget] is pushed from
+  /// the scan flow to chain into [ScanSummaryScreen].
+  final VoidCallback? onScanComplete;
 
   @override
   ConsumerState<GlobeReplayWidget> createState() => _GlobeReplayWidgetState();
@@ -50,8 +58,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     with TickerProviderStateMixin {
   late final TravelReplayController _ctrl;
   late final ReplayAudioController _audioCtrl;
+  late final AnimationController _heritagePulseCtrl;
   bool _isMuted = false;
   double _speedMultiplier = 1.0;
+  bool _scanCompleteCalled = false;
 
   @override
   void initState() {
@@ -72,6 +82,12 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     _audioCtrl = ReplayAudioController();
     _ctrl.audioController = _audioCtrl;
 
+    // Heritage site pulse animation — 1400 ms repeating, same cadence as scan globe.
+    _heritagePulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
     // Preload audio then auto-play.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -85,10 +101,20 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     _ctrl.removeListener(_onControllerUpdate);
     _ctrl.dispose();
     _audioCtrl.dispose();
+    _heritagePulseCtrl.dispose();
     super.dispose();
   }
 
   void _onControllerUpdate() {
+    // Scan-mode completion: call onScanComplete instead of showing summary.
+    if (!_scanCompleteCalled &&
+        _ctrl.phase == ReplayPhase.done &&
+        widget.onScanComplete != null) {
+      _scanCompleteCalled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onScanComplete!.call();
+      });
+    }
     if (mounted) setState(() {});
   }
 
@@ -230,6 +256,8 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                   projection: _ctrl.projection,
                   highlightedCode: arrivalCode,
                   pulseValue: _ctrl.pulseValue,
+                  heritageSiteCoords: widget.script.visitedHeritageSiteCoords,
+                  heritagePulseValue: _heritagePulseCtrl.value,
                   replayPainter: GlobeReplayPainter(
                     projection: _ctrl.projection,
                     script: widget.script,
@@ -345,16 +373,17 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               child: _buildOverlayWidget(),
             ),
 
-          // M110: Summary screen — slides up when done.
-          Positioned.fill(
-            child: ReplaySummaryScreen(
-              script: widget.script,
-              isVisible: isDone,
-              onReplayAgain: _replayAgain,
-              onShare: () => _share(context),
-              onCreateTShirt: () => _createTShirt(context),
+          // M110: Summary screen — slides up when done (suppressed in scan mode).
+          if (widget.onScanComplete == null)
+            Positioned.fill(
+              child: ReplaySummaryScreen(
+                script: widget.script,
+                isVisible: isDone,
+                onReplayAgain: _replayAgain,
+                onShare: () => _share(context),
+                onCreateTShirt: () => _createTShirt(context),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -368,6 +397,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
           overlayProgress: _ctrl.overlayProgress,
         ),
       ReplayStatEvent e => ReplayStatOverlay(
+          event: e,
+          overlayProgress: _ctrl.overlayProgress,
+        ),
+      ReplayHeritageEvent e => ReplayHeritageOverlay(
           event: e,
           overlayProgress: _ctrl.overlayProgress,
         ),
@@ -385,6 +418,8 @@ class _CombinedGlobePainter extends CustomPainter {
     required this.replayPainter,
     this.highlightedCode,
     this.pulseValue = 0.0,
+    this.heritageSiteCoords = const [],
+    this.heritagePulseValue = 0.0,
   });
 
   final List<CountryPolygon> polygons;
@@ -399,6 +434,12 @@ class _CombinedGlobePainter extends CustomPainter {
   /// Pulse progress 0.0–1.0 driving the arrival halo size/opacity.
   final double pulseValue;
 
+  /// Visited UNESCO heritage site coords — rendered as amber dots.
+  final List<(double lat, double lng)> heritageSiteCoords;
+
+  /// Animation value 0.0–1.0 driving heritage dot pulse glow.
+  final double heritagePulseValue;
+
   @override
   void paint(canvas, size) {
     GlobePainter(
@@ -408,6 +449,8 @@ class _CombinedGlobePainter extends CustomPainter {
       projection: projection,
       highlightedCode: highlightedCode,
       pulseValue: pulseValue,
+      culturalSiteCoords: heritageSiteCoords,
+      heritagePulseValue: heritagePulseValue,
     ).paint(canvas, size);
     replayPainter.paint(canvas, size);
   }
