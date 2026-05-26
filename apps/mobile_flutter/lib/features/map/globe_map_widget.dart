@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/globe_overlay.dart';
 import '../../core/providers.dart';
 import '../heritage/world_heritage_lookup_service.dart';
 import 'country_visual_state.dart';
@@ -356,8 +357,11 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       }
     });
 
-    // M134: when a replay/scan frame is active, drive the globe with its state.
-    final frame = ref.watch(replayGlobeFrameProvider);
+    // M134: drive the globe with replay/scan state when overlay is active.
+    // Guard on globeOverlayProvider so the globe returns to normal state the
+    // instant hide() is called, without waiting for GlobeReplayWidget.dispose().
+    final overlayActive = ref.watch(globeOverlayProvider).isActive;
+    final frame = overlayActive ? ref.watch(replayGlobeFrameProvider) : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
