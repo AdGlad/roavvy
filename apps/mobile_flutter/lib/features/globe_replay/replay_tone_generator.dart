@@ -38,6 +38,12 @@ class ReplayToneGenerator {
   /// Arpeggio + chord fanfare for replay complete (≈ 1.20 s).
   static Uint8List replayEnd() => _wav(_fanfare());
 
+  /// Gold chime for UNESCO heritage reveals — 880 Hz + 1100 Hz overtone (≈ 0.60 s).
+  static Uint8List heritage() => _wav(_heritageChime());
+
+  /// Rising two-note for year transitions — C5 (523 Hz) → G5 (784 Hz) (≈ 0.40 s).
+  static Uint8List yearTransition() => _wav(_yearRise());
+
   // ── Synthesis ──────────────────────────────────────────────────────────────
 
   /// Band-limited noise burst with a rising sine tone.
@@ -144,6 +150,41 @@ class ReplayToneGenerator {
         s *= env;
       }
       return (s * _vol * 32767).round().clamp(-32767, 32767);
+    });
+  }
+
+  /// Gold chime: 880 Hz fundamental + 1100 Hz overtone, exponential decay, 0.60 s.
+  static List<int> _heritageChime() {
+    const dur = 0.60;
+    final n = (dur * _sr).round();
+    return List.generate(n, (i) {
+      final t = i / _sr;
+      final env = math.exp(-t * 5.5);
+      final s = (
+            math.sin(2 * math.pi * 880.0 * t) * 0.55 +
+            math.sin(2 * math.pi * 1100.0 * t) * 0.30 +
+            math.sin(2 * math.pi * 1760.0 * t) * 0.10
+          ) *
+          env *
+          _vol;
+      return (s * 32767).round().clamp(-32767, 32767);
+    });
+  }
+
+  /// Rising two-note: C5 (523 Hz) then G5 (784 Hz), 0.20 s each, 0.40 s total.
+  static List<int> _yearRise() {
+    const freqs = [523.25, 783.99];
+    const noteSec = 0.18;
+    const total = noteSec * 2 + 0.04; // small tail
+    final n = (total * _sr).round();
+    return List.generate(n, (i) {
+      final t = i / _sr;
+      final ni = (t / noteSec).floor().clamp(0, freqs.length - 1);
+      final freq = freqs[ni];
+      final nt = t - ni * noteSec;
+      final env = nt < 0.01 ? nt / 0.01 : math.exp(-(nt - 0.01) * 8.0);
+      final s = math.sin(2 * math.pi * freq * t) * env * _vol;
+      return (s * 32767).round().clamp(-32767, 32767);
     });
   }
 

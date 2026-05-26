@@ -409,6 +409,24 @@ class ReplayPacingRules {
       for (final leg in script.legs) compute(leg, totalLegs),
     ];
   }
+
+  /// Returns the peak globe scale for a given arc distance.
+  ///
+  /// Used by [LiveScanReplayController] to compute per-leg pacing on the fly.
+  static double peakScaleForArc(double arcDeg) {
+    if (arcDeg < 20.0) return _kShort.peakScale;
+    if (arcDeg < 90.0) return _kMedium.peakScale;
+    return _kLong.peakScale;
+  }
+
+  /// Returns the scale dip amount for a given arc distance.
+  ///
+  /// Used by [LiveScanReplayController] to compute per-leg pacing on the fly.
+  static double scaleDipForArc(double arcDeg) {
+    if (arcDeg < 20.0) return _kShort.scaleDipAmount;
+    if (arcDeg < 90.0) return _kMedium.scaleDipAmount;
+    return _kLong.scaleDipAmount;
+  }
 }
 
 // ── ReplayTimelineBuilder (M110) ──────────────────────────────────────────────

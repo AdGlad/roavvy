@@ -30,7 +30,9 @@ class ReplayAudioController {
         _travelLong = AudioPlayer(),
         _arrival = AudioPlayer(),
         _achievement = AudioPlayer(),
-        _end = AudioPlayer() {
+        _end = AudioPlayer(),
+        _heritage = AudioPlayer(),
+        _yearChange = AudioPlayer() {
     for (final p in _allPlayers) {
       p.setReleaseMode(ReleaseMode.stop).ignore();
     }
@@ -41,6 +43,8 @@ class ReplayAudioController {
   final AudioPlayer _arrival;
   final AudioPlayer _achievement;
   final AudioPlayer _end;
+  final AudioPlayer _heritage;
+  final AudioPlayer _yearChange;
 
   /// When true, all [play*] methods are no-ops. Audio already in progress is
   /// stopped. Toggle from the mute button in [GlobeReplayWidget].
@@ -52,6 +56,8 @@ class ReplayAudioController {
   Uint8List? _arrivalBytes;
   Uint8List? _achievementBytes;
   Uint8List? _endBytes;
+  Uint8List? _heritageBytes;
+  Uint8List? _yearBytes;
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -66,6 +72,8 @@ class ReplayAudioController {
     _arrivalBytes ??= ReplayToneGenerator.arrival();
     _achievementBytes ??= ReplayToneGenerator.achievement();
     _endBytes ??= ReplayToneGenerator.replayEnd();
+    _heritageBytes ??= ReplayToneGenerator.heritage();
+    _yearBytes ??= ReplayToneGenerator.yearTransition();
 
     // Warm up each player by setting the source without playing.
     await Future.wait([
@@ -74,6 +82,8 @@ class ReplayAudioController {
       _warmUp(_arrival, _arrivalBytes!),
       _warmUp(_achievement, _achievementBytes!),
       _warmUp(_end, _endBytes!),
+      _warmUp(_heritage, _heritageBytes!),
+      _warmUp(_yearChange, _yearBytes!),
     ]);
   }
 
@@ -105,6 +115,24 @@ class ReplayAudioController {
     _play(_end, _endBytes);
   }
 
+  /// Plays the heritage site gold chime.
+  void playHeritage() {
+    if (isMuted) return;
+    _play(_heritage, _heritageBytes);
+  }
+
+  /// Plays the year transition rising two-note.
+  void playYearTransition() {
+    if (isMuted) return;
+    _play(_yearChange, _yearBytes);
+  }
+
+  /// Plays the scan complete fanfare (reuses end player).
+  void playScanComplete() {
+    if (isMuted) return;
+    _play(_end, _endBytes);
+  }
+
   /// Stops all currently active audio immediately.
   void stopAll() {
     for (final p in _allPlayers) {
@@ -121,7 +149,7 @@ class ReplayAudioController {
   // ── Internal ───────────────────────────────────────────────────────────────
 
   List<AudioPlayer> get _allPlayers =>
-      [_travelShort, _travelLong, _arrival, _achievement, _end];
+      [_travelShort, _travelLong, _arrival, _achievement, _end, _heritage, _yearChange];
 
   Future<void> _warmUp(AudioPlayer player, Uint8List bytes) async {
     try {
