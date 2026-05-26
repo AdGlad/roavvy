@@ -499,12 +499,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // M56-14: respect user's choice — full scan ignores lastScanAt.
       final sinceDate = _forceFullScan ? null : lastScanAt;
 
-      // M132: pre-scan achievements — only NEW unlocks fire in the live replay.
-      final preScanAchievementIds = (await _achievementRepo.loadAll()).toSet();
-      // Seed running seen sets with pre-scan state so already-satisfied
-      // thresholds don't re-fire during replay.
-      var liveSeenCountryCodes = Set<String>.of(preScanCodes);
-      var liveSeenAchievementIds = Set<String>.of(preScanAchievementIds);
+      // M132: live replay achievement tracking — start empty so achievements
+      // fire in order as countries accumulate, matching the historical replay.
+      var liveSeenCountryCodes = <String>{};
+      var liveSeenAchievementIds = <String>{};
 
       final accum = <String, CountryAccum>{};
       final allPhotoDates = <PhotoDateRecord>[];
@@ -713,7 +711,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             final newlyUnlocked = nowUnlocked.difference(liveSeenAchievementIds);
             liveSeenAchievementIds = nowUnlocked;
             for (final id in newlyUnlocked) {
-              if (preScanAchievementIds.contains(id)) continue;
               final achievement =
                   kAchievements.where((a) => a.id == id).firstOrNull;
               if (achievement != null) {
@@ -978,7 +975,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         final newlyUnlocked = nowUnlocked.difference(liveSeenAchievementIds);
         liveSeenAchievementIds = nowUnlocked;
         for (final id in newlyUnlocked) {
-          if (preScanAchievementIds.contains(id)) continue;
           final achievement =
               kAchievements.where((a) => a.id == id).firstOrNull;
           if (achievement != null) {
