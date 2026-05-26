@@ -211,7 +211,7 @@ private extension AppDelegate {
 
         DispatchQueue.global(qos: .userInitiated).async {
             let options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
             options.includeHiddenAssets = false
             // fetchLimit stops PhotoKit reading beyond [limit] rows from disk.
             options.fetchLimit = limit

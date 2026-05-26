@@ -89,6 +89,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
         vsync: this,
       );
       _liveCtrl!.reducedMotion = reduceMotion;
+      _liveCtrl!.speedMultiplier = 3.0; // scan replay runs at 3× to keep pace with detection
       _liveCtrl!.audioController = _audioCtrl;
       _liveCtrl!.addListener(_onControllerUpdate);
     } else {

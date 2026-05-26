@@ -473,11 +473,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       ),
     )));
 
-    // Per-batch tracking state for chronological event emission.
-    String? lastEmittedCountryCode;
-    final emittedYears = <int>{};
-    final emittedCountryCodes = <String>{};
-    final emittedAchievementIds = <String>{};
+    // M132: live-replay trip tracking state.
+    // Trips are emitted as completed (stable) legs in chronological order so
+    // the globe replay mirrors the historical replay exactly — every trip,
+    // not just new countries.
+    String? liveLastCountry;
+    final liveEmittedYears = <int>{};
+    final liveEmittedHeritageSiteIds = <String>{};
+    var liveStableTripCount = 0;
 
     try {
       // T3 (ADR-129): load all known assetIds once before the batch loop.
@@ -495,6 +498,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       // M56-14: respect user's choice — full scan ignores lastScanAt.
       final sinceDate = _forceFullScan ? null : lastScanAt;
+
+      // M132: pre-scan achievements — only NEW unlocks fire in the live replay.
+      final preScanAchievementIds = (await _achievementRepo.loadAll()).toSet();
+      // Seed running seen sets with pre-scan state so already-satisfied
+      // thresholds don't re-fire during replay.
+      var liveSeenCountryCodes = Set<String>.of(preScanCodes);
+      var liveSeenAchievementIds = Set<String>.of(preScanAchievementIds);
 
       final accum = <String, CountryAccum>{};
       final allPhotoDates = <PhotoDateRecord>[];
@@ -632,88 +642,91 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             });
           }
 
-          // M132: feed newly discovered countries as live replay events,
-          // sorted chronologically by firstSeen so replay is in date order.
-          final newBatchCodes = batchResult.accum.keys
-              .where((c) =>
-                  !preScanCodes.contains(c) &&
-                  !emittedCountryCodes.contains(c))
-              .toList()
-            ..sort((a, b) {
-              final aDate = accum[a]?.firstSeen ?? DateTime(9999);
-              final bDate = accum[b]?.firstSeen ?? DateTime(9999);
-              return aDate.compareTo(bDate);
-            });
+          // M132 (redesigned): emit completed trips as replay legs so the live
+          // globe replay is structurally identical to the historical replay —
+          // every trip in chronological order, not just new countries.
+          //
+          // Since photos arrive oldest-first (ascending: true in Swift), all
+          // trips in inferTrips(allPhotoDates) except the last are "stable"
+          // (the scan has moved past them and they won't grow further).
+          // The last trip is still open — more photos might extend it.
+          final batchTrips = inferTrips(allPhotoDates);
+          final newStableCount =
+              batchTrips.length > 1 ? batchTrips.length - 1 : 0;
 
-          for (final code in newBatchCodes) {
-            final firstSeen = accum[code]?.firstSeen;
+          for (var i = liveStableTripCount; i < newStableCount; i++) {
+            final trip = batchTrips[i];
+            final toCode = trip.countryCode;
+            final from = liveLastCountry ?? toCode;
 
-            // Year banner when year changes.
-            if (firstSeen != null && emittedYears.add(firstSeen.year)) {
-              liveSource.addEvent(YearStartedEvent(year: firstSeen.year));
+            // Year banner when the year changes.
+            if (liveEmittedYears.add(trip.startedOn.year)) {
+              liveSource.addEvent(YearStartedEvent(year: trip.startedOn.year));
             }
 
-            // Leg event: from last emitted country to this country.
-            final from = lastEmittedCountryCode ?? code;
-            if (from != code) {
-              // Resolve GPS for leg endpoints from allPhotoGps.
+            // Leg: previous country → this country (skip self-loops).
+            if (from != toCode) {
               final fromGps = allPhotoGps
                   .where((g) => g.countryCode == from)
                   .toList()
                 ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
               final toGps = allPhotoGps
-                  .where((g) => g.countryCode == code)
+                  .where((g) =>
+                      g.countryCode == toCode &&
+                      !g.capturedAt.isBefore(trip.startedOn))
                   .toList()
                 ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
               liveSource.addEvent(CountryDiscoveredEvent(
                 fromCode: from,
-                toCode: code,
-                date: firstSeen ?? DateTime.now(),
+                toCode: toCode,
+                date: trip.startedOn,
                 fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
                 fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
                 toLat: toGps.isNotEmpty ? toGps.first.lat : null,
                 toLng: toGps.isNotEmpty ? toGps.first.lng : null,
               ));
             }
-            lastEmittedCountryCode = code;
-            emittedCountryCodes.add(code);
+            liveLastCountry = toCode;
 
-            // Heritage sites already discovered for this country.
-            for (final site
-                in whsAccum.values.where((s) => s.countryCode == code)) {
-              liveSource.addEvent(HeritageSiteDiscoveredEvent(
-                countryCode: code,
-                siteName: site.name,
-                siteType: site.category,
-              ));
-            }
-          }
-
-          // Newly unlocked achievement events.
-          final totalNow =
-              _liveNewEntries.length + _existingEntriesAtScanStart.length;
-          for (final threshold in _kAchievementThresholds) {
-            final id = 'countries_$threshold';
-            if (totalNow >= threshold && emittedAchievementIds.add(id)) {
-              // Find the achievement definition.
-              String? title, subtitle;
-              for (final a in kAchievements) {
-                if (a.id == id) {
-                  title = a.title;
-                  subtitle = a.description;
-                  break;
-                }
+            // Heritage overlays — deduplicated across batches.
+            for (final entry in whsAccum.entries
+                .where((e) => e.value.countryCode == toCode)) {
+              if (liveEmittedHeritageSiteIds.add(entry.key)) {
+                liveSource.addEvent(HeritageSiteDiscoveredEvent(
+                  countryCode: toCode,
+                  siteName: entry.value.name,
+                  siteType: entry.value.category,
+                ));
               }
-              if (title != null) {
+            }
+
+            // Achievement overlays: fire when this trip's country tips a new
+            // threshold that wasn't already unlocked before the scan.
+            liveSeenCountryCodes.add(toCode);
+            final nowUnlocked = AchievementEngine.evaluate(
+              liveSeenCountryCodes
+                  .map((c) => EffectiveVisitedCountry(
+                      countryCode: c, hasPhotoEvidence: true))
+                  .toList(),
+              tripCount: i + 1,
+            );
+            final newlyUnlocked = nowUnlocked.difference(liveSeenAchievementIds);
+            liveSeenAchievementIds = nowUnlocked;
+            for (final id in newlyUnlocked) {
+              if (preScanAchievementIds.contains(id)) continue;
+              final achievement =
+                  kAchievements.where((a) => a.id == id).firstOrNull;
+              if (achievement != null) {
                 liveSource.addEvent(AchievementUnlockedEvent(
                   achievementId: id,
-                  title: title,
-                  subtitle: subtitle!,
-                  countryCode: lastEmittedCountryCode,
+                  title: achievement.title,
+                  subtitle: achievement.description,
+                  countryCode: toCode,
                 ));
               }
             }
           }
+          liveStableTripCount = newStableCount;
 
           // Progress update for "Scanning live…" chip.
           liveSource
@@ -906,6 +919,77 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               );
         }
         // else: effective.isEmpty — no geotagged photos; onScanComplete just pops.
+      }
+
+      // M132: emit any trips that were still "open" (the last trip) when the
+      // scan loop finished. Now that scanning is done, all trips are stable.
+      final finalTrips = inferTrips(allPhotoDates);
+      for (var i = liveStableTripCount; i < finalTrips.length; i++) {
+        final trip = finalTrips[i];
+        final toCode = trip.countryCode;
+        final from = liveLastCountry ?? toCode;
+
+        if (liveEmittedYears.add(trip.startedOn.year)) {
+          liveSource.addEvent(YearStartedEvent(year: trip.startedOn.year));
+        }
+
+        if (from != toCode) {
+          final fromGps = allPhotoGps
+              .where((g) => g.countryCode == from)
+              .toList()
+            ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+          final toGps = allPhotoGps
+              .where((g) =>
+                  g.countryCode == toCode &&
+                  !g.capturedAt.isBefore(trip.startedOn))
+              .toList()
+            ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+          liveSource.addEvent(CountryDiscoveredEvent(
+            fromCode: from,
+            toCode: toCode,
+            date: trip.startedOn,
+            fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
+            fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
+            toLat: toGps.isNotEmpty ? toGps.first.lat : null,
+            toLng: toGps.isNotEmpty ? toGps.first.lng : null,
+          ));
+        }
+        liveLastCountry = toCode;
+
+        for (final entry in whsAccum.entries
+            .where((e) => e.value.countryCode == toCode)) {
+          if (liveEmittedHeritageSiteIds.add(entry.key)) {
+            liveSource.addEvent(HeritageSiteDiscoveredEvent(
+              countryCode: toCode,
+              siteName: entry.value.name,
+              siteType: entry.value.category,
+            ));
+          }
+        }
+
+        liveSeenCountryCodes.add(toCode);
+        final nowUnlocked = AchievementEngine.evaluate(
+          liveSeenCountryCodes
+              .map((c) => EffectiveVisitedCountry(
+                  countryCode: c, hasPhotoEvidence: true))
+              .toList(),
+          tripCount: i + 1,
+        );
+        final newlyUnlocked = nowUnlocked.difference(liveSeenAchievementIds);
+        liveSeenAchievementIds = nowUnlocked;
+        for (final id in newlyUnlocked) {
+          if (preScanAchievementIds.contains(id)) continue;
+          final achievement =
+              kAchievements.where((a) => a.id == id).firstOrNull;
+          if (achievement != null) {
+            liveSource.addEvent(AchievementUnlockedEvent(
+              achievementId: id,
+              title: achievement.title,
+              subtitle: achievement.description,
+              countryCode: toCode,
+            ));
+          }
+        }
       }
 
       // M132: signal replay to drain and complete. Must come after buildSummary
