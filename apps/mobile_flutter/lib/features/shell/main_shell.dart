@@ -52,7 +52,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.initState();
     _selectedIndex = widget.initialTab;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.openScanOnLoad) _goToScan();
+      if (widget.openScanOnLoad) _goToScan(autoStart: true, forceFullScan: true);
       _handleLaunchNotification();
       // Schedule the full anniversary batch on every app open so notifications
       // keep firing even if the app is never opened again (M118).
@@ -185,13 +185,17 @@ class _MainShellState extends ConsumerState<MainShell> {
             index: _selectedIndex,
             children: [
               MapScreen(
-                onNavigateToScan: _goToScan,
+                onNavigateToScan: () =>
+                    _goToScan(autoStart: true, forceFullScan: true),
                 onNavigateToScanFull: () =>
                     _goToScan(autoStart: true, forceFullScan: true),
                 onNavigateToScanPartial: () =>
                     _goToScan(autoStart: true, forceFullScan: false),
               ),
-              JournalScreen(onNavigateToScan: _goToScan),
+              JournalScreen(
+                onNavigateToScan: () =>
+                    _goToScan(autoStart: true, forceFullScan: true),
+              ),
               const StatsScreen(),
               const MerchShopScreen(),
             ],
