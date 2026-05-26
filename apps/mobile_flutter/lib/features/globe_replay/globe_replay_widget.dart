@@ -39,6 +39,9 @@ class GlobeReplayWidget extends ConsumerStatefulWidget {
     this.script,
     this.dataSource,
     this.onScanComplete,
+    this.embedded = false,
+    this.onClose,
+    this.initialCollectedCodes = const [],
   }) : assert(
           script != null || dataSource != null,
           'Either script or dataSource must be provided',
@@ -53,6 +56,18 @@ class GlobeReplayWidget extends ConsumerStatefulWidget {
   /// When non-null, replay completion calls this instead of showing
   /// [ReplaySummaryScreen].
   final VoidCallback? onScanComplete;
+
+  /// When true, the widget renders without a [Scaffold] wrapper so it can be
+  /// used as an in-place overlay rather than a separate route.
+  final bool embedded;
+
+  /// Called when the user taps the close (×) button.
+  /// Only used in [embedded] mode; defaults to [Navigator.pop] otherwise.
+  final VoidCallback? onClose;
+
+  /// Countries already in the collection row before this animation begins.
+  /// Used for partial-scan mode to show existing flags from the start.
+  final List<String> initialCollectedCodes;
 
   @override
   ConsumerState<GlobeReplayWidget> createState() => _GlobeReplayWidgetState();
@@ -101,6 +116,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       _liveCtrl = LiveScanReplayController(
         dataSource: widget.dataSource!,
         vsync: this,
+        initialCollectedCodes: widget.initialCollectedCodes,
       );
       _liveCtrl!.reducedMotion = reduceMotion;
       _liveCtrl!.speedMultiplier = 3.0; // scan replay runs at 3× to keep pace with detection
@@ -328,10 +344,8 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     // Script for painter: historical uses widget.script; live builds a virtual one.
     final painterScript = _isLiveMode ? _liveScript : widget.script!;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
+    final stack = Stack(
+      children: [
           // Globe + replay arc overlay.
           Positioned.fill(
             child: AnimatedOpacity(
@@ -413,7 +427,11 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                           _ctrl!.stop();
                         }
                         _audioCtrl.stopAll();
-                        Navigator.of(context).pop();
+                        if (widget.embedded) {
+                          widget.onClose?.call();
+                        } else {
+                          Navigator.of(context).pop();
+                        }
                       },
                     ),
                   ],
@@ -519,8 +537,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               child: _YearBannerOverlay(year: _liveCtrl!.activeYearBanner!),
             ),
 
-          // Summary screen — slides up when done (suppressed in scan mode).
-          if (widget.onScanComplete == null)
+          // Summary screen — slides up when done (suppressed in scan mode or
+          // embedded replay — use onClose / onScanComplete to exit instead).
+          if (widget.onScanComplete == null && !widget.embedded)
             Positioned.fill(
               child: ReplaySummaryScreen(
                 script: widget.script!,
@@ -531,8 +550,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               ),
             ),
         ],
-      ),
-    );
+      );
+
+    if (widget.embedded) return stack;
+    return Scaffold(backgroundColor: Colors.black, body: stack);
   }
 
   Widget _buildOverlayWidget() {

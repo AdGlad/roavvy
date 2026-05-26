@@ -13,6 +13,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/flag_colours.dart';
+import '../../core/globe_overlay.dart';
 import '../../core/providers.dart';
 import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
@@ -30,7 +31,6 @@ import '../../photo_scan_channel.dart';
 import '../visits/review_screen.dart';
 import 'hero_analysis_channel.dart';
 import 'scan_audio_controller.dart';
-import '../globe_replay/globe_replay_widget.dart';
 import '../globe_replay/live_scan_replay_controller.dart';
 import '../globe_replay/replay_data_source.dart';
 import '../globe_replay/travel_replay_controller.dart';
@@ -256,6 +256,8 @@ class ScanScreen extends ConsumerStatefulWidget {
     this.batchResolver,
     this.scanStarter,
     this.syncService,
+    this.autoStart = false,
+    this.initialForceFullScan = false,
   });
 
   /// Called after a scan finishes successfully. Used by [MainShell] to
@@ -275,6 +277,15 @@ class ScanScreen extends ConsumerStatefulWidget {
   /// Sync service used to flush dirty records after a scan completes.
   /// Defaults to [FirestoreSyncService] when null.
   final SyncService? syncService;
+
+  /// When true, [_ScanScreenState] automatically starts the scan after
+  /// persisted state is loaded — no user interaction required.
+  /// Used when scan is triggered from the [MapScreen] action bar.
+  final bool autoStart;
+
+  /// When true, forces a full scan regardless of [lastScanAt].
+  /// Applied at startup before auto-scan begins.
+  final bool initialForceFullScan;
 
   @override
   ConsumerState<ScanScreen> createState() => _ScanScreenState();
@@ -350,12 +361,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final visits = await _repo.loadEffective();
       final lastScanAt = await _repo.loadLastScanAt();
       if (!mounted) return;
+      if (widget.initialForceFullScan) _forceFullScan = true;
       setState(() {
         _effectiveVisits = visits;
         _hasCompletedFirstScan = lastScanAt != null;
         _lastScanAt = lastScanAt;
         _loading = false;
       });
+      // Auto-start scan when triggered from the main-screen action bar.
+      if (widget.autoStart &&
+          (_permission == PhotoPermissionStatus.authorized ||
+           _permission == PhotoPermissionStatus.limited)) {
+        unawaited(_scan());
+      }
 
       // Check permission status silently so the scan button reflects current
       // access without showing a dialog (M78: auto-scan removed — user must
@@ -458,20 +476,27 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     // so that onScanComplete can push the correct ScanSummaryScreen.
     ScanSummaryScreen Function()? buildSummary;
 
-    unawaited(nav.push(MaterialPageRoute<void>(
-      builder: (_) => GlobeReplayWidget(
-        dataSource: liveSource,
-        onScanComplete: () {
-          nav.pop(); // dismiss replay
-          final factory = buildSummary;
-          if (factory != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              nav.push(MaterialPageRoute<void>(builder: (_) => factory()));
-            });
-          }
-        },
-      ),
-    )));
+    // M134: show animation via MainShell overlay instead of pushing a route.
+    // This lets the animation run on the main-screen globe without a navigator
+    // transition. The overlay is dismissed when the scan replay drains, then
+    // the summary screen is pushed from ScanScreen's own navigator context.
+    ref.read(globeOverlayProvider.notifier).showScan(
+      liveSource,
+      initialCollectedCodes:
+          _forceFullScan ? const [] : _existingEntriesAtScanStart.map((e) => e.isoCode).toList(),
+      onScanComplete: () {
+        ref.read(globeOverlayProvider.notifier).hide();
+        final factory = buildSummary;
+        if (factory != null && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) nav.push(MaterialPageRoute<void>(builder: (_) => factory()));
+          });
+        } else if (mounted) {
+          // Nothing new found: pop ScanScreen back to map.
+          nav.pop();
+        }
+      },
+    );
 
     // M132: live-replay trip tracking state.
     // Trips are emitted as completed (stable) legs in chronological order so
@@ -1053,6 +1078,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // In autoStart mode, this widget is an invisible orchestrator — the
+    // animation is shown via the MainShell overlay (M134).
+    if (widget.autoStart) return const SizedBox.shrink();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan'),

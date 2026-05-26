@@ -40,7 +40,11 @@ class LiveScanReplayController extends ChangeNotifier {
   LiveScanReplayController({
     required this.dataSource,
     required TickerProvider vsync,
+    List<String> initialCollectedCodes = const [],
   }) : _vsync = vsync {
+    if (initialCollectedCodes.isNotEmpty) {
+      collectedCodes = List.unmodifiable(initialCollectedCodes);
+    }
     dataSource.addListener(_onDataSourceUpdate);
   }
 

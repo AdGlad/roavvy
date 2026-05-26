@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../globe_replay/globe_replay_widget.dart';
 import '../memory/app_open_tracker.dart';
 import '../journal/journal_screen.dart';
 import '../journal/trip_detail_screen.dart';
@@ -139,27 +141,79 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   void _goToMap() => setState(() => _selectedIndex = 0);
 
-  /// Pushes the Scan screen as a full-screen modal.
-  /// Scan is no longer a nav-bar tab — it's accessed from the Map button.
-  void _goToScan() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ScanScreen(onScanComplete: _goToMap),
-        fullscreenDialog: true,
-      ),
-    );
+  /// Starts a scan.
+  ///
+  /// When [autoStart] is true (called from the MapScreen action bar), the
+  /// screen switches to the Map tab first, then pushes [ScanScreen] with
+  /// [autoStart:true] so it runs invisibly as a headless scan orchestrator.
+  /// The animation is shown via the [GlobeReplayWidget] overlay in [build].
+  ///
+  /// When [autoStart] is false (called from Journal empty state / prompt gate),
+  /// the legacy full-screen [ScanScreen] UI is pushed.
+  void _goToScan({bool autoStart = false, bool forceFullScan = false}) {
+    if (autoStart) {
+      setState(() => _selectedIndex = 0); // ensure Map tab is visible
+      Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          pageBuilder: (_, __, ___) => ScanScreen(
+            onScanComplete: _goToMap,
+            autoStart: true,
+            initialForceFullScan: forceFullScan,
+          ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ScanScreen(onScanComplete: _goToMap),
+          fullscreenDialog: true,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final overlay = ref.watch(globeOverlayProvider);
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: Stack(
         children: [
-          MapScreen(onNavigateToScan: _goToScan),
-          JournalScreen(onNavigateToScan: _goToScan),
-          const StatsScreen(),
-          const MerchShopScreen(),
+          IndexedStack(
+            index: _selectedIndex,
+            children: [
+              MapScreen(
+                onNavigateToScan: _goToScan,
+                onNavigateToScanFull: () =>
+                    _goToScan(autoStart: true, forceFullScan: true),
+                onNavigateToScanPartial: () =>
+                    _goToScan(autoStart: true, forceFullScan: false),
+              ),
+              JournalScreen(onNavigateToScan: _goToScan),
+              const StatsScreen(),
+              const MerchShopScreen(),
+            ],
+          ),
+          // M134: Globe animation overlay — shown in-place so replay and scan
+          // animations appear on the main-screen globe without route transitions.
+          if (overlay.isActive)
+            Positioned.fill(
+              child: GlobeReplayWidget(
+                embedded: true,
+                script: overlay.replayScript,
+                dataSource: overlay.scanSource,
+                initialCollectedCodes: overlay.initialCollectedCodes,
+                onScanComplete: overlay.onScanComplete,
+                onClose: () {
+                  overlay.onScanComplete?.call();
+                  if (overlay.onScanComplete == null) {
+                    ref.read(globeOverlayProvider.notifier).hide();
+                  }
+                },
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: NavigationBar(

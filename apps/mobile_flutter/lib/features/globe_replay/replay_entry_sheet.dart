@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/globe_overlay.dart';
 import '../../core/providers.dart';
-import 'globe_replay_widget.dart';
 import 'travel_replay_engine.dart';
 
 /// Bottom sheet that lets the user pick a replay mode and start the replay.
@@ -117,13 +117,12 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
                   onPressed: script.isEmpty
                       ? null
                       : () {
+                          // M134: show replay via MainShell overlay — no route push.
                           Navigator.of(context).pop(); // close sheet
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              fullscreenDialog: true,
-                              builder: (_) =>
-                                  GlobeReplayWidget(script: script),
-                            ),
+                          ref.read(globeOverlayProvider.notifier).showReplay(
+                            script,
+                            onDone: () =>
+                                ref.read(globeOverlayProvider.notifier).hide(),
                           );
                         },
                 );

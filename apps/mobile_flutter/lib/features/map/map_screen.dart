@@ -54,6 +54,8 @@ class MapScreen extends ConsumerWidget {
     super.key,
     this.tapResolverOverride,
     this.onNavigateToScan,
+    this.onNavigateToScanFull,
+    this.onNavigateToScanPartial,
     this.signInWithAppleOverride,
     this.syncService,
   });
@@ -63,6 +65,12 @@ class MapScreen extends ConsumerWidget {
 
   /// Called when the user taps "Scan Photos" in the empty state overlay.
   final VoidCallback? onNavigateToScan;
+
+  /// Called when the user taps "Full Scan" in the action bar.
+  final VoidCallback? onNavigateToScanFull;
+
+  /// Called when the user taps "New Photos" in the action bar.
+  final VoidCallback? onNavigateToScanPartial;
 
   /// Test hook: if non-null, called instead of the real Apple sign-in flow.
   final Future<void> Function()? signInWithAppleOverride;
@@ -322,26 +330,11 @@ class MapScreen extends ConsumerWidget {
               ),
             ),
           ),
-          // Travel replay button — globe mode only (M108).
-          if (globeMode)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 60,
-              child: Material(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(20),
-                child: IconButton(
-                  icon: const Icon(Icons.play_circle_outline, color: Colors.white),
-                  tooltip: 'Travel Replay',
-                  onPressed: () => showReplayEntrySheet(context),
-                ),
-              ),
-            ),
           // Heritage sites toggle — globe mode only (M129).
           if (globeMode)
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
-              left: 112,
+              left: 60,
               child: Material(
                 color: heritageDotsEnabled
                     ? Colors.amber.withValues(alpha: 0.85)
@@ -361,17 +354,16 @@ class MapScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          // Scan button — quick access without leaving the Map tab.
+          // Compact scan + replay action bar (M134).
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
-            right: 56,
-            child: Material(
-              color: Colors.black45,
-              borderRadius: BorderRadius.circular(20),
-              child: IconButton(
-                icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
-                tooltip: 'Scan Photos',
-                onPressed: onNavigateToScan,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _GlobeActionBar(
+                onFullScan: onNavigateToScanFull,
+                onNewPhotos: onNavigateToScanPartial,
+                onReplay: globeMode ? () => showReplayEntrySheet(context) : null,
               ),
             ),
           ),
@@ -1035,6 +1027,84 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
               NotificationService.instance.pendingMemoryTripId.value = tripId;
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Globe action bar ──────────────────────────────────────────────────────────
+
+/// Compact horizontal bar with Full Scan, New Photos, and Replay actions.
+///
+/// Shown at the top of [MapScreen] (M134) — replaces the separate replay FAB
+/// and scan camera icon button.
+class _GlobeActionBar extends StatelessWidget {
+  const _GlobeActionBar({this.onFullScan, this.onNewPhotos, this.onReplay});
+
+  final VoidCallback? onFullScan;
+  final VoidCallback? onNewPhotos;
+  final VoidCallback? onReplay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black45,
+      borderRadius: BorderRadius.circular(20),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ActionBtn(
+            icon: Icons.photo_library_outlined,
+            label: 'Full Scan',
+            onPressed: onFullScan,
+          ),
+          Container(width: 1, height: 24, color: Colors.white24),
+          _ActionBtn(
+            icon: Icons.add_photo_alternate_outlined,
+            label: 'New Photos',
+            onPressed: onNewPhotos,
+          ),
+          Container(width: 1, height: 24, color: Colors.white24),
+          _ActionBtn(
+            icon: Icons.play_circle_outline,
+            label: 'Replay',
+            onPressed: onReplay,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
         ),
       ),
     );
