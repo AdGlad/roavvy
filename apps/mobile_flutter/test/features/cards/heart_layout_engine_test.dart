@@ -65,11 +65,11 @@ void main() {
       expect(fraction, greaterThanOrEqualTo(0.6));
     });
 
-    test('tile completely outside heart has fraction = 0 or low', () {
+    test('tile completely outside heart has fraction below 0.80', () {
       // Top-left corner tile — far outside heart
       final tile = const Rect.fromLTWH(0, 0, 8, 8);
       final fraction = MaskCalculator.coverageFraction(tile, sideLen);
-      expect(fraction, lessThan(0.66));
+      expect(fraction, lessThan(0.80));
     });
 
     test('fraction is between 0.0 and 1.0', () {
@@ -204,6 +204,31 @@ void main() {
         order: HeartFlagOrder.geographic,
       );
       expect(result, isNotEmpty);
+    });
+
+    test('binary search: placed tiles have >= 80% heart coverage (M66)', () {
+      // All tiles returned must satisfy the 80% edge-visibility rule.
+      final codes = List.generate(30, (i) =>
+          String.fromCharCode(65 + i ~/ 26) +
+          String.fromCharCode(65 + i % 26));
+      const canvas = Size(512, 512);
+      final side = canvas.shortestSide.toDouble();
+      final result = HeartLayoutEngine.layout(codes, canvas);
+      for (final tile in result) {
+        final coverage = MaskCalculator.coverageFraction(tile.rect, side);
+        expect(coverage, greaterThanOrEqualTo(0.80),
+            reason: 'Tile ${tile.countryCode} at ${tile.rect} has '
+                'coverage $coverage < 0.80');
+      }
+    });
+
+    test('binary search: fills heart optimally — single country gets large tile', () {
+      // With a single country the engine should find a large tile, not a tiny one.
+      const canvas = Size(400, 400);
+      final result = HeartLayoutEngine.layout(['GB'], canvas);
+      expect(result, hasLength(1));
+      // Tile width should be reasonably large relative to canvas.
+      expect(result.first.rect.width, greaterThan(canvas.width * 0.05));
     });
   });
 
