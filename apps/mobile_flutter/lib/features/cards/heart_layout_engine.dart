@@ -145,32 +145,26 @@ class MaskCalculator {
 
 /// Lays out flag tiles inside a heart-shaped mask.
 ///
-/// See ADR-098 for algorithm details and density bands.
+/// Uses binary search to find the optimal tile size for [codes.length] flags,
+/// ensuring each placed tile is at least [_kCoverageThreshold] visible inside
+/// the heart boundary (M66 — 80 % edge-flag visibility rule).
 class HeartLayoutEngine {
   HeartLayoutEngine._();
 
-  // Coverage threshold: tiles below this fraction are rejected.
-  static const double _kCoverageThreshold = 0.66;
-
-  // Density bands: [maxFlags, tileSize at 1024px reference].
-  static const List<(int, int)> _kDensityBands = [
-    (12, 180),
-    (40, 110),
-    (120, 72),
-    (200, 52),
-    (10000, 40),
-  ];
+  // Edge-visibility threshold (M66): tiles must have this fraction of their
+  // area inside the heart. 0.80 ensures boundary flags are mostly visible.
+  static const double _kCoverageThreshold = 0.80;
 
   /// Returns positioned flag tiles for [codes] within a [canvasSize] canvas.
   ///
   /// The heart is drawn over a square equal to `min(canvasSize.width,
-  /// canvasSize.height)`. Tile positions are in canvas-space pixels.
+  /// canvasSize.height)`. Tile positions are in canvas-space pixels,
+  /// sorted from the heart centre outward.
   static List<HeartTilePosition> layout(
     List<String> codes,
     Size canvasSize, {
     HeartFlagOrder order = HeartFlagOrder.randomized,
     List<TripRecord> trips = const [],
-    int maxReruns = 2,
   }) {
     if (codes.isEmpty) return const [];
 
@@ -178,56 +172,44 @@ class HeartLayoutEngine {
     final offsetX = (canvasSize.width - side) / 2;
     final offsetY = (canvasSize.height - side) / 2;
 
-    // Sort codes by the chosen ordering strategy.
     final sorted = sortCodes(codes, order, trips);
-
-    List<HeartTilePosition>? result;
-    var bandIndex = _bandIndexForCount(sorted.length);
-
-    for (var attempt = 0; attempt <= maxReruns; attempt++) {
-      final band = _kDensityBands[bandIndex.clamp(0, _kDensityBands.length - 1)];
-      final tileSize = (band.$2 * side / 1024).floorToDouble();
-      if (tileSize <= 0) break;
-
-      final candidates =
-          _generateCandidates(side, tileSize, offsetX, offsetY);
-
-      if (candidates.length >= sorted.length) {
-        // Assign flags to candidates; discard surplus outer tiles if over.
-        final tiles = candidates.take(sorted.length).toList();
-        result = [
-          for (var i = 0; i < tiles.length; i++)
-            HeartTilePosition(rect: tiles[i], countryCode: sorted[i]),
-        ];
-        break;
-      }
-
-      // Not enough valid tiles — increase density (go to next tighter band).
-      bandIndex++;
-      if (bandIndex >= _kDensityBands.length) {
-        // Use all candidates, filling as many flags as possible.
-        result = [
-          for (var i = 0; i < candidates.length; i++)
-            HeartTilePosition(
-                rect: candidates[i], countryCode: sorted[i % sorted.length]),
-        ];
-        break;
-      }
-    }
-
-    return result ?? const [];
+    final tileSize = _findOptimalTileSize(side, offsetX, offsetY, sorted.length);
+    final candidates = _generateCandidates(side, tileSize, offsetX, offsetY);
+    final n = math.min(candidates.length, sorted.length);
+    return [
+      for (var i = 0; i < n; i++)
+        HeartTilePosition(rect: candidates[i], countryCode: sorted[i]),
+    ];
   }
 
-  static int _bandIndexForCount(int count) {
-    for (var i = 0; i < _kDensityBands.length; i++) {
-      if (count <= _kDensityBands[i].$1) return i;
+  /// Binary-searches for the largest tile size that can accommodate [count]
+  /// tiles at [_kCoverageThreshold] edge-visibility inside the heart.
+  ///
+  /// 14 iterations give sub-pixel precision. If even the minimum tile size
+  /// yields fewer than [count] candidates, the minimum is returned so the
+  /// heart is filled as densely as possible.
+  static double _findOptimalTileSize(
+      double side, double offsetX, double offsetY, int count) {
+    double lo = side * 0.02; // ~20 px at 1024-px reference
+    double hi = side * 0.40; // ~410 px at 1024-px reference
+    double best = lo;
+
+    for (var i = 0; i < 14; i++) {
+      final mid = (lo + hi) / 2;
+      if (_generateCandidates(side, mid, offsetX, offsetY).length >= count) {
+        best = mid;
+        lo = mid; // fits — try a larger tile
+      } else {
+        hi = mid; // too large — try smaller
+      }
     }
-    return _kDensityBands.length - 1;
+    return best;
   }
 
   /// Generates valid tile Rects ordered from the heart centre outward.
   static List<Rect> _generateCandidates(
       double side, double tileSize, double offsetX, double offsetY) {
+    if (tileSize <= 0) return const [];
     final candidates = <(Rect, double)>[];
     final center = Offset(offsetX + side / 2, offsetY + side / 2);
 
@@ -237,7 +219,6 @@ class HeartLayoutEngine {
             offsetX + col, offsetY + row, tileSize, tileSize);
         final coverage = MaskCalculator.coverageFraction(rect, side);
         if (coverage >= _kCoverageThreshold) {
-          // Distance from heart centre for ordering (closest first).
           final dx = rect.center.dx - center.dx;
           final dy = rect.center.dy - center.dy;
           candidates.add((rect, dx * dx + dy * dy));
@@ -245,7 +226,6 @@ class HeartLayoutEngine {
       }
     }
 
-    // Sort by distance to centre ascending (densest in middle first).
     candidates.sort((a, b) => a.$2.compareTo(b.$2));
     return candidates.map((e) => e.$1).toList();
   }
