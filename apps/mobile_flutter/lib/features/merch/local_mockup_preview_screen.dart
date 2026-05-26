@@ -162,6 +162,12 @@ class _LocalMockupPreviewScreenState
   // 'center' | 'none'
   String _backPosition = 'center';
 
+  // ── Gift message state (M81) ───────────────────────────────────────────────
+
+  bool _isGift = false;
+  final _giftSubjectCtrl = TextEditingController();
+  final _giftMessageCtrl = TextEditingController();
+
   // ── Card / artwork state ───────────────────────────────────────────────────
 
   late CardTemplateType _template;
@@ -419,6 +425,8 @@ class _LocalMockupPreviewScreenState
   @override
   void dispose() {
     _titleController.dispose();
+    _giftSubjectCtrl.dispose();
+    _giftMessageCtrl.dispose();
     _titleDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
@@ -1246,6 +1254,10 @@ class _LocalMockupPreviewScreenState
                 if (frontImageBase64 != null) 'frontImageBase64': frontImageBase64,
                 if (_isTshirt) 'frontPosition': PrintfulPlacementMapper.mapFront(_frontPosition),
                 if (_isTshirt) 'backPosition':  PrintfulPlacementMapper.mapBack(_backPosition),
+                if (_isGift && _giftSubjectCtrl.text.trim().isNotEmpty)
+                  'giftSubject': _giftSubjectCtrl.text.trim(),
+                if (_isGift && _giftMessageCtrl.text.trim().isNotEmpty)
+                  'giftMessage': _giftMessageCtrl.text.trim(),
               })
               .timeout(_kCallTimeout);
           sw.stop();
@@ -2345,6 +2357,14 @@ class _LocalMockupPreviewScreenState
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ── Gift toggle (M81) ──────────────────────────────────────────────
+          _GiftMessageSection(
+            isGift: _isGift,
+            subjectCtrl: _giftSubjectCtrl,
+            messageCtrl: _giftMessageCtrl,
+            onToggle: (v) => setState(() => _isGift = v),
+          ),
+          const SizedBox(height: 8),
           if (_mockupFailed)
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -3317,6 +3337,91 @@ class _MiniRibbonTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── _GiftMessageSection (M81) ─────────────────────────────────────────────────
+
+/// Collapsible "This is a gift" toggle with subject + message text fields.
+///
+/// Shown in the checkout bottom bar when the mockup is ready. Subject and
+/// message are forwarded to Printful's `gift` field via [createMerchCart].
+class _GiftMessageSection extends StatelessWidget {
+  const _GiftMessageSection({
+    required this.isGift,
+    required this.subjectCtrl,
+    required this.messageCtrl,
+    required this.onToggle,
+  });
+
+  final bool isGift;
+  final TextEditingController subjectCtrl;
+  final TextEditingController messageCtrl;
+  final ValueChanged<bool> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Toggle row.
+        InkWell(
+          onTap: () => onToggle(!isGift),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.card_giftcard_outlined, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'This is a gift',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                Switch(
+                  value: isGift,
+                  onChanged: onToggle,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Expanded fields — only visible when toggled on.
+        if (isGift) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: subjectCtrl,
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'Gift subject',
+              hintText: 'e.g. Happy Birthday!',
+              border: OutlineInputBorder(),
+              isDense: true,
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: messageCtrl,
+            maxLength: 200,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Gift message',
+              hintText: 'Add a personal note…',
+              border: OutlineInputBorder(),
+              isDense: true,
+              counterText: '',
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

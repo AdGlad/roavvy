@@ -99,6 +99,16 @@ export interface MerchConfig {
    * Null for orders placed before M76 — treated as 'center' by shopifyOrderCreated.
    */
   frontPosition: string | null;
+  /**
+   * Gift message subject line (M81). Forwarded to Printful `gift.subject`.
+   * Null when not a gift order. Max 200 chars enforced by shopifyOrderCreated.
+   */
+  giftSubject: string | null;
+  /**
+   * Gift message body (M81). Forwarded to Printful `gift.message`.
+   * Null when not a gift order. Max 200 chars enforced by shopifyOrderCreated.
+   */
+  giftMessage: string | null;
 }
 
 /** Request payload for createMerchCart onCall function */
@@ -144,6 +154,15 @@ export interface CreateMerchCartRequest {
    * 'center' | 'none'. Defaults to 'center' when omitted.
    */
   backPosition?: string;
+  /**
+   * Gift message subject (M81). Triggers `gift` field on the Printful order.
+   * Max 200 chars. Omit or pass null/empty string for non-gift orders.
+   */
+  giftSubject?: string;
+  /**
+   * Gift message body (M81). Max 200 chars.
+   */
+  giftMessage?: string;
 }
 
 /** Response payload from createMerchCart */
