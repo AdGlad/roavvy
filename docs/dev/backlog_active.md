@@ -7,6 +7,26 @@
 
 ## Next up (mobile-first order)
 
+### M132 — Live Scan Replay
+**Goal:** Globe replay widget opens immediately when scan starts; receives country/heritage/achievement events in real time as photos are detected; drains to `ScanSummaryScreen` when scan completes and queue is empty.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M131 ✅, M130 ✅
+**Scope in:** `ReplayEvent` sealed hierarchy; `ReplayDataSource` interface; `HistoricalReplayDataSource`; `LiveScanReplayDataSource`; `LiveScanReplayController`; `GlobeReplayWidget` dual-mode (script vs dataSource); `scan_screen.dart` concurrent scan + replay wiring.
+**Full plan:** `docs/dev/milestones/m132-live-scan-replay.md`
+**Status:** ✅ Complete (2026-05-26)
+
+---
+
+### M131 — Cinematic Scan Replay (GlobeReplayWidget)
+**Goal:** After scan completes with new countries, build a `TravelReplayScript` from inferred trips and push `GlobeReplayWidget` to replay the travel history cinematically before showing `ScanSummaryScreen`.
+**Phase:** 25 — Scan UX Transformation
+**Depends on:** M130 ✅, M108 ✅
+**Scope in:** `travel_replay_engine.dart` (`ReplayHeritageEvent`; `TravelReplayScript.visitedHeritageSiteCoords`); `replay_overlay_widgets.dart` (`ReplayHeritageOverlay`); `globe_replay_widget.dart` (`onScanComplete` param; heritage pulse); `scan_screen.dart` (`_buildScanReplayScript()`, push on new countries found).
+**Full plan:** `docs/dev/milestones/m131-scan-cinematic-replay-sequence.md`
+**Status:** ✅ Complete (2026-05-26)
+
+---
+
 ### M130 — Scan: Cinematic Pacing & Orchestration Engine
 **Goal:** Decouple scan detection speed from celebration delivery speed. Introduce a discovery event buffer → priority queue → cinematic presentation engine. P1–P4 priority tiers control timing (1.2–5s windows), a presentation lock prevents overlapping celebrations, four audio categories (passport stamp, heritage chime, achievement rise, orchestral swell) route by event type, and a queue depth indicator shows queued discoveries.
 **Phase:** 25 — Scan UX Transformation
@@ -23,7 +43,7 @@
 **Depends on:** M119 ✅, M126 ✅
 **Scope in:** `GlobePainter` — `visitedHeritageSiteCoords` + `unvisitedHeritageSiteCoords` params; map screen heritage toggle chip + animation controller; `VisitRepository` visited WHS query; heritage count in map stats footer.
 **Full plan:** `docs/dev/milestones/m129-heritage-pulse-main-map.md`
-**Status:** Not started. No tasks written.
+**Status:** ✅ Complete (2026-05-25)
 
 ---
 
