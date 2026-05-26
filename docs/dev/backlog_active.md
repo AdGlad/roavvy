@@ -574,7 +574,7 @@ Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium
 **API:** `packing_slip` object on `POST /orders` (Printful v1). Fields: `logo_url`, `message`, `email`, `store_name`, `custom_order_id`.
 **Scope in:** `shopifyOrderCreated` in `apps/functions/src/index.ts` only.
 **Scope out:** Shopify checkout flow; mobile UI; web.
-**Status:** Not started. No tasks written.
+**Status:** ✅ Complete (2026-05-26)
 
 ---
 

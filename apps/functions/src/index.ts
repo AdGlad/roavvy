@@ -908,6 +908,17 @@ export const shopifyOrderCreated = onRequest(
               files,
             },
           ],
+          // M79: Roavvy-branded packing slip on every order.
+          packing_slip: {
+            ...(process.env['ROAVVY_LOGO_URL']
+              ? { logo_url: process.env['ROAVVY_LOGO_URL'] }
+              : {}),
+            message:
+              'Thank you for your Roavvy order! Made with your travel memories. 🌍',
+            email: 'support@roavvy.com',
+            store_name: 'Roavvy',
+            custom_order_id: `ROAVVY-${shopifyOrderId}`,
+          },
         }),
       });
 
