@@ -28,6 +28,7 @@ import 'country_polygon_layer.dart';
 import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
+import '../challenge/daily_challenge_screen.dart';
 import 'region_chips_marker_layer.dart';
 import 'world_heritage_marker_layer.dart';
 import 'region_progress_notifier.dart';
@@ -372,6 +373,13 @@ class MapScreen extends ConsumerWidget {
                 onReplay: globeMode ? () => showReplayEntrySheet(context) : null,
               ),
             ),
+          ),
+          // Daily Heritage Challenge chip (M134).
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 64,
+            left: 0,
+            right: 0,
+            child: const Center(child: _DailyChallengeChip()),
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -1112,6 +1120,57 @@ class _ActionBtn extends StatelessWidget {
               style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Daily Challenge chip ───────────────────────────────────────────────────────
+
+/// Pill-shaped chip shown below the action bar. Tapping opens [DailyChallengeScreen].
+/// Shows a green dot badge when the challenge has not yet been solved today.
+class _DailyChallengeChip extends ConsumerWidget {
+  const _DailyChallengeChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progressAsync = ref.watch(dailyChallengeProgressProvider);
+    final solved = progressAsync.valueOrNull?.solved ?? false;
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const DailyChallengeScreen(),
+        ),
+      ),
+      child: Material(
+        color: Colors.black45,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.emoji_events_outlined, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
+              const Text(
+                'Daily Challenge',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              if (!solved) ...[
+                const SizedBox(width: 6),
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF4CAF50),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

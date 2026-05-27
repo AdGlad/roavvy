@@ -177,13 +177,24 @@ Private widget inside `daily_challenge_screen.dart`.
 - Confetti: use existing `confetti` package (already a dependency). `ConfettiController` burst from top-center, fires once on `initState`.
 
 **"Go to site" action:**
+
+Use `globeTargetProvider` — the same mechanism as the flag-strip country tap and the existing
+`GlobeMapWidget` listener (`globe_map_widget.dart:351`). This is a simple coordinate target that
+triggers a fly-to on the main-screen globe already rendered in `MainShell`. Do NOT use
+`GlobeOverlayState` / `GlobeReplayWidget` — those are for full scan/replay animations only.
+
+Since `DailyChallengeScreen` is pushed from the map screen (the entry chip lives on map tab = index 0),
+the user is always on tab 0 when the challenge is open. No tab switch needed.
+
 ```dart
 void _navigateToSite(WidgetRef ref, WorldHeritageSite site) {
-  Navigator.of(context).popUntil((r) => r.isFirst);
+  // 1. Close the challenge modal — returns to the map screen (already on tab 0).
+  Navigator.of(context).pop();
+  // 2. Set the fly-to target. GlobeMapWidget watches this and animates to the coords.
+  //    It resets the provider to null after arriving (globe_map_widget.dart:355).
   ref.read(globeTargetProvider.notifier).state = (site.latitude, site.longitude);
 }
 ```
-No tab switch needed — closing the modal returns to the map screen which is already showing. The globe fly-to is triggered by `globeTargetProvider` as normal.
 
 If the site exists in the user's `VisitedHeritageSites` (check via `heritageRepositoryProvider`), wait 1 500 ms then open the heritage detail bottom sheet. If not visited, fly-to is sufficient.
 

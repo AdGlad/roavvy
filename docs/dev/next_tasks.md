@@ -1,47 +1,41 @@
-# M133 — Daily Heritage Challenge: Backend & Data Layer
+# M134 — Daily Heritage Challenge: UI & Integration
 
 ## Tasks
 
-### T1 — Cloud Function: daily challenge scheduler
-- New `apps/functions/src/dailyChallenge.ts`
-- `scheduleDailyChallenge` (pub/sub, 00:00 UTC daily) + `getDailyChallenge` (onCall, for testing)
-- Deterministic picker: sort siteIds lexicographically, `epochDay % sites.length`
-- `buildClues(site)` → string[5] from site fields
-- Idempotent write to `daily_challenge/{YYYY-MM-DD}`
-- Copy `whs_sites.json` to `apps/functions/src/assets/`
-- Register exports in `apps/functions/src/index.ts`
-- Verify: `cd apps/functions && npm run build`
+### T1 — DailyChallengeNotifier + state model
+- New `lib/features/challenge/daily_challenge_notifier.dart`
+- `DailyChallengeState` holds challenge, progress, site, submitting flag
+- `revealNextClue()` — cluesRevealed++, persist
+- `submitGuess(input)` — normalize + match; wrong → append guess; correct → solved=true, solvedAtClue
+- Submitting after solved is no-op
+- Add `dailyChallengeNotifierProvider` + `whsSitesJsonProvider` to `providers.dart`
 
-### T2 — DailyChallenge + DailyChallengeProgress models
-- New `packages/shared_models/lib/src/daily_challenge.dart`
-- `DailyChallenge` (siteId, clues: List<String>)
-- `DailyChallengeProgress` (date, siteId, cluesRevealed, guesses, solved, solvedAtClue) + copyWith
-- Export from `shared_models.dart`
+### T2 — Guess normalization
+- New `lib/features/challenge/guess_normalizer.dart`
+- `normalizeForGuess(s)`: lowercase, strip diacritics via Uri roundtrip, strip parens, remove non-alphanumeric, collapse spaces
+- `guessMatches(input, siteName)`: exact or contains (min length 4)
 
-### T3 — Drift table + migration (v13 → v14)
-- Add `DailyChallengeProgressTable` to `roavvy_database.dart`
-- Increment schemaVersion to 14
-- Add `if (from < 14)` migration block
-- Run codegen: `dart run build_runner build --delete-conflicting-outputs`
+### T3 — DailyChallengeScreen + sub-widgets
+- New `lib/features/challenge/daily_challenge_screen.dart`
+- `_ClueCard` (numbered chip + text, AnimatedSwitcher)
+- `_RevealClueButton` (FilledButton.tonal, full-width)
+- `_GuessInput` (TextField + send button, shake AnimationController on wrong)
+- `_GuessHistory` (horizontal Chip row)
+- Loading / error states
+- `_ChallengeResultOverlay` (BackdropFilter, confetti, score, Go + Share buttons)
+- "Go to site": `Navigator.of(context).pop()` + set `globeTargetProvider`
+- Push via `Navigator.of(context).push(MaterialPageRoute(...))` — NOT GoRouter
 
-### T4 — DailyChallengeRepository
-- New `apps/mobile_flutter/lib/data/daily_challenge_repository.dart`
-- `loadToday(date)` and `save(progress)` methods
-- JSON encode/decode guesses list via `dart:convert`
+### T4 — _DailyChallengeChip on map screen
+- Edit `lib/features/map/map_screen.dart`
+- `Positioned` below `_GlobeActionBar` (same `Colors.black45` pill style)
+- Badge: green dot when unsolved/unattempted; hidden when solved
+- On tap: `Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DailyChallengeScreen()))`
 
-### T5 — DailyChallengeService + providers
-- New `apps/mobile_flutter/lib/features/challenge/daily_challenge_service.dart`
-- Fetches `daily_challenge/{YYYY-MM-DD}` from Firestore
-- `DailyChallengeUnavailable` exception for missing/network-error cases
-- Add 3 providers to `lib/core/providers.dart`:
-  `dailyChallengeRepositoryProvider`, `dailyChallengeProvider`, `dailyChallengeProgressProvider`
+### T5 — Tests
+- `test/features/challenge/guess_normalizer_test.dart`
+- `test/features/challenge/daily_challenge_notifier_test.dart` (mock repo)
 
-### T6 — Unit tests
-- `test/features/challenge/clue_builder_test.dart` — clue content, hemisphere, flag emoji, first word
-- `test/data/daily_challenge_repository_test.dart` — round-trip, null for wrong date, JSON guesses
-
-### T7 — Deploy + verify + docs
-- `firebase deploy --only functions:scheduleDailyChallenge,functions:getDailyChallenge`
-- Verify Firestore document written for today
+### T6 — Docs + analyze
+- Update `docs/dev/current_task.md`, `docs/dev/backlog.md`
 - `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt`
-- Update `docs/dev/current_task.md` and `docs/dev/backlog.md`
