@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -13,6 +14,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/providers.dart';
 import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/flag_grid_layout_engine.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
 import 'merch_cart_item.dart';
@@ -87,6 +89,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.stampLayoutSeed,
     this.initialColour,
     this.subtitleOverride,
+    this.gridLayoutMode = FlagGridLayoutMode.packedRow,
   });
 
   final List<String> selectedCodes;
@@ -140,6 +143,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// (ADR-153). When null, the first available colour is used.
   final String? initialColour;
 
+  /// Flag grid layout mode (Packed / Grid / Mosaic) carried from the card
+  /// editor. Applied when regenerating artwork via a preset config.
+  final FlagGridLayoutMode gridLayoutMode;
+
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
       _LocalMockupPreviewScreenState();
@@ -171,6 +178,9 @@ class _LocalMockupPreviewScreenState
   // ── Card / artwork state ───────────────────────────────────────────────────
 
   late CardTemplateType _template;
+  late FlagGridLayoutMode _gridLayoutMode;
+  bool _isPortrait = true;
+  int _shuffleSeed = 0; // 0 = use widget.stampLayoutSeed (deterministic)
 
   // nullable until first generation (ADR-147: preset-driven entry).
   Uint8List? _artworkBytes;
@@ -289,6 +299,13 @@ class _LocalMockupPreviewScreenState
 
   bool get _isTshirt => _product == MerchProduct.tshirt;
 
+  /// Effective card aspect ratio, respecting portrait/landscape toggle.
+  double get _currentAspectRatio {
+    final portrait = _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio;
+    final landscape = _isTshirt ? 5.0 / 4.0 : (1.0 / widget.confirmedAspectRatio);
+    return _isPortrait ? portrait : landscape;
+  }
+
   /// True when the current artwork variant uses a transparent background,
   /// requiring [BlendMode.srcOver] in [LocalMockupPainter].
   ///
@@ -352,6 +369,7 @@ class _LocalMockupPreviewScreenState
   void initState() {
     super.initState();
     _template = widget.initialTemplate;
+    _gridLayoutMode = widget.gridLayoutMode;
     _artworkConfirmationId = widget.artworkConfirmationId;
     if (widget.initialColour != null &&
         tshirtColors.contains(widget.initialColour)) {
@@ -572,19 +590,26 @@ class _LocalMockupPreviewScreenState
     if (!mounted) return;
     setState(() => _state = _MockupState.rerendering);
     try {
+      // Shuffle flag order when a shuffle seed is active (grid/landmark templates).
+      final codes = _shuffleSeed != 0
+          ? (List<String>.from(widget.selectedCodes)
+              ..shuffle(math.Random(_shuffleSeed)))
+          : widget.selectedCodes;
       final result = await CardImageRenderer.render(
         context,
         config.layout,
-        codes: widget.selectedCodes,
+        codes: codes,
         trips: widget.trips,
         forPrint: false,
         entryOnly: config.entryOnly,
-        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         transparentBackground: _isTshirt,
         stampJitterFactor: config.stampJitterFactor,
         stampSizeMultiplier: config.stampSizeMultiplier,
+        gridLayoutMode: _gridLayoutMode,
+        stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
       _artworkVariants[0] = result.bytes;
@@ -640,8 +665,49 @@ class _LocalMockupPreviewScreenState
       _presetConfig = updated;
       _template = updated.layout;
       _artworkLocked = false; // allow regeneration
+      // Preserve grid layout mode unless explicitly changed via the sheet.
     });
     await _generateFromPreset(updated);
+  }
+
+  // ── Shuffle & orientation ──────────────────────────────────────────────────
+
+  /// Randomises the stamp layout seed and regenerates artwork.
+  Future<void> _shuffle() async {
+    final config = _presetConfig ??
+        MerchPresetConfig(
+          layout: _template,
+          source: MerchCountrySource.allTime,
+          jitter: widget.stampJitterFactor,
+          density: MerchDensity.balanced,
+          stampMode: widget.confirmedEntryOnly
+              ? MerchStampMode.entryOnly
+              : MerchStampMode.entryExit,
+        );
+    setState(() {
+      _shuffleSeed = DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
+      _artworkLocked = false;
+    });
+    await _generateFromPreset(config);
+  }
+
+  /// Toggles portrait ↔ landscape artwork orientation and regenerates.
+  Future<void> _toggleOrientation() async {
+    final config = _presetConfig ??
+        MerchPresetConfig(
+          layout: _template,
+          source: MerchCountrySource.allTime,
+          jitter: widget.stampJitterFactor,
+          density: MerchDensity.balanced,
+          stampMode: widget.confirmedEntryOnly
+              ? MerchStampMode.entryOnly
+              : MerchStampMode.entryExit,
+        );
+    setState(() {
+      _isPortrait = !_isPortrait;
+      _artworkLocked = false;
+    });
+    await _generateFromPreset(config);
   }
 
   // ── App lifecycle (post-checkout poll) ────────────────────────────────────
@@ -829,7 +895,7 @@ class _LocalMockupPreviewScreenState
         forPrint: false,
         // T-shirts always show entry + exit stamps regardless of card-editor setting.
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
-        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: _titleOverride,
@@ -891,7 +957,7 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
-        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: _titleOverride,
@@ -924,7 +990,7 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
-        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: _titleOverride,
@@ -955,7 +1021,7 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
-        cardAspectRatio: _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio,
+        cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         titleOverride: _titleOverride,
@@ -1575,32 +1641,103 @@ class _LocalMockupPreviewScreenState
                 letterSpacing: 0.3,
               ),
             ),
-            GestureDetector(
-              onTap: () => setState(() {
-                _showingFront = !_showingFront;
-                _flipViewKey++;
-              }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.flip, size: 13, color: theme.colorScheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      _showingFront ? 'See Back' : 'See Front',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Shuffle button
+                GestureDetector(
+                  onTap: _state == _MockupState.rerendering ||
+                          _state == _MockupState.approving
+                      ? null
+                      : () => unawaited(_shuffle()),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.shuffle_rounded, size: 13,
+                            color: theme.colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Shuffle',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 6),
+                // Orientation toggle
+                GestureDetector(
+                  onTap: _state == _MockupState.rerendering ||
+                          _state == _MockupState.approving
+                      ? null
+                      : () => unawaited(_toggleOrientation()),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isPortrait
+                              ? Icons.stay_current_portrait
+                              : Icons.stay_current_landscape,
+                          size: 13,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _isPortrait ? 'Portrait' : 'Landscape',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Flip front/back
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _showingFront = !_showingFront;
+                    _flipViewKey++;
+                  }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.flip, size: 13, color: theme.colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          _showingFront ? 'See Back' : 'See Front',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

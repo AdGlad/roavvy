@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:intl/intl.dart';
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,6 +26,9 @@ import '../features/xp/xp_notifier.dart';
 import 'notification_service.dart';
 import '../features/cards/landmark_image_service.dart';
 import '../features/legal/terms_service.dart';
+import '../data/daily_challenge_repository.dart';
+import '../features/challenge/daily_challenge_service.dart';
+import '../features/challenge/daily_challenge_notifier.dart';
 
 /// True when Image Playground (Apple Intelligence) is available on this device.
 /// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
@@ -297,6 +302,64 @@ final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>(
 /// When the user taps Dismiss on a [MemoryPulseCard], their assetId is added
 /// here so the card vanishes immediately without re-querying the library (ADR-136).
 final memoriesDismissedProvider = StateProvider<Set<String>>((ref) => {});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── M133 / M134 Daily Heritage Challenge ──────────────────────────────────────
+
+final dailyChallengeRepositoryProvider = Provider<DailyChallengeRepository>(
+  (ref) => DailyChallengeRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+/// Fetches today's challenge from Firestore. Re-fetches only on invalidation.
+final dailyChallengeProvider = FutureProvider<DailyChallenge>(
+  (_) => const DailyChallengeService().fetchToday(),
+);
+
+/// Today's local progress (clues revealed, guesses, solved state).
+/// Null when the user has not yet opened the challenge today.
+final dailyChallengeProgressProvider =
+    FutureProvider<DailyChallengeProgress?>((ref) {
+  final today = DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
+  return ref.watch(dailyChallengeRepositoryProvider).loadToday(today);
+});
+
+/// Raw JSON string from bundled whs_sites.json. Loaded once per app lifetime.
+final whsSitesJsonProvider = FutureProvider<String>(
+  (_) => rootBundle.loadString('assets/geodata/whs_sites.json'),
+);
+
+/// All unique [WorldHeritageSite]s parsed from the bundled JSON. Cached.
+final allWhsSitesProvider = FutureProvider<List<WorldHeritageSite>>((ref) async {
+  final json = await ref.watch(whsSitesJsonProvider.future);
+  return parseWhsSitesJson(json);
+});
+
+/// Composes the three async deps into a single [DailyChallengeState].
+/// Used as initial state for [dailyChallengeNotifierProvider].
+final _dailyChallengeInitProvider =
+    FutureProvider.autoDispose<DailyChallengeState>((ref) async {
+  final challenge = await ref.watch(dailyChallengeProvider.future);
+  final sites = await ref.watch(allWhsSitesProvider.future);
+  final progress = await ref.watch(dailyChallengeProgressProvider.future);
+  return buildInitialChallengeState(
+    challenge: challenge,
+    savedProgress: progress,
+    allSites: sites,
+  );
+});
+
+/// Drives [DailyChallengeScreen]. Auto-disposed when the screen is popped.
+final dailyChallengeNotifierProvider = StateNotifierProvider.autoDispose<
+    DailyChallengeNotifier, AsyncValue<DailyChallengeState>>(
+  (ref) {
+    final init = ref.watch(_dailyChallengeInitProvider);
+    final repo = ref.watch(dailyChallengeRepositoryProvider);
+    final notifier = DailyChallengeNotifier(initial: init, repo: repo);
+    ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
+    return notifier;
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 

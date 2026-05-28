@@ -1,32 +1,41 @@
-# M130 — Scan: Cinematic Pacing & Orchestration Engine
+# M134 — Daily Heritage Challenge: UI & Integration
 
 ## Tasks
 
-### T1 — Event infrastructure (sealed classes + priority queue)
-Add before `_ScanningView` in `scan_screen.dart`:
-- `_EventPriority` enum (p1, p2, p3, p4)
-- `_ScanPhase` enum (early, building, revealing)
-- `_DiscoveryEvent` sealed class + 5 subclasses
-- `_PriorityQueue` (sorted list, enqueue/dequeue/length)
+### T1 — DailyChallengeNotifier + state model
+- New `lib/features/challenge/daily_challenge_notifier.dart`
+- `DailyChallengeState` holds challenge, progress, site, submitting flag
+- `revealNextClue()` — cluesRevealed++, persist
+- `submitGuess(input)` — normalize + match; wrong → append guess; correct → solved=true, solvedAtClue
+- Submitting after solved is no-op
+- Add `dailyChallengeNotifierProvider` + `whsSitesJsonProvider` to `providers.dart`
 
-### T2 — Wire buffer into _ScanningViewState + drain timer
-- Replace direct toast calls in `didUpdateWidget` with `_buffer.enqueue()`
-- Add drain timer (100ms periodic), presentation lock, _ScanPhase tracking
-- Remove old rate-limit timer + heritage delay timer
+### T2 — Guess normalization
+- New `lib/features/challenge/guess_normalizer.dart`
+- `normalizeForGuess(s)`: lowercase, strip diacritics via Uri roundtrip, strip parens, remove non-alphanumeric, collapse spaces
+- `guessMatches(input, siteName)`: exact or contains (min length 4)
 
-### T3 — Cinematic presentation engine (_drainQueue + _presentX)
-- `_drainQueue()` checks lock, dequeues, dispatches
-- `_presentCountryDiscovery`, `_presentHeritageDiscovery`, `_presentAchievement`,
-  `_presentContinent`, `_presentMajorMilestone` — each async with timing + audio
+### T3 — DailyChallengeScreen + sub-widgets
+- New `lib/features/challenge/daily_challenge_screen.dart`
+- `_ClueCard` (numbered chip + text, AnimatedSwitcher)
+- `_RevealClueButton` (FilledButton.tonal, full-width)
+- `_GuessInput` (TextField + send button, shake AnimationController on wrong)
+- `_GuessHistory` (horizontal Chip row)
+- Loading / error states
+- `_ChallengeResultOverlay` (BackdropFilter, confetti, score, Go + Share buttons)
+- "Go to site": `Navigator.of(context).pop()` + set `globeTargetProvider`
+- Push via `Navigator.of(context).push(MaterialPageRoute(...))` — NOT GoRouter
 
-### T4 — Mute toggle + queue depth indicator
-- `_muted: bool` state + speaker IconButton
-- Queue depth pill (AnimatedSwitcher, shows when 3+ queued)
+### T4 — _DailyChallengeChip on map screen
+- Edit `lib/features/map/map_screen.dart`
+- `Positioned` below `_GlobeActionBar` (same `Colors.black45` pill style)
+- Badge: green dot when unsolved/unattempted; hidden when solved
+- On tap: `Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DailyChallengeScreen()))`
 
-### T5 — UNESCO site type chip + _ScanPhase modulation
-- `siteType` param on `_HeritageToastBanner` → Cultural/Natural chip
-- Phase modulates toast richness and audio category
+### T5 — Tests
+- `test/features/challenge/guess_normalizer_test.dart`
+- `test/features/challenge/daily_challenge_notifier_test.dart` (mock repo)
 
-### T6 — Docs + validation
-- Mark M130 complete, update backlog + current_task
-- flutter analyze + index_docs
+### T6 — Docs + analyze
+- Update `docs/dev/current_task.md`, `docs/dev/backlog.md`
+- `flutter analyze 2>/tmp/analyze.txt; tail /tmp/analyze.txt`

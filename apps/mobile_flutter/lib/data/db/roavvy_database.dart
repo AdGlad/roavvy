@@ -266,6 +266,38 @@ class Trips extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Local progress state for the Daily Heritage Challenge (M133).
+///
+/// One row per UTC date (`YYYY-MM-DD`). Tracks clues revealed, wrong guesses,
+/// and solved state. Never synced to Firestore — private per-device state
+/// (ADR-002). The server-side challenge document is read from the top-level
+/// `daily_challenge/{date}` Firestore collection.
+@DataClassName('DailyChallengeProgressRow')
+class DailyChallengeProgressTable extends Table {
+  /// UTC date string `YYYY-MM-DD`. Primary key.
+  TextColumn get date => text()();
+
+  /// Matches [WorldHeritageSite.siteId] in the bundled whs_sites.json.
+  TextColumn get siteId => text()();
+
+  /// Number of clues revealed so far (1–5). Starts at 1.
+  IntColumn get cluesRevealed =>
+      integer().withDefault(const Constant(1))();
+
+  /// JSON-encoded list of wrong guess strings. e.g. `'["Taj Mahal","Agra"]'`.
+  TextColumn get guesses =>
+      text().withDefault(const Constant('[]'))();
+
+  /// 1 if the user has correctly identified the site, 0 otherwise.
+  IntColumn get solved => integer().withDefault(const Constant(0))();
+
+  /// Which clue index (1–5) was showing when the user solved. Null until solved.
+  IntColumn get solvedAtClue => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {date};
+}
+
 /// Stores one row per visited UNESCO World Heritage Site (M119, ADR-163).
 ///
 /// Primary key is [siteId] (UNESCO `id_no` as a string) so each site appears
@@ -308,12 +340,13 @@ class VisitedHeritageSites extends Table {
   XpEvents,
   HeroImages,
   VisitedHeritageSites,
+  DailyChallengeProgressTable,
 ])
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -364,6 +397,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 13) {
         await m.createTable(visitedHeritageSites);
+      }
+      if (from < 14) {
+        await m.createTable(dailyChallengeProgressTable);
       }
     },
   );

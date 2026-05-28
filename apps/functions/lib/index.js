@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.shopifyOrderCreated = exports.createMerchCart = void 0;
+exports.shopifyOrderCreated = exports.createMerchCart = exports.getDailyChallenge = exports.scheduleDailyChallenge = void 0;
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const app_1 = require("firebase-admin/app");
@@ -43,6 +43,9 @@ const https_1 = require("firebase-functions/v2/https");
 const crypto = __importStar(require("crypto"));
 const imageGen_1 = require("./imageGen");
 const printDimensions_1 = require("./printDimensions");
+var dailyChallenge_1 = require("./dailyChallenge");
+Object.defineProperty(exports, "scheduleDailyChallenge", { enumerable: true, get: function () { return dailyChallenge_1.scheduleDailyChallenge; } });
+Object.defineProperty(exports, "getDailyChallenge", { enumerable: true, get: function () { return dailyChallenge_1.getDailyChallenge; } });
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();
 // ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
