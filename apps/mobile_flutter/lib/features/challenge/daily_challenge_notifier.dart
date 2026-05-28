@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../data/daily_challenge_repository.dart';
+import 'daily_challenge_stats.dart';
 import 'guess_normalizer.dart';
 import 'hot_cold_feedback.dart';
 
@@ -89,12 +90,15 @@ class DailyChallengeNotifier
     required AsyncValue<DailyChallengeState> initial,
     required DailyChallengeRepository repo,
     required List<WorldHeritageSite> allSites,
+    required ChallengeStatsService statsService,
   })  : _repo = repo,
         _allSites = allSites,
+        _stats = statsService,
         super(initial);
 
   final DailyChallengeRepository _repo;
   final List<WorldHeritageSite> _allSites;
+  final ChallengeStatsService _stats;
 
   /// Updates state when the underlying async providers change (e.g. loading →
   /// data). Called from the provider when `initial` changes.
@@ -144,6 +148,13 @@ class DailyChallengeNotifier
         solvedAtClue: current.progress.cluesRevealed,
       );
       await _repo.save(updated);
+      await _stats.record(
+        date: updated.date,
+        siteId: updated.siteId,
+        solved: true,
+        guessesUsed: updated.guesses.length,
+        cluesUsed: updated.cluesRevealed,
+      );
       if (mounted) {
         state = AsyncValue.data(current.copyWith(
           progress: updated,
@@ -163,6 +174,15 @@ class DailyChallengeNotifier
       failed: exhausted,
     );
     await _repo.save(updated);
+    if (exhausted) {
+      await _stats.record(
+        date: updated.date,
+        siteId: updated.siteId,
+        solved: false,
+        guessesUsed: updated.guesses.length,
+        cluesUsed: updated.cluesRevealed,
+      );
+    }
     if (mounted) {
       state = AsyncValue.data(current.copyWith(
         progress: updated,

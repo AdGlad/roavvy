@@ -29,6 +29,7 @@ import '../features/legal/terms_service.dart';
 import '../data/daily_challenge_repository.dart';
 import '../features/challenge/daily_challenge_service.dart';
 import '../features/challenge/daily_challenge_notifier.dart';
+import '../features/challenge/daily_challenge_stats.dart';
 
 /// True when Image Playground (Apple Intelligence) is available on this device.
 /// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
@@ -311,6 +312,14 @@ final dailyChallengeRepositoryProvider = Provider<DailyChallengeRepository>(
   (ref) => DailyChallengeRepository(ref.watch(roavvyDatabaseProvider)),
 );
 
+final challengeStatsServiceProvider = Provider<ChallengeStatsService>(
+  (ref) => ChallengeStatsService(ref.watch(roavvyDatabaseProvider)),
+);
+
+final challengeAggregateProvider = FutureProvider<ChallengeAggregate>(
+  (ref) => ref.watch(challengeStatsServiceProvider).loadAggregate(),
+);
+
 /// Fetches today's challenge from Firestore. Re-fetches only on invalidation.
 final dailyChallengeProvider = FutureProvider<DailyChallenge>(
   (_) => const DailyChallengeService().fetchToday(),
@@ -356,10 +365,12 @@ final dailyChallengeNotifierProvider = StateNotifierProvider.autoDispose<
     final init = ref.watch(_dailyChallengeInitProvider);
     final repo = ref.watch(dailyChallengeRepositoryProvider);
     final allSites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
+    final statsService = ref.watch(challengeStatsServiceProvider);
     final notifier = DailyChallengeNotifier(
       initial: init,
       repo: repo,
       allSites: allSites,
+      statsService: statsService,
     );
     ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
     return notifier;
