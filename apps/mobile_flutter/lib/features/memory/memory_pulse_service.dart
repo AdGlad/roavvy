@@ -67,7 +67,8 @@ class MemoryPulseService {
     final permission = await PhotoManager.requestPermissionExtend();
     if (!permission.hasAccess) return const [];
 
-    final assets = await _fetchRecentAssets(_kPhotoCheckPageSize);
+    final cutoff = today.subtract(const Duration(days: 365));
+    final assets = await _fetchRecentAssets(_kPhotoCheckPageSize, maxDate: cutoff);
     if (assets.isEmpty) return const [];
 
     final matching = _filterByMonthDay(assets, today);
@@ -321,15 +322,29 @@ class MemoryPulseService {
       '${dt.month.toString().padLeft(2, '0')}-'
       '${dt.day.toString().padLeft(2, '0')}';
 
-  /// Fetches up to [pageSize] most-recent image assets from the photo library.
-  Future<List<AssetEntity>> _fetchRecentAssets(int pageSize) async {
+  /// Fetches up to [pageSize] image assets from the photo library ordered
+  /// newest-first. When [maxDate] is provided, only assets created on or
+  /// before that date are returned — used to restrict anniversary queries to
+  /// photos taken at least 365 days ago so recent photos do not crowd them out.
+  Future<List<AssetEntity>> _fetchRecentAssets(int pageSize, {DateTime? maxDate}) async {
+    final filterOption = maxDate != null
+        ? FilterOptionGroup(
+            createTimeCond: DateTimeCond(
+              min: DateTime(2000),
+              max: maxDate,
+            ),
+            orders: [
+              const OrderOption(type: OrderOptionType.createDate, asc: false),
+            ],
+          )
+        : FilterOptionGroup(
+            orders: [
+              const OrderOption(type: OrderOptionType.createDate, asc: false),
+            ],
+          );
     final albums = await PhotoManager.getAssetPathList(
       type: RequestType.image,
-      filterOption: FilterOptionGroup(
-        orders: [
-          const OrderOption(type: OrderOptionType.createDate, asc: false),
-        ],
-      ),
+      filterOption: filterOption,
     );
     if (albums.isEmpty) return const [];
 

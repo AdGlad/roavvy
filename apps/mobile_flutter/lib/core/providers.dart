@@ -262,8 +262,8 @@ final memoryPulseServiceProvider = Provider<MemoryPulseService>(
   },
 );
 
-/// Debug-only toggle: when true, [todaysMemoriesProvider] ignores anniversary
-/// date filtering. Ignored in release builds.
+/// Debug toggle: when true, [todaysMemoriesProvider] skips anniversary date
+/// filtering and returns hero images instead (for manual testing).
 final memoryPulseDebugOverrideProvider = StateProvider<bool>((ref) => false);
 
 /// Today's memory pulse photos — one-shot per app session (M114, ADR-136).
@@ -272,11 +272,11 @@ final memoryPulseDebugOverrideProvider = StateProvider<bool>((ref) => false);
 /// device photo library whose capture date matches today's month+day in a past
 /// year. Returns empty list when none found or permission is denied.
 ///
-/// In debug builds, set [memoryPulseDebugOverrideProvider] to true to force-
-/// fire without the anniversary date filter (falls back to checkToday).
+/// Set [memoryPulseDebugOverrideProvider] to true to force-fire without the
+/// anniversary date filter (shows hero images instead).
 final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>(
   (ref) async {
-    if (kDebugMode && ref.watch(memoryPulseDebugOverrideProvider)) {
+    if (ref.watch(memoryPulseDebugOverrideProvider)) {
       // In debug override mode, use the hero-image path so tester can see
       // cards without needing an actual anniversary date.
       final heroes = await HeroImageRepository(ref.watch(roavvyDatabaseProvider))
