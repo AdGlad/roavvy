@@ -641,3 +641,13 @@ Design Your T-Shirt screen. No hidden navigation, no duplicate controls, premium
 **Goal:** `/forgot-password` route with `sendPasswordResetEmail`; "Forgot password?" link on `/sign-in`.
 **Scope out:** Custom email template; mobile password reset
 **Status:** Not started. No tasks written.
+
+---
+
+### M135 — Daily Challenge Enhancement: Hot/Cold, Educational Reveal & Stats
+**Goal:** Upgrade the Daily Heritage Challenge with Wordle-style hot/cold distance feedback, 5-guess hard limit, educational `DraggableScrollableSheet` reveal card, UNESCO autocomplete input, user stats/streaks, and globe fly-to on reveal.
+**Phase:** 26 — Daily Challenge
+**Depends on:** M134 ✅, M133 ✅
+**Scope in:** `ChallengeClue` typed model; `WorldHeritageSite` enrichment fields; Drift v15 (`failed` column + `ChallengeStatsTable`); `hot_cold_feedback.dart` (Haversine, bearing, cardinal, rating); `DailyChallengeNotifier` (GuessResult, maxGuesses, allSites, statsService); `_HeritageSiteSearchInput` autocomplete; `_HotColdChip`; `DraggableScrollableSheet` reveal; `ChallengeStatsService` (record, loadAggregate, streaks); providers wiring; 75 tests.
+**Full plan:** `docs/dev/milestones/m135-daily-challenge-enhancement.md`
+**Status:** ✅ Complete (2026-05-28)

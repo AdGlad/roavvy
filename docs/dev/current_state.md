@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M111, 2026-05-11)
+# Roavvy — Current State (updated M135, 2026-05-28)
 
 ## What is built
 
@@ -24,6 +24,7 @@
 | Rovy mascot | ✅ | `RovyBubble`; 5 trigger types; 4s auto-dismiss |
 | Cinematic Travel Replay | ✅ | Full-screen globe replay (M108–M111): per-leg arc animation, globe pan/zoom, `ReplayPhase` state machine; accurate GPS departure/arrival coords with centroid fallback (M109); achievement + stat overlays, summary screen with count-up stats + Share/T-Shirt CTAs (M110); `ReplayPacingRules` (haversine distance → `LegPacing`); distance-aware audio (`ReplayAudioController`, 5 audio slots, `audioplayers`); refined easing curves (`easeInOutQuart`, `easeIn` arc); globe fades to 15% on done; mute toggle + reduced-motion support (M111); `ReplayHeritageOverlay` amber/green UNESCO card woven per leg (M131); `GlobeReplayWidget` dual-mode: historical script OR live `ReplayDataSource`; `LiveScanReplayController` 7-phase state machine with `waitingForEvents`; live replay pushes concurrently with scan, drains to `ScanSummaryScreen` (M132) |
 | Heritage on Map | ✅ | UNESCO World Heritage Sites pulsing amber on main map globe: visited sites bright, unvisited dim; toggle chip + SharedPreferences persistence; heritage count in map stats footer (M129) |
+| Daily Heritage Challenge | ✅ | Wordle-style daily UNESCO challenge: Firestore clue fetch (M133), playable screen + globe chip + routing (M134); typed `ChallengeClue` with backwards-compat fromJson; Haversine hot/cold distance feedback + 8-way directional bearing; 5-guess hard limit with `failed` state; `DraggableScrollableSheet` educational reveal card with metadata chips + criteria + shortDescription; globe fly-to on reveal mount; per-day `ChallengeStatsTable` (Drift v15); streak tracking (current + best); `ChallengeStatsService.loadAggregate()`; `_HeritageSiteSearchInput` autocomplete (UNESCO dataset, opens upward, flag+name rows); 54 notifier tests + 21 hot/cold tests (M133–M135) |
 | Scan UX Transformation | ✅ | Emotional discovery (M121); momentum/density chips (M122); live heritage stats & toast (M123); live achievements + trip count (M125); globe heritage pulse during scan (M126); scan summary screen (M127); heritage scan enhancements — colour dots, progress bar, tooltip (M128); cinematic pacing & orchestration engine (M130); cinematic scan replay + live replay (M131–M132) |
 
 ## What is NOT built
@@ -82,10 +83,14 @@
 | Scan bridge (Swift) | `ios/Runner/PhotoScanPlugin/` |
 | Country lookup | `packages/country_lookup/lib/` |
 | Region lookup | `packages/region_lookup/lib/` |
+| Daily challenge notifier | `lib/features/challenge/daily_challenge_notifier.dart` |
+| Daily challenge screen | `lib/features/challenge/daily_challenge_screen.dart` |
+| Challenge stats service | `lib/features/challenge/daily_challenge_stats.dart` |
+| Hot/cold feedback | `lib/features/challenge/hot_cold_feedback.dart` |
 
 ## Schema
 
-Drift SQLite schema **v11** — tables: `photo_date_records` (v9 + `asset_id`), `user_added_countries`, `user_removed_countries`, `trips`, `region_visits`, `xp_events`, `hero_images` (M89).
+Drift SQLite schema **v15** — tables: `photo_date_records`, `user_added_countries`, `user_removed_countries`, `trips`, `region_visits`, `xp_events`, `hero_images` (M89), `daily_challenge_progress` (M133), `challenge_stats` (M135).
 
 ## Tests (M72)
 
