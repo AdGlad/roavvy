@@ -118,12 +118,10 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
                       ? null
                       : () {
                           // M134: show replay via MainShell overlay — no route push.
+                          // onDone is handled by MainShell (using its own ref) so
+                          // we don't capture a ref that may be stale after pop().
                           Navigator.of(context).pop(); // close sheet
-                          ref.read(globeOverlayProvider.notifier).showReplay(
-                            script,
-                            onDone: () =>
-                                ref.read(globeOverlayProvider.notifier).hide(),
-                          );
+                          ref.read(globeOverlayProvider.notifier).showReplay(script);
                         },
                 );
               },

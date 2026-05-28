@@ -209,12 +209,17 @@ class _MainShellState extends ConsumerState<MainShell> {
                 script: overlay.replayScript,
                 dataSource: overlay.scanSource,
                 initialCollectedCodes: overlay.initialCollectedCodes,
-                onScanComplete: overlay.onScanComplete,
+                // For replay mode, use MainShell's own ref so hide() is always
+                // reachable regardless of whether the entry sheet is disposed.
+                onScanComplete: overlay.isReplayMode
+                    ? () => ref.read(globeOverlayProvider.notifier).hide()
+                    : overlay.onScanComplete,
+                // Always call hide() on cancel so the overlay is never stuck.
+                // For scan mode, also invoke onScanComplete to clean up the
+                // scan controller; for replay mode hide() is already enough.
                 onClose: () {
-                  overlay.onScanComplete?.call();
-                  if (overlay.onScanComplete == null) {
-                    ref.read(globeOverlayProvider.notifier).hide();
-                  }
+                  if (overlay.isScanMode) overlay.onScanComplete?.call();
+                  ref.read(globeOverlayProvider.notifier).hide();
                 },
               ),
             ),
