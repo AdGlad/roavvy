@@ -55,6 +55,8 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Allow local network access for Flutter DevTools debugging.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Roavvy uses your location to show how far you are from UNESCO World Heritage Sites.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Roavvy reads the location and date from your photos to detect which countries you've visited. Your photos never leave your device.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

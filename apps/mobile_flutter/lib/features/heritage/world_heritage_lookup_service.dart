@@ -40,6 +40,20 @@ class WorldHeritageLookupService {
   static Iterable<WorldHeritageSite> get allSites =>
       _index.values.expand((list) => list);
 
+  /// Returns the first [WorldHeritageSite] with the given [siteId], or null.
+  ///
+  /// For transboundary sites (same siteId across multiple countries) this
+  /// returns the first matching record which carries the enriched data
+  /// (shortDescription, imageUrl) shared by all country entries.
+  static WorldHeritageSite? findBySiteId(String siteId) {
+    for (final sites in _index.values) {
+      for (final site in sites) {
+        if (site.siteId == siteId) return site;
+      }
+    }
+    return null;
+  }
+
   /// Initialises the service from the bundled JSON string.
   ///
   /// Safe to call multiple times; subsequent calls are no-ops.
