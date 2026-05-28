@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
-import '../heritage/world_heritage_lookup_service.dart';
-import '../stats/achievements_screen.dart';
 import '../stats/countries_list_screen.dart';
 
 /// A slim stats bar overlaid at the bottom of the map.
 ///
-/// Watches [travelSummaryProvider] and renders:
-/// - country count (tappable → CountriesListScreen)
-/// - earliest → latest visit year
-/// - achievements count (tappable → StatsScreen)
+/// Watches [filteredEffectiveVisitsProvider] for the country count (so it
+/// respects the year filter) and [tripCountProvider] for the trip count.
 ///
 /// Renders nothing ([SizedBox.shrink]) while loading or on error.
 class StatsStrip extends ConsumerWidget {
@@ -20,9 +16,9 @@ class StatsStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(travelSummaryProvider);
-    final heritageEnabled = ref.watch(heritageDotsEnabledProvider);
-    final heritageCount =
-        heritageEnabled ? (ref.watch(visitedHeritageProvider).valueOrNull?.length ?? 0) : 0;
+    final countryCount =
+        (ref.watch(filteredEffectiveVisitsProvider).valueOrNull ?? []).length;
+    final tripCount = ref.watch(tripCountProvider).valueOrNull ?? 0;
 
     return summaryAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -40,9 +36,10 @@ class StatsStrip extends ConsumerWidget {
             children: [
               _Stat(
                 label: 'Countries',
-                value: summary.countryCount.toString(),
+                value: countryCount.toString(),
                 onTap: () {
-                  final visits = ref.read(effectiveVisitsProvider).valueOrNull ?? [];
+                  final visits =
+                      ref.read(effectiveVisitsProvider).valueOrNull ?? [];
                   Navigator.of(context).push(MaterialPageRoute<void>(
                     builder: (_) => CountriesListScreen(visits: visits),
                   ));
@@ -51,18 +48,9 @@ class StatsStrip extends ConsumerWidget {
               _Stat(label: 'First visit', value: earliest),
               _Stat(label: 'Latest visit', value: latest),
               _Stat(
-                label: 'Achievements',
-                value: '🏆 ${summary.achievementCount}',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) => const AchievementsScreen(),
-                )),
+                label: 'Trips',
+                value: tripCount.toString(),
               ),
-              if (heritageEnabled)
-                _Stat(
-                  label: 'UNESCO',
-                  value:
-                      '$heritageCount / ${WorldHeritageLookupService.totalSiteCount}',
-                ),
             ],
           ),
         );

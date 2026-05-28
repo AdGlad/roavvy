@@ -195,11 +195,14 @@ class MapScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).valueOrNull;
     final isAnonymous = user == null || user.isAnonymous;
 
+    final yearFilter = ref.watch(yearFilterProvider);
+
     // Derive earliestVisitYear for the "Filter by year" menu item.
     final earliestYear =
         ref.watch(earliestVisitYearProvider).valueOrNull;
     final showFilterByYear =
-        earliestYear != null && earliestYear < DateTime.now().year;
+        (earliestYear != null && earliestYear < DateTime.now().year) ||
+        yearFilter != null;
 
     // Derive visitedByCode reactively — used for tap resolution and empty-state.
     final visitsAsync = ref.watch(effectiveVisitsProvider);
@@ -248,7 +251,9 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
-    final heritageDotsEnabled = ref.watch(heritageDotsEnabledProvider);
+    final filteredVisits =
+        ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
+            const <EffectiveVisitedCountry>[];
     // M134: hide map UI controls while replay/scan overlay is active so only
     // the globe and the replay HUD are visible.
     final overlayActive = ref.watch(globeOverlayProvider).isActive;
@@ -301,10 +306,21 @@ class MapScreen extends ConsumerWidget {
                             true,
                   ),
                 const _YearInReviewBanner(),
-                if (globeMode && visitedByCode.isNotEmpty)
-                  _VisitedCountryFlagStrip(
-                    visits: visitsAsync.valueOrNull ?? const [],
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Center(
+                    child: _GlobeActionBar(
+                      onFullScan: onNavigateToScanFull,
+                      onNewPhotos: onNavigateToScanPartial,
+                      onReplay: globeMode
+                          ? () => showReplayEntrySheet(context)
+                          : null,
+                    ),
                   ),
+                ),
+                const Center(child: _DailyChallengeChip()),
+                if (globeMode && visitedByCode.isNotEmpty)
+                  _VisitedCountryFlagStrip(visits: filteredVisits),
                 const TimelineScrubberBar(),
                 const StatsStrip(),
               ],
@@ -318,68 +334,6 @@ class MapScreen extends ConsumerWidget {
               padding: EdgeInsets.only(bottom: 80),
               child: RovyBubble(),
             ),
-          ),
-          // Globe / flat toggle (ADR-116).
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 8,
-            child: Material(
-              color: Colors.black45,
-              borderRadius: BorderRadius.circular(20),
-              child: IconButton(
-                icon: Icon(
-                  globeMode ? Icons.map_outlined : Icons.public,
-                  color: Colors.white,
-                ),
-                tooltip: globeMode ? 'Switch to flat map' : 'Switch to globe',
-                onPressed: () => ref.read(globeModeProvider.notifier).state =
-                    !ref.read(globeModeProvider),
-              ),
-            ),
-          ),
-          // Heritage sites toggle — globe mode only (M129).
-          if (globeMode)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 60,
-              child: Material(
-                color: heritageDotsEnabled
-                    ? Colors.amber.withValues(alpha: 0.85)
-                    : Colors.black45,
-                borderRadius: BorderRadius.circular(20),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.account_balance_outlined,
-                    color: heritageDotsEnabled ? Colors.black87 : Colors.white,
-                  ),
-                  tooltip: heritageDotsEnabled
-                      ? 'Hide heritage sites'
-                      : 'Show heritage sites',
-                  onPressed: () => ref
-                      .read(heritageDotsEnabledProvider.notifier)
-                      .state = !heritageDotsEnabled,
-                ),
-              ),
-            ),
-          // Compact scan + replay action bar (M134).
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: _GlobeActionBar(
-                onFullScan: onNavigateToScanFull,
-                onNewPhotos: onNavigateToScanPartial,
-                onReplay: globeMode ? () => showReplayEntrySheet(context) : null,
-              ),
-            ),
-          ),
-          // Daily Heritage Challenge chip (M134).
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 64,
-            left: 0,
-            right: 0,
-            child: const Center(child: _DailyChallengeChip()),
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -423,7 +377,7 @@ class MapScreen extends ConsumerWidget {
                     FirebaseAuth.instance.signOut();
                   } else if (action == _MapMenuAction.filterByYear) {
                     ref.read(yearFilterProvider.notifier).state =
-                        DateTime.now().year;
+                        yearFilter != null ? null : DateTime.now().year;
                   } else if (action == _MapMenuAction.debugMemoryPulse) {
                     final notifier = ref.read(
                         memoryPulseDebugOverrideProvider.notifier);
@@ -498,11 +452,13 @@ class MapScreen extends ConsumerWidget {
                     ),
                   ),
                   if (showFilterByYear)
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: _MapMenuAction.filterByYear,
                       child: ListTile(
-                        leading: Icon(Icons.timeline),
-                        title: Text('Filter by year'),
+                        leading: const Icon(Icons.timeline),
+                        title: Text(yearFilter != null
+                            ? 'Clear year filter'
+                            : 'Filter by year'),
                       ),
                     ),
                   PopupMenuItem(

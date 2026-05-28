@@ -221,6 +221,8 @@ class _MainShellState extends ConsumerState<MainShell> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: const Color(0xFF0D2137),
+        indicatorColor: const Color(0xFF1B3A5C),
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) => setState(() => _selectedIndex = i),
         destinations: [

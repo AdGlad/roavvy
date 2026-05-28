@@ -193,8 +193,7 @@ final yearFilterProvider = StateProvider<int?>((ref) => null);
 final globeModeProvider = StateProvider<bool>((ref) => true);
 
 /// Whether heritage site dots are shown on the main map globe (M129).
-/// Persisted to SharedPreferences by [GlobeMapWidget].
-final heritageDotsEnabledProvider = StateProvider<bool>((ref) => false);
+final heritageDotsEnabledProvider = StateProvider<bool>((ref) => true);
 
 /// Target (lat, lng) in degrees to animate the globe to. Set from outside
 /// (e.g. country flag strip); the globe resets this to null after arriving.

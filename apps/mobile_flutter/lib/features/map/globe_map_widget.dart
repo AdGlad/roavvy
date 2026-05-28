@@ -5,11 +5,11 @@ import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/globe_overlay.dart';
 import '../../core/providers.dart';
+import '../heritage/heritage_detail_sheet.dart';
 import '../heritage/world_heritage_lookup_service.dart';
 import 'country_visual_state.dart';
 import 'globe_painter.dart';
@@ -67,12 +67,12 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   Animation<double>? _zoomAnim;
 
   // Heritage dots pulse (M129)
-  static const _kHeritagePrefKey = 'heritage_dots_enabled';
   late final AnimationController _heritagePulseCtrl;
 
   List<(double, double)> _culturalCoords = const [];
   List<(double, double)> _naturalCoords = const [];
   List<(double, double)> _unvisitedCoords = const [];
+  List<VisitedHeritageSite> _visitedSites = const [];
 
   @override
   void initState() {
@@ -94,12 +94,6 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     )..repeat(reverse: true);
 
     _rotationTicker = createTicker(_onRotationTick)..start();
-
-    SharedPreferences.getInstance().then((prefs) {
-      if (!mounted) return;
-      final enabled = prefs.getBool(_kHeritagePrefKey) ?? false;
-      ref.read(heritageDotsEnabledProvider.notifier).state = enabled;
-    });
   }
 
   @override
@@ -286,6 +280,12 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
   void _onTapUp(TapUpDetails d) {
     if (_canvasSize == Size.zero) return;
+    // Heritage site tap takes priority over country tap.
+    final heritageSite = _findNearestVisitedSite(d.localPosition);
+    if (heritageSite != null) {
+      showHeritageDetailSheet(context, heritageSite);
+      return;
+    }
     final hit = _projection.inverseProject(d.localPosition, _canvasSize);
     if (hit == null) return;
     final isoCode = resolveCountry(hit.$1, hit.$2);
@@ -298,29 +298,45 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         _culturalCoords = const [];
         _naturalCoords = const [];
         _unvisitedCoords = const [];
+        _visitedSites = const [];
       });
       return;
     }
     final visitedIds = {for (final s in visited) s.siteId};
-    final cultural = <(double, double)>[];
     final natural = <(double, double)>[];
     final unvisited = <(double, double)>[];
     for (final site in WorldHeritageLookupService.allSites) {
       if (visitedIds.contains(site.siteId)) {
-        if (site.category == 'natural') {
-          natural.add((site.latitude, site.longitude));
-        } else {
-          cultural.add((site.latitude, site.longitude));
-        }
+        // All visited sites glow green regardless of category.
+        natural.add((site.latitude, site.longitude));
       } else {
         unvisited.add((site.latitude, site.longitude));
       }
     }
     setState(() {
-      _culturalCoords = cultural;
+      _culturalCoords = const [];
       _naturalCoords = natural;
       _unvisitedCoords = unvisited;
+      _visitedSites = visited;
     });
+  }
+
+  /// Returns the nearest visited heritage site within [_kHitRadius] dp of
+  /// [tapPos], or null if no site is close enough.
+  VisitedHeritageSite? _findNearestVisitedSite(Offset tapPos) {
+    const kHitRadius = 24.0;
+    VisitedHeritageSite? nearest;
+    double nearestDist = kHitRadius;
+    for (final site in _visitedSites) {
+      final pt = _projection.project(site.latitude, site.longitude, _canvasSize);
+      if (pt == null) continue;
+      final dist = (tapPos - pt).distance;
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = site;
+      }
+    }
+    return nearest;
   }
 
   @override
@@ -335,17 +351,12 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         ref.watch(visitedHeritageProvider).valueOrNull ?? const <VisitedHeritageSite>[];
 
     ref.listen<bool>(heritageDotsEnabledProvider, (_, enabled) {
-      SharedPreferences.getInstance().then(
-        (prefs) => prefs.setBool(_kHeritagePrefKey, enabled),
-      );
       _rebuildHeritageLists(enabled, visitedHeritage);
     });
 
     ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider,
         (_, next) {
-      if (heritageEnabled) {
-        _rebuildHeritageLists(true, next.valueOrNull ?? const []);
-      }
+      _rebuildHeritageLists(true, next.valueOrNull ?? const []);
     });
 
     ref.listen<(double, double)?>(globeTargetProvider, (_, target) {
