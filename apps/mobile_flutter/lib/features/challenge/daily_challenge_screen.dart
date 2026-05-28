@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'daily_challenge_notifier.dart';
+import 'guess_normalizer.dart';
 
 /// Full-screen modal for the Daily Heritage Challenge.
 ///
@@ -97,7 +99,6 @@ class _ChallengeBody extends ConsumerStatefulWidget {
 
 class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     with SingleTickerProviderStateMixin {
-  final _controller = TextEditingController();
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
 
@@ -115,21 +116,16 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
 
   @override
   void dispose() {
-    _controller.dispose();
     _shakeCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  Future<void> _submit(String siteName) async {
+    if (siteName.isEmpty) return;
     final notifier = ref.read(dailyChallengeNotifierProvider.notifier);
-    final correct = await notifier.submitGuess(text);
+    final correct = await notifier.submitGuess(siteName);
     if (!correct && mounted) {
-      _controller.clear();
       await _shakeCtrl.forward(from: 0);
-    } else if (correct && mounted) {
-      _controller.clear();
     }
   }
 
@@ -139,6 +135,10 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     final state = stateAsync.valueOrNull ?? widget.state;
     final progress = state.progress;
     final clues = state.challenge.clues;
+    final lastResult = state.lastGuessResult;
+    final sites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
+    final guessesLeft = DailyChallengeState.maxGuesses - progress.guesses.length;
+    final gameOver = progress.solved || progress.failed;
 
     return Stack(
       children: [
@@ -150,17 +150,49 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                 itemCount: progress.cluesRevealed.clamp(0, clues.length),
                 itemBuilder: (context, index) => _ClueCard(
                   number: index + 1,
-                  text: clues[index],
+                  text: clues[index].text,
                 ),
               ),
             ),
             if (progress.guesses.isNotEmpty)
               _GuessHistory(guesses: progress.guesses),
-            if (!progress.solved) ...[
-              _GuessInput(
-                controller: _controller,
+            if (!gameOver) ...[
+              // Hot/cold chip — animated in after first wrong guess.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.3),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: lastResult != null
+                    ? _HotColdChip(key: ValueKey(lastResult.guess), result: lastResult)
+                    : const SizedBox.shrink(),
+              ),
+              // Remaining guess counter.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    guessesLeft == 1 ? '1 guess left' : '$guessesLeft guesses left',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: guessesLeft <= 1
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              _HeritageSiteSearchInput(
+                sites: sites,
                 shakeAnimation: _shakeAnim,
-                onSubmit: _submit,
+                onSelected: _submit,
               ),
               if (progress.cluesRevealed < 5)
                 _RevealClueButton(
@@ -173,8 +205,8 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
             ],
           ],
         ),
-        if (progress.solved)
-          _ChallengeResultOverlay(state: state),
+        if (gameOver)
+          _ChallengeResultOverlay(state: state, solved: progress.solved),
       ],
     );
   }
@@ -257,44 +289,148 @@ class _RevealClueButton extends StatelessWidget {
   }
 }
 
-// ── Guess input ───────────────────────────────────────────────────────────────
+// ── Heritage site search input (autocomplete) ─────────────────────────────────
 
-class _GuessInput extends StatelessWidget {
-  const _GuessInput({
-    required this.controller,
+/// Autocomplete guess input backed by the bundled UNESCO WHS dataset.
+///
+/// Suggestions open upward (above the keyboard). Selecting a site immediately
+/// submits it as a guess — the autocomplete selection IS the confirmation.
+class _HeritageSiteSearchInput extends StatefulWidget {
+  const _HeritageSiteSearchInput({
+    required this.sites,
     required this.shakeAnimation,
-    required this.onSubmit,
+    required this.onSelected,
   });
 
-  final TextEditingController controller;
+  final List<WorldHeritageSite> sites;
   final Animation<double> shakeAnimation;
-  final VoidCallback onSubmit;
+  final void Function(String siteName) onSelected;
+
+  @override
+  State<_HeritageSiteSearchInput> createState() =>
+      _HeritageSiteSearchInputState();
+}
+
+class _HeritageSiteSearchInputState extends State<_HeritageSiteSearchInput> {
+  Key _key = UniqueKey();
+
+  void _onSelected(WorldHeritageSite site) {
+    widget.onSelected(site.name);
+    setState(() => _key = UniqueKey());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: AnimatedBuilder(
-        animation: shakeAnimation,
+        animation: widget.shakeAnimation,
         builder: (context, child) {
-          final offset = math.sin(shakeAnimation.value * math.pi * 6) * 8;
-          return Transform.translate(
-            offset: Offset(offset, 0),
-            child: child,
-          );
+          final offset =
+              math.sin(widget.shakeAnimation.value * math.pi * 6) * 8;
+          return Transform.translate(offset: Offset(offset, 0), child: child);
         },
-        child: TextField(
-          controller: controller,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => onSubmit(),
-          decoration: InputDecoration(
-            hintText: 'Type the site name…',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: onSubmit,
+        child: Autocomplete<WorldHeritageSite>(
+          key: _key,
+          displayStringForOption: (s) => s.name,
+          optionsViewOpenDirection: OptionsViewOpenDirection.up,
+          optionsBuilder: (value) {
+            final q = normalizeForGuess(value.text);
+            if (q.length < 2) return const Iterable.empty();
+            return widget.sites
+                .where((s) => normalizeForGuess(s.name).contains(q))
+                .take(8);
+          },
+          onSelected: _onSelected,
+          fieldViewBuilder: (ctx, textCtrl, focusNode, onFieldSubmitted) {
+            return TextField(
+              controller: textCtrl,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search World Heritage Sites…',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                prefixIcon: const Icon(Icons.search_rounded),
+              ),
+            );
+          },
+          optionsViewBuilder: (ctx, onSelected, options) {
+            return Align(
+              alignment: Alignment.bottomLeft,
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(12),
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  itemBuilder: (_, i) {
+                    final site = options.elementAt(i);
+                    return ListTile(
+                      dense: true,
+                      leading: Text(
+                        _flag(site.countryCode),
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      title: Text(
+                        site.name,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => onSelected(site),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ── Hot/cold chip ─────────────────────────────────────────────────────────────
+
+class _HotColdChip extends StatelessWidget {
+  const _HotColdChip({super.key, required this.result});
+
+  final GuessResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = result.hotColdColor;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(result.hotColdEmoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '${result.hotColdLabel} — '
+                '${result.distanceKm.round()} km · '
+                'Travel ${result.direction}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -337,9 +473,13 @@ class _GuessHistory extends StatelessWidget {
 // ── Result overlay ────────────────────────────────────────────────────────────
 
 class _ChallengeResultOverlay extends ConsumerStatefulWidget {
-  const _ChallengeResultOverlay({required this.state});
+  const _ChallengeResultOverlay({
+    required this.state,
+    required this.solved,
+  });
 
   final DailyChallengeState state;
+  final bool solved;
 
   @override
   ConsumerState<_ChallengeResultOverlay> createState() =>
@@ -354,9 +494,17 @@ class _ChallengeResultOverlayState
   void initState() {
     super.initState();
     _confetti = ConfettiController(duration: const Duration(milliseconds: 800));
-    // Fire confetti on the next frame so the overlay is fully laid out first.
+    if (widget.solved) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _confetti.play();
+      });
+    }
+    // Fly globe to site as soon as overlay opens.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _confetti.play();
+      if (!mounted) return;
+      final site = widget.state.site;
+      ref.read(globeTargetProvider.notifier).state =
+          (site.latitude, site.longitude);
     });
   }
 
@@ -367,19 +515,23 @@ class _ChallengeResultOverlayState
   }
 
   void _goToSite() {
-    final site = widget.state.site;
     Navigator.of(context).pop();
-    ref.read(globeTargetProvider.notifier).state = (site.latitude, site.longitude);
+    // Globe target already set in initState; just close the screen.
   }
 
   void _share() {
     final p = widget.state.progress;
+    final site = widget.state.site;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
     final guessCount = p.guesses.length;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
+    final flag = _flag(site.countryCode);
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
+    final resultLine = widget.solved
+        ? 'Solved in $clueCount clue${clueCount == 1 ? '' : 's'}'
+        : 'Not solved';
     final text =
-        'Roavvy Daily — $date\n$clueCount clue${clueCount == 1 ? '' : 's'} · '
+        'Roavvy Daily — $date\n${site.name} $flag\n$resultLine · '
         '$guessCount wrong guess${guessCount == 1 ? '' : 'es'}\n$grid\nroavvy.app/daily';
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context)
@@ -407,117 +559,196 @@ class _ChallengeResultOverlayState
             child: Container(color: Colors.black54),
           ),
         ),
-        // Confetti
-        ConfettiWidget(
-          confettiController: _confetti,
-          blastDirectionality: BlastDirectionality.explosive,
-          numberOfParticles: 30,
-          maxBlastForce: 20,
-          minBlastForce: 8,
-          emissionFrequency: 0.05,
-          colors: const [
-            Colors.amber,
-            Colors.green,
-            Colors.blue,
-            Colors.pink,
-            Colors.purple,
-          ],
-        ),
-        // Content card
+        // Confetti (solved only)
+        if (widget.solved)
+          ConfettiWidget(
+            confettiController: _confetti,
+            blastDirectionality: BlastDirectionality.explosive,
+            numberOfParticles: 30,
+            maxBlastForce: 20,
+            minBlastForce: 8,
+            emissionFrequency: 0.05,
+            colors: const [
+              Colors.amber,
+              Colors.green,
+              Colors.blue,
+              Colors.pink,
+              Colors.purple,
+            ],
+          ),
+        // Content sheet
         Positioned.fill(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Site name
-                      Text(
-                        site.name,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.92,
+            builder: (ctx, scrollCtrl) => Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: ListView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      const SizedBox(height: 6),
-                      // Country
+                    ),
+                  ),
+                  // Solve / fail header
+                  Text(
+                    widget.solved ? '✅ Solved!' : '❌ Better luck tomorrow',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: widget.solved
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Site name
+                  Text(
+                    site.name,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  // Country
+                  Text(
+                    '$flag $country',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Metadata chips
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _MetaChip(label: site.inscriptionYear.toString()),
+                      _MetaChip(label: _capitalise(site.category)),
+                      _MetaChip(label: site.region),
+                      if (site.criteria.isNotEmpty)
+                        _MetaChip(
+                          label: site.criteria.map((c) => 'Criterion $c').join(' · '),
+                        ),
+                    ],
+                  ),
+                  if (site.shortDescription != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      site.shortDescription!,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  // Score summary
+                  if (widget.solved) ...[
+                    Text(
+                      'Solved in $clueCount clue${clueCount == 1 ? '' : 's'}',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    if (guessCount > 0)
                       Text(
-                        '$flag $country',
-                        style: theme.textTheme.bodyLarge?.copyWith(
+                        '$guessCount wrong guess${guessCount == 1 ? '' : 'es'}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      // Score
-                      Text(
-                        'Solved in $clueCount clue${clueCount == 1 ? '' : 's'}',
-                        style: theme.textTheme.bodyLarge
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      if (guessCount > 0)
-                        Text(
-                          '$guessCount wrong guess${guessCount == 1 ? '' : 'es'}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                  ],
+                  const SizedBox(height: 12),
+                  // Clue grid
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (i) {
+                      final revealed = i < clueCount;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: Icon(
+                          revealed
+                              ? Icons.square_rounded
+                              : Icons.square_outlined,
+                          size: 24,
+                          color: revealed
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
                         ),
-                      const SizedBox(height: 16),
-                      // Clue grid
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (i) {
-                          final revealed = i < clueCount;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 3),
-                            child: Icon(
-                              revealed
-                                  ? Icons.square_rounded
-                                  : Icons.square_outlined,
-                              size: 28,
-                              color: revealed
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.outline,
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 24),
-                      // Go to site
-                      FilledButton.icon(
-                        onPressed: _goToSite,
-                        icon: const Icon(Icons.public),
-                        label: const Text('Go to site'),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Share
-                      OutlinedButton.icon(
-                        onPressed: _share,
-                        icon: const Icon(Icons.copy),
-                        label: const Text('Share result'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ],
+                      );
+                    }),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  // Go to site
+                  FilledButton.icon(
+                    onPressed: _goToSite,
+                    icon: const Icon(Icons.public),
+                    label: const Text('Go to site on globe'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Share
+                  OutlinedButton.icon(
+                    onPressed: _share,
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Share result'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Small supporting widgets ──────────────────────────────────────────────────
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }
@@ -530,3 +761,6 @@ String _flag(String code) {
   return String.fromCharCode(base + code.codeUnitAt(0) - 65) +
       String.fromCharCode(base + code.codeUnitAt(1) - 65);
 }
+
+String _capitalise(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';

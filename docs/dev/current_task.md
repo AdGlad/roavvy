@@ -1,8 +1,8 @@
 # Current Task
 
-**Milestone:** M134 — Daily Heritage Challenge: UI & Integration
-**Status:** In Progress
+**Milestone:** M135 — Daily Challenge Enhancement: Hot/Cold, Educational Reveal & Stats
+**Status:** ✅ Complete (2026-05-28)
 
-**Current:** T1 — DailyChallengeNotifier + state model
+All tasks delivered. Deferred to M136: Cloud Function typed clues (T1), WHS enrichment script (T7).
 
-See: `docs/dev/milestones/m134-daily-challenge-ui.md`
+See: `docs/dev/milestones/m135-daily-challenge-enhancement.md`

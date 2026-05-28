@@ -4,14 +4,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/data/daily_challenge_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/features/challenge/daily_challenge_notifier.dart';
+import 'package:mobile_flutter/features/challenge/daily_challenge_stats.dart';
 import 'package:shared_models/shared_models.dart';
 
-DailyChallengeRepository _makeRepo() =>
-    DailyChallengeRepository(RoavvyDatabase(NativeDatabase.memory()));
+RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
+DailyChallengeRepository _makeRepo([RoavvyDatabase? db]) =>
+    DailyChallengeRepository(db ?? _makeDb());
+ChallengeStatsService _makeStats([RoavvyDatabase? db]) =>
+    ChallengeStatsService(db ?? _makeDb());
 
 const _challenge = DailyChallenge(
   siteId: '86',
-  clues: ['clue1', 'clue2', 'clue3', 'clue4', 'clue5'],
+  clues: [
+    ChallengeClue(type: 'geography', text: 'clue1'),
+    ChallengeClue(type: 'category', text: 'clue2'),
+    ChallengeClue(type: 'historical', text: 'clue3'),
+    ChallengeClue(type: 'location', text: 'clue4'),
+    ChallengeClue(type: 'direct', text: 'clue5'),
+  ],
 );
 
 const _site = WorldHeritageSite(
@@ -36,7 +46,9 @@ DailyChallengeProgress _freshProgress(String date) => DailyChallengeProgress(
 DailyChallengeNotifier _makeNotifier({
   DailyChallengeProgress? savedProgress,
   DailyChallengeRepository? repo,
+  List<WorldHeritageSite> allSites = const [],
 }) {
+  final db = _makeDb();
   final date = '2026-05-27';
   final progress = savedProgress ?? _freshProgress(date);
   final state = DailyChallengeState(
@@ -46,7 +58,9 @@ DailyChallengeNotifier _makeNotifier({
   );
   return DailyChallengeNotifier(
     initial: AsyncValue.data(state),
-    repo: repo ?? _makeRepo(),
+    repo: repo ?? _makeRepo(db),
+    allSites: [...allSites, _site],
+    statsService: _makeStats(db),
   );
 }
 
@@ -149,6 +163,52 @@ void main() {
       final notifier = _makeNotifier(savedProgress: progress);
       await notifier.submitGuess('petra');
       expect(notifier.state.valueOrNull?.progress.solvedAtClue, 3);
+    });
+
+    test('5th wrong guess sets failed=true', () async {
+      final notifier = _makeNotifier(
+        allSites: [
+          const WorldHeritageSite(
+            siteId: '999', name: 'Wrong Site', countryCode: 'FR',
+            latitude: 48.8566, longitude: 2.3522,
+            category: 'cultural', region: 'Europe', inscriptionYear: 2000,
+          ),
+        ],
+      );
+      for (var i = 0; i < 5; i++) {
+        await notifier.submitGuess('Wrong Site');
+      }
+      expect(notifier.state.valueOrNull?.progress.failed, isTrue);
+      expect(notifier.state.valueOrNull?.progress.guesses.length, 5);
+    });
+
+    test('no-op after failed', () async {
+      final progress = _freshProgress('2026-05-27').copyWith(
+        guesses: ['a', 'b', 'c', 'd', 'e'],
+        failed: true,
+      );
+      final notifier = _makeNotifier(savedProgress: progress);
+      final result = await notifier.submitGuess('petra');
+      expect(result, isFalse);
+      expect(notifier.state.valueOrNull?.progress.guesses.length, 5);
+    });
+
+    test('wrong guess populates lastGuessResult when guessed site known', () async {
+      final notifier = _makeNotifier(
+        allSites: [
+          const WorldHeritageSite(
+            siteId: '200', name: 'Some Other Site', countryCode: 'FR',
+            latitude: 48.8566, longitude: 2.3522,
+            category: 'cultural', region: 'Europe', inscriptionYear: 2000,
+          ),
+        ],
+      );
+      await notifier.submitGuess('Some Other Site');
+      final result = notifier.state.valueOrNull?.lastGuessResult;
+      expect(result, isNotNull);
+      expect(result!.distanceKm, greaterThan(0));
+      expect(result.direction, isNotEmpty);
+      expect(result.hotColdLabel, isNotEmpty);
     });
   });
 

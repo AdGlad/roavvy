@@ -294,6 +294,37 @@ class DailyChallengeProgressTable extends Table {
   /// Which clue index (1–5) was showing when the user solved. Null until solved.
   IntColumn get solvedAtClue => integer().nullable()();
 
+  /// 1 if the user exhausted all 5 guesses without solving, 0 otherwise.
+  IntColumn get failed => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {date};
+}
+
+/// Aggregate challenge stats per UTC date (M135).
+///
+/// One row per day the user played. Used to compute streaks and averages.
+/// Never synced to Firestore (ADR-002).
+@DataClassName('ChallengeStatsRow')
+class ChallengeStatsTable extends Table {
+  /// UTC date `YYYY-MM-DD`. Primary key.
+  TextColumn get date => text()();
+
+  /// Matches [WorldHeritageSite.siteId].
+  TextColumn get siteId => text()();
+
+  /// 1 if the user solved the challenge, 0 otherwise.
+  IntColumn get solved => integer().withDefault(const Constant(0))();
+
+  /// Number of wrong guesses used (0–5).
+  IntColumn get guessesUsed => integer().withDefault(const Constant(0))();
+
+  /// Number of clues revealed (1–5).
+  IntColumn get cluesUsed => integer().withDefault(const Constant(1))();
+
+  /// Seconds elapsed from game open to solve/fail. 0 if not tracked.
+  IntColumn get durationSecs => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {date};
 }
@@ -341,12 +372,13 @@ class VisitedHeritageSites extends Table {
   HeroImages,
   VisitedHeritageSites,
   DailyChallengeProgressTable,
+  ChallengeStatsTable,
 ])
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -400,6 +432,11 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 14) {
         await m.createTable(dailyChallengeProgressTable);
+      }
+      if (from < 15) {
+        await m.addColumn(
+            dailyChallengeProgressTable, dailyChallengeProgressTable.failed);
+        await m.createTable(challengeStatsTable);
       }
     },
   );
