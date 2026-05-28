@@ -27,7 +27,9 @@ class DailyChallengeService {
       final rawClues = data['clues'] as List<dynamic>;
       return DailyChallenge(
         siteId: data['siteId'] as String,
-        clues: rawClues.map(ChallengeClue.fromJson).toList(),
+        clues: rawClues
+            .map<ChallengeClue>((e) => ChallengeClue.fromJson(e as Object))
+            .toList(),
         difficulty: data['difficulty'] as String? ?? 'medium',
       );
     } on FirebaseException {

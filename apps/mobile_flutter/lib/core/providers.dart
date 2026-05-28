@@ -355,7 +355,12 @@ final dailyChallengeNotifierProvider = StateNotifierProvider.autoDispose<
   (ref) {
     final init = ref.watch(_dailyChallengeInitProvider);
     final repo = ref.watch(dailyChallengeRepositoryProvider);
-    final notifier = DailyChallengeNotifier(initial: init, repo: repo);
+    final allSites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
+    final notifier = DailyChallengeNotifier(
+      initial: init,
+      repo: repo,
+      allSites: allSites,
+    );
     ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
     return notifier;
   },
