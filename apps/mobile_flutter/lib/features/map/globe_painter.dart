@@ -161,11 +161,11 @@ class GlobePainter extends CustomPainter {
         if (heritagePulseValue > 0.0) {
           canvas.drawCircle(
             pt,
-            r * 0.04 * (1.0 + heritagePulseValue * 0.6),
+            r * 0.008 * (1.0 + heritagePulseValue * 0.6),
             Paint()..color = glowColor.withValues(alpha: heritagePulseValue * 0.30),
           );
         }
-        canvas.drawCircle(pt, r * 0.018,
+        canvas.drawCircle(pt, r * 0.0036,
             Paint()..color = dotColor.withValues(alpha: 0.90));
       }
     }
@@ -177,7 +177,7 @@ class GlobePainter extends CustomPainter {
         if (pt == null) continue;
         canvas.drawCircle(
           pt,
-          r * 0.010,
+          r * 0.002,
           Paint()..color = Colors.amber[200]!.withValues(alpha: 0.40),
         );
       }
