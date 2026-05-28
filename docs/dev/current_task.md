@@ -1,8 +1,8 @@
 # Current Task
 
-**Milestone:** M134 — Daily Heritage Challenge: UI & Integration
+**Milestone:** M135 — Daily Challenge Enhancement: Hot/Cold, Educational Reveal & Stats
 **Status:** In Progress
 
-**Current:** T1 — DailyChallengeNotifier + state model
+**Current:** T2 — Extend `shared_models`: `ChallengeClue`, nullable `WorldHeritageSite` fields, `DailyChallengeProgress.failed`
 
-See: `docs/dev/milestones/m134-daily-challenge-ui.md`
+See: `docs/dev/milestones/m135-daily-challenge-enhancement.md`

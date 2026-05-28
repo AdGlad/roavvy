@@ -24,9 +24,11 @@ class DailyChallengeService {
         throw const DailyChallengeUnavailable();
       }
       final data = doc.data()!;
+      final rawClues = data['clues'] as List<dynamic>;
       return DailyChallenge(
         siteId: data['siteId'] as String,
-        clues: List<String>.from(data['clues'] as List),
+        clues: rawClues.map(ChallengeClue.fromJson).toList(),
+        difficulty: data['difficulty'] as String? ?? 'medium',
       );
     } on FirebaseException {
       throw const DailyChallengeUnavailable();

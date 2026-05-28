@@ -15,6 +15,10 @@ class WorldHeritageSite {
     required this.category,
     required this.region,
     required this.inscriptionYear,
+    this.shortDescription,
+    this.criteria = const [],
+    this.imageUrl,
+    this.difficulty,
   });
 
   /// UNESCO `id_no` as a string — stable identifier across dataset updates.
@@ -38,6 +42,20 @@ class WorldHeritageSite {
 
   final int inscriptionYear;
 
+  /// Short English description (populated by enrichment script; null for
+  /// sites not yet enriched).
+  final String? shortDescription;
+
+  /// UNESCO inscription criteria codes, e.g. `['i', 'iii', 'vi']`.
+  final List<String> criteria;
+
+  /// URL to a representative image (Wikimedia Commons).
+  /// Null for sites not yet enriched.
+  final String? imageUrl;
+
+  /// Difficulty tier for the daily challenge: `'easy'`, `'medium'`, `'hard'`.
+  final String? difficulty;
+
   factory WorldHeritageSite.fromJson(Map<String, dynamic> json) {
     return WorldHeritageSite(
       siteId: json['siteId'] as String,
@@ -48,6 +66,13 @@ class WorldHeritageSite {
       category: json['category'] as String,
       region: json['region'] as String,
       inscriptionYear: (json['inscriptionYear'] as num).toInt(),
+      shortDescription: json['shortDescription'] as String?,
+      criteria: (json['criteria'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      imageUrl: json['imageUrl'] as String?,
+      difficulty: json['difficulty'] as String?,
     );
   }
 

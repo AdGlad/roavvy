@@ -39,6 +39,7 @@ class DailyChallengeRepository {
             solvedAtClue: progress.solvedAtClue == null
                 ? const Value.absent()
                 : Value(progress.solvedAtClue!),
+            failed: Value(progress.failed ? 1 : 0),
           ),
         );
   }
@@ -55,6 +56,7 @@ class DailyChallengeRepository {
       guesses: guesses,
       solved: row.solved == 1,
       solvedAtClue: row.solvedAtClue,
+      failed: row.failed == 1,
     );
   }
 }
