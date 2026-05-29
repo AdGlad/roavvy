@@ -67,6 +67,15 @@ class ChallengeStatsService {
         );
   }
 
+  // ── Dev helpers ───────────────────────────────────────────────────────────
+
+  /// Deletes the stats row for [date]. Used only in debug builds for testing.
+  Future<void> deleteForDate(String date) async {
+    await (_db.delete(_db.challengeStatsTable)
+          ..where((t) => t.date.equals(date)))
+        .go();
+  }
+
   // ── Reads ─────────────────────────────────────────────────────────────────
 
   /// Computes aggregate statistics from all stored rows.

@@ -27,6 +27,13 @@ class DailyChallengeRepository {
 
   // ── Writes ────────────────────────────────────────────────────────────────
 
+  /// Deletes the progress row for [date], if any. Used for dev testing.
+  Future<void> deleteProgress(String date) async {
+    await (_db.delete(_db.dailyChallengeProgressTable)
+          ..where((t) => t.date.equals(date)))
+        .go();
+  }
+
   /// Inserts or replaces a progress row for [progress.date].
   Future<void> save(DailyChallengeProgress progress) async {
     await _db.into(_db.dailyChallengeProgressTable).insertOnConflictUpdate(

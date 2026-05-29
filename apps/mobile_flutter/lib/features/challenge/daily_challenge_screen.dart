@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:confetti/confetti.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +46,14 @@ class DailyChallengeScreen extends ConsumerWidget {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report_outlined),
+              tooltip: 'DEV: reset progress',
+              onPressed: () => _showDevResetDialog(context, ref),
+            ),
+        ],
       ),
       body: stateAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -52,6 +61,40 @@ class DailyChallengeScreen extends ConsumerWidget {
         data: (state) => _ChallengeBody(state: state),
       ),
     );
+  }
+
+  /// DEV ONLY: dialog to clear local progress so the challenge can be replayed.
+  Future<void> _showDevResetDialog(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('DEV: Reset challenge'),
+        content: const Text(
+          'Clears local progress and stats for today so you can replay.\n\n'
+          'Use the CLI script to load a different site:\n'
+          'node scripts/dev-challenge.js --offset 1',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
+    final repo = ref.read(dailyChallengeRepositoryProvider);
+    await repo.deleteProgress(today);
+    // Also clear the stats row so streak isn't affected by dev resets.
+    await ref.read(challengeStatsServiceProvider).deleteForDate(today);
+    ref.invalidate(dailyChallengeProgressProvider);
+    ref.invalidate(dailyChallengeNotifierProvider);
   }
 }
 
