@@ -3,7 +3,7 @@ import * as path from 'path';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall } from 'firebase-functions/v2/https';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -190,11 +190,11 @@ const GEMINI_MODEL = 'gemini-2.0-flash';
  */
 export async function buildCluesWithAI(
   site: WhsSite,
-  projectId: string,
+  _projectId: string,
 ): Promise<ChallengeClue[]> {
   try {
-    const vertexai = new VertexAI({ project: projectId, location: 'us-central1' });
-    const model = vertexai.getGenerativeModel({ model: GEMINI_MODEL });
+    const apiKey = process.env.GEMINI_API_KEY ?? '';
+    const ai = new GoogleGenAI({ apiKey });
 
     const flag = toFlagEmoji(site.countryCode);
     const country = countryName(site.countryCode);
@@ -234,8 +234,11 @@ Return ONLY a valid JSON array, no markdown, no explanation:
   {"type": "direct", "text": "..."}
 ]`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+    });
+    const text = response.text ?? '';
 
     // Strip markdown code fences if present.
     const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
@@ -302,7 +305,7 @@ async function writeDailyChallenge(date: string): Promise<{ siteId: string; alre
  * Firestore. Idempotent — skips if the document already exists.
  */
 export const scheduleDailyChallenge = onSchedule(
-  { schedule: 'every day 00:00', timeZone: 'UTC' },
+  { schedule: 'every day 00:00', timeZone: 'UTC', secrets: ['GEMINI_API_KEY'] },
   async (_event) => {
     const date = todayUtc();
     const result = await writeDailyChallenge(date);
@@ -319,7 +322,7 @@ export const scheduleDailyChallenge = onSchedule(
  * Accepts an optional `date` string (YYYY-MM-DD); defaults to today UTC.
  * Returns the siteId and clues written (or already existing).
  */
-export const getDailyChallenge = onCall(async (request) => {
+export const getDailyChallenge = onCall({ secrets: ['GEMINI_API_KEY'] }, async (request) => {
   const date: string =
     typeof request.data?.date === 'string' && request.data.date.match(/^\d{4}-\d{2}-\d{2}$/)
       ? request.data.date

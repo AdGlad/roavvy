@@ -2,32 +2,31 @@
 /**
  * dev-challenge.js — DEV ONLY
  *
- * Deletes today's daily_challenge Firestore doc and regenerates it using a
- * different site (picked by offset), so you can test the challenge UI against
- * multiple UNESCO sites without waiting for the scheduler.
+ * Deletes a daily_challenge Firestore doc and regenerates it with AI clues
+ * (Gemini via Vertex AI — same path as the Cloud Function) for a different
+ * site, so you can test the challenge UI without waiting for the scheduler.
  *
  * Usage:
  *   node scripts/dev-challenge.js [--offset N] [--project PROJECT_ID] [--date YYYY-MM-DD]
  *
  * Options:
  *   --offset N          Shift the site index by N (default: 1, range: any integer)
- *   --project ID        Firebase project ID (default: roavvy-dev)
+ *   --project ID        Firebase project ID (default: roavvy-prod)
  *   --date YYYY-MM-DD   Target date to reset (default: today UTC)
  *
  * Examples:
  *   node scripts/dev-challenge.js                   # next site from today's index
  *   node scripts/dev-challenge.js --offset 42       # site 42 slots ahead
  *   node scripts/dev-challenge.js --offset -1       # previous site
- *   node scripts/dev-challenge.js --project roavvy-prod --offset 5
+ *   node scripts/dev-challenge.js --date 2026-05-30 --offset 0
  *
  * Prerequisites:
  *   gcloud auth application-default login
- *   (or set GOOGLE_APPLICATION_CREDENTIALS to a service account key)
  */
 
 'use strict';
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 
 // ── Parse args ────────────────────────────────────────────────────────────────
@@ -39,41 +38,35 @@ function getArg(flag, defaultValue) {
   return args[i + 1];
 }
 
-const offset = parseInt(getArg('--offset', '1'), 10);
-const projectId = getArg('--project', 'roavvy-prod');
+const offset     = parseInt(getArg('--offset', '1'), 10);
+const projectId  = getArg('--project', 'roavvy-prod');
 const targetDate = getArg('--date', new Date().toISOString().slice(0, 10));
 
-// ── Load sites ────────────────────────────────────────────────────────────────
+// ── Load + deduplicate sites ──────────────────────────────────────────────────
 
 const sitesPath = path.join(__dirname, '..', 'apps', 'functions', 'src', 'assets', 'whs_sites.json');
-const allSites = JSON.parse(fs.readFileSync(sitesPath, 'utf-8'));
+const allSites  = JSON.parse(fs.readFileSync(sitesPath, 'utf-8'));
 
-// Deduplicate + stable sort (mirrors loadUniqueSites() in dailyChallenge.ts).
-const seen = new Set();
+const seen   = new Set();
 const unique = [];
-for (const site of allSites) {
-  if (!seen.has(site.siteId)) {
-    seen.add(site.siteId);
-    unique.push(site);
-  }
+for (const s of allSites) {
+  if (!seen.has(s.siteId)) { seen.add(s.siteId); unique.push(s); }
 }
 unique.sort((a, b) => a.siteId.localeCompare(b.siteId));
 
 // ── Pick site ─────────────────────────────────────────────────────────────────
 
-const epochDay = Math.floor(Date.parse(targetDate + 'T00:00:00Z') / 86_400_000);
+const epochDay  = Math.floor(Date.parse(targetDate + 'T00:00:00Z') / 86_400_000);
 const baseIndex = epochDay % unique.length;
-const newIndex = ((baseIndex + offset) % unique.length + unique.length) % unique.length;
-const site = unique[newIndex];
+const newIndex  = ((baseIndex + offset) % unique.length + unique.length) % unique.length;
+const site      = unique[newIndex];
 
-// ── Build template clues (mirrors buildClues() in dailyChallenge.ts) ──────────
+// ── Helpers (mirrors dailyChallenge.ts) ───────────────────────────────────────
 
 function toFlagEmoji(code) {
   const c = code.toUpperCase();
-  return (
-    String.fromCodePoint(0x1f1e6 + (c.charCodeAt(0) - 65)) +
-    String.fromCodePoint(0x1f1e6 + (c.charCodeAt(1) - 65))
-  );
+  return String.fromCodePoint(0x1f1e6 + (c.charCodeAt(0) - 65)) +
+         String.fromCodePoint(0x1f1e6 + (c.charCodeAt(1) - 65));
 }
 
 const COUNTRY_NAMES = {
@@ -102,12 +95,12 @@ const COUNTRY_NAMES = {
   VN:'Vietnam',YE:'Yemen',ZM:'Zambia',ZW:'Zimbabwe',
 };
 
-function buildClues(s) {
+function buildCluesFallback(s) {
   const catLabel = s.category === 'cultural' ? 'Cultural'
     : s.category === 'natural' ? 'Natural' : 'Mixed Cultural and Natural';
-  const hemi = s.latitude >= 0 ? 'Northern Hemisphere' : 'Southern Hemisphere';
-  const flag = toFlagEmoji(s.countryCode);
-  const country = COUNTRY_NAMES[s.countryCode] ?? s.countryCode;
+  const hemi     = s.latitude >= 0 ? 'Northern Hemisphere' : 'Southern Hemisphere';
+  const flag     = toFlagEmoji(s.countryCode);
+  const country  = COUNTRY_NAMES[s.countryCode] ?? s.countryCode;
   const firstWord = s.name.split(/[\s,()–-]/)[0];
 
   let clue3Type, clue3Text;
@@ -137,15 +130,78 @@ function buildClues(s) {
   ];
 }
 
-// ── Write to Firestore ────────────────────────────────────────────────────────
+// ── AI clue generation (mirrors buildCluesWithAI in dailyChallenge.ts) ────────
+
+async function buildCluesWithAI(s) {
+  const { GoogleGenAI } = require(
+    path.join(__dirname, '..', 'apps', 'functions', 'node_modules', '@google', 'genai')
+  );
+
+  // Prefer Google AI Studio API key (env) over Vertex AI — avoids project-level
+  // model access configuration. Falls back to Vertex AI if no key is set.
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  const ai = apiKey
+    ? new GoogleGenAI({ apiKey })
+    : new GoogleGenAI({ vertexai: true, project: projectId, location: 'us-central1' });
+
+  const flag       = toFlagEmoji(s.countryCode);
+  const country    = COUNTRY_NAMES[s.countryCode] ?? s.countryCode;
+  const firstWord  = s.name.split(/[\s,()–-]/)[0];
+  const descLine   = s.shortDescription ? `Description: ${s.shortDescription}` : '';
+
+  const prompt = `You are writing clues for a daily geography guessing game called Roavvy, similar to Wordle but for UNESCO World Heritage Sites. Players guess a UNESCO site based on 5 progressive clues, revealed one at a time. Clues go from most abstract to most specific.
+
+UNESCO Site details (DO NOT reveal the site name or country in clues 1-3):
+- Name: ${s.name}
+- Country: ${country}
+- Category: ${s.category}
+- UNESCO inscription year: ${s.inscriptionYear}
+- Region: ${s.region}
+${descLine}
+
+Write exactly 5 clues following these rules strictly:
+
+Clue 1 (type: "atmosphere") — Evoke the PHYSICAL FEELING or appearance of the place. What does it look, feel, or smell like? Is it carved into rock? On a mountaintop? In a jungle? A coastal fortress? An underground cave system? Do NOT mention the country, continent, civilisation name, or any proper nouns. Make it atmospheric and intriguing.
+
+Clue 2 (type: "pop_culture") — A pop culture reference IF one genuinely exists: a famous movie filmed here, a well-known novel set here, a music video, a video game location, or a famous photograph. If no reliable pop culture reference exists, give one striking physical fact instead (height, age, scale, record). Do NOT reveal the country or site name.
+
+Clue 3 (type: "historical") — Who built it, which civilisation, empire, or culture created it, and why. Include the time period. Do NOT name the country.
+
+Clue 4 (type: "geography") — Name the continent and geographic sub-region (e.g. "West Africa", "the Andes", "South-East Asia", "the Arabian Peninsula"). You may describe the terrain (desert, rainforest, island, etc). Still do NOT name the country.
+
+Clue 5 (type: "direct") — Reveal: ${flag} ${country}. Also give the first letter/word of the site name: the site name starts with "${firstWord}".
+
+Return ONLY a valid JSON array, no markdown, no explanation:
+[
+  {"type": "atmosphere", "text": "..."},
+  {"type": "pop_culture", "text": "..."},
+  {"type": "historical", "text": "..."},
+  {"type": "geography", "text": "..."},
+  {"type": "direct", "text": "..."}
+]`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.0-flash',
+    contents: prompt,
+  });
+  const text    = response.text ?? '';
+  const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
+  const parsed  = JSON.parse(cleaned);
+
+  if (!Array.isArray(parsed) || parsed.length !== 5) {
+    throw new Error(`Unexpected clue array length: ${parsed.length}`);
+  }
+  return parsed;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const admin = require(path.join(__dirname, '..', 'apps', 'functions', 'node_modules', 'firebase-admin'));
-
+  const admin = require(
+    path.join(__dirname, '..', 'apps', 'functions', 'node_modules', 'firebase-admin')
+  );
   admin.initializeApp({ projectId });
   const db = admin.firestore();
-
-  const ref = db.collection('daily_challenge').doc(targetDate);
 
   console.log(`Project : ${projectId}`);
   console.log(`Date    : ${targetDate}`);
@@ -154,12 +210,22 @@ async function main() {
   console.log('');
 
   // Delete existing doc.
-  await ref.delete();
-  console.log(`Deleted existing doc for ${targetDate}`);
+  await db.collection('daily_challenge').doc(targetDate).delete();
+  console.log(`Deleted doc for ${targetDate}`);
 
-  // Write new challenge.
-  const clues = buildClues(site);
-  await ref.set({
+  // Generate AI clues, fall back to templates on error.
+  let clues;
+  try {
+    console.log('Generating AI clues via Gemini...');
+    clues = await buildCluesWithAI(site);
+    console.log('AI clues generated.');
+  } catch (err) {
+    console.warn(`AI generation failed (${err.message}) — using template clues.`);
+    clues = buildCluesFallback(site);
+  }
+
+  // Write to Firestore.
+  await db.collection('daily_challenge').doc(targetDate).set({
     siteId: site.siteId,
     clues,
     generatedAt: admin.firestore.Timestamp.now(),
@@ -171,7 +237,7 @@ async function main() {
   console.log('Clues:');
   clues.forEach((c, i) => console.log(`  ${i + 1}. [${c.type}] ${c.text}`));
   console.log('');
-  console.log('Pull-to-refresh the app or reopen the challenge screen to load the new site.');
+  console.log('Reopen the challenge screen (or pull-to-refresh) to load the new site.');
 
   process.exit(0);
 }

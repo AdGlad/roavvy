@@ -41,7 +41,7 @@ const path = __importStar(require("path"));
 const firestore_1 = require("firebase-admin/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
-const vertexai_1 = require("@google-cloud/vertexai");
+const genai_1 = require("@google/genai");
 // ── Dataset ───────────────────────────────────────────────────────────────────
 /**
  * Loads the bundled whs_sites.json and deduplicates by siteId (transboundary
@@ -182,10 +182,10 @@ const GEMINI_MODEL = 'gemini-2.0-flash';
  *
  * Falls back to [buildClues] if the API call fails or returns malformed JSON.
  */
-async function buildCluesWithAI(site, projectId) {
+async function buildCluesWithAI(site, _projectId) {
     try {
-        const vertexai = new vertexai_1.VertexAI({ project: projectId, location: 'us-central1' });
-        const model = vertexai.getGenerativeModel({ model: GEMINI_MODEL });
+        const apiKey = process.env.GEMINI_API_KEY ?? '';
+        const ai = new genai_1.GoogleGenAI({ apiKey });
         const flag = toFlagEmoji(site.countryCode);
         const country = countryName(site.countryCode);
         const firstWord = site.name.split(/[\s,()–-]/)[0];
@@ -222,8 +222,11 @@ Return ONLY a valid JSON array, no markdown, no explanation:
   {"type": "geography", "text": "..."},
   {"type": "direct", "text": "..."}
 ]`;
-        const result = await model.generateContent(prompt);
-        const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        const response = await ai.models.generateContent({
+            model: GEMINI_MODEL,
+            contents: prompt,
+        });
+        const text = response.text ?? '';
         // Strip markdown code fences if present.
         const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -276,7 +279,7 @@ async function writeDailyChallenge(date) {
  * Runs every day at 00:00 UTC and writes the daily challenge document to
  * Firestore. Idempotent — skips if the document already exists.
  */
-exports.scheduleDailyChallenge = (0, scheduler_1.onSchedule)({ schedule: 'every day 00:00', timeZone: 'UTC' }, async (_event) => {
+exports.scheduleDailyChallenge = (0, scheduler_1.onSchedule)({ schedule: 'every day 00:00', timeZone: 'UTC', secrets: ['GEMINI_API_KEY'] }, async (_event) => {
     const date = todayUtc();
     const result = await writeDailyChallenge(date);
     if (result.alreadyExisted) {
@@ -291,7 +294,7 @@ exports.scheduleDailyChallenge = (0, scheduler_1.onSchedule)({ schedule: 'every 
  * Accepts an optional `date` string (YYYY-MM-DD); defaults to today UTC.
  * Returns the siteId and clues written (or already existing).
  */
-exports.getDailyChallenge = (0, https_1.onCall)(async (request) => {
+exports.getDailyChallenge = (0, https_1.onCall)({ secrets: ['GEMINI_API_KEY'] }, async (request) => {
     const date = typeof request.data?.date === 'string' && request.data.date.match(/^\d{4}-\d{2}-\d{2}$/)
         ? request.data.date
         : todayUtc();
