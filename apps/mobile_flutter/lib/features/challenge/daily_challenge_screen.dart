@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
@@ -631,21 +631,11 @@ class _ChallengeResultOverlayState
 
   void _share() {
     final p = widget.state.progress;
-    final site = widget.state.site;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
-    final guessCount = p.guesses.length;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
-    final flag = _flag(site.countryCode);
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
-    final resultLine = widget.solved
-        ? 'Solved in $clueCount clue${clueCount == 1 ? '' : 's'}'
-        : 'Not solved';
-    final text =
-        'Roavvy Daily — $date\n${site.name} $flag\n$resultLine · '
-        '$guessCount wrong guess${guessCount == 1 ? '' : 'es'}\n$grid\nroavvy.app/daily';
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Copied to clipboard!')));
+    final text = 'Roavvy Daily — $date\n$grid\nroavvy.app/daily';
+    Share.share(text);
   }
 
   @override
@@ -699,9 +689,9 @@ class _ChallengeResultOverlayState
         // Content sheet
         Positioned.fill(
           child: DraggableScrollableSheet(
-            initialChildSize: 0.6,
-            minChildSize: 0.4,
-            maxChildSize: 0.92,
+            initialChildSize: 0.82,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
             builder: (ctx, scrollCtrl) => Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
@@ -710,26 +700,25 @@ class _ChallengeResultOverlayState
               ),
               child: ListView(
                 controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                 children: [
+                  // Drag handle — always shown at top so scrollability is clear.
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                   // ── Hero image ────────────────────────────────────────────
                   if (site.imageUrl != null && site.imageUrl!.isNotEmpty) ...[
                     _RevealHeroImage(imageUrl: site.imageUrl!),
                     const SizedBox(height: 16),
                   ],
-                  // Drag handle (shown only when no image)
-                  if (site.imageUrl == null || site.imageUrl!.isEmpty)
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
                   // Solve / fail header
                   Text(
                     widget.solved ? '✅ Solved!' : '❌ Better luck tomorrow',
