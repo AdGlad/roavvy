@@ -42,6 +42,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final tripCountAsync = ref.watch(tripCountProvider);
     final continentCountAsync = ref.watch(continentCountProvider);
     final thisYearCountAsync = ref.watch(thisYearCountryCountProvider);
+    final heritageCount =
+        ref.watch(visitedHeritageProvider).valueOrNull?.length ?? 0;
 
     final countryCount = visitsAsync.valueOrNull?.length ?? 0;
     final regionCount = regionCountAsync.valueOrNull ?? 0;
@@ -117,6 +119,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                   continentCount: continentCount,
                   tripCount: tripCount,
                   thisYearCount: thisYearCount,
+                  heritageCount: heritageCount,
                 ),
               ),
             ),
@@ -308,6 +311,8 @@ class _AchievementsScreenBodyState
     final tripCount = ref.watch(tripCountProvider).valueOrNull ?? 0;
     final thisYearCount = ref.watch(thisYearCountryCountProvider).valueOrNull ?? 0;
     final countryCount = ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
+    final heritageCount =
+        ref.watch(visitedHeritageProvider).valueOrNull?.length ?? 0;
 
     return Scaffold(
       body: FutureBuilder<List<UnlockedAchievementRow>>(
@@ -331,6 +336,7 @@ class _AchievementsScreenBodyState
                   continentCount: continentCount,
                   tripCount: tripCount,
                   thisYearCount: thisYearCount,
+                  heritageCount: heritageCount,
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),

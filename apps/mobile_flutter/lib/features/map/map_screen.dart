@@ -336,6 +336,13 @@ class MapScreen extends ConsumerWidget {
               child: RovyBubble(),
             ),
           ),
+          // Globe rotation pause/play button — only in globe mode.
+          if (globeMode)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 8,
+              child: _GlobeRotationToggle(),
+            ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 8,
@@ -1084,6 +1091,34 @@ class _ActionBtn extends StatelessWidget {
 }
 
 // ── Daily Challenge chip ───────────────────────────────────────────────────────
+
+// ── Globe rotation toggle ─────────────────────────────────────────────────────
+
+/// Small pause / play button in the top-left corner of the globe.
+/// Pausing stops auto-spin so the user can inspect heritage site dots and
+/// tap any site to view its details.
+class _GlobeRotationToggle extends ConsumerWidget {
+  const _GlobeRotationToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paused = ref.watch(globeRotationPausedProvider);
+    return Material(
+      color: Colors.black45,
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: Icon(paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+        color: Colors.white,
+        iconSize: 22,
+        tooltip: paused ? 'Resume rotation' : 'Pause rotation',
+        onPressed: () =>
+            ref.read(globeRotationPausedProvider.notifier).state = !paused,
+      ),
+    );
+  }
+}
+
+// ── Daily challenge chip ──────────────────────────────────────────────────────
 
 /// Pill-shaped chip shown below the action bar. Tapping opens [DailyChallengeScreen].
 /// Long-pressing opens [ChallengeStatsScreen].

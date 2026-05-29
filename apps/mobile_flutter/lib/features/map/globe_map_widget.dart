@@ -69,10 +69,13 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   // Heritage dots pulse (M129)
   late final AnimationController _heritagePulseCtrl;
 
+  bool _rotationPaused = false;
+
   List<(double, double)> _culturalCoords = const [];
   List<(double, double)> _naturalCoords = const [];
   List<(double, double)> _unvisitedCoords = const [];
   List<VisitedHeritageSite> _visitedSites = const [];
+  List<WorldHeritageSite> _allUnvisitedSites = const [];
 
   @override
   void initState() {
@@ -136,7 +139,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     double targetLngV = _velocity.dx;
     double targetLatV = _velocity.dy;
 
-    if (_velocity.distance < blendThreshold) {
+    if (!_rotationPaused && _velocity.distance < blendThreshold) {
       // Smoothly interpolate towards idle spin (horizontal only).
       // vertical velocity should trend to zero.
       targetLngV = ui.lerpDouble(targetLngV, idleRadSec, 0.1)!;
@@ -280,10 +283,16 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
   void _onTapUp(TapUpDetails d) {
     if (_canvasSize == Size.zero) return;
-    // Heritage site tap takes priority over country tap.
-    final heritageSite = _findNearestVisitedSite(d.localPosition);
-    if (heritageSite != null) {
-      showHeritageDetailSheet(context, heritageSite);
+    // Visited heritage site tap — has full visit data.
+    final visitedSite = _findNearestVisitedSite(d.localPosition);
+    if (visitedSite != null) {
+      showHeritageDetailSheet(context, visitedSite);
+      return;
+    }
+    // Unvisited heritage site tap — show info without visit stats.
+    final unvisitedSite = _findNearestUnvisitedSite(d.localPosition);
+    if (unvisitedSite != null) {
+      showHeritageDetailSheetForSite(context, unvisitedSite);
       return;
     }
     final hit = _projection.inverseProject(d.localPosition, _canvasSize);
@@ -305,12 +314,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     final visitedIds = {for (final s in visited) s.siteId};
     final natural = <(double, double)>[];
     final unvisited = <(double, double)>[];
+    final unvisitedSites = <WorldHeritageSite>[];
     for (final site in WorldHeritageLookupService.allSites) {
       if (visitedIds.contains(site.siteId)) {
         // All visited sites glow green regardless of category.
         natural.add((site.latitude, site.longitude));
       } else {
         unvisited.add((site.latitude, site.longitude));
+        unvisitedSites.add(site);
       }
     }
     setState(() {
@@ -318,6 +329,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       _naturalCoords = natural;
       _unvisitedCoords = unvisited;
       _visitedSites = visited;
+      _allUnvisitedSites = unvisitedSites;
     });
   }
 
@@ -328,6 +340,23 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     VisitedHeritageSite? nearest;
     double nearestDist = kHitRadius;
     for (final site in _visitedSites) {
+      final pt = _projection.project(site.latitude, site.longitude, _canvasSize);
+      if (pt == null) continue;
+      final dist = (tapPos - pt).distance;
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = site;
+      }
+    }
+    return nearest;
+  }
+
+  /// Returns the nearest unvisited heritage site within hit radius of [tapPos].
+  WorldHeritageSite? _findNearestUnvisitedSite(Offset tapPos) {
+    const kHitRadius = 24.0;
+    WorldHeritageSite? nearest;
+    double nearestDist = kHitRadius;
+    for (final site in _allUnvisitedSites) {
       final pt = _projection.project(site.latitude, site.longitude, _canvasSize);
       if (pt == null) continue;
       final dist = (tapPos - pt).distance;
@@ -357,6 +386,12 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider,
         (_, next) {
       _rebuildHeritageLists(true, next.valueOrNull ?? const []);
+    });
+
+    ref.listen<bool>(globeRotationPausedProvider, (_, paused) {
+      setState(() => _rotationPaused = paused);
+      // Kill momentum immediately when pausing so the globe stops cleanly.
+      if (paused) _velocity = Offset.zero;
     });
 
     ref.listen<(double, double)?>(globeTargetProvider, (_, target) {

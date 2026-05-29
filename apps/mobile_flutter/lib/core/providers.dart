@@ -192,6 +192,10 @@ final yearFilterProvider = StateProvider<int?>((ref) => null);
 /// Whether the globe map is active. true = globe (default). (ADR-116)
 final globeModeProvider = StateProvider<bool>((ref) => true);
 
+/// When true the globe idles without auto-spinning so the user can inspect
+/// heritage sites. Manual drag and snap animations still work normally.
+final globeRotationPausedProvider = StateProvider<bool>((ref) => false);
+
 /// Whether heritage site dots are shown on the main map globe (M129).
 final heritageDotsEnabledProvider = StateProvider<bool>((ref) => true);
 

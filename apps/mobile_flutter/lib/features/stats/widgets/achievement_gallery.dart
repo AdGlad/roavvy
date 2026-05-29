@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/roavvy_colours.dart';
+import '../../challenge/daily_challenge_stats.dart';
 import '../../merch/achievement_merch_option_screen.dart';
 
 /// Tabbed achievement gallery for the Stats screen (M97, ADR-148).
 ///
-/// Tabs: Countries | Continents | Trips | All.
+/// Tabs: Countries | Continents | Trips | UNESCO | All.
 /// Unlocked rows: gold accent, trophy icon, unlock date, optional merch CTA.
 /// Locked rows: dimmed, lock icon, LinearProgressIndicator.
-class AchievementGallery extends StatelessWidget {
+class AchievementGallery extends ConsumerWidget {
   const AchievementGallery({
     super.key,
     required this.unlockedById,
@@ -17,6 +20,7 @@ class AchievementGallery extends StatelessWidget {
     required this.continentCount,
     required this.tripCount,
     required this.thisYearCount,
+    required this.heritageCount,
   });
 
   final Map<String, DateTime> unlockedById;
@@ -24,22 +28,26 @@ class AchievementGallery extends StatelessWidget {
   final int continentCount;
   final int tripCount;
   final int thisYearCount;
+  final int heritageCount;
 
   int _currentProgress(Achievement a) => switch (a.category) {
         AchievementCategory.countries => countryCount,
         AchievementCategory.continents => continentCount,
         AchievementCategory.trips => tripCount,
         AchievementCategory.thisYear => thisYearCount,
-        AchievementCategory.heritageSites => 0, // M119: wired up in future polish
+        AchievementCategory.heritageSites => heritageCount,
       };
 
   List<Achievement> _forCategory(AchievementCategory cat) =>
       kAchievements.where((a) => a.category == cat).toList();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final challengeAggregate =
+        ref.watch(challengeAggregateProvider).valueOrNull;
+
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -59,11 +67,12 @@ class AchievementGallery extends StatelessWidget {
               Tab(text: 'Countries'),
               Tab(text: 'Continents'),
               Tab(text: 'Trips'),
+              Tab(text: 'UNESCO'),
               Tab(text: 'All'),
             ],
           ),
           SizedBox(
-            height: 320,
+            height: 380,
             child: TabBarView(
               children: [
                 _AchievementList(
@@ -81,6 +90,12 @@ class AchievementGallery extends StatelessWidget {
                   unlockedById: unlockedById,
                   currentProgress: _currentProgress,
                 ),
+                _UnescoTab(
+                  heritageCount: heritageCount,
+                  unlockedById: unlockedById,
+                  currentProgress: _currentProgress,
+                  challengeAggregate: challengeAggregate,
+                ),
                 _AchievementList(
                   achievements: kAchievements,
                   unlockedById: unlockedById,
@@ -91,6 +106,152 @@ class AchievementGallery extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── UNESCO tab ────────────────────────────────────────────────────────────────
+
+class _UnescoTab extends StatelessWidget {
+  const _UnescoTab({
+    required this.heritageCount,
+    required this.unlockedById,
+    required this.currentProgress,
+    required this.challengeAggregate,
+  });
+
+  final int heritageCount;
+  final Map<String, DateTime> unlockedById;
+  final int Function(Achievement) currentProgress;
+  final ChallengeAggregate? challengeAggregate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final whsAchievements = kAchievements
+        .where((a) => a.category == AchievementCategory.heritageSites)
+        .toList();
+    final agg = challengeAggregate;
+
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      children: [
+        // ── Challenge stats card ──────────────────────────────────────────
+        if (agg != null) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              'Daily Challenge',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _ChallengeStatCell(
+                    label: 'Streak',
+                    value: agg.currentStreak == 0
+                        ? '—'
+                        : '${agg.currentStreak}',
+                    icon: Icons.local_fire_department,
+                    iconColor: agg.currentStreak >= 2
+                        ? Colors.orange
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  _ChallengeStatCell(
+                    label: 'Best',
+                    value: agg.bestStreak == 0 ? '—' : '${agg.bestStreak}',
+                    icon: Icons.emoji_events_outlined,
+                    iconColor: RoavvyColours.roavvyGold,
+                  ),
+                  _ChallengeStatCell(
+                    label: 'Solved',
+                    value: agg.totalPlayed == 0
+                        ? '—'
+                        : '${(agg.totalSolved / agg.totalPlayed * 100).round()}%',
+                    icon: Icons.check_circle_outline,
+                    iconColor: Colors.green,
+                  ),
+                  _ChallengeStatCell(
+                    label: 'Avg clues',
+                    value: agg.totalSolved == 0
+                        ? '—'
+                        : agg.avgClues.toStringAsFixed(1),
+                    icon: Icons.lightbulb_outline,
+                    iconColor: Colors.amber,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // ── Heritage site achievements ────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Text(
+            'Heritage Sites  ·  $heritageCount visited',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        for (final a in whsAchievements)
+          _AchievementRow(
+            achievement: a,
+            unlockDate: unlockedById[a.id],
+            current: currentProgress(a),
+          ),
+      ],
+    );
+  }
+}
+
+class _ChallengeStatCell extends StatelessWidget {
+  const _ChallengeStatCell({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: iconColor),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }

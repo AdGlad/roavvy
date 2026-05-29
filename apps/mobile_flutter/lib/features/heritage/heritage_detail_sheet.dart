@@ -17,6 +17,34 @@ void showHeritageDetailSheet(BuildContext context, VisitedHeritageSite site) {
   );
 }
 
+/// Shows the heritage detail sheet for any [WorldHeritageSite] — including
+/// ones the user has not visited. Visit-specific stats (photos, dates) are
+/// hidden when called from this overload.
+void showHeritageDetailSheetForSite(BuildContext context, WorldHeritageSite whs) {
+  // Construct a proxy VisitedHeritageSite with photoCount = 0 to signal
+  // "not visited" — the sheet hides visit stats when photoCount == 0.
+  final proxy = VisitedHeritageSite(
+    siteId: whs.siteId,
+    name: whs.name,
+    countryCode: whs.countryCode,
+    category: whs.category,
+    latitude: whs.latitude,
+    longitude: whs.longitude,
+    inscriptionYear: whs.inscriptionYear,
+    firstSeen: DateTime.utc(1970),
+    lastSeen: DateTime.utc(1970),
+    photoCount: 0,
+    confidence: '',
+    nearestDistanceKm: 0,
+  );
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _HeritageDetailSheet(site: proxy),
+  );
+}
+
 class _HeritageDetailSheet extends StatefulWidget {
   const _HeritageDetailSheet({required this.site});
 
@@ -184,18 +212,20 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                               ? '${site.inscriptionYear}'
                               : '—',
                         ),
-                        _StatCell(
-                          label: 'First Visited',
-                          value: _fmtDate(site.firstSeen),
-                        ),
-                        _StatCell(
-                          label: 'Last Visited',
-                          value: _fmtDate(site.lastSeen),
-                        ),
-                        _StatCell(
-                          label: 'Photos',
-                          value: '${site.photoCount}',
-                        ),
+                        if (site.photoCount > 0) ...[
+                          _StatCell(
+                            label: 'First Visited',
+                            value: _fmtDate(site.firstSeen),
+                          ),
+                          _StatCell(
+                            label: 'Last Visited',
+                            value: _fmtDate(site.lastSeen),
+                          ),
+                          _StatCell(
+                            label: 'Photos',
+                            value: '${site.photoCount}',
+                          ),
+                        ],
                         _StatCell(
                           label: 'Coordinates',
                           value: '${site.latitude.toStringAsFixed(3)}°, '
