@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../../core/country_names.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/roavvy_colours.dart';
 import '../../challenge/daily_challenge_stats.dart';
@@ -112,7 +113,7 @@ class AchievementGallery extends ConsumerWidget {
 
 // ── UNESCO tab ────────────────────────────────────────────────────────────────
 
-class _UnescoTab extends StatelessWidget {
+class _UnescoTab extends ConsumerWidget {
   const _UnescoTab({
     required this.heritageCount,
     required this.unlockedById,
@@ -125,9 +126,31 @@ class _UnescoTab extends StatelessWidget {
   final int Function(Achievement) currentProgress;
   final ChallengeAggregate? challengeAggregate;
 
+  void _showContributingSites(
+    BuildContext context,
+    Achievement a,
+    List<VisitedHeritageSite> allVisited,
+  ) {
+    // Sort by firstSeen so the user sees the chronological journey.
+    final sorted = [...allVisited]..sort((x, y) {
+        return x.firstSeen.compareTo(y.firstSeen);
+      });
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _HeritageContributorsSheet(
+        achievement: a,
+        sites: sorted,
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final visitedSites =
+        ref.watch(visitedHeritageProvider).valueOrNull ?? const [];
     final whsAchievements = kAchievements
         .where((a) => a.category == AchievementCategory.heritageSites)
         .toList();
@@ -214,6 +237,9 @@ class _UnescoTab extends StatelessWidget {
             achievement: a,
             unlockDate: unlockedById[a.id],
             current: currentProgress(a),
+            onTap: unlockedById.containsKey(a.id) && visitedSites.isNotEmpty
+                ? () => _showContributingSites(context, a, visitedSites)
+                : null,
           ),
       ],
     );
@@ -297,11 +323,13 @@ class _AchievementRow extends StatelessWidget {
     required this.achievement,
     required this.unlockDate,
     required this.current,
+    this.onTap,
   });
 
   final Achievement achievement;
   final DateTime? unlockDate;
   final int current;
+  final VoidCallback? onTap;
 
   bool get isUnlocked => unlockDate != null;
 
@@ -311,7 +339,10 @@ class _AchievementRow extends StatelessWidget {
 
     return Opacity(
       opacity: isUnlocked ? 1.0 : 0.55,
-      child: Container(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
           color: isUnlocked ? RoavvyColours.roavvyGold.withOpacity(0.12) : theme.colorScheme.surfaceContainerHighest,
@@ -365,11 +396,24 @@ class _AchievementRow extends StatelessWidget {
               if (isUnlocked)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    _fmtDate(unlockDate!),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
+                  child: Row(
+                    children: [
+                      Text(
+                        _fmtDate(unlockDate!),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      if (onTap != null) ...[
+                        const Spacer(),
+                        Text(
+                          'See sites →',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 )
               else ...[
@@ -393,6 +437,7 @@ class _AchievementRow extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -402,6 +447,140 @@ class _AchievementRow extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return 'Unlocked ${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+}
+
+// ── Heritage contributors sheet ───────────────────────────────────────────────
+
+/// Bottom sheet listing the visited heritage sites that earned a [Achievement].
+class _HeritageContributorsSheet extends StatelessWidget {
+  const _HeritageContributorsSheet({
+    required this.achievement,
+    required this.sites,
+  });
+
+  final Achievement achievement;
+  final List<VisitedHeritageSite> sites;
+
+  static String _flag(String iso) {
+    if (iso.length != 2) return '';
+    const base = 0x1F1E6;
+    return String.fromCharCode(base + iso.codeUnitAt(0) - 65) +
+        String.fromCharCode(base + iso.codeUnitAt(1) - 65);
+  }
+
+  static String _fmtDate(DateTime dt) {
+    const m = ['Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${m[dt.month - 1]} ${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Only the sites that contributed to this specific achievement tier count.
+    // All visited sites count — cap list at achievement target for display.
+    final display = sites.take(achievement.progressTarget).toList();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.4,
+      maxChildSize: 0.85,
+      builder: (ctx, scrollCtrl) => Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: ListView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Header
+            Row(
+              children: [
+                const Icon(Icons.emoji_events_outlined,
+                    color: RoavvyColours.roavvyGold, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    achievement.title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${sites.length} heritage site${sites.length == 1 ? '' : 's'} visited',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            // Site list
+            for (final site in display)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_flag(site.countryCode),
+                        style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            site.name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${kCountryNames[site.countryCode] ?? site.countryCode} · '
+                            'First visited ${_fmtDate(site.firstSeen)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (sites.length > achievement.progressTarget) ...[
+              const Divider(height: 24),
+              Text(
+                '+ ${sites.length - achievement.progressTarget} more visited site'
+                '${(sites.length - achievement.progressTarget) == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 

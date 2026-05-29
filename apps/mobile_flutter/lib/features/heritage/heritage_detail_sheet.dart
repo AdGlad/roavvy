@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/country_names.dart';
 import 'world_heritage_lookup_service.dart';
@@ -194,6 +195,31 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                           color: Colors.white70,
                           fontSize: 14,
                           height: 1.55,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(color: Colors.white12, height: 1),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Wikipedia link when no description available
+                    if (!hasDescription) ...[
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          final query = Uri.encodeComponent(site.name);
+                          launchUrl(
+                            Uri.parse(
+                              'https://en.wikipedia.org/w/index.php?search=$query+UNESCO',
+                            ),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: const Text('Learn more on Wikipedia'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white24),
+                          textStyle: const TextStyle(fontSize: 13),
                         ),
                       ),
                       const SizedBox(height: 20),
