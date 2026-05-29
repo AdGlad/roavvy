@@ -319,13 +319,19 @@ class MapScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Center(child: _DailyChallengeChip()),
                 if (globeMode && visitedByCode.isNotEmpty)
                   _VisitedCountryFlagStrip(visits: filteredVisits),
                 const TimelineScrubberBar(),
                 const StatsStrip(),
               ],
             ),
+          ),
+          // Daily Challenge chip — top center, below the XP progress bar.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 48,
+            left: 0,
+            right: 0,
+            child: const Center(child: _DailyChallengeChip()),
           ),
           if (!hasVisits)
             _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
@@ -336,11 +342,11 @@ class MapScreen extends ConsumerWidget {
               child: RovyBubble(),
             ),
           ),
-          // Globe rotation pause/play button — only in globe mode.
+          // Globe rotation pause/play — bottom-right, above stats strip.
           if (globeMode)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 8,
+            const Positioned(
+              bottom: 72,
+              right: 12,
               child: _GlobeRotationToggle(),
             ),
           Positioned(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -69,6 +70,11 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   // Heritage dots pulse (M129)
   late final AnimationController _heritagePulseCtrl;
 
+  // Challenge site highlight — red dot with pulse (M134+).
+  late final AnimationController _challengeHighlightCtrl;
+  (double, double)? _challengeHighlightCoord;
+  Timer? _challengeHighlightClearTimer;
+
   bool _rotationPaused = false;
 
   List<(double, double)> _culturalCoords = const [];
@@ -96,6 +102,11 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
+    _challengeHighlightCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
     _rotationTicker = createTicker(_onRotationTick)..start();
 
     // Seed heritage dot lists on the first frame, in case visitedHeritageProvider
@@ -116,6 +127,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     _snapController.dispose();
     _zoomController.dispose();
     _heritagePulseCtrl.dispose();
+    _challengeHighlightCtrl.dispose();
+    _challengeHighlightClearTimer?.cancel();
     super.dispose();
   }
 
@@ -414,6 +427,23 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       }
     });
 
+    ref.listen<(double, double)?>(challengeSiteHighlightProvider,
+        (_, coord) {
+      if (coord != null) {
+        setState(() => _challengeHighlightCoord = coord);
+        _challengeHighlightClearTimer?.cancel();
+        _challengeHighlightClearTimer = Timer(const Duration(seconds: 6), () {
+          if (mounted) {
+            setState(() => _challengeHighlightCoord = null);
+            ref.read(challengeSiteHighlightProvider.notifier).state = null;
+          }
+        });
+      } else {
+        setState(() => _challengeHighlightCoord = null);
+        _challengeHighlightClearTimer?.cancel();
+      }
+    });
+
     // M134: drive the globe with replay/scan state when overlay is active.
     // Guard on globeOverlayProvider so the globe returns to normal state the
     // instant hide() is called, without waiting for GlobeReplayWidget.dispose().
@@ -447,6 +477,9 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
               heritagePulseValue: frame != null
                   ? 0.0
                   : (heritageEnabled ? _heritagePulseCtrl.value : 0.0),
+              challengeHighlightCoord:
+                  frame != null ? null : _challengeHighlightCoord,
+              challengeHighlightPulse: _challengeHighlightCtrl.value,
               afterPainter: frame?.afterPainter,
             ),
           ),

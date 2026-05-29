@@ -204,6 +204,12 @@ final heritageDotsEnabledProvider = StateProvider<bool>((ref) => true);
 /// No-op when [globeModeProvider] is false. (M86)
 final globeTargetProvider = StateProvider<(double, double)?>((_) => null);
 
+/// Coordinate (lat, lng) of the challenge site to highlight with a red dot on
+/// the globe after a daily challenge completes. Auto-cleared by [GlobeMapWidget]
+/// after ~6 seconds. Null = no highlight.
+final challengeSiteHighlightProvider =
+    StateProvider<(double, double)?>((_) => null);
+
 /// The earliest trip `startedOn` year across all trips; null if no trips exist.
 /// Used to compute the scrubber range in [TimelineScrubberBar]. (ADR-076)
 final earliestVisitYearProvider = FutureProvider<int?>((ref) async {

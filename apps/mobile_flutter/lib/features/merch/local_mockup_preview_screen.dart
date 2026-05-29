@@ -1574,7 +1574,7 @@ class _LocalMockupPreviewScreenState
     return DraggableScrollableSheet(
       initialChildSize: 0.38,
       minChildSize: 0.08,
-      maxChildSize: 0.85,
+      maxChildSize: 0.50,
       snap: true,
       builder: (context, scrollController) {
         return ClipRRect(

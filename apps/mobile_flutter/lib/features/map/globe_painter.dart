@@ -56,6 +56,8 @@ class GlobePainter extends CustomPainter {
     this.naturalSiteCoords = const [],
     this.unvisitedHeritageSiteCoords = const [],
     this.heritagePulseValue = 0.0,
+    this.challengeHighlightCoord,
+    this.challengeHighlightPulse = 0.0,
     this.afterPainter,
   });
 
@@ -81,6 +83,12 @@ class GlobePainter extends CustomPainter {
 
   /// Animation value 0.0–1.0 driving heritage site dot pulse. 0.0 = hidden glow.
   final double heritagePulseValue;
+
+  /// GPS coord of the challenge site to highlight with a red dot, or null.
+  final (double, double)? challengeHighlightCoord;
+
+  /// Animation value 0.0–1.0 driving the red highlight pulse. 0.0 = no glow.
+  final double challengeHighlightPulse;
 
   /// Optional painter called after the globe is drawn (e.g. replay arc layer).
   final CustomPainter? afterPainter;
@@ -191,7 +199,29 @@ class GlobePainter extends CustomPainter {
           naturalSiteCoords, Colors.green[400]!, Colors.green[300]!);
     }
 
-    // 6. Optional overlay painter (e.g. replay arc layer — M134).
+    // 6. Challenge site highlight — large pulsing red dot (M134+).
+    final challengeCoord = challengeHighlightCoord;
+    if (challengeCoord != null) {
+      final pt = projection.project(challengeCoord.$1, challengeCoord.$2, size);
+      if (pt != null) {
+        // Outer glow ring — pulses.
+        canvas.drawCircle(
+          pt,
+          r * 0.022 * (1.0 + challengeHighlightPulse * 0.6),
+          Paint()
+            ..color =
+                Colors.red.withValues(alpha: 0.30 * challengeHighlightPulse),
+        );
+        // Solid red dot.
+        canvas.drawCircle(
+          pt,
+          r * 0.014,
+          Paint()..color = Colors.redAccent,
+        );
+      }
+    }
+
+    // 7. Optional overlay painter (e.g. replay arc layer — M134).
     afterPainter?.paint(canvas, size);
   }
 
@@ -270,5 +300,7 @@ class GlobePainter extends CustomPainter {
       !identical(naturalSiteCoords, old.naturalSiteCoords) ||
       !identical(unvisitedHeritageSiteCoords, old.unvisitedHeritageSiteCoords) ||
       heritagePulseValue != old.heritagePulseValue ||
+      challengeHighlightCoord != old.challengeHighlightCoord ||
+      challengeHighlightPulse != old.challengeHighlightPulse ||
       afterPainter != old.afterPainter;
 }

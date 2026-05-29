@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import 'challenge_audio_service.dart';
 import 'challenge_stats_screen.dart';
 import 'daily_challenge_notifier.dart';
 import 'guess_normalizer.dart';
@@ -141,6 +142,8 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     with SingleTickerProviderStateMixin {
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
+  final _audio = ChallengeAudioService();
+  int _lastCluesRevealed = 0;
 
   @override
   void initState() {
@@ -152,11 +155,15 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
     );
+    _audio.preload().ignore();
+    // Record initial clue count so we can detect new reveals.
+    _lastCluesRevealed = widget.state.progress.cluesRevealed;
   }
 
   @override
   void dispose() {
     _shakeCtrl.dispose();
+    _audio.dispose();
     super.dispose();
   }
 
@@ -165,6 +172,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     final notifier = ref.read(dailyChallengeNotifierProvider.notifier);
     final correct = await notifier.submitGuess(siteName);
     if (!correct && mounted) {
+      _audio.playWrong();
       await _shakeCtrl.forward(from: 0);
     }
   }
@@ -179,6 +187,16 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     final sites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
     final guessesLeft = DailyChallengeState.maxGuesses - progress.guesses.length;
     final gameOver = progress.solved || progress.failed;
+
+    // Play clue-reveal chime whenever a new clue becomes visible.
+    ref.listen<AsyncValue<DailyChallengeState>>(dailyChallengeNotifierProvider,
+        (_, next) {
+      final revealed = next.valueOrNull?.progress.cluesRevealed ?? 0;
+      if (revealed > _lastCluesRevealed) {
+        _audio.playClue(revealed);
+        _lastCluesRevealed = revealed;
+      }
+    });
 
     return Stack(
       children: [
@@ -569,21 +587,32 @@ class _ChallengeResultOverlay extends ConsumerStatefulWidget {
 class _ChallengeResultOverlayState
     extends ConsumerState<_ChallengeResultOverlay> {
   late final ConfettiController _confetti;
+  final _audio = ChallengeAudioService();
 
   @override
   void initState() {
     super.initState();
-    _confetti = ConfettiController(duration: const Duration(milliseconds: 800));
+    _confetti = ConfettiController(duration: const Duration(seconds: 3));
+    _audio.preload().then((_) {
+      if (!mounted) return;
+      if (widget.solved) {
+        _audio.playSolve();
+      } else {
+        _audio.playFail();
+      }
+    });
     if (widget.solved) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _confetti.play();
       });
     }
-    // Fly globe to site as soon as overlay opens.
+    // Fly globe to site and highlight it with a red dot.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final site = widget.state.site;
       ref.read(globeTargetProvider.notifier).state =
+          (site.latitude, site.longitude);
+      ref.read(challengeSiteHighlightProvider.notifier).state =
           (site.latitude, site.longitude);
     });
   }
@@ -591,6 +620,7 @@ class _ChallengeResultOverlayState
   @override
   void dispose() {
     _confetti.dispose();
+    _audio.dispose();
     super.dispose();
   }
 
@@ -639,22 +669,32 @@ class _ChallengeResultOverlayState
             child: Container(color: Colors.black54),
           ),
         ),
-        // Confetti (solved only)
+        // Confetti falls from top center (solved only).
         if (widget.solved)
-          ConfettiWidget(
-            confettiController: _confetti,
-            blastDirectionality: BlastDirectionality.explosive,
-            numberOfParticles: 30,
-            maxBlastForce: 20,
-            minBlastForce: 8,
-            emissionFrequency: 0.05,
-            colors: const [
-              Colors.amber,
-              Colors.green,
-              Colors.blue,
-              Colors.pink,
-              Colors.purple,
-            ],
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confetti,
+                blastDirectionality: BlastDirectionality.directional,
+                blastDirection: math.pi / 2, // straight down
+                numberOfParticles: 20,
+                maxBlastForce: 18,
+                minBlastForce: 6,
+                emissionFrequency: 0.04,
+                gravity: 0.3,
+                colors: const [
+                  Colors.amber,
+                  Colors.green,
+                  Colors.blue,
+                  Colors.pink,
+                  Colors.purple,
+                ],
+              ),
+            ),
           ),
         // Content sheet
         Positioned.fill(

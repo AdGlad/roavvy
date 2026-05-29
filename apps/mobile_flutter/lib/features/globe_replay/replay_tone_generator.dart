@@ -50,6 +50,25 @@ class ReplayToneGenerator {
   /// Soft collection pop when the flag joins the row (≈ 0.35 s).
   static Uint8List collection() => _wav(_collectionPop());
 
+  // ── Challenge audio ─────────────────────────────────────────────────────────
+
+  /// Clue reveal chime — pitch rises with [clueNumber] (1–5) to build tension.
+  /// Clue 1 = low/calm; Clue 5 = high/urgent.
+  static Uint8List challengeClue(int n) {
+    const freqs = [293.66, 349.23, 415.30, 523.25, 659.25]; // D4→F4→Ab4→C5→E5
+    final freq = freqs[(n - 1).clamp(0, 4)];
+    return _wav(_bell(freq, 0.45));
+  }
+
+  /// Short dissonant buzz for a wrong guess.
+  static Uint8List challengeWrong() => _wav(_buzzWrong());
+
+  /// Joyful ascending fanfare for a solved challenge.
+  static Uint8List challengeSolve() => _wav(_fanfare());
+
+  /// Descending minor arpeggio for a failed challenge.
+  static Uint8List challengeFail() => _wav(_failDescend());
+
   // ── Synthesis ──────────────────────────────────────────────────────────────
 
   /// Band-limited noise burst with a rising sine tone.
@@ -228,6 +247,46 @@ class ReplayToneGenerator {
             math.sin(2 * math.pi * 660.0 * t) * 0.55 +
             math.sin(2 * math.pi * 990.0 * t) * 0.35 +
             math.sin(2 * math.pi * 1320.0 * t) * 0.08
+          ) *
+          env *
+          _vol;
+      return (s * 32767).round().clamp(-32767, 32767);
+    });
+  }
+
+  /// Short dissonant buzz (220 Hz + 233 Hz minor 2nd) — wrong-guess feedback.
+  static List<int> _buzzWrong() {
+    const dur = 0.18;
+    final n = (dur * _sr).round();
+    return List.generate(n, (i) {
+      final t = i / _sr;
+      final env = t < 0.006 ? t / 0.006 : math.exp(-(t - 0.006) * 12.0);
+      final s = (
+            math.sin(2 * math.pi * 220.0 * t) * 0.55 +
+            math.sin(2 * math.pi * 233.0 * t) * 0.45
+          ) *
+          env *
+          _vol;
+      return (s * 32767).round().clamp(-32767, 32767);
+    });
+  }
+
+  /// Descending minor arpeggio C5→G4→Eb4→C4 — challenge-failed fanfare.
+  static List<int> _failDescend() {
+    const freqs = [523.25, 392.00, 311.13, 261.63]; // C5 G4 Eb4 C4
+    const noteSec = 0.18;
+    final total = noteSec * freqs.length + 0.12;
+    final n = (total * _sr).round();
+    return List.generate(n, (i) {
+      final t = i / _sr;
+      final ni = (t / noteSec).floor().clamp(0, freqs.length - 1);
+      final freq = freqs[ni];
+      final nt = t - ni * noteSec;
+      final env = nt < 0.012 ? nt / 0.012 : math.exp(-(nt - 0.012) * 6.0);
+      final s = (
+            math.sin(2 * math.pi * freq * t) * 0.60 +
+            math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
+            math.sin(2 * math.pi * freq * 3.0 * t) * 0.10
           ) *
           env *
           _vol;
