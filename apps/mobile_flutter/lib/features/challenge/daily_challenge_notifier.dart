@@ -110,6 +110,26 @@ class DailyChallengeNotifier
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+  /// Immediately ends the game as failed — triggered by "Reveal Answer" button.
+  Future<void> revealAnswer() async {
+    final current = state.valueOrNull;
+    if (current == null || current.progress.solved || current.progress.failed) {
+      return;
+    }
+    final updated = current.progress.copyWith(failed: true);
+    await _repo.save(updated);
+    await _stats.record(
+      date: updated.date,
+      siteId: updated.siteId,
+      solved: false,
+      guessesUsed: updated.guesses.length,
+      cluesUsed: updated.cluesRevealed,
+    );
+    if (mounted) {
+      state = AsyncValue.data(current.copyWith(progress: updated, submitting: false));
+    }
+  }
+
   /// Reveals the next clue. No-op if already at clue 5 or solved/failed.
   Future<void> revealNextClue() async {
     final current = state.valueOrNull;

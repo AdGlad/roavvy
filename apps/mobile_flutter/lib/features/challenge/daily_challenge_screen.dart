@@ -184,9 +184,21 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     final notifier = ref.read(dailyChallengeNotifierProvider.notifier);
     final correct = await notifier.submitGuess(siteName);
     if (!correct && mounted) {
-      _audio.playWrong();
-      await _shakeCtrl.forward(from: 0);
+      // If the game just ended (5th wrong guess), play the full fail fanfare.
+      final nowOver =
+          ref.read(dailyChallengeNotifierProvider).valueOrNull?.progress.failed ?? false;
+      if (nowOver) {
+        _audio.playFail();
+      } else {
+        _audio.playWrong();
+        await _shakeCtrl.forward(from: 0);
+      }
     }
+  }
+
+  Future<void> _revealAnswer() async {
+    _audio.playFail();
+    await ref.read(dailyChallengeNotifierProvider.notifier).revealAnswer();
   }
 
   @override
@@ -245,21 +257,22 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                     ? _HotColdChip(key: ValueKey(lastResult.guess), result: lastResult)
                     : const SizedBox.shrink(),
               ),
-              // Remaining guess counter.
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    guessesLeft == 1 ? '1 guess left' : '$guessesLeft guesses left',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: guessesLeft <= 1
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+              // Remaining guess counter — only shown after the first wrong guess.
+              if (progress.guesses.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      guessesLeft == 1 ? '1 guess left' : '$guessesLeft guesses left',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: guessesLeft <= 1
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
-              ),
               _HeritageSiteSearchInput(
                 sites: sites,
                 shakeAnimation: _shakeAnim,
@@ -271,7 +284,9 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                   onPressed: () => ref
                       .read(dailyChallengeNotifierProvider.notifier)
                       .revealNextClue(),
-                ),
+                )
+              else
+                _RevealAnswerButton(onPressed: _revealAnswer),
               const SizedBox(height: 16),
             ],
           ],
@@ -309,7 +324,7 @@ class _ClueCard extends StatelessWidget {
     final style = _typeStyle(clue.type);
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHigh,
@@ -319,22 +334,22 @@ class _ClueCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 28,
-                    height: 28,
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
                       color: style.color.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                       border: Border.all(color: style.color.withValues(alpha: 0.5)),
                     ),
                     alignment: Alignment.center,
-                    child: Icon(style.icon, size: 15, color: style.color),
+                    child: Icon(style.icon, size: 13, color: style.color),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,7 +362,7 @@ class _ClueCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(clue.text, style: theme.textTheme.bodyLarge),
+                        Text(clue.text, style: theme.textTheme.bodyMedium),
                       ],
                     ),
                   ),
@@ -394,6 +409,33 @@ class _RevealClueButton extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: Text('Reveal Clue $nextClueNumber'),
+      ),
+    );
+  }
+}
+
+// ── Reveal answer button ───────────────────────────────────────────────────────
+
+/// Shown when all 5 clues are revealed and the player hasn't solved it yet.
+/// Tapping immediately ends the game as failed and shows the result overlay.
+class _RevealAnswerButton extends StatelessWidget {
+  const _RevealAnswerButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(double.infinity, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          foregroundColor: Theme.of(context).colorScheme.error,
+          side: BorderSide(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5)),
+        ),
+        child: const Text('Reveal Answer'),
       ),
     );
   }
