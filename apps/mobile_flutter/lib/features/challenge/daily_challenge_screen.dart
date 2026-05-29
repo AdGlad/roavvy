@@ -636,13 +636,18 @@ class _ChallengeResultOverlayState
     Navigator.of(context).pop();
   }
 
-  void _share() {
+  void _share(BuildContext btnContext) {
     final p = widget.state.progress;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
     final text = 'Roavvy Daily — $date\n$grid\nroavvy.app/daily';
-    Share.share(text);
+    // iOS requires sharePositionOrigin to anchor the popover to the button.
+    final box = btnContext.findRenderObject() as RenderBox?;
+    final origin = box == null
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
+    Share.share(text, sharePositionOrigin: origin);
   }
 
   @override
@@ -828,15 +833,18 @@ class _ChallengeResultOverlayState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Share
-                  OutlinedButton.icon(
-                    onPressed: _share,
-                    icon: const Icon(Icons.copy),
-                    label: const Text('Share result'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                  // Share — wrapped in Builder to supply the button's own context
+                  // for iOS share sheet anchor positioning.
+                  Builder(
+                    builder: (btnCtx) => OutlinedButton.icon(
+                      onPressed: () => _share(btnCtx),
+                      icon: const Icon(Icons.share),
+                      label: const Text('Share result'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                   // View stats
