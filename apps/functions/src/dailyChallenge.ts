@@ -17,9 +17,16 @@ interface WhsSite {
   inscriptionYear: number;
 }
 
+type ClueType = 'geography' | 'historical' | 'location' | 'natural' | 'direct';
+
+interface ChallengeClue {
+  type: ClueType;
+  text: string;
+}
+
 interface DailyChallenge {
   siteId: string;
-  clues: [string, string, string, string, string];
+  clues: ChallengeClue[];
   generatedAt: Timestamp;
 }
 
@@ -66,11 +73,18 @@ function toFlagEmoji(countryCode: string): string {
 }
 
 /**
- * Builds five progressive clues for a WHS site, from vaguest (index 0) to
- * most specific (index 4). All content is derived from site fields — no
+ * Builds five progressive typed clues for a WHS site, from vaguest (index 0)
+ * to most specific (index 4). All content is derived from site fields — no
  * external API needed.
+ *
+ * Clue types:
+ *   0 — geography  (region / category)
+ *   1 — historical (inscription year + hemisphere)
+ *   2 — location   (country flag + name)
+ *   3 — historical | natural (age milestone or category flavour)
+ *   4 — direct     (first word of site name)
  */
-export function buildClues(site: WhsSite): [string, string, string, string, string] {
+export function buildClues(site: WhsSite): ChallengeClue[] {
   const categoryLabel =
     site.category === 'cultural'
       ? 'Cultural'
@@ -82,29 +96,35 @@ export function buildClues(site: WhsSite): [string, string, string, string, stri
 
   const flag = toFlagEmoji(site.countryCode);
 
-  // Clue 4: age-based hint if early inscription, otherwise category flavour.
-  let clue4: string;
+  // Clue 3 (index 3): age milestone or category flavour.
+  let clue3Type: ClueType;
+  let clue3Text: string;
   if (site.inscriptionYear <= 1980) {
-    clue4 = `One of the very first sites ever inscribed on the UNESCO World Heritage List (${site.inscriptionYear}).`;
+    clue3Type = 'historical';
+    clue3Text = `One of the very first sites ever inscribed on the UNESCO World Heritage List (${site.inscriptionYear}).`;
   } else if (site.inscriptionYear <= 1990) {
-    clue4 = `Inscribed in the early years of the UNESCO World Heritage List (${site.inscriptionYear}).`;
+    clue3Type = 'historical';
+    clue3Text = `Inscribed in the early years of the UNESCO World Heritage List (${site.inscriptionYear}).`;
   } else if (site.category === 'natural') {
-    clue4 = 'A place of exceptional natural beauty or ecological importance.';
+    clue3Type = 'natural';
+    clue3Text = 'A place of exceptional natural beauty or ecological importance.';
   } else if (site.category === 'mixed') {
-    clue4 = 'A site recognised for both its cultural heritage and its natural landscape.';
+    clue3Type = 'natural';
+    clue3Text = 'A site recognised for both its cultural heritage and its natural landscape.';
   } else {
-    clue4 = 'A place of outstanding historical, artistic, or archaeological significance.';
+    clue3Type = 'historical';
+    clue3Text = 'A place of outstanding historical, artistic, or archaeological significance.';
   }
 
-  // Clue 5: first word of the site name (stripped of leading articles).
+  // Clue 4 (index 4): first word of the site name (stripped of leading articles).
   const firstWord = site.name.split(/[\s,()–-]/)[0];
 
   return [
-    `A ${categoryLabel} site in ${site.region}.`,
-    `Inscribed in ${site.inscriptionYear}. Located in the ${hemisphere}.`,
-    `${flag} Found in ${countryName(site.countryCode)}.`,
-    clue4,
-    `The site name begins with "${firstWord}".`,
+    { type: 'geography', text: `A ${categoryLabel} site in ${site.region}.` },
+    { type: 'historical', text: `Inscribed in ${site.inscriptionYear}. Located in the ${hemisphere}.` },
+    { type: 'location', text: `${flag} Found in ${countryName(site.countryCode)}.` },
+    { type: clue3Type, text: clue3Text },
+    { type: 'direct', text: `The site name begins with "${firstWord}".` },
   ];
 }
 

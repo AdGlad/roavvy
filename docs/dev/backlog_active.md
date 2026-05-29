@@ -7,6 +7,16 @@
 
 ## Next up (mobile-first order)
 
+### M136 — Daily Challenge: Typed Clues, Hero Image Reveal & Stats Screen
+**Goal:** Three focused enhancements to the existing Daily Heritage Challenge: (1) typed clues (`{type, text}`) from Cloud Function with per-type icons in Flutter; (2) hero image at the top of the result overlay using the enriched `imageUrl` from the WHS dataset; (3) dedicated `ChallengeStatsScreen` with streak, solve-rate, and 30-day grid.
+**Phase:** 26 — Daily Challenge Polish
+**Depends on:** M135 ✅
+**Scope in:** `dailyChallenge.ts` typed clues + deploy; `ChallengeClue.type` enum; `_ClueCard` type icons; `_ChallengeResultOverlay` hero image + attribution; `ChallengeStatsScreen`; `ChallengeStatsService.last30Days()`; streak badge on `_DailyChallengeChip`.
+**Full plan:** `docs/dev/milestones/m136-daily-challenge-image-clue-types-stats.md`
+**Status:** ✅ Complete (2026-05-29)
+
+---
+
 ### M132 — Live Scan Replay
 **Goal:** Globe replay widget opens immediately when scan starts; receives country/heritage/achievement events in real time as photos are detected; drains to `ScanSummaryScreen` when scan completes and queue is empty.
 **Phase:** 25 — Scan UX Transformation

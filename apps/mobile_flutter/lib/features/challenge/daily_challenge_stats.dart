@@ -112,6 +112,17 @@ class ChallengeStatsService {
     );
   }
 
+  /// Returns the most-recent 30 days of challenge history in descending order.
+  Future<List<({String date, bool solved, int guessesUsed})>> last30Days() async {
+    final rows = await (_db.select(_db.challengeStatsTable)
+          ..orderBy([(t) => OrderingTerm.desc(t.date)])
+          ..limit(30))
+        .get();
+    return rows
+        .map((r) => (date: r.date, solved: r.solved == 1, guessesUsed: r.guessesUsed))
+        .toList();
+  }
+
   // ── Streak helpers ────────────────────────────────────────────────────────
 
   /// Current streak: consecutive days solved counting back from today/yesterday.

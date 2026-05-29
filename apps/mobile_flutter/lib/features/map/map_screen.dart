@@ -28,6 +28,7 @@ import 'country_polygon_layer.dart';
 import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
+import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
 import 'region_chips_marker_layer.dart';
 import 'world_heritage_marker_layer.dart';
@@ -1085,7 +1086,8 @@ class _ActionBtn extends StatelessWidget {
 // ── Daily Challenge chip ───────────────────────────────────────────────────────
 
 /// Pill-shaped chip shown below the action bar. Tapping opens [DailyChallengeScreen].
-/// Shows a green dot badge when the challenge has not yet been solved today.
+/// Long-pressing opens [ChallengeStatsScreen].
+/// Shows a streak badge (🔥N) when streak≥2, otherwise a green dot when unsolved.
 class _DailyChallengeChip extends ConsumerWidget {
   const _DailyChallengeChip();
 
@@ -1093,11 +1095,17 @@ class _DailyChallengeChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progressAsync = ref.watch(dailyChallengeProgressProvider);
     final solved = progressAsync.valueOrNull?.solved ?? false;
+    final streak = ref.watch(challengeAggregateProvider).valueOrNull?.currentStreak ?? 0;
 
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => const DailyChallengeScreen(),
+        ),
+      ),
+      onLongPress: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const ChallengeStatsScreen(),
         ),
       ),
       child: Material(
@@ -1114,7 +1122,13 @@ class _DailyChallengeChip extends ConsumerWidget {
                 'Daily Challenge',
                 style: TextStyle(color: Colors.white, fontSize: 12),
               ),
-              if (!solved) ...[
+              if (streak >= 2) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '🔥$streak',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ] else if (!solved) ...[
                 const SizedBox(width: 6),
                 Container(
                   width: 7,
