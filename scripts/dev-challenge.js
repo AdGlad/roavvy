@@ -149,35 +149,48 @@ async function buildCluesWithAI(s) {
   const firstWord  = s.name.split(/[\s,()–-]/)[0];
   const descLine   = s.shortDescription ? `Description: ${s.shortDescription}` : '';
 
-  const prompt = `You are writing clues for a daily geography guessing game called Roavvy, similar to Wordle but for UNESCO World Heritage Sites. Players guess a UNESCO site based on 5 progressive clues, revealed one at a time. Clues go from most abstract to most specific.
+  const prompt = `You are writing clues for Roavvy — a daily Wordle-style game where players guess a UNESCO World Heritage Site from 5 progressive clues. Each clue reveals a little more. Your goal is a smooth difficulty gradient, not a fixed category structure.
 
-UNESCO Site details (DO NOT reveal the site name or country in clues 1-3):
+TARGET DIFFICULTY (think: what % of players guess correctly after seeing this clue alone):
+  Clue 1 →  ~5%  Almost nobody gets it. Pure sensory — what it feels like to stand there.
+  Clue 2 → ~15%  One surprising fact: a genuine pop culture connection (film, novel, game, song) OR a single record-breaking physical stat. Still no location or civilisation name.
+  Clue 3 → ~35%  Historical/cultural context: which civilisation built it and roughly when. No country name.
+  Clue 4 → ~65%  Geographic reveal: continent + sub-region + terrain. No country name yet.
+  Clue 5 → ~90%  Full reveal: country flag, country name, first word of site name.
+
+STRICT RULES FOR EACH CLUE:
+  Clue 1: NO country, continent, civilisation, time period, or proper nouns. Sensory only.
+  Clue 2: NO country or site name. One fact or pop culture ref that is genuinely interesting.
+  Clue 3: Civilisation/culture + time period allowed. NO country or sub-region name.
+  Clue 4: Continent + sub-region + terrain allowed. NO country name.
+  Clue 5: Must start with "${flag} ${country}." and end with: The site name starts with "${firstWord}".
+
+For the "type" field choose the best fit from: atmosphere, pop_culture, historical, cultural, natural, geography, direct.
+
+SITE TO WRITE CLUES FOR:
 - Name: ${s.name}
 - Country: ${country}
 - Category: ${s.category}
-- UNESCO inscription year: ${s.inscriptionYear}
+- Inscription year: ${s.inscriptionYear}
 - Region: ${s.region}
 ${descLine}
 
-Write exactly 5 clues following these rules strictly:
-
-Clue 1 (type: "atmosphere") — Evoke the PHYSICAL FEELING or appearance of the place. What does it look, feel, or smell like? Is it carved into rock? On a mountaintop? In a jungle? A coastal fortress? An underground cave system? Do NOT mention the country, continent, civilisation name, or any proper nouns. Make it atmospheric and intriguing.
-
-Clue 2 (type: "pop_culture") — A pop culture reference IF one genuinely exists: a famous movie filmed here, a well-known novel set here, a music video, a video game location, or a famous photograph. If no reliable pop culture reference exists, give one striking physical fact instead (height, age, scale, record). Do NOT reveal the country or site name.
-
-Clue 3 (type: "historical") — Who built it, which civilisation, empire, or culture created it, and why. Include the time period. Do NOT name the country.
-
-Clue 4 (type: "geography") — Name the continent and geographic sub-region (e.g. "West Africa", "the Andes", "South-East Asia", "the Arabian Peninsula"). You may describe the terrain (desert, rainforest, island, etc). Still do NOT name the country.
-
-Clue 5 (type: "direct") — Reveal: ${flag} ${country}. Also give the first letter/word of the site name: the site name starts with "${firstWord}".
-
-Return ONLY a valid JSON array, no markdown, no explanation:
+EXAMPLE (Colosseum, Rome — do not copy the style, just the structure and difficulty calibration):
 [
-  {"type": "atmosphere", "text": "..."},
-  {"type": "pop_culture", "text": "..."},
-  {"type": "historical", "text": "..."},
-  {"type": "geography", "text": "..."},
-  {"type": "direct", "text": "..."}
+  {"type":"atmosphere","text":"An oval of tiered stone arches open to a blazing sky — the scale is overwhelming, the silence eerie, the worn travertine warm underfoot. You can almost hear the roar."},
+  {"type":"pop_culture","text":"Russell Crowe fought for his life here in Ridley Scott's 2000 epic — and the establishing shot has become one of cinema's most recognisable images."},
+  {"type":"historical","text":"Commissioned by Emperor Vespasian of the Roman Empire and completed in 80 AD, funded by the spoils of war and built to entertain up to 80,000 citizens with gladiatorial combat."},
+  {"type":"geography","text":"In the heart of southern Europe, on the Italian peninsula, in a city that gave its name to one of history's greatest empires."},
+  {"type":"direct","text":"🇮🇹 Italy. The site name starts with \\"Colosseum\\"."}
+]
+
+Return ONLY a valid JSON array for the target site, no markdown, no explanation:
+[
+  {"type":"...","text":"..."},
+  {"type":"...","text":"..."},
+  {"type":"...","text":"..."},
+  {"type":"...","text":"..."},
+  {"type":"direct","text":"${flag} ${country}. The site name starts with \\"${firstWord}\\"."}
 ]`;
 
   const response = await ai.models.generateContent({
