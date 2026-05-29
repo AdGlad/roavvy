@@ -222,12 +222,14 @@ class _ClueCard extends StatelessWidget {
   final ChallengeClue clue;
 
   static ({IconData icon, Color color}) _typeStyle(String type) => switch (type) {
-        'geography'  => (icon: Icons.public, color: const Color(0xFF1976D2)),
-        'historical' => (icon: Icons.history_edu_outlined, color: const Color(0xFFF9A825)),
-        'location'   => (icon: Icons.place_outlined, color: const Color(0xFFFF6F00)),
-        'natural'    => (icon: Icons.park_outlined, color: const Color(0xFF388E3C)),
-        'direct'     => (icon: Icons.lightbulb_outlined, color: const Color(0xFF26C6DA)),
-        _            => (icon: Icons.help_outline, color: Colors.white38),
+        'geography'   => (icon: Icons.public, color: const Color(0xFF1976D2)),
+        'historical'  => (icon: Icons.history_edu_outlined, color: const Color(0xFFF9A825)),
+        'location'    => (icon: Icons.place_outlined, color: const Color(0xFFFF6F00)),
+        'natural'     => (icon: Icons.park_outlined, color: const Color(0xFF388E3C)),
+        'direct'      => (icon: Icons.lightbulb_outlined, color: const Color(0xFF26C6DA)),
+        'atmosphere'  => (icon: Icons.wb_sunny_outlined, color: const Color(0xFFFF8F00)),
+        'pop_culture' => (icon: Icons.movie_outlined, color: const Color(0xFF7B1FA2)),
+        _             => (icon: Icons.help_outline, color: Colors.white38),
       };
 
   @override

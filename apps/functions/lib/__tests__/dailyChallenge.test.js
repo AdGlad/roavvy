@@ -32,52 +32,76 @@ const mixedRecent = {
     inscriptionYear: 2000, // post-1990 so category flavour applies
 };
 describe('buildClues', () => {
-    describe('clue 1 — category + region', () => {
+    describe('clue 1 — geography (category + region)', () => {
         it('uses "Cultural" for cultural sites', () => {
-            expect((0, dailyChallenge_1.buildClues)(culturalNorth)[0]).toBe('A Cultural site in Africa and the Arab States.');
+            const clue = (0, dailyChallenge_1.buildClues)(culturalNorth)[0];
+            expect(clue.type).toBe('geography');
+            expect(clue.text).toBe('A Cultural site in Africa and the Arab States.');
         });
         it('uses "Natural" for natural sites', () => {
-            expect((0, dailyChallenge_1.buildClues)(naturalSouth)[0]).toBe('A Natural site in Latin America and the Caribbean.');
+            const clue = (0, dailyChallenge_1.buildClues)(naturalSouth)[0];
+            expect(clue.type).toBe('geography');
+            expect(clue.text).toBe('A Natural site in Latin America and the Caribbean.');
         });
         it('uses "Mixed Cultural and Natural" for mixed sites', () => {
-            expect((0, dailyChallenge_1.buildClues)(mixedRecent)[0]).toBe('A Mixed Cultural and Natural site in Latin America and the Caribbean.');
+            const clue = (0, dailyChallenge_1.buildClues)(mixedRecent)[0];
+            expect(clue.type).toBe('geography');
+            expect(clue.text).toBe('A Mixed Cultural and Natural site in Latin America and the Caribbean.');
         });
     });
-    describe('clue 2 — inscription year + hemisphere', () => {
+    describe('clue 2 — historical (inscription year + hemisphere)', () => {
         it('Northern Hemisphere for positive latitude', () => {
-            expect((0, dailyChallenge_1.buildClues)(culturalNorth)[1]).toBe('Inscribed in 1979. Located in the Northern Hemisphere.');
+            const clue = (0, dailyChallenge_1.buildClues)(culturalNorth)[1];
+            expect(clue.type).toBe('historical');
+            expect(clue.text).toBe('Inscribed in 1979. Located in the Northern Hemisphere.');
         });
         it('Southern Hemisphere for negative latitude', () => {
-            expect((0, dailyChallenge_1.buildClues)(naturalSouth)[1]).toContain('Southern Hemisphere');
+            const clue = (0, dailyChallenge_1.buildClues)(naturalSouth)[1];
+            expect(clue.type).toBe('historical');
+            expect(clue.text).toContain('Southern Hemisphere');
         });
     });
-    describe('clue 3 — flag + country name', () => {
+    describe('clue 3 — location (flag + country name)', () => {
         it('includes the Egyptian flag and country name', () => {
-            expect((0, dailyChallenge_1.buildClues)(culturalNorth)[2]).toBe('🇪🇬 Found in Egypt.');
+            const clue = (0, dailyChallenge_1.buildClues)(culturalNorth)[2];
+            expect(clue.type).toBe('location');
+            expect(clue.text).toBe('🇪🇬 Found in Egypt.');
         });
         it('includes the Argentine flag and country name', () => {
-            expect((0, dailyChallenge_1.buildClues)(naturalSouth)[2]).toBe('🇦🇷 Found in Argentina.');
+            const clue = (0, dailyChallenge_1.buildClues)(naturalSouth)[2];
+            expect(clue.type).toBe('location');
+            expect(clue.text).toBe('🇦🇷 Found in Argentina.');
         });
     });
     describe('clue 4 — contextual hint', () => {
-        it('marks very early sites (<=1980)', () => {
-            expect((0, dailyChallenge_1.buildClues)(culturalNorth)[3]).toContain('very first');
-            expect((0, dailyChallenge_1.buildClues)(culturalNorth)[3]).toContain('1979');
+        it('marks very early sites (<=1980) as historical', () => {
+            const clue = (0, dailyChallenge_1.buildClues)(culturalNorth)[3];
+            expect(clue.type).toBe('historical');
+            expect(clue.text).toContain('very first');
+            expect(clue.text).toContain('1979');
         });
-        it('marks early sites (1981–1990)', () => {
-            expect((0, dailyChallenge_1.buildClues)(naturalSouth)[3]).toContain('early years');
+        it('marks early sites (1981–1990) as historical', () => {
+            const clue = (0, dailyChallenge_1.buildClues)(naturalSouth)[3];
+            expect(clue.type).toBe('historical');
+            expect(clue.text).toContain('early years');
         });
-        it('uses mixed flavour for recent mixed sites', () => {
-            expect((0, dailyChallenge_1.buildClues)(mixedRecent)[3]).toContain('both its cultural heritage and its natural landscape');
+        it('uses natural type for recent mixed sites', () => {
+            const clue = (0, dailyChallenge_1.buildClues)(mixedRecent)[3];
+            expect(clue.type).toBe('natural');
+            expect(clue.text).toContain('both its cultural heritage and its natural landscape');
         });
     });
-    describe('clue 5 — first word of name', () => {
+    describe('clue 5 — direct (first word of name)', () => {
         it('returns the first word of the site name', () => {
-            expect((0, dailyChallenge_1.buildClues)(culturalNorth)[4]).toBe('The site name begins with "Memphis".');
+            const clue = (0, dailyChallenge_1.buildClues)(culturalNorth)[4];
+            expect(clue.type).toBe('direct');
+            expect(clue.text).toBe('The site name begins with "Memphis".');
         });
         it('returns the first word for single-word names', () => {
             const singleWord = { ...culturalNorth, name: 'Karnak' };
-            expect((0, dailyChallenge_1.buildClues)(singleWord)[4]).toBe('The site name begins with "Karnak".');
+            const clue = (0, dailyChallenge_1.buildClues)(singleWord)[4];
+            expect(clue.type).toBe('direct');
+            expect(clue.text).toBe('The site name begins with "Karnak".');
         });
     });
     it('always returns an array of exactly 5 clues', () => {

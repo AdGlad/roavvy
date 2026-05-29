@@ -35,11 +35,13 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDailyChallenge = exports.scheduleDailyChallenge = void 0;
 exports.buildClues = buildClues;
+exports.buildCluesWithAI = buildCluesWithAI;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const firestore_1 = require("firebase-admin/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
+const vertexai_1 = require("@google-cloud/vertexai");
 // ── Dataset ───────────────────────────────────────────────────────────────────
 /**
  * Loads the bundled whs_sites.json and deduplicates by siteId (transboundary
@@ -164,6 +166,78 @@ function countryName(code) {
     };
     return names[code] ?? code;
 }
+// ── AI clue builder ───────────────────────────────────────────────────────────
+/**
+ * Gemini model to use. gemini-2.0-flash gives excellent creative writing at
+ * minimal cost (~$0.0003 per day for one challenge).
+ */
+const GEMINI_MODEL = 'gemini-2.0-flash';
+/**
+ * Builds five progressive typed clues using Gemini via Vertex AI.
+ *
+ * Clues go from most abstract (atmosphere / physical feeling) to most direct
+ * (country + first letter). Gemini is given the site's metadata and
+ * description and asked to write engaging, culturally-aware clues that may
+ * reference pop culture, physical characteristics, or history.
+ *
+ * Falls back to [buildClues] if the API call fails or returns malformed JSON.
+ */
+async function buildCluesWithAI(site, projectId) {
+    try {
+        const vertexai = new vertexai_1.VertexAI({ project: projectId, location: 'us-central1' });
+        const model = vertexai.getGenerativeModel({ model: GEMINI_MODEL });
+        const flag = toFlagEmoji(site.countryCode);
+        const country = countryName(site.countryCode);
+        const firstWord = site.name.split(/[\s,()–-]/)[0];
+        const descriptionLine = site.shortDescription
+            ? `Description: ${site.shortDescription}`
+            : '';
+        const prompt = `You are writing clues for a daily geography guessing game called Roavvy, similar to Wordle but for UNESCO World Heritage Sites. Players guess a UNESCO site based on 5 progressive clues, revealed one at a time. Clues go from most abstract to most specific.
+
+UNESCO Site details (DO NOT reveal the site name or country in clues 1-3):
+- Name: ${site.name}
+- Country: ${country}
+- Category: ${site.category}
+- UNESCO inscription year: ${site.inscriptionYear}
+- Region: ${site.region}
+${descriptionLine}
+
+Write exactly 5 clues following these rules strictly:
+
+Clue 1 (type: "atmosphere") — Evoke the PHYSICAL FEELING or appearance of the place. What does it look, feel, or smell like? Is it carved into rock? On a mountaintop? In a jungle? A coastal fortress? An underground cave system? Do NOT mention the country, continent, civilisation name, or any proper nouns. Make it atmospheric and intriguing.
+
+Clue 2 (type: "pop_culture") — A pop culture reference IF one genuinely exists: a famous movie filmed here, a well-known novel set here, a music video, a video game location, or a famous photograph. If no reliable pop culture reference exists, give one striking physical fact instead (height, age, scale, record). Do NOT reveal the country or site name.
+
+Clue 3 (type: "historical") — Who built it, which civilisation, empire, or culture created it, and why. Include the time period. Do NOT name the country.
+
+Clue 4 (type: "geography") — Name the continent and geographic sub-region (e.g. "West Africa", "the Andes", "South-East Asia", "the Arabian Peninsula"). You may describe the terrain (desert, rainforest, island, etc). Still do NOT name the country.
+
+Clue 5 (type: "direct") — Reveal: ${flag} ${country}. Also give the first letter/word of the site name: the site name starts with "${firstWord}".
+
+Return ONLY a valid JSON array, no markdown, no explanation:
+[
+  {"type": "atmosphere", "text": "..."},
+  {"type": "pop_culture", "text": "..."},
+  {"type": "historical", "text": "..."},
+  {"type": "geography", "text": "..."},
+  {"type": "direct", "text": "..."}
+]`;
+        const result = await model.generateContent(prompt);
+        const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        // Strip markdown code fences if present.
+        const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (!Array.isArray(parsed) || parsed.length !== 5) {
+            throw new Error(`Unexpected clue array length: ${parsed.length}`);
+        }
+        console.log(`[dailyChallenge] AI clues generated for ${site.name} (${site.siteId})`);
+        return parsed;
+    }
+    catch (err) {
+        console.error(`[dailyChallenge] AI clue generation failed, falling back to templates:`, err);
+        return buildClues(site);
+    }
+}
 // ── Site picker ───────────────────────────────────────────────────────────────
 /** Returns the UTC date string for today in `YYYY-MM-DD` format. */
 function todayUtc() {
@@ -187,7 +261,8 @@ async function writeDailyChallenge(date) {
         return { siteId: existing.data().siteId, alreadyExisted: true };
     }
     const site = pickSite(WHS_SITES, date);
-    const clues = buildClues(site);
+    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? '';
+    const clues = await buildCluesWithAI(site, projectId);
     const doc = {
         siteId: site.siteId,
         clues,
