@@ -97,6 +97,17 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     )..repeat(reverse: true);
 
     _rotationTicker = createTicker(_onRotationTick)..start();
+
+    // Seed heritage dot lists on the first frame, in case visitedHeritageProvider
+    // is already in AsyncData state when this widget mounts (ref.listen only fires
+    // on changes, not on the initial value).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final enabled = ref.read(heritageDotsEnabledProvider);
+      final visited =
+          ref.read(visitedHeritageProvider).valueOrNull ?? const [];
+      _rebuildHeritageLists(enabled, visited);
+    });
   }
 
   @override

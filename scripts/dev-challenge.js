@@ -152,14 +152,14 @@ async function buildCluesWithAI(s) {
   const prompt = `You are writing clues for Roavvy — a daily Wordle-style game where players guess a UNESCO World Heritage Site from 5 progressive clues. Each clue reveals a little more. Your goal is a smooth difficulty gradient, not a fixed category structure.
 
 TARGET DIFFICULTY (think: what % of players guess correctly after seeing this clue alone):
-  Clue 1 →  ~5%  Almost nobody gets it. Pure sensory — what it feels like to stand there.
-  Clue 2 → ~15%  One surprising fact: a genuine pop culture connection (film, novel, game, song) OR a single record-breaking physical stat. Still no location or civilisation name.
-  Clue 3 → ~35%  Historical/cultural context: which civilisation built it and roughly when. No country name.
-  Clue 4 → ~65%  Geographic reveal: continent + sub-region + terrain. No country name yet.
-  Clue 5 → ~90%  Full reveal: country flag, country name, first word of site name.
+  Clue 1 → ~20%  Name the broad geographic region (e.g. Western Europe, Scandinavia, the Mediterranean, South America, East Asia, Sub-Saharan Africa, the Middle East, Central Asia, the Pacific) AND the type of site (e.g. ancient city, cathedral, natural wonder, temple complex, fortified castle, rock art site, national park, historic town centre). End with one brief, evocative sensory detail. No country name, no specific sub-region, no civilisation name, no time period.
+  Clue 2 → ~40%  Nearly half of players should be able to guess. A memorable pop culture connection (film, novel, game, song) OR a single record-breaking physical stat. No country name, no civilisation name.
+  Clue 3 → ~60%  Most players should guess correctly by now. Historical/cultural context: which civilisation built it and roughly when. No country name.
+  Clue 4 → ~80%  The vast majority should get it. Geographic reveal: continent + sub-region + terrain. No country name yet.
+  Clue 5 → ~95%  Full reveal: country flag, country name, first word of site name.
 
 STRICT RULES FOR EACH CLUE:
-  Clue 1: NO country, continent, civilisation, time period, or proper nouns. Sensory only.
+  Clue 1: Must state the broad region AND the type of site. One sensory detail allowed. NO country name, NO specific sub-region, NO civilisation name, NO time period, NO proper nouns.
   Clue 2: NO country or site name. One fact or pop culture ref that is genuinely interesting.
   Clue 3: Civilisation/culture + time period allowed. NO country or sub-region name.
   Clue 4: Continent + sub-region + terrain allowed. NO country name.
@@ -177,7 +177,7 @@ ${descLine}
 
 EXAMPLE (Colosseum, Rome — do not copy the style, just the structure and difficulty calibration):
 [
-  {"type":"atmosphere","text":"An oval of tiered stone arches open to a blazing sky — the scale is overwhelming, the silence eerie, the worn travertine warm underfoot. You can almost hear the roar."},
+  {"type":"geography","text":"Southern Europe. An ancient amphitheatre — the largest ever built — its tiered stone arches open to a blazing sky, worn travertine warm underfoot."},
   {"type":"pop_culture","text":"Russell Crowe fought for his life here in Ridley Scott's 2000 epic — and the establishing shot has become one of cinema's most recognisable images."},
   {"type":"historical","text":"Commissioned by Emperor Vespasian of the Roman Empire and completed in 80 AD, funded by the spoils of war and built to entertain up to 80,000 citizens with gladiatorial combat."},
   {"type":"geography","text":"In the heart of southern Europe, on the Italian peninsula, in a city that gave its name to one of history's greatest empires."},

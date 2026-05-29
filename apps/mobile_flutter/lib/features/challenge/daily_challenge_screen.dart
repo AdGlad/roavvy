@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:confetti/confetti.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,12 +46,11 @@ class DailyChallengeScreen extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.bug_report_outlined),
-              tooltip: 'DEV: reset progress',
-              onPressed: () => _showDevResetDialog(context, ref),
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Reset progress',
+            onPressed: () => _showDevResetDialog(context, ref),
+          ),
         ],
       ),
       body: stateAsync.when(
@@ -68,11 +66,9 @@ class DailyChallengeScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('DEV: Reset challenge'),
+        title: const Text('Reset today\'s challenge?'),
         content: const Text(
-          'Clears local progress and stats for today so you can replay.\n\n'
-          'Use the CLI script to load a different site:\n'
-          'node scripts/dev-challenge.js --offset 1',
+          'This will clear your progress for today so you can replay from the beginning.',
         ),
         actions: [
           TextButton(
@@ -195,6 +191,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                 itemBuilder: (context, index) => _ClueCard(
                   number: index + 1,
                   clue: clues[index],
+                  imageUrl: index == 4 ? state.site.imageUrl : null,
                 ),
               ),
             ),
@@ -259,10 +256,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
 // ── Clue card ─────────────────────────────────────────────────────────────────
 
 class _ClueCard extends StatelessWidget {
-  const _ClueCard({required this.number, required this.clue});
+  const _ClueCard({required this.number, required this.clue, this.imageUrl});
 
   final int number;
   final ChallengeClue clue;
+  final String? imageUrl;
 
   static ({IconData icon, Color color}) _typeStyle(String type) => switch (type) {
         'geography'   => (icon: Icons.public, color: const Color(0xFF1976D2)),
@@ -279,6 +277,7 @@ class _ClueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = _typeStyle(clue.type);
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
@@ -286,38 +285,56 @@ class _ClueCard extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
         ),
-        padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: style.color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-                border: Border.all(color: style.color.withValues(alpha: 0.5)),
-              ),
-              alignment: Alignment.center,
-              child: Icon(style.icon, size: 15, color: style.color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Clue $number',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: style.color,
-                      fontWeight: FontWeight.w600,
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: style.color.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: style.color.withValues(alpha: 0.5)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(style.icon, size: 15, color: style.color),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Clue $number',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: style.color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(clue.text, style: theme.textTheme.bodyLarge),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(clue.text, style: theme.textTheme.bodyLarge),
                 ],
               ),
             ),
+            if (hasImage)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                child: Image.network(
+                  imageUrl!,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
           ],
         ),
       ),
