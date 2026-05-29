@@ -44,7 +44,19 @@ class DailyChallengeScreen extends ConsumerWidget {
         ),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            // If the game is over, fly to the site when the screen closes.
+            final state =
+                ref.read(dailyChallengeNotifierProvider).valueOrNull;
+            if (state != null &&
+                (state.progress.solved || state.progress.failed)) {
+              ref.read(globeTargetProvider.notifier).state =
+                  (state.site.latitude, state.site.longitude);
+              ref.read(challengeSiteHighlightProvider.notifier).state =
+                  (state.site.latitude, state.site.longitude);
+            }
+            Navigator.of(context).pop();
+          },
         ),
         actions: [
           IconButton(
@@ -606,15 +618,6 @@ class _ChallengeResultOverlayState
         if (mounted) _confetti.play();
       });
     }
-    // Fly globe to site and highlight it with a red dot.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final site = widget.state.site;
-      ref.read(globeTargetProvider.notifier).state =
-          (site.latitude, site.longitude);
-      ref.read(challengeSiteHighlightProvider.notifier).state =
-          (site.latitude, site.longitude);
-    });
   }
 
   @override
@@ -625,8 +628,12 @@ class _ChallengeResultOverlayState
   }
 
   void _goToSite() {
+    final site = widget.state.site;
+    ref.read(globeTargetProvider.notifier).state =
+        (site.latitude, site.longitude);
+    ref.read(challengeSiteHighlightProvider.notifier).state =
+        (site.latitude, site.longitude);
     Navigator.of(context).pop();
-    // Globe target already set in initState; just close the screen.
   }
 
   void _share() {
