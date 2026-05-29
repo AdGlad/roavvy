@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import 'challenge_stats_screen.dart';
 import 'daily_challenge_notifier.dart';
 import 'guess_normalizer.dart';
 
@@ -150,7 +151,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                 itemCount: progress.cluesRevealed.clamp(0, clues.length),
                 itemBuilder: (context, index) => _ClueCard(
                   number: index + 1,
-                  text: clues[index].text,
+                  clue: clues[index],
                 ),
               ),
             ),
@@ -215,14 +216,24 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
 // ── Clue card ─────────────────────────────────────────────────────────────────
 
 class _ClueCard extends StatelessWidget {
-  const _ClueCard({required this.number, required this.text});
+  const _ClueCard({required this.number, required this.clue});
 
   final int number;
-  final String text;
+  final ChallengeClue clue;
+
+  static ({IconData icon, Color color}) _typeStyle(String type) => switch (type) {
+        'geography'  => (icon: Icons.public, color: const Color(0xFF1976D2)),
+        'historical' => (icon: Icons.history_edu_outlined, color: const Color(0xFFF9A825)),
+        'location'   => (icon: Icons.place_outlined, color: const Color(0xFFFF6F00)),
+        'natural'    => (icon: Icons.park_outlined, color: const Color(0xFF388E3C)),
+        'direct'     => (icon: Icons.lightbulb_outlined, color: const Color(0xFF26C6DA)),
+        _            => (icon: Icons.help_outline, color: Colors.white38),
+      };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final style = _typeStyle(clue.type);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
@@ -238,22 +249,29 @@ class _ClueCard extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
+                color: style.color.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
+                border: Border.all(color: style.color.withValues(alpha: 0.5)),
               ),
               alignment: Alignment.center,
-              child: Text(
-                '$number',
-                style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: Icon(style.icon, size: 15, color: style.color),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(text, style: theme.textTheme.bodyLarge),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Clue $number',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: style.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(clue.text, style: theme.textTheme.bodyLarge),
+                ],
+              ),
             ),
           ],
         ),
@@ -592,18 +610,24 @@ class _ChallengeResultOverlayState
                 controller: scrollCtrl,
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
                 children: [
-                  // Drag handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2),
+                  // ── Hero image ────────────────────────────────────────────
+                  if (site.imageUrl != null && site.imageUrl!.isNotEmpty) ...[
+                    _RevealHeroImage(imageUrl: site.imageUrl!),
+                    const SizedBox(height: 16),
+                  ],
+                  // Drag handle (shown only when no image)
+                  if (site.imageUrl == null || site.imageUrl!.isEmpty)
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
                   // Solve / fail header
                   Text(
                     widget.solved ? '✅ Solved!' : '❌ Better luck tomorrow',
@@ -717,10 +741,80 @@ class _ChallengeResultOverlayState
                           borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
+                  // View stats
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ChallengeStatsScreen(),
+                        ),
+                      ),
+                      child: const Text('View Stats'),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Reveal hero image ─────────────────────────────────────────────────────────
+
+/// Wikipedia hero image shown at the top of the result overlay when available.
+class _RevealHeroImage extends StatelessWidget {
+  const _RevealHeroImage({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Icon(Icons.landscape_outlined,
+                        color: Theme.of(context).colorScheme.outline, size: 40),
+                  ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.4),
+                        ],
+                        stops: const [0.5, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '© Wikipedia / CC BY-SA',
+          style: const TextStyle(color: Colors.white38, fontSize: 10),
         ),
       ],
     );

@@ -319,6 +319,12 @@ final challengeAggregateProvider = FutureProvider<ChallengeAggregate>(
   (ref) => ref.watch(challengeStatsServiceProvider).loadAggregate(),
 );
 
+/// Last 30 days of challenge history for the stats screen (M136).
+final challengeLast30Provider =
+    FutureProvider<List<({String date, bool solved, int guessesUsed})>>(
+  (ref) => ref.watch(challengeStatsServiceProvider).last30Days(),
+);
+
 /// Fetches today's challenge from Firestore. Re-fetches only on invalidation.
 final dailyChallengeProvider = FutureProvider<DailyChallenge>(
   (_) => const DailyChallengeService().fetchToday(),
