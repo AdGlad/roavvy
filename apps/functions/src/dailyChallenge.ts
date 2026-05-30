@@ -18,6 +18,7 @@ interface WhsSite {
   inscriptionYear: number;
   shortDescription?: string;
   imageUrl?: string;
+  criteria?: string[];
 }
 
 type ClueType = 'geography' | 'historical' | 'location' | 'natural' | 'direct' | 'atmosphere' | 'pop_culture';
@@ -193,14 +194,17 @@ export async function buildCluesWithAI(
   _projectId: string,
 ): Promise<ChallengeClue[]> {
   try {
-    const apiKey = process.env.GEMINI_API_KEY ?? '';
-    const ai = new GoogleGenAI({ apiKey });
+    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? _projectId;
+    const ai = new GoogleGenAI({ vertexai: true, project: projectId, location: 'us-central1' });
 
     const flag = toFlagEmoji(site.countryCode);
     const country = countryName(site.countryCode);
     const firstWord = site.name.split(/[\s,()–-]/)[0];
     const descriptionLine = site.shortDescription
       ? `Description: ${site.shortDescription}`
+      : '';
+    const criteriaLine = site.criteria?.length
+      ? `UNESCO criteria: (${site.criteria.join(')(')})`
       : '';
 
     const prompt = `You are writing clues for Roavvy — a daily Wordle-style game where players guess a UNESCO World Heritage Site from 5 progressive clues. Each clue reveals a little more. Your goal is a smooth difficulty gradient, not a fixed category structure.
@@ -228,6 +232,7 @@ SITE TO WRITE CLUES FOR:
 - Inscription year: ${site.inscriptionYear}
 - Region: ${site.region}
 ${descriptionLine}
+${criteriaLine}
 
 EXAMPLE (Colosseum, Rome — do not copy the style, just the structure and difficulty calibration):
 [
@@ -318,7 +323,7 @@ async function writeDailyChallenge(date: string): Promise<{ siteId: string; alre
  * Firestore. Idempotent — skips if the document already exists.
  */
 export const scheduleDailyChallenge = onSchedule(
-  { schedule: 'every day 00:00', timeZone: 'UTC', secrets: ['GEMINI_API_KEY'] },
+  { schedule: 'every day 00:00', timeZone: 'UTC' },
   async (_event) => {
     const date = todayUtc();
     const result = await writeDailyChallenge(date);
@@ -335,7 +340,7 @@ export const scheduleDailyChallenge = onSchedule(
  * Accepts an optional `date` string (YYYY-MM-DD); defaults to today UTC.
  * Returns the siteId and clues written (or already existing).
  */
-export const getDailyChallenge = onCall({ secrets: ['GEMINI_API_KEY'] }, async (request) => {
+export const getDailyChallenge = onCall({}, async (request) => {
   const date: string =
     typeof request.data?.date === 'string' && request.data.date.match(/^\d{4}-\d{2}-\d{2}$/)
       ? request.data.date
