@@ -335,8 +335,11 @@ final challengeLast30Provider =
   (ref) => ref.watch(challengeStatsServiceProvider).last30Days(),
 );
 
-/// Fetches today's challenge from Firestore. Re-fetches only on invalidation.
-final dailyChallengeProvider = FutureProvider<DailyChallenge>(
+/// Fetches today's challenge from Firestore.
+/// autoDispose so the date is re-evaluated on every screen open — ensures a
+/// new day always fetches the correct document rather than reusing a cached
+/// result built with yesterday's date.
+final dailyChallengeProvider = FutureProvider.autoDispose<DailyChallenge>(
   (_) => const DailyChallengeService().fetchToday(),
 );
 
@@ -344,8 +347,7 @@ final dailyChallengeProvider = FutureProvider<DailyChallenge>(
 /// Null when the user has not yet opened the challenge today.
 final dailyChallengeProgressProvider =
     FutureProvider<DailyChallengeProgress?>((ref) {
-  final today = DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
-  return ref.watch(dailyChallengeRepositoryProvider).loadToday(today);
+  return ref.watch(dailyChallengeRepositoryProvider).loadToday(todayLocal());
 });
 
 /// Raw JSON string from bundled whs_sites.json. Loaded once per app lifetime.
@@ -388,6 +390,10 @@ final dailyChallengeNotifierProvider = StateNotifierProvider.autoDispose<
       statsService: statsService,
     );
     ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
+    // Invalidate progress on dispose so the next screen open re-reads from DB
+    // rather than getting the stale cached value (which was null before the
+    // first guess was made).
+    ref.onDispose(() => ref.invalidate(dailyChallengeProgressProvider));
     return notifier;
   },
 );

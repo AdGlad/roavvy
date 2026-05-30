@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../data/daily_challenge_repository.dart';
+import 'daily_challenge_service.dart';
 import 'daily_challenge_stats.dart';
 import 'guess_normalizer.dart';
 import 'hot_cold_feedback.dart';
@@ -263,7 +264,7 @@ DailyChallengeState buildInitialChallengeState({
   if (site == null) {
     throw StateError('WHS site ${challenge.siteId} not found in bundled dataset');
   }
-  final today = DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
+  final today = todayLocal();
   final progress = savedProgress ??
       DailyChallengeProgress(
         date: today,
