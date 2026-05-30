@@ -112,6 +112,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     final today = _todayLocal();
     if (today != _lastKnownDate) {
       _onDayRollover();
+      // Pre-generate the new day's challenge document.
+      const DailyChallengeService().prefetch();
     }
     // Always reschedule — the timer may have been paused while backgrounded.
     _scheduleMidnightRefresh();

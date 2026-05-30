@@ -74,12 +74,16 @@ class DailyChallengeScreen extends ConsumerWidget {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Generating today\'s challenge…',
+              Text('Loading today\'s challenge…',
                   style: TextStyle(color: Colors.grey)),
             ],
           ),
         ),
-        error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(dailyChallengeProvider)),
+        error: (e, _) => _ErrorState(onRetry: () {
+          // Kick off background generation then re-fetch.
+          const DailyChallengeService().prefetch();
+          ref.invalidate(dailyChallengeProvider);
+        }),
         data: (state) => _ChallengeBody(state: state),
       ),
     );
@@ -118,13 +122,21 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_outlined,
+            Icon(Icons.hourglass_top_outlined,
                 size: 48, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: 16),
             Text(
-              'No challenge today — check back later.',
+              "Today's challenge is being generated.",
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap Retry in a few seconds.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 24),
             OutlinedButton(onPressed: onRetry, child: const Text('Retry')),

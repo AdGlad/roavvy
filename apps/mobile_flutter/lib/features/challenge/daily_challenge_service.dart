@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
@@ -11,78 +13,83 @@ String todayLocal() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 /// Fetches the daily challenge document from Firestore.
 ///
 /// Documents are keyed by local date (`YYYY-MM-DD`) so the challenge resets
-/// at the user's local midnight. If today's document does not yet exist, the
-/// `getDailyChallenge` Cloud Function is called to generate it on-demand.
+/// at the user's local midnight.
+///
+/// Generation is handled entirely by [prefetch] / [forceRefresh]. [fetchToday]
+/// only reads — if the document does not yet exist it throws immediately
+/// rather than blocking on a slow Cloud Function call.
 class DailyChallengeService {
   const DailyChallengeService();
 
   /// Reads `daily_challenge/{YYYY-MM-DD}` for today (local time).
   ///
-  /// If the document is missing (function hasn't run for this local date yet),
-  /// triggers the Cloud Function to generate it, then re-reads.
-  ///
-  /// Throws [DailyChallengeUnavailable] on unrecoverable network errors.
+  /// Returns immediately. Throws [DailyChallengeUnavailable] when the document
+  /// is missing (generation still in progress) or on network errors.
+  /// Callers should show a retry prompt; [prefetch] generates the doc in the
+  /// background and the retry will succeed once it's written.
   Future<DailyChallenge> fetchToday() async {
     final date = todayLocal();
     try {
-      var doc = await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore.instance
           .collection('daily_challenge')
           .doc(date)
-          .get();
-
-      // Document missing — ask the Cloud Function to generate it.
-      if (!doc.exists || doc.data() == null) {
-        await FirebaseFunctions.instance
-            .httpsCallable('getDailyChallenge')
-            .call({'date': date});
-        doc = await FirebaseFirestore.instance
-            .collection('daily_challenge')
-            .doc(date)
-            .get();
-      }
+          .get()
+          .timeout(const Duration(seconds: 15));
 
       if (!doc.exists || doc.data() == null) {
         throw const DailyChallengeUnavailable();
       }
-      final data = doc.data()!;
-      final rawClues = data['clues'] as List<dynamic>;
-      return DailyChallenge(
-        siteId: data['siteId'] as String,
-        clues: rawClues
-            .map<ChallengeClue>((e) => ChallengeClue.fromJson(e as Object))
-            .toList(),
-        difficulty: data['difficulty'] as String? ?? 'medium',
-      );
-    } on FirebaseException {
+      return _parse(doc.data()!);
+    } on TimeoutException {
       throw const DailyChallengeUnavailable();
-    } on FirebaseFunctionsException {
+    } on FirebaseException {
       throw const DailyChallengeUnavailable();
     }
   }
 
-    /// Fire-and-forget prefetch: asks the Cloud Function to generate today's
-  /// challenge document in the background so it exists before the user opens
-  /// the screen. Swallows all errors — this is best-effort only.
+  /// Fire-and-forget: asks the Cloud Function to generate today's document in
+  /// the background. Called on every app start so the document is ready before
+  /// the user opens the challenge screen. Swallows all errors.
   void prefetch() {
-    final date = todayLocal();
     FirebaseFunctions.instance
-        .httpsCallable('getDailyChallenge')
-        .call({'date': date})
+        .httpsCallable(
+          'getDailyChallenge',
+          options: HttpsCallableOptions(
+            timeout: const Duration(seconds: 90),
+          ),
+        )
+        .call({'date': todayLocal()})
         .ignore();
   }
 
-  /// Calls the Cloud Function to force-generate (or re-fetch) today's
-  /// challenge, then returns it. Used by the refresh button.
+  /// Calls the Cloud Function to force-regenerate today's challenge, then
+  /// reads the result. Used by the manual refresh button.
   Future<DailyChallenge> forceRefresh() async {
     final date = todayLocal();
     try {
       await FirebaseFunctions.instance
-          .httpsCallable('getDailyChallenge')
+          .httpsCallable(
+            'getDailyChallenge',
+            options: HttpsCallableOptions(
+              timeout: const Duration(seconds: 90),
+            ),
+          )
           .call({'date': date});
       return fetchToday();
-    } on FirebaseFunctionsException {
+    } on FirebaseException {
       throw const DailyChallengeUnavailable();
     }
+  }
+
+  static DailyChallenge _parse(Map<String, dynamic> data) {
+    final rawClues = data['clues'] as List<dynamic>;
+    return DailyChallenge(
+      siteId: data['siteId'] as String,
+      clues: rawClues
+          .map<ChallengeClue>((e) => ChallengeClue.fromJson(e as Object))
+          .toList(),
+      difficulty: data['difficulty'] as String? ?? 'medium',
+    );
   }
 }
 
