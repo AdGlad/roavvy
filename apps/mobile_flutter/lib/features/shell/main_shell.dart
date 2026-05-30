@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../challenge/daily_challenge_service.dart';
 import '../globe_replay/globe_replay_widget.dart';
 import '../memory/app_open_tracker.dart';
 import '../journal/journal_screen.dart';
@@ -44,13 +48,23 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
+String _todayLocal() => DateFormat('yyyy-MM-dd').format(DateTime.now());
+
 class _MainShellState extends ConsumerState<MainShell> {
   late int _selectedIndex;
+  late String _lastKnownDate;
+  late AppLifecycleListener _lifecycleListener;
+  Timer? _midnightTimer;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialTab;
+    _lastKnownDate = _todayLocal();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: _onAppResume,
+    );
+    _scheduleMidnightRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.openScanOnLoad) _goToScan(autoStart: true, forceFullScan: true);
       _handleLaunchNotification();
@@ -59,6 +73,9 @@ class _MainShellState extends ConsumerState<MainShell> {
       ref
           .read(memoryPulseServiceProvider)
           .scheduleAnniversaryNotifications(DateTime.now());
+      // Pre-generate today's daily challenge so the document exists in
+      // Firestore before the user opens the screen (avoids cold-start spinner).
+      const DailyChallengeService().prefetch();
     });
     NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.addListener(_onPendingMemoryTripId);
@@ -68,10 +85,45 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
+    _lifecycleListener.dispose();
     NotificationService.instance.pendingTabIndex.removeListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.removeListener(_onPendingMemoryTripId);
     NotificationService.instance.pendingMemoryCountryCode.removeListener(_onPendingMemoryCountryCode);
     super.dispose();
+  }
+
+  /// Schedules a one-shot timer that fires just after the next UTC midnight,
+  /// invalidating the daily challenge providers so the new day's challenge
+  /// loads without requiring the user to restart or background the app.
+  void _scheduleMidnightRefresh() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    // Add a 2-second buffer so Firestore has a moment to write the new doc.
+    final delay = nextMidnight.difference(now) + const Duration(seconds: 2);
+    _midnightTimer = Timer(delay, _onDayRollover);
+  }
+
+  /// Called when the app returns to the foreground. If the UTC date has rolled
+  /// over since the last foreground session, invalidate providers and
+  /// reschedule the midnight timer for the new day.
+  void _onAppResume() {
+    final today = _todayLocal();
+    if (today != _lastKnownDate) {
+      _onDayRollover();
+    }
+    // Always reschedule — the timer may have been paused while backgrounded.
+    _scheduleMidnightRefresh();
+  }
+
+  /// Invalidates daily challenge providers so they re-fetch with today's date.
+  void _onDayRollover() {
+    if (!mounted) return;
+    _lastKnownDate = _todayLocal();
+    ref.invalidate(dailyChallengeProgressProvider);
+    // dailyChallengeProvider is autoDispose — no invalidation needed; it will
+    // refetch with the new date when the challenge screen next opens.
   }
 
   /// Handles the cold-start case: app launched by tapping a notification.

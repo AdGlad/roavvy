@@ -257,6 +257,38 @@ class VisitRepository {
     });
   }
 
+  /// Full-scan merge: replaces photo counts for countries found in [visits]
+  /// but preserves any countries already in the DB that are not in [visits].
+  ///
+  /// Unlike [clearAndSaveAllInferred] this never deletes existing rows, so
+  /// countries discovered in earlier scans survive even when their photos lack
+  /// GPS in the current scan run. [firstSeen]/[lastSeen] are merged as usual.
+  Future<void> mergeFullScanInferred(List<InferredCountryVisit> visits) async {
+    if (visits.isEmpty) return;
+    await _db.transaction(() async {
+      final codes = visits.map((v) => v.countryCode).toSet().toList();
+      final existing = await (_db.select(_db.inferredCountryVisits)
+            ..where((t) => t.countryCode.isIn(codes)))
+          .get();
+      final existingByCode = {for (final r in existing) r.countryCode: r};
+
+      for (final v in visits) {
+        final ex = existingByCode[v.countryCode];
+        await _db.into(_db.inferredCountryVisits).insertOnConflictUpdate(
+          InferredCountryVisitsCompanion(
+            countryCode: Value(v.countryCode),
+            inferredAt: Value(v.inferredAt),
+            // Full scan: use the fresh count from this run (SET, not ADD).
+            photoCount: Value(v.photoCount),
+            firstSeen: Value(_earlier(ex?.firstSeen, v.firstSeen)),
+            lastSeen: Value(_later(ex?.lastSeen, v.lastSeen)),
+            isDirty: const Value(1),
+          ),
+        );
+      }
+    });
+  }
+
   /// Clears only the inferred table. Used before a full rescan so stale
   /// inferred data does not accumulate with the new scan results.
   Future<void> clearInferred() =>

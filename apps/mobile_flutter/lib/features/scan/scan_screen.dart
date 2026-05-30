@@ -136,16 +136,21 @@ BatchResult resolveBatch(
   final accum = <String, CountryAccum>{};
   final photoDates = <PhotoDateRecord>[];
   final photoGps = <PhotoGpsRecord>[];
-  // Per-bucket caches so each unique 0.5° cell calls each resolver once.
+  // Per-bucket caches so each unique 0.1° cell calls each resolver once.
+  // 0.1° ≈ 11 km — small enough that a cell rarely straddles two countries,
+  // large enough to provide meaningful cache benefit across a city's photos.
+  // The resolver is always called with the bucket CENTRE, not the first
+  // photo's exact coords, so the cached country is consistent for the cell
+  // regardless of which photo is processed first (fixes border misassignment).
   final countryBucketCache = <(double, double), String?>{};
   final regionBucketCache = <(double, double), String?>{};
 
   for (final photo in photos) {
-    final bucketLat = (photo.lat * 2).roundToDouble() / 2;
-    final bucketLng = (photo.lng * 2).roundToDouble() / 2;
+    final bucketLat = (photo.lat * 10).roundToDouble() / 10;
+    final bucketLng = (photo.lng * 10).roundToDouble() / 10;
     final key = (bucketLat, bucketLng);
     final code = countryBucketCache.putIfAbsent(
-        key, () => countryResolver(photo.lat, photo.lng));
+        key, () => countryResolver(bucketLat, bucketLng));
     if (code == null) continue;
 
     final a =
@@ -773,10 +778,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               ))
           .toList();
 
-      // Full scan rebuilds inferred from scratch; incremental upsert-merges
-      // so that countries from before lastScanAt are preserved.
+      // Full scan merges with fresh photo counts; incremental upsert-merges
+      // accumulate counts. Neither path deletes countries not found in this run
+      // so history from previous scans is always preserved.
       if (_forceFullScan || sinceDate == null) {
-        await _repo.clearAndSaveAllInferred(inferred);
+        await _repo.mergeFullScanInferred(inferred);
       } else {
         await _repo.saveAllInferred(inferred);
       }

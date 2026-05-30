@@ -12,6 +12,7 @@ import '../../core/providers.dart';
 import 'challenge_audio_service.dart';
 import 'challenge_stats_screen.dart';
 import 'daily_challenge_notifier.dart';
+import 'daily_challenge_service.dart';
 import 'guess_normalizer.dart';
 
 /// Full-screen modal for the Daily Heritage Challenge.
@@ -61,49 +62,44 @@ class DailyChallengeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reset progress',
-            onPressed: () => _showDevResetDialog(context, ref),
+            tooltip: 'Refresh challenge',
+            onPressed: () => _forceRefresh(context, ref),
           ),
         ],
       ),
       body: stateAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Generating today\'s challenge…',
+                  style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
         error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(dailyChallengeProvider)),
         data: (state) => _ChallengeBody(state: state),
       ),
     );
   }
 
-  /// DEV ONLY: dialog to clear local progress so the challenge can be replayed.
-  Future<void> _showDevResetDialog(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Reset today\'s challenge?'),
-        content: const Text(
-          'This will clear your progress for today so you can replay from the beginning.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now().toUtc());
-    final repo = ref.read(dailyChallengeRepositoryProvider);
-    await repo.deleteProgress(today);
-    // Also clear the stats row so streak isn't affected by dev resets.
-    await ref.read(challengeStatsServiceProvider).deleteForDate(today);
-    ref.invalidate(dailyChallengeProgressProvider);
-    ref.invalidate(dailyChallengeNotifierProvider);
+  /// Calls the Cloud Function to generate (or re-fetch) today's challenge,
+  /// then invalidates the provider so the screen reloads with fresh data.
+  Future<void> _forceRefresh(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await const DailyChallengeService().forceRefresh();
+      ref.invalidate(dailyChallengeProvider);
+      ref.invalidate(dailyChallengeProgressProvider);
+    } catch (_) {
+      if (context.mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Could not refresh — check your connection.')),
+        );
+      }
+    }
   }
 }
 
@@ -192,6 +188,10 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
       } else {
         _audio.playWrong();
         await _shakeCtrl.forward(from: 0);
+        // Auto-reveal next clue after each wrong guess.
+        if (mounted) {
+          await ref.read(dailyChallengeNotifierProvider.notifier).revealNextClue();
+        }
       }
     }
   }
@@ -277,6 +277,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                 sites: sites,
                 shakeAnimation: _shakeAnim,
                 onSelected: _submit,
+                defaultRegion: state.site.region,
               ),
               if (progress.cluesRevealed < 5)
                 _RevealClueButton(
@@ -362,7 +363,7 @@ class _ClueCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(clue.text, style: theme.textTheme.bodyMedium),
+                        Text(clue.text, style: theme.textTheme.bodySmall),
                       ],
                     ),
                   ),
@@ -447,101 +448,182 @@ class _RevealAnswerButton extends StatelessWidget {
 ///
 /// Suggestions open upward (above the keyboard). Selecting a site immediately
 /// submits it as a guess — the autocomplete selection IS the confirmation.
+///
+/// Includes a region dropdown pre-filled with [defaultRegion] (from the first
+/// clue) so the user can narrow guesses to a UNESCO region.
 class _HeritageSiteSearchInput extends StatefulWidget {
   const _HeritageSiteSearchInput({
     required this.sites,
     required this.shakeAnimation,
     required this.onSelected,
+    required this.defaultRegion,
   });
 
   final List<WorldHeritageSite> sites;
   final Animation<double> shakeAnimation;
   final void Function(String siteName) onSelected;
 
+  /// The challenge site's UNESCO region — pre-fills the region dropdown since
+  /// the first clue already reveals this information.
+  final String defaultRegion;
+
   @override
   State<_HeritageSiteSearchInput> createState() =>
       _HeritageSiteSearchInputState();
 }
 
+/// All UNESCO regions in display order, plus the "All regions" option.
+const _kAllRegions = [
+  null, // null = All regions
+  'Africa',
+  'Arab States',
+  'Asia and the Pacific',
+  'Europe and North America',
+  'Latin America and the Caribbean',
+];
+
+/// Returns a shorter display label for a site name, truncating at common
+/// UNESCO separators while preserving enough context to identify the site.
+String _shortSiteName(String name) {
+  if (name.length <= 45) return name;
+  for (final sep in [', the ', ' — ', ': ', ' (']) {
+    final idx = name.indexOf(sep);
+    if (idx > 15) return name.substring(0, idx);
+  }
+  return '${name.substring(0, 45)}…';
+}
+
 class _HeritageSiteSearchInputState extends State<_HeritageSiteSearchInput> {
   Key _key = UniqueKey();
+  late String? _regionFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    _regionFilter = widget.defaultRegion;
+  }
 
   void _onSelected(WorldHeritageSite site) {
     widget.onSelected(site.name);
     setState(() => _key = UniqueKey());
   }
 
+  List<WorldHeritageSite> get _filteredSites => _regionFilter == null
+      ? widget.sites
+      : widget.sites.where((s) => s.region == _regionFilter).toList();
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: AnimatedBuilder(
-        animation: widget.shakeAnimation,
-        builder: (context, child) {
-          final offset =
-              math.sin(widget.shakeAnimation.value * math.pi * 6) * 8;
-          return Transform.translate(offset: Offset(offset, 0), child: child);
-        },
-        child: Autocomplete<WorldHeritageSite>(
-          key: _key,
-          displayStringForOption: (s) => s.name,
-          optionsViewOpenDirection: OptionsViewOpenDirection.up,
-          optionsBuilder: (value) {
-            final q = normalizeForGuess(value.text);
-            if (q.length < 2) return const Iterable.empty();
-            return widget.sites
-                .where((s) => normalizeForGuess(s.name).contains(q))
-                .take(8);
-          },
-          onSelected: _onSelected,
-          fieldViewBuilder: (ctx, textCtrl, focusNode, onFieldSubmitted) {
-            return TextField(
-              controller: textCtrl,
-              focusNode: focusNode,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search World Heritage Sites…',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                prefixIcon: const Icon(Icons.search_rounded),
-              ),
-            );
-          },
-          optionsViewBuilder: (ctx, onSelected, options) {
-            return Align(
-              alignment: Alignment.bottomLeft,
-              child: Material(
-                elevation: 6,
-                borderRadius: BorderRadius.circular(12),
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  itemBuilder: (_, i) {
-                    final site = options.elementAt(i);
-                    return ListTile(
-                      dense: true,
-                      leading: Text(
-                        _flag(site.countryCode),
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                      title: Text(
-                        site.name,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w500),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: () => onSelected(site),
-                    );
-                  },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Region filter row
+          Row(
+            children: [
+              const Icon(Icons.public, size: 16, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: _regionFilter,
+                    isDense: true,
+                    isExpanded: true,
+                    hint: const Text('All regions',
+                        style: TextStyle(fontSize: 13)),
+                    style: theme.textTheme.bodySmall,
+                    items: _kAllRegions
+                        .map((r) => DropdownMenuItem<String?>(
+                              value: r,
+                              child: Text(
+                                r ?? 'All regions',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (r) {
+                      setState(() {
+                        _regionFilter = r;
+                        _key = UniqueKey();
+                      });
+                    },
+                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Search autocomplete
+          AnimatedBuilder(
+            animation: widget.shakeAnimation,
+            builder: (context, child) {
+              final offset =
+                  math.sin(widget.shakeAnimation.value * math.pi * 6) * 8;
+              return Transform.translate(offset: Offset(offset, 0), child: child);
+            },
+            child: Autocomplete<WorldHeritageSite>(
+              key: _key,
+              displayStringForOption: (s) => _shortSiteName(s.name),
+              optionsViewOpenDirection: OptionsViewOpenDirection.up,
+              optionsBuilder: (value) {
+                final q = normalizeForGuess(value.text);
+                if (q.length < 2) return const Iterable.empty();
+                return _filteredSites
+                    .where((s) => normalizeForGuess(s.name).contains(q))
+                    .take(8);
+              },
+              onSelected: _onSelected,
+              fieldViewBuilder: (ctx, textCtrl, focusNode, onFieldSubmitted) {
+                return TextField(
+                  controller: textCtrl,
+                  focusNode: focusNode,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Search World Heritage Sites…',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded),
+                  ),
+                );
+              },
+              optionsViewBuilder: (ctx, onSelected, options) {
+                return Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Material(
+                    elevation: 6,
+                    borderRadius: BorderRadius.circular(12),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (_, i) {
+                        final site = options.elementAt(i);
+                        return ListTile(
+                          dense: true,
+                          leading: Text(
+                            _flag(site.countryCode),
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          title: Text(
+                            _shortSiteName(site.name),
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w500),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => onSelected(site),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -638,15 +720,18 @@ class _ChallengeResultOverlay extends ConsumerStatefulWidget {
       _ChallengeResultOverlayState();
 }
 
-class _ChallengeResultOverlayState
-    extends ConsumerState<_ChallengeResultOverlay> {
+class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay>
+    with WidgetsBindingObserver {
   late final ConfettiController _confetti;
+  late final DraggableScrollableController _sheetCtrl;
   final _audio = ChallengeAudioService();
 
   @override
   void initState() {
     super.initState();
+    _sheetCtrl = DraggableScrollableController();
     _confetti = ConfettiController(duration: const Duration(seconds: 3));
+    WidgetsBinding.instance.addObserver(this);
     _audio.preload().then((_) {
       if (!mounted) return;
       if (widget.solved) {
@@ -664,9 +749,30 @@ class _ChallengeResultOverlayState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sheetCtrl.dispose();
     _confetti.dispose();
     _audio.dispose();
     super.dispose();
+  }
+
+  /// When the app returns from background (e.g. after sharing to Messages),
+  /// snap the sheet back to its initial position. This recovers from a stuck
+  /// drag state caused by iOS interrupting the gesture cycle when the system
+  /// share sheet opens.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _sheetCtrl.isAttached) {
+          _sheetCtrl.animateTo(
+            0.82,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
   }
 
   void _goToSite() {
@@ -684,12 +790,14 @@ class _ChallengeResultOverlayState
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
     final text = 'Roavvy Daily — $date\n$grid\nroavvy.app/daily';
-    // iOS requires sharePositionOrigin to anchor the popover to the button.
     final box = btnContext.findRenderObject() as RenderBox?;
     final origin = box == null
         ? null
         : box.localToGlobal(Offset.zero) & box.size;
-    Share.share(text, sharePositionOrigin: origin);
+    // Fire-and-forget: don't await the result so the UIActivityViewController
+    // completion handler (which iOS may never call when switching to Messages)
+    // cannot block navigation on return.
+    Share.share(text, sharePositionOrigin: origin).ignore();
   }
 
   @override
@@ -743,6 +851,7 @@ class _ChallengeResultOverlayState
         // Content sheet
         Positioned.fill(
           child: DraggableScrollableSheet(
+            controller: _sheetCtrl,
             initialChildSize: 0.82,
             minChildSize: 0.5,
             maxChildSize: 0.95,
