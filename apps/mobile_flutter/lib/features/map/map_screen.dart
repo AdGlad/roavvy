@@ -342,10 +342,10 @@ class MapScreen extends ConsumerWidget {
               child: RovyBubble(),
             ),
           ),
-          // Globe rotation pause/play — bottom-right, above stats strip.
+          // Globe rotation pause/play — bottom-right, above flag strip.
           if (globeMode)
             const Positioned(
-              bottom: 72,
+              bottom: 148,
               right: 12,
               child: _GlobeRotationToggle(),
             ),
