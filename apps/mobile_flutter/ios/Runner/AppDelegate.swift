@@ -28,13 +28,23 @@ import UIKit
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
-    /// When the user shares via Messages and iOS opens the full Messages app, our
-    /// UIActivityViewController can be left in the view hierarchy in a ghost state
-    /// — invisible but intercepting all touches, freezing the app on return.
-    /// Dismiss any stuck activity controller when we become active again.
+    /// When the user shares via Messages and iOS opens the full Messages app, the
+    /// UIActivityViewController (with its Messages extension child sheet) can be
+    /// left in the view hierarchy in a ghost state — invisible but intercepting all
+    /// touches, freezing the app on return.
+    ///
+    /// Complication: the Messages extension (SHSheetRemoteCustomViewController) may
+    /// have been mid-dismiss-transition when the app was backgrounded. UIKit pauses
+    /// transition animations in the background, then resumes them on foreground.
+    /// Calling dismiss() immediately fires "Trying to dismiss while transitioning"
+    /// and is silently rejected. We wait for the transition to finish first.
     override func applicationDidBecomeActive(_ application: UIApplication) {
         super.applicationDidBecomeActive(application)
-        dismissStuckActivityController(from: window?.rootViewController)
+        // Wait for any paused transition animations to complete (UIKit resumes them
+        // on foreground; standard animation duration is ~0.3 s, so 0.6 s is safe).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            self?.dismissStuckActivityController(from: self?.window?.rootViewController)
+        }
     }
 
     private func dismissStuckActivityController(from vc: UIViewController?) {
@@ -44,6 +54,7 @@ import UIKit
                 // Dismiss without animation — it should already be visually gone.
                 presented.dismiss(animated: false, completion: nil)
             } else {
+                // Walk deeper (e.g. the activity VC presented a sheet that got stuck).
                 dismissStuckActivityController(from: presented)
             }
         }
