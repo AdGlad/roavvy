@@ -1733,3 +1733,50 @@ ADR-002's intent is to prevent raw GPS coordinates from being stored long-term o
 - `TripRepository.upsertAll` and `_rowToRecord` updated to persist/load GPS fields.
 - Scan pipeline: `resolveBatch` tracks a `List<PhotoGpsRecord>` alongside `photoDates`; a `_extractTripGps` helper maps GPS records to trips by time window after `inferTrips`.
 - Existing users upgrading: GPS endpoints are null until the next full rescan. Centroid fallback ensures replay still works correctly.
+
+## ADR-158 — AI Clue Generation: Vertex AI via @google/genai SDK (DO NOT REGRESS)
+
+**Status:** Accepted
+
+**Context:**
+`buildCluesWithAI()` in `apps/functions/src/dailyChallenge.ts` calls Gemini to generate 5 progressive clues per UNESCO site for the daily challenge.
+
+Two SDK options exist:
+
+| SDK | Auth | Status |
+|---|---|---|
+| `@google-cloud/vertexai` | GCP service account | **Deprecated June 2025** — cannot resolve `gemini-2.0-flash` via Publisher Model endpoint on roavvy-prod; silently falls back to template clues |
+| `@google/genai` + `{ apiKey }` | `GEMINI_API_KEY` secret | Works but requires a Firebase Secret Manager entry and a secret declaration on every Cloud Function |
+| `@google/genai` + `{ vertexai: true, project, location }` | GCP service account | **Correct approach** — same SDK as option 2, no secret needed, uses runtime service account |
+
+On 29 May 2026 (commit `04d42e5`) the code regressed from `@google-cloud/vertexai` to `@google/genai` + `GEMINI_API_KEY` because the old Vertex AI SDK was broken. That workaround was itself later reverted (commit `24862b6`) to use `@google/genai` with `vertexai: true`.
+
+**Decision:**
+Use `@google/genai` with `{ vertexai: true, project, location: 'us-central1' }`. The Cloud Function runtime already has the `AI Platform User` role — no additional secret is required.
+
+```typescript
+// CORRECT — do not change this
+const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? _projectId;
+const ai = new GoogleGenAI({ vertexai: true, project: projectId, location: 'us-central1' });
+```
+
+```typescript
+// WRONG — do not revert to this
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
+```
+
+`scheduleDailyChallenge` and `getDailyChallenge` must **not** declare `secrets: ['GEMINI_API_KEY']`.
+
+**Why not GEMINI_API_KEY:**
+- Requires manual secret creation in Firebase Secret Manager for every environment
+- Secret must be declared on each Cloud Function signature — easy to miss
+- API key is a credential that can leak; service account auth is scoped automatically
+- Adds unnecessary operational overhead
+
+**If Vertex AI silently fails:**
+The function catches all errors and falls back to `buildClues()` (template clues). If template clues are appearing in production, check Cloud Function logs for the `buildCluesWithAI` error — fix the underlying auth/quota issue rather than switching to API key auth.
+
+**Consequences:**
+- No secrets to manage for AI clue generation
+- Service account must retain the `AI Platform User` (or `Vertex AI User`) IAM role on roavvy-prod and roavvy-dev
+- `@google-cloud/vertexai` must not be re-added as a dependency (deprecated)
