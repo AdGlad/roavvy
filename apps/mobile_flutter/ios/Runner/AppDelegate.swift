@@ -67,19 +67,32 @@ import UIKit
             let activityVC = rootVC.presentedViewController as? UIActivityViewController
         else { return }
 
-        // Step 1: immediately restore Flutter touch input.
-        activityVC.view.isUserInteractionEnabled = false
+        // Step 1: Disable touch interception on ALL window-level views except
+        // Flutter's own view. UIKit adds SHSheetRemoteCustomViewController's
+        // transition container (the _UIFormSheetTransitionView) directly to the
+        // UIWindow — it is NOT a subview of UIActivityViewController.view — so
+        // disabling activityVC.view.isUserInteractionEnabled alone is insufficient.
+        // Disabling every non-Flutter window subview covers all presentation layers.
+        let flutterView = rootVC.view
+        window?.subviews
+            .filter { $0 !== flutterView }
+            .forEach { $0.isUserInteractionEnabled = false }
 
         // Step 2: retry proper VC dismissal with back-off.
         retryDismiss(activityVC, delays: [0.3, 0.6, 1.0, 2.0])
     }
 
     /// Attempts `dismiss(animated:false)` on `vc`, retrying after each delay if
-    /// the VC is still in the hierarchy. Falls back to hiding the view if all
-    /// delays are exhausted (permanent stuck state due to remote process death).
+    /// the VC is still in the hierarchy. Falls back to hiding all non-Flutter
+    /// window subviews if all retries are rejected (permanent stuck state).
     private func retryDismiss(_ vc: UIActivityViewController, delays: [TimeInterval]) {
         guard !delays.isEmpty else {
-            vc.view.isHidden = true // last resort — view gone, hierarchy stays
+            // All retries exhausted. Hide every non-Flutter window subview so
+            // they cannot intercept touches or appear on screen.
+            let flutterView = window?.rootViewController?.view
+            window?.subviews
+                .filter { $0 !== flutterView }
+                .forEach { $0.isHidden = true }
             return
         }
         let delay = delays[0]
@@ -88,7 +101,7 @@ import UIKit
             guard let vc else { return }
             guard vc.presentingViewController != nil, !vc.isBeingDismissed else { return }
             vc.dismiss(animated: false, completion: nil)
-            // Schedule next retry in case this attempt was also silently rejected.
+            // Schedule next retry in case this attempt was silently rejected.
             self?.retryDismiss(vc, delays: remaining)
         }
     }
