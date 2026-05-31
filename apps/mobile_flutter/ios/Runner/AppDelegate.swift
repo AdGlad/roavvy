@@ -28,35 +28,68 @@ import UIKit
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
-    /// When the user shares via Messages and iOS opens the full Messages app, the
-    /// UIActivityViewController (with its Messages extension child sheet) can be
-    /// left in the view hierarchy in a ghost state — invisible but intercepting all
-    /// touches, freezing the app on return.
+    /// Fixes the touch-freeze that occurs after sharing via Messages.
     ///
-    /// Complication: the Messages extension (SHSheetRemoteCustomViewController) may
-    /// have been mid-dismiss-transition when the app was backgrounded. UIKit pauses
-    /// transition animations in the background, then resumes them on foreground.
-    /// Calling dismiss() immediately fires "Trying to dismiss while transitioning"
-    /// and is silently rejected. We wait for the transition to finish first.
+    /// Sequence that causes the freeze:
+    ///   1. Share sheet opens (UIActivityViewController).
+    ///   2. User taps Messages → SHSheetRemoteCustomViewController (Messages share
+    ///      extension) is presented as a form sheet inside the activity controller.
+    ///   3. User taps Send → the extension starts its dismiss animation.
+    ///   4. iOS opens the full Messages app mid-animation → our app backgrounds →
+    ///      UIKit freezes the dismiss animation at that frame.
+    ///   5. The Messages extension process terminates (XPC connection invalidated).
+    ///   6. User returns → applicationDidBecomeActive fires.
+    ///
+    /// The _UIFormSheetPresentationController for the Messages extension is now
+    /// permanently stuck "transitioning" (its process is gone). Any call to
+    /// dismiss() on the parent UIActivityViewController is silently rejected with
+    /// "Trying to dismiss while transitioning". The invisible ghost VC stays in
+    /// the hierarchy and intercepts every touch → app appears frozen.
+    ///
+    /// Fix (two steps):
+    ///   Step 1 — immediately set isUserInteractionEnabled = false on the stuck
+    ///            VC's view so touch events fall through to Flutter. User can
+    ///            interact with the app straight away.
+    ///   Step 2 — retry dismiss() with back-off delays; the internal transitioning
+    ///            flag may clear asynchronously as UIKit settles. If all retries
+    ///            fail (remote process is gone and state is permanent), hide the
+    ///            view as a last resort.
     override func applicationDidBecomeActive(_ application: UIApplication) {
         super.applicationDidBecomeActive(application)
-        // Wait for any paused transition animations to complete (UIKit resumes them
-        // on foreground; standard animation duration is ~0.3 s, so 0.6 s is safe).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            self?.dismissStuckActivityController(from: self?.window?.rootViewController)
+        DispatchQueue.main.async { [weak self] in
+            self?.cleanupStuckShareSheet()
         }
     }
 
-    private func dismissStuckActivityController(from vc: UIViewController?) {
-        guard let vc = vc else { return }
-        if let presented = vc.presentedViewController {
-            if presented is UIActivityViewController {
-                // Dismiss without animation — it should already be visually gone.
-                presented.dismiss(animated: false, completion: nil)
-            } else {
-                // Walk deeper (e.g. the activity VC presented a sheet that got stuck).
-                dismissStuckActivityController(from: presented)
-            }
+    private func cleanupStuckShareSheet() {
+        guard
+            let rootVC = window?.rootViewController,
+            let activityVC = rootVC.presentedViewController as? UIActivityViewController
+        else { return }
+
+        // Step 1: immediately restore Flutter touch input.
+        activityVC.view.isUserInteractionEnabled = false
+
+        // Step 2: retry proper VC dismissal with back-off.
+        retryDismiss(activityVC, delays: [0.3, 0.6, 1.0, 2.0])
+    }
+
+    /// Attempts `dismiss(animated:false)` on `vc`, retrying after each delay if
+    /// the VC is still in the hierarchy. Falls back to hiding the view if all
+    /// delays are exhausted (permanent stuck state due to remote process death).
+    private func retryDismiss(_ vc: UIActivityViewController, delays: [TimeInterval]) {
+        guard !delays.isEmpty else {
+            vc.view.isHidden = true // last resort — view gone, hierarchy stays
+            return
+        }
+        let delay = delays[0]
+        let remaining = Array(delays.dropFirst())
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak vc] in
+            guard let vc else { return }
+            guard vc.presentingViewController != nil, !vc.isBeingDismissed else { return }
+            vc.dismiss(animated: false, completion: nil)
+            // Schedule next retry in case this attempt was also silently rejected.
+            self?.retryDismiss(vc, delays: remaining)
         }
     }
 
