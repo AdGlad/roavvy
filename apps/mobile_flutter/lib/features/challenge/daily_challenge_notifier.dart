@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../data/daily_challenge_repository.dart';
@@ -265,7 +264,14 @@ DailyChallengeState buildInitialChallengeState({
     throw StateError('WHS site ${challenge.siteId} not found in bundled dataset');
   }
   final today = todayLocal();
-  final progress = savedProgress ??
+  // Discard saved progress if the siteId changed (e.g. challenge was corrected
+  // server-side). Using stale progress for a different site would show the
+  // challenge as already solved / partially played when it is actually fresh.
+  final validProgress = (savedProgress != null &&
+          savedProgress.siteId == challenge.siteId)
+      ? savedProgress
+      : null;
+  final progress = validProgress ??
       DailyChallengeProgress(
         date: today,
         siteId: challenge.siteId,

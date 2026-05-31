@@ -330,18 +330,37 @@ async function writeDailyChallenge(date) {
 }
 // ── Exported Cloud Functions ──────────────────────────────────────────────────
 /**
- * Runs every day at 00:00 UTC and writes the daily challenge document to
- * Firestore. Idempotent — skips if the document already exists.
+ * Runs on the 1st of each month at 00:05 UTC and pre-generates all challenge
+ * documents for the following calendar month. Skips dates that already have
+ * a document, so it is safe to re-run at any time.
+ *
+ * Running one month ahead ensures every player gets an instant response on
+ * their first open — no cold-start AI latency.
  */
-exports.scheduleDailyChallenge = (0, scheduler_1.onSchedule)({ schedule: 'every day 00:00', timeZone: 'UTC' }, async (_event) => {
-    const date = todayUtc();
-    const result = await writeDailyChallenge(date);
-    if (result.alreadyExisted) {
-        console.log(`[dailyChallenge] ${date} already exists (siteId=${result.siteId}), skipping.`);
+exports.scheduleDailyChallenge = (0, scheduler_1.onSchedule)({ schedule: '5 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async (_event) => {
+    // Compute the next calendar month's date range.
+    const now = new Date();
+    const firstOfNextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const firstOfMonthAfter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1));
+    const dates = [];
+    const cur = new Date(firstOfNextMonth);
+    while (cur < firstOfMonthAfter) {
+        dates.push(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
     }
-    else {
-        console.log(`[dailyChallenge] ${date} written: siteId=${result.siteId}`);
+    let generated = 0;
+    let skipped = 0;
+    for (const date of dates) {
+        const result = await writeDailyChallenge(date);
+        if (result.alreadyExisted) {
+            skipped++;
+        }
+        else {
+            generated++;
+            console.log(`[scheduleDailyChallenge] ${date} written: siteId=${result.siteId}`);
+        }
     }
+    console.log(`[scheduleDailyChallenge] Done — generated ${generated}, skipped ${skipped} existing.`);
 });
 /**
  * onCall function for manual triggering and local testing.
