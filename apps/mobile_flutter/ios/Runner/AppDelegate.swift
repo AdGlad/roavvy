@@ -28,6 +28,27 @@ import UIKit
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
+    /// When the user shares via Messages and iOS opens the full Messages app, our
+    /// UIActivityViewController can be left in the view hierarchy in a ghost state
+    /// — invisible but intercepting all touches, freezing the app on return.
+    /// Dismiss any stuck activity controller when we become active again.
+    override func applicationDidBecomeActive(_ application: UIApplication) {
+        super.applicationDidBecomeActive(application)
+        dismissStuckActivityController(from: window?.rootViewController)
+    }
+
+    private func dismissStuckActivityController(from vc: UIViewController?) {
+        guard let vc = vc else { return }
+        if let presented = vc.presentedViewController {
+            if presented is UIActivityViewController {
+                // Dismiss without animation — it should already be visually gone.
+                presented.dismiss(animated: false, completion: nil)
+            } else {
+                dismissStuckActivityController(from: presented)
+            }
+        }
+    }
+
     // MARK: - Audio session
 
     /// Configures AVAudioSession so celebration sounds play even when the
