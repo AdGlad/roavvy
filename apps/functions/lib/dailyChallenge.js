@@ -263,13 +263,44 @@ Return ONLY a valid JSON array for the target site, no markdown, no explanation:
 function todayUtc() {
     return new Date().toISOString().slice(0, 10);
 }
+/** Adds [n] days to a YYYY-MM-DD string and returns the result. */
+function addDays(date, n) {
+    const d = new Date(date + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+}
 /**
- * Picks a site deterministically from [sites] based on the current UTC date.
- * The epoch-day index cycles through all sites before repeating, ensuring no
- * two consecutive days share the same site (for lists longer than 1 day).
+ * Number of days on each side of [date] to check for collisions.
+ * With 1246 unique sites the full cycle is 1246 days, so no natural repeats
+ * occur. This check guards against dataset changes or manual overrides.
  */
-function pickSite(sites, date) {
+const COLLISION_WINDOW = 300;
+/**
+ * Picks the site for [date] using the deterministic epoch-day index, then
+ * walks forward until a site not used in the ±300-day window is found.
+ *
+ * The base algorithm cycles through all 1246 sites before repeating, so
+ * no collision is expected in normal operation. This is a safety net only.
+ */
+async function pickSite(sites, date, db) {
     const epochDay = Math.floor(Date.parse(date + 'T00:00:00Z') / 86_400_000);
+    // Fetch siteIds used in the ±COLLISION_WINDOW day window.
+    const windowStart = addDays(date, -COLLISION_WINDOW);
+    const windowEnd = addDays(date, COLLISION_WINDOW);
+    const snap = await db.collection('daily_challenge')
+        .where('__name__', '>=', windowStart)
+        .where('__name__', '<=', windowEnd)
+        .select('siteId')
+        .get();
+    const usedIds = new Set(snap.docs.map(d => d.data().siteId));
+    // Walk forward from deterministic index until an unused site is found.
+    for (let offset = 0; offset < sites.length; offset++) {
+        const candidate = sites[(epochDay + offset) % sites.length];
+        if (!usedIds.has(candidate.siteId))
+            return candidate;
+    }
+    // Exhausted — shouldn't happen (1246 sites, 600-day window).
+    console.warn(`[dailyChallenge] All sites used in window — falling back to deterministic pick`);
     return sites[epochDay % sites.length];
 }
 // ── Firestore writer ──────────────────────────────────────────────────────────
@@ -280,7 +311,7 @@ async function writeDailyChallenge(date) {
     if (existing.exists) {
         return { siteId: existing.data().siteId, alreadyExisted: true };
     }
-    const site = pickSite(WHS_SITES, date);
+    const site = await pickSite(WHS_SITES, date, db);
     const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? '';
     const clues = await buildCluesWithAI(site, projectId);
     const doc = {
