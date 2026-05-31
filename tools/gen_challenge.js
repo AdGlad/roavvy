@@ -5,9 +5,11 @@
  * `gcloud auth application-default login` first if needed.
  *
  * Usage:
- *   node tools/gen_challenge.js                 # today (local date)
- *   node tools/gen_challenge.js 2026-06-01      # specific date
- *   node tools/gen_challenge.js 2026-06-01 2026-06-07  # date range
+ *   node tools/gen_challenge.js                          # today (local date)
+ *   node tools/gen_challenge.js 2026-06-01               # specific date
+ *   node tools/gen_challenge.js 2026-06-01 2026-06-07   # date range
+ *   node tools/gen_challenge.js --regen 2026-06-01       # delete + regenerate
+ *   node tools/gen_challenge.js --delete 2026-06-01      # delete only
  *
  * Run from the repo root. The functions package must be built first:
  *   cd apps/functions && npm run build && cd ../..
@@ -127,12 +129,27 @@ async function pickSite(date) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-async function generateDate(date) {
+async function deleteDate(date) {
   const ref = db.collection('daily_challenge').doc(date);
   const existing = await ref.get();
-  if (existing.exists) {
+  if (!existing.exists) {
+    console.log(`  ✗ ${date} — no document found, nothing to delete`);
+    return;
+  }
+  await ref.delete();
+  console.log(`  🗑️  ${date} — deleted (was siteId=${existing.data().siteId})`);
+}
+
+async function generateDate(date, { force = false } = {}) {
+  const ref = db.collection('daily_challenge').doc(date);
+  const existing = await ref.get();
+  if (existing.exists && !force) {
     console.log(`  ✓ ${date} — already exists (siteId=${existing.data().siteId}), skipping`);
     return;
+  }
+  if (existing.exists && force) {
+    await ref.delete();
+    console.log(`  🗑️  ${date} — deleted existing (siteId=${existing.data().siteId})`);
   }
 
   const site = await pickSite(date);
@@ -154,21 +171,29 @@ async function generateDate(date) {
 
 async function main() {
   const args = process.argv.slice(2);
-  let dates;
 
-  if (args.length === 0) {
+  // Parse flags
+  const deleteOnly = args.includes('--delete');
+  const regen      = args.includes('--regen');
+  const dateArgs   = args.filter(a => !a.startsWith('--'));
+
+  let dates;
+  if (dateArgs.length === 0) {
     dates = [todayLocal()];
-  } else if (args.length === 1) {
-    dates = [args[0]];
+  } else if (dateArgs.length === 1) {
+    dates = [dateArgs[0]];
   } else {
-    dates = dateRange(args[0], args[1]);
+    dates = dateRange(dateArgs[0], dateArgs[1]);
   }
 
   console.log(`Project: ${project}`);
-  console.log(`Generating ${dates.length} date(s)…\n`);
 
-  for (const date of dates) {
-    await generateDate(date);
+  if (deleteOnly) {
+    console.log(`Deleting ${dates.length} date(s)…\n`);
+    for (const date of dates) await deleteDate(date);
+  } else {
+    console.log(`Generating ${dates.length} date(s)${regen ? ' (--regen: delete first)' : ''}…\n`);
+    for (const date of dates) await generateDate(date, { force: regen });
   }
 
   console.log('\nDone.');
