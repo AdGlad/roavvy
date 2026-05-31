@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Generate the daily challenge document for a given date and write it to
- * Firestore. Requires ADC (application default credentials) — run
- * `gcloud auth application-default login` first if needed.
+ * Generate the daily challenge document for a given date by calling the
+ * deployed Cloud Function. The function handles site selection, AI clue
+ * generation, and Firestore writes with the correct GCP service account.
  *
  * Usage:
  *   node tools/gen_challenge.js                          # today (local date)
@@ -11,41 +11,28 @@
  *   node tools/gen_challenge.js --regen 2026-06-01       # delete + regenerate
  *   node tools/gen_challenge.js --delete 2026-06-01      # delete only
  *
- * Run from the repo root. The functions package must be built first:
- *   cd apps/functions && npm run build && cd ../..
+ * Requires:
+ *   gcloud auth login (for identity token)
+ *   Firebase Admin SDK (bundled in apps/functions/node_modules) for --delete
  */
 
 'use strict';
 
 const path = require('path');
-const fs = require('fs');
+const fs   = require('fs');
 
-// ── Verify the functions lib is built ──────────────────────────────────────
-const libDir = path.join(__dirname, '../apps/functions/lib');
-let buildCluesWithAI, buildClues;
-try {
-  const mod = require(path.join(libDir, 'dailyChallenge'));
-  buildCluesWithAI = mod.buildCluesWithAI;
-  buildClues = mod.buildClues;
-} catch (e) {
-  console.error('❌  Could not load apps/functions/lib/dailyChallenge.js');
-  console.error('   Build first: cd apps/functions && npm run build');
-  process.exit(1);
-}
-
-// ── Firebase Admin init ────────────────────────────────────────────────────
+// ── Firebase Admin init (used only for --delete) ───────────────────────────
 const admin = require(path.join(__dirname, '../apps/functions/node_modules/firebase-admin'));
 
-// Determine project from .firebaserc
 const firebaserc = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../.firebaserc'), 'utf-8')
 );
-// Default to prod — daily challenge documents live in roavvy-prod.
-// Override with FIREBASE_PROJECT=roavvy-dev for local dev testing.
-const project = process.env.GCLOUD_PROJECT
-  || process.env.FIREBASE_PROJECT
-  || firebaserc.projects?.default
-  || firebaserc.projects?.dev;
+// Default to prod; override with FIREBASE_PROJECT=roavvy-dev for dev testing.
+const project =
+  process.env.GCLOUD_PROJECT ||
+  process.env.FIREBASE_PROJECT ||
+  firebaserc.projects?.default ||
+  firebaserc.projects?.dev;
 
 if (!project) {
   console.error('❌  Could not determine Firebase project. Set FIREBASE_PROJECT env var.');
@@ -56,18 +43,6 @@ if (!admin.apps.length) {
   admin.initializeApp({ projectId: project });
 }
 const db = admin.firestore();
-
-// ── WHS sites (from functions asset) ──────────────────────────────────────
-const sitesPath = path.join(libDir, 'assets/whs_sites.json');
-const allSites = JSON.parse(fs.readFileSync(sitesPath, 'utf-8'));
-
-// Deduplicate + sort (same logic as Cloud Function)
-const seen = new Set();
-const uniqueSites = [];
-for (const s of allSites) {
-  if (!seen.has(s.siteId)) { seen.add(s.siteId); uniqueSites.push(s); }
-}
-uniqueSites.sort((a, b) => a.siteId.localeCompare(b.siteId));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function todayLocal() {
@@ -92,43 +67,7 @@ function dateRange(from, to) {
   return dates;
 }
 
-const COLLISION_WINDOW = 300; // days
-
-function epochDay(date) {
-  return Math.floor(Date.parse(date + 'T00:00:00Z') / 86_400_000);
-}
-
-function addDays(date, n) {
-  const d = new Date(date + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Picks a site for [date], skipping any already used in the prior/next 300 days. */
-async function pickSite(date) {
-  const day = epochDay(date);
-  // Fetch recent siteIds from Firestore (±COLLISION_WINDOW days)
-  const windowStart = addDays(date, -COLLISION_WINDOW);
-  const windowEnd   = addDays(date, COLLISION_WINDOW);
-  const snap = await db.collection('daily_challenge')
-    .where(admin.firestore.FieldPath.documentId(), '>=', windowStart)
-    .where(admin.firestore.FieldPath.documentId(), '<=', windowEnd)
-    .select('siteId')
-    .get();
-  const usedSiteIds = new Set(snap.docs.map(d => d.data().siteId));
-
-  // Walk forward from deterministic start until we find an unused site.
-  let offset = 0;
-  while (offset < uniqueSites.length) {
-    const candidate = uniqueSites[(day + offset) % uniqueSites.length];
-    if (!usedSiteIds.has(candidate.siteId)) return candidate;
-    offset++;
-  }
-  // Exhausted (shouldn't happen with 1246 sites and a 600-day window)
-  return uniqueSites[day % uniqueSites.length];
-}
-
-// ── Main ───────────────────────────────────────────────────────────────────
+// ── Core operations ────────────────────────────────────────────────────────
 async function deleteDate(date) {
   const ref = db.collection('daily_challenge').doc(date);
   const existing = await ref.get();
@@ -141,6 +80,7 @@ async function deleteDate(date) {
 }
 
 async function generateDate(date, { force = false } = {}) {
+  // Check if already exists (skip unless --regen)
   const ref = db.collection('daily_challenge').doc(date);
   const existing = await ref.get();
   if (existing.exists && !force) {
@@ -152,27 +92,33 @@ async function generateDate(date, { force = false } = {}) {
     console.log(`  🗑️  ${date} — deleted existing (siteId=${existing.data().siteId})`);
   }
 
-  const site = await pickSite(date);
-  console.log(`  ⏳ ${date} — generating clues for: ${site.name} (${site.siteId})`);
+  // Call the Cloud Function via HTTPS (allUsers invoker set on Cloud Run service)
+  const CF_URL = `https://us-central1-${project}.cloudfunctions.net/getDailyChallenge`;
+  console.log(`  ⏳ ${date} — calling Cloud Function…`);
 
-  const clues = await buildCluesWithAI(site, project).catch(() => {
-    console.warn('     AI failed, using templates');
-    return buildClues(site);
+  const res = await fetch(CF_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: { date } }),
   });
 
-  await ref.set({
-    siteId: site.siteId,
-    clues,
-    generatedAt: admin.firestore.Timestamp.now(),
-  });
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`  ❌ ${date} — Cloud Function error ${res.status}: ${body}`);
+    return;
+  }
 
-  console.log(`  ✅ ${date} — written (${clues[0]?.text?.slice(0, 60)}…)`);
+  const json = await res.json();
+  const result = json.result ?? json;
+  const siteId = result?.siteId ?? '?';
+  const firstClue = result?.clues?.[0]?.text ?? '';
+  console.log(`  ✅ ${date} — written (siteId=${siteId}, ${firstClue.slice(0, 60)}…)`);
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────
 async function main() {
   const args = process.argv.slice(2);
 
-  // Parse flags
   const deleteOnly = args.includes('--delete');
   const regen      = args.includes('--regen');
   const dateArgs   = args.filter(a => !a.startsWith('--'));
@@ -186,7 +132,7 @@ async function main() {
     dates = dateRange(dateArgs[0], dateArgs[1]);
   }
 
-  console.log(`Project: ${project}`);
+  console.log(`Project: ${project}\n`);
 
   if (deleteOnly) {
     console.log(`Deleting ${dates.length} date(s)…\n`);

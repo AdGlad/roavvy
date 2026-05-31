@@ -171,7 +171,7 @@ function countryName(code) {
  * Gemini model to use. gemini-2.0-flash gives excellent creative writing at
  * minimal cost (~$0.0003 per day for one challenge).
  */
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 /**
  * Builds five progressive typed clues using Gemini via Vertex AI.
  *
@@ -182,7 +182,7 @@ const GEMINI_MODEL = 'gemini-2.0-flash';
  *
  * Falls back to [buildClues] if the API call fails or returns malformed JSON.
  */
-async function buildCluesWithAI(site, _projectId) {
+async function buildCluesWithAI(site, _projectId = '') {
     try {
         const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? _projectId;
         const ai = new genai_1.GoogleGenAI({ vertexai: true, project: projectId, location: 'us-central1' });
@@ -319,8 +319,7 @@ async function writeDailyChallenge(date) {
         return { siteId: existing.data().siteId, alreadyExisted: true };
     }
     const site = await pickSite(WHS_SITES, date, db);
-    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? '';
-    const clues = await buildCluesWithAI(site, projectId);
+    const clues = await buildCluesWithAI(site);
     const doc = {
         siteId: site.siteId,
         clues,
