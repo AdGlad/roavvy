@@ -796,7 +796,7 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
     Navigator.of(context).pop();
   }
 
-  void _share(BuildContext btnContext) {
+  void _share() {
     final p = widget.state.progress;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
@@ -807,14 +807,9 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
         1;
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
     final text = 'Roavvy Daily #$challengeNumber — $date\n$grid';
-    final box = btnContext.findRenderObject() as RenderBox?;
-    final origin = box == null
-        ? null
-        : box.localToGlobal(Offset.zero) & box.size;
-    // Fire-and-forget: don't await the result so the UIActivityViewController
-    // completion handler (which iOS may never call when switching to Messages)
-    // cannot block navigation on return.
-    Share.share(text, sharePositionOrigin: origin).ignore();
+    // No sharePositionOrigin — passing a Rect triggers UIPopoverPresentationController
+    // on iOS, which can leave the touch responder chain broken after dismissal.
+    Share.share(text).ignore();
   }
 
   @override
@@ -1001,18 +996,14 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Share — wrapped in Builder to supply the button's own context
-                  // for iOS share sheet anchor positioning.
-                  Builder(
-                    builder: (btnCtx) => OutlinedButton.icon(
-                      onPressed: () => _share(btnCtx),
-                      icon: const Icon(Icons.share),
-                      label: const Text('Share result'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
+                  OutlinedButton.icon(
+                    onPressed: _share,
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share result'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   // View stats
