@@ -54,6 +54,28 @@ import UIKit
     ///            flag may clear asynchronously as UIKit settles. If all retries
     ///            fail (remote process is gone and state is permanent), hide the
     ///            view as a last resort.
+    /// Force-dismisses any UIActivityViewController before iOS can start its own
+    /// animated dismiss.
+    ///
+    /// When sharing via Messenger, Meta's app opens (Roavvy is backgrounded) while
+    /// UIActivityViewController is still in the VC hierarchy. When Roavvy returns to
+    /// foreground, iOS tries an *animated* dismiss of the Messenger form sheet. The
+    /// dismiss animation blocks because the Messenger extension XPC process has died
+    /// — UIKit hangs forever waiting for the extension to animate its view away.
+    ///
+    /// Firing a *non-animated* dismiss here — in applicationWillEnterForeground,
+    /// before iOS queues its own animated dismiss — bypasses the XPC coordination
+    /// that causes the deadlock. UIKit tears down the view hierarchy immediately
+    /// without waiting for the extension process.
+    override func applicationWillEnterForeground(_ application: UIApplication) {
+        super.applicationWillEnterForeground(application)
+        guard
+            let rootVC = window?.rootViewController,
+            rootVC.presentedViewController is UIActivityViewController
+        else { return }
+        rootVC.presentedViewController?.dismiss(animated: false, completion: nil)
+    }
+
     override func applicationDidBecomeActive(_ application: UIApplication) {
         super.applicationDidBecomeActive(application)
         DispatchQueue.main.async { [weak self] in
