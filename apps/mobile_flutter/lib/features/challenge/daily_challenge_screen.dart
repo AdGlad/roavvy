@@ -807,10 +807,17 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
         1;
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
     final text = 'Roavvy Daily #$challengeNumber — $date\n$grid';
+
+    // iOS 16+ requires a non-empty sourceRect even on iPhone because
+    // UIActivityViewController always has a non-null popoverPresentationController.
+    // share_plus explicitly returns an error when origin is CGRectZero.
+    // We use the overlay widget's own bounds — position is irrelevant on iPhone
+    // (it shows a bottom sheet regardless of the rect).
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
     try {
-      // No sharePositionOrigin — passing a Rect triggers UIPopoverPresentationController
-      // on iOS, which can leave the touch responder chain broken after dismissal.
-      await Share.share(text);
+      await Share.share(text, sharePositionOrigin: origin);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -818,6 +825,12 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
         );
       }
     }
+
+    // Force a rebuild after the share sheet dismisses. UIActivityViewController's
+    // presentation/dismissal lifecycle sends pointer-cancel events to Flutter,
+    // which can leave DraggableScrollableSheet's gesture recognizer in a stuck
+    // state. A setState forces the sheet controller to re-sync.
+    if (mounted) setState(() {});
   }
 
   @override
