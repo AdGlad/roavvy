@@ -123,9 +123,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   void _onDayRollover() {
     if (!mounted) return;
     _lastKnownDate = _todayLocal();
-    ref.invalidate(dailyChallengeProgressProvider);
-    // dailyChallengeProvider is autoDispose — no invalidation needed; it will
-    // refetch with the new date when the challenge screen next opens.
+    // Both providers are autoDispose — invalidating forces them to re-fetch
+    // with the new local date if the challenge screen happens to be open.
+    ref.invalidate(dailyChallengeProvider);
   }
 
   /// Handles the cold-start case: app launched by tapping a notification.

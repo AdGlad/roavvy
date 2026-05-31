@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:intl/intl.dart';
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -345,8 +344,13 @@ final dailyChallengeProvider = FutureProvider.autoDispose<DailyChallenge>(
 
 /// Today's local progress (clues revealed, guesses, solved state).
 /// Null when the user has not yet opened the challenge today.
+///
+/// autoDispose so it re-reads from the DB on every screen open — avoids
+/// stale cached progress and, critically, breaks the provider-invalidation
+/// loop that kept the screen in an infinite loading state when
+/// [dailyChallengeProvider] errored (ADR-158).
 final dailyChallengeProgressProvider =
-    FutureProvider<DailyChallengeProgress?>((ref) {
+    FutureProvider.autoDispose<DailyChallengeProgress?>((ref) {
   return ref.watch(dailyChallengeRepositoryProvider).loadToday(todayLocal());
 });
 
@@ -390,10 +394,6 @@ final dailyChallengeNotifierProvider = StateNotifierProvider.autoDispose<
       statsService: statsService,
     );
     ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
-    // Invalidate progress on dispose so the next screen open re-reads from DB
-    // rather than getting the stale cached value (which was null before the
-    // first guess was made).
-    ref.onDispose(() => ref.invalidate(dailyChallengeProgressProvider));
     return notifier;
   },
 );
