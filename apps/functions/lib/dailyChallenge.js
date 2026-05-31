@@ -195,21 +195,28 @@ async function buildCluesWithAI(site, _projectId) {
         const criteriaLine = site.criteria?.length
             ? `UNESCO criteria: (${site.criteria.join(')(')})`
             : '';
-        const prompt = `You are writing clues for Roavvy — a daily Wordle-style game where players guess a UNESCO World Heritage Site from 5 progressive clues. Each clue reveals a little more. Your goal is a smooth difficulty gradient, not a fixed category structure.
+        const prompt = `You are writing clues for Roavvy — a daily mobile game where players guess a UNESCO World Heritage Site from 5 progressive clues. Roavvy is a daily retention game, not an expert geography quiz. Clues should be player-friendly, exciting, and useful. Every clue must add a new piece of information — never repeat the same fact in different wording.
 
-TARGET DIFFICULTY (think: what % of players guess correctly after seeing this clue alone):
-  Clue 1 → ~20%  Name the broad geographic region (e.g. Western Europe, Scandinavia, the Mediterranean, South America, East Asia, Sub-Saharan Africa, the Middle East, Central Asia, the Pacific) AND the type of site (e.g. ancient city, cathedral, natural wonder, temple complex, fortified castle, rock art site, national park, historic town centre). End with one brief, evocative sensory detail. No country name, no specific sub-region, no civilisation name, no time period.
-  Clue 2 → ~40%  Nearly half of players should be able to guess. A memorable pop culture connection (film, novel, game, song) OR a single record-breaking physical stat. No country name, no civilisation name.
-  Clue 3 → ~60%  Most players should guess correctly by now. Historical/cultural context: which civilisation built it and roughly when. No country name.
-  Clue 4 → ~80%  The vast majority should get it. Geographic reveal: continent + sub-region + terrain. No country name yet.
-  Clue 5 → ~95%  Full reveal: country flag, country name, first word of site name.
+TARGET DIFFICULTY (% of casual players who guess correctly after seeing only this clue):
+  Clue 1 → ~30%  Broad geographic region + type of site + one distinctive physical feature or recognisable characteristic. One brief sensory detail allowed. Should immediately help casual players narrow their search.
+  Clue 2 → ~50%  A memorable fact, famous characteristic, record-breaking feature, or well-known cultural/pop-culture association. Should be genuinely useful, not obscure.
+  Clue 3 → ~70%  Civilisation or culture + approximate historical era. Who built it, used it, worshipped there, or why it mattered. Should make the answer clear to most players.
+  Clue 4 → ~90%  Reveal the country name plus useful local geography: nearest major city, river, mountain range, or coastline. Should make the answer obvious.
+  Clue 5 → ~99%  Full reveal: country flag, country name, first word of site name.
 
-STRICT RULES FOR EACH CLUE:
-  Clue 1: Must state the broad region AND the type of site. One sensory detail allowed. NO country name, NO specific sub-region, NO civilisation name, NO time period, NO proper nouns.
-  Clue 2: NO country or site name. One fact or pop culture ref that is genuinely interesting.
-  Clue 3: Civilisation/culture + time period allowed. NO country or sub-region name.
-  Clue 4: Continent + sub-region + terrain allowed. NO country name.
-  Clue 5: Must start with "${flag} ${country}." and end with: The site name starts with "${firstWord}".
+RULES FOR EACH CLUE:
+  Clue 1: State the broad region AND the type of site AND one distinctive feature. One sensory detail allowed. NO country name. NO specific sub-region. NO civilisation name. NO time period. NO proper nouns.
+  Clue 2: NO country name. NO site name. NO civilisation name unless unavoidable. One memorable fact or association — make it count.
+  Clue 3: Civilisation/culture + era allowed. NO country name.
+  Clue 4: Country name ALLOWED. Add nearest city, river, coast, or mountain. Do NOT reveal the exact site name.
+  Clue 5: Must start exactly with "${flag} ${country}." and end with: The site name starts with "${firstWord}".
+
+QUALITY RULES (apply to every clue):
+  - Avoid generic phrases like "ancient ruins", "historic city", or "beautiful landscape" unless paired with a distinctive feature.
+  - Prefer recognisable, famous characteristics over obscure academic facts.
+  - Use natural, exciting language suited to a daily mobile game.
+  - Keep each clue concise: 1–2 sentences maximum.
+  - Every clue must add new information not already given.
 
 For the "type" field choose the best fit from: atmosphere, pop_culture, historical, cultural, natural, geography, direct.
 
@@ -222,16 +229,16 @@ SITE TO WRITE CLUES FOR:
 ${descriptionLine}
 ${criteriaLine}
 
-EXAMPLE (Colosseum, Rome — do not copy the style, just the structure and difficulty calibration):
+EXAMPLE (Colosseum, Rome — do not copy the style, just the structure and difficulty curve):
 [
-  {"type":"geography","text":"Southern Europe. An ancient amphitheatre — the largest ever built — its tiered stone arches open to a blazing sky, worn travertine warm underfoot."},
-  {"type":"pop_culture","text":"Russell Crowe fought for his life here in Ridley Scott's 2000 epic — and the establishing shot has become one of cinema's most recognisable images."},
-  {"type":"historical","text":"Commissioned by Emperor Vespasian of the Roman Empire and completed in 80 AD, funded by the spoils of war and built to entertain up to 80,000 citizens with gladiatorial combat."},
-  {"type":"geography","text":"In the heart of southern Europe, on the Italian peninsula, in a city that gave its name to one of history's greatest empires."},
+  {"type":"geography","text":"Southern Europe. A vast ancient amphitheatre — the largest ever built — with tiered stone arches you can see from across the city."},
+  {"type":"pop_culture","text":"Russell Crowe fought for his life here in Ridley Scott's 2000 epic, and it's one of the most photographed structures on Earth."},
+  {"type":"historical","text":"Built by the Roman Empire under Emperor Vespasian, completed in 80 AD, and used for gladiatorial combat and public spectacles for four centuries."},
+  {"type":"geography","text":"Located in Italy, in the centre of Rome — a short walk from the Roman Forum and the Palatine Hill."},
   {"type":"direct","text":"🇮🇹 Italy. The site name starts with \\"Colosseum\\"."}
 ]
 
-Return ONLY a valid JSON array for the target site, no markdown, no explanation:
+Return ONLY a valid JSON array for the target site — no markdown, no explanation, nothing else:
 [
   {"type":"...","text":"..."},
   {"type":"...","text":"..."},
