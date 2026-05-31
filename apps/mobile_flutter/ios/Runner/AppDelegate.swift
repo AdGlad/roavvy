@@ -62,37 +62,45 @@ import UIKit
     }
 
     private func cleanupStuckShareSheet() {
-        guard
-            let rootVC = window?.rootViewController,
-            let activityVC = rootVC.presentedViewController as? UIActivityViewController
-        else { return }
+        guard let rootVC = window?.rootViewController else { return }
 
-        // Step 1: Disable touch interception across ALL presentation layers.
-        //
-        // Different share targets place their extension UI in different locations:
-        //   - Apple Messages: form sheet added as a subview of our main UIWindow.
-        //   - Facebook Messenger (and other 3rd-party extensions): form sheet
-        //     rendered into a SEPARATE UIWindow created by UIKit for the extension.
-        //
-        // We therefore target:
-        //   (a) Non-Flutter subviews of our main window.
-        //   (b) Every UIWindow in the scene except our own.
-        //
-        // isUserInteractionEnabled=false only affects touch delivery; UIKit's
-        // internal animations (CAAnimation, CADisplayLink) are unaffected.
+        // Guard: only run cleanup if a VC is actually stuck in the hierarchy.
+        guard rootVC.presentedViewController != nil else { return }
 
+        // Step 1: Immediately restore touch delivery to Flutter.
+        //
+        // During modal presentation UIKit disables the presenting VC's view so
+        // touches land on the modal. If the dismiss animation gets stuck (e.g.
+        // the share-extension XPC process dies), UIKit never re-enables it.
+        // Explicitly setting it back to true lets Flutter receive input right away.
+        rootVC.view.isUserInteractionEnabled = true
+
+        // Step 2: Disable touch interception across ALL stuck presentation layers.
+        //
+        // The chain can be:
+        //   rootVC → UIActivityViewController → SHSheetRemoteCustomViewController
+        //
+        // We walk the entire presentedViewController chain so every stuck layer
+        // (not just UIActivityViewController) has its view disabled.
+        var vc: UIViewController? = rootVC.presentedViewController
+        while let presentedVC = vc {
+            presentedVC.view.isUserInteractionEnabled = false
+            vc = presentedVC.presentedViewController
+        }
+
+        // Also disable non-Flutter UITransitionView subviews added to our window.
         let flutterView = rootVC.view
-
-        // (a) Main window subviews
         window?.subviews
             .filter { $0 !== flutterView }
             .forEach { $0.isUserInteractionEnabled = false }
 
-        // (b) Extra UIWindows (iOS 13+ scene API; fallback to legacy API)
+        // Also disable extra UIWindows (some share extensions use a separate window).
         extraWindows().forEach { $0.isUserInteractionEnabled = false }
 
-        // Step 2: retry proper VC dismissal with back-off.
-        retryDismiss(activityVC, delays: [0.3, 0.6, 1.0, 2.0])
+        // Step 3: Retry proper VC dismissal with back-off.
+        if let presentedVC = rootVC.presentedViewController {
+            retryDismiss(presentedVC, delays: [0.3, 0.6, 1.0, 2.0])
+        }
     }
 
     /// Returns every UIWindow in the app EXCEPT our own main window.
@@ -109,25 +117,37 @@ import UIKit
     }
 
     /// Attempts `dismiss(animated:false)` on `vc`, retrying after each delay if
-    /// the VC is still in the hierarchy. Falls back to hiding all non-Flutter
-    /// presentation views if all retries are rejected (permanent stuck state).
-    private func retryDismiss(_ vc: UIActivityViewController, delays: [TimeInterval]) {
+    /// the VC is still in the hierarchy. Falls back to hiding and removing
+    /// animations from stuck views if all retries fail.
+    ///
+    /// Note: we intentionally do NOT guard on `isBeingDismissed`. The stuck VC
+    /// is in a permanent mid-transition state — calling dismiss() produces a
+    /// "Trying to dismiss while transitioning" warning but is otherwise safe.
+    /// Repeated calls are the only way to clear the transition lock once the
+    /// extension XPC process has died.
+    private func retryDismiss(_ vc: UIViewController, delays: [TimeInterval]) {
         guard !delays.isEmpty else {
-            // All retries exhausted — hide stuck views so they cannot block touches.
+            // All retries exhausted — remove stuck animations and hide views.
             let flutterView = window?.rootViewController?.view
             window?.subviews
                 .filter { $0 !== flutterView }
-                .forEach { $0.isHidden = true }
-            extraWindows().forEach { $0.isHidden = true }
+                .forEach {
+                    $0.layer.removeAllAnimations()
+                    $0.isHidden = true
+                }
+            extraWindows().forEach {
+                $0.layer.removeAllAnimations()
+                $0.isHidden = true
+            }
             return
         }
         let delay = delays[0]
         let remaining = Array(delays.dropFirst())
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak vc] in
-            guard let vc else { return }
-            guard vc.presentingViewController != nil, !vc.isBeingDismissed else { return }
+            guard let self, let vc else { return }
+            guard vc.presentingViewController != nil else { return } // already gone
             vc.dismiss(animated: false, completion: nil)
-            self?.retryDismiss(vc, delays: remaining)
+            self.retryDismiss(vc, delays: remaining)
         }
     }
 
