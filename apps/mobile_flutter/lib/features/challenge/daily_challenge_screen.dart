@@ -796,7 +796,7 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
     Navigator.of(context).pop();
   }
 
-  void _share() {
+  Future<void> _share() async {
     final p = widget.state.progress;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
@@ -807,9 +807,17 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
         1;
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
     final text = 'Roavvy Daily #$challengeNumber — $date\n$grid';
-    // No sharePositionOrigin — passing a Rect triggers UIPopoverPresentationController
-    // on iOS, which can leave the touch responder chain broken after dismissal.
-    Share.share(text).ignore();
+    try {
+      // No sharePositionOrigin — passing a Rect triggers UIPopoverPresentationController
+      // on iOS, which can leave the touch responder chain broken after dismissal.
+      await Share.share(text);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open share sheet')),
+        );
+      }
+    }
   }
 
   @override
