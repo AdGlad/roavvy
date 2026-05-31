@@ -800,8 +800,13 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
     final p = widget.state.progress;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
+    final challengeNumber = DateTime.now()
+            .toUtc()
+            .difference(DateTime.utc(2026, 5, 31))
+            .inDays +
+        1;
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
-    final text = 'Roavvy Daily — $date\n$grid\nroavvy.app/daily';
+    final text = 'Roavvy Daily #$challengeNumber — $date\n$grid';
     final box = btnContext.findRenderObject() as RenderBox?;
     final origin = box == null
         ? null
