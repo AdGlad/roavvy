@@ -67,32 +67,58 @@ import UIKit
             let activityVC = rootVC.presentedViewController as? UIActivityViewController
         else { return }
 
-        // Step 1: Disable touch interception on ALL window-level views except
-        // Flutter's own view. UIKit adds SHSheetRemoteCustomViewController's
-        // transition container (the _UIFormSheetTransitionView) directly to the
-        // UIWindow — it is NOT a subview of UIActivityViewController.view — so
-        // disabling activityVC.view.isUserInteractionEnabled alone is insufficient.
-        // Disabling every non-Flutter window subview covers all presentation layers.
+        // Step 1: Disable touch interception across ALL presentation layers.
+        //
+        // Different share targets place their extension UI in different locations:
+        //   - Apple Messages: form sheet added as a subview of our main UIWindow.
+        //   - Facebook Messenger (and other 3rd-party extensions): form sheet
+        //     rendered into a SEPARATE UIWindow created by UIKit for the extension.
+        //
+        // We therefore target:
+        //   (a) Non-Flutter subviews of our main window.
+        //   (b) Every UIWindow in the scene except our own.
+        //
+        // isUserInteractionEnabled=false only affects touch delivery; UIKit's
+        // internal animations (CAAnimation, CADisplayLink) are unaffected.
+
         let flutterView = rootVC.view
+
+        // (a) Main window subviews
         window?.subviews
             .filter { $0 !== flutterView }
             .forEach { $0.isUserInteractionEnabled = false }
+
+        // (b) Extra UIWindows (iOS 13+ scene API; fallback to legacy API)
+        extraWindows().forEach { $0.isUserInteractionEnabled = false }
 
         // Step 2: retry proper VC dismissal with back-off.
         retryDismiss(activityVC, delays: [0.3, 0.6, 1.0, 2.0])
     }
 
+    /// Returns every UIWindow in the app EXCEPT our own main window.
+    private func extraWindows() -> [UIWindow] {
+        let main = self.window
+        if #available(iOS 13.0, *) {
+            return UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .filter { $0 !== main }
+        } else {
+            return UIApplication.shared.windows.filter { $0 !== main }
+        }
+    }
+
     /// Attempts `dismiss(animated:false)` on `vc`, retrying after each delay if
     /// the VC is still in the hierarchy. Falls back to hiding all non-Flutter
-    /// window subviews if all retries are rejected (permanent stuck state).
+    /// presentation views if all retries are rejected (permanent stuck state).
     private func retryDismiss(_ vc: UIActivityViewController, delays: [TimeInterval]) {
         guard !delays.isEmpty else {
-            // All retries exhausted. Hide every non-Flutter window subview so
-            // they cannot intercept touches or appear on screen.
+            // All retries exhausted — hide stuck views so they cannot block touches.
             let flutterView = window?.rootViewController?.view
             window?.subviews
                 .filter { $0 !== flutterView }
                 .forEach { $0.isHidden = true }
+            extraWindows().forEach { $0.isHidden = true }
             return
         }
         let delay = delays[0]
@@ -101,7 +127,6 @@ import UIKit
             guard let vc else { return }
             guard vc.presentingViewController != nil, !vc.isBeingDismissed else { return }
             vc.dismiss(animated: false, completion: nil)
-            // Schedule next retry in case this attempt was silently rejected.
             self?.retryDismiss(vc, delays: remaining)
         }
     }
