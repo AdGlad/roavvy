@@ -1,4 +1,4 @@
-const INVESTOR_EMAIL = 'admin@roavvy.com'
+const INVESTOR_EMAIL = 'support@roavvy.com'
 
 export default function Investors() {
   return (
@@ -31,15 +31,14 @@ function InvestorHero() {
         </div>
 
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-6">
-          Building the travel identity layer<br />
-          for the{' '}
+          The platform where travel memories become{' '}
           <span className="bg-gradient-to-r from-sky-400 to-blue-400 bg-clip-text text-transparent">
-            camera roll generation
+            a living identity
           </span>
         </h1>
 
         <p className="text-xl text-slate-400 leading-relaxed max-w-3xl mx-auto">
-          Roavvy turns passive photo libraries into active travel profiles — helping users discover where they've been, celebrate milestones, play location-based challenges, and create personalised merchandise from their real travel history.
+          Roavvy is an AI-powered travel discovery platform that transforms photo libraries into living maps of users' lives — unlocking achievements, cinematic travel replays, heritage discovery, and personalised merchandise, all without uploading a single private photo.
         </p>
 
         <div className="mt-10">
@@ -63,10 +62,10 @@ function VisionSection() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <span className="section-label">Vision</span>
         <h2 className="section-heading text-4xl">
-          Every traveller's journey<br />deserves to be visible
+          Roavvy is building the platform where travel memories become experiences, achievements become identity, and personal history becomes something worth celebrating
         </h2>
         <p className="section-subheading text-lg max-w-3xl mx-auto">
-          Billions of people carry their entire travel history in their pocket — invisible, unsorted, and forgotten in a camera roll. Roavvy is the layer that makes it visible: a living, personal travel identity that grows with every trip.
+          Billions of people carry their entire travel history in their pocket — invisible, unsorted, and buried in a camera roll. Roavvy is the layer that makes it visible: a living, personal travel identity that grows with every trip and lasts a lifetime.
         </p>
       </div>
     </section>
@@ -85,17 +84,17 @@ function ProblemSolutionSection() {
             <div className="text-red-400 font-semibold text-sm mb-6 flex items-center gap-2">
               <span className="text-lg">⚠️</span> The Problem
             </div>
-            <h3 className="text-white text-2xl font-bold mb-4">Travel memories are the world's most underutilised personal data</h3>
+            <h3 className="text-white text-2xl font-bold mb-4">Most travellers have thousands of photos — and no real way to see the story of where they've been</h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              The average smartphone user has thousands of travel photos. GPS metadata in those photos contains a complete, accurate travel history — yet it is ignored by every major platform.
+              Memories disappear into camera rolls, forgotten folders, and social feeds that were never designed to preserve a life of travel. GPS metadata in those photos contains a complete travel history — ignored by every major platform.
             </p>
             <ul className="space-y-3">
               {[
-                'Travel memories are buried in unsorted camera rolls',
-                'No platform translates photos into a travel identity',
-                'Travel achievements are invisible and uncelebrated',
-                'Generic souvenirs fail to reflect personal journeys',
-                'The travel engagement layer is entirely missing from mobile',
+                'Travel memories are buried, disconnected, and gradually forgotten',
+                'No platform translates photo libraries into a living travel identity',
+                'Travel milestones are invisible and go uncelebrated',
+                'Generic souvenirs fail to reflect who users actually are as travellers',
+                'The travel engagement and identity layer is entirely missing from mobile',
               ].map((p) => (
                 <li key={p} className="flex items-start gap-2 text-slate-500 text-sm">
                   <span className="text-red-500/60 mt-0.5">✕</span>
@@ -110,17 +109,17 @@ function ProblemSolutionSection() {
             <div className="text-sky-400 font-semibold text-sm mb-6 flex items-center gap-2">
               <span className="text-lg">💡</span> The Solution
             </div>
-            <h3 className="text-white text-2xl font-bold mb-4">Roavvy — the travel identity platform</h3>
+            <h3 className="text-white text-2xl font-bold mb-4">Roavvy — the AI-powered travel discovery platform</h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Roavvy scans photo GPS metadata on-device, builds a rich travel profile, and creates a multi-dimensional engagement platform around it — maps, achievements, challenges, and merchandise.
+              Roavvy scans photo GPS metadata on-device and transforms it into a multi-dimensional engagement platform — maps, cinematic replays, achievements, daily challenges, and personalised merchandise. Your travel history becomes visual, interactive, and alive.
             </p>
             <ul className="space-y-3">
               {[
-                'Instant on-device country detection — no uploads required',
-                'Interactive world map built from real photo data',
-                'Achievement and badge system for travel milestones',
-                'Daily UNESCO heritage challenges for engagement and retention',
-                'Personalised merchandise from real travel history',
+                'AI-powered on-device scanning — no uploads, no privacy trade-offs',
+                'Living interactive world map built from real photo data',
+                'Achievement and badge system tied to real travel milestones',
+                'Daily UNESCO heritage challenges driving engagement and retention',
+                'Personalised merchandise from custom travel shirts to passport collectibles',
               ].map((p) => (
                 <li key={p} className="flex items-start gap-2 text-slate-300 text-sm">
                   <span className="text-sky-400 mt-0.5">✓</span>
@@ -139,12 +138,12 @@ function ProblemSolutionSection() {
 
 function ProductSection() {
   const features = [
-    { icon: '📸', title: 'Photo scanning', body: 'On-device GPS extraction from existing photo libraries. No cloud processing. Instant results.' },
-    { icon: '🌍', title: 'World map', body: 'Interactive globe showing every country visited. Automatic updates as photos are scanned.' },
-    { icon: '🏆', title: 'Achievements', body: 'Badges for countries, continents, and UNESCO heritage sites. A gamified travel identity.' },
-    { icon: '🏛️', title: 'Daily challenges', body: 'UNESCO World Heritage Site puzzles. Daily engagement, streaks, and social sharing.' },
-    { icon: '👕', title: 'Merchandise', body: 'Personalised travel products based on real visited countries. Print-on-demand fulfilment.' },
-    { icon: '📤', title: 'Social sharing', body: 'Shareable travel maps, achievement cards, and challenge scores.' },
+    { icon: '🤖', title: 'AI photo scanning', body: 'On-device AI extracts GPS metadata from existing photo libraries. No cloud processing. Zero uploads. Instant results.' },
+    { icon: '🌍', title: 'Living world map', body: 'Interactive globe showing every country visited, growing automatically with every new scan.' },
+    { icon: '🎬', title: 'Cinematic replays', body: 'AI-generated travel replays that bring forgotten memories back to life — visually and emotionally.' },
+    { icon: '🏆', title: 'Achievements', body: 'Badges for countries, continents, and UNESCO heritage sites. A gamified travel identity built from real adventures.' },
+    { icon: '🏛️', title: 'Daily challenges', body: 'UNESCO World Heritage Site puzzles driving daily engagement, streaks, and social sharing.' },
+    { icon: '👕', title: 'Personalised merchandise', body: 'Custom travel shirts, prints, and passport collectibles generated from real visited countries. Print-on-demand fulfilment.' },
   ]
 
   return (
@@ -152,7 +151,7 @@ function ProductSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="section-label">Product</span>
-          <h2 className="section-heading">A multi-surface travel platform</h2>
+          <h2 className="section-heading">One platform. Six powerful surfaces.</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map(({ icon, title, body }) => (
@@ -183,9 +182,9 @@ function MarketSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="section-label">Market opportunity</span>
-          <h2 className="section-heading">A massive, underserved audience</h2>
+          <h2 className="section-heading">The data is already in 4 billion pockets</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Every person who has ever taken a photo abroad is a potential Roavvy user. The data already exists in their pocket — it just needs to be unlocked.
+            Every person who has ever taken a photo abroad is a potential Roavvy user. The travel history already exists — buried in their camera roll. Roavvy is the key that unlocks it.
           </p>
         </div>
 
@@ -219,12 +218,12 @@ function MarketSection() {
 
 function BusinessModelSection() {
   const revenues = [
-    { icon: '💎', title: 'Premium subscriptions', body: 'Unlock advanced features, unlimited scans, extended history, and premium achievement packs.' },
-    { icon: '👕', title: 'Personalised merchandise', body: 'Country flag t-shirts, travel prints, and personalised products. High margin, low operational overhead.' },
-    { icon: '🎯', title: 'Heritage and challenge packs', body: 'Premium challenge expansions, thematic UNESCO packs, and travel quiz collections.' },
-    { icon: '🤝', title: 'Travel brand partnerships', body: 'Destination discovery, travel brand integrations, and co-branded travel products.' },
-    { icon: '🏪', title: 'Printed travel products', body: 'Custom travel maps, passport covers, travel journals, and personalised travel accessories.' },
-    { icon: '📊', title: 'Aggregated insights', body: 'Anonymous, aggregated travel trend data for tourism boards, airlines, and destination marketers (opt-in only).' },
+    { icon: '👕', title: 'Personalised merchandise — core revenue', body: 'Country flag t-shirts, travel prints, passport-style collectibles, and custom travel accessories. High margin, print-on-demand fulfilment, zero inventory overhead.' },
+    { icon: '🛍️', title: 'Expanding product range', body: 'Custom travel maps, travel journals, phone cases, and passport covers — all generated from the user\'s real visited countries. Each product is unique to its buyer.' },
+    { icon: '🤝', title: 'Travel brand partnerships', body: 'Destination discovery integrations, co-branded travel products, and sponsored heritage content — aligned with the platform\'s existing travel identity audience.' },
+    { icon: '📊', title: 'Aggregated travel insights', body: 'Anonymous, aggregated travel trend data for tourism boards, airlines, and destination marketers. Opt-in only, privacy-preserving, and entirely separate from any individual user data.' },
+    { icon: '🔓', title: 'App is free — by design', body: 'Roavvy is free to download and use. This maximises reach, removes acquisition friction, and concentrates monetisation on high-intent merchandise purchases rather than subscription conversion.' },
+    { icon: '📈', title: 'Revenue per engaged user', body: 'Each merchandise order generates meaningful revenue from an already-engaged user who has seen their own travel history and wants to wear it. Conversion intent is uniquely high.' },
   ]
 
   return (
@@ -232,9 +231,9 @@ function BusinessModelSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="section-label">Business model</span>
-          <h2 className="section-heading">Multiple revenue streams</h2>
+          <h2 className="section-heading">Free app. High-intent merchandise revenue.</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Roavvy is designed with diversified, scalable revenue from day one — combining subscriptions with high-margin physical products and brand partnerships.
+            Roavvy is free to use — always. Revenue comes from personalised merchandise that users actively want because it's built from their own travel history. No subscription friction. No paywall. Just genuine demand.
           </p>
         </div>
 
@@ -267,7 +266,7 @@ function WhyNowSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="section-label">Why now</span>
-          <h2 className="section-heading">The conditions are aligned</h2>
+          <h2 className="section-heading">The right product at exactly the right moment</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {reasons.map(({ icon, title, body }) => (
@@ -299,9 +298,9 @@ function FundingSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
           {[
-            { label: 'Product development', body: 'Expand iOS features, launch Android, develop the web platform and social layer.' },
-            { label: 'User acquisition', body: "Invest in App Store optimisation, content marketing, and strategic travel partnerships." },
-            { label: 'Merchandise scale', body: 'Build the personalised merchandise pipeline — expand product range and fulfilment capacity.' },
+            { label: 'Product development', body: 'Expand iOS features, launch Android, deepen AI capabilities, and develop the social sharing layer.' },
+            { label: 'User acquisition', body: 'App Store optimisation, content marketing, influencer travel partnerships, and strategic launch in key travel markets.' },
+            { label: 'Merchandise scale', body: 'Expand the personalised merchandise pipeline — broader product range, faster fulfilment, and international shipping coverage.' },
           ].map(({ label, body }) => (
             <div key={label} className="card text-center">
               <div className="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-500/30 mx-auto mb-4 flex items-center justify-center">
@@ -324,10 +323,10 @@ function InvestorCta() {
     <section className="bg-gradient-to-b from-sky-950/40 to-navy-900 py-24">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-          Interested in investing or partnering?
+          Ready to back the travel identity platform?
         </h2>
         <p className="text-slate-400 text-lg mb-8">
-          To discuss investment or partnership opportunities, reach out directly. We'd love to share more about the product, traction, and roadmap.
+          Roavvy is building the platform where personal history becomes something worth celebrating. If you're excited about what travel, AI, and identity can become — we'd love to talk.
         </p>
         <a
           href={`mailto:${INVESTOR_EMAIL}?subject=Roavvy%20Investment%20Enquiry`}

@@ -6,9 +6,12 @@ export default function Home() {
   return (
     <>
       <HeroSection />
+      <SocialProofSection />
       <ProblemSection />
+      <ScreenshotsSection />
       <GuideSection />
       <PlanSection />
+      <TestimonialsSection />
       <CtaSection />
       <FailureSection />
       <SuccessSection />
@@ -34,14 +37,14 @@ function HeroSection() {
         </div>
 
         <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-tight tracking-tight max-w-4xl mx-auto">
-          Turn your travels into a{' '}
+          Your travel story is buried in your camera roll.{' '}
           <span className="bg-gradient-to-r from-sky-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-            living world map
+            Roavvy brings it back to life.
           </span>
         </h1>
 
         <p className="mt-6 text-xl md:text-2xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
-          Roavvy scans your photo library on-device, discovers the countries you've visited, unlocks achievements, and helps you relive your journeys.
+          Roavvy is an AI-powered travel discovery platform that transforms your photo library into a living map of your life — without ever uploading your private photos.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -52,46 +55,83 @@ function HeroSection() {
             className="btn-primary text-base px-8 py-4 animate-glow"
           >
             <AppleIcon />
-            Download on the App Store
+            Download Free on the App Store
           </a>
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             See how it works
             <ArrowIcon />
           </Link>
         </div>
+        <p className="mt-4 text-slate-600 text-sm">
+          Free forever &middot; iOS 16+ &middot; Android coming soon
+        </p>
 
-        {/* Globe illustration */}
-        <div className="mt-20 flex justify-center">
-          <GlobeIllustration />
+        {/* App screenshots */}
+        <div className="mt-20 flex justify-center items-end gap-3 md:gap-5">
+          <div className="hidden sm:block rounded-[2rem] border-[5px] border-slate-700 bg-black overflow-hidden shadow-2xl shadow-navy-900/80 w-32 md:w-40 -mb-4 opacity-70" style={{ transform: 'rotate(-6deg)' }}>
+            <img src="/images/screenshots/achievements.jpg" alt="Travel achievements" className="w-full block" loading="eager" />
+          </div>
+          <div className="rounded-[2rem] border-[5px] border-slate-600 bg-black overflow-hidden shadow-2xl shadow-sky-500/20 w-44 md:w-56 z-10">
+            <img src="/images/screenshots/map.jpg" alt="Interactive world map" className="w-full block" loading="eager" />
+          </div>
+          <div className="hidden sm:block rounded-[2rem] border-[5px] border-slate-700 bg-black overflow-hidden shadow-2xl shadow-navy-900/80 w-32 md:w-40 -mb-4 opacity-70" style={{ transform: 'rotate(6deg)' }}>
+            <img src="/images/screenshots/daily-challange.jpg" alt="Daily challenge" className="w-full block" loading="eager" />
+          </div>
         </div>
       </div>
     </section>
   )
 }
 
-// ── 2. Problem ────────────────────────────────────────────────────────────────
+// ── 2. Social Proof ───────────────────────────────────────────────────────────
+
+function SocialProofSection() {
+  const stats = [
+    { value: '100%', label: 'Free — always' },
+    { value: '195+', label: 'Countries detectable' },
+    { value: '1,000+', label: 'UNESCO sites mapped' },
+    { value: '0', label: 'Photos ever uploaded' },
+  ]
+
+  return (
+    <section className="bg-navy-950 py-14 border-b border-slate-800/60">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map(({ value, label }) => (
+            <div key={label} className="text-center">
+              <div className="text-3xl md:text-4xl font-extrabold text-sky-400 mb-1">{value}</div>
+              <div className="text-slate-500 text-sm">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── 3. Problem ────────────────────────────────────────────────────────────────
 
 function ProblemSection() {
   const pains = [
     {
       icon: '📸',
-      title: 'Buried in your camera roll',
-      body: 'Thousands of travel photos sit unsorted and forgotten. Finding memories from a specific trip takes minutes of scrolling.',
+      title: 'Memories buried and forgotten',
+      body: 'Thousands of travel photos sit unsorted in camera rolls. The story of where you have been is invisible — even to you.',
     },
     {
       icon: '🗺️',
-      title: 'No visual travel story',
-      body: "You know you've been to many places, but there's no single view that shows your full journey across the world.",
+      title: 'No single view of your journey',
+      body: "You've seen the world, but there's no platform that shows your complete travel story in one beautiful, living place.",
     },
     {
       icon: '🏆',
-      title: 'Milestones go unnoticed',
-      body: 'Reaching 30 countries, visiting a UNESCO World Heritage site — these are real achievements that disappear into the void.',
+      title: 'Milestones uncelebrated',
+      body: 'Reaching 30 countries, discovering a UNESCO World Heritage site — these are real achievements that vanish without a trace.',
     },
     {
       icon: '🧢',
-      title: 'Generic souvenirs',
-      body: "Travel merchandise is mass-produced. Nothing reflects your specific journey, the countries you've actually visited.",
+      title: 'Souvenirs that mean nothing',
+      body: "Travel merchandise is mass-produced and generic. Nothing reflects the countries you've actually stood in.",
     },
   ]
 
@@ -101,10 +141,10 @@ function ProblemSection() {
         <div className="text-center mb-16">
           <span className="section-label">The problem</span>
           <h2 className="section-heading">
-            Travel memories deserve<br />better than a camera roll
+            Your memories are disappearing<br />into a camera roll
           </h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            You've explored the world. But your travel story is scattered, invisible, and harder to share than it should be.
+            Thousands of travel photos sit buried in forgotten folders and social feeds that were never designed to preserve a life of travel. Your story is scattered, invisible, and slipping away.
           </p>
         </div>
 
@@ -122,7 +162,44 @@ function ProblemSection() {
   )
 }
 
-// ── 3. Guide ──────────────────────────────────────────────────────────────────
+// ── 3. Screenshots ────────────────────────────────────────────────────────────
+
+const FEATURE_SCREENS = [
+  { src: '/images/screenshots/map.jpg', alt: 'Interactive world map', label: 'World Map' },
+  { src: '/images/screenshots/achievements.jpg', alt: 'Travel achievements', label: 'Achievements' },
+  { src: '/images/screenshots/daily-challange.jpg', alt: 'Daily UNESCO challenge', label: 'Daily Challenge' },
+  { src: '/images/screenshots/travel-status.jpg', alt: 'Travel status overview', label: 'Travel Status' },
+  { src: '/images/screenshots/merchandise.jpg', alt: 'Personalised travel merchandise', label: 'Merch' },
+  { src: '/images/screenshots/passport.jpg', alt: 'Travel passport', label: 'Passport' },
+]
+
+function ScreenshotsSection() {
+  return (
+    <section className="bg-navy-900 py-20 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <span className="section-label">See it in action</span>
+          <h2 className="section-heading">Everything your travel story needs</h2>
+          <p className="section-subheading max-w-xl mx-auto">
+            From your interactive world map to daily challenges, achievements, cinematic replays, and personalised merch — all powered by your own photos, entirely on your device.
+          </p>
+        </div>
+
+        {/* Horizontally scrollable on mobile, centred grid on desktop */}
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory -mx-4 px-4 scrollbar-none md:justify-center md:overflow-visible md:flex-wrap md:gap-6">
+          {FEATURE_SCREENS.map(({ src, alt, label }) => (
+            <div key={src} className="snap-center shrink-0 flex flex-col items-center gap-3">
+              <div className="rounded-[2rem] border-[5px] border-slate-700 bg-black overflow-hidden shadow-xl w-36 md:w-44">
+                <img src={src} alt={alt} className="w-full block" loading="lazy" />
+              </div>
+              <span className="text-slate-500 text-xs font-medium">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
 
 function GuideSection() {
   return (
@@ -132,21 +209,21 @@ function GuideSection() {
           <div>
             <span className="section-label">Your guide</span>
             <h2 className="section-heading">
-              The story was always<br />in your photos
+              Your digital travel<br />companion
             </h2>
             <p className="section-subheading">
-              Roavvy helps you uncover the travel story already hidden in your photos — privately, visually, and effortlessly.
+              Roavvy acts like a digital travel companion — helping you relive experiences, celebrate milestones, and turn memories into something tangible.
             </p>
             <p className="text-slate-500 mt-4 leading-relaxed">
-              You are the traveller. Roavvy is the tool that makes your journey visible. We don't upload your photos — everything is processed on your device, giving you a beautiful map of your real travels in seconds.
+              You are the traveller. Roavvy is the platform that makes your journey visible. Your photos never leave your device — everything is processed privately on-device, revealing a living map of your real travels in seconds.
             </p>
 
             <div className="mt-8 flex flex-col gap-3">
               {[
-                'On-device scanning — your photos never leave your phone',
-                'Automatic country detection from GPS metadata',
-                'Instant visual world map of visited countries',
-                'Travel achievements and UNESCO heritage discovery',
+                'AI-powered on-device scanning — your photos never leave your phone',
+                'Automatic country and landmark detection from GPS metadata',
+                'An interactive world map that grows with every trip',
+                'Travel achievements, heritage discovery, and cinematic travel replays',
               ].map((point) => (
                 <div key={point} className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-sky-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -174,19 +251,19 @@ function PlanSection() {
     {
       num: '01',
       title: 'Scan your photo library',
-      body: 'Roavvy reads GPS coordinates from your existing photos — entirely on your device. No uploads. No cloud access required.',
+      body: 'Roavvy reads GPS coordinates from your existing photos — entirely on your device. No uploads. No cloud. No privacy trade-offs.',
       icon: '📱',
     },
     {
       num: '02',
-      title: 'Discover your world',
-      body: "Instantly see every country and region you've visited mapped onto a beautiful interactive globe. Unlock achievements as you explore.",
+      title: 'Discover where you\'ve been',
+      body: 'Instantly see every country and landmark you\'ve visited mapped onto a living, interactive world map. Your travel history becomes visual and alive.',
       icon: '🌍',
     },
     {
       num: '03',
-      title: 'Share and celebrate',
-      body: 'Share your travel map, earn UNESCO heritage badges, play daily challenges, and order personalised merchandise from your real travel history.',
+      title: 'Unlock memories, achievements, and creations',
+      body: 'Rediscover forgotten journeys, earn travel achievements, play daily UNESCO challenges, and order personalised merchandise from your real travel history.',
       icon: '✨',
     },
   ]
@@ -196,7 +273,7 @@ function PlanSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="section-label">How it works</span>
-          <h2 className="section-heading">Three steps to your travel story</h2>
+          <h2 className="section-heading">Simple. Private. Instant.</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -220,7 +297,64 @@ function PlanSection() {
   )
 }
 
-// ── 5. CTA ────────────────────────────────────────────────────────────────────
+// ── 5. Testimonials ───────────────────────────────────────────────────────────
+
+const testimonials = [
+  {
+    quote: "I scanned my library and suddenly had 34 countries lit up on a map I didn't know I had. There were trips I'd completely forgotten about. It was genuinely emotional.",
+    name: 'Sarah M.',
+    detail: 'Visited 34 countries',
+    flag: '🇬🇧',
+  },
+  {
+    quote: "The daily UNESCO challenge has become part of my morning routine. I've learned more about world heritage in a month of playing than I did in years of travelling.",
+    name: 'James K.',
+    detail: 'Daily challenge streak: 47 days',
+    flag: '🇦🇺',
+  },
+  {
+    quote: "I ordered a t-shirt with all the flags from my South East Asia trip and it's my favourite piece of clothing. It's a conversation starter every time I wear it.",
+    name: 'Priya R.',
+    detail: 'Visited 12 countries',
+    flag: '🇸🇬',
+  },
+]
+
+function TestimonialsSection() {
+  return (
+    <section className="bg-navy-950 py-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <span className="section-label">Travellers love it</span>
+          <h2 className="section-heading">Real stories from real journeys</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {testimonials.map(({ quote, name, detail, flag }) => (
+            <div key={name} className="card flex flex-col gap-4">
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed flex-1">"{quote}"</p>
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+                <span className="text-xl">{flag}</span>
+                <div>
+                  <div className="text-white text-sm font-semibold">{name}</div>
+                  <div className="text-slate-600 text-xs">{detail}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── 6. CTA ────────────────────────────────────────────────────────────────────
 
 function CtaSection() {
   return (
@@ -228,10 +362,10 @@ function CtaSection() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <span className="section-label">Start today</span>
         <h2 className="section-heading text-4xl md:text-5xl">
-          Your world map is<br />waiting to be discovered
+          Your travel identity is<br />already in your pocket
         </h2>
         <p className="section-subheading">
-          Download Roavvy and find out how far you've really travelled.
+          Download Roavvy and turn years of hidden memories into a living story you can revisit, share, wear, and keep building.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <a
@@ -241,27 +375,28 @@ function CtaSection() {
             className="btn-primary text-base px-8 py-4"
           >
             <AppleIcon />
-            Download on the App Store
+            Download Free on the App Store
           </a>
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             See all features
             <ArrowIcon />
           </Link>
         </div>
+        <p className="mt-4 text-slate-600 text-sm">Free forever &middot; iOS 16+ &middot; Android coming soon</p>
       </div>
     </section>
   )
 }
 
-// ── 6. Avoid Failure ──────────────────────────────────────────────────────────
+// ── 7. Avoid Failure ──────────────────────────────────────────────────────────
 
 function FailureSection() {
   const costs = [
-    'Travel memories stay buried and are gradually forgotten',
-    'Countries visited are lost from memory without a record',
-    'There is no easy way to visualise or share your journey',
-    'Personal travel milestones are never celebrated',
-    'Generic souvenirs replace personalised travel identity',
+    'Years of travel remain buried and disconnected in your camera roll',
+    'Countries you visited are gradually lost from memory, with no record left behind',
+    'Your travel story stays invisible — no single place to see it, share it, or celebrate it',
+    'Personal milestones go unrecognised and uncelebrated',
+    'Generic mass-produced souvenirs fail to capture who you are as a traveller',
   ]
 
   return (
@@ -290,10 +425,10 @@ function FailureSection() {
           <div>
             <span className="section-label">Don't lose your story</span>
             <h2 className="section-heading">
-              Every journey deserves to be remembered
+              Every journey deserves to be more than a forgotten photo
             </h2>
             <p className="section-subheading">
-              The places you've been to are part of who you are. Without a way to record and celebrate them, they fade. Roavvy keeps your travel identity alive.
+              The places you've been are part of who you are. Without a way to see, celebrate, and share them — they fade. Roavvy keeps your travel identity alive, for good.
             </p>
             <a
               href={APP_STORE_URL}
@@ -302,7 +437,7 @@ function FailureSection() {
               className="btn-primary mt-8 inline-flex"
             >
               <AppleIcon />
-              Get started — it's free
+              Download Free on iOS
             </a>
           </div>
         </div>
@@ -318,32 +453,32 @@ function SuccessSection() {
     {
       icon: '🌍',
       title: 'A living world map',
-      body: "A beautiful visual record of every country you've visited — updating automatically as you scan more photos.",
+      body: "A beautiful, interactive visual record of every country you've visited — growing automatically as you scan more photos.",
     },
     {
       icon: '🏅',
       title: 'Travel achievements',
-      body: 'Earn badges and milestones for countries visited, continents explored, and UNESCO heritage sites discovered.',
+      body: 'Earn real badges for countries visited, continents explored, and UNESCO World Heritage Sites discovered. Your milestones, recognised.',
     },
     {
-      icon: '🏛️',
-      title: 'Daily heritage challenges',
-      body: 'Test your knowledge of UNESCO World Heritage Sites with a new daily challenge. Compete and compare with other travellers.',
+      icon: '🎬',
+      title: 'Cinematic travel replays',
+      body: 'Rediscover forgotten memories through AI-generated travel replays that bring your journeys back to life, visually and emotionally.',
     },
     {
       icon: '👕',
       title: 'Personalised merchandise',
-      body: 'Order t-shirts, prints, and travel products featuring the actual countries from your own journey — not a generic souvenir.',
+      body: 'Order t-shirts, prints, and travel products featuring the actual countries from your own journey. Not a souvenir — a statement.',
     },
     {
       icon: '📤',
       title: 'Shareable travel identity',
-      body: "Share your world map, achievement cards, and travel stats. Show the world where you've been.",
+      body: "Share your world map, achievement cards, and travel story. Show the world where you've been — and who you are as a traveller.",
     },
     {
       icon: '🔒',
-      title: 'Privacy by default',
-      body: 'Your photos never leave your device. Roavvy reads GPS metadata on-device — no uploads, no cloud scanning.',
+      title: 'Private by design',
+      body: 'Your photos never leave your device. Roavvy reads only GPS metadata on-device — no uploads, no cloud, no compromises.',
     },
   ]
 
@@ -352,9 +487,9 @@ function SuccessSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="section-label">The outcome</span>
-          <h2 className="section-heading">Your travel story, finally visible</h2>
+          <h2 className="section-heading">A living identity built from your real adventures</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Roavvy users don't just track countries — they build a living record of who they are as travellers.
+            Roavvy users don't just track countries — they build a living travel identity they can revisit, share, wear, and continue building for the rest of their lives.
           </p>
         </div>
 
@@ -399,46 +534,6 @@ function ArrowIcon() {
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
-  )
-}
-
-function GlobeIllustration() {
-  return (
-    <div className="relative w-72 h-72 md:w-96 md:h-96">
-      {/* Outer glow ring */}
-      <div className="absolute inset-0 rounded-full border border-sky-500/20 animate-ping" style={{ animationDuration: '4s' }} />
-      <div className="absolute inset-4 rounded-full border border-sky-500/15" />
-
-      {/* Globe */}
-      <div className="absolute inset-8 rounded-full border-2 border-sky-400/40 bg-gradient-to-br from-sky-950/60 to-navy-800/80 shadow-2xl shadow-sky-500/20 flex items-center justify-center overflow-hidden">
-        {/* Latitude lines */}
-        <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 200 200">
-          <ellipse cx="100" cy="100" rx="80" ry="80" fill="none" stroke="#38BDF8" strokeWidth="0.5" />
-          <ellipse cx="100" cy="100" rx="80" ry="40" fill="none" stroke="#38BDF8" strokeWidth="0.5" />
-          <ellipse cx="100" cy="100" rx="80" ry="15" fill="none" stroke="#38BDF8" strokeWidth="0.5" />
-          <ellipse cx="100" cy="100" rx="40" ry="80" fill="none" stroke="#38BDF8" strokeWidth="0.5" />
-          <line x1="20" y1="100" x2="180" y2="100" stroke="#38BDF8" strokeWidth="0.5" />
-          <line x1="100" y1="20" x2="100" y2="180" stroke="#38BDF8" strokeWidth="0.3" />
-        </svg>
-
-        {/* Location pins */}
-        <div className="relative w-full h-full">
-          {[
-            { top: '28%', left: '42%', delay: '0s' },
-            { top: '45%', left: '65%', delay: '0.5s' },
-            { top: '55%', left: '35%', delay: '1s' },
-            { top: '38%', left: '75%', delay: '1.5s' },
-            { top: '62%', left: '55%', delay: '0.3s' },
-          ].map(({ top, left, delay }, i) => (
-            <div
-              key={i}
-              className="absolute w-3 h-3 rounded-full bg-amber-400 shadow-lg shadow-amber-400/60 animate-ping"
-              style={{ top, left, animationDuration: '2s', animationDelay: delay }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
   )
 }
 

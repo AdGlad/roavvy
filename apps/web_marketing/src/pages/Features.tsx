@@ -1,15 +1,15 @@
 const SCAN_VIDEO = '/videos/roavvy-scan-demo.mp4'
 const CHALLENGE_VIDEO = '/videos/daily-challenge-demo.mp4'
-const SCAN_POSTER = '/images/scan-poster.jpg'
-const CHALLENGE_POSTER = '/images/challenge-poster.jpg'
+const SCAN_POSTER = '/images/screenshots/map.jpg'
+const CHALLENGE_POSTER = '/images/screenshots/daily-challange.jpg'
 
 export default function Features() {
   return (
     <>
       <PageHero
         label="Features"
-        title="Everything your travel story needs"
-        subtitle="From on-device photo scanning to personalised merchandise, Roavvy is built around your real journey."
+        title="Your travel story — visual, interactive, and alive"
+        subtitle="Roavvy is an AI-powered travel discovery platform built around your real journey. Every feature starts with your photos and ends with something worth sharing."
       />
       <PhotoScanFeature />
       <WorldMapFeature />
@@ -41,19 +41,19 @@ function PhotoScanFeature() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div>
-            <span className="section-label">Photo scanning</span>
-            <h2 className="section-heading">Your camera roll knows where you've been</h2>
+            <span className="section-label">AI-powered photo scanning</span>
+            <h2 className="section-heading">Your camera roll knows everywhere you've been</h2>
             <p className="section-subheading">
-              Roavvy reads the GPS coordinates embedded in your existing photos — entirely on your device. No uploads, no cloud processing. Just instant results.
+              Roavvy's AI reads the GPS coordinates embedded in your existing photos — entirely on your device. No uploads, no cloud, no privacy trade-offs. Your travel history appears in seconds.
             </p>
 
             <ul className="mt-8 space-y-4">
               {[
                 'Scans up to 2,000 photos per session',
-                'GPS metadata read on-device only',
-                'Incremental rescans for new photos',
-                'Works with photos going back years',
-                'No photo content is ever uploaded',
+                'AI-powered on-device GPS extraction — zero uploads',
+                'Incremental rescans automatically capture new trips',
+                'Rediscovers forgotten memories from years of travel',
+                'No photo content is ever transmitted or stored externally',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <CheckIcon />
@@ -63,11 +63,13 @@ function PhotoScanFeature() {
             </ul>
           </div>
 
-          <VideoCard
-            src={SCAN_VIDEO}
-            poster={SCAN_POSTER}
-            caption="On-device photo scanning — see your countries appear in seconds"
-          />
+          <div className="max-w-[240px] mx-auto">
+            <VideoCard
+              src={SCAN_VIDEO}
+              poster={SCAN_POSTER}
+              caption="On-device photo scanning — see your countries appear in seconds"
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -81,20 +83,14 @@ function WorldMapFeature() {
     <section className="bg-navy-900 py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="order-2 lg:order-1">
-            <div className="card aspect-square flex items-center justify-center bg-gradient-to-br from-navy-800 to-sky-950/30">
-              <div className="text-center">
-                <div className="text-8xl mb-4">🌍</div>
-                <p className="text-slate-500 text-sm">Interactive world map placeholder</p>
-                <p className="text-slate-600 text-xs mt-1">Replace with app screenshot</p>
-              </div>
-            </div>
+          <div className="order-2 lg:order-1 flex justify-center">
+            <PhoneScreenshot src="/images/screenshots/interactive-maps.jpg" alt="Interactive world map showing visited countries highlighted" />
           </div>
           <div className="order-1 lg:order-2">
-            <span className="section-label">World map</span>
-            <h2 className="section-heading">An interactive globe of your real travels</h2>
+            <span className="section-label">Living world map</span>
+            <h2 className="section-heading">Your travel history — visual, interactive, and alive</h2>
             <p className="section-subheading">
-              Watch countries light up as Roavvy discovers your visits. Pan, zoom, and explore your personal world map — a beautiful visual record of where you've been.
+              Watch countries light up as Roavvy discovers your visits. Pan, zoom, and explore a beautiful interactive world map that grows with every trip — a living record of who you are as a traveller.
             </p>
 
             <div className="mt-8 grid grid-cols-2 gap-4">
@@ -133,21 +129,27 @@ function AchievementsFeature() {
     <section className="bg-navy-950 py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <span className="section-label">Achievements</span>
-          <h2 className="section-heading">Celebrate every milestone</h2>
+          <span className="section-label">Achievements & identity</span>
+          <h2 className="section-heading">Your milestones deserve to be recognised</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Every country, every continent, every UNESCO site is a real achievement. Roavvy recognises them automatically and awards you the badge you've earned.
+            Every country, continent, and UNESCO World Heritage Site you've visited is a real achievement. Roavvy recognises them automatically — building a travel identity that reflects who you've become.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {badges.map(({ icon, name, desc }) => (
-            <div key={name} className="card text-center hover:border-amber-500/30 hover:-translate-y-1 transition-all duration-200 group">
-              <div className="text-4xl mb-3">{icon}</div>
-              <div className="text-white text-xs font-semibold mb-1 group-hover:text-amber-400 transition-colors">{name}</div>
-              <div className="text-slate-600 text-xs">{desc}</div>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-center">
+          <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {badges.map(({ icon, name, desc }) => (
+              <div key={name} className="card text-center hover:border-amber-500/30 hover:-translate-y-1 transition-all duration-200 group">
+                <div className="text-4xl mb-3">{icon}</div>
+                <div className="text-white text-xs font-semibold mb-1 group-hover:text-amber-400 transition-colors">{name}</div>
+                <div className="text-slate-600 text-xs">{desc}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center gap-4">
+            <PhoneScreenshot src="/images/screenshots/achievements.jpg" alt="Travel achievements screen" />
+            <PhoneScreenshot src="/images/screenshots/badges.jpg" alt="Achievement badges screen" />
+          </div>
         </div>
       </div>
     </section>
@@ -163,9 +165,9 @@ function DailyChallengeFeature() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div>
             <span className="section-label">Daily challenge</span>
-            <h2 className="section-heading">A new UNESCO heritage puzzle every day</h2>
+            <h2 className="section-heading">A new piece of the world to discover every day</h2>
             <p className="section-subheading">
-              Test your knowledge of UNESCO World Heritage Sites with a fresh challenge every morning. Use clues to guess the site, earn streaks, and compare your results.
+              A fresh UNESCO World Heritage Site challenge every morning. Use clues to identify the site, build streaks, and share your results — a daily ritual for curious travellers.
             </p>
 
             <div className="mt-8 space-y-4">
@@ -183,11 +185,13 @@ function DailyChallengeFeature() {
             </div>
           </div>
 
-          <VideoCard
-            src={CHALLENGE_VIDEO}
-            poster={CHALLENGE_POSTER}
-            caption="Daily UNESCO World Heritage challenge — guess from clues"
-          />
+          <div className="max-w-[240px] mx-auto">
+            <VideoCard
+              src={CHALLENGE_VIDEO}
+              poster={CHALLENGE_POSTER}
+              caption="Daily UNESCO World Heritage challenge — guess from clues"
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -202,27 +206,34 @@ function MerchFeature() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="order-2 lg:order-1">
-            <div className="card aspect-video flex items-center justify-center bg-gradient-to-br from-navy-800 to-amber-950/20">
-              <div className="text-center">
-                <div className="text-8xl mb-4">👕</div>
-                <p className="text-slate-500 text-sm">Merchandise preview placeholder</p>
-                <p className="text-slate-600 text-xs mt-1">Replace with product mockup</p>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <img
+                src="/images/screenshots/mockups.jpg"
+                alt="Travel t-shirt product mockup"
+                className="rounded-2xl w-full shadow-xl"
+                loading="lazy"
+              />
+              <img
+                src="/images/screenshots/custom-tshirts.jpg"
+                alt="Custom travel t-shirts"
+                className="rounded-2xl w-full shadow-xl mt-6"
+                loading="lazy"
+              />
             </div>
           </div>
           <div className="order-1 lg:order-2">
             <span className="section-label">Personalised merchandise</span>
-            <h2 className="section-heading">Wear your real travel history</h2>
+            <h2 className="section-heading">Turn your travel history into something you can wear</h2>
             <p className="section-subheading">
-              Order t-shirts, prints, and travel products featuring the actual country flags from your own journey. Not a souvenir — a statement.
+              Order t-shirts, prints, and passport-style collectibles featuring the actual countries from your own journey. Not a generic souvenir — a tangible piece of your real travel identity.
             </p>
 
             <ul className="mt-8 space-y-3">
               {[
-                "Flags from countries you've actually visited",
-                'Custom layouts based on your travel map',
-                'Print-on-demand — no stock, no waste',
-                'Delivered worldwide',
+                "Flags from the exact countries you've stood in",
+                'Custom layouts generated from your real travel map',
+                'Print-on-demand — no stock, no waste, delivered worldwide',
+                'From custom travel shirts to passport-style collectibles',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <CheckIcon />
@@ -289,6 +300,16 @@ function PrivacyFeature() {
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────
+
+function PhoneScreenshot({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="relative mx-auto max-w-[220px]">
+      <div className="rounded-[2.5rem] border-[6px] border-slate-700 bg-black overflow-hidden shadow-2xl shadow-navy-900/80">
+        <img src={src} alt={alt} className="w-full block" loading="lazy" />
+      </div>
+    </div>
+  )
+}
 
 function VideoCard({ src, poster, caption }: { src: string; poster: string; caption: string }) {
   return (

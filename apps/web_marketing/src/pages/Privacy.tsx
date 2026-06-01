@@ -1,12 +1,10 @@
-import { LegalPage, Section, Disclaimer, ContactBlock } from './Terms'
+import { LegalPage, Section, ContactBlock } from './Terms'
 
 const LAST_UPDATED = '1 June 2026'
 
 export default function Privacy() {
   return (
     <LegalPage title="Privacy Policy" lastUpdated={LAST_UPDATED}>
-      <Disclaimer />
-
       <Section title="1. Introduction">
         <p>Roavvy ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use the Roavvy app ("App") and website at www.roavvy.com.</p>
         <p>We are committed to handling your personal data in accordance with applicable data protection laws, including the UK GDPR and, where applicable, the EU General Data Protection Regulation.</p>

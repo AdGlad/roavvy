@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
-const SUPPORT_EMAIL = 'admin@roavvy.com'
+const SUPPORT_EMAIL = 'support@roavvy.com'
+const APP_STORE_URL = 'https://apps.apple.com/'
 
 export default function Footer() {
   return (
@@ -13,9 +14,17 @@ export default function Footer() {
               <GlobeMini />
               <span className="text-lg font-bold text-white">Roavvy</span>
             </div>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Turn your travel photos into a living world map. Discover where you've been, unlock achievements, and wear your journey.
+            <p className="text-slate-500 text-sm leading-relaxed mb-5">
+              Free AI-powered travel app that turns your photo library into a living world map. Your journey, finally visible.
             </p>
+            {/* Payment methods */}
+            <p className="text-slate-600 text-xs mb-2">Merchandise payments accepted:</p>
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">Visa</span>
+              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">Mastercard</span>
+              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">Apple Pay</span>
+              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">PayPal</span>
+            </div>
           </div>
 
           {/* App */}
@@ -33,6 +42,9 @@ export default function Footer() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <span className="text-slate-600 text-xs">Android — coming soon</span>
+              </li>
             </ul>
           </div>
 
@@ -41,23 +53,20 @@ export default function Footer() {
             <h4 className="text-white font-semibold text-sm mb-4 tracking-wide">Company</h4>
             <ul className="space-y-3">
               {[
+                { to: '/about', label: 'About' },
                 { to: '/investors', label: 'Investors' },
-                { href: `mailto:${SUPPORT_EMAIL}`, label: 'Contact' },
-              ].map(({ to, href, label }) =>
-                to ? (
-                  <li key={to}>
-                    <Link to={to} className="text-slate-500 hover:text-sky-400 text-sm transition-colors">
-                      {label}
-                    </Link>
-                  </li>
-                ) : (
-                  <li key={label}>
-                    <a href={href} className="text-slate-500 hover:text-sky-400 text-sm transition-colors">
-                      {label}
-                    </a>
-                  </li>
-                )
-              )}
+              ].map(({ to, label }) => (
+                <li key={to}>
+                  <Link to={to} className="text-slate-500 hover:text-sky-400 text-sm transition-colors">
+                    {label}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-slate-500 hover:text-sky-400 text-sm transition-colors">
+                  Contact
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -82,14 +91,24 @@ export default function Footer() {
 
         <div className="border-t border-slate-800/60 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-slate-600 text-sm">
-            &copy; 2026 Roavvy. All rights reserved.
+            &copy; 2026 Roavvy. All rights reserved. &middot; Free to download and use.
           </p>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="text-slate-600 hover:text-sky-400 text-sm transition-colors"
-          >
-            {SUPPORT_EMAIL}
-          </a>
+          <div className="flex items-center gap-4">
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-600 hover:text-sky-400 text-sm transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 814 1000" fill="currentColor">
+                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 405.5 8.2 319.2 8.2 237.2c0-137.7 90-210.4 176-210.4 46.5 0 85.4 30.7 114.9 30.7 28.2 0 71.4-32.5 124.8-32.5 20.3 0 93.7 1.9 156.8 66.8zM586.8 37.9c-6.4 36.5-20.9 72.3-44.2 100.6-23.4 28.5-52.8 49.8-83.3 56.6 0-.6-.1-1.3-.1-1.9 0-35.6 16.1-74.1 38.3-99.7C520.6 65.6 566.4 43 586.8 37.9z" />
+              </svg>
+              App Store
+            </a>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-slate-600 hover:text-sky-400 text-sm transition-colors">
+              {SUPPORT_EMAIL}
+            </a>
+          </div>
         </div>
       </div>
     </footer>

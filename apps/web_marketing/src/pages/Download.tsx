@@ -35,7 +35,7 @@ export default function Download() {
       {/* Key benefits */}
       <section className="bg-navy-950 py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-white text-center mb-12">What you get for free</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-12">Everything — completely free</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {[
               { icon: '🌍', title: 'World travel map', body: 'Automatic country detection from your photo library. See your journey on a beautiful interactive globe.' },
@@ -57,19 +57,24 @@ export default function Download() {
         </div>
       </section>
 
-      {/* Screenshots placeholder */}
+      {/* Screenshots */}
       <section className="bg-navy-900 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">See it in action</h2>
-          <p className="text-slate-500 text-sm mb-10">App screenshots — drop PNG files into /public/images/</p>
-          <div className="flex flex-wrap justify-center gap-4">
-            {['screen-1.png', 'screen-2.png', 'screen-3.png', 'screen-4.png'].map((name) => (
-              <div
-                key={name}
-                className="w-44 h-96 rounded-3xl bg-navy-800 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-600 text-xs gap-2"
-              >
-                <span className="text-3xl">📱</span>
-                <span>/images/{name}</span>
+          <h2 className="text-2xl font-bold text-white mb-3">See it in action</h2>
+          <p className="text-slate-500 text-sm mb-12">Real screenshots from the app</p>
+          <div className="flex flex-wrap justify-center gap-5">
+            {[
+              { src: '/images/screenshots/map.jpg', label: 'World Map' },
+              { src: '/images/screenshots/achievements.jpg', label: 'Achievements' },
+              { src: '/images/screenshots/daily-challange.jpg', label: 'Daily Challenge' },
+              { src: '/images/screenshots/travel-status.jpg', label: 'Travel Status' },
+              { src: '/images/screenshots/passport.jpg', label: 'Passport' },
+            ].map(({ src, label }) => (
+              <div key={src} className="flex flex-col items-center gap-3">
+                <div className="w-44 rounded-[2rem] border-[5px] border-slate-700 bg-black overflow-hidden shadow-2xl shadow-navy-900/80">
+                  <img src={src} alt={label} className="w-full block" loading="lazy" />
+                </div>
+                <span className="text-slate-500 text-xs font-medium">{label}</span>
               </div>
             ))}
           </div>

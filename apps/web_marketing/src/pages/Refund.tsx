@@ -1,12 +1,10 @@
-import { LegalPage, Section, Disclaimer, ContactBlock } from './Terms'
+import { LegalPage, Section, ContactBlock } from './Terms'
 
 const LAST_UPDATED = '1 June 2026'
 
 export default function Refund() {
   return (
     <LegalPage title="Refund Policy" lastUpdated={LAST_UPDATED}>
-      <Disclaimer />
-
       <Section title="1. Overview">
         <p>This Refund Policy covers two separate purchasing channels available through Roavvy: digital purchases through the Apple App Store, and physical merchandise ordered through our print-on-demand service. Different refund rules apply to each channel.</p>
       </Section>

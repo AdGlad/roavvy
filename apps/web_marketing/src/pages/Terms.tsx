@@ -1,11 +1,9 @@
-const SUPPORT_EMAIL = 'admin@roavvy.com'
+const SUPPORT_EMAIL = 'support@roavvy.com'
 const LAST_UPDATED = '1 June 2026'
 
 export default function Terms() {
   return (
     <LegalPage title="Terms and Conditions" lastUpdated={LAST_UPDATED}>
-      <Disclaimer />
-
       <Section title="1. Acceptance of Terms">
         <p>By downloading, installing, or using the Roavvy application ("App") or accessing the Roavvy website at www.roavvy.com ("Website"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, do not use the App or Website.</p>
         <p>These Terms constitute a legally binding agreement between you and Roavvy ("we", "our", or "us"). We reserve the right to update these Terms at any time. Continued use of the App after changes are posted constitutes acceptance of the revised Terms.</p>
@@ -125,16 +123,6 @@ export function Section({ title, children }: { title: string; children: React.Re
       <div className="space-y-3 text-slate-400 text-sm leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5">
         {children}
       </div>
-    </div>
-  )
-}
-
-export function Disclaimer() {
-  return (
-    <div className="bg-amber-400/10 border border-amber-400/20 rounded-xl p-5 mb-8">
-      <p className="text-amber-300 text-sm leading-relaxed">
-        <strong className="text-amber-200">Legal disclaimer:</strong> This page is provided for general information purposes and should be reviewed by a qualified legal professional before publication. It does not constitute legal advice.
-      </p>
     </div>
   )
 }
