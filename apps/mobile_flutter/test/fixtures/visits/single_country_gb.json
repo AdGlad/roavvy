@@ -1,0 +1,23 @@
+[
+  {
+    "assetId": "asset_gb_001",
+    "lat": 51.5074,
+    "lng": -0.1278,
+    "capturedAt": "2024-03-15T10:30:00.000Z",
+    "countryCode": "GB"
+  },
+  {
+    "assetId": "asset_gb_002",
+    "lat": 53.4808,
+    "lng": -2.2426,
+    "capturedAt": "2024-03-16T14:22:00.000Z",
+    "countryCode": "GB"
+  },
+  {
+    "assetId": "asset_gb_003",
+    "lat": 55.9533,
+    "lng": -3.1883,
+    "capturedAt": "2024-03-17T09:15:00.000Z",
+    "countryCode": "GB"
+  }
+]

@@ -4,6 +4,160 @@ Lightweight ADRs for Roavvy. Each decision records **what** was chosen, **why**,
 
 ---
 
+## ADR-155 — Six-layer automated testing architecture
+
+**Status:** Accepted
+
+**Context:** Roavvy combines on-device Swift photo scanning, a Dart/Flutter app layer, Drift SQLite persistence, Firebase Auth/Firestore, Cloud Functions, and a Printful fulfilment integration. No single test type can exercise all of these. The team needs clear guidance on which layer tests what, and what tools are appropriate at each layer, without creating overlap or wasted effort.
+
+**Decision:** Adopt six distinct test layers, each with a defined purpose and scope:
+
+| Layer | Purpose | Tools | Frequency |
+|---|---|---|---|
+| Unit | Pure business logic: scan processing, country detection, achievement qualification, challenge scoring, cart calculations | `flutter_test`, `mocktail` | Every commit |
+| Service | Application services and persistence: auth, user profile, achievement, challenge, cart, order services with mocked or emulated dependencies | `flutter_test`, `mocktail`, `fake_cloud_firestore`, `firebase_auth_mocks` | Every commit |
+| Widget | Critical UI components and screen behaviour: scanning UI, challenge screens, achievement displays, merch configuration, cart interface | `flutter_test` | Every commit |
+| Integration | Complete user journeys: onboarding, first scan, challenge participation, achievement unlock, merch creation, cart flow, checkout handoff | `integration_test` | PR / nightly |
+| Emulator | Backend behaviour in isolation: auth workflows, Firestore persistence, security rules, Cloud Functions | Firebase Emulator Suite | PR / nightly |
+| Device | Real-device validation: permissions, scanning workflows, platform-specific behaviour, rendering performance | Firebase Test Lab | Release candidate only |
+
+Unit tests form the largest share of the suite. Device tests are not required on every commit.
+
+**Consequences:**
+- Each layer has a dedicated tooling dependency — all must be declared in `pubspec.yaml` `dev_dependencies`.
+- The Swift platform channel (PhotoKit bridge) is tested via Flutter widget tests using `TestDefaultBinaryMessengerBinding`; no native Swift unit tests.
+- Integration and emulator tests run in CI on PRs but are excluded from the fast commit-time loop.
+- Firebase Test Lab costs are incurred only for release candidates.
+
+See: `docs/testing/testing_strategy.md`
+
+---
+
+## ADR-156 — Standardised testing technology stack
+
+**Status:** Accepted
+
+**Context:** Without a prescribed stack, different contributors reach for different mocking libraries, assertion styles, or Firebase test helpers. This produces inconsistent test patterns, conflicting dependencies, and maintenance burden. A single canonical choice per concern eliminates the decision overhead on every PR.
+
+**Decision:** Standardise on the following tools — no alternatives are permitted without a new ADR:
+
+| Concern | Tool | Notes |
+|---|---|---|
+| Core test runner | `flutter_test` | Built into Flutter SDK; no additional dependency |
+| Mocking | `mocktail` | Null-safe; no code generation required; preferred over `mockito` |
+| Firestore faking | `fake_cloud_firestore` | Already present in `dev_dependencies` |
+| Auth faking | `firebase_auth_mocks` | Already present in `dev_dependencies` |
+| Firebase backend | Firebase Emulator Suite | Used for emulator layer; not required for unit/service/widget layers |
+| Integration test runner | `integration_test` | Official Flutter package; add to `dev_dependencies` |
+| Coverage reporting | `lcov` + `genhtml` | Standard toolchain; `flutter test --coverage` produces `lcov.info` |
+| CI platform | GitHub Actions | No `.github/workflows/` exists yet; must be created in Phase 7 rollout |
+| Device testing (future) | Firebase Test Lab | Phase 8; not required before then |
+
+**Consequences:**
+- `mocktail` and `integration_test` are not yet in `dev_dependencies`; they must be added in Phase 1 of the rollout.
+- `mockito` is explicitly not adopted; any existing `mockito` usage should be migrated to `mocktail` when tests are touched.
+- `lcov` must be available in the CI runner environment (`brew install lcov` locally; pre-installed on ubuntu-latest GitHub Actions runners).
+
+See: `docs/testing/testing_strategy.md`
+
+---
+
+## ADR-157 — GitHub Actions CI quality gates on every pull request
+
+**Status:** Accepted
+
+**Context:** Approximately 90 test files exist but no CI pipeline is configured. Tests therefore provide value only when a developer runs them locally. Defects can be merged without detection. Without automated quality gates, the test suite cannot fulfil its purpose of release confidence.
+
+**Decision:** Introduce a GitHub Actions workflow that runs on every pull request to `main`. The workflow must execute in order:
+
+1. Dependency validation (`flutter pub get`)
+2. Static analysis (`flutter analyze`)
+3. Formatting validation (`dart format --output=none --set-exit-if-changed .`)
+4. Unit tests (`flutter test test/unit/`)
+5. Service tests (`flutter test test/service/`)
+6. Widget tests (`flutter test test/widget/`)
+7. Coverage reporting (`flutter test --coverage` → upload to CI artefacts)
+
+No PR may be merged if any step fails. Integration and emulator tests are added in later phases once the baseline passes consistently.
+
+**Consequences:**
+- A `.github/workflows/flutter_ci.yml` file must be created.
+- The workflow must pass on the current HEAD before being enforced — existing failures must be resolved first (Phase 1 of the rollout).
+- Branch protection rules on `main` must require the CI check to pass before merge.
+- First run will likely surface flaky or environment-dependent tests that must be triaged before enforcement.
+
+See: `docs/testing/testing_strategy.md`, Phase 7 of the rollout plan.
+
+---
+
+## ADR-158 — Coverage philosophy: confidence over percentage
+
+**Status:** Accepted
+
+**Context:** Coverage percentage is a lagging indicator. A suite can achieve 80% line coverage while missing every critical business logic branch. Optimising for coverage numbers encourages tests that exercise code paths without asserting meaningful outcomes, producing a false sense of safety.
+
+**Decision:** Coverage targets exist to guide prioritisation, not to be gamed. The primary quality signal is: *does the suite prevent real defects in high-risk areas?*
+
+Defined targets (initial → long-term):
+
+| Area | Initial | Long-term |
+|---|---|---|
+| Business logic (scan processing, achievement engine, challenge scoring, cart calculations) | 85% | 90%+ |
+| Critical revenue workflows (merch creation, cart, checkout handoff, order) | 80% | 90%+ |
+| Service layer (auth, profile, achievement, challenge, cart, order services) | 70% | 80%+ |
+| UI components (widgets) | 40% | — |
+| Overall application | 50–65% | 70%+ |
+
+High-risk functionality always receives priority over low-value coverage:
+1. Merch creation and checkout (revenue)
+2. Scan processing and country detection (core product)
+3. Achievement qualification (engagement)
+4. Challenge scoring (daily retention)
+5. Auth and Firestore sync (data integrity)
+
+**Consequences:**
+- A PR that adds tests purely to raise a coverage number without asserting meaningful behaviour should be rejected in review.
+- Coverage reports are published as CI artefacts for visibility, not enforced as pass/fail gates in Phase 1.
+- Numeric gates may be introduced in later phases once the baseline is stable.
+
+See: `docs/testing/testing_strategy.md`
+
+---
+
+## ADR-159 — Incremental test-and-fix discipline
+
+**Status:** Accepted
+
+**Context:** Large batches of failing tests are significantly harder to diagnose than individual failures. When a test run produces 40 failures at once, root causes overlap, fixes interact, and confidence in the suite falls. The risk is that tests get deleted or weakened to make the numbers pass rather than to fix the underlying defects.
+
+**Decision:** Every testing milestone follows an incremental test-and-fix cycle:
+
+1. Select a small, clearly defined area of functionality.
+2. Add or update a focused set of tests for that area.
+3. Run the relevant tests immediately.
+4. Investigate any failures before moving to the next area.
+5. Classify each failure as one of: genuine application defect / incorrect test expectation / missing fixture or mock / environment or configuration issue / flaky or timing-related test.
+6. Apply the smallest safe fix.
+7. Rerun the failing test, then rerun related tests.
+8. Commit only when the current area is passing.
+
+Tests must not be weakened or deleted to make the suite pass. Production code changes made to satisfy tests must be minimal, justified, and aligned with intended product behaviour.
+
+A milestone is complete only when:
+- All tests added in that milestone pass.
+- Existing related tests still pass.
+- Any defects found have been resolved or explicitly documented.
+- No production Firebase, real payment flow, or live Printful service has been used during testing.
+
+**Consequences:**
+- Claude Code may be used to diagnose failures, propose fixes, apply small changes, and rerun tests — but must follow this discipline, not batch-fix by weakening assertions.
+- Developers must resist the pressure to merge while tests are failing "just this once."
+- The discipline applies to all eight rollout phases defined in `docs/testing/testing_strategy.md`.
+
+See: `docs/testing/testing_strategy.md`, Section 13 (Defect Resolution clause).
+
+---
+
 ## ADR-126 — M72 Country Celebration Carousel: Single-Route Multi-Country Flow
 
 **Status:** Accepted

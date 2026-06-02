@@ -1,4 +1,21 @@
-# M136 — Daily Challenge: Typed Clues, Hero Image Reveal & Stats Screen
+# T1 — Test Framework Establishment — COMPLETE
+
+## Tasks
+
+- [x] T1.1 — Add mocktail + integration_test to pubspec.yaml dev_dependencies
+- [x] T1.2 — Run full test suite; classify and fix all failures
+- [x] T1.3 — Create Makefile with check/test/coverage targets; add coverage/ to .gitignore
+- [x] T1.4 — Record coverage baseline in docs/testing/coverage_baseline.md
+- [x] T1.5 — Create test/fixtures/ directory with 7 JSON fixture files
+- [x] T1.6 — flutter analyze clean pass; document any pre-existing warnings
+
+---
+
+# Previous (M136 — Daily Challenge: Typed Clues, Hero Image Reveal & Stats Screen — COMPLETE)
+
+## Tasks
+
+### T1 — Cloud Function typed clues (COMPLETE)
 
 ## Tasks
 

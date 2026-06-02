@@ -133,86 +133,30 @@ void main() {
     });
   });
 
+  // Year-grouping tests skipped: section headers were removed when the screen
+  // was redesigned from a ListView to a 3D CustomCarousel (carousel redesign).
+  // Carousel-specific coverage will be added in milestone T4 (widget tests).
   group('JournalScreen — year grouping', () {
-    testWidgets('shows year section header with trip count', (tester) async {
-      final tripRepo = await _repoWithTrips([
-        _trip(
-          id: 'JP_2024-01-03T00:00:00.000Z',
-          countryCode: 'JP',
-          startedOn: DateTime.utc(2024, 1, 3),
-          endedOn: DateTime.utc(2024, 1, 17),
-        ),
-        _trip(
-          id: 'FR_2024-06-01T00:00:00.000Z',
-          countryCode: 'FR',
-          startedOn: DateTime.utc(2024, 6, 1),
-          endedOn: DateTime.utc(2024, 6, 10),
-        ),
-      ]);
-      final db = _makeDb();
+    // skip: year section headers removed in carousel redesign; T4 adds carousel coverage
+    testWidgets('shows year section header with trip count', (tester) async {},
+        skip: true);
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
-      await tester.pumpAndSettle();
+    // skip: year section headers removed in carousel redesign; T4 adds carousel coverage
+    testWidgets('uses singular "trip" when year has one entry', (tester) async {},
+        skip: true);
 
-      expect(find.textContaining('2024'), findsWidgets);
-      expect(find.textContaining('2 trips'), findsOneWidget);
-    });
-
-    testWidgets('uses singular "trip" when year has one entry', (tester) async {
-      final tripRepo = await _repoWithTrips([
-        _trip(
-          id: 'JP_2021-05-01T00:00:00.000Z',
-          countryCode: 'JP',
-          startedOn: DateTime.utc(2021, 5, 1),
-          endedOn: DateTime.utc(2021, 5, 10),
-        ),
-      ]);
-      final db = _makeDb();
-
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('1 trip'), findsOneWidget);
-      expect(find.textContaining('1 trips'), findsNothing);
-    });
-
-    testWidgets('most recent year appears first', (tester) async {
-      final tripRepo = await _repoWithTrips([
-        _trip(
-          id: 'FR_2022-01-01T00:00:00.000Z',
-          countryCode: 'FR',
-          startedOn: DateTime.utc(2022, 1, 1),
-          endedOn: DateTime.utc(2022, 1, 5),
-        ),
-        _trip(
-          id: 'JP_2024-06-01T00:00:00.000Z',
-          countryCode: 'JP',
-          startedOn: DateTime.utc(2024, 6, 1),
-          endedOn: DateTime.utc(2024, 6, 10),
-        ),
-      ]);
-      final db = _makeDb();
-
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
-      await tester.pumpAndSettle();
-
-      final yr2024 = tester.getTopLeft(find.textContaining('2024').first);
-      final yr2022 = tester.getTopLeft(find.textContaining('2022').first);
-      expect(yr2024.dy, lessThan(yr2022.dy));
-    });
+    // skip: year section headers removed in carousel redesign; T4 adds carousel coverage
+    testWidgets('most recent year appears first', (tester) async {},
+        skip: true);
   });
 
-  group('JournalScreen — trip row content', () {
-    testWidgets('trip row shows country name and date range', (tester) async {
+  group('JournalScreen — trip card content', () {
+    // CustomCarousel uses spring physics that never fully settle in test mode.
+    // Use pump(300ms) instead of pumpAndSettle to advance past the first frame
+    // and render card content without waiting for infinite spring convergence.
+
+    testWidgets('carousel card shows country name and date range',
+        (tester) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -228,14 +172,16 @@ void main() {
         tripRepo: tripRepo,
         visitRepo: VisitRepository(db),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Japan'), findsOneWidget);
+      // Card renders country name in two forms: uppercased label + title text.
+      expect(find.textContaining('Japan'), findsWidgets);
       expect(find.textContaining('3 Jan'), findsWidgets);
       expect(find.textContaining('17 Jan 2024'), findsWidgets);
     });
 
-    testWidgets('photo count line shown when photoCount > 0', (tester) async {
+    testWidgets('carousel card shows photo count', (tester) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -251,12 +197,19 @@ void main() {
         tripRepo: tripRepo,
         visitRepo: VisitRepository(db),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
+      // Carousel card always renders "$days $dayWord · $photoCount 📷".
       expect(find.textContaining('42'), findsWidgets);
+      expect(find.textContaining('📷'), findsWidgets);
     });
 
-    testWidgets('photo count line omitted when photoCount == 0', (tester) async {
+    testWidgets('carousel card always shows photo count even when zero',
+        (tester) async {
+      // Design note: the carousel card shows "N 📷" for all trips including
+      // those with photoCount=0 (manual trips). This differs from the old
+      // ListView which omitted the photo count line for zero-count trips.
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -272,12 +225,15 @@ void main() {
         tripRepo: tripRepo,
         visitRepo: VisitRepository(db),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.textContaining('📷'), findsNothing);
+      expect(find.textContaining('0 📷'), findsOneWidget);
     });
 
-    testWidgets('"Added manually" chip shown for manual trips', (tester) async {
+    testWidgets('manual trip shows edit-location icon', (tester) async {
+      // The carousel card uses Icons.edit_location_alt_rounded (not an
+      // "Added manually" chip) to indicate manually-added trips.
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'manual_abc12345',
@@ -293,13 +249,16 @@ void main() {
         tripRepo: tripRepo,
         visitRepo: VisitRepository(db),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Added manually'), findsOneWidget);
+      expect(
+        find.byIcon(Icons.edit_location_alt_rounded),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('"Added manually" chip not shown for inferred trips',
-        (tester) async {
+    testWidgets('inferred trip does not show edit-location icon', (tester) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'FR_2024-03-01T00:00:00.000Z',
@@ -315,12 +274,14 @@ void main() {
         tripRepo: tripRepo,
         visitRepo: VisitRepository(db),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Added manually'), findsNothing);
+      expect(find.byIcon(Icons.edit_location_alt_rounded), findsNothing);
     });
 
-    testWidgets('tapping a trip row navigates to TripMapScreen', (tester) async {
+    testWidgets('tapping a carousel card navigates to TripDetailScreen',
+        (tester) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -335,12 +296,14 @@ void main() {
         tripRepo: tripRepo,
         visitRepo: VisitRepository(db),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      await tester.tap(find.text('Japan'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Trip to Japan'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      // TripMapScreen renders country name in its AppBar title (with flag emoji).
+      // TripDetailScreen renders the country name in its content.
       expect(find.textContaining('Japan'), findsWidgets);
     });
   });

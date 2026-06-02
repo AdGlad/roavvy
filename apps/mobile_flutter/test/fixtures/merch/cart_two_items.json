@@ -1,0 +1,30 @@
+{
+  "userId": "user_test_abc123",
+  "createdAt": "2024-06-15T14:30:00.000Z",
+  "items": [
+    {
+      "productId": "travel-card-passport-stamp",
+      "variantId": "variant_a4_matte",
+      "quantity": 1,
+      "unitPriceCents": 1299,
+      "metadata": {
+        "cardId": "card_jp_2024_stamp",
+        "countryCode": "JP",
+        "tripId": "JP_2024-01-03T00:00:00.000Z"
+      }
+    },
+    {
+      "productId": "travel-card-timeline",
+      "variantId": "variant_a4_glossy",
+      "quantity": 2,
+      "unitPriceCents": 1499,
+      "metadata": {
+        "cardId": "card_gb_2024_timeline",
+        "countryCode": "GB",
+        "tripId": "GB_2024-03-15T00:00:00.000Z"
+      }
+    }
+  ],
+  "subtotalCents": 4297,
+  "currency": "GBP"
+}
