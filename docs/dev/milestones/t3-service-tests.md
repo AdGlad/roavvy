@@ -1,5 +1,6 @@
 # T3 — Service Tests
 
+**Status:** Complete — 2026-06-03
 **Depends on:** T1 complete, T2 complete (business logic coverage ≥ 85%)
 
 ## Goal
