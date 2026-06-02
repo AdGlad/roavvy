@@ -108,5 +108,64 @@ void main() {
       final agg = await svc.loadAggregate();
       expect(agg.currentStreak, equals(1)); // only today
     });
+
+    // T2.7 — win rate and totalPlayed/totalSolved branches
+    test('totalPlayed and totalSolved are 0 when nothing recorded', () async {
+      final agg = await _makeService().loadAggregate();
+      expect(agg.totalPlayed, equals(0));
+      expect(agg.totalSolved, equals(0));
+    });
+
+    test('win rate: 0 solved when all games failed', () async {
+      final db = _makeDb();
+      final svc = _makeService(db);
+      await _record(svc, daysAgo: 0, solved: false);
+      await _record(svc, daysAgo: 1, solved: false);
+
+      final agg = await svc.loadAggregate();
+      expect(agg.totalSolved, equals(0));
+      expect(agg.totalPlayed, equals(2));
+    });
+
+    test('win rate: all solved when every game won', () async {
+      final db = _makeDb();
+      final svc = _makeService(db);
+      await _record(svc, daysAgo: 0, solved: true);
+      await _record(svc, daysAgo: 1, solved: true);
+      await _record(svc, daysAgo: 2, solved: true);
+
+      final agg = await svc.loadAggregate();
+      expect(agg.totalSolved, equals(3));
+      expect(agg.totalPlayed, equals(3));
+    });
+
+    test('win rate: 2 of 4 solved for mixed sequence', () async {
+      final db = _makeDb();
+      final svc = _makeService(db);
+      await _record(svc, daysAgo: 0, solved: true);
+      await _record(svc, daysAgo: 1, solved: false);
+      await _record(svc, daysAgo: 2, solved: true);
+      await _record(svc, daysAgo: 3, solved: false);
+
+      final agg = await svc.loadAggregate();
+      expect(agg.totalSolved, equals(2));
+      expect(agg.totalPlayed, equals(4));
+    });
+
+    test('best streak tracks longest consecutive run across gaps', () async {
+      final db = _makeDb();
+      final svc = _makeService(db);
+      // Short run: days 6, 7 (2 consecutive)
+      await _record(svc, daysAgo: 6, solved: true);
+      await _record(svc, daysAgo: 7, solved: true);
+      // Gap at 8
+      // Longer run: days 9, 10, 11 (3 consecutive)
+      await _record(svc, daysAgo: 9, solved: true);
+      await _record(svc, daysAgo: 10, solved: true);
+      await _record(svc, daysAgo: 11, solved: true);
+
+      final agg = await svc.loadAggregate();
+      expect(agg.bestStreak, greaterThanOrEqualTo(2));
+    });
   });
 }
