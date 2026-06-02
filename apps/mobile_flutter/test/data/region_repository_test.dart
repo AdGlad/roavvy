@@ -348,4 +348,80 @@ void main() {
       expect(await repo.loadByCountry('FR'), isEmpty);
     });
   });
+
+  // T3.11 — Region repository continent rollup ───────────────────────────────
+
+  group('RegionRepository — continent rollup via country code', () {
+    test('visits with known Europe country codes (GB, FR, DE) are stored and retrievable', () async {
+      final repo = _makeRepo();
+      // GB, FR, DE all map to 'Europe' in kCountryContinent.
+      await repo.upsertAll([
+        _visit(tripId: 'GB_2023-01-01T00:00:00.000Z', countryCode: 'GB', regionCode: 'GB-ENG'),
+        _visit(tripId: 'FR_2023-01-01T00:00:00.000Z', countryCode: 'FR', regionCode: 'FR-IDF'),
+        _visit(tripId: 'DE_2023-01-01T00:00:00.000Z', countryCode: 'DE', regionCode: 'DE-BE'),
+      ]);
+
+      final all = await repo.loadAll();
+      final countryCodes = all.map((v) => v.countryCode).toSet();
+      expect(countryCodes, containsAll(['GB', 'FR', 'DE']));
+
+      // Verify continent lookup doesn't crash (kCountryContinent used externally).
+      for (final v in all) {
+        final continent = kCountryContinent[v.countryCode];
+        expect(continent, isNotNull,
+            reason: '${v.countryCode} should have a known continent');
+      }
+    });
+
+    test('mixed-continent visits produce correct per-country groupings', () async {
+      final repo = _makeRepo();
+      // Europe: GB, France; Asia: JP; Americas: US
+      await repo.upsertAll([
+        _visit(tripId: 'GB_2023-01-01T00:00:00.000Z', countryCode: 'GB', regionCode: 'GB-ENG'),
+        _visit(tripId: 'JP_2023-01-01T00:00:00.000Z', countryCode: 'JP', regionCode: 'JP-13'),
+        _visit(tripId: 'US_2023-01-01T00:00:00.000Z', countryCode: 'US', regionCode: 'US-NY'),
+      ]);
+
+      final gbVisits = await repo.loadByCountry('GB');
+      final jpVisits = await repo.loadByCountry('JP');
+      final usVisits = await repo.loadByCountry('US');
+
+      expect(gbVisits, hasLength(1));
+      expect(jpVisits, hasLength(1));
+      expect(usVisits, hasLength(1));
+
+      // Continent lookups for each.
+      expect(kCountryContinent['GB'], 'Europe');
+      expect(kCountryContinent['JP'], 'Asia');
+      expect(kCountryContinent['US'], 'North America');
+    });
+
+    test('unknown or unmapped country code in a visit does not crash the repository', () async {
+      final repo = _makeRepo();
+      // 'XX' is not in kCountryContinent — verify the repository handles it gracefully.
+      await repo.upsertAll([
+        _visit(tripId: 'XX_2023-01-01T00:00:00.000Z', countryCode: 'XX', regionCode: 'XX-01'),
+      ]);
+
+      // Repository operation should not throw.
+      final visits = await repo.loadByCountry('XX');
+      expect(visits, hasLength(1));
+
+      // kCountryContinent returns null for unknown codes — not a crash.
+      expect(kCountryContinent['XX'], isNull);
+    });
+
+    test('loadAll returns visits across all continents without filtering', () async {
+      final repo = _makeRepo();
+      await repo.upsertAll([
+        _visit(tripId: 'GB_2023-01-01T00:00:00.000Z', countryCode: 'GB', regionCode: 'GB-ENG'),
+        _visit(tripId: 'ZA_2023-01-01T00:00:00.000Z', countryCode: 'ZA', regionCode: 'ZA-WC'),
+        _visit(tripId: 'AU_2023-01-01T00:00:00.000Z', countryCode: 'AU', regionCode: 'AU-NSW'),
+      ]);
+
+      final all = await repo.loadAll();
+      // All three visits from Europe, Africa, and Oceania should be returned.
+      expect(all, hasLength(3));
+    });
+  });
 }

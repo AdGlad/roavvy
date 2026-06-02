@@ -71,5 +71,50 @@ void main() {
       expect(data['placementType'], 'front');
       expect(data['artworkConfirmationId'], 'ac-001');
     });
+
+    test('double create() is idempotent — no error on second call', () async {
+      final approval = makeApproval();
+      await service.create(approval);
+      await expectLater(service.create(approval), completes);
+
+      // Document should still exist with original data.
+      final snap = await fakeFirestore
+          .collection('users')
+          .doc('user-001')
+          .collection('mockup_approvals')
+          .doc('ma-001')
+          .get();
+      expect(snap.exists, isTrue);
+    });
+
+    test('create() with null artworkConfirmationId omits the field', () async {
+      final approval = makeApproval(artworkConfirmationId: null);
+      await service.create(approval);
+
+      final snap = await fakeFirestore
+          .collection('users')
+          .doc('user-001')
+          .collection('mockup_approvals')
+          .doc('ma-001')
+          .get();
+
+      // toFirestore() uses conditional inclusion — null fields are omitted.
+      expect(snap.exists, isTrue);
+      expect(snap.data()!.containsKey('artworkConfirmationId'), isFalse);
+    });
+
+    test('create() with null placementType omits the field', () async {
+      final approval = makeApproval(placementType: null);
+      await service.create(approval);
+
+      final snap = await fakeFirestore
+          .collection('users')
+          .doc('user-001')
+          .collection('mockup_approvals')
+          .doc('ma-001')
+          .get();
+
+      expect(snap.data()!.containsKey('placementType'), isFalse);
+    });
   });
 }
