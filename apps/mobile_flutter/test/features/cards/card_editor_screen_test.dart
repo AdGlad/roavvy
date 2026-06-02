@@ -84,8 +84,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Shuffle'), findsNothing);
+      // Passport uses a full-screen overlay layout with its own Shuffle button
+      // in _PassportTopOverlay (not from _SortOrderPicker). The sort-order
+      // chip row (By Date, A→Z, By Region) is absent; Shuffle comes from the
+      // overlay's dedicated stamp-shuffle button.
       expect(find.text('By Date'), findsNothing);
+      expect(find.text('A \u2192 Z'), findsNothing);
+      expect(find.text('By Region'), findsNothing);
     });
 
     testWidgets('sort picker is hidden for timeline template',
@@ -134,8 +139,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Entry + Exit'), findsOneWidget);
-      expect(find.text('Entry only'), findsOneWidget);
+      // The entry/exit toggle was removed from CardEditorScreen (M64 redesign).
+      // The _entryOnly field exists as state but has no UI control in the editor;
+      // stamp mode is controlled via ArtworkConfirmationScreen / wasForced logic.
+      // Verify the controls that ARE present for passport: Shuffle button.
+      expect(find.text('Entry + Exit'), findsNothing);
+      expect(find.text('Entry only'), findsNothing);
+      expect(find.text('Shuffle'), findsOneWidget);
     });
 
     testWidgets('entry/exit toggle is hidden for grid template',

@@ -1,0 +1,14 @@
+{
+  "date": "2024-06-15",
+  "siteId": "whs_00042",
+  "siteName": "Stonehenge",
+  "countryCode": "GB",
+  "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Stonehenge2007_07_30.jpg/1200px-Stonehenge2007_07_30.jpg",
+  "clues": [
+    { "type": "geography",   "text": "Located on a chalky plain in southern England." },
+    { "type": "historical",  "text": "Construction began around 3000 BCE." },
+    { "type": "location",    "text": "Near the county town of Salisbury." },
+    { "type": "direct",      "text": "A prehistoric ring of standing stones." }
+  ],
+  "maxGuesses": 5
+}

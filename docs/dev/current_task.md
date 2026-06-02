@@ -1,15 +1,14 @@
 # Current Task
 
-**Milestone:** M136 — Daily Challenge: Typed Clues, Hero Image Reveal & Stats Screen
-**Status:** ✅ Complete (2026-05-29)
+**Milestone:** T1 — Test Framework Establishment — COMPLETE
 
 All tasks delivered:
-- T1: Cloud Function typed clues (build+tests pass; deploy blocked by Blaze plan requirement)
-- T2: Flutter _ClueCard type icons with colour per type
-- T3: Hero image in result overlay with Wikipedia attribution
-- T4: ChallengeStatsService.last30Days()
-- T5: ChallengeStatsScreen with streak/solve-rate/30-day grid
-- T6: challengeLast30Provider; "View Stats" TextButton in overlay; streak badge + long-press on chip
-- T7: 7 new tests (challenge_stats_service_test.dart) — all pass; 61 total challenge tests pass
+- T1.1: mocktail + integration_test added to pubspec.yaml dev_dependencies
+- T1.2: Full test suite runs clean — CustomCarousel assertion crash fixed; 9 journal tests fixed
+- T1.3: Makefile created with check/test/coverage targets; coverage/ added to .gitignore
+- T1.4: Coverage baseline recorded in docs/testing/coverage_baseline.md (35.1% overall)
+- T1.5: 7 JSON fixture files created in test/fixtures/ (visits/challenges/merch)
+- T1.6: flutter analyze passes with 0 errors; 30 pre-existing warnings documented
 
-See: `docs/dev/milestones/m136-daily-challenge-image-clue-types-stats.md`
+See: `docs/dev/milestones/t1-test-framework-establishment.md`
+Coverage baseline: `docs/testing/coverage_baseline.md`

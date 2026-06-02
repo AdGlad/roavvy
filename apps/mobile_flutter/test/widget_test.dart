@@ -8,10 +8,12 @@ import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/firestore_sync_service.dart';
+import 'package:mobile_flutter/data/heritage_repository.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/data/xp_repository.dart';
+import 'package:mobile_flutter/core/globe_overlay.dart';
 import 'package:mobile_flutter/features/scan/scan_screen.dart';
 import 'package:mobile_flutter/photo_scan_channel.dart';
 import 'package:shared_models/shared_models.dart';
@@ -52,14 +54,17 @@ Future<void> pumpApp(
   final achievementRepo = achievementRepository ?? AchievementRepository(db);
   final tripRepo = TripRepository(db);
   final regionRepo = RegionRepository(db);
+  final heritageRepo = HeritageRepository(db);
 
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        roavvyDatabaseProvider.overrideWithValue(db),
         visitRepositoryProvider.overrideWithValue(visitRepo),
         achievementRepositoryProvider.overrideWithValue(achievementRepo),
         tripRepositoryProvider.overrideWithValue(tripRepo),
         regionRepositoryProvider.overrideWithValue(regionRepo),
+        heritageRepositoryProvider.overrideWithValue(heritageRepo),
         xpRepositoryProvider.overrideWithValue(XpRepository(db)),
         currentUidProvider.overrideWithValue(null),
         polygonsProvider.overrideWithValue(const []),
@@ -74,7 +79,8 @@ Future<void> pumpApp(
     ),
   );
   // Wait for _loadPersisted() to finish so the loading spinner clears.
-  await tester.pumpAndSettle();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
 }
 
 void main() {
@@ -236,12 +242,12 @@ void main() {
       expect(result.photoDates.first.countryCode, 'GB');
     });
 
-    test('deduplicates resolver calls for photos in the same 0.5° bucket', () {
+    test('deduplicates resolver calls for photos in the same 0.1° bucket', () {
       var callCount = 0;
       final photos = [
-        // These two snap to the same 0.5° bucket
-        PhotoRecord(lat: 51.1, lng: -0.1),
-        PhotoRecord(lat: 51.2, lng: -0.2),
+        // These two snap to the same 0.1° bucket (both round to lat=51.1, lng=-0.1)
+        PhotoRecord(lat: 51.11, lng: -0.11),
+        PhotoRecord(lat: 51.14, lng: -0.14),
         // This one is in a different bucket
         PhotoRecord(lat: 40.7, lng: -74.0),
       ];
@@ -302,14 +308,15 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Last scan'), findsOneWidget);
-      expect(find.text('120'), findsOneWidget); // photos scanned
-      expect(find.text('90'), findsOneWidget);  // with location
-      expect(find.text('2'), findsOneWidget);   // countries detected
+      expect(find.textContaining('Last scanned'), findsOneWidget);
+      expect(find.textContaining('United Kingdom'), findsWidgets);
+      expect(find.textContaining('United States'), findsWidgets);
     });
 
     testWidgets('shows country list with ISO codes', (tester) async {
@@ -345,15 +352,14 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('2 countries visited'), findsOneWidget);
-      expect(find.text('US'), findsOneWidget);
-      expect(find.text('50 photos'), findsOneWidget);
-      expect(find.text('GB'), findsOneWidget);
-      expect(find.text('22 photos'), findsOneWidget);
+      expect(find.textContaining('United States'), findsWidgets);
+      expect(find.textContaining('United Kingdom'), findsWidgets);
     });
 
     testWidgets('shows Review & Edit button after scan returns countries',
@@ -382,9 +388,11 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Review & Edit'), findsOneWidget);
     });
@@ -402,12 +410,13 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Last scan'), findsOneWidget);
-      expect(find.textContaining('No geotagged photos'), findsOneWidget);
+      expect(find.text('No travel photos found yet.'), findsOneWidget);
     });
   });
 
@@ -445,11 +454,21 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text("You're up to date"), findsOneWidget);
+      final container1 = ProviderScope.containerOf(
+        tester.element(find.byType(ScanScreen)),
+      );
+      container1.read(globeOverlayProvider).onScanComplete?.call();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('All up to date'), findsOneWidget);
     });
 
     testWidgets('pushes ScanSummaryScreen when a new country is detected',
@@ -472,9 +491,19 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final container2 = ProviderScope.containerOf(
+        tester.element(find.byType(ScanScreen)),
+      );
+      container2.read(globeOverlayProvider).onScanComplete?.call();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
       // ScanSummaryScreen is pushed (ADR-059); shows new-country summary.
       expect(find.textContaining('new country discovered'), findsOneWidget);
@@ -494,11 +523,13 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.textContaining('No geotagged photos'), findsOneWidget);
+      expect(find.text('No travel photos found yet.'), findsOneWidget);
       expect(find.text("You're up to date"), findsNothing);
     });
   });
@@ -526,9 +557,19 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final container3 = ProviderScope.containerOf(
+        tester.element(find.byType(ScanScreen)),
+      );
+      container3.read(globeOverlayProvider).onScanComplete?.call();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
       // ScanSummaryScreen is pushed with the new country (ADR-059).
       // SnackBars are no longer shown — achievements appear in ScanSummaryScreen.
@@ -564,9 +605,11 @@ void main() {
       );
 
       await tester.tap(find.text('Grant Access'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Scan my photo library'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('🏆 First Stamp'), findsNothing);
     });

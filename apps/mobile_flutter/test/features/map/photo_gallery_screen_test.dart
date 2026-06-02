@@ -102,7 +102,8 @@ void main() {
           ),
         ),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Photos'), findsOneWidget);
       expect(find.text('Details'), findsOneWidget);

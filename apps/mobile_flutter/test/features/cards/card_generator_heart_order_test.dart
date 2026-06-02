@@ -87,8 +87,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Shuffle'), findsNothing);
+      // Passport uses a full-screen overlay layout. The _SortOrderPicker chip
+      // row (By Date, A→Z, By Region) is absent. The overlay has its own
+      // stamp-shuffle Shuffle button, so 'By Date' is the correct absence check.
       expect(find.text('By Date'), findsNothing);
+      expect(find.text('A \u2192 Z'), findsNothing);
     });
   });
 }

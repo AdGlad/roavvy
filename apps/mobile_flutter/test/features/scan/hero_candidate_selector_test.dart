@@ -55,12 +55,14 @@ void main() {
       expect(result, isNot(contains('a3')));
     });
 
-    test('temporal spacing removes photos within 30 minutes of previous', () {
-      // a1 at 10:00, a2 at 10:20 (20 min — too close), a3 at 10:45 (45 min — ok)
+    test('temporal spacing removes photos within 15 minutes of previous', () {
+      // a1 at 10:00, a2 at 10:10 (10 min — too close, < 15 min gap),
+      // a3 at 10:30 (30 min from a1, > 15 min gap — ok).
+      // Production code was updated from 30→15 min spacing (M89 spec).
       final photos = [
         _photo('a1', _t(10, minute: 0)),
-        _photo('a2', _t(10, minute: 20)),
-        _photo('a3', _t(10, minute: 45)),
+        _photo('a2', _t(10, minute: 10)),
+        _photo('a3', _t(10, minute: 30)),
       ];
 
       final result = _selector.select(photos);
@@ -78,13 +80,14 @@ void main() {
       expect(result.length, lessThanOrEqualTo(3));
     });
 
-    test('default cap is 5', () {
+    test('default cap is 25', () {
+      // Default maxCandidates was updated from 5 to 25 (M89 spec).
       final photos = List.generate(
-        10,
-        (i) => _photo('a$i', DateTime.utc(2024, 7, 12, i + 1)),
+        30,
+        (i) => _photo('a$i', DateTime.utc(2024, 7, 12, i ~/ 2 + 1, i.isOdd ? 30 : 0)),
       );
       final result = _selector.select(photos);
-      expect(result.length, lessThanOrEqualTo(5));
+      expect(result.length, lessThanOrEqualTo(25));
     });
 
     test('fallback returns candidates when all fail temporal spacing', () {

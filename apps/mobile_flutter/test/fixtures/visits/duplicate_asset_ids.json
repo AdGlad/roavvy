@@ -1,0 +1,23 @@
+[
+  {
+    "assetId": "asset_dupe_001",
+    "lat": 48.8566,
+    "lng": 2.3522,
+    "capturedAt": "2024-05-01T09:00:00.000Z",
+    "countryCode": "FR"
+  },
+  {
+    "assetId": "asset_dupe_001",
+    "lat": 48.8566,
+    "lng": 2.3522,
+    "capturedAt": "2024-05-01T09:00:00.000Z",
+    "countryCode": "FR"
+  },
+  {
+    "assetId": "asset_unique_002",
+    "lat": 51.5074,
+    "lng": -0.1278,
+    "capturedAt": "2024-05-02T12:00:00.000Z",
+    "countryCode": "GB"
+  }
+]

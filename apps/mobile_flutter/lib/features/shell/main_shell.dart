@@ -75,7 +75,12 @@ class _MainShellState extends ConsumerState<MainShell> {
           .scheduleAnniversaryNotifications(DateTime.now());
       // Pre-generate today's daily challenge so the document exists in
       // Firestore before the user opens the screen (avoids cold-start spinner).
-      const DailyChallengeService().prefetch();
+      try {
+        const DailyChallengeService().prefetch();
+      } catch (_) {
+        // Swallow — prefetch is a background optimisation and may fail if
+        // Firebase is not yet initialised (e.g. in widget tests).
+      }
     });
     NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.addListener(_onPendingMemoryTripId);

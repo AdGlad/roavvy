@@ -1,0 +1,43 @@
+{
+  "external_id": "roavvy_order_test_abc123",
+  "shipping": "STANDARD",
+  "recipient": {
+    "name": "Test User",
+    "address1": "123 Test Street",
+    "city": "London",
+    "state_code": "ENG",
+    "country_code": "GB",
+    "zip": "SW1A 1AA"
+  },
+  "items": [
+    {
+      "external_variant_id": "variant_a4_matte",
+      "quantity": 1,
+      "retail_price": "12.99",
+      "files": [
+        {
+          "type": "default",
+          "url": "https://storage.example.com/cards/card_jp_2024_stamp.pdf"
+        }
+      ]
+    },
+    {
+      "external_variant_id": "variant_a4_glossy",
+      "quantity": 2,
+      "retail_price": "14.99",
+      "files": [
+        {
+          "type": "default",
+          "url": "https://storage.example.com/cards/card_gb_2024_timeline.pdf"
+        }
+      ]
+    }
+  ],
+  "currency": "GBP",
+  "retail_costs": {
+    "subtotal": "42.97",
+    "shipping": "4.99",
+    "tax": "7.99",
+    "total": "55.95"
+  }
+}

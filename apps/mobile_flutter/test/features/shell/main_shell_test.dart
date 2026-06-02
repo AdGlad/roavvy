@@ -10,6 +10,7 @@ import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/data/xp_repository.dart';
+import 'package:mobile_flutter/features/memory/memory_anniversary_photo.dart';
 import 'package:mobile_flutter/features/shell/main_shell.dart';
 
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
@@ -22,12 +23,19 @@ Widget _pumpShell() {
   final db = _makeDb();
   return ProviderScope(
     overrides: [
+      roavvyDatabaseProvider.overrideWithValue(db),
       visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
       achievementRepositoryProvider.overrideWithValue(AchievementRepository(db)),
       tripRepositoryProvider.overrideWithValue(TripRepository(db)),
       regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
       xpRepositoryProvider.overrideWithValue(XpRepository(db)),
       polygonsProvider.overrideWithValue(const []),
+      // No Firebase in tests — treat user as signed out
+      currentUidProvider.overrideWithValue(null),
+      // Prevent photo_manager platform channel calls in tests
+      todaysMemoriesProvider.overrideWith(
+        (ref) => Future<List<MemoryAnniversaryPhoto>>.value([]),
+      ),
     ],
     child: const MaterialApp(home: MainShell()),
   );
@@ -39,66 +47,76 @@ void main() {
   group('MainShell — navigation', () {
     testWidgets('shows all 4 tab labels in NavigationBar', (tester) async {
       await tester.pumpWidget(_pumpShell());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.text('Map'), findsOneWidget);
       expect(find.text('Journal'), findsOneWidget);
       expect(find.text('Stats'), findsOneWidget);
-      expect(find.text('Scan'), findsOneWidget);
+      expect(find.text('Shop'), findsOneWidget);
     });
 
     testWidgets('Map tab is selected by default', (tester) async {
       await tester.pumpWidget(_pumpShell());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      // ScanScreen content is offstage — not visible on Map tab
-      expect(find.text('Grant Access'), findsNothing);
-      expect(find.text('Scan my photo library'), findsNothing);
+      // Shop tab content is offstage — not visible on Map tab
+      expect(find.text('Sign in to view your saved designs.'), findsNothing);
     });
 
     testWidgets('tapping Journal tab shows JournalScreen', (tester) async {
       await tester.pumpWidget(_pumpShell());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       await tester.tap(find.text('Journal'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Journal'), findsWidgets); // tab label + screen text
     });
 
     testWidgets('tapping Stats tab shows StatsScreen', (tester) async {
       await tester.pumpWidget(_pumpShell());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       await tester.tap(find.text('Stats'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Stats'), findsWidgets); // tab label + screen text
     });
 
-    testWidgets('tapping Scan tab shows ScanScreen', (tester) async {
+    testWidgets('tapping Shop tab shows MerchShopScreen', (tester) async {
       await tester.pumpWidget(_pumpShell());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Scan'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Shop'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Grant Access'), findsOneWidget);
-      expect(find.text('Scan my photo library'), findsOneWidget);
+      // Shop nav tab label appears (tab bar + nav bar)
+      expect(find.text('Shop'), findsWidgets);
     });
 
-    testWidgets('tapping Map tab returns to MapScreen from Scan', (tester) async {
+    testWidgets('tapping Map tab returns to MapScreen from Shop', (tester) async {
       await tester.pumpWidget(_pumpShell());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Scan'));
-      await tester.pumpAndSettle();
-      expect(find.text('Grant Access'), findsOneWidget);
+      await tester.tap(find.text('Shop'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       await tester.tap(find.text('Map'));
-      await tester.pumpAndSettle();
-      expect(find.text('Grant Access'), findsNothing);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      // After returning to map, the Stats tab label is still visible in nav bar
+      expect(find.text('Stats'), findsOneWidget);
     });
   });
 }

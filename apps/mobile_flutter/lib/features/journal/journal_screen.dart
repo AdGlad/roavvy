@@ -148,6 +148,10 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
           // Card takes 68 % of available height so ~16 % peeks above and below.
           final cardH = (availH * 0.68).clamp(260.0, 580.0);
 
+          // CustomCarousel requires count > before + after.
+          // Clamp to at most (count-1)÷2 each side so small lists never crash.
+          final sideCount = ((count - 1) ~/ 2).clamp(0, 2);
+
           return Padding(
             padding: EdgeInsets.only(top: topInset, bottom: bottomInset),
             child: ClipRect(
@@ -156,9 +160,10 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
                 scrollDirection: Axis.vertical,
                 // Selected card always renders in front of adjacent cards.
                 depthOrder: DepthOrder.selectedInFront,
-                // Show 2 cards above and below the selected card.
-                itemCountBefore: 2,
-                itemCountAfter: 2,
+                // Show up to 2 cards above and below the selected card,
+                // clamped so the total never exceeds trip count - 1.
+                itemCountBefore: sideCount,
+                itemCountAfter: sideCount,
                 // All cards start centred; the effectsBuilder translates them.
                 alignment: Alignment.center,
                 onSelectedItemChanged: (index) {

@@ -84,7 +84,9 @@ void main() {
       expect(result.truncatedCount, greaterThan(0));
     });
 
-    test('entries are sorted most-recent first', () {
+    test('entries are sorted most-recent first when newestFirst: true', () {
+      // Default newestFirst = false (chronological per M86 spec).
+      // Pass newestFirst: true to test descending sort.
       final trips = [
         _trip('GB', 2018, 1, 2),
         _trip('FR', 2022, 5, 6),
@@ -94,6 +96,7 @@ void main() {
         trips: trips,
         countryCodes: ['GB', 'FR', 'DE'],
         canvasSize: landscape,
+        newestFirst: true,
       );
       final years = result.entries.map((e) => e.entryDate.year).toList();
       expect(years, [2022, 2020, 2018]);

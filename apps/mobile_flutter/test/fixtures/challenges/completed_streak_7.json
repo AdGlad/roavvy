@@ -1,0 +1,10 @@
+[
+  { "date": "2024-06-15", "solved": true,  "guessesUsed": 2, "cluesRevealed": 1 },
+  { "date": "2024-06-14", "solved": true,  "guessesUsed": 3, "cluesRevealed": 2 },
+  { "date": "2024-06-13", "solved": true,  "guessesUsed": 1, "cluesRevealed": 0 },
+  { "date": "2024-06-12", "solved": true,  "guessesUsed": 4, "cluesRevealed": 3 },
+  { "date": "2024-06-11", "solved": true,  "guessesUsed": 2, "cluesRevealed": 1 },
+  { "date": "2024-06-10", "solved": true,  "guessesUsed": 3, "cluesRevealed": 2 },
+  { "date": "2024-06-09", "solved": true,  "guessesUsed": 5, "cluesRevealed": 4 },
+  { "date": "2024-06-08", "solved": false, "guessesUsed": 5, "cluesRevealed": 4 }
+]
