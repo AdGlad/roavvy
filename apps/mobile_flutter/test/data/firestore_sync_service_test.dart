@@ -378,4 +378,227 @@ void main() {
       expect(dirty, hasLength(1));
     });
   });
+
+  // T3.3 — Firestore sync field guard (ADR-002, privacy constraint) ──────────
+
+  group('FirestoreSyncService field guard — no GPS or photo data written', () {
+    test('inferred visit document contains no GPS coordinate fields', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final repo = _makeRepo();
+
+      await repo.saveInferred(InferredCountryVisit(
+        countryCode: 'GB',
+        inferredAt: DateTime.utc(2024, 6, 1),
+        photoCount: 5,
+        firstSeen: DateTime.utc(2024, 3, 1),
+        lastSeen: DateTime.utc(2024, 6, 1),
+      ));
+      await service.flushDirty('uid-privacy', repo);
+
+      final doc = await fakeFirestore
+          .collection('users')
+          .doc('uid-privacy')
+          .collection('inferred_visits')
+          .doc('GB')
+          .get();
+
+      final data = doc.data()!;
+      // Privacy: no GPS fields allowed (ADR-002).
+      expect(data.containsKey('latitude'), isFalse);
+      expect(data.containsKey('longitude'), isFalse);
+      expect(data.containsKey('lat'), isFalse);
+      expect(data.containsKey('lng'), isFalse);
+      expect(data.containsKey('gps'), isFalse);
+      expect(data.containsKey('location'), isFalse);
+    });
+
+    test('inferred visit document contains no photo identifier fields', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final repo = _makeRepo();
+
+      await repo.saveInferred(InferredCountryVisit(
+        countryCode: 'FR',
+        inferredAt: DateTime.utc(2024, 6, 1),
+        photoCount: 3,
+      ));
+      await service.flushDirty('uid-privacy2', repo);
+
+      final doc = await fakeFirestore
+          .collection('users')
+          .doc('uid-privacy2')
+          .collection('inferred_visits')
+          .doc('FR')
+          .get();
+
+      final data = doc.data()!;
+      // Privacy: no photo identifiers allowed (ADR-002).
+      expect(data.containsKey('assetId'), isFalse);
+      expect(data.containsKey('localIdentifier'), isFalse);
+      expect(data.containsKey('filename'), isFalse);
+      expect(data.containsKey('filePath'), isFalse);
+      expect(data.containsKey('photoUrl'), isFalse);
+    });
+
+    test('inferred visit document contains only permitted fields', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final repo = _makeRepo();
+
+      await repo.saveInferred(InferredCountryVisit(
+        countryCode: 'DE',
+        inferredAt: DateTime.utc(2024, 6, 1),
+        photoCount: 7,
+        firstSeen: DateTime.utc(2024, 1, 1),
+        lastSeen: DateTime.utc(2024, 6, 1),
+      ));
+      await service.flushDirty('uid-privacy3', repo);
+
+      final doc = await fakeFirestore
+          .collection('users')
+          .doc('uid-privacy3')
+          .collection('inferred_visits')
+          .doc('DE')
+          .get();
+
+      final keys = doc.data()!.keys.toSet();
+      // Only these fields are permitted in inferred_visits documents (ADR-029).
+      const permitted = {'inferredAt', 'photoCount', 'firstSeen', 'lastSeen', 'syncedAt'};
+      for (final key in keys) {
+        expect(permitted, contains(key),
+            reason: 'Unexpected field "$key" found in Firestore document');
+      }
+    });
+
+    test('user_added document contains only permitted fields', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final repo = _makeRepo();
+
+      await repo.saveAdded(UserAddedCountry(
+        countryCode: 'JP',
+        addedAt: DateTime.utc(2024, 1, 1),
+      ));
+      await service.flushDirty('uid-privacy4', repo);
+
+      final doc = await fakeFirestore
+          .collection('users')
+          .doc('uid-privacy4')
+          .collection('user_added')
+          .doc('JP')
+          .get();
+
+      final keys = doc.data()!.keys.toSet();
+      const permitted = {'addedAt', 'syncedAt'};
+      for (final key in keys) {
+        expect(permitted, contains(key),
+            reason: 'Unexpected field "$key" in user_added document');
+      }
+    });
+
+    test('dirty record is written; clean record is skipped', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final db = _makeDb();
+      final repo = VisitRepository(db);
+
+      await repo.saveInferred(InferredCountryVisit(
+        countryCode: 'IT',
+        inferredAt: DateTime.utc(2024, 6, 1),
+        photoCount: 2,
+      ));
+
+      // Flush — marks IT clean.
+      await service.flushDirty('uid-clean', repo);
+      expect(await repo.loadDirtyInferred(), isEmpty);
+
+      // Now verify it was written to Firestore.
+      final doc = await fakeFirestore
+          .collection('users')
+          .doc('uid-clean')
+          .collection('inferred_visits')
+          .doc('IT')
+          .get();
+      expect(doc.exists, isTrue);
+      expect(doc.data()!['photoCount'], 2);
+    });
+  });
+
+  // T3.5 — Achievement repository Firestore sync ────────────────────────────
+
+  group('FirestoreSyncService — achievement sync', () {
+    test('flushDirty with achievementRepo writes achievement to Firestore', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025, 1, 1));
+
+      await service.flushDirty('uid-ach', visitRepo,
+          achievementRepo: achievementRepo);
+
+      final doc = await fakeFirestore
+          .collection('users')
+          .doc('uid-ach')
+          .collection('unlocked_achievements')
+          .doc('countries_1')
+          .get();
+
+      expect(doc.exists, isTrue);
+      expect(doc.data()!.containsKey('unlockedAt'), isTrue);
+      expect(doc.data()!.containsKey('syncedAt'), isTrue);
+    });
+
+    test('achievement is marked clean in Drift after Firestore write', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      await achievementRepo.upsertAll({'countries_5'}, DateTime.utc(2025, 1, 1));
+      expect(await achievementRepo.loadDirty(), hasLength(1));
+
+      await service.flushDirty('uid-ach2', visitRepo,
+          achievementRepo: achievementRepo);
+
+      expect(await achievementRepo.loadDirty(), isEmpty);
+    });
+
+    test('unlocking already-unlocked achievement is idempotent (no duplicate row)', () async {
+      final db = _makeDb();
+      final achievementRepo = AchievementRepository(db);
+
+      await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025, 1, 1));
+      await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025, 6, 1));
+
+      final all = await achievementRepo.loadAll();
+      expect(all.where((id) => id == 'countries_1'), hasLength(1));
+    });
+
+    test('multiple achievements in one flushDirty are all written', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final service = FirestoreSyncService(fakeFirestore);
+      final db = _makeDb();
+      final visitRepo = VisitRepository(db);
+      final achievementRepo = AchievementRepository(db);
+
+      final ids = {'countries_1', 'countries_3', 'countries_5'};
+      await achievementRepo.upsertAll(ids, DateTime.utc(2025, 1, 1));
+
+      await service.flushDirty('uid-ach3', visitRepo,
+          achievementRepo: achievementRepo);
+
+      final subcol = await fakeFirestore
+          .collection('users')
+          .doc('uid-ach3')
+          .collection('unlocked_achievements')
+          .get();
+
+      expect(subcol.docs.map((d) => d.id).toSet(), equals(ids));
+    });
+  });
 }

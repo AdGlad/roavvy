@@ -19,7 +19,13 @@ String todayLocal() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 /// only reads — if the document does not yet exist it throws immediately
 /// rather than blocking on a slow Cloud Function call.
 class DailyChallengeService {
-  const DailyChallengeService();
+  /// [firestore] may be injected for testing; defaults to the singleton instance.
+  const DailyChallengeService({FirebaseFirestore? firestore})
+      : _firestore = firestore;
+
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get _fs => _firestore ?? FirebaseFirestore.instance;
 
   /// Reads `daily_challenge/{YYYY-MM-DD}` for today (local time).
   ///
@@ -30,7 +36,7 @@ class DailyChallengeService {
   Future<DailyChallenge> fetchToday() async {
     final date = todayLocal();
     try {
-      final doc = await FirebaseFirestore.instance
+      final doc = await _fs
           .collection('daily_challenge')
           .doc(date)
           .get()

@@ -479,4 +479,94 @@ void main() {
       expect(await repo.loadBootstrapCompletedAt(), isNull);
     });
   });
+
+  // T3.4 — Visit repository deduplication ────────────────────────────────────
+
+  group('loadAllKnownAssetIds — assetId deduplication', () {
+    test('returns empty set when no photo date records', () async {
+      final repo = _makeRepo();
+      expect(await repo.loadAllKnownAssetIds(), isEmpty);
+    });
+
+    test('returns set of all non-null assetIds', () async {
+      final repo = _makeRepo();
+      const id1 = 'ASSET-001/L0/001';
+      const id2 = 'ASSET-002/L0/001';
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'GB', capturedAt: DateTime.utc(2024, 1, 1), assetId: id1),
+        PhotoDateRecord(countryCode: 'FR', capturedAt: DateTime.utc(2024, 1, 2), assetId: id2),
+      ]);
+      final ids = await repo.loadAllKnownAssetIds();
+      expect(ids, containsAll([id1, id2]));
+      expect(ids.length, 2);
+    });
+
+    test('null-assetId rows are excluded from loadAllKnownAssetIds', () async {
+      final repo = _makeRepo();
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'DE', capturedAt: DateTime.utc(2024, 1, 1),
+            assetId: 'ASSET-003/L0/001'),
+        PhotoDateRecord(countryCode: 'ES', capturedAt: DateTime.utc(2024, 1, 2)),
+      ]);
+      final ids = await repo.loadAllKnownAssetIds();
+      expect(ids, hasLength(1));
+      expect(ids, contains('ASSET-003/L0/001'));
+    });
+
+    test('multiple null-assetId rows coexist without dedup', () async {
+      final repo = _makeRepo();
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'IT', capturedAt: DateTime.utc(2024, 1, 1)),
+        PhotoDateRecord(countryCode: 'PT', capturedAt: DateTime.utc(2024, 1, 2)),
+      ]);
+      expect(await repo.loadPhotoDates(), hasLength(2));
+    });
+
+    test('saving same {countryCode, capturedAt} twice produces one row', () async {
+      final repo = _makeRepo();
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'NL', capturedAt: DateTime.utc(2024, 1, 1)),
+      ]);
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'NL', capturedAt: DateTime.utc(2024, 1, 1)),
+      ]);
+      expect(await repo.loadPhotoDates(), hasLength(1));
+    });
+
+    test('clearAll removes all photo date records; loadAllKnownAssetIds returns empty', () async {
+      final repo = _makeRepo();
+      await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'AU', capturedAt: DateTime.utc(2024, 1, 1),
+            assetId: 'ASSET-AU'),
+      ]);
+      await repo.clearAll();
+      expect(await repo.loadAllKnownAssetIds(), isEmpty);
+      expect(await repo.loadPhotoDates(), isEmpty);
+    });
+  });
+
+  group('saveInferred — deduplication and re-scan', () {
+    test('re-saving same countryCode accumulates photoCount (upsert)', () async {
+      final repo = _makeRepo();
+      await repo.saveInferred(_inferred('GB', photoCount: 3));
+      await repo.saveInferred(_inferred('GB', photoCount: 5));
+      final rows = await repo.loadInferred();
+      expect(rows, hasLength(1));
+      expect(rows.first.photoCount, 8);
+    });
+
+    test('re-scan keeps earliest firstSeen', () async {
+      final repo = _makeRepo();
+      await repo.saveInferred(_inferred('US', firstSeen: _t1));
+      await repo.saveInferred(_inferred('US', firstSeen: _t0));
+      expect((await repo.loadInferred()).single.firstSeen, _t0);
+    });
+
+    test('clearAll removes all inferred visits; subsequent loadInferred is empty', () async {
+      final repo = _makeRepo();
+      await repo.saveAllInferred([_inferred('GB'), _inferred('FR')]);
+      await repo.clearAll();
+      expect(await repo.loadInferred(), isEmpty);
+    });
+  });
 }

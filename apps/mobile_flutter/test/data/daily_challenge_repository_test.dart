@@ -104,4 +104,109 @@ void main() {
       expect(loaded!.guesses, guesses);
     });
   });
+
+  // T3.6 — Daily challenge repository additional coverage ───────────────────
+
+  group('DailyChallengeRepository.deleteProgress', () {
+    test('deleteProgress removes the row; loadToday returns null', () async {
+      final repo = _makeRepo();
+      await repo.save(const DailyChallengeProgress(
+        date: '2026-06-01',
+        siteId: '42',
+        cluesRevealed: 1,
+        guesses: [],
+        solved: false,
+      ));
+      await repo.deleteProgress('2026-06-01');
+      expect(await repo.loadToday('2026-06-01'), isNull);
+    });
+
+    test('deleteProgress for non-existent date is a no-op', () async {
+      final repo = _makeRepo();
+      await expectLater(repo.deleteProgress('2099-01-01'), completes);
+    });
+
+    test('deleteProgress only removes the specified date', () async {
+      final repo = _makeRepo();
+      await repo.save(const DailyChallengeProgress(
+        date: '2026-06-01',
+        siteId: '42',
+        cluesRevealed: 1,
+        guesses: [],
+        solved: false,
+      ));
+      await repo.save(const DailyChallengeProgress(
+        date: '2026-06-02',
+        siteId: '43',
+        cluesRevealed: 2,
+        guesses: ['Wrong'],
+        solved: false,
+      ));
+      await repo.deleteProgress('2026-06-01');
+      expect(await repo.loadToday('2026-06-01'), isNull);
+      expect(await repo.loadToday('2026-06-02'), isNotNull);
+    });
+  });
+
+  group('DailyChallengeRepository — failed flag', () {
+    test('failed flag round-trips correctly', () async {
+      final repo = _makeRepo();
+      await repo.save(const DailyChallengeProgress(
+        date: '2026-06-03',
+        siteId: '99',
+        cluesRevealed: 5,
+        guesses: ['Wrong 1', 'Wrong 2'],
+        solved: false,
+        failed: true,
+      ));
+      final loaded = await repo.loadToday('2026-06-03');
+      expect(loaded!.failed, isTrue);
+    });
+
+    test('failed defaults to false when not set', () async {
+      final repo = _makeRepo();
+      await repo.save(const DailyChallengeProgress(
+        date: '2026-06-04',
+        siteId: '100',
+        cluesRevealed: 1,
+        guesses: [],
+        solved: false,
+      ));
+      final loaded = await repo.loadToday('2026-06-04');
+      expect(loaded!.failed, isFalse);
+    });
+  });
+
+  group('DailyChallengeRepository — multiple dates', () {
+    test('progress for multiple dates coexist without conflict', () async {
+      final repo = _makeRepo();
+      const dates = ['2026-06-01', '2026-06-02', '2026-06-03'];
+      for (var i = 0; i < dates.length; i++) {
+        await repo.save(DailyChallengeProgress(
+          date: dates[i],
+          siteId: '${i + 1}',
+          cluesRevealed: i,
+          guesses: [],
+          solved: false,
+        ));
+      }
+      for (var i = 0; i < dates.length; i++) {
+        final loaded = await repo.loadToday(dates[i]);
+        expect(loaded, isNotNull);
+        expect(loaded!.siteId, '${i + 1}');
+      }
+    });
+
+    test('loading progress for a date not saved returns null', () async {
+      final repo = _makeRepo();
+      await repo.save(const DailyChallengeProgress(
+        date: '2026-06-01',
+        siteId: '1',
+        cluesRevealed: 0,
+        guesses: [],
+        solved: false,
+      ));
+      expect(await repo.loadToday('2026-06-02'), isNull);
+    });
+  });
 }
