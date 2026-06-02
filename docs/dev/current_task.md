@@ -1,14 +1,26 @@
 # Current Task
 
-**Milestone:** T1 — Test Framework Establishment — COMPLETE
+**Milestone:** T2 — Business Logic Tests
+**Status:** In Progress
 
-All tasks delivered:
-- T1.1: mocktail + integration_test added to pubspec.yaml dev_dependencies
-- T1.2: Full test suite runs clean — CustomCarousel assertion crash fixed; 9 journal tests fixed
-- T1.3: Makefile created with check/test/coverage targets; coverage/ added to .gitignore
-- T1.4: Coverage baseline recorded in docs/testing/coverage_baseline.md (35.1% overall)
-- T1.5: 7 JSON fixture files created in test/fixtures/ (visits/challenges/merch)
-- T1.6: flutter analyze passes with 0 errors; 30 pre-existing warnings documented
+## Current: T2.1 — Printful placement mapper
 
-See: `docs/dev/milestones/t1-test-framework-establishment.md`
-Coverage baseline: `docs/testing/coverage_baseline.md`
+**File:** `test/features/merch/printful_placement_mapper_test.dart` (NEW)
+
+Cover every product type → Printful placement ID mapping; front/back coordinates within bounds; invalid product handling.
+
+## Tasks
+
+- [ ] T2.1 — Printful placement mapper (Priority 1)
+- [ ] T2.2 — Merch template ranker (Priority 1)
+- [ ] T2.3 — Merch variant lookup (Priority 1)
+- [ ] T2.4 — Travel identity (Priority 1)
+- [ ] T2.5 — Challenge: Guess normaliser — extend existing (Priority 2)
+- [ ] T2.6 — Challenge: Hot/cold feedback — extend existing (Priority 2)
+- [ ] T2.7 — Challenge: Daily challenge stats (Priority 2)
+- [ ] T2.8 — Data: XP thresholds — extend existing (Priority 2)
+- [ ] T2.9 — Data: Achievement qualification — extend existing (Priority 2)
+- [ ] T2.10 — Cards: Grid math engine — extend existing (Priority 3)
+- [ ] T2.11 — Cards: Title generation rules — extend existing (Priority 3)
+- [ ] T2.12 — Map: Globe projection — extend existing (Priority 3)
+- [ ] T2.13 — Map: Country visual state (Priority 3)
