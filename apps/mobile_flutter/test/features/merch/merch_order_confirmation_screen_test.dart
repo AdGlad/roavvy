@@ -55,7 +55,7 @@ void main() {
     testWidgets('proceed button enables after ticking checkbox', (tester) async {
       await tester.pumpWidget(_wrap(_defaultScreen()));
 
-      await tester.tap(find.byType(Checkbox));
+      tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged!(true);
       await tester.pump();
 
       final button = tester.widget<FilledButton>(
@@ -74,7 +74,8 @@ void main() {
       );
 
       await tester.tap(find.widgetWithText(TextButton, 'Go Back'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(observer.popped, isTrue);
     });

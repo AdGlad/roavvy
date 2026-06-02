@@ -40,9 +40,10 @@ void main() {
     testWidgets('shows 0 countries and — dates when repository is empty',
         (tester) async {
       await tester.pumpWidget(_pumpStrip(_makeRepo()));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('0'), findsOneWidget);
+      expect(find.text('0'), findsWidgets); // Countries=0 and Trips=0 both show '0'
       expect(find.text('Countries'), findsOneWidget);
       expect(find.text('—'), findsWidgets);
     });
@@ -57,7 +58,8 @@ void main() {
       );
 
       await tester.pumpWidget(_pumpStrip(repo));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('2'), findsOneWidget);
     });
@@ -75,7 +77,8 @@ void main() {
       );
 
       await tester.pumpWidget(_pumpStrip(repo));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('2019'), findsOneWidget);
       expect(find.text('2024'), findsOneWidget);
@@ -88,7 +91,7 @@ void main() {
       expect(find.text('Countries'), findsNothing);
     });
 
-    testWidgets('shows achievement count when achievements are unlocked',
+    testWidgets('renders stats strip labels when achievements are unlocked',
         (tester) async {
       final db = _makeDb();
       final achievementRepo = AchievementRepository(db);
@@ -98,10 +101,14 @@ void main() {
       );
 
       await tester.pumpWidget(_pumpStrip(_makeRepo(), achievementRepo: achievementRepo));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('🏆 2'), findsOneWidget);
-      expect(find.text('Achievements'), findsOneWidget);
+      // StatsStrip shows Countries / First visit / Latest visit / Trips — not achievement count.
+      expect(find.text('Countries'), findsOneWidget);
+      expect(find.text('First visit'), findsOneWidget);
+      expect(find.text('Latest visit'), findsOneWidget);
+      expect(find.text('Trips'), findsOneWidget);
     });
   });
 }

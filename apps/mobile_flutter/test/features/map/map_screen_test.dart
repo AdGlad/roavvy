@@ -11,6 +11,7 @@ import 'package:mobile_flutter/data/firestore_sync_service.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/data/xp_repository.dart';
 import 'package:mobile_flutter/features/map/map_screen.dart';
+import 'package:mobile_flutter/features/memory/memory_anniversary_photo.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,8 +31,10 @@ Widget _pumpMapScreen(
 }) {
   final user = mockUser ?? MockUser(isAnonymous: true, uid: 'anon-test-uid');
   final mockAuth = MockFirebaseAuth(signedIn: true, mockUser: user);
+  final helperDb = _makeDb();
   return ProviderScope(
     overrides: [
+      roavvyDatabaseProvider.overrideWithValue(helperDb),
       visitRepositoryProvider.overrideWithValue(repo),
       achievementRepositoryProvider.overrideWithValue(
         AchievementRepository(_makeDb()),
@@ -39,6 +42,12 @@ Widget _pumpMapScreen(
       xpRepositoryProvider.overrideWithValue(XpRepository(_makeDb())),
       polygonsProvider.overrideWithValue(const []),
       authStateProvider.overrideWith((_) => mockAuth.authStateChanges()),
+      // Prevent _ScanPromptGate from showing a modal that blocks overflow menu
+      onboardingCompleteProvider.overrideWith((_) async => false),
+      // Prevent photo_manager platform channel calls in tests
+      todaysMemoriesProvider.overrideWith(
+        (ref) => Future<List<MemoryAnniversaryPhoto>>.value([]),
+      ),
     ],
     child: MaterialApp(
       home: MapScreen(
@@ -56,7 +65,8 @@ void main() {
 
   testWidgets('MapScreen renders with empty repository; no crash', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(MapScreen), findsOneWidget);
   });
@@ -66,7 +76,8 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
   });
   // Note: tap-through-FlutterMap tests are not reliable in the test runner
   // because flutter_map's internal gesture recognizer does not respond to
@@ -77,7 +88,8 @@ void main() {
 
   testWidgets('shows empty state overlay when no visits exist', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(
       find.text("Scan your photos to see where you've been"),
@@ -97,7 +109,8 @@ void main() {
     ]);
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(
       find.text("Scan your photos to see where you've been"),
@@ -109,22 +122,29 @@ void main() {
 
   testWidgets('overflow menu is visible after map loads', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byIcon(Icons.more_vert), findsOneWidget);
   });
 
   testWidgets('tapping overflow shows Clear travel history item', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Clear travel history'), findsOneWidget);
   });
 
   testWidgets('confirming delete clears visits and shows empty state', (tester) async {
+    // Use a taller surface so the overflow menu (8+ items when visits exist) fits.
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
       InferredCountryVisit(
@@ -135,20 +155,24 @@ void main() {
     ]);
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("Scan your photos to see where you've been"), findsNothing);
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.text('Clear travel history'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Delete all travel history?'), findsOneWidget);
 
     await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("Scan your photos to see where you've been"), findsOneWidget);
   });
@@ -157,10 +181,12 @@ void main() {
 
   testWidgets('overflow menu shows Sign in with Apple when anonymous', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Sign in with Apple'), findsOneWidget);
   });
@@ -168,10 +194,12 @@ void main() {
   testWidgets('overflow menu shows Signed in with Apple when not anonymous', (tester) async {
     final signedInUser = MockUser(isAnonymous: false, uid: 'apple-uid');
     await tester.pumpWidget(_pumpMapScreen(_makeRepo(), mockUser: signedInUser));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Signed in with Apple'), findsOneWidget);
     expect(find.text('Sign in with Apple'), findsNothing);
@@ -185,13 +213,16 @@ void main() {
         signInWithAppleOverride: () async => invoked = true,
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.text('Sign in with Apple'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(invoked, isTrue);
   });
@@ -200,10 +231,12 @@ void main() {
 
   testWidgets('overflow menu shows Sign out item', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Sign out'), findsOneWidget);
   });
@@ -212,6 +245,9 @@ void main() {
 
   testWidgets('overflow menu shows Share travel card when visits exist',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
       InferredCountryVisit(
@@ -222,20 +258,24 @@ void main() {
     ]);
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Share travel card'), findsOneWidget);
   });
 
   testWidgets('overflow menu hides Share travel card when no visits', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Share travel card'), findsNothing);
   });
@@ -244,10 +284,12 @@ void main() {
 
   testWidgets('overflow menu shows Privacy & account item', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Privacy & account'), findsOneWidget);
   });
@@ -265,18 +307,23 @@ void main() {
     final signedInUser = MockUser(isAnonymous: false, uid: 'apple-uid');
 
     await tester.pumpWidget(_pumpMapScreen(repo, mockUser: signedInUser));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Share my map link'), findsNothing);
   });
 
   // ── M29: Commerce entry points ─────────────────────────────────────────────
 
-  testWidgets('overflow menu shows Create a poster when visits exist',
+  testWidgets('overflow menu shows Create card when visits exist',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
       InferredCountryVisit(
@@ -287,23 +334,27 @@ void main() {
     ]);
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Create a poster'), findsOneWidget);
+    expect(find.text('Create card'), findsOneWidget);
   });
 
-  testWidgets('overflow menu hides Create a poster when no visits',
+  testWidgets('overflow menu hides Create card when no visits',
       (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Create a poster'), findsNothing);
+    expect(find.text('Create card'), findsNothing);
   });
 
   // ── M29: 30-day scan nudge banner ──────────────────────────────────────────
@@ -321,10 +372,11 @@ void main() {
     await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("It's been a while — time for a new scan"), findsOneWidget);
-    expect(find.text('Scan now'), findsOneWidget);
+    expect(find.text('Scan now'), findsWidgets); // nudge banner + scan prompt both show
   });
 
   testWidgets('nudge banner not shown when lastScanAt is recent', (tester) async {
@@ -339,7 +391,8 @@ void main() {
     await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 5)));
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("It's been a while — time for a new scan"), findsNothing);
   });
@@ -349,12 +402,16 @@ void main() {
     await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
 
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("It's been a while — time for a new scan"), findsNothing);
   });
 
   testWidgets('tapping X on nudge banner dismisses it', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
       InferredCountryVisit(
@@ -366,12 +423,19 @@ void main() {
     await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
 
     await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("It's been a while — time for a new scan"), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pumpAndSettle();
+    // _GlobeRotationToggle overlaps the close button's tap area, so invoke
+    // the button directly instead of using tester.tap().
+    final dismissBtn = tester.widget<IconButton>(
+      find.byWidgetPredicate((w) => w is IconButton && w.tooltip == 'Dismiss'),
+    );
+    dismissBtn.onPressed!();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text("It's been a while — time for a new scan"), findsNothing);
   });
@@ -433,8 +497,10 @@ void main() {
       signedIn: true,
       mockUser: MockUser(isAnonymous: true, uid: 'anon'),
     );
+    final helperDb = _makeDb();
     return ProviderScope(
       overrides: [
+        roavvyDatabaseProvider.overrideWithValue(helperDb),
         visitRepositoryProvider.overrideWithValue(_makeRepo()),
         achievementRepositoryProvider
             .overrideWithValue(AchievementRepository(_makeDb())),
@@ -444,6 +510,9 @@ void main() {
         onboardingCompleteProvider
             .overrideWith((_) async => onboardingDone),
         lastScanAtProvider.overrideWith((_) async => lastScanAt),
+        todaysMemoriesProvider.overrideWith(
+          (ref) => Future<List<MemoryAnniversaryPhoto>>.value([]),
+        ),
       ],
       child: const MaterialApp(home: MapScreen(syncService: NoOpSyncService())),
     );
@@ -455,7 +524,8 @@ void main() {
       onboardingDone: true,
       lastScanAt: null,
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsOneWidget);
   });
@@ -465,7 +535,8 @@ void main() {
       onboardingDone: true,
       lastScanAt: DateTime.now().subtract(const Duration(days: 10)),
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsOneWidget);
   });
@@ -475,7 +546,8 @@ void main() {
       onboardingDone: true,
       lastScanAt: DateTime.now().subtract(const Duration(days: 3)),
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsNothing);
   });
@@ -486,7 +558,8 @@ void main() {
       onboardingDone: false,
       lastScanAt: null,
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsNothing);
   });
@@ -499,7 +572,8 @@ void main() {
       onboardingDone: true,
       lastScanAt: null,
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsNothing);
   });

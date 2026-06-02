@@ -335,7 +335,8 @@ void main() {
       await tester.pump();
 
       await tester.longPress(find.byType(Card));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Delete this trip?'), findsOneWidget);
     });
@@ -351,9 +352,11 @@ void main() {
       await tester.pump();
 
       await tester.longPress(find.byType(Card));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(await repo.loadAll(), hasLength(1));
       expect(find.text('14 Jul – 28 Jul 2023'), findsOneWidget);
@@ -370,9 +373,11 @@ void main() {
       await tester.pump();
 
       await tester.longPress(find.byType(Card));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.text('Delete'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(await repo.loadAll(), isEmpty);
       expect(find.text('No trip data — add a trip manually'), findsOneWidget);
@@ -387,7 +392,8 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Add trip manually'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Add trip'), findsOneWidget);
     });
@@ -403,7 +409,8 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.byType(Card));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Edit trip'), findsOneWidget);
     });
@@ -544,10 +551,12 @@ void main() {
       );
 
       await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       await tester.tap(find.text('Add to my countries'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(addCalled, isTrue);
       expect(poppedWith, isTrue);

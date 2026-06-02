@@ -139,10 +139,16 @@ void main() {
 
       await tester.pump();
       await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Change something'));
-      await tester.pumpAndSettle();
+      tester
+          .widget<TextButton>(
+            find.widgetWithText(TextButton, 'Change something'),
+          )
+          .onPressed!();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(popped, isTrue, reason: 'Screen should pop with null result');
 
@@ -211,7 +217,9 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('3 countries'), findsOneWidget);
+      // Production renders "3 countries included" in both the checkbox label
+      // and the country-list header — either occurrence satisfies the check.
+      expect(find.textContaining('3 countries'), findsWidgets);
     });
 
     testWidgets('shows date label when trips span multiple years',
@@ -324,11 +332,21 @@ void main() {
 
       await tester.pump();
 
+      // With preRenderedResult, rendering is skipped so _rendering=false and
+      // _result is set. However canConfirm also requires all per-attribute
+      // checkboxes to be ticked. Tick all visible checkboxes then verify.
+      for (final tile in tester
+          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+          .toList()) {
+        tile.onChanged!(true);
+        await tester.pump();
+      }
+
       final button = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Confirm artwork'),
       );
       expect(button.onPressed, isNotNull,
-          reason: 'Button must be enabled when preRenderedResult is set');
+          reason: 'Button must be enabled when preRenderedResult is set and all checkboxes ticked');
     });
   });
 

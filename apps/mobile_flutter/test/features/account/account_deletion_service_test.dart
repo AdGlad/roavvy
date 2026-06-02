@@ -8,6 +8,7 @@ import 'package:mobile_flutter/data/visit_repository.dart';
 import 'package:mobile_flutter/features/account/account_deletion_service.dart';
 import 'package:mobile_flutter/features/sharing/share_token_service.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ Future<void> _seedSubcollection(
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   const uid = 'test-uid';
 

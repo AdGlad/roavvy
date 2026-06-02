@@ -19,18 +19,24 @@ Widget _pumpSignInScreen() {
 
 void main() {
   testWidgets('shows Sign in with Apple button', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_pumpSignInScreen());
 
     expect(find.text('Sign in with Apple'), findsOneWidget);
   });
 
   testWidgets('shows Continue anonymously button', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_pumpSignInScreen());
 
     expect(find.text('Continue anonymously'), findsOneWidget);
   });
 
   testWidgets('shows email and password fields', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_pumpSignInScreen());
 
     expect(find.byType(TextField), findsNWidgets(2));
