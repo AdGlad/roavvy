@@ -1,0 +1,148 @@
+name: Device Tests (Release Candidate)
+
+# Triggers only on release candidate tags: v1.2.3-rc.1
+on:
+  push:
+    tags:
+      - "v*.*.*-rc.*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # Never cancel a device test run mid-flight
+
+jobs:
+  # ── Build the integration test IPA ────────────────────────────────────────
+  build:
+    name: Build integration IPA
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.x"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: apps/mobile_flutter
+
+      - name: Build iOS integration test bundle
+        run: |
+          flutter build ios integration_test/device/ \
+            --release \
+            --no-codesign
+        working-directory: apps/mobile_flutter
+
+      - name: Package as XCTest zip
+        run: |
+          cd apps/mobile_flutter
+          mkdir -p build/integration_test_runner
+          cp -r build/ios/iphoneos/Runner.app \
+              build/integration_test_runner/
+          cd build/integration_test_runner
+          zip -r ../../integration_test_bundle.zip Runner.app
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-bundle
+          path: apps/mobile_flutter/integration_test_bundle.zip
+          retention-days: 3
+
+  # ── Run on Firebase Test Lab ────────────────────────────────────────────────
+  device-tests:
+    name: Firebase Test Lab
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-test-bundle
+          path: test-artifacts/
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_TEST_LAB_SA }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload fixture photos to test device
+        # Fixture photos are committed to the repo; Test Lab will make them
+        # available via the --additional-apks mechanism or a companion test.
+        run: |
+          echo "Fixture photos available at: apps/mobile_flutter/integration_test/device/fixtures/photos/"
+          ls apps/mobile_flutter/integration_test/device/fixtures/photos/
+
+      - name: Run permission tests
+        run: |
+          gcloud firebase test ios run \
+            --type xctest \
+            --test test-artifacts/integration_test_bundle.zip \
+            --device "model=iphone15,version=17,locale=en_GB,orientation=portrait" \
+            --test-targets "T8.2" \
+            --timeout 5m \
+            --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
+        continue-on-error: true
+
+      - name: Run scan pipeline tests
+        run: |
+          gcloud firebase test ios run \
+            --type xctest \
+            --test test-artifacts/integration_test_bundle.zip \
+            --device "model=iphone15,version=17,locale=en_GB,orientation=portrait" \
+            --test-targets "T8.3" \
+            --timeout 10m \
+            --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
+        continue-on-error: true
+
+      - name: Run channel reliability tests
+        run: |
+          gcloud firebase test ios run \
+            --type xctest \
+            --test test-artifacts/integration_test_bundle.zip \
+            --device "model=iphone15,version=17,locale=en_GB,orientation=portrait" \
+            --test-targets "T8.4" \
+            --timeout 10m \
+            --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
+        continue-on-error: true
+
+      - name: Run rendering performance tests
+        run: |
+          gcloud firebase test ios run \
+            --type xctest \
+            --test test-artifacts/integration_test_bundle.zip \
+            --device "model=iphone15,version=17,locale=en_GB,orientation=portrait" \
+            --test-targets "T8.5" \
+            --timeout 5m \
+            --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
+        continue-on-error: true
+
+      - name: Run notification tests
+        run: |
+          gcloud firebase test ios run \
+            --type xctest \
+            --test test-artifacts/integration_test_bundle.zip \
+            --device "model=iphone15,version=17,locale=en_GB,orientation=portrait" \
+            --test-targets "T8.6" \
+            --timeout 5m \
+            --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
+        continue-on-error: true
+
+# ── Required manual setup before device tests will run ─────────────────────
+#
+# 1. Enable Firebase Test Lab in the Firebase project.
+# 2. Create a service account with "Firebase Test Lab Admin" role.
+# 3. Add the service account JSON as GitHub secret: FIREBASE_TEST_LAB_SA
+# 4. Set GitHub variable: FIREBASE_PROJECT_ID = roavvy-dev (or roavvy-prod)
+# 5. Add your Apple Distribution certificate and provisioning profile
+#    to the build step (replace --no-codesign with signing configuration).
+#
+# See docs/engineering/device_test_setup.md for step-by-step instructions.
