@@ -129,10 +129,31 @@ jobs:
         env:
           FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080"
 
-  # ── Integration tests — skipped until T5 is complete ─────────────────────────
-  # integration:
-  #   name: Integration tests
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: flutter test integration_test/
+  # ── Integration tests (T5) — requires macOS runner for iOS simulator ─────────
+  integration:
+    name: Integration tests
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/mobile_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.x"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Boot iOS simulator
+        run: |
+          UDID=$(xcrun simctl list devices available | grep "iPhone 16" | head -1 | grep -oE '[A-Z0-9-]{36}')
+          xcrun simctl boot "$UDID" || true
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run integration tests
+        run: flutter test integration_test/app_test.dart -d "$SIM_UDID"
