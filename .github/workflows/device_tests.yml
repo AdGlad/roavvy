@@ -29,6 +29,10 @@ jobs:
         run: flutter pub get
         working-directory: apps/mobile_flutter
 
+      - name: Write GoogleService-Info.plist
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" | base64 --decode             > apps/mobile_flutter/ios/Runner/GoogleService-Info.plist
+
       - name: Build iOS app (no codesign)
         run: |
           flutter build ios \
