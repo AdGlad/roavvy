@@ -29,21 +29,31 @@ jobs:
         run: flutter pub get
         working-directory: apps/mobile_flutter
 
-      - name: Build iOS integration test bundle
+      - name: Build iOS app (no codesign)
         run: |
-          flutter build ios integration_test/device/ \
+          flutter build ios \
             --release \
             --no-codesign
         working-directory: apps/mobile_flutter
 
+      - name: Build XCTest runner via xcodebuild
+        run: |
+          xcodebuild build-for-testing \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/xctest \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+        working-directory: apps/mobile_flutter
+        continue-on-error: true
+
       - name: Package as XCTest zip
         run: |
-          cd apps/mobile_flutter
-          mkdir -p build/integration_test_runner
-          cp -r build/ios/iphoneos/Runner.app \
-              build/integration_test_runner/
-          cd build/integration_test_runner
-          zip -r ../../integration_test_bundle.zip Runner.app
+          cd apps/mobile_flutter/build/xctest/Build/Products
+          # Zip the Release-iphoneos folder which contains Runner.app and Runner_iphoneos_Runner.xctestrun
+          zip -r ../../../../../integration_test_bundle.zip Release-iphoneos/
         continue-on-error: true
 
       - uses: actions/upload-artifact@v4
