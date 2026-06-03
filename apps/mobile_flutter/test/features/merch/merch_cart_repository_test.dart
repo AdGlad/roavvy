@@ -181,7 +181,7 @@ void main() {
           .doc('item-1')
           .get();
 
-      expect(doc.data()!['status'], 'mockupReady');
+      expect(doc.data()!['status'], MerchCartItemStatus.mockupReady.value);
       expect(doc.data()!['checkoutUrl'], 'https://shop.example.com/checkout');
       expect(doc.data()!['frontMockupUrl'], 'https://cdn.example.com/front.png');
       expect(doc.data()!.containsKey('backMockupUrl'), isFalse);
@@ -201,7 +201,7 @@ void main() {
           .doc('item-2')
           .get();
 
-      expect(doc.data()!['status'], 'failed');
+      expect(doc.data()!['status'], MerchCartItemStatus.failed.value);
       expect(doc.data()!['failureReason'], 'Printful timeout');
     });
 
@@ -219,7 +219,7 @@ void main() {
           .doc('item-3')
           .get();
 
-      expect(doc.data()!['status'], 'failed');
+      expect(doc.data()!['status'], MerchCartItemStatus.failed.value);
       expect(doc.data()!.containsKey('failureReason'), isFalse);
     });
 
@@ -238,7 +238,7 @@ void main() {
           .doc('item-4')
           .get();
 
-      expect(doc.data()!['status'], 'checkoutStarted');
+      expect(doc.data()!['status'], MerchCartItemStatus.checkoutStarted.value);
     });
   });
 

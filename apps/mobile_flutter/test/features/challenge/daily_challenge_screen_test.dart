@@ -1,5 +1,6 @@
 // T4.7 — DailyChallengeScreen widget tests
 
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,6 +101,8 @@ Widget _pumpChallenge(
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 void main() {
+  setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+
   group('DailyChallengeScreen — loading state', () {
     testWidgets('shows CircularProgressIndicator while loading', (tester) async {
       await tester.pumpWidget(

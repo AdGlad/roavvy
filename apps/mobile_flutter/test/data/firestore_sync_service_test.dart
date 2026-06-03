@@ -30,13 +30,11 @@ void main() {
         lastSeen: DateTime.utc(2024, 6, 1),
       ));
 
-      // Confirm it's dirty before sync.
       final dirtyBefore = await repo.loadDirtyInferred();
       expect(dirtyBefore, hasLength(1));
 
       await service.flushDirty('uid-123', repo);
 
-      // Firestore document should exist with correct fields.
       final doc = await fakeFirestore
           .collection('users')
           .doc('uid-123')
@@ -49,7 +47,6 @@ void main() {
       expect(doc.data()!['lastSeen'], '2024-06-01T00:00:00.000Z');
       expect(doc.data()!.containsKey('syncedAt'), isTrue);
 
-      // Row should now be clean in Drift.
       final dirtyAfter = await repo.loadDirtyInferred();
       expect(dirtyAfter, isEmpty);
     });
@@ -179,7 +176,6 @@ void main() {
 
       await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2024, 3, 1));
 
-      // Confirm row is dirty before flush.
       expect(await achievementRepo.loadDirty(), hasLength(1));
 
       await service.flushDirty('uid-ach', visitRepo,
@@ -195,7 +191,6 @@ void main() {
       expect(doc.data()!['unlockedAt'], '2024-03-01T00:00:00.000Z');
       expect(doc.data()!.containsKey('syncedAt'), isTrue);
 
-      // Row should now be clean in Drift.
       expect(await achievementRepo.loadDirty(), isEmpty);
     });
 
@@ -382,11 +377,17 @@ void main() {
   // T3.3 — Firestore sync field guard (ADR-002, privacy constraint) ──────────
 
   group('FirestoreSyncService field guard — no GPS or photo data written', () {
-    test('inferred visit document contains no GPS coordinate fields', () async {
-      final fakeFirestore = FakeFirebaseFirestore();
-      final service = FirestoreSyncService(fakeFirestore);
-      final repo = _makeRepo();
+    late FakeFirebaseFirestore fakeFirestore;
+    late FirestoreSyncService service;
+    late VisitRepository repo;
 
+    setUp(() {
+      fakeFirestore = FakeFirebaseFirestore();
+      service = FirestoreSyncService(fakeFirestore);
+      repo = _makeRepo();
+    });
+
+    test('inferred visit document contains no GPS coordinate fields', () async {
       await repo.saveInferred(InferredCountryVisit(
         countryCode: 'GB',
         inferredAt: DateTime.utc(2024, 6, 1),
@@ -404,7 +405,6 @@ void main() {
           .get();
 
       final data = doc.data()!;
-      // Privacy: no GPS fields allowed (ADR-002).
       expect(data.containsKey('latitude'), isFalse);
       expect(data.containsKey('longitude'), isFalse);
       expect(data.containsKey('lat'), isFalse);
@@ -414,10 +414,6 @@ void main() {
     });
 
     test('inferred visit document contains no photo identifier fields', () async {
-      final fakeFirestore = FakeFirebaseFirestore();
-      final service = FirestoreSyncService(fakeFirestore);
-      final repo = _makeRepo();
-
       await repo.saveInferred(InferredCountryVisit(
         countryCode: 'FR',
         inferredAt: DateTime.utc(2024, 6, 1),
@@ -433,7 +429,6 @@ void main() {
           .get();
 
       final data = doc.data()!;
-      // Privacy: no photo identifiers allowed (ADR-002).
       expect(data.containsKey('assetId'), isFalse);
       expect(data.containsKey('localIdentifier'), isFalse);
       expect(data.containsKey('filename'), isFalse);
@@ -442,10 +437,6 @@ void main() {
     });
 
     test('inferred visit document contains only permitted fields', () async {
-      final fakeFirestore = FakeFirebaseFirestore();
-      final service = FirestoreSyncService(fakeFirestore);
-      final repo = _makeRepo();
-
       await repo.saveInferred(InferredCountryVisit(
         countryCode: 'DE',
         inferredAt: DateTime.utc(2024, 6, 1),
@@ -472,10 +463,6 @@ void main() {
     });
 
     test('user_added document contains only permitted fields', () async {
-      final fakeFirestore = FakeFirebaseFirestore();
-      final service = FirestoreSyncService(fakeFirestore);
-      final repo = _makeRepo();
-
       await repo.saveAdded(UserAddedCountry(
         countryCode: 'JP',
         addedAt: DateTime.utc(2024, 1, 1),
@@ -498,22 +485,15 @@ void main() {
     });
 
     test('dirty record is written; clean record is skipped', () async {
-      final fakeFirestore = FakeFirebaseFirestore();
-      final service = FirestoreSyncService(fakeFirestore);
-      final db = _makeDb();
-      final repo = VisitRepository(db);
-
       await repo.saveInferred(InferredCountryVisit(
         countryCode: 'IT',
         inferredAt: DateTime.utc(2024, 6, 1),
         photoCount: 2,
       ));
 
-      // Flush — marks IT clean.
       await service.flushDirty('uid-clean', repo);
       expect(await repo.loadDirtyInferred(), isEmpty);
 
-      // Now verify it was written to Firestore.
       final doc = await fakeFirestore
           .collection('users')
           .doc('uid-clean')

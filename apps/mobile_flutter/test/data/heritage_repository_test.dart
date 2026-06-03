@@ -7,10 +7,8 @@ import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/heritage_repository.dart';
 import 'package:shared_models/shared_models.dart';
 
-HeritageRepository _makeRepo() {
-  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-  return HeritageRepository(RoavvyDatabase(NativeDatabase.memory()));
-}
+HeritageRepository _makeRepo() =>
+    HeritageRepository(RoavvyDatabase(NativeDatabase.memory()));
 
 final _firstSeen = DateTime.utc(2024, 3, 1);
 final _lastSeen = DateTime.utc(2024, 6, 15);
@@ -45,6 +43,8 @@ VisitedHeritageSite _site({
     );
 
 void main() {
+  setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+
   // ── upsertAll / loadAll ───────────────────────────────────────────────────
 
   group('HeritageRepository.upsertAll / loadAll', () {

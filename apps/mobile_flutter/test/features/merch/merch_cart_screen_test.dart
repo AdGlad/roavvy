@@ -1,5 +1,7 @@
 // T4.1 — MerchCartScreen widget tests
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,25 +44,20 @@ Widget _pump({
   bool loading = false,
   Object? error,
 }) {
-  AsyncValue<List<MerchCartItem>> cartState;
+  final Stream<List<MerchCartItem>> cartStream;
   if (loading) {
-    cartState = const AsyncValue.loading();
+    // Never-completing stream keeps the provider in AsyncValue.loading().
+    cartStream = StreamController<List<MerchCartItem>>().stream;
   } else if (error != null) {
-    cartState = AsyncValue.error(error, StackTrace.empty);
+    cartStream = Stream.error(error);
   } else {
-    cartState = AsyncValue.data(items ?? const []);
+    cartStream = Stream.value(items ?? const []);
   }
 
   return ProviderScope(
     overrides: [
       currentUidProvider.overrideWithValue(uid),
-      // Override the StreamProvider state directly so we can inject
-      // loading/error/data without a real Firestore stream.
-      merchCartProvider.overrideWith((_) => cartState.when(
-            data: (v) => Stream.value(v),
-            loading: () => const Stream.empty(),
-            error: (e, _) => Stream.error(e),
-          )),
+      merchCartProvider.overrideWith((_) => cartStream),
     ],
     child: const MaterialApp(home: MerchCartScreen()),
   );
