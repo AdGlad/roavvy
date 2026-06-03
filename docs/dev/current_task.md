@@ -1,8 +1,8 @@
 # Current Task
 
-**Milestone:** T3 — Service Tests
+**Milestone:** T4 — Widget Tests
 **Status:** Complete — 2026-06-03
 
-All 12 T3 task areas complete. 1228 tests passing. Branch merged to main and pushed.
+All 12 T4 task areas complete. 1276 tests passing. Branch merged to main and pushed.
 
-## Next milestone: T4 (see backlog)
+## Next milestone: T5 (see backlog)

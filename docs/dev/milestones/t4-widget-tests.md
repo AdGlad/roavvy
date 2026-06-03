@@ -1,5 +1,6 @@
 # T4 — Widget Tests
 
+**Status:** Complete — 2026-06-03
 **Depends on:** T1, T2, T3 complete (service coverage ≥ 70%)
 
 ## Goal
