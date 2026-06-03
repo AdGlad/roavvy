@@ -4,13 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/milestone_repository.dart';
 
 /// Badge emoji shown per threshold on the milestone card.
-const _kThresholdBadge = {
-  5: '🌍',
-  10: '🗺️',
-  25: '✈️',
-  50: '🌐',
-  100: '🏆',
-};
+const _kThresholdBadge = {5: '🌍', 10: '🗺️', 25: '✈️', 50: '🌐', 100: '🏆'};
 
 /// Share text emoji shown per threshold.
 const _kThresholdShareEmoji = {
@@ -29,16 +23,20 @@ const _kThresholdShareEmoji = {
 ///
 /// Mirrors the [showRegionDetailSheet] pattern (ADR-069).
 Future<void> showMilestoneCardSheet(
-    BuildContext context, int threshold, {VoidCallback? onCreateCard}) {
+  BuildContext context,
+  int threshold, {
+  VoidCallback? onCreateCard,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (_) => MilestoneCardSheet(
-      threshold: threshold,
-      onCreateCard: onCreateCard,
-    ),
+    builder:
+        (_) => MilestoneCardSheet(
+          threshold: threshold,
+          onCreateCard: onCreateCard,
+        ),
   );
 }
 
@@ -78,8 +76,9 @@ class MilestoneCardSheet extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               "You've visited $threshold countries!",
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -103,17 +102,19 @@ class MilestoneCardSheet extends StatelessWidget {
               const SizedBox(height: 8),
             ],
             Builder(
-              builder: (btnCtx) => FilledButton.icon(
-                onPressed: () {
-                  final box = btnCtx.findRenderObject() as RenderBox?;
-                  final origin = box != null
-                      ? box.localToGlobal(Offset.zero) & box.size
-                      : Rect.fromLTWH(0, 0, 1, 1);
-                  Share.share(shareText, sharePositionOrigin: origin);
-                },
-                icon: const Icon(Icons.share_outlined),
-                label: const Text('Share'),
-              ),
+              builder:
+                  (btnCtx) => FilledButton.icon(
+                    onPressed: () {
+                      final box = btnCtx.findRenderObject() as RenderBox?;
+                      final origin =
+                          box != null
+                              ? box.localToGlobal(Offset.zero) & box.size
+                              : Rect.fromLTWH(0, 0, 1, 1);
+                      Share.share(shareText, sharePositionOrigin: origin);
+                    },
+                    icon: const Icon(Icons.share_outlined),
+                    label: const Text('Share'),
+                  ),
             ),
             const SizedBox(height: 8),
             TextButton(
@@ -126,7 +127,6 @@ class MilestoneCardSheet extends StatelessWidget {
     );
   }
 }
-
 
 /// Computes the highest milestone threshold to show for [countryCount], given
 /// thresholds already shown in [shownThresholds].

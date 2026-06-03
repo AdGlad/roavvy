@@ -20,11 +20,11 @@ Uint8List _emptyRegionBin() {
   // Header (16 bytes) + 2-cell grid index (12 bytes) = 28 bytes total.
   const bytes = [
     0x52, 0x4C, 0x52, 0x47, // magic "RLRG"
-    0x01,                    // version = 1
-    0xB4,                    // grid_cell_size = 180°
-    0x02, 0x00,             // grid_cols = 2 (LE uint16)
-    0x01, 0x00,             // grid_rows = 1 (LE uint16)
-    0x00, 0x00,             // polygon_count = 0 (LE uint16)
+    0x01, // version = 1
+    0xB4, // grid_cell_size = 180°
+    0x02, 0x00, // grid_cols = 2 (LE uint16)
+    0x01, 0x00, // grid_rows = 1 (LE uint16)
+    0x00, 0x00, // polygon_count = 0 (LE uint16)
     0x00, 0x00, 0x00, 0x00, // poly_refs_size = 0 (LE uint32)
     // Grid index: 2 cells × 6 bytes, all zeros.
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -45,24 +45,21 @@ Widget _pumpJournal({
     overrides: [
       tripRepositoryProvider.overrideWithValue(tripRepo),
       visitRepositoryProvider.overrideWithValue(visitRepo),
-      achievementRepositoryProvider
-          .overrideWithValue(AchievementRepository(db)),
+      achievementRepositoryProvider.overrideWithValue(
+        AchievementRepository(db),
+      ),
       regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
       polygonsProvider.overrideWithValue(const []),
     ],
     child: MaterialApp(
       home: Scaffold(
-        body: JournalScreen(
-          onNavigateToScan: onNavigateToScan ?? () {},
-        ),
+        body: JournalScreen(onNavigateToScan: onNavigateToScan ?? () {}),
       ),
     ),
   );
 }
 
-Future<TripRepository> _repoWithTrips(
-  List<TripsCompanion> companions,
-) async {
+Future<TripRepository> _repoWithTrips(List<TripsCompanion> companions) async {
   final db = RoavvyDatabase(NativeDatabase.memory());
   final repo = TripRepository(db);
   if (companions.isNotEmpty) {
@@ -80,16 +77,15 @@ TripsCompanion _trip({
   required DateTime endedOn,
   int photoCount = 10,
   int isManual = 0,
-}) =>
-    TripsCompanion(
-      id: Value(id),
-      countryCode: Value(countryCode),
-      startedOn: Value(startedOn),
-      endedOn: Value(endedOn),
-      photoCount: Value(photoCount),
-      isManual: Value(isManual),
-      isDirty: const Value(1),
-    );
+}) => TripsCompanion(
+  id: Value(id),
+  countryCode: Value(countryCode),
+  startedOn: Value(startedOn),
+  endedOn: Value(endedOn),
+  photoCount: Value(photoCount),
+  isManual: Value(isManual),
+  isDirty: const Value(1),
+);
 
 void main() {
   setUpAll(() {
@@ -103,10 +99,9 @@ void main() {
       final tripRepo = TripRepository(db);
       final visitRepo = VisitRepository(db);
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: visitRepo,
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: visitRepo),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Your journal is empty'), findsOneWidget);
@@ -121,11 +116,13 @@ void main() {
       final db = _makeDb();
       var tapped = false;
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: TripRepository(db),
-        visitRepo: VisitRepository(db),
-        onNavigateToScan: () => tapped = true,
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(
+          tripRepo: TripRepository(db),
+          visitRepo: VisitRepository(db),
+          onNavigateToScan: () => tapped = true,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Scan Photos'));
@@ -138,16 +135,25 @@ void main() {
   // Carousel-specific coverage will be added in milestone T4 (widget tests).
   group('JournalScreen — year grouping', () {
     // skip: year section headers removed in carousel redesign; T4 adds carousel coverage
-    testWidgets('shows year section header with trip count', (tester) async {},
-        skip: true);
+    testWidgets(
+      'shows year section header with trip count',
+      (tester) async {},
+      skip: true,
+    );
 
     // skip: year section headers removed in carousel redesign; T4 adds carousel coverage
-    testWidgets('uses singular "trip" when year has one entry', (tester) async {},
-        skip: true);
+    testWidgets(
+      'uses singular "trip" when year has one entry',
+      (tester) async {},
+      skip: true,
+    );
 
     // skip: year section headers removed in carousel redesign; T4 adds carousel coverage
-    testWidgets('most recent year appears first', (tester) async {},
-        skip: true);
+    testWidgets(
+      'most recent year appears first',
+      (tester) async {},
+      skip: true,
+    );
   });
 
   group('JournalScreen — trip card content', () {
@@ -155,8 +161,9 @@ void main() {
     // Use pump(300ms) instead of pumpAndSettle to advance past the first frame
     // and render card content without waiting for infinite spring convergence.
 
-    testWidgets('carousel card shows country name and date range',
-        (tester) async {
+    testWidgets('carousel card shows country name and date range', (
+      tester,
+    ) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -168,10 +175,9 @@ void main() {
       ]);
       final db = _makeDb();
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: VisitRepository(db)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -193,10 +199,9 @@ void main() {
       ]);
       final db = _makeDb();
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: VisitRepository(db)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -205,8 +210,9 @@ void main() {
       expect(find.textContaining('📷'), findsWidgets);
     });
 
-    testWidgets('carousel card always shows photo count even when zero',
-        (tester) async {
+    testWidgets('carousel card always shows photo count even when zero', (
+      tester,
+    ) async {
       // Design note: the carousel card shows "N 📷" for all trips including
       // those with photoCount=0 (manual trips). This differs from the old
       // ListView which omitted the photo count line for zero-count trips.
@@ -221,10 +227,9 @@ void main() {
       ]);
       final db = _makeDb();
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: VisitRepository(db)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -245,20 +250,18 @@ void main() {
       ]);
       final db = _makeDb();
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: VisitRepository(db)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(
-        find.byIcon(Icons.edit_location_alt_rounded),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.edit_location_alt_rounded), findsOneWidget);
     });
 
-    testWidgets('inferred trip does not show edit-location icon', (tester) async {
+    testWidgets('inferred trip does not show edit-location icon', (
+      tester,
+    ) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'FR_2024-03-01T00:00:00.000Z',
@@ -270,18 +273,18 @@ void main() {
       ]);
       final db = _makeDb();
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: VisitRepository(db)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byIcon(Icons.edit_location_alt_rounded), findsNothing);
     });
 
-    testWidgets('tapping a carousel card navigates to TripDetailScreen',
-        (tester) async {
+    testWidgets('tapping a carousel card navigates to TripDetailScreen', (
+      tester,
+    ) async {
       final tripRepo = await _repoWithTrips([
         _trip(
           id: 'JP_2024-01-03T00:00:00.000Z',
@@ -292,10 +295,9 @@ void main() {
       ]);
       final db = _makeDb();
 
-      await tester.pumpWidget(_pumpJournal(
-        tripRepo: tripRepo,
-        visitRepo: VisitRepository(db),
-      ));
+      await tester.pumpWidget(
+        _pumpJournal(tripRepo: tripRepo, visitRepo: VisitRepository(db)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 

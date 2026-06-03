@@ -3,10 +3,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:mobile_flutter/features/map/region_progress_notifier.dart';
 import 'package:shared_models/shared_models.dart';
 
-EffectiveVisitedCountry _visit(String code) => EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-    );
+EffectiveVisitedCountry _visit(String code) =>
+    EffectiveVisitedCountry(countryCode: code, hasPhotoEvidence: true);
 
 void main() {
   group('Region.fromContinentString', () {
@@ -44,8 +42,11 @@ void main() {
     test('totalCount is non-zero for all regions', () {
       final result = computeRegionProgress([]);
       for (final data in result) {
-        expect(data.totalCount, greaterThan(0),
-            reason: '${data.region} should have countries');
+        expect(
+          data.totalCount,
+          greaterThan(0),
+          reason: '${data.region} should have countries',
+        );
       }
     });
 
@@ -89,16 +90,18 @@ void main() {
       final total = oceania.totalCount;
 
       // Build a list of Oceanian ISO codes from kCountryContinent.
-      final oceanianCodes = kCountryContinent.entries
-          .where((e) => e.value == 'Oceania')
-          .map((e) => e.key)
-          .toList();
+      final oceanianCodes =
+          kCountryContinent.entries
+              .where((e) => e.value == 'Oceania')
+              .map((e) => e.key)
+              .toList();
 
       final allVisited = computeRegionProgress(
         oceanianCodes.map(_visit).toList(),
       );
-      final completedOceania =
-          allVisited.firstWhere((r) => r.region == Region.oceania);
+      final completedOceania = allVisited.firstWhere(
+        (r) => r.region == Region.oceania,
+      );
       expect(completedOceania.visitedCount, total);
       expect(completedOceania.isComplete, isTrue);
     });

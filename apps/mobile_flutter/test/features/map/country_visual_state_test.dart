@@ -14,21 +14,18 @@ EffectiveVisitedCountry _visit(
   String code, {
   DateTime? firstSeen,
   DateTime? lastSeen,
-}) =>
-    EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-      firstSeen: firstSeen,
-      lastSeen: lastSeen,
-    );
+}) => EffectiveVisitedCountry(
+  countryCode: code,
+  hasPhotoEvidence: true,
+  firstSeen: firstSeen,
+  lastSeen: lastSeen,
+);
 
 ProviderContainer _container({
   List<EffectiveVisitedCountry> visits = const [],
 }) {
   return ProviderContainer(
-    overrides: [
-      effectiveVisitsProvider.overrideWith((ref) async => visits),
-    ],
+    overrides: [effectiveVisitsProvider.overrideWith((ref) async => visits)],
   );
 }
 
@@ -54,7 +51,9 @@ void main() {
     test('visited when code in effective visits (multi-day range)', () async {
       final first = DateTime(2023, 1, 1);
       final last = DateTime(2023, 6, 15);
-      final container = _container(visits: [_visit('GB', firstSeen: first, lastSeen: last)]);
+      final container = _container(
+        visits: [_visit('GB', firstSeen: first, lastSeen: last)],
+      );
       addTearDown(container.dispose);
 
       await container.read(effectiveVisitsProvider.future);
@@ -64,56 +63,73 @@ void main() {
       );
     });
 
-    test('reviewed when code in effective visits and firstSeen == lastSeen (same day)', () async {
-      final day = DateTime(2023, 5, 20);
-      final container = _container(visits: [_visit('FR', firstSeen: day, lastSeen: day)]);
-      addTearDown(container.dispose);
+    test(
+      'reviewed when code in effective visits and firstSeen == lastSeen (same day)',
+      () async {
+        final day = DateTime(2023, 5, 20);
+        final container = _container(
+          visits: [_visit('FR', firstSeen: day, lastSeen: day)],
+        );
+        addTearDown(container.dispose);
 
-      await container.read(effectiveVisitsProvider.future);
-      expect(
-        container.read(countryVisualStateProvider('FR')),
-        CountryVisualState.reviewed,
-      );
-    });
+        await container.read(effectiveVisitsProvider.future);
+        expect(
+          container.read(countryVisualStateProvider('FR')),
+          CountryVisualState.reviewed,
+        );
+      },
+    );
 
-    test('newlyDiscovered overrides visited when code in recentDiscoveriesProvider', () async {
-      final first = DateTime(2020);
-      final last = DateTime(2023);
-      final container = _container(visits: [_visit('JP', firstSeen: first, lastSeen: last)]);
-      addTearDown(container.dispose);
+    test(
+      'newlyDiscovered overrides visited when code in recentDiscoveriesProvider',
+      () async {
+        final first = DateTime(2020);
+        final last = DateTime(2023);
+        final container = _container(
+          visits: [_visit('JP', firstSeen: first, lastSeen: last)],
+        );
+        addTearDown(container.dispose);
 
-      await container.read(effectiveVisitsProvider.future);
+        await container.read(effectiveVisitsProvider.future);
 
-      // Mark JP as recently discovered.
-      await container.read(recentDiscoveriesProvider.notifier).add('JP');
+        // Mark JP as recently discovered.
+        await container.read(recentDiscoveriesProvider.notifier).add('JP');
 
-      expect(
-        container.read(countryVisualStateProvider('JP')),
-        CountryVisualState.newlyDiscovered,
-      );
-    });
+        expect(
+          container.read(countryVisualStateProvider('JP')),
+          CountryVisualState.newlyDiscovered,
+        );
+      },
+    );
 
-    test('newlyDiscovered overrides reviewed when code in recentDiscoveriesProvider', () async {
-      final day = DateTime(2023, 8, 1);
-      final container = _container(visits: [_visit('DE', firstSeen: day, lastSeen: day)]);
-      addTearDown(container.dispose);
+    test(
+      'newlyDiscovered overrides reviewed when code in recentDiscoveriesProvider',
+      () async {
+        final day = DateTime(2023, 8, 1);
+        final container = _container(
+          visits: [_visit('DE', firstSeen: day, lastSeen: day)],
+        );
+        addTearDown(container.dispose);
 
-      await container.read(effectiveVisitsProvider.future);
-      await container.read(recentDiscoveriesProvider.notifier).add('DE');
+        await container.read(effectiveVisitsProvider.future);
+        await container.read(recentDiscoveriesProvider.notifier).add('DE');
 
-      expect(
-        container.read(countryVisualStateProvider('DE')),
-        CountryVisualState.newlyDiscovered,
-      );
-    });
+        expect(
+          container.read(countryVisualStateProvider('DE')),
+          CountryVisualState.newlyDiscovered,
+        );
+      },
+    );
 
     test('visited when firstSeen is null (manually added country)', () async {
-      final container = _container(visits: [
-        const EffectiveVisitedCountry(
-          countryCode: 'AU',
-          hasPhotoEvidence: false,
-        ),
-      ]);
+      final container = _container(
+        visits: [
+          const EffectiveVisitedCountry(
+            countryCode: 'AU',
+            hasPhotoEvidence: false,
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(effectiveVisitsProvider.future);
@@ -149,7 +165,11 @@ void main() {
       final container = _container();
       addTearDown(container.dispose);
 
-      await container.read(recentDiscoveriesProvider.notifier).addAll(['US', 'CA', 'MX']);
+      await container.read(recentDiscoveriesProvider.notifier).addAll([
+        'US',
+        'CA',
+        'MX',
+      ]);
 
       final state = container.read(recentDiscoveriesProvider);
       expect(state, containsAll(['US', 'CA', 'MX']));
@@ -157,7 +177,9 @@ void main() {
 
     test('loads persisted codes from SharedPreferences on init', () async {
       // Pre-populate SharedPreferences with a recent entry.
-      final recentTime = DateTime.now().toUtc().subtract(const Duration(hours: 1));
+      final recentTime = DateTime.now().toUtc().subtract(
+        const Duration(hours: 1),
+      );
       SharedPreferences.setMockInitialValues({
         'recent_discoveries_v1': jsonEncode([
           {'isoCode': 'IT', 'discoveredAt': recentTime.toIso8601String()},
@@ -173,7 +195,9 @@ void main() {
     });
 
     test('filters out entries older than 24 h on load', () async {
-      final oldTime = DateTime.now().toUtc().subtract(const Duration(hours: 25));
+      final oldTime = DateTime.now().toUtc().subtract(
+        const Duration(hours: 25),
+      );
       SharedPreferences.setMockInitialValues({
         'recent_discoveries_v1': jsonEncode([
           {'isoCode': 'ES', 'discoveredAt': oldTime.toIso8601String()},

@@ -30,9 +30,10 @@ class VisitRepository {
   /// Always sets [isDirty] = 1.
   Future<void> saveInferred(InferredCountryVisit visit) async {
     await _db.transaction(() async {
-      final existing = await (_db.select(_db.inferredCountryVisits)
-            ..where((t) => t.countryCode.equals(visit.countryCode)))
-          .getSingleOrNull();
+      final existing =
+          await (_db.select(_db.inferredCountryVisits)..where(
+            (t) => t.countryCode.equals(visit.countryCode),
+          )).getSingleOrNull();
 
       final companion = InferredCountryVisitsCompanion(
         countryCode: Value(visit.countryCode),
@@ -61,9 +62,9 @@ class VisitRepository {
     if (visits.isEmpty) return;
     await _db.transaction(() async {
       final codes = visits.map((v) => v.countryCode).toSet().toList();
-      final existing = await (_db.select(_db.inferredCountryVisits)
-            ..where((t) => t.countryCode.isIn(codes)))
-          .get();
+      final existing =
+          await (_db.select(_db.inferredCountryVisits)
+            ..where((t) => t.countryCode.isIn(codes))).get();
       final existingByCode = {for (final r in existing) r.countryCode: r};
 
       for (final v in visits) {
@@ -90,15 +91,16 @@ class VisitRepository {
   Future<void> saveAdded(UserAddedCountry added) async {
     await _db.transaction(() async {
       await (_db.delete(_db.userRemovedCountries)
-            ..where((t) => t.countryCode.equals(added.countryCode)))
-          .go();
-      await _db.into(_db.userAddedCountries).insertOnConflictUpdate(
-        UserAddedCountriesCompanion(
-          countryCode: Value(added.countryCode),
-          addedAt: Value(added.addedAt),
-          isDirty: const Value(1),
-        ),
-      );
+        ..where((t) => t.countryCode.equals(added.countryCode))).go();
+      await _db
+          .into(_db.userAddedCountries)
+          .insertOnConflictUpdate(
+            UserAddedCountriesCompanion(
+              countryCode: Value(added.countryCode),
+              addedAt: Value(added.addedAt),
+              isDirty: const Value(1),
+            ),
+          );
     });
   }
 
@@ -107,15 +109,16 @@ class VisitRepository {
   Future<void> saveRemoved(UserRemovedCountry removed) async {
     await _db.transaction(() async {
       await (_db.delete(_db.userAddedCountries)
-            ..where((t) => t.countryCode.equals(removed.countryCode)))
-          .go();
-      await _db.into(_db.userRemovedCountries).insertOnConflictUpdate(
-        UserRemovedCountriesCompanion(
-          countryCode: Value(removed.countryCode),
-          removedAt: Value(removed.removedAt),
-          isDirty: const Value(1),
-        ),
-      );
+        ..where((t) => t.countryCode.equals(removed.countryCode))).go();
+      await _db
+          .into(_db.userRemovedCountries)
+          .insertOnConflictUpdate(
+            UserRemovedCountriesCompanion(
+              countryCode: Value(removed.countryCode),
+              removedAt: Value(removed.removedAt),
+              isDirty: const Value(1),
+            ),
+          );
     });
   }
 
@@ -139,14 +142,24 @@ class VisitRepository {
   Future<List<UserAddedCountry>> loadAdded() async {
     final rows = await _db.select(_db.userAddedCountries).get();
     return rows
-        .map((r) => UserAddedCountry(countryCode: r.countryCode, addedAt: r.addedAt.toUtc()))
+        .map(
+          (r) => UserAddedCountry(
+            countryCode: r.countryCode,
+            addedAt: r.addedAt.toUtc(),
+          ),
+        )
         .toList();
   }
 
   Future<List<UserRemovedCountry>> loadRemoved() async {
     final rows = await _db.select(_db.userRemovedCountries).get();
     return rows
-        .map((r) => UserRemovedCountry(countryCode: r.countryCode, removedAt: r.removedAt.toUtc()))
+        .map(
+          (r) => UserRemovedCountry(
+            countryCode: r.countryCode,
+            removedAt: r.removedAt.toUtc(),
+          ),
+        )
         .toList();
   }
 
@@ -166,9 +179,9 @@ class VisitRepository {
 
   /// Returns all inferred visit rows with [isDirty] = 1.
   Future<List<InferredCountryVisit>> loadDirtyInferred() async {
-    final rows = await (_db.select(_db.inferredCountryVisits)
-          ..where((t) => t.isDirty.equals(1)))
-        .get();
+    final rows =
+        await (_db.select(_db.inferredCountryVisits)
+          ..where((t) => t.isDirty.equals(1))).get();
     return rows
         .map(
           (r) => InferredCountryVisit(
@@ -184,21 +197,31 @@ class VisitRepository {
 
   /// Returns all user-added rows with [isDirty] = 1.
   Future<List<UserAddedCountry>> loadDirtyAdded() async {
-    final rows = await (_db.select(_db.userAddedCountries)
-          ..where((t) => t.isDirty.equals(1)))
-        .get();
+    final rows =
+        await (_db.select(_db.userAddedCountries)
+          ..where((t) => t.isDirty.equals(1))).get();
     return rows
-        .map((r) => UserAddedCountry(countryCode: r.countryCode, addedAt: r.addedAt.toUtc()))
+        .map(
+          (r) => UserAddedCountry(
+            countryCode: r.countryCode,
+            addedAt: r.addedAt.toUtc(),
+          ),
+        )
         .toList();
   }
 
   /// Returns all user-removed rows with [isDirty] = 1.
   Future<List<UserRemovedCountry>> loadDirtyRemoved() async {
-    final rows = await (_db.select(_db.userRemovedCountries)
-          ..where((t) => t.isDirty.equals(1)))
-        .get();
+    final rows =
+        await (_db.select(_db.userRemovedCountries)
+          ..where((t) => t.isDirty.equals(1))).get();
     return rows
-        .map((r) => UserRemovedCountry(countryCode: r.countryCode, removedAt: r.removedAt.toUtc()))
+        .map(
+          (r) => UserRemovedCountry(
+            countryCode: r.countryCode,
+            removedAt: r.removedAt.toUtc(),
+          ),
+        )
         .toList();
   }
 
@@ -207,29 +230,32 @@ class VisitRepository {
   /// Sets [isDirty] = 0 and [syncedAt] for an inferred visit row.
   Future<void> markInferredClean(String countryCode, DateTime syncedAt) =>
       (_db.update(_db.inferredCountryVisits)
-            ..where((t) => t.countryCode.equals(countryCode)))
-          .write(InferredCountryVisitsCompanion(
-        isDirty: const Value(0),
-        syncedAt: Value(syncedAt.toUtc().toIso8601String()),
-      ));
+        ..where((t) => t.countryCode.equals(countryCode))).write(
+        InferredCountryVisitsCompanion(
+          isDirty: const Value(0),
+          syncedAt: Value(syncedAt.toUtc().toIso8601String()),
+        ),
+      );
 
   /// Sets [isDirty] = 0 and [syncedAt] for a user-added row.
   Future<void> markAddedClean(String countryCode, DateTime syncedAt) =>
       (_db.update(_db.userAddedCountries)
-            ..where((t) => t.countryCode.equals(countryCode)))
-          .write(UserAddedCountriesCompanion(
-        isDirty: const Value(0),
-        syncedAt: Value(syncedAt.toUtc().toIso8601String()),
-      ));
+        ..where((t) => t.countryCode.equals(countryCode))).write(
+        UserAddedCountriesCompanion(
+          isDirty: const Value(0),
+          syncedAt: Value(syncedAt.toUtc().toIso8601String()),
+        ),
+      );
 
   /// Sets [isDirty] = 0 and [syncedAt] for a user-removed row.
   Future<void> markRemovedClean(String countryCode, DateTime syncedAt) =>
       (_db.update(_db.userRemovedCountries)
-            ..where((t) => t.countryCode.equals(countryCode)))
-          .write(UserRemovedCountriesCompanion(
-        isDirty: const Value(0),
-        syncedAt: Value(syncedAt.toUtc().toIso8601String()),
-      ));
+        ..where((t) => t.countryCode.equals(countryCode))).write(
+        UserRemovedCountriesCompanion(
+          isDirty: const Value(0),
+          syncedAt: Value(syncedAt.toUtc().toIso8601String()),
+        ),
+      );
 
   // ── Deletes ──────────────────────────────────────────────────────────────
 
@@ -239,20 +265,24 @@ class VisitRepository {
   /// it eliminates the data-loss window where a failure between the two
   /// operations leaves the user with no inferred visits.
   /// Always sets [isDirty] = 1 on newly written rows.
-  Future<void> clearAndSaveAllInferred(List<InferredCountryVisit> visits) async {
+  Future<void> clearAndSaveAllInferred(
+    List<InferredCountryVisit> visits,
+  ) async {
     await _db.transaction(() async {
       await _db.delete(_db.inferredCountryVisits).go();
       for (final v in visits) {
-        await _db.into(_db.inferredCountryVisits).insertOnConflictUpdate(
-          InferredCountryVisitsCompanion(
-            countryCode: Value(v.countryCode),
-            inferredAt: Value(v.inferredAt),
-            photoCount: Value(v.photoCount),
-            firstSeen: Value(v.firstSeen),
-            lastSeen: Value(v.lastSeen),
-            isDirty: const Value(1),
-          ),
-        );
+        await _db
+            .into(_db.inferredCountryVisits)
+            .insertOnConflictUpdate(
+              InferredCountryVisitsCompanion(
+                countryCode: Value(v.countryCode),
+                inferredAt: Value(v.inferredAt),
+                photoCount: Value(v.photoCount),
+                firstSeen: Value(v.firstSeen),
+                lastSeen: Value(v.lastSeen),
+                isDirty: const Value(1),
+              ),
+            );
       }
     });
   }
@@ -267,32 +297,33 @@ class VisitRepository {
     if (visits.isEmpty) return;
     await _db.transaction(() async {
       final codes = visits.map((v) => v.countryCode).toSet().toList();
-      final existing = await (_db.select(_db.inferredCountryVisits)
-            ..where((t) => t.countryCode.isIn(codes)))
-          .get();
+      final existing =
+          await (_db.select(_db.inferredCountryVisits)
+            ..where((t) => t.countryCode.isIn(codes))).get();
       final existingByCode = {for (final r in existing) r.countryCode: r};
 
       for (final v in visits) {
         final ex = existingByCode[v.countryCode];
-        await _db.into(_db.inferredCountryVisits).insertOnConflictUpdate(
-          InferredCountryVisitsCompanion(
-            countryCode: Value(v.countryCode),
-            inferredAt: Value(v.inferredAt),
-            // Full scan: use the fresh count from this run (SET, not ADD).
-            photoCount: Value(v.photoCount),
-            firstSeen: Value(_earlier(ex?.firstSeen, v.firstSeen)),
-            lastSeen: Value(_later(ex?.lastSeen, v.lastSeen)),
-            isDirty: const Value(1),
-          ),
-        );
+        await _db
+            .into(_db.inferredCountryVisits)
+            .insertOnConflictUpdate(
+              InferredCountryVisitsCompanion(
+                countryCode: Value(v.countryCode),
+                inferredAt: Value(v.inferredAt),
+                // Full scan: use the fresh count from this run (SET, not ADD).
+                photoCount: Value(v.photoCount),
+                firstSeen: Value(_earlier(ex?.firstSeen, v.firstSeen)),
+                lastSeen: Value(_later(ex?.lastSeen, v.lastSeen)),
+                isDirty: const Value(1),
+              ),
+            );
       }
     });
   }
 
   /// Clears only the inferred table. Used before a full rescan so stale
   /// inferred data does not accumulate with the new scan results.
-  Future<void> clearInferred() =>
-      _db.delete(_db.inferredCountryVisits).go();
+  Future<void> clearInferred() => _db.delete(_db.inferredCountryVisits).go();
 
   /// Wipes all visit tables, photo date records, trips, and scan metadata.
   /// Used for user-initiated reset and tests. Clears [lastScanAt] so the next
@@ -320,9 +351,9 @@ class VisitRepository {
   /// Returns the UTC timestamp of the last successful scan, or null if no
   /// scan has completed (triggers a full scan on next call to startPhotoScan).
   Future<DateTime?> loadLastScanAt() async {
-    final row = await (_db.select(_db.scanMetadata)
-          ..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.scanMetadata)
+          ..where((t) => t.id.equals(1))).getSingleOrNull();
     final raw = row?.lastScanAt;
     if (raw == null) return null;
     return DateTime.tryParse(raw)?.toUtc();
@@ -333,10 +364,12 @@ class VisitRepository {
   /// Call only after a scan completes without error (ADR-022).
   Future<void> saveLastScanAt(DateTime value) => _db
       .into(_db.scanMetadata)
-      .insertOnConflictUpdate(ScanMetadataCompanion(
-        id: const Value(1),
-        lastScanAt: Value(value.toUtc().toIso8601String()),
-      ));
+      .insertOnConflictUpdate(
+        ScanMetadataCompanion(
+          id: const Value(1),
+          lastScanAt: Value(value.toUtc().toIso8601String()),
+        ),
+      );
 
   /// Returns true after the first successful scan has completed.
   ///
@@ -346,8 +379,7 @@ class VisitRepository {
       (await loadLastScanAt()) != null;
 
   /// Clears [lastScanAt] so the next scan performs a full scan.
-  Future<void> clearLastScanAt() =>
-      _db.delete(_db.scanMetadata).go();
+  Future<void> clearLastScanAt() => _db.delete(_db.scanMetadata).go();
 
   // ── Photo date records (ADR-048) ─────────────────────────────────────────
 
@@ -364,12 +396,14 @@ class VisitRepository {
       for (final r in records) {
         await _db
             .into(_db.photoDateRecords)
-            .insertOnConflictUpdate(PhotoDateRecordsCompanion(
-          countryCode: Value(r.countryCode),
-          capturedAt: Value(r.capturedAt.toUtc()),
-          regionCode: Value(r.regionCode),
-          assetId: Value(r.assetId),
-        ));
+            .insertOnConflictUpdate(
+              PhotoDateRecordsCompanion(
+                countryCode: Value(r.countryCode),
+                capturedAt: Value(r.capturedAt.toUtc()),
+                regionCode: Value(r.regionCode),
+                assetId: Value(r.assetId),
+              ),
+            );
       }
     });
   }
@@ -383,9 +417,9 @@ class VisitRepository {
   /// iCloud imports (ADR-129). Asset IDs are stored locally only — never sent
   /// to Firestore (ADR-060). Loads once per scan; safe to hold in memory.
   Future<Set<String>> loadAllKnownAssetIds() async {
-    final rows = await (_db.select(_db.photoDateRecords)
-          ..where((t) => t.assetId.isNotNull()))
-        .get();
+    final rows =
+        await (_db.select(_db.photoDateRecords)
+          ..where((t) => t.assetId.isNotNull())).get();
     return {for (final r in rows) r.assetId!};
   }
 
@@ -394,10 +428,10 @@ class VisitRepository {
   /// Used by the photo gallery to load thumbnails from the on-device photo
   /// library. Asset IDs are stored locally only — never in Firestore (ADR-060).
   Future<List<String>> loadAssetIds(String countryCode) async {
-    final rows = await (_db.select(_db.photoDateRecords)
-          ..where((t) =>
-              t.countryCode.equals(countryCode) & t.assetId.isNotNull()))
-        .get();
+    final rows =
+        await (_db.select(_db.photoDateRecords)..where(
+          (t) => t.countryCode.equals(countryCode) & t.assetId.isNotNull(),
+        )).get();
     return rows.map((r) => r.assetId!).toList();
   }
 
@@ -412,13 +446,15 @@ class VisitRepository {
     DateTime end,
   ) async {
     final startUtc = DateTime(start.year, start.month, start.day).toUtc();
-    final endUtc = DateTime(end.year, end.month, end.day, 23, 59, 59, 999).toUtc();
-    final rows = await (_db.select(_db.photoDateRecords)
-          ..where((t) =>
+    final endUtc =
+        DateTime(end.year, end.month, end.day, 23, 59, 59, 999).toUtc();
+    final rows =
+        await (_db.select(_db.photoDateRecords)..where(
+          (t) =>
               t.countryCode.equals(countryCode) &
               t.assetId.isNotNull() &
-              t.capturedAt.isBetweenValues(startUtc, endUtc)))
-        .get();
+              t.capturedAt.isBetweenValues(startUtc, endUtc),
+        )).get();
     return rows.map((r) => r.assetId!).toList();
   }
 
@@ -435,20 +471,25 @@ class VisitRepository {
     final startUtc = DateTime(start.year, start.month, start.day).toUtc();
     final endUtc =
         DateTime(end.year, end.month, end.day, 23, 59, 59, 999).toUtc();
-    final rows = await (_db.select(_db.photoDateRecords)
-          ..where((t) =>
-              t.countryCode.equals(countryCode) &
-              t.assetId.isNotNull() &
-              t.capturedAt.isBetweenValues(startUtc, endUtc))
-          ..orderBy([(t) => OrderingTerm.asc(t.capturedAt)]))
-        .get();
+    final rows =
+        await (_db.select(_db.photoDateRecords)
+              ..where(
+                (t) =>
+                    t.countryCode.equals(countryCode) &
+                    t.assetId.isNotNull() &
+                    t.capturedAt.isBetweenValues(startUtc, endUtc),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.capturedAt)]))
+            .get();
     return rows
-        .map((r) => PhotoDateRecord(
-              countryCode: r.countryCode,
-              capturedAt: r.capturedAt.toUtc(),
-              regionCode: r.regionCode,
-              assetId: r.assetId,
-            ))
+        .map(
+          (r) => PhotoDateRecord(
+            countryCode: r.countryCode,
+            capturedAt: r.capturedAt.toUtc(),
+            regionCode: r.regionCode,
+            assetId: r.assetId,
+          ),
+        )
         .toList();
   }
 
@@ -456,12 +497,14 @@ class VisitRepository {
   Future<List<PhotoDateRecord>> loadPhotoDates() async {
     final rows = await _db.select(_db.photoDateRecords).get();
     return rows
-        .map((r) => PhotoDateRecord(
-              countryCode: r.countryCode,
-              capturedAt: r.capturedAt.toUtc(),
-              regionCode: r.regionCode,
-              assetId: r.assetId,
-            ))
+        .map(
+          (r) => PhotoDateRecord(
+            countryCode: r.countryCode,
+            capturedAt: r.capturedAt.toUtc(),
+            regionCode: r.regionCode,
+            assetId: r.assetId,
+          ),
+        )
         .toList();
   }
 
@@ -478,17 +521,19 @@ class VisitRepository {
   /// launch.
   Future<void> saveBootstrapCompletedAt(DateTime value) => _db
       .into(_db.scanMetadata)
-      .insertOnConflictUpdate(ScanMetadataCompanion(
-        id: const Value(1),
-        bootstrapCompletedAt: Value(value.toUtc().toIso8601String()),
-      ));
+      .insertOnConflictUpdate(
+        ScanMetadataCompanion(
+          id: const Value(1),
+          bootstrapCompletedAt: Value(value.toUtc().toIso8601String()),
+        ),
+      );
 
   /// Returns the UTC timestamp when the existing-user bootstrap completed, or
   /// null if bootstrap has not yet run (or was cleared by [clearAll]).
   Future<DateTime?> loadBootstrapCompletedAt() async {
-    final row = await (_db.select(_db.scanMetadata)
-          ..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.scanMetadata)
+          ..where((t) => t.id.equals(1))).getSingleOrNull();
     final raw = row?.bootstrapCompletedAt;
     if (raw == null) return null;
     return DateTime.tryParse(raw)?.toUtc();
@@ -498,19 +543,18 @@ class VisitRepository {
 
   /// Returns the stored share token, or null if none has been saved yet.
   Future<String?> getShareToken() async {
-    final row = await (_db.select(_db.shareTokens)
-          ..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.shareTokens)
+          ..where((t) => t.id.equals(1))).getSingleOrNull();
     return row?.token;
   }
 
   /// Persists [token] as the singleton share token (id = 1).
   Future<void> saveShareToken(String token) => _db
       .into(_db.shareTokens)
-      .insertOnConflictUpdate(ShareTokensCompanion(
-        id: const Value(1),
-        token: Value(token),
-      ));
+      .insertOnConflictUpdate(
+        ShareTokensCompanion(id: const Value(1), token: Value(token)),
+      );
 
   /// Deletes the share token row (id = 1).
   ///

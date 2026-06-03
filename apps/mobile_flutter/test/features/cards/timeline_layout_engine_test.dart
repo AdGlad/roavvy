@@ -39,28 +39,24 @@ void main() {
       expect(result.truncatedCount, 0);
     });
 
-    test('5 same-year trips fit on standard landscape canvas without truncation',
-        () {
-      // 5 trips in the same year → 1 year divider + 5 rows, which comfortably
-      // fits the 292px usable height at row height ≈33px.
-      final trips = List.generate(
-        5,
-        (i) => _trip('FR', 2023, i + 1, i + 1),
-      );
-      final result = TimelineLayoutEngine.layout(
-        trips: trips,
-        countryCodes: ['FR'],
-        canvasSize: landscape,
-      );
-      expect(result.entries.length + result.truncatedCount, 5);
-      expect(result.truncatedCount, 0);
-    });
+    test(
+      '5 same-year trips fit on standard landscape canvas without truncation',
+      () {
+        // 5 trips in the same year → 1 year divider + 5 rows, which comfortably
+        // fits the 292px usable height at row height ≈33px.
+        final trips = List.generate(5, (i) => _trip('FR', 2023, i + 1, i + 1));
+        final result = TimelineLayoutEngine.layout(
+          trips: trips,
+          countryCodes: ['FR'],
+          canvasSize: landscape,
+        );
+        expect(result.entries.length + result.truncatedCount, 5);
+        expect(result.truncatedCount, 0);
+      },
+    );
 
     test('30 trips on landscape canvas → some truncated; invariant holds', () {
-      final trips = List.generate(
-        30,
-        (i) => _trip('DE', 2000 + i, 6, 7),
-      );
+      final trips = List.generate(30, (i) => _trip('DE', 2000 + i, 6, 7));
       final result = TimelineLayoutEngine.layout(
         trips: trips,
         countryCodes: ['DE'],
@@ -71,10 +67,7 @@ void main() {
     });
 
     test('60 trips → truncated; invariant holds', () {
-      final trips = List.generate(
-        60,
-        (i) => _trip('JP', 1960 + i, 4, 5),
-      );
+      final trips = List.generate(60, (i) => _trip('JP', 1960 + i, 4, 5));
       final result = TimelineLayoutEngine.layout(
         trips: trips,
         countryCodes: ['JP'],
@@ -151,16 +144,29 @@ void main() {
 
     test('all 12 month abbreviations correct', () {
       const expected = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       for (int m = 1; m <= 12; m++) {
         final result = formatTimelineDate(
           DateTime(2024, m, 1),
           DateTime(2024, m, 1),
         );
-        expect(result, '${expected[m - 1]} 2024',
-            reason: 'Month $m should be ${expected[m - 1]}');
+        expect(
+          result,
+          '${expected[m - 1]} 2024',
+          reason: 'Month $m should be ${expected[m - 1]}',
+        );
       }
     });
   });

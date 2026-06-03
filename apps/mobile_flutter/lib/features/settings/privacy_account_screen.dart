@@ -19,15 +19,12 @@ import '../sharing/share_token_service.dart';
 /// deletion. Reachable via the MapScreen overflow "Privacy & account" item.
 /// Will migrate to the Profile tab in Phase 5.
 class PrivacyAccountScreen extends ConsumerStatefulWidget {
-  const PrivacyAccountScreen({
-    super.key,
-    this.deleteAccountOverride,
-  });
+  const PrivacyAccountScreen({super.key, this.deleteAccountOverride});
 
   /// Test hook. When provided, replaces [AccountDeletionService.deleteAccount].
   @visibleForTesting
   final Future<void> Function(String uid, {String? shareToken})?
-      deleteAccountOverride;
+  deleteAccountOverride;
 
   @override
   ConsumerState<PrivacyAccountScreen> createState() =>
@@ -75,33 +72,32 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Remove your sharing link?'),
-        content: const Text(
-          'Anyone with your link will no longer be able to view your map. '
-          'You can create a new link at any time.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Remove your sharing link?'),
+            content: const Text(
+              'Anyone with your link will no longer be able to view your map. '
+              'You can create a new link at any time.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Remove Link'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove Link'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true || !mounted) return;
 
     final repo = ref.read(visitRepositoryProvider);
     final user = ref.read(authStateProvider).valueOrNull;
-    unawaited(
-      ShareTokenService().revokeToken(token, user?.uid ?? '', repo),
-    );
+    unawaited(ShareTokenService().revokeToken(token, user?.uid ?? '', repo));
     setState(() => _shareToken = null);
   }
 
@@ -109,27 +105,28 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
     // ── First confirmation ──────────────────────────────────────────────────
     final first = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete your account?'),
-        content: const Text(
-          'This will permanently delete:\n'
-          '· Your entire travel history\n'
-          '· Your achievements\n'
-          '· Your public sharing link (if any)\n\n'
-          'This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Delete your account?'),
+            content: const Text(
+              'This will permanently delete:\n'
+              '· Your entire travel history\n'
+              '· Your achievements\n'
+              '· Your public sharing link (if any)\n\n'
+              'This cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Continue to delete…'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Continue to delete…'),
-          ),
-        ],
-      ),
     );
 
     if (first != true || !mounted) return;
@@ -137,24 +134,25 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
     // ── Second confirmation ─────────────────────────────────────────────────
     final second = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Are you sure?'),
-        content: const Text(
-          'Your account and all data will be permanently deleted. '
-          'There is no way to recover it.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Are you sure?'),
+            content: const Text(
+              'Your account and all data will be permanently deleted. '
+              'There is no way to recover it.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete Account'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete Account'),
-          ),
-        ],
-      ),
     );
 
     if (second != true || !mounted) return;
@@ -164,15 +162,16 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Deleting your account…'),
-            ],
-          ),
-        ),
+        builder:
+            (_) => const AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('Deleting your account…'),
+                ],
+              ),
+            ),
       ),
     );
 
@@ -180,7 +179,8 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
     final uid = user?.uid ?? '';
 
     try {
-      final deleteFn = widget.deleteAccountOverride ??
+      final deleteFn =
+          widget.deleteAccountOverride ??
           AccountDeletionService(
             auth: FirebaseAuth.instance,
             firestore: FirebaseFirestore.instance,
@@ -200,31 +200,36 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       if (e.code == 'requires-recent-login') {
         await showDialog<void>(
           context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Sign in required'),
-            content: const Text(
-              'For security, Apple requires you to sign in again before '
-              'deleting your account. Sign in with Apple, then return to '
-              'delete your account.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+          builder:
+              (_) => AlertDialog(
+                title: const Text('Sign in required'),
+                content: const Text(
+                  'For security, Apple requires you to sign in again before '
+                  'deleting your account. Sign in with Apple, then return to '
+                  'delete your account.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
               ),
-            ],
-          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Something went wrong. Please try again.')),
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
+          ),
         );
       }
     } catch (_) {
       if (!mounted) return;
       Navigator.of(context).pop(); // dismiss loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong. Please try again.')),
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
       );
     }
   }
@@ -233,27 +238,29 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Privacy & account')),
-      body: _loadingToken
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: [
-                _SectionHeader('Sharing'),
-                _shareToken != null ? _activeShareTile() : _inactiveShareTile(),
-                _SectionHeader('Orders'),
-                _ordersTile(),
-                _SectionHeader('Account'),
-                _deleteAccountTile(),
-                _SectionHeader('Legal'),
-                _termsTile(),
-                _privacyPolicyTile(),
-              ],
-            ),
+      body:
+          _loadingToken
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                children: [
+                  _SectionHeader('Sharing'),
+                  _shareToken != null
+                      ? _activeShareTile()
+                      : _inactiveShareTile(),
+                  _SectionHeader('Orders'),
+                  _ordersTile(),
+                  _SectionHeader('Account'),
+                  _deleteAccountTile(),
+                  _SectionHeader('Legal'),
+                  _termsTile(),
+                  _privacyPolicyTile(),
+                ],
+              ),
     );
   }
 
   Widget _activeShareTile() {
-    final preview =
-        'roavvy.app/share/${_shareToken!.substring(0, 8)}…';
+    final preview = 'roavvy.app/share/${_shareToken!.substring(0, 8)}…';
     return ListTile(
       title: const Text('Your map is shared'),
       subtitle: Text(preview),
@@ -284,9 +291,10 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       leading: const Icon(Icons.shopping_bag_outlined),
       title: const Text('My orders'),
       trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const MerchOrdersScreen()),
-      ),
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const MerchOrdersScreen()),
+          ),
     );
   }
 
@@ -295,11 +303,12 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       leading: const Icon(Icons.gavel_outlined),
       title: const Text('Terms & Conditions'),
       trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const TermsScreen(requireAccept: false),
-        ),
-      ),
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const TermsScreen(requireAccept: false),
+            ),
+          ),
     );
   }
 
@@ -307,20 +316,18 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
     return ListTile(
       leading: const Icon(Icons.policy_outlined),
       title: const Text('Privacy Policy'),
-      onTap: () => launchUrl(
-        Uri.parse('https://roavvy.app/privacy'),
-        mode: LaunchMode.externalApplication,
-      ),
+      onTap:
+          () => launchUrl(
+            Uri.parse('https://roavvy.app/privacy'),
+            mode: LaunchMode.externalApplication,
+          ),
     );
   }
 
   Widget _deleteAccountTile() {
     return ListTile(
       leading: const Icon(Icons.delete_forever, color: Colors.red),
-      title: const Text(
-        'Delete account',
-        style: TextStyle(color: Colors.red),
-      ),
+      title: const Text('Delete account', style: TextStyle(color: Colors.red)),
       onTap: _onDeleteAccount,
     );
   }
@@ -338,9 +345,9 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              letterSpacing: 1.1,
-            ),
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.1,
+        ),
       ),
     );
   }

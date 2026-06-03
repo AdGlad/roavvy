@@ -13,8 +13,11 @@ void main() {
     test('returns a string matching YYYY-MM-DD format', () {
       final date = todayLocal();
       final pattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
-      expect(pattern.hasMatch(date), isTrue,
-          reason: 'todayLocal() must return YYYY-MM-DD, got "$date"');
+      expect(
+        pattern.hasMatch(date),
+        isTrue,
+        reason: 'todayLocal() must return YYYY-MM-DD, got "$date"',
+      );
     });
 
     test('returned date is close to DateTime.now() (within 1 day)', () {
@@ -23,8 +26,11 @@ void main() {
       final parsed = DateTime(parts[0], parts[1], parts[2]);
       final today = DateTime.now();
       final diff = today.difference(parsed).inDays.abs();
-      expect(diff, lessThanOrEqualTo(1),
-          reason: 'todayLocal() must return today or yesterday (UTC edge)');
+      expect(
+        diff,
+        lessThanOrEqualTo(1),
+        reason: 'todayLocal() must return today or yesterday (UTC edge)',
+      );
     });
   });
 
@@ -41,28 +47,31 @@ void main() {
       );
     });
 
-    test('returns DailyChallenge when correctly shaped document exists', () async {
-      final fakeFirestore = FakeFirebaseFirestore();
-      final service = DailyChallengeService(firestore: fakeFirestore);
-      final date = todayLocal();
+    test(
+      'returns DailyChallenge when correctly shaped document exists',
+      () async {
+        final fakeFirestore = FakeFirebaseFirestore();
+        final service = DailyChallengeService(firestore: fakeFirestore);
+        final date = todayLocal();
 
-      await fakeFirestore.collection('daily_challenge').doc(date).set({
-        'siteId': '208',
-        'difficulty': 'medium',
-        'clues': [
-          {'type': 'geography', 'text': 'Located in South Asia'},
-          {'type': 'category', 'text': 'Cultural site'},
-          {'type': 'historical', 'text': 'Built in the 17th century'},
-          {'type': 'location', 'text': 'Agra, India'},
-          {'type': 'direct', 'text': 'A mausoleum of white marble'},
-        ],
-      });
+        await fakeFirestore.collection('daily_challenge').doc(date).set({
+          'siteId': '208',
+          'difficulty': 'medium',
+          'clues': [
+            {'type': 'geography', 'text': 'Located in South Asia'},
+            {'type': 'category', 'text': 'Cultural site'},
+            {'type': 'historical', 'text': 'Built in the 17th century'},
+            {'type': 'location', 'text': 'Agra, India'},
+            {'type': 'direct', 'text': 'A mausoleum of white marble'},
+          ],
+        });
 
-      final challenge = await service.fetchToday();
-      expect(challenge.siteId, '208');
-      expect(challenge.difficulty, 'medium');
-      expect(challenge.clues, hasLength(5));
-    });
+        final challenge = await service.fetchToday();
+        expect(challenge.siteId, '208');
+        expect(challenge.difficulty, 'medium');
+        expect(challenge.clues, hasLength(5));
+      },
+    );
 
     test('typed clues are deserialised into ChallengeClue objects', () async {
       final fakeFirestore = FakeFirebaseFirestore();
@@ -113,7 +122,9 @@ void main() {
           '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
       await fakeFirestore.collection('daily_challenge').doc(yesterdayKey).set({
         'siteId': 'yesterday',
-        'clues': [{'type': 'direct', 'text': 'Yesterday clue'}],
+        'clues': [
+          {'type': 'direct', 'text': 'Yesterday clue'},
+        ],
       });
 
       // Today's document does not exist → service should throw, not return yesterday.
@@ -125,7 +136,9 @@ void main() {
       // Now write today's document and verify it's returned.
       await fakeFirestore.collection('daily_challenge').doc(today).set({
         'siteId': 'today-site',
-        'clues': [{'type': 'direct', 'text': 'Today clue'}],
+        'clues': [
+          {'type': 'direct', 'text': 'Today clue'},
+        ],
       });
       final challenge = await service.fetchToday();
       expect(challenge.siteId, 'today-site');

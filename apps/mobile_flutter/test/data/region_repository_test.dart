@@ -23,15 +23,14 @@ TripRecord _trip({
   String countryCode = 'FR',
   DateTime? startedOn,
   DateTime? endedOn,
-}) =>
-    TripRecord(
-      id: id,
-      countryCode: countryCode,
-      startedOn: startedOn ?? DateTime.utc(2023, 1, 1),
-      endedOn: endedOn ?? DateTime.utc(2023, 1, 31),
-      photoCount: 1,
-      isManual: false,
-    );
+}) => TripRecord(
+  id: id,
+  countryCode: countryCode,
+  startedOn: startedOn ?? DateTime.utc(2023, 1, 1),
+  endedOn: endedOn ?? DateTime.utc(2023, 1, 31),
+  photoCount: 1,
+  isManual: false,
+);
 
 RegionVisit _visit({
   String tripId = 'FR_2023-01-01T00:00:00.000Z',
@@ -40,15 +39,14 @@ RegionVisit _visit({
   DateTime? firstSeen,
   DateTime? lastSeen,
   int photoCount = 3,
-}) =>
-    RegionVisit(
-      tripId: tripId,
-      countryCode: countryCode,
-      regionCode: regionCode,
-      firstSeen: firstSeen ?? DateTime.utc(2023, 1, 5),
-      lastSeen: lastSeen ?? DateTime.utc(2023, 1, 10),
-      photoCount: photoCount,
-    );
+}) => RegionVisit(
+  tripId: tripId,
+  countryCode: countryCode,
+  regionCode: regionCode,
+  firstSeen: firstSeen ?? DateTime.utc(2023, 1, 5),
+  lastSeen: lastSeen ?? DateTime.utc(2023, 1, 10),
+  photoCount: photoCount,
+);
 
 void main() {
   // ── upsertAll / loadByCountry ─────────────────────────────────────────────
@@ -81,7 +79,10 @@ void main() {
       ]);
       final loaded = await repo.loadByCountry('FR');
       expect(loaded, hasLength(2));
-      expect(loaded.map((r) => r.regionCode), containsAll(['FR-IDF', 'FR-ARA']));
+      expect(
+        loaded.map((r) => r.regionCode),
+        containsAll(['FR-IDF', 'FR-ARA']),
+      );
     });
 
     test('loadByCountry does not return other countries', () async {
@@ -89,23 +90,27 @@ void main() {
       await repo.upsertAll([
         _visit(countryCode: 'FR', regionCode: 'FR-IDF'),
         _visit(
-            tripId: 'US_2023-01-01T00:00:00.000Z',
-            countryCode: 'US',
-            regionCode: 'US-CA'),
+          tripId: 'US_2023-01-01T00:00:00.000Z',
+          countryCode: 'US',
+          regionCode: 'US-CA',
+        ),
       ]);
       final loaded = await repo.loadByCountry('FR');
       expect(loaded, hasLength(1));
       expect(loaded.first.countryCode, 'FR');
     });
 
-    test('duplicate upsert (same tripId + regionCode) replaces existing row', () async {
-      final repo = _makeRepo();
-      await repo.upsertAll([_visit(photoCount: 2)]);
-      await repo.upsertAll([_visit(photoCount: 5)]);
-      final loaded = await repo.loadByCountry('FR');
-      expect(loaded, hasLength(1));
-      expect(loaded.first.photoCount, 5);
-    });
+    test(
+      'duplicate upsert (same tripId + regionCode) replaces existing row',
+      () async {
+        final repo = _makeRepo();
+        await repo.upsertAll([_visit(photoCount: 2)]);
+        await repo.upsertAll([_visit(photoCount: 5)]);
+        final loaded = await repo.loadByCountry('FR');
+        expect(loaded, hasLength(1));
+        expect(loaded.first.photoCount, 5);
+      },
+    );
 
     test('no-op for empty list', () async {
       final repo = _makeRepo();
@@ -127,9 +132,10 @@ void main() {
       await repo.upsertAll([
         _visit(tripId: 'FR_2023-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
         _visit(
-            tripId: 'US_2023-06-01T00:00:00.000Z',
-            countryCode: 'US',
-            regionCode: 'US-CA'),
+          tripId: 'US_2023-06-01T00:00:00.000Z',
+          countryCode: 'US',
+          regionCode: 'US-CA',
+        ),
       ]);
       final loaded = await repo.loadByTrip('FR_2023-01-01T00:00:00.000Z');
       expect(loaded, hasLength(1));
@@ -146,8 +152,10 @@ void main() {
       ]);
       final loaded = await repo.loadByTrip(tripId);
       expect(loaded, hasLength(3));
-      expect(loaded.map((r) => r.regionCode),
-          containsAll(['US-CA', 'US-NV', 'US-AZ']));
+      expect(
+        loaded.map((r) => r.regionCode),
+        containsAll(['US-CA', 'US-NV', 'US-AZ']),
+      );
     });
   });
 
@@ -168,17 +176,15 @@ void main() {
     test('does not delete visits for other trips', () async {
       final repo = _makeRepo();
       await repo.upsertAll([
+        _visit(tripId: 'FR_2023-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
         _visit(
-            tripId: 'FR_2023-01-01T00:00:00.000Z',
-            regionCode: 'FR-IDF'),
-        _visit(
-            tripId: 'US_2023-06-01T00:00:00.000Z',
-            countryCode: 'US',
-            regionCode: 'US-CA'),
+          tripId: 'US_2023-06-01T00:00:00.000Z',
+          countryCode: 'US',
+          regionCode: 'US-CA',
+        ),
       ]);
       await repo.deleteByTrip('FR_2023-01-01T00:00:00.000Z');
-      final remaining =
-          await repo.loadByTrip('US_2023-06-01T00:00:00.000Z');
+      final remaining = await repo.loadByTrip('US_2023-06-01T00:00:00.000Z');
       expect(remaining, hasLength(1));
       expect(remaining.first.regionCode, 'US-CA');
     });
@@ -211,10 +217,8 @@ void main() {
       final repo = _makeRepo();
       // Same region visited on two different trips
       await repo.upsertAll([
-        _visit(
-            tripId: 'FR_2023-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
-        _visit(
-            tripId: 'FR_2024-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
+        _visit(tripId: 'FR_2023-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
+        _visit(tripId: 'FR_2024-01-01T00:00:00.000Z', regionCode: 'FR-IDF'),
       ]);
       expect(await repo.countUnique(), 1);
     });
@@ -285,25 +289,27 @@ void main() {
       expect(codes.first, 'FR-IDF');
     });
 
-    test('deduplicates region codes when multiple photos share the same region',
-        () async {
-      final (visitRepo, regionRepo) = _makeRepoWithVisits();
-      await visitRepo.savePhotoDates([
-        PhotoDateRecord(
-          countryCode: 'FR',
-          capturedAt: DateTime.utc(2023, 1, 5),
-          regionCode: 'FR-IDF',
-        ),
-        PhotoDateRecord(
-          countryCode: 'FR',
-          capturedAt: DateTime.utc(2023, 1, 12),
-          regionCode: 'FR-IDF',
-        ),
-      ]);
-      final codes = await regionRepo.loadRegionCodesForTrip(_trip());
-      expect(codes, hasLength(1));
-      expect(codes.first, 'FR-IDF');
-    });
+    test(
+      'deduplicates region codes when multiple photos share the same region',
+      () async {
+        final (visitRepo, regionRepo) = _makeRepoWithVisits();
+        await visitRepo.savePhotoDates([
+          PhotoDateRecord(
+            countryCode: 'FR',
+            capturedAt: DateTime.utc(2023, 1, 5),
+            regionCode: 'FR-IDF',
+          ),
+          PhotoDateRecord(
+            countryCode: 'FR',
+            capturedAt: DateTime.utc(2023, 1, 12),
+            regionCode: 'FR-IDF',
+          ),
+        ]);
+        final codes = await regionRepo.loadRegionCodesForTrip(_trip());
+        expect(codes, hasLength(1));
+        expect(codes.first, 'FR-IDF');
+      },
+    );
 
     test('excludes photos from other countries', () async {
       final (visitRepo, regionRepo) = _makeRepoWithVisits();
@@ -333,9 +339,10 @@ void main() {
       await repo.upsertAll([
         _visit(regionCode: 'FR-IDF'),
         _visit(
-            tripId: 'US_2023-06-01T00:00:00.000Z',
-            countryCode: 'US',
-            regionCode: 'US-CA'),
+          tripId: 'US_2023-06-01T00:00:00.000Z',
+          countryCode: 'US',
+          regionCode: 'US-CA',
+        ),
       ]);
       await repo.clearAll();
       expect(await repo.loadByCountry('FR'), isEmpty);
@@ -352,76 +359,131 @@ void main() {
   // T3.11 — Region repository continent rollup ───────────────────────────────
 
   group('RegionRepository — continent rollup via country code', () {
-    test('visits with known Europe country codes (GB, FR, DE) are stored and retrievable', () async {
-      final repo = _makeRepo();
-      // GB, FR, DE all map to 'Europe' in kCountryContinent.
-      await repo.upsertAll([
-        _visit(tripId: 'GB_2023-01-01T00:00:00.000Z', countryCode: 'GB', regionCode: 'GB-ENG'),
-        _visit(tripId: 'FR_2023-01-01T00:00:00.000Z', countryCode: 'FR', regionCode: 'FR-IDF'),
-        _visit(tripId: 'DE_2023-01-01T00:00:00.000Z', countryCode: 'DE', regionCode: 'DE-BE'),
-      ]);
+    test(
+      'visits with known Europe country codes (GB, FR, DE) are stored and retrievable',
+      () async {
+        final repo = _makeRepo();
+        // GB, FR, DE all map to 'Europe' in kCountryContinent.
+        await repo.upsertAll([
+          _visit(
+            tripId: 'GB_2023-01-01T00:00:00.000Z',
+            countryCode: 'GB',
+            regionCode: 'GB-ENG',
+          ),
+          _visit(
+            tripId: 'FR_2023-01-01T00:00:00.000Z',
+            countryCode: 'FR',
+            regionCode: 'FR-IDF',
+          ),
+          _visit(
+            tripId: 'DE_2023-01-01T00:00:00.000Z',
+            countryCode: 'DE',
+            regionCode: 'DE-BE',
+          ),
+        ]);
 
-      final all = await repo.loadAll();
-      final countryCodes = all.map((v) => v.countryCode).toSet();
-      expect(countryCodes, containsAll(['GB', 'FR', 'DE']));
+        final all = await repo.loadAll();
+        final countryCodes = all.map((v) => v.countryCode).toSet();
+        expect(countryCodes, containsAll(['GB', 'FR', 'DE']));
 
-      // Verify continent lookup doesn't crash (kCountryContinent used externally).
-      for (final v in all) {
-        final continent = kCountryContinent[v.countryCode];
-        expect(continent, isNotNull,
-            reason: '${v.countryCode} should have a known continent');
-      }
-    });
+        // Verify continent lookup doesn't crash (kCountryContinent used externally).
+        for (final v in all) {
+          final continent = kCountryContinent[v.countryCode];
+          expect(
+            continent,
+            isNotNull,
+            reason: '${v.countryCode} should have a known continent',
+          );
+        }
+      },
+    );
 
-    test('mixed-continent visits produce correct per-country groupings', () async {
-      final repo = _makeRepo();
-      // Europe: GB, France; Asia: JP; Americas: US
-      await repo.upsertAll([
-        _visit(tripId: 'GB_2023-01-01T00:00:00.000Z', countryCode: 'GB', regionCode: 'GB-ENG'),
-        _visit(tripId: 'JP_2023-01-01T00:00:00.000Z', countryCode: 'JP', regionCode: 'JP-13'),
-        _visit(tripId: 'US_2023-01-01T00:00:00.000Z', countryCode: 'US', regionCode: 'US-NY'),
-      ]);
+    test(
+      'mixed-continent visits produce correct per-country groupings',
+      () async {
+        final repo = _makeRepo();
+        // Europe: GB, France; Asia: JP; Americas: US
+        await repo.upsertAll([
+          _visit(
+            tripId: 'GB_2023-01-01T00:00:00.000Z',
+            countryCode: 'GB',
+            regionCode: 'GB-ENG',
+          ),
+          _visit(
+            tripId: 'JP_2023-01-01T00:00:00.000Z',
+            countryCode: 'JP',
+            regionCode: 'JP-13',
+          ),
+          _visit(
+            tripId: 'US_2023-01-01T00:00:00.000Z',
+            countryCode: 'US',
+            regionCode: 'US-NY',
+          ),
+        ]);
 
-      final gbVisits = await repo.loadByCountry('GB');
-      final jpVisits = await repo.loadByCountry('JP');
-      final usVisits = await repo.loadByCountry('US');
+        final gbVisits = await repo.loadByCountry('GB');
+        final jpVisits = await repo.loadByCountry('JP');
+        final usVisits = await repo.loadByCountry('US');
 
-      expect(gbVisits, hasLength(1));
-      expect(jpVisits, hasLength(1));
-      expect(usVisits, hasLength(1));
+        expect(gbVisits, hasLength(1));
+        expect(jpVisits, hasLength(1));
+        expect(usVisits, hasLength(1));
 
-      // Continent lookups for each.
-      expect(kCountryContinent['GB'], 'Europe');
-      expect(kCountryContinent['JP'], 'Asia');
-      expect(kCountryContinent['US'], 'North America');
-    });
+        // Continent lookups for each.
+        expect(kCountryContinent['GB'], 'Europe');
+        expect(kCountryContinent['JP'], 'Asia');
+        expect(kCountryContinent['US'], 'North America');
+      },
+    );
 
-    test('unknown or unmapped country code in a visit does not crash the repository', () async {
-      final repo = _makeRepo();
-      // 'XX' is not in kCountryContinent — verify the repository handles it gracefully.
-      await repo.upsertAll([
-        _visit(tripId: 'XX_2023-01-01T00:00:00.000Z', countryCode: 'XX', regionCode: 'XX-01'),
-      ]);
+    test(
+      'unknown or unmapped country code in a visit does not crash the repository',
+      () async {
+        final repo = _makeRepo();
+        // 'XX' is not in kCountryContinent — verify the repository handles it gracefully.
+        await repo.upsertAll([
+          _visit(
+            tripId: 'XX_2023-01-01T00:00:00.000Z',
+            countryCode: 'XX',
+            regionCode: 'XX-01',
+          ),
+        ]);
 
-      // Repository operation should not throw.
-      final visits = await repo.loadByCountry('XX');
-      expect(visits, hasLength(1));
+        // Repository operation should not throw.
+        final visits = await repo.loadByCountry('XX');
+        expect(visits, hasLength(1));
 
-      // kCountryContinent returns null for unknown codes — not a crash.
-      expect(kCountryContinent['XX'], isNull);
-    });
+        // kCountryContinent returns null for unknown codes — not a crash.
+        expect(kCountryContinent['XX'], isNull);
+      },
+    );
 
-    test('loadAll returns visits across all continents without filtering', () async {
-      final repo = _makeRepo();
-      await repo.upsertAll([
-        _visit(tripId: 'GB_2023-01-01T00:00:00.000Z', countryCode: 'GB', regionCode: 'GB-ENG'),
-        _visit(tripId: 'ZA_2023-01-01T00:00:00.000Z', countryCode: 'ZA', regionCode: 'ZA-WC'),
-        _visit(tripId: 'AU_2023-01-01T00:00:00.000Z', countryCode: 'AU', regionCode: 'AU-NSW'),
-      ]);
+    test(
+      'loadAll returns visits across all continents without filtering',
+      () async {
+        final repo = _makeRepo();
+        await repo.upsertAll([
+          _visit(
+            tripId: 'GB_2023-01-01T00:00:00.000Z',
+            countryCode: 'GB',
+            regionCode: 'GB-ENG',
+          ),
+          _visit(
+            tripId: 'ZA_2023-01-01T00:00:00.000Z',
+            countryCode: 'ZA',
+            regionCode: 'ZA-WC',
+          ),
+          _visit(
+            tripId: 'AU_2023-01-01T00:00:00.000Z',
+            countryCode: 'AU',
+            regionCode: 'AU-NSW',
+          ),
+        ]);
 
-      final all = await repo.loadAll();
-      // All three visits from Europe, Africa, and Oceania should be returned.
-      expect(all, hasLength(3));
-    });
+        final all = await repo.loadAll();
+        // All three visits from Europe, Africa, and Oceania should be returned.
+        expect(all, hasLength(3));
+      },
+    );
   });
 }

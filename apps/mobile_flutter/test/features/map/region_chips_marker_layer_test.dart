@@ -56,27 +56,32 @@ void main() {
       expect(find.byType(FlutterMap), findsOneWidget);
     });
 
-    testWidgets('renders without crash at zoom < 4 (returns empty MarkerLayer)',
-        (tester) async {
-      await tester.pumpWidget(_pumpLayer(zoom: 2.0));
-      await tester.pumpAndSettle();
-      // Below zoom 4 the layer returns an empty MarkerLayer — no crash.
-      expect(find.byType(FlutterMap), findsOneWidget);
-      // No chip text visible at this zoom.
-      expect(find.textContaining('/'), findsNothing);
-    });
+    testWidgets(
+      'renders without crash at zoom < 4 (returns empty MarkerLayer)',
+      (tester) async {
+        await tester.pumpWidget(_pumpLayer(zoom: 2.0));
+        await tester.pumpAndSettle();
+        // Below zoom 4 the layer returns an empty MarkerLayer — no crash.
+        expect(find.byType(FlutterMap), findsOneWidget);
+        // No chip text visible at this zoom.
+        expect(find.textContaining('/'), findsNothing);
+      },
+    );
 
-    testWidgets('renders without crash when visits are present at zoom ≥ 4',
-        (tester) async {
-      await tester.pumpWidget(_pumpLayer(
-        zoom: 5.0,
-        visits: [
-          const EffectiveVisitedCountry(
-            countryCode: 'GB',
-            hasPhotoEvidence: true,
-          ),
-        ],
-      ));
+    testWidgets('renders without crash when visits are present at zoom ≥ 4', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _pumpLayer(
+          zoom: 5.0,
+          visits: [
+            const EffectiveVisitedCountry(
+              countryCode: 'GB',
+              hasPhotoEvidence: true,
+            ),
+          ],
+        ),
+      );
       await tester.pumpAndSettle();
       // Layer builds without error — correct marker count is verified below
       // via unit-level computeRegionProgress (tested in region_progress_notifier_test).
@@ -100,9 +105,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: Center(child: _TestableRegionChip(data: data)),
-          ),
+          home: Scaffold(body: Center(child: _TestableRegionChip(data: data))),
         ),
       );
       await tester.pumpAndSettle();

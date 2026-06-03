@@ -118,7 +118,8 @@ class NotificationService {
     if (details == null || !details.didNotificationLaunchApp) return null;
     final payload = details.notificationResponse?.payload;
     if (payload == null || !payload.startsWith('memoryPulse:')) return null;
-    if (payload.startsWith('memoryPulse:country:')) return null; // handled separately
+    if (payload.startsWith('memoryPulse:country:'))
+      return null; // handled separately
     return payload.substring(12);
   }
 
@@ -129,7 +130,8 @@ class NotificationService {
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details == null || !details.didNotificationLaunchApp) return null;
     final payload = details.notificationResponse?.payload;
-    if (payload == null || !payload.startsWith('memoryPulse:country:')) return null;
+    if (payload == null || !payload.startsWith('memoryPulse:country:'))
+      return null;
     return payload.substring(20);
   }
 
@@ -137,8 +139,11 @@ class NotificationService {
   /// Call once, after the first successful scan (ADR-056).
   Future<bool> requestPermission() async {
     if (!_initialized) return false;
-    final impl = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final impl =
+        _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
     if (impl == null) return false;
     final granted = await impl.requestPermissions(
       alert: true,
@@ -152,8 +157,11 @@ class NotificationService {
   /// (i.e. the user has already been prompted — granted or denied).
   Future<bool> hasRequestedPermission() async {
     if (!_initialized) return false;
-    final impl = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final impl =
+        _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
     if (impl == null) return false;
     final settings = await impl.checkPermissions();
     // isEnabled is null only when status is truly undetermined (never asked).
@@ -212,7 +220,7 @@ class NotificationService {
   /// `pendingMemoryCountryCode` (payload `memoryPulse:country:XX`). (M118)
   Future<void> scheduleMemoryPulseBatch(
     List<({DateTime deliverAt, String countryCode, String title, String body})>
-        anniversaries,
+    anniversaries,
   ) async {
     if (!_initialized) return;
 

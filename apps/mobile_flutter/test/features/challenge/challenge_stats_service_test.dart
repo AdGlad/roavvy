@@ -19,14 +19,13 @@ Future<void> _record(
   required bool solved,
   int guesses = 0,
   int clues = 1,
-}) =>
-    svc.record(
-      date: _date(daysAgo),
-      siteId: 'test-$daysAgo',
-      solved: solved,
-      guessesUsed: guesses,
-      cluesUsed: clues,
-    );
+}) => svc.record(
+  date: _date(daysAgo),
+  siteId: 'test-$daysAgo',
+  solved: solved,
+  guessesUsed: guesses,
+  cluesUsed: clues,
+);
 
 void main() {
   group('ChallengeStatsService.last30Days', () {

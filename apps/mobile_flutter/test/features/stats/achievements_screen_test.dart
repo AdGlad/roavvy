@@ -28,18 +28,20 @@ Future<void> _pump(
   final db = _makeDb();
   final vr = visitRepo ?? VisitRepository(db);
 
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      roavvyDatabaseProvider.overrideWithValue(db),
-      visitRepositoryProvider.overrideWithValue(vr),
-      achievementRepositoryProvider.overrideWithValue(achievementRepo),
-      regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
-      tripRepositoryProvider.overrideWithValue(TripRepository(db)),
-      heritageRepositoryProvider.overrideWithValue(HeritageRepository(db)),
-      polygonsProvider.overrideWithValue(const []),
-    ],
-    child: const MaterialApp(home: AchievementsScreen()),
-  ));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        roavvyDatabaseProvider.overrideWithValue(db),
+        visitRepositoryProvider.overrideWithValue(vr),
+        achievementRepositoryProvider.overrideWithValue(achievementRepo),
+        regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
+        tripRepositoryProvider.overrideWithValue(TripRepository(db)),
+        heritageRepositoryProvider.overrideWithValue(HeritageRepository(db)),
+        polygonsProvider.overrideWithValue(const []),
+      ],
+      child: const MaterialApp(home: AchievementsScreen()),
+    ),
+  );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
 }
@@ -55,8 +57,9 @@ void main() {
       expect(find.text('Achievements'), findsWidgets);
     });
 
-    testWidgets('renders without exception when no achievements unlocked',
-        (tester) async {
+    testWidgets('renders without exception when no achievements unlocked', (
+      tester,
+    ) async {
       final db = _makeDb();
       await _pump(tester, achievementRepo: AchievementRepository(db));
 
@@ -87,8 +90,9 @@ void main() {
       expect(find.textContaining('First'), findsWidgets);
     });
 
-    testWidgets('screen stays stable with multiple unlocked achievements',
-        (tester) async {
+    testWidgets('screen stays stable with multiple unlocked achievements', (
+      tester,
+    ) async {
       final db = _makeDb();
       final repo = AchievementRepository(db);
       await repo.upsertAll({'countries_1'}, DateTime.utc(2026, 1, 1));

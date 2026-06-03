@@ -12,8 +12,8 @@ class HeroCacheValidator {
   const HeroCacheValidator({
     required HeroImageRepository repository,
     HeroAnalysisChannel? channel,
-  })  : _repository = repository,
-        _channel = channel;
+  }) : _repository = repository,
+       _channel = channel;
 
   final HeroImageRepository _repository;
   final HeroAnalysisChannel? _channel;

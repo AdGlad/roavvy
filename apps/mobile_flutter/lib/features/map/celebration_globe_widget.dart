@@ -167,8 +167,7 @@ class _CelebrationGlobeWidgetState extends ConsumerState<CelebrationGlobeWidget>
     });
   }
 
-  static double _lerpDouble(double a, double b, double t) =>
-      a + (b - a) * t;
+  static double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
 
   @override
   void dispose() {

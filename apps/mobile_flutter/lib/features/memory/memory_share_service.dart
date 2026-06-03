@@ -30,9 +30,10 @@ class MemoryShareService {
     MemoryAnniversaryPhoto hero,
   ) async {
     final countryCode = hero.countryCode ?? '';
-    final countryName = countryCode.isNotEmpty
-        ? (kCountryNames[countryCode] ?? countryCode)
-        : 'A travel memory';
+    final countryName =
+        countryCode.isNotEmpty
+            ? (kCountryNames[countryCode] ?? countryCode)
+            : 'A travel memory';
     final flagEmoji = countryCode.isNotEmpty ? _flagEmoji(countryCode) : '';
     final dateStr = _formatDate(hero.capturedAt);
 
@@ -75,8 +76,12 @@ class MemoryShareService {
     await Share.shareXFiles(
       [XFile(file.path)],
       subject: 'A travel memory on Roavvy',
-      sharePositionOrigin:
-          Rect.fromLTWH(size.width / 2 - 22, size.height - 88, 44, 44),
+      sharePositionOrigin: Rect.fromLTWH(
+        size.width / 2 - 22,
+        size.height - 88,
+        44,
+        44,
+      ),
     );
   }
 
@@ -105,16 +110,14 @@ class MemoryShareService {
     } else {
       // Fallback: continent gradient.
       final colors = _continentGradient(countryCode);
-      final paint = Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(0, 0),
-          const Offset(_kSize, _kSize),
-          colors,
-        );
-      canvas.drawRect(
-        const Rect.fromLTWH(0, 0, _kSize, _kSize),
-        paint,
-      );
+      final paint =
+          Paint()
+            ..shader = ui.Gradient.linear(
+              const Offset(0, 0),
+              const Offset(_kSize, _kSize),
+              colors,
+            );
+      canvas.drawRect(const Rect.fromLTWH(0, 0, _kSize, _kSize), paint);
 
       // Centred flag emoji for fallback.
       _drawText(
@@ -130,14 +133,19 @@ class MemoryShareService {
 
     // Bottom gradient overlay (bottom 40%).
     const gradientTop = _kSize * 0.6;
-    const gradientRect =
-        Rect.fromLTWH(0, gradientTop, _kSize, _kSize - gradientTop);
-    final gradientPaint = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(0, gradientTop),
-        const Offset(0, _kSize),
-        [Colors.transparent, const Color(0xCC000000)],
-      );
+    const gradientRect = Rect.fromLTWH(
+      0,
+      gradientTop,
+      _kSize,
+      _kSize - gradientTop,
+    );
+    final gradientPaint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            const Offset(0, gradientTop),
+            const Offset(0, _kSize),
+            [Colors.transparent, const Color(0xCC000000)],
+          );
     canvas.drawRect(gradientRect, gradientPaint);
 
     // Flag emoji + country name.
@@ -194,17 +202,25 @@ class MemoryShareService {
     ui.TextAlign align = ui.TextAlign.left,
     double maxWidth = _kSize,
   }) {
-    final pb = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        textAlign: align,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-      ),
-    )
-      ..pushStyle(ui.TextStyle(color: color, fontSize: fontSize, fontWeight: fontWeight))
-      ..addText(text);
+    final pb =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              textAlign: align,
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+            ),
+          )
+          ..pushStyle(
+            ui.TextStyle(
+              color: color,
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+            ),
+          )
+          ..addText(text);
 
-    final paragraph = pb.build()..layout(ui.ParagraphConstraints(width: maxWidth));
+    final paragraph =
+        pb.build()..layout(ui.ParagraphConstraints(width: maxWidth));
 
     final dx = align == ui.TextAlign.right ? x - paragraph.longestLine : x;
     canvas.drawParagraph(paragraph, Offset(dx, y));
@@ -226,8 +242,18 @@ class MemoryShareService {
 
   static String _formatDate(DateTime dt) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
@@ -245,7 +271,7 @@ class MemoryShareService {
     };
 
     // Use country_lookup continent if available; fall back to a default.
-    return gradients['EU'] ?? [const Color(0xFF1565C0), const Color(0xFF0D47A1)];
+    return gradients['EU'] ??
+        [const Color(0xFF1565C0), const Color(0xFF0D47A1)];
   }
 }
-

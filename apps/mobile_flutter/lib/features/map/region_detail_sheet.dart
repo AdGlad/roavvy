@@ -40,10 +40,7 @@ void showRegionDetailSheet(
 // ── Sheet content ─────────────────────────────────────────────────────────────
 
 class _RegionDetailSheetContent extends StatelessWidget {
-  const _RegionDetailSheetContent({
-    required this.data,
-    required this.visits,
-  });
+  const _RegionDetailSheetContent({required this.data, required this.visits});
 
   final RegionProgressData data;
   final List<EffectiveVisitedCountry> visits;
@@ -108,9 +105,7 @@ class _RegionDetailSheetContent extends StatelessWidget {
                         ),
                         Text(
                           '${data.visitedCount} of ${data.totalCount} countries',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
+                          style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: Colors.grey.shade600),
                         ),
                       ],
@@ -139,8 +134,11 @@ class _RegionDetailSheetContent extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.flag_outlined,
-                          color: Color(0xFFFF8F00), size: 18),
+                      const Icon(
+                        Icons.flag_outlined,
+                        color: Color(0xFFFF8F00),
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -171,10 +169,9 @@ class _RegionDetailSheetContent extends StatelessWidget {
                       color: const Color(0xFF388E3C),
                     ),
                     const SizedBox(height: 4),
-                    ...visitedInRegion.map((code) => _CountryTile(
-                          code: code,
-                          visited: true,
-                        )),
+                    ...visitedInRegion.map(
+                      (code) => _CountryTile(code: code, visited: true),
+                    ),
                     const SizedBox(height: 16),
                   ],
                   if (unvisitedInRegion.isNotEmpty) ...[
@@ -183,10 +180,9 @@ class _RegionDetailSheetContent extends StatelessWidget {
                       color: Colors.grey.shade600,
                     ),
                     const SizedBox(height: 4),
-                    ...unvisitedInRegion.map((code) => _CountryTile(
-                          code: code,
-                          visited: false,
-                        )),
+                    ...unvisitedInRegion.map(
+                      (code) => _CountryTile(code: code, visited: false),
+                    ),
                     const SizedBox(height: 24),
                   ],
                 ],

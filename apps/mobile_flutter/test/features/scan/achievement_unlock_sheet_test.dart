@@ -11,14 +11,16 @@ Future<void> pumpSheet(WidgetTester tester) async {
     MaterialApp(
       home: Scaffold(
         body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => AchievementUnlockSheet.show(
-              context,
-              achievement: _achievement,
-              unlockedAt: _unlockedAt,
-            ),
-            child: const Text('Open'),
-          ),
+          builder:
+              (context) => ElevatedButton(
+                onPressed:
+                    () => AchievementUnlockSheet.show(
+                      context,
+                      achievement: _achievement,
+                      unlockedAt: _unlockedAt,
+                    ),
+                child: const Text('Open'),
+              ),
         ),
       ),
     ),

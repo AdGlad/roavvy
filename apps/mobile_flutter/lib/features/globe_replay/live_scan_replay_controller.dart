@@ -71,6 +71,7 @@ class LiveScanReplayController extends ChangeNotifier {
   // ── First-visit discovery (M133) ───────────────────────────────────────────
   double flagRevealProgress = 0.0;
   double flagFlightProgress = 0.0;
+
   /// Countries committed to the bottom collection row after fly-in animation.
   List<String> collectedCodes = const [];
 
@@ -178,17 +179,20 @@ class LiveScanReplayController extends ChangeNotifier {
         );
       case HeritageSiteDiscoveredEvent e:
         _pendingOverlayEvents.add(
-            ReplayHeritageEvent(siteName: e.siteName, siteType: e.siteType));
+          ReplayHeritageEvent(siteName: e.siteName, siteType: e.siteType),
+        );
         // Accumulate heritage dot on globe.
         // Coords unknown at this point; omit from visitedHeritageSiteCoords
         // (they are only available when site lat/lng is forwarded from scan).
         _processNextEvent(); // consume until next CountryDiscovered
       case AchievementUnlockedEvent e:
-        _pendingOverlayEvents.add(ReplayAchievementEvent(
-          achievementId: e.achievementId,
-          title: e.title,
-          subtitle: e.subtitle,
-        ));
+        _pendingOverlayEvents.add(
+          ReplayAchievementEvent(
+            achievementId: e.achievementId,
+            title: e.title,
+            subtitle: e.subtitle,
+          ),
+        );
         _processNextEvent();
       case ScanProgressUpdatedEvent e:
         processedCount = e.processedCount;
@@ -245,15 +249,19 @@ class LiveScanReplayController extends ChangeNotifier {
 
   void _runDepartureSettle(TravelLeg leg, List<ReplayOverlayEvent> overlays) {
     final pacing = _pacingFor(leg);
-    final fromLat = leg.hasFromGps
-        ? leg.fromLat! * math.pi / 180.0
-        : _centroidLat(leg.fromCode);
-    final fromLng = leg.hasFromGps
-        ? -(leg.fromLng! * math.pi / 180.0)
-        : _centroidLng(leg.fromCode);
+    final fromLat =
+        leg.hasFromGps
+            ? leg.fromLat! * math.pi / 180.0
+            : _centroidLat(leg.fromCode);
+    final fromLng =
+        leg.hasFromGps
+            ? -(leg.fromLng! * math.pi / 180.0)
+            : _centroidLng(leg.fromCode);
 
     final settleMs =
-        reducedMotion ? pacing.departureSettleMs ~/ 2 : pacing.departureSettleMs;
+        reducedMotion
+            ? pacing.departureSettleMs ~/ 2
+            : pacing.departureSettleMs;
     final startProjection = projection;
     final ctrl = _makeCtrl(Duration(milliseconds: settleMs));
     _phaseCtrl = ctrl;
@@ -292,18 +300,20 @@ class LiveScanReplayController extends ChangeNotifier {
 
   void _runFlight(TravelLeg leg, List<ReplayOverlayEvent> overlays) {
     final pacing = _pacingFor(leg);
-    final fromLat = leg.hasFromGps
-        ? leg.fromLat! * math.pi / 180.0
-        : _centroidLat(leg.fromCode);
-    final fromLng = leg.hasFromGps
-        ? -(leg.fromLng! * math.pi / 180.0)
-        : _centroidLng(leg.fromCode);
-    final toLat = leg.hasToGps
-        ? leg.toLat! * math.pi / 180.0
-        : _centroidLat(leg.toCode);
-    final toLng = leg.hasToGps
-        ? -(leg.toLng! * math.pi / 180.0)
-        : _centroidLng(leg.toCode);
+    final fromLat =
+        leg.hasFromGps
+            ? leg.fromLat! * math.pi / 180.0
+            : _centroidLat(leg.fromCode);
+    final fromLng =
+        leg.hasFromGps
+            ? -(leg.fromLng! * math.pi / 180.0)
+            : _centroidLng(leg.fromCode);
+    final toLat =
+        leg.hasToGps ? leg.toLat! * math.pi / 180.0 : _centroidLat(leg.toCode);
+    final toLng =
+        leg.hasToGps
+            ? -(leg.toLng! * math.pi / 180.0)
+            : _centroidLng(leg.toCode);
 
     final flightMs = reducedMotion ? pacing.flightMs ~/ 2 : pacing.flightMs;
     final ctrl = _makeCtrl(Duration(milliseconds: flightMs));
@@ -324,8 +334,9 @@ class LiveScanReplayController extends ChangeNotifier {
 
       final newLat = _lerp(fromLat, toLat, camT);
       final newLng = _lerpAngle(fromLng, toLng, camT);
-      final newScale = _lerp(1.7, pacing.peakScale, rawT)
-          - dipAmount * math.sin(math.pi * rawT);
+      final newScale =
+          _lerp(1.7, pacing.peakScale, rawT) -
+          dipAmount * math.sin(math.pi * rawT);
 
       projection = projection.copyWith(
         rotLat: newLat,
@@ -496,7 +507,8 @@ class LiveScanReplayController extends ChangeNotifier {
       departureSettleMs: _kDepartureSettleMs,
       departureHoldMs: _kDepartureHoldMs,
       flightMs: TravelReplayScriptBuilder.legDurationMs(
-          (currentLegIndex + 1).clamp(1, 100)),
+        (currentLegIndex + 1).clamp(1, 100),
+      ),
       pulseMs: _kPulseMs,
       holdMs: _kHoldMs,
       peakScale: ReplayPacingRules.peakScaleForArc(dist),
@@ -506,13 +518,17 @@ class LiveScanReplayController extends ChangeNotifier {
 
   AnimationController _makeCtrl(Duration duration) {
     _phaseCtrl?.dispose();
-    final ms = speedMultiplier <= 1.0
-        ? duration.inMilliseconds
-        : (duration.inMilliseconds / speedMultiplier)
-            .round()
-            .clamp(30, duration.inMilliseconds);
+    final ms =
+        speedMultiplier <= 1.0
+            ? duration.inMilliseconds
+            : (duration.inMilliseconds / speedMultiplier).round().clamp(
+              30,
+              duration.inMilliseconds,
+            );
     return AnimationController(
-        vsync: _vsync, duration: Duration(milliseconds: ms));
+      vsync: _vsync,
+      duration: Duration(milliseconds: ms),
+    );
   }
 
   void _callAudio(String kind, {TravelLeg? leg}) {

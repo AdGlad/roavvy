@@ -16,12 +16,11 @@ class CountriesListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sorted = [...visits]
-      ..sort((a, b) {
-        final na = kCountryNames[a.countryCode] ?? a.countryCode;
-        final nb = kCountryNames[b.countryCode] ?? b.countryCode;
-        return na.compareTo(nb);
-      });
+    final sorted = [...visits]..sort((a, b) {
+      final na = kCountryNames[a.countryCode] ?? a.countryCode;
+      final nb = kCountryNames[b.countryCode] ?? b.countryCode;
+      return na.compareTo(nb);
+    });
 
     final count = visits.length;
     final title = '$count ${count == 1 ? 'country' : 'countries'} visited';
@@ -34,22 +33,25 @@ class CountriesListScreen extends StatelessWidget {
           final visit = sorted[i];
           final name = kCountryNames[visit.countryCode] ?? visit.countryCode;
           final flag = _flagEmoji(visit.countryCode);
-          final subtitle = visit.firstSeen != null
-              ? 'Since ${visit.firstSeen!.year}'
-              : visit.countryCode;
+          final subtitle =
+              visit.firstSeen != null
+                  ? 'Since ${visit.firstSeen!.year}'
+                  : visit.countryCode;
 
           return ListTile(
             leading: Text(flag, style: const TextStyle(fontSize: 28)),
             title: Text(name),
             subtitle: Text(subtitle),
-            onTap: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => CountryDetailSheet(
-                isoCode: visit.countryCode,
-                visit: visit,
-              ),
-            ),
+            onTap:
+                () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder:
+                      (_) => CountryDetailSheet(
+                        isoCode: visit.countryCode,
+                        visit: visit,
+                      ),
+                ),
           );
         },
       ),

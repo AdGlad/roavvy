@@ -69,10 +69,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   @override
   void initState() {
     super.initState();
-    _items = widget.initialVisits
-        .map(_ReviewItem.fromEffective)
-        .toList()
-      ..sort((a, b) => a.countryCode.compareTo(b.countryCode));
+    _items =
+        widget.initialVisits.map(_ReviewItem.fromEffective).toList()
+          ..sort((a, b) => a.countryCode.compareTo(b.countryCode));
   }
 
   void _remove(int index) {
@@ -108,9 +107,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
     try {
       // Snapshot prior achievement IDs before writing the delta.
       final achievementRepo = widget.achievementRepo;
-      final priorIds = achievementRepo != null
-          ? (await achievementRepo.loadAll()).toSet()
-          : const <String>{};
+      final priorIds =
+          achievementRepo != null
+              ? (await achievementRepo.loadAll()).toSet()
+              : const <String>{};
 
       var newlyAddedCount = 0;
       for (final item in _items) {
@@ -130,12 +130,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final xpNotifier = widget.xpNotifier;
       if (xpNotifier != null && newlyAddedCount > 0) {
         for (var i = 0; i < newlyAddedCount; i++) {
-          unawaited(xpNotifier.award(XpEvent(
-            id: '${now.microsecondsSinceEpoch}-review-$i',
-            reason: XpReason.newCountry,
-            amount: 50,
-            awardedAt: now,
-          )));
+          unawaited(
+            xpNotifier.award(
+              XpEvent(
+                id: '${now.microsecondsSinceEpoch}-review-$i',
+                reason: XpReason.newCountry,
+                amount: 50,
+                awardedAt: now,
+              ),
+            ),
+          );
         }
       }
 
@@ -154,8 +158,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final uid = widget.uid;
       final syncService = widget.syncService;
       if (uid != null && syncService != null) {
-        unawaited(syncService.flushDirty(uid, widget.repository,
-            achievementRepo: achievementRepo, tripRepo: widget.tripRepo));
+        unawaited(
+          syncService.flushDirty(
+            uid,
+            widget.repository,
+            achievementRepo: achievementRepo,
+            tripRepo: widget.tripRepo,
+          ),
+        );
       }
 
       if (!mounted) return;
@@ -176,13 +186,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
+            child:
+                _saving
+                    ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Text('Save'),
           ),
         ],
       ),
@@ -191,34 +202,37 @@ class _ReviewScreenState extends State<ReviewScreen> {
         tooltip: 'Add country',
         child: const Icon(Icons.add),
       ),
-      body: active.isEmpty && removed.isEmpty
-          ? const Center(child: Text('No countries yet. Tap + to add one.'))
-          : ListView(
-              children: [
-                if (active.isNotEmpty) ...[
-                  _SectionHeader(
-                    '${active.length} ${active.length == 1 ? 'country' : 'countries'} visited',
-                  ),
-                  ...active.map((item) {
-                    final index = _items.indexOf(item);
-                    return _VisitTile(
-                      item: item,
-                      onRemove: () => _remove(index),
-                    );
-                  }),
+      body:
+          active.isEmpty && removed.isEmpty
+              ? const Center(child: Text('No countries yet. Tap + to add one.'))
+              : ListView(
+                children: [
+                  if (active.isNotEmpty) ...[
+                    _SectionHeader(
+                      '${active.length} ${active.length == 1 ? 'country' : 'countries'} visited',
+                    ),
+                    ...active.map((item) {
+                      final index = _items.indexOf(item);
+                      return _VisitTile(
+                        item: item,
+                        onRemove: () => _remove(index),
+                      );
+                    }),
+                  ],
+                  if (removed.isNotEmpty) ...[
+                    const _SectionHeader(
+                      'Removed (will not re-appear after scan)',
+                    ),
+                    ...removed.map((item) {
+                      final index = _items.indexOf(item);
+                      return _RemovedTile(
+                        item: item,
+                        onUndo: () => _undoRemove(index),
+                      );
+                    }),
+                  ],
                 ],
-                if (removed.isNotEmpty) ...[
-                  const _SectionHeader('Removed (will not re-appear after scan)'),
-                  ...removed.map((item) {
-                    final index = _items.indexOf(item);
-                    return _RemovedTile(
-                      item: item,
-                      onUndo: () => _undoRemove(index),
-                    );
-                  }),
-                ],
-              ],
-            ),
+              ),
     );
   }
 }
@@ -227,16 +241,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
 class _ReviewItem {
   _ReviewItem.fromEffective(EffectiveVisitedCountry v)
-      : countryCode = v.countryCode,
-        isManual = !v.hasPhotoEvidence,
-        isNewlyAdded = false,
-        isPendingRemoval = false;
+    : countryCode = v.countryCode,
+      isManual = !v.hasPhotoEvidence,
+      isNewlyAdded = false,
+      isPendingRemoval = false;
 
   _ReviewItem.newCountry(String code)
-      : countryCode = code,
-        isManual = true,
-        isNewlyAdded = true,
-        isPendingRemoval = false;
+    : countryCode = code,
+      isManual = true,
+      isNewlyAdded = true,
+      isPendingRemoval = false;
 
   final String countryCode;
 
@@ -265,10 +279,9 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: Colors.grey.shade600),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: Colors.grey.shade600),
       ),
     );
   }
@@ -285,7 +298,9 @@ class _VisitTile extends StatelessWidget {
     return ListTile(
       title: Text(name),
       subtitle: Text(
-        item.isManual ? '${item.countryCode} · Added manually' : item.countryCode,
+        item.isManual
+            ? '${item.countryCode} · Added manually'
+            : item.countryCode,
         style: const TextStyle(fontSize: 11, color: Colors.grey),
       ),
       trailing: IconButton(
@@ -317,10 +332,7 @@ class _RemovedTile extends StatelessWidget {
         item.countryCode,
         style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
       ),
-      trailing: TextButton(
-        onPressed: onUndo,
-        child: const Text('Undo'),
-      ),
+      trailing: TextButton(onPressed: onUndo, child: const Text('Undo')),
     );
   }
 }
@@ -347,7 +359,9 @@ class _AddCountryDialogState extends State<_AddCountryDialog> {
   void _submit() {
     final code = _codeController.text.trim().toUpperCase();
     if (!RegExp(r'^[A-Z]{2}$').hasMatch(code)) {
-      setState(() => _error = 'Enter a 2-letter ISO country code (e.g. GB, JP, US)');
+      setState(
+        () => _error = 'Enter a 2-letter ISO country code (e.g. GB, JP, US)',
+      );
       return;
     }
     Navigator.of(context).pop(code);
@@ -379,10 +393,7 @@ class _AddCountryDialogState extends State<_AddCountryDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Add'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Add')),
       ],
     );
   }

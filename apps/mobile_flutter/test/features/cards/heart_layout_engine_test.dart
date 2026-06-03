@@ -4,13 +4,13 @@ import 'package:mobile_flutter/features/cards/heart_layout_engine.dart';
 import 'package:shared_models/shared_models.dart';
 
 TripRecord _trip(String code, DateTime start) => TripRecord(
-      id: '${code}_$start',
-      countryCode: code,
-      startedOn: start,
-      endedOn: start.add(const Duration(days: 7)),
-      photoCount: 5,
-      isManual: false,
-    );
+  id: '${code}_$start',
+  countryCode: code,
+  startedOn: start,
+  endedOn: start.add(const Duration(days: 7)),
+  photoCount: 5,
+  isManual: false,
+);
 
 void main() {
   // ── MaskCalculator ──────────────────────────────────────────────────────────
@@ -44,8 +44,7 @@ void main() {
       for (final y in [-0.5, 0.0, 0.5]) {
         final left = MaskCalculator.isInsideHeart(-0.6, y);
         final right = MaskCalculator.isInsideHeart(0.6, y);
-        expect(left, right,
-            reason: 'Heart should be symmetric at y=$y');
+        expect(left, right, reason: 'Heart should be symmetric at y=$y');
       }
     });
 
@@ -135,9 +134,11 @@ void main() {
     });
 
     test('tile rects are within canvas bounds', () {
-      final codes = List.generate(20, (i) =>
-          String.fromCharCode(65 + i % 26) +
-          String.fromCharCode(66 + i % 26));
+      final codes = List.generate(
+        20,
+        (i) =>
+            String.fromCharCode(65 + i % 26) + String.fromCharCode(66 + i % 26),
+      );
       final result = HeartLayoutEngine.layout(codes, testSize);
       for (final tile in result) {
         expect(tile.rect.left, greaterThanOrEqualTo(-1));
@@ -176,23 +177,29 @@ void main() {
 
     test('randomized order is deterministic for same codes', () {
       const codes = ['GB', 'US', 'FR', 'DE', 'JP'];
-      final r1 = HeartLayoutEngine.layout(codes, testSize,
-          order: HeartFlagOrder.randomized);
-      final r2 = HeartLayoutEngine.layout(codes, testSize,
-          order: HeartFlagOrder.randomized);
+      final r1 = HeartLayoutEngine.layout(
+        codes,
+        testSize,
+        order: HeartFlagOrder.randomized,
+      );
+      final r2 = HeartLayoutEngine.layout(
+        codes,
+        testSize,
+        order: HeartFlagOrder.randomized,
+      );
       final codes1 = r1.map((t) => t.countryCode).join(',');
       final codes2 = r2.map((t) => t.countryCode).join(',');
       expect(codes1, equals(codes2));
     });
 
     test('large country set (120) does not throw', () {
-      final codes = List.generate(120, (i) =>
-          String.fromCharCode(65 + i ~/ 26) +
-          String.fromCharCode(65 + i % 26));
-      expect(
-        () => HeartLayoutEngine.layout(codes, testSize),
-        returnsNormally,
+      final codes = List.generate(
+        120,
+        (i) =>
+            String.fromCharCode(65 + i ~/ 26) +
+            String.fromCharCode(65 + i % 26),
       );
+      expect(() => HeartLayoutEngine.layout(codes, testSize), returnsNormally);
     });
 
     test('geographic order groups by continent', () {
@@ -208,28 +215,38 @@ void main() {
 
     test('binary search: placed tiles have >= 80% heart coverage (M66)', () {
       // All tiles returned must satisfy the 80% edge-visibility rule.
-      final codes = List.generate(30, (i) =>
-          String.fromCharCode(65 + i ~/ 26) +
-          String.fromCharCode(65 + i % 26));
+      final codes = List.generate(
+        30,
+        (i) =>
+            String.fromCharCode(65 + i ~/ 26) +
+            String.fromCharCode(65 + i % 26),
+      );
       const canvas = Size(512, 512);
       final side = canvas.shortestSide.toDouble();
       final result = HeartLayoutEngine.layout(codes, canvas);
       for (final tile in result) {
         final coverage = MaskCalculator.coverageFraction(tile.rect, side);
-        expect(coverage, greaterThanOrEqualTo(0.80),
-            reason: 'Tile ${tile.countryCode} at ${tile.rect} has '
-                'coverage $coverage < 0.80');
+        expect(
+          coverage,
+          greaterThanOrEqualTo(0.80),
+          reason:
+              'Tile ${tile.countryCode} at ${tile.rect} has '
+              'coverage $coverage < 0.80',
+        );
       }
     });
 
-    test('binary search: fills heart optimally — single country gets large tile', () {
-      // With a single country the engine should find a large tile, not a tiny one.
-      const canvas = Size(400, 400);
-      final result = HeartLayoutEngine.layout(['GB'], canvas);
-      expect(result, hasLength(1));
-      // Tile width should be reasonably large relative to canvas.
-      expect(result.first.rect.width, greaterThan(canvas.width * 0.05));
-    });
+    test(
+      'binary search: fills heart optimally — single country gets large tile',
+      () {
+        // With a single country the engine should find a large tile, not a tiny one.
+        const canvas = Size(400, 400);
+        final result = HeartLayoutEngine.layout(['GB'], canvas);
+        expect(result, hasLength(1));
+        // Tile width should be reasonably large relative to canvas.
+        expect(result.first.rect.width, greaterThan(canvas.width * 0.05));
+      },
+    );
   });
 
   group('HeartFlagOrder enum', () {
@@ -238,12 +255,15 @@ void main() {
     });
 
     test('contains all expected variants', () {
-      expect(HeartFlagOrder.values, containsAll([
-        HeartFlagOrder.randomized,
-        HeartFlagOrder.chronological,
-        HeartFlagOrder.alphabetical,
-        HeartFlagOrder.geographic,
-      ]));
+      expect(
+        HeartFlagOrder.values,
+        containsAll([
+          HeartFlagOrder.randomized,
+          HeartFlagOrder.chronological,
+          HeartFlagOrder.alphabetical,
+          HeartFlagOrder.geographic,
+        ]),
+      );
     });
   });
 }

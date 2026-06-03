@@ -12,12 +12,12 @@ Widget _pump(String isoCode) {
     overrides: [
       polygonsProvider.overrideWithValue(const []),
       countryVisualStatesProvider.overrideWithValue(const {}),
-      countryTripCountsProvider.overrideWith((_) async => const <String, int>{}),
+      countryTripCountsProvider.overrideWith(
+        (_) async => const <String, int>{},
+      ),
     ],
     child: MaterialApp(
-      home: Scaffold(
-        body: CelebrationGlobeWidget(isoCode: isoCode),
-      ),
+      home: Scaffold(body: CelebrationGlobeWidget(isoCode: isoCode)),
     ),
   );
 }
@@ -31,8 +31,9 @@ void main() {
       expect(find.byType(CelebrationGlobeWidget), findsOneWidget);
     });
 
-    testWidgets('renders without error for unknown isoCode (no centroid)',
-        (tester) async {
+    testWidgets('renders without error for unknown isoCode (no centroid)', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pump('XX')); // not in kCountryCentroids
       await tester.pump();
 

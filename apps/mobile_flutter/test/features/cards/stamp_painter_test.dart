@@ -4,13 +4,13 @@ import 'package:mobile_flutter/features/cards/passport_stamp_model.dart';
 import 'package:mobile_flutter/features/cards/stamp_painter.dart';
 
 StampData _stamp(StampStyle style) => StampData.fromCode(
-      'JP',
-      style: style,
-      inkFamilyIndex: 0,
-      ageEffect: StampAgeEffect.fresh,
-      rotation: 0.1,
-      center: const Offset(100, 100),
-    );
+  'JP',
+  style: style,
+  inkFamilyIndex: 0,
+  ageEffect: StampAgeEffect.fresh,
+  rotation: 0.1,
+  center: const Offset(100, 100),
+);
 
 void main() {
   group('StampPainter', () {

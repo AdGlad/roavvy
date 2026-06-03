@@ -100,12 +100,27 @@ class FlagGridLayoutEngine {
     final grid = Size(gridW, gridH);
 
     return switch (mode) {
-      FlagGridLayoutMode.packedRow =>
-        _packedRow(codes, grid, originX, originY, gutter),
-      FlagGridLayoutMode.normalizedGrid =>
-        _normalizedGrid(codes, grid, originX, originY, gutter),
-      FlagGridLayoutMode.treemap =>
-        _treemap(codes, grid, originX, originY, gutter),
+      FlagGridLayoutMode.packedRow => _packedRow(
+        codes,
+        grid,
+        originX,
+        originY,
+        gutter,
+      ),
+      FlagGridLayoutMode.normalizedGrid => _normalizedGrid(
+        codes,
+        grid,
+        originX,
+        originY,
+        gutter,
+      ),
+      FlagGridLayoutMode.treemap => _treemap(
+        codes,
+        grid,
+        originX,
+        originY,
+        gutter,
+      ),
     };
   }
 
@@ -115,9 +130,7 @@ class FlagGridLayoutEngine {
   /// sqrt(gridArea / n), so this gives a cache-friendly single target size.
   static double representativeTileWidth(Size gridSize, int n) {
     if (n <= 0 || gridSize.width <= 0 || gridSize.height <= 0) return 60.0;
-    return math
-        .sqrt(gridSize.width * gridSize.height / n)
-        .clamp(30.0, 200.0);
+    return math.sqrt(gridSize.width * gridSize.height / n).clamp(30.0, 200.0);
   }
 
   // ── Packed Row ─────────────────────────────────────────────────────────────
@@ -133,10 +146,7 @@ class FlagGridLayoutEngine {
   ) {
     final n = codes.length;
     // Number of rows: aim for a visually square overall grid.
-    final R = math.max(
-      1,
-      math.sqrt(n * grid.height / grid.width).round(),
-    );
+    final R = math.max(1, math.sqrt(n * grid.height / grid.width).round());
 
     // Chunk into R sequential rows.
     final rows = _chunkIntoRows(codes, R);
@@ -167,15 +177,17 @@ class FlagGridLayoutEngine {
     for (int i = 0; i < visible; i++) {
       final r = i ~/ layout.cols;
       final c = i % layout.cols;
-      tiles.add(FlagGridTile(
-        code: codes[i],
-        rect: Rect.fromLTWH(
-          originX + c * (cellW + gutter),
-          originY + r * (cellH + gutter),
-          math.max(1, cellW),
-          math.max(1, cellH),
+      tiles.add(
+        FlagGridTile(
+          code: codes[i],
+          rect: Rect.fromLTWH(
+            originX + c * (cellW + gutter),
+            originY + r * (cellH + gutter),
+            math.max(1, cellW),
+            math.max(1, cellH),
+          ),
         ),
-      ));
+      );
     }
     return tiles;
   }
@@ -258,9 +270,10 @@ class FlagGridLayoutEngine {
     // Scale so all row heights + inter-row gutters = grid.height.
     final totalNaturalH = naturalHeights.fold<double>(0, (a, b) => a + b);
     final interRowGutters = gutter * (rows.length - 1);
-    final scale = totalNaturalH > 0
-        ? (grid.height - interRowGutters) / totalNaturalH
-        : 1.0;
+    final scale =
+        totalNaturalH > 0
+            ? (grid.height - interRowGutters) / totalNaturalH
+            : 1.0;
 
     // Assign rects.
     final tiles = <FlagGridTile>[];
@@ -271,15 +284,17 @@ class FlagGridLayoutEngine {
       double x = originX;
       for (final code in row) {
         final w = _ar(code) * rowH;
-        tiles.add(FlagGridTile(
-          code: code,
-          rect: Rect.fromLTWH(
-            x,
-            y,
-            math.max(1.0, w - gutter),
-            math.max(1.0, rowH - gutter),
+        tiles.add(
+          FlagGridTile(
+            code: code,
+            rect: Rect.fromLTWH(
+              x,
+              y,
+              math.max(1.0, w - gutter),
+              math.max(1.0, rowH - gutter),
+            ),
           ),
-        ));
+        );
         x += w;
       }
       y += rowH + gutter;

@@ -48,10 +48,22 @@ void main() {
       expect(s.levelLabel, 'Navigator');
     });
 
-    test('level 4 at exactly 500 XP', () => expect(xpStateFromTotal(500).level, 4));
-    test('level 5 at exactly 1000 XP', () => expect(xpStateFromTotal(1000).level, 5));
-    test('level 6 at exactly 2000 XP', () => expect(xpStateFromTotal(2000).level, 6));
-    test('level 7 at exactly 4000 XP', () => expect(xpStateFromTotal(4000).level, 7));
+    test(
+      'level 4 at exactly 500 XP',
+      () => expect(xpStateFromTotal(500).level, 4),
+    );
+    test(
+      'level 5 at exactly 1000 XP',
+      () => expect(xpStateFromTotal(1000).level, 5),
+    );
+    test(
+      'level 6 at exactly 2000 XP',
+      () => expect(xpStateFromTotal(2000).level, 6),
+    );
+    test(
+      'level 7 at exactly 4000 XP',
+      () => expect(xpStateFromTotal(4000).level, 7),
+    );
 
     test('level 8 (max) at exactly 8000 XP', () {
       final s = xpStateFromTotal(8000);

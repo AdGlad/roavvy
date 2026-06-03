@@ -7,15 +7,75 @@ import 'package:shared_models/shared_models.dart';
 
 // 1×1 transparent PNG — avoids real image decoding in tests.
 final Uint8List _fakeBytes = Uint8List.fromList([
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-  0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-  0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-  0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
-  0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
-  0x00, 0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC,
-  0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
-  0x44, 0xAE, 0x42, 0x60, 0x82,
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x02,
+  0x00,
+  0x00,
+  0x00,
+  0x90,
+  0x77,
+  0x53,
+  0xDE,
+  0x00,
+  0x00,
+  0x00,
+  0x0C,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x08,
+  0xD7,
+  0x63,
+  0xF8,
+  0xCF,
+  0xC0,
+  0x00,
+  0x00,
+  0x00,
+  0x02,
+  0x00,
+  0x01,
+  0xE2,
+  0x21,
+  0xBC,
+  0x33,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82,
 ]);
 
 MerchOrderConfirmationScreen _defaultScreen({
@@ -23,21 +83,20 @@ MerchOrderConfirmationScreen _defaultScreen({
   String? backMockupUrl,
   Uint8List? frontArtworkBytes,
   VoidCallback? onCheckoutLaunched,
-}) =>
-    MerchOrderConfirmationScreen(
-      frontMockupUrl: frontMockupUrl,
-      backMockupUrl: backMockupUrl,
-      frontArtworkBytes: frontArtworkBytes,
-      artworkBytes: _fakeBytes,
-      size: 'L',
-      colour: 'Black',
-      frontPosition: 'center',
-      backPosition: 'center',
-      templateType: CardTemplateType.passport,
-      checkoutUrl: 'https://example.com/checkout',
-      isTshirt: true,
-      onCheckoutLaunched: onCheckoutLaunched,
-    );
+}) => MerchOrderConfirmationScreen(
+  frontMockupUrl: frontMockupUrl,
+  backMockupUrl: backMockupUrl,
+  frontArtworkBytes: frontArtworkBytes,
+  artworkBytes: _fakeBytes,
+  size: 'L',
+  colour: 'Black',
+  frontPosition: 'center',
+  backPosition: 'center',
+  templateType: CardTemplateType.passport,
+  checkoutUrl: 'https://example.com/checkout',
+  isTshirt: true,
+  onCheckoutLaunched: onCheckoutLaunched,
+);
 
 Widget _wrap(Widget child) => MaterialApp(home: child);
 
@@ -52,10 +111,14 @@ void main() {
       expect(button.onPressed, isNull);
     });
 
-    testWidgets('proceed button enables after ticking checkbox', (tester) async {
+    testWidgets('proceed button enables after ticking checkbox', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(_defaultScreen()));
 
-      tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged!(true);
+      tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged!(
+        true,
+      );
       await tester.pump();
 
       final button = tester.widget<FilledButton>(
@@ -67,10 +130,7 @@ void main() {
     testWidgets('Go Back pops the navigator', (tester) async {
       final observer = _MockNavigatorObserver();
       await tester.pumpWidget(
-        MaterialApp(
-          navigatorObservers: [observer],
-          home: _defaultScreen(),
-        ),
+        MaterialApp(navigatorObservers: [observer], home: _defaultScreen()),
       );
 
       await tester.tap(find.widgetWithText(TextButton, 'Go Back'));
@@ -80,8 +140,9 @@ void main() {
       expect(observer.popped, isTrue);
     });
 
-    testWidgets('falls back to Image.memory when frontMockupUrl is null',
-        (tester) async {
+    testWidgets('falls back to Image.memory when frontMockupUrl is null', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(_defaultScreen()));
       // When no network URL is provided, the widget tree must not contain a
       // NetworkImage-backed widget. We assert Image.memory is present instead.
@@ -98,14 +159,19 @@ void main() {
       expect(find.text('Passport Stamps'), findsOneWidget);
     });
 
-    testWidgets('renders two-item page indicator when both mockup URLs given',
-        (tester) async {
-      await tester.pumpWidget(_wrap(_defaultScreen(
-        // Use non-null URLs so _buildPages returns two pages.
-        // Network images won't load in tests but the PageView structure is set.
-        frontMockupUrl: 'https://example.com/front.png',
-        backMockupUrl: 'https://example.com/back.png',
-      )));
+    testWidgets('renders two-item page indicator when both mockup URLs given', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          _defaultScreen(
+            // Use non-null URLs so _buildPages returns two pages.
+            // Network images won't load in tests but the PageView structure is set.
+            frontMockupUrl: 'https://example.com/front.png',
+            backMockupUrl: 'https://example.com/back.png',
+          ),
+        ),
+      );
       await tester.pump();
 
       // PageView should be in the tree.
@@ -116,11 +182,17 @@ void main() {
       expect(find.text('Front'), findsOneWidget);
     });
 
-    testWidgets('shows only one page when backMockupUrl is null', (tester) async {
-      await tester.pumpWidget(_wrap(_defaultScreen(
-        frontMockupUrl: 'https://example.com/front.png',
-        backMockupUrl: null,
-      )));
+    testWidgets('shows only one page when backMockupUrl is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          _defaultScreen(
+            frontMockupUrl: 'https://example.com/front.png',
+            backMockupUrl: null,
+          ),
+        ),
+      );
       await tester.pump();
 
       // Single-image mode: no PageView, just _MockupFrame + Image.
@@ -132,13 +204,12 @@ void main() {
 
       expect(find.text('Custom-Made Product'), findsOneWidget);
       expect(find.textContaining('no refunds'), findsNothing);
-      expect(
-        find.textContaining('made to order'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('made to order'), findsOneWidget);
     });
 
-    testWidgets('onCheckoutLaunched callback not called before tap', (tester) async {
+    testWidgets('onCheckoutLaunched callback not called before tap', (
+      tester,
+    ) async {
       bool called = false;
       await tester.pumpWidget(
         _wrap(_defaultScreen(onCheckoutLaunched: () => called = true)),

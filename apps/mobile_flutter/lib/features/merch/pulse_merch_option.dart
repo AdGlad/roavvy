@@ -72,14 +72,14 @@ class PulseMerchOption {
 
   /// Human-readable label shown in the template chip.
   String get templateLabel => switch (template) {
-        CardTemplateType.passport => 'Passport stamps',
-        CardTemplateType.grid => 'Flag grid',
-        CardTemplateType.heart => 'Heart flags',
-        CardTemplateType.timeline => 'Timeline',
-        CardTemplateType.frontRibbon => 'Ribbon',
-        CardTemplateType.typography => 'Typography',
-        CardTemplateType.badge => 'Explorer Badge',
-        CardTemplateType.wordCloud => 'Word Cloud',
-        CardTemplateType.landmark => 'Landmark',
-      };
+    CardTemplateType.passport => 'Passport stamps',
+    CardTemplateType.grid => 'Flag grid',
+    CardTemplateType.heart => 'Heart flags',
+    CardTemplateType.timeline => 'Timeline',
+    CardTemplateType.frontRibbon => 'Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
+  };
 }

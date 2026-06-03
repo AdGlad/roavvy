@@ -32,14 +32,18 @@ void main() {
       expect(button.onPressed, isNull);
     });
 
-    testWidgets('CTA disabled when only 1 of 3 checkboxes checked',
-        (tester) async {
+    testWidgets('CTA disabled when only 1 of 3 checkboxes checked', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(_kDefaultScreen));
       await tester.pump();
 
       // Check only the design checkbox
       await tester.tap(
-        find.widgetWithText(CheckboxListTile, 'My card design looks exactly right'),
+        find.widgetWithText(
+          CheckboxListTile,
+          'My card design looks exactly right',
+        ),
       );
       await tester.pump();
 
@@ -53,12 +57,21 @@ void main() {
       await tester.pumpWidget(_wrap(_kDefaultScreen));
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(
-          CheckboxListTile, 'My card design looks exactly right'));
-      await tester.tap(find.widgetWithText(
-          CheckboxListTile, 'The colour and style I\'ve chosen is correct'));
       await tester.tap(
-          find.widgetWithText(CheckboxListTile, 'The placement looks right'));
+        find.widgetWithText(
+          CheckboxListTile,
+          'My card design looks exactly right',
+        ),
+      );
+      await tester.tap(
+        find.widgetWithText(
+          CheckboxListTile,
+          'The colour and style I\'ve chosen is correct',
+        ),
+      );
+      await tester.tap(
+        find.widgetWithText(CheckboxListTile, 'The placement looks right'),
+      );
       await tester.pump();
 
       final button = tester.widget<FilledButton>(
@@ -67,8 +80,9 @@ void main() {
       expect(button.onPressed, isNotNull);
     });
 
-    testWidgets('only 2 checkboxes shown when placementType is null',
-        (tester) async {
+    testWidgets('only 2 checkboxes shown when placementType is null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const MockupApprovalScreen(
@@ -86,8 +100,9 @@ void main() {
       );
     });
 
-    testWidgets('CTA enabled after 2 checkboxes when placement hidden',
-        (tester) async {
+    testWidgets('CTA enabled after 2 checkboxes when placement hidden', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const MockupApprovalScreen(
@@ -98,10 +113,18 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(
-          CheckboxListTile, 'My card design looks exactly right'));
-      await tester.tap(find.widgetWithText(
-          CheckboxListTile, 'The colour and style I\'ve chosen is correct'));
+      await tester.tap(
+        find.widgetWithText(
+          CheckboxListTile,
+          'My card design looks exactly right',
+        ),
+      );
+      await tester.tap(
+        find.widgetWithText(
+          CheckboxListTile,
+          'The colour and style I\'ve chosen is correct',
+        ),
+      );
       await tester.pump();
 
       final button = tester.widget<FilledButton>(
@@ -110,8 +133,9 @@ void main() {
       expect(button.onPressed, isNotNull);
     });
 
-    testWidgets('shows preview unavailable placeholder when bytes null',
-        (tester) async {
+    testWidgets('shows preview unavailable placeholder when bytes null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const MockupApprovalScreen(
@@ -125,8 +149,9 @@ void main() {
       expect(find.text('Preview unavailable'), findsOneWidget);
     });
 
-    testWidgets('hides preview unavailable text when bytes provided',
-        (tester) async {
+    testWidgets('hides preview unavailable text when bytes provided', (
+      tester,
+    ) async {
       // Non-empty byte list — enough to pass the null/empty guard.
       // Image.memory will fail to decode the fake bytes, but the widget tree
       // should still render without the placeholder text.
@@ -153,48 +178,61 @@ void main() {
 
   group('MockupApprovalScreen — M54-G3 null-UID guard', () {
     testWidgets(
-        'shows SnackBar and resets loading state when UID is null on approve',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            currentUidProvider.overrideWith((ref) => null), // UID is null
-          ],
-          child: const MaterialApp(
-            home: MockupApprovalScreen(
-              templateType: CardTemplateType.grid,
-              variantId: 'gid://shopify/ProductVariant/1',
-              placementType: 'front',
+      'shows SnackBar and resets loading state when UID is null on approve',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              currentUidProvider.overrideWith((ref) => null), // UID is null
+            ],
+            child: const MaterialApp(
+              home: MockupApprovalScreen(
+                templateType: CardTemplateType.grid,
+                variantId: 'gid://shopify/ProductVariant/1',
+                placementType: 'front',
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      // Check all three boxes so the CTA is enabled.
-      await tester.tap(find.widgetWithText(
-          CheckboxListTile, 'My card design looks exactly right'));
-      await tester.tap(find.widgetWithText(
-          CheckboxListTile, 'The colour and style I\'ve chosen is correct'));
-      await tester.tap(
-          find.widgetWithText(CheckboxListTile, 'The placement looks right'));
-      await tester.pump();
+        // Check all three boxes so the CTA is enabled.
+        await tester.tap(
+          find.widgetWithText(
+            CheckboxListTile,
+            'My card design looks exactly right',
+          ),
+        );
+        await tester.tap(
+          find.widgetWithText(
+            CheckboxListTile,
+            'The colour and style I\'ve chosen is correct',
+          ),
+        );
+        await tester.tap(
+          find.widgetWithText(CheckboxListTile, 'The placement looks right'),
+        );
+        await tester.pump();
 
-      // CTA is now enabled — tap it.
-      await tester.tap(find.widgetWithText(FilledButton, 'Approve and buy'));
-      await tester.pump();
+        // CTA is now enabled — tap it.
+        await tester.tap(find.widgetWithText(FilledButton, 'Approve and buy'));
+        await tester.pump();
 
-      // SnackBar with sign-in message must appear.
-      expect(find.text('Please sign in to continue'), findsOneWidget);
+        // SnackBar with sign-in message must appear.
+        expect(find.text('Please sign in to continue'), findsOneWidget);
 
-      // Screen must remain (not popped) and CTA must be re-enabled
-      // (loading state reset).
-      expect(find.byType(MockupApprovalScreen), findsOneWidget);
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Approve and buy'),
-      );
-      expect(button.onPressed, isNotNull,
-          reason: '_approving should be reset to false after UID-null path');
-    });
+        // Screen must remain (not popped) and CTA must be re-enabled
+        // (loading state reset).
+        expect(find.byType(MockupApprovalScreen), findsOneWidget);
+        final button = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Approve and buy'),
+        );
+        expect(
+          button.onPressed,
+          isNotNull,
+          reason: '_approving should be reset to false after UID-null path',
+        );
+      },
+    );
   });
 }

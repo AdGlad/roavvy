@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 /// Each letter maps to a Regional Indicator Symbol (U+1F1E6–U+1F1FF).
 /// e.g. "GB" → 🇬🇧
 String _codeToEmoji(String code) {
-  const base = 0x1F1A5; // offset: 'A'.codeUnitAt(0) + base = Regional Indicator A
+  const base =
+      0x1F1A5; // offset: 'A'.codeUnitAt(0) + base = Regional Indicator A
   return code.toUpperCase().split('').map((c) {
     return String.fromCharCode(c.codeUnitAt(0) + base);
   }).join();
@@ -67,10 +68,7 @@ class _FlagCell extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: FittedBox(
-          child: Text(
-            _codeToEmoji(code),
-            style: const TextStyle(fontSize: 28),
-          ),
+          child: Text(_codeToEmoji(code), style: const TextStyle(fontSize: 28)),
         ),
       ),
     );
@@ -90,10 +88,7 @@ class _OverflowCell extends StatelessWidget {
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          '+$count',
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
+        child: Text('+$count', style: Theme.of(context).textTheme.labelSmall),
       ),
     );
   }

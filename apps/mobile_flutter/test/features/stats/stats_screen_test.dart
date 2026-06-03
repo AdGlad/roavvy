@@ -28,18 +28,20 @@ Future<void> _pumpStats(
   await tester.binding.setSurfaceSize(const Size(800, 3000));
   addTearDown(() async => tester.binding.setSurfaceSize(null));
   final db = _makeDb();
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      roavvyDatabaseProvider.overrideWithValue(db),
-      visitRepositoryProvider.overrideWithValue(visitRepo),
-      achievementRepositoryProvider.overrideWithValue(achievementRepo),
-      regionRepositoryProvider.overrideWithValue(regionRepo),
-      tripRepositoryProvider.overrideWithValue(TripRepository(db)),
-      heritageRepositoryProvider.overrideWithValue(HeritageRepository(db)),
-      polygonsProvider.overrideWithValue(const []),
-    ],
-    child: const MaterialApp(home: Scaffold(body: StatsScreen())),
-  ));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        roavvyDatabaseProvider.overrideWithValue(db),
+        visitRepositoryProvider.overrideWithValue(visitRepo),
+        achievementRepositoryProvider.overrideWithValue(achievementRepo),
+        regionRepositoryProvider.overrideWithValue(regionRepo),
+        tripRepositoryProvider.overrideWithValue(TripRepository(db)),
+        heritageRepositoryProvider.overrideWithValue(HeritageRepository(db)),
+        polygonsProvider.overrideWithValue(const []),
+      ],
+      child: const MaterialApp(home: Scaffold(body: StatsScreen())),
+    ),
+  );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
 }
@@ -66,7 +68,10 @@ void main() {
       );
 
       expect(find.text('2'), findsWidgets); // country count tile
-      expect(find.text('Countries'), findsWidgets); // stat card + tab both render 'Countries'
+      expect(
+        find.text('Countries'),
+        findsWidgets,
+      ); // stat card + tab both render 'Countries'
     });
 
     testWidgets('shows "—" for since year when no visits', (tester) async {
@@ -119,8 +124,9 @@ void main() {
   });
 
   group('StatsScreen — countries navigation', () {
-    testWidgets('tapping Countries tile pushes CountriesListScreen',
-        (tester) async {
+    testWidgets('tapping Countries tile pushes CountriesListScreen', (
+      tester,
+    ) async {
       final db = _makeDb();
       final visitRepo = VisitRepository(db);
       await visitRepo.saveAdded(
@@ -146,8 +152,9 @@ void main() {
   });
 
   group('StatsScreen — achievement gallery', () {
-    testWidgets('shows Achievements section and visible grid cards',
-        (tester) async {
+    testWidgets('shows Achievements section and visible grid cards', (
+      tester,
+    ) async {
       final db = _makeDb();
 
       await _pumpStats(
@@ -166,10 +173,9 @@ void main() {
     testWidgets('unlocked achievement shows unlock date', (tester) async {
       final db = _makeDb();
       final achievementRepo = AchievementRepository(db);
-      await achievementRepo.upsertAll(
-        {'countries_1'},
-        DateTime.utc(2024, 1, 14),
-      );
+      await achievementRepo.upsertAll({
+        'countries_1',
+      }, DateTime.utc(2024, 1, 14));
 
       await _pumpStats(
         tester,
@@ -226,8 +232,9 @@ void main() {
       expect(find.byIcon(Icons.lock_outline), findsWidgets);
     });
 
-    testWidgets('tapping locked achievement card opens sheet with locked state',
-        (tester) async {
+    testWidgets('tapping locked achievement card opens sheet with locked state', (
+      tester,
+    ) async {
       final db = _makeDb();
       // No achievements unlocked — first card is locked.
 
@@ -242,24 +249,25 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsWidgets);
     });
 
-    testWidgets('tapping unlocked achievement card opens sheet with unlock date',
-        (tester) async {
-      final db = _makeDb();
-      final achievementRepo = AchievementRepository(db);
-      await achievementRepo.upsertAll(
-        {'countries_1'},
-        DateTime.utc(2024, 3, 15),
-      );
+    testWidgets(
+      'tapping unlocked achievement card opens sheet with unlock date',
+      (tester) async {
+        final db = _makeDb();
+        final achievementRepo = AchievementRepository(db);
+        await achievementRepo.upsertAll({
+          'countries_1',
+        }, DateTime.utc(2024, 3, 15));
 
-      await _pumpStats(
-        tester,
-        visitRepo: VisitRepository(db),
-        achievementRepo: achievementRepo,
-        regionRepo: RegionRepository(db),
-      );
+        await _pumpStats(
+          tester,
+          visitRepo: VisitRepository(db),
+          achievementRepo: achievementRepo,
+          regionRepo: RegionRepository(db),
+        );
 
-      // Unlocked achievement shows date in the row (no tap-to-sheet in current UI).
-      expect(find.textContaining('Unlocked 15 Mar 2024'), findsOneWidget);
-    });
+        // Unlocked achievement shows date in the row (no tap-to-sheet in current UI).
+        expect(find.textContaining('Unlocked 15 Mar 2024'), findsOneWidget);
+      },
+    );
   });
 }

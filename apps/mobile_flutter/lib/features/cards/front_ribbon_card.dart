@@ -109,7 +109,7 @@ class _RibbonPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    
+
     tpTop.paint(
       canvas,
       Offset((size.width - tpTop.width) / 2, (topHeight - tpTop.height) / 2),

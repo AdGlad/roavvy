@@ -25,7 +25,9 @@ Widget _pumpShell() {
     overrides: [
       roavvyDatabaseProvider.overrideWithValue(db),
       visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
-      achievementRepositoryProvider.overrideWithValue(AchievementRepository(db)),
+      achievementRepositoryProvider.overrideWithValue(
+        AchievementRepository(db),
+      ),
       tripRepositoryProvider.overrideWithValue(TripRepository(db)),
       regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
       xpRepositoryProvider.overrideWithValue(XpRepository(db)),
@@ -103,7 +105,9 @@ void main() {
       expect(find.text('Shop'), findsWidgets);
     });
 
-    testWidgets('tapping Map tab returns to MapScreen from Shop', (tester) async {
+    testWidgets('tapping Map tab returns to MapScreen from Shop', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pumpShell());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));

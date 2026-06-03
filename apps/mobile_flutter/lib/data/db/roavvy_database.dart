@@ -189,18 +189,15 @@ class HeroImages extends Table {
   TextColumn get subjects => text().nullable()();
   TextColumn get landmark => text().nullable()();
 
-  RealColumn get labelConfidence =>
-      real().withDefault(const Constant(0.0))();
-  RealColumn get qualityScore =>
-      real().withDefault(const Constant(0.0))();
+  RealColumn get labelConfidence => real().withDefault(const Constant(0.0))();
+  RealColumn get qualityScore => real().withDefault(const Constant(0.0))();
   RealColumn get heroScore => real().withDefault(const Constant(0.0))();
 
   /// 1 = selected hero, 2-3 = candidates, -1 = tombstone.
   IntColumn get rank => integer().withDefault(const Constant(1))();
 
   /// 1 = user explicitly chose this image; never overwritten by auto-analysis.
-  IntColumn get isUserSelected =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get isUserSelected => integer().withDefault(const Constant(0))();
 
   /// Device-local cache path for a persisted thumbnail; never synced.
   TextColumn get thumbnailLocalPath => text().nullable()();
@@ -281,12 +278,10 @@ class DailyChallengeProgressTable extends Table {
   TextColumn get siteId => text()();
 
   /// Number of clues revealed so far (1–5). Starts at 1.
-  IntColumn get cluesRevealed =>
-      integer().withDefault(const Constant(1))();
+  IntColumn get cluesRevealed => integer().withDefault(const Constant(1))();
 
   /// JSON-encoded list of wrong guess strings. e.g. `'["Taj Mahal","Agra"]'`.
-  TextColumn get guesses =>
-      text().withDefault(const Constant('[]'))();
+  TextColumn get guesses => text().withDefault(const Constant('[]'))();
 
   /// 1 if the user has correctly identified the site, 0 otherwise.
   IntColumn get solved => integer().withDefault(const Constant(0))();
@@ -358,22 +353,24 @@ class VisitedHeritageSites extends Table {
   Set<Column> get primaryKey => {siteId};
 }
 
-@DriftDatabase(tables: [
-  ScanMetadata,
-  InferredCountryVisits,
-  UserAddedCountries,
-  UserRemovedCountries,
-  UnlockedAchievements,
-  ShareTokens,
-  RegionVisits,
-  PhotoDateRecords,
-  Trips,
-  XpEvents,
-  HeroImages,
-  VisitedHeritageSites,
-  DailyChallengeProgressTable,
-  ChallengeStatsTable,
-])
+@DriftDatabase(
+  tables: [
+    ScanMetadata,
+    InferredCountryVisits,
+    UserAddedCountries,
+    UserRemovedCountries,
+    UnlockedAchievements,
+    ShareTokens,
+    RegionVisits,
+    PhotoDateRecords,
+    Trips,
+    XpEvents,
+    HeroImages,
+    VisitedHeritageSites,
+    DailyChallengeProgressTable,
+    ChallengeStatsTable,
+  ],
+)
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
@@ -388,7 +385,10 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 3) {
         await m.addColumn(inferredCountryVisits, inferredCountryVisits.isDirty);
-        await m.addColumn(inferredCountryVisits, inferredCountryVisits.syncedAt);
+        await m.addColumn(
+          inferredCountryVisits,
+          inferredCountryVisits.syncedAt,
+        );
         await m.addColumn(userAddedCountries, userAddedCountries.isDirty);
         await m.addColumn(userAddedCountries, userAddedCountries.syncedAt);
         await m.addColumn(userRemovedCountries, userRemovedCountries.isDirty);
@@ -435,7 +435,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
       }
       if (from < 15) {
         await m.addColumn(
-            dailyChallengeProgressTable, dailyChallengeProgressTable.failed);
+          dailyChallengeProgressTable,
+          dailyChallengeProgressTable.failed,
+        );
         await m.createTable(challengeStatsTable);
       }
     },
@@ -443,15 +445,17 @@ class RoavvyDatabase extends _$RoavvyDatabase {
 
   /// Returns `true` if onboarding has been marked complete (ADR-053).
   Future<bool> hasSeenOnboarding() async {
-    final row = await (select(scanMetadata)..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final row =
+        await (select(scanMetadata)
+          ..where((t) => t.id.equals(1))).getSingleOrNull();
     return row?.hasSeenOnboardingAt != null;
   }
 
   /// Clears the onboarding-seen flag so the user is returned to onboarding.
   Future<void> resetOnboarding() async {
-    await (update(scanMetadata)..where((t) => t.id.equals(1)))
-        .write(const ScanMetadataCompanion(hasSeenOnboardingAt: Value(null)));
+    await (update(scanMetadata)..where(
+      (t) => t.id.equals(1),
+    )).write(const ScanMetadataCompanion(hasSeenOnboardingAt: Value(null)));
   }
 
   /// Marks onboarding as seen by writing the current UTC timestamp.

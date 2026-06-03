@@ -34,7 +34,9 @@ Future<void> signInWithFacebook({
   }
 
   final accessToken = result.accessToken!;
-  final oauthCredential = FacebookAuthProvider.credential(accessToken.tokenString);
+  final oauthCredential = FacebookAuthProvider.credential(
+    accessToken.tokenString,
+  );
 
   final currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser != null) {
@@ -57,10 +59,12 @@ Future<void> signInWithFacebook({
   // persistent UID (ADR-030). Fire-and-forget: failures are silent.
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid != null) {
-    unawaited((syncService ?? FirestoreSyncService()).flushDirty(
-      uid,
-      repo,
-      tripRepo: tripRepo,
-    ));
+    unawaited(
+      (syncService ?? FirestoreSyncService()).flushDirty(
+        uid,
+        repo,
+        tripRepo: tripRepo,
+      ),
+    );
   }
 }

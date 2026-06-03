@@ -28,7 +28,10 @@ class TravelProgressHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tier = _tierLabel(unlockedIds);
-    final remaining = (_totalCountries - countryCount).clamp(0, _totalCountries);
+    final remaining = (_totalCountries - countryCount).clamp(
+      0,
+      _totalCountries,
+    );
     final fraction = countryCount / _totalCountries;
 
     final gold = theme.colorScheme.primary;
@@ -51,98 +54,109 @@ class TravelProgressHero extends StatelessWidget {
           ],
         ),
         child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 200,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  PieChart(
-                    PieChartData(
-                      startDegreeOffset: -90,
-                      sectionsSpace: 0,
-                      centerSpaceRadius: 72,
-                      sections: [
-                        PieChartSectionData(
-                          value: countryCount.toDouble().clamp(1, _totalCountries.toDouble()),
-                          color: gold,
-                          radius: 20,
-                          showTitle: false,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              SizedBox(
+                height: 200,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    PieChart(
+                      PieChartData(
+                        startDegreeOffset: -90,
+                        sectionsSpace: 0,
+                        centerSpaceRadius: 72,
+                        sections: [
+                          PieChartSectionData(
+                            value: countryCount.toDouble().clamp(
+                              1,
+                              _totalCountries.toDouble(),
+                            ),
+                            color: gold,
+                            radius: 20,
+                            showTitle: false,
+                          ),
+                          PieChartSectionData(
+                            value: remaining.toDouble().clamp(
+                              1,
+                              _totalCountries.toDouble(),
+                            ),
+                            color: surface,
+                            radius: 16,
+                            showTitle: false,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$countryCount',
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
-                        PieChartSectionData(
-                          value: remaining.toDouble().clamp(1, _totalCountries.toDouble()),
-                          color: surface,
-                          radius: 16,
-                          showTitle: false,
+                        Text(
+                          'countries',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$countryCount',
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      Text(
-                        'countries',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (tier != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: RoavvyColours.roavvyGold.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: RoavvyColours.roavvyGold),
-                ),
-                child: Text(
-                  tier,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: RoavvyColours.roavvyGold,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 4),
-            Text(
-              '$countryCount / $_totalCountries countries visited  '
-              '(${(fraction * 100).toStringAsFixed(1)}%)',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                final achievement = _topAchievement(unlockedIds);
-                if (achievement == null) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        AchievementMerchOptionScreen(achievement: achievement),
+              const SizedBox(height: 8),
+              if (tier != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
                   ),
-                );
-              },
-              child: const Text('Create your travel tee'),
-            ),
-          ],
+                  decoration: BoxDecoration(
+                    color: RoavvyColours.roavvyGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: RoavvyColours.roavvyGold),
+                  ),
+                  child: Text(
+                    tier,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: RoavvyColours.roavvyGold,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 4),
+              Text(
+                '$countryCount / $_totalCountries countries visited  '
+                '(${(fraction * 100).toStringAsFixed(1)}%)',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  final achievement = _topAchievement(unlockedIds);
+                  if (achievement == null) return;
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder:
+                          (_) => AchievementMerchOptionScreen(
+                            achievement: achievement,
+                          ),
+                    ),
+                  );
+                },
+                child: const Text('Create your travel tee'),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

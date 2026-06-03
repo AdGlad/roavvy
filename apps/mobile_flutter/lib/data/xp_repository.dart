@@ -11,7 +11,9 @@ class XpRepository {
 
   /// Inserts an [XpEvent] award record.
   Future<void> award(XpEvent event) async {
-    await _db.into(_db.xpEvents).insert(
+    await _db
+        .into(_db.xpEvents)
+        .insert(
           XpEventsCompanion.insert(
             id: event.id,
             reason: event.reason.name,
@@ -23,9 +25,9 @@ class XpRepository {
 
   /// Returns all XP events, ordered by [awardedAt] ascending.
   Future<List<XpEvent>> loadAll() async {
-    final rows = await (_db.select(_db.xpEvents)
-          ..orderBy([(t) => OrderingTerm.asc(t.awardedAt)]))
-        .get();
+    final rows =
+        await (_db.select(_db.xpEvents)
+          ..orderBy([(t) => OrderingTerm.asc(t.awardedAt)])).get();
     return rows.map(_rowToEvent).toList();
   }
 
@@ -43,9 +45,9 @@ class XpRepository {
   }
 
   XpEvent _rowToEvent(XpEventRow row) => XpEvent(
-        id: row.id,
-        reason: XpReason.values.byName(row.reason),
-        amount: row.amount,
-        awardedAt: row.awardedAt,
-      );
+    id: row.id,
+    reason: XpReason.values.byName(row.reason),
+    amount: row.amount,
+    awardedAt: row.awardedAt,
+  );
 }

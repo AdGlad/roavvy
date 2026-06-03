@@ -3,15 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/cards/card_branding_footer.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
-      home: Scaffold(
-        body: SizedBox(width: 300, height: 40, child: child),
-      ),
-    );
+  home: Scaffold(body: SizedBox(width: 300, height: 40, child: child)),
+);
 
 void main() {
   group('CardBrandingFooter', () {
-    testWidgets('single-year dateLabel renders as "2024" (not "2024–2024")',
-        (tester) async {
+    testWidgets('single-year dateLabel renders as "2024" (not "2024–2024")', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(const CardBrandingFooter(countryCount: 5, dateLabel: '2024')),
       );
@@ -21,8 +20,12 @@ void main() {
 
     testWidgets('multi-year dateLabel renders as "2018–2024"', (tester) async {
       await tester.pumpWidget(
-        _wrap(const CardBrandingFooter(
-            countryCount: 10, dateLabel: '2018\u20132024')),
+        _wrap(
+          const CardBrandingFooter(
+            countryCount: 10,
+            dateLabel: '2018\u20132024',
+          ),
+        ),
       );
       expect(find.text('2018\u20132024'), findsOneWidget);
     });
@@ -35,8 +38,9 @@ void main() {
       expect(find.textContaining('20'), findsNothing);
     });
 
-    testWidgets('empty dateLabel does not render empty space widget',
-        (tester) async {
+    testWidgets('empty dateLabel does not render empty space widget', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(const CardBrandingFooter(countryCount: 3, dateLabel: '')),
       );
@@ -54,34 +58,42 @@ void main() {
       expect(find.text('ROAVVY'), findsOneWidget);
     });
 
-    testWidgets('country count renders in "{N} countries" format',
-        (tester) async {
+    testWidgets('country count renders in "{N} countries" format', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(const CardBrandingFooter(countryCount: 42, dateLabel: '')),
       );
       expect(find.text('42 countries'), findsOneWidget);
     });
 
-    testWidgets('customLabel replaces auto "{N} countries" text (ADR-120)',
-        (tester) async {
+    testWidgets('customLabel replaces auto "{N} countries" text (ADR-120)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(const CardBrandingFooter(
-          countryCount: 5,
-          dateLabel: '',
-          customLabel: 'My Travels',
-        )),
+        _wrap(
+          const CardBrandingFooter(
+            countryCount: 5,
+            dateLabel: '',
+            customLabel: 'My Travels',
+          ),
+        ),
       );
       expect(find.text('My Travels'), findsOneWidget);
       expect(find.text('5 countries'), findsNothing);
     });
 
-    testWidgets('null customLabel falls back to auto count text', (tester) async {
+    testWidgets('null customLabel falls back to auto count text', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(const CardBrandingFooter(
-          countryCount: 3,
-          dateLabel: '',
-          customLabel: null,
-        )),
+        _wrap(
+          const CardBrandingFooter(
+            countryCount: 3,
+            dateLabel: '',
+            customLabel: null,
+          ),
+        ),
       );
       expect(find.text('3 countries'), findsOneWidget);
     });

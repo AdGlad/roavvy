@@ -18,33 +18,35 @@ void _setTallView(WidgetTester tester) {
 
 MerchVariantScreen _tshirtScreen({
   CardTemplateType initialTemplate = CardTemplateType.grid,
-}) =>
-    MerchVariantScreen(
-      product: MerchProduct.tshirt,
-      selectedCodes: const ['GB', 'FR', 'JP'],
-      initialTemplate: initialTemplate,
-    );
+}) => MerchVariantScreen(
+  product: MerchProduct.tshirt,
+  selectedCodes: const ['GB', 'FR', 'JP'],
+  initialTemplate: initialTemplate,
+);
 
 MerchVariantScreen _posterScreen() => const MerchVariantScreen(
-      product: MerchProduct.poster,
-      selectedCodes: ['GB', 'FR'],
-    );
+  product: MerchProduct.poster,
+  selectedCodes: ['GB', 'FR'],
+);
 
 void main() {
   group('MerchVariantScreen — template picker', () {
-    testWidgets('renders template picker with 3 options (Grid/Heart/Passport)',
-        (tester) async {
-      _setTallView(tester);
-      await tester.pumpWidget(_wrap(_tshirtScreen()));
-      await tester.pump();
+    testWidgets(
+      'renders template picker with 3 options (Grid/Heart/Passport)',
+      (tester) async {
+        _setTallView(tester);
+        await tester.pumpWidget(_wrap(_tshirtScreen()));
+        await tester.pump();
 
-      expect(find.text('Grid'), findsOneWidget);
-      expect(find.text('Heart'), findsOneWidget);
-      expect(find.text('Passport'), findsOneWidget);
-    });
+        expect(find.text('Grid'), findsOneWidget);
+        expect(find.text('Heart'), findsOneWidget);
+        expect(find.text('Passport'), findsOneWidget);
+      },
+    );
 
-    testWidgets('template picker is visible for poster product too',
-        (tester) async {
+    testWidgets('template picker is visible for poster product too', (
+      tester,
+    ) async {
       _setTallView(tester);
       await tester.pumpWidget(_wrap(_posterScreen()));
       await tester.pump();
@@ -55,26 +57,28 @@ void main() {
     });
 
     testWidgets(
-        'changing template resets preview to initial state (Preview button shown)',
-        (tester) async {
-      _setTallView(tester);
-      await tester.pumpWidget(_wrap(_tshirtScreen()));
-      await tester.pump();
+      'changing template resets preview to initial state (Preview button shown)',
+      (tester) async {
+        _setTallView(tester);
+        await tester.pumpWidget(_wrap(_tshirtScreen()));
+        await tester.pump();
 
-      // Confirm we start in initial state.
-      expect(find.text('Approve & buy'), findsOneWidget);
+        // Confirm we start in initial state.
+        expect(find.text('Approve & buy'), findsOneWidget);
 
-      await tester.tap(find.text('Passport'));
-      await tester.pump();
+        await tester.tap(find.text('Passport'));
+        await tester.pump();
 
-      // Preview state should still be initial (button still visible — state reset).
-      expect(find.text('Approve & buy'), findsOneWidget);
-    });
+        // Preview state should still be initial (button still visible — state reset).
+        expect(find.text('Approve & buy'), findsOneWidget);
+      },
+    );
   });
 
   group('MerchVariantScreen — placement picker', () {
-    testWidgets('placement picker is visible for tshirt product',
-        (tester) async {
+    testWidgets('placement picker is visible for tshirt product', (
+      tester,
+    ) async {
       _setTallView(tester);
       await tester.pumpWidget(_wrap(_tshirtScreen()));
       await tester.pump();
@@ -84,7 +88,9 @@ void main() {
       expect(find.text('Back'), findsOneWidget);
     });
 
-    testWidgets('placement picker is hidden for poster product', (tester) async {
+    testWidgets('placement picker is hidden for poster product', (
+      tester,
+    ) async {
       _setTallView(tester);
       await tester.pumpWidget(_wrap(_posterScreen()));
       await tester.pump();
@@ -95,24 +101,26 @@ void main() {
     });
 
     testWidgets(
-        'changing placement resets preview to initial state (Preview button shown)',
-        (tester) async {
-      _setTallView(tester);
-      await tester.pumpWidget(_wrap(_tshirtScreen()));
-      await tester.pump();
+      'changing placement resets preview to initial state (Preview button shown)',
+      (tester) async {
+        _setTallView(tester);
+        await tester.pumpWidget(_wrap(_tshirtScreen()));
+        await tester.pump();
 
-      expect(find.text('Approve & buy'), findsOneWidget);
+        expect(find.text('Approve & buy'), findsOneWidget);
 
-      await tester.tap(find.text('Back'));
-      await tester.pump();
+        await tester.tap(find.text('Back'));
+        await tester.pump();
 
-      expect(find.text('Approve & buy'), findsOneWidget);
-    });
+        expect(find.text('Approve & buy'), findsOneWidget);
+      },
+    );
   });
 
   group('MerchVariantScreen — M53 approval wiring', () {
-    testWidgets('"Approve & buy" button is visible in initial state',
-        (tester) async {
+    testWidgets('"Approve & buy" button is visible in initial state', (
+      tester,
+    ) async {
       _setTallView(tester);
       await tester.pumpWidget(_wrap(_tshirtScreen()));
       await tester.pump();
@@ -120,14 +128,11 @@ void main() {
       expect(find.text('Approve & buy'), findsOneWidget);
     });
 
-    testWidgets('"Approve & buy" tapping navigates to MockupApprovalScreen',
-        (tester) async {
+    testWidgets('"Approve & buy" tapping navigates to MockupApprovalScreen', (
+      tester,
+    ) async {
       _setTallView(tester);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: _tshirtScreen(),
-        ),
-      );
+      await tester.pumpWidget(MaterialApp(home: _tshirtScreen()));
       await tester.pump();
 
       await tester.tap(find.text('Approve & buy'));
@@ -138,33 +143,29 @@ void main() {
     });
 
     testWidgets(
-        'back-navigation from MockupApprovalScreen returns to MerchVariantScreen',
-        (tester) async {
-      _setTallView(tester);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: _tshirtScreen(),
-        ),
-      );
-      await tester.pump();
+      'back-navigation from MockupApprovalScreen returns to MerchVariantScreen',
+      (tester) async {
+        _setTallView(tester);
+        await tester.pumpWidget(MaterialApp(home: _tshirtScreen()));
+        await tester.pump();
 
-      await tester.tap(find.text('Approve & buy'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Approve & buy'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Approve your order'), findsOneWidget);
+        expect(find.text('Approve your order'), findsOneWidget);
 
-      // Navigate back
-      final NavigatorState navigator = tester.state(find.byType(Navigator));
-      navigator.pop();
-      await tester.pumpAndSettle();
+        // Navigate back
+        final NavigatorState navigator = tester.state(find.byType(Navigator));
+        navigator.pop();
+        await tester.pumpAndSettle();
 
-      // Back on MerchVariantScreen
-      expect(find.text('Approve & buy'), findsOneWidget);
-      expect(find.text('Approve your order'), findsNothing);
-    });
+        // Back on MerchVariantScreen
+        expect(find.text('Approve & buy'), findsOneWidget);
+        expect(find.text('Approve your order'), findsNothing);
+      },
+    );
 
-    testWidgets('template picker includes Timeline option',
-        (tester) async {
+    testWidgets('template picker includes Timeline option', (tester) async {
       _setTallView(tester);
       await tester.pumpWidget(_wrap(_tshirtScreen()));
       await tester.pump();
@@ -180,67 +181,70 @@ void main() {
     // present in all three scenarios.
 
     testWidgets(
-        'renders correctly when artworkImageBytes provided and template unchanged',
-        (tester) async {
-      _setTallView(tester);
-      final fakeBytes = Uint8List.fromList(List.filled(64, 0));
-      await tester.pumpWidget(
-        _wrap(
-          MerchVariantScreen(
-            product: MerchProduct.tshirt,
-            selectedCodes: const ['GB', 'FR', 'JP'],
-            initialTemplate: CardTemplateType.grid,
-            artworkImageBytes: fakeBytes,
+      'renders correctly when artworkImageBytes provided and template unchanged',
+      (tester) async {
+        _setTallView(tester);
+        final fakeBytes = Uint8List.fromList(List.filled(64, 0));
+        await tester.pumpWidget(
+          _wrap(
+            MerchVariantScreen(
+              product: MerchProduct.tshirt,
+              selectedCodes: const ['GB', 'FR', 'JP'],
+              initialTemplate: CardTemplateType.grid,
+              artworkImageBytes: fakeBytes,
+            ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      // Screen is in initial state — reuse path will be taken on confirm.
-      expect(find.text('Approve & buy'), findsOneWidget);
-    });
+        // Screen is in initial state — reuse path will be taken on confirm.
+        expect(find.text('Approve & buy'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-        'renders correctly when artworkImageBytes provided but template differs',
-        (tester) async {
-      _setTallView(tester);
-      final fakeBytes = Uint8List.fromList(List.filled(64, 0));
-      // initialTemplate=grid but screen will allow switching to Heart.
-      // The re-render path is taken when _selectedTemplate != initialTemplate.
-      await tester.pumpWidget(
-        _wrap(
-          MerchVariantScreen(
-            product: MerchProduct.tshirt,
-            selectedCodes: const ['GB', 'FR'],
-            initialTemplate: CardTemplateType.grid,
-            artworkImageBytes: fakeBytes,
+      'renders correctly when artworkImageBytes provided but template differs',
+      (tester) async {
+        _setTallView(tester);
+        final fakeBytes = Uint8List.fromList(List.filled(64, 0));
+        // initialTemplate=grid but screen will allow switching to Heart.
+        // The re-render path is taken when _selectedTemplate != initialTemplate.
+        await tester.pumpWidget(
+          _wrap(
+            MerchVariantScreen(
+              product: MerchProduct.tshirt,
+              selectedCodes: const ['GB', 'FR'],
+              initialTemplate: CardTemplateType.grid,
+              artworkImageBytes: fakeBytes,
+            ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      // User can change template; re-render path is active.
-      expect(find.text('Approve & buy'), findsOneWidget);
-      expect(find.text('Heart'), findsOneWidget); // template option available
-    });
+        // User can change template; re-render path is active.
+        expect(find.text('Approve & buy'), findsOneWidget);
+        expect(find.text('Heart'), findsOneWidget); // template option available
+      },
+    );
 
     testWidgets(
-        'renders correctly when artworkImageBytes is null (existing render path)',
-        (tester) async {
-      _setTallView(tester);
-      await tester.pumpWidget(
-        _wrap(
-          const MerchVariantScreen(
-            product: MerchProduct.tshirt,
-            selectedCodes: ['GB'],
-            initialTemplate: CardTemplateType.grid,
-            // artworkImageBytes omitted → null
+      'renders correctly when artworkImageBytes is null (existing render path)',
+      (tester) async {
+        _setTallView(tester);
+        await tester.pumpWidget(
+          _wrap(
+            const MerchVariantScreen(
+              product: MerchProduct.tshirt,
+              selectedCodes: ['GB'],
+              initialTemplate: CardTemplateType.grid,
+              // artworkImageBytes omitted → null
+            ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      expect(find.text('Approve & buy'), findsOneWidget);
-    });
+        expect(find.text('Approve & buy'), findsOneWidget);
+      },
+    );
   });
 }

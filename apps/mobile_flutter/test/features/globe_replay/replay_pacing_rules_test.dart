@@ -39,8 +39,10 @@ void main() {
       fromCode: 'FR',
       toCode: 'DE',
       date: DateTime(2024, 6, 1),
-      fromLat: 48.8, fromLng: 2.3,
-      toLat: 52.5, toLng: 13.4,
+      fromLat: 48.8,
+      fromLng: 2.3,
+      toLat: 52.5,
+      toLng: 13.4,
     );
 
     test('flight duration is short', () {
@@ -60,8 +62,10 @@ void main() {
       fromCode: 'AU',
       toCode: 'GB',
       date: DateTime(2024, 8, 1),
-      fromLat: -33.9, fromLng: 151.2,
-      toLat: 51.5, toLng: -0.1,
+      fromLat: -33.9,
+      fromLng: 151.2,
+      toLat: 51.5,
+      toLng: -0.1,
     );
 
     test('flight duration is long', () {
@@ -76,8 +80,13 @@ void main() {
 
     test('peakScale is higher than short pacing', () {
       final shortLeg = TravelLeg(
-        fromCode: 'FR', toCode: 'DE', date: DateTime(2024, 6, 1),
-        fromLat: 48.8, fromLng: 2.3, toLat: 52.5, toLng: 13.4,
+        fromCode: 'FR',
+        toCode: 'DE',
+        date: DateTime(2024, 6, 1),
+        fromLat: 48.8,
+        fromLng: 2.3,
+        toLat: 52.5,
+        toLng: 13.4,
       );
       final longP = ReplayPacingRules.compute(leg, 5);
       final shortP = ReplayPacingRules.compute(shortLeg, 5);
@@ -87,18 +96,29 @@ void main() {
 
   group('ReplayPacingRules.compute — flight compression for large scripts', () {
     final leg = TravelLeg(
-      fromCode: 'AU', toCode: 'GB', date: DateTime(2024, 8, 1),
-      fromLat: -33.9, fromLng: 151.2, toLat: 51.5, toLng: -0.1,
+      fromCode: 'AU',
+      toCode: 'GB',
+      date: DateTime(2024, 8, 1),
+      fromLat: -33.9,
+      fromLng: 151.2,
+      toLat: 51.5,
+      toLng: -0.1,
     );
 
     test('100-leg script caps flight duration', () {
       final p = ReplayPacingRules.compute(leg, 100);
-      expect(p.flightMs, lessThanOrEqualTo(TravelReplayScriptBuilder.legDurationMs(100)));
+      expect(
+        p.flightMs,
+        lessThanOrEqualTo(TravelReplayScriptBuilder.legDurationMs(100)),
+      );
     });
 
     test('5-leg script is not artificially compressed', () {
       final p = ReplayPacingRules.compute(leg, 5);
-      expect(p.flightMs, greaterThan(TravelReplayScriptBuilder.legDurationMs(100)));
+      expect(
+        p.flightMs,
+        greaterThan(TravelReplayScriptBuilder.legDurationMs(100)),
+      );
     });
   });
 
@@ -106,7 +126,9 @@ void main() {
     test('falls back to centroids when GPS is null', () {
       // No GPS — uses kCountryCentroids for FR and DE
       final leg = TravelLeg(
-        fromCode: 'FR', toCode: 'DE', date: DateTime(2024, 6, 1),
+        fromCode: 'FR',
+        toCode: 'DE',
+        date: DateTime(2024, 6, 1),
       );
       final d = ReplayPacingRules.legArcDistance(leg);
       expect(d, greaterThan(0.0));
@@ -115,12 +137,18 @@ void main() {
 
     test('uses GPS when available', () {
       final legGps = TravelLeg(
-        fromCode: 'FR', toCode: 'AU', date: DateTime(2024, 6, 1),
-        fromLat: 48.8, fromLng: 2.3,
-        toLat: -33.9, toLng: 151.2,
+        fromCode: 'FR',
+        toCode: 'AU',
+        date: DateTime(2024, 6, 1),
+        fromLat: 48.8,
+        fromLng: 2.3,
+        toLat: -33.9,
+        toLng: 151.2,
       );
       final legCentroid = TravelLeg(
-        fromCode: 'FR', toCode: 'AU', date: DateTime(2024, 6, 1),
+        fromCode: 'FR',
+        toCode: 'AU',
+        date: DateTime(2024, 6, 1),
       );
       // Both should classify as long; values close but GPS more precise
       final dGps = ReplayPacingRules.legArcDistance(legGps);
@@ -134,10 +162,24 @@ void main() {
     test('returns one LegPacing per leg', () {
       final script = TravelReplayScript(
         legs: [
-          TravelLeg(fromCode: 'FR', toCode: 'DE', date: DateTime(2024, 6, 1),
-              fromLat: 48.8, fromLng: 2.3, toLat: 52.5, toLng: 13.4),
-          TravelLeg(fromCode: 'DE', toCode: 'AU', date: DateTime(2024, 8, 1),
-              fromLat: 52.5, fromLng: 13.4, toLat: -33.9, toLng: 151.2),
+          TravelLeg(
+            fromCode: 'FR',
+            toCode: 'DE',
+            date: DateTime(2024, 6, 1),
+            fromLat: 48.8,
+            fromLng: 2.3,
+            toLat: 52.5,
+            toLng: 13.4,
+          ),
+          TravelLeg(
+            fromCode: 'DE',
+            toCode: 'AU',
+            date: DateTime(2024, 8, 1),
+            fromLat: 52.5,
+            fromLng: 13.4,
+            toLat: -33.9,
+            toLng: 151.2,
+          ),
         ],
         mode: TravelReplayMode.allTime,
         label: 'Test',

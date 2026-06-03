@@ -63,7 +63,9 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('MapScreen renders with empty repository; no crash', (tester) async {
+  testWidgets('MapScreen renders with empty repository; no crash', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -71,7 +73,9 @@ void main() {
     expect(find.byType(MapScreen), findsOneWidget);
   });
 
-  testWidgets('MapScreen shows loading indicator before data resolves', (tester) async {
+  testWidgets('MapScreen shows loading indicator before data resolves', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -128,7 +132,9 @@ void main() {
     expect(find.byIcon(Icons.more_vert), findsOneWidget);
   });
 
-  testWidgets('tapping overflow shows Clear travel history item', (tester) async {
+  testWidgets('tapping overflow shows Clear travel history item', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -140,7 +146,9 @@ void main() {
     expect(find.text('Clear travel history'), findsOneWidget);
   });
 
-  testWidgets('confirming delete clears visits and shows empty state', (tester) async {
+  testWidgets('confirming delete clears visits and shows empty state', (
+    tester,
+  ) async {
     // Use a taller surface so the overflow menu (8+ items when visits exist) fits.
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -158,7 +166,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text("Scan your photos to see where you've been"), findsNothing);
+    expect(
+      find.text("Scan your photos to see where you've been"),
+      findsNothing,
+    );
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pump();
@@ -174,12 +185,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text("Scan your photos to see where you've been"), findsOneWidget);
+    expect(
+      find.text("Scan your photos to see where you've been"),
+      findsOneWidget,
+    );
   });
 
   // ── Task 18: Sign in with Apple ───────────────────────────────────────────
 
-  testWidgets('overflow menu shows Sign in with Apple when anonymous', (tester) async {
+  testWidgets('overflow menu shows Sign in with Apple when anonymous', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -191,9 +207,13 @@ void main() {
     expect(find.text('Sign in with Apple'), findsOneWidget);
   });
 
-  testWidgets('overflow menu shows Signed in with Apple when not anonymous', (tester) async {
+  testWidgets('overflow menu shows Signed in with Apple when not anonymous', (
+    tester,
+  ) async {
     final signedInUser = MockUser(isAnonymous: false, uid: 'apple-uid');
-    await tester.pumpWidget(_pumpMapScreen(_makeRepo(), mockUser: signedInUser));
+    await tester.pumpWidget(
+      _pumpMapScreen(_makeRepo(), mockUser: signedInUser),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -205,7 +225,9 @@ void main() {
     expect(find.text('Sign in with Apple'), findsNothing);
   });
 
-  testWidgets('tapping Sign in with Apple invokes sign-in callback', (tester) async {
+  testWidgets('tapping Sign in with Apple invokes sign-in callback', (
+    tester,
+  ) async {
     var invoked = false;
     await tester.pumpWidget(
       _pumpMapScreen(
@@ -243,8 +265,9 @@ void main() {
 
   // ── Task 28: Share travel card ─────────────────────────────────────────────
 
-  testWidgets('overflow menu shows Share travel card when visits exist',
-      (tester) async {
+  testWidgets('overflow menu shows Share travel card when visits exist', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -268,7 +291,9 @@ void main() {
     expect(find.text('Share travel card'), findsOneWidget);
   });
 
-  testWidgets('overflow menu hides Share travel card when no visits', (tester) async {
+  testWidgets('overflow menu hides Share travel card when no visits', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -294,8 +319,9 @@ void main() {
     expect(find.text('Privacy & account'), findsOneWidget);
   });
 
-  testWidgets('Share my map link is no longer in the overflow menu',
-      (tester) async {
+  testWidgets('Share my map link is no longer in the overflow menu', (
+    tester,
+  ) async {
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
       InferredCountryVisit(
@@ -319,8 +345,9 @@ void main() {
 
   // ── M29: Commerce entry points ─────────────────────────────────────────────
 
-  testWidgets('overflow menu shows Create card when visits exist',
-      (tester) async {
+  testWidgets('overflow menu shows Create card when visits exist', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -344,8 +371,7 @@ void main() {
     expect(find.text('Create card'), findsOneWidget);
   });
 
-  testWidgets('overflow menu hides Create card when no visits',
-      (tester) async {
+  testWidgets('overflow menu hides Create card when no visits', (tester) async {
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -359,8 +385,39 @@ void main() {
 
   // ── M29: 30-day scan nudge banner ──────────────────────────────────────────
 
-  testWidgets('nudge banner shown when lastScanAt > 30 days ago and has visits',
-      (tester) async {
+  testWidgets(
+    'nudge banner shown when lastScanAt > 30 days ago and has visits',
+    (tester) async {
+      final repo = _makeRepo();
+      await repo.clearAndSaveAllInferred([
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2024),
+          photoCount: 1,
+        ),
+      ]);
+      await repo.saveLastScanAt(
+        DateTime.now().toUtc().subtract(const Duration(days: 31)),
+      );
+
+      await tester.pumpWidget(_pumpMapScreen(repo));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        find.text("It's been a while — time for a new scan"),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Scan now'),
+        findsWidgets,
+      ); // nudge banner + scan prompt both show
+    },
+  );
+
+  testWidgets('nudge banner not shown when lastScanAt is recent', (
+    tester,
+  ) async {
     final repo = _makeRepo();
     await repo.clearAndSaveAllInferred([
       InferredCountryVisit(
@@ -369,26 +426,9 @@ void main() {
         photoCount: 1,
       ),
     ]);
-    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
-
-    await tester.pumpWidget(_pumpMapScreen(repo));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(find.text("It's been a while — time for a new scan"), findsOneWidget);
-    expect(find.text('Scan now'), findsWidgets); // nudge banner + scan prompt both show
-  });
-
-  testWidgets('nudge banner not shown when lastScanAt is recent', (tester) async {
-    final repo = _makeRepo();
-    await repo.clearAndSaveAllInferred([
-      InferredCountryVisit(
-        countryCode: 'GB',
-        inferredAt: DateTime.utc(2024),
-        photoCount: 1,
-      ),
-    ]);
-    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 5)));
+    await repo.saveLastScanAt(
+      DateTime.now().toUtc().subtract(const Duration(days: 5)),
+    );
 
     await tester.pumpWidget(_pumpMapScreen(repo));
     await tester.pump();
@@ -399,7 +439,9 @@ void main() {
 
   testWidgets('nudge banner not shown when no visits', (tester) async {
     final repo = _makeRepo();
-    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
+    await repo.saveLastScanAt(
+      DateTime.now().toUtc().subtract(const Duration(days: 31)),
+    );
 
     await tester.pumpWidget(_pumpMapScreen(_makeRepo()));
     await tester.pump();
@@ -420,13 +462,18 @@ void main() {
         photoCount: 1,
       ),
     ]);
-    await repo.saveLastScanAt(DateTime.now().toUtc().subtract(const Duration(days: 31)));
+    await repo.saveLastScanAt(
+      DateTime.now().toUtc().subtract(const Duration(days: 31)),
+    );
 
     await tester.pumpWidget(_pumpMapScreen(repo));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text("It's been a while — time for a new scan"), findsOneWidget);
+    expect(
+      find.text("It's been a while — time for a new scan"),
+      findsOneWidget,
+    );
 
     // _GlobeRotationToggle overlaps the close button's tap area, so invoke
     // the button directly instead of using tester.tap().
@@ -463,7 +510,10 @@ void main() {
     testWidgets('shows headline and body text', (tester) async {
       await pumpSheet(tester);
       expect(find.text('New countries may be waiting'), findsOneWidget);
-      expect(find.textContaining("You haven't scanned in a while"), findsOneWidget);
+      expect(
+        find.textContaining("You haven't scanned in a while"),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows Scan now and Later buttons', (tester) async {
@@ -502,13 +552,13 @@ void main() {
       overrides: [
         roavvyDatabaseProvider.overrideWithValue(helperDb),
         visitRepositoryProvider.overrideWithValue(_makeRepo()),
-        achievementRepositoryProvider
-            .overrideWithValue(AchievementRepository(_makeDb())),
+        achievementRepositoryProvider.overrideWithValue(
+          AchievementRepository(_makeDb()),
+        ),
         xpRepositoryProvider.overrideWithValue(XpRepository(_makeDb())),
         polygonsProvider.overrideWithValue(const []),
         authStateProvider.overrideWith((_) => mockAuth.authStateChanges()),
-        onboardingCompleteProvider
-            .overrideWith((_) async => onboardingDone),
+        onboardingCompleteProvider.overrideWith((_) async => onboardingDone),
         lastScanAtProvider.overrideWith((_) async => lastScanAt),
         todaysMemoriesProvider.overrideWith(
           (ref) => Future<List<MemoryAnniversaryPhoto>>.value([]),
@@ -518,12 +568,12 @@ void main() {
     );
   }
 
-  testWidgets('scan prompt shown when onboarding done and lastScanAt is null',
-      (tester) async {
-    await tester.pumpWidget(pumpMapScreenWithPrompt(
-      onboardingDone: true,
-      lastScanAt: null,
-    ));
+  testWidgets('scan prompt shown when onboarding done and lastScanAt is null', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      pumpMapScreenWithPrompt(onboardingDone: true, lastScanAt: null),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -531,33 +581,39 @@ void main() {
   });
 
   testWidgets('scan prompt shown when lastScanAt > 7 days ago', (tester) async {
-    await tester.pumpWidget(pumpMapScreenWithPrompt(
-      onboardingDone: true,
-      lastScanAt: DateTime.now().subtract(const Duration(days: 10)),
-    ));
+    await tester.pumpWidget(
+      pumpMapScreenWithPrompt(
+        onboardingDone: true,
+        lastScanAt: DateTime.now().subtract(const Duration(days: 10)),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsOneWidget);
   });
 
-  testWidgets('scan prompt not shown when lastScanAt is recent', (tester) async {
-    await tester.pumpWidget(pumpMapScreenWithPrompt(
-      onboardingDone: true,
-      lastScanAt: DateTime.now().subtract(const Duration(days: 3)),
-    ));
+  testWidgets('scan prompt not shown when lastScanAt is recent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      pumpMapScreenWithPrompt(
+        onboardingDone: true,
+        lastScanAt: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('New countries may be waiting'), findsNothing);
   });
 
-  testWidgets('scan prompt not shown when onboarding not complete',
-      (tester) async {
-    await tester.pumpWidget(pumpMapScreenWithPrompt(
-      onboardingDone: false,
-      lastScanAt: null,
-    ));
+  testWidgets('scan prompt not shown when onboarding not complete', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      pumpMapScreenWithPrompt(onboardingDone: false, lastScanAt: null),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -568,10 +624,9 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'scan_prompt_dismissed_at': DateTime.now().toIso8601String(),
     });
-    await tester.pumpWidget(pumpMapScreenWithPrompt(
-      onboardingDone: true,
-      lastScanAt: null,
-    ));
+    await tester.pumpWidget(
+      pumpMapScreenWithPrompt(onboardingDone: true, lastScanAt: null),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 

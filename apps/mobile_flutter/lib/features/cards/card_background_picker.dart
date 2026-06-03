@@ -98,8 +98,7 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
         return Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Column(
             children: [
@@ -119,9 +118,10 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
                   child: Text(
                     'Photo Background',
                     style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -147,10 +147,11 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
                           child: Text(
                             'HERO PHOTOS',
                             style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white38,
-                                letterSpacing: 0.8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white38,
+                              letterSpacing: 0.8,
+                            ),
                           ),
                         ),
                       ),
@@ -159,11 +160,10 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
                           height: 96,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: widget.heroImages.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
+                            separatorBuilder:
+                                (_, __) => const SizedBox(width: 8),
                             itemBuilder: (context, i) {
                               final hero = widget.heroImages[i];
                               final thumb = _heroThumbs[hero.assetId];
@@ -187,10 +187,11 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
                         child: Text(
                           'RECENT PHOTOS',
                           style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white38,
-                              letterSpacing: 0.8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white38,
+                            letterSpacing: 0.8,
+                          ),
                         ),
                       ),
                     ),
@@ -201,8 +202,10 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
                           child: Text(
                             'Photo library access denied.\nEnable in Settings to browse.',
                             textAlign: TextAlign.center,
-                            style:
-                                TextStyle(fontSize: 13, color: Colors.white38),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white38,
+                            ),
                           ),
                         ),
                       )
@@ -211,32 +214,28 @@ class _CardBackgroundPickerState extends State<CardBackgroundPicker> {
                         child: Padding(
                           padding: EdgeInsets.all(32),
                           child: Center(
-                              child:
-                                  CircularProgressIndicator.adaptive()),
+                            child: CircularProgressIndicator.adaptive(),
+                          ),
                         ),
                       )
                     else
                       SliverGrid(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) {
-                            final asset = _recentAssets[i];
-                            return GestureDetector(
-                              onTap: () => _select(asset.id),
-                              child: _AssetCell(
-                                asset: asset,
-                                isSelected:
-                                    widget.currentAssetId == asset.id,
-                              ),
-                            );
-                          },
-                          childCount: _recentAssets.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, i) {
+                          final asset = _recentAssets[i];
+                          return GestureDetector(
+                            onTap: () => _select(asset.id),
+                            child: _AssetCell(
+                              asset: asset,
+                              isSelected: widget.currentAssetId == asset.id,
+                            ),
+                          );
+                        }, childCount: _recentAssets.length),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 2,
-                          mainAxisSpacing: 2,
-                        ),
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 2,
+                              mainAxisSpacing: 2,
+                            ),
                       ),
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
                   ],
@@ -281,23 +280,19 @@ class _PickerTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 18,
-                color: isSelected ? amber : Colors.white54),
+            Icon(icon, size: 18, color: isSelected ? amber : Colors.white54),
             const SizedBox(width: 10),
             Text(
               label,
               style: TextStyle(
                 fontSize: 14,
                 color: isSelected ? Colors.white : Colors.white70,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
             if (isSelected) ...[
               const Spacer(),
-              const Icon(Icons.check_circle_rounded,
-                  size: 18, color: amber),
+              const Icon(Icons.check_circle_rounded, size: 18, color: amber),
             ],
           ],
         ),
@@ -324,22 +319,24 @@ class _ThumbnailCell extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: isSelected
-            ? Border.all(color: const Color(0xFFD4A017), width: 2.5)
-            : null,
+        border:
+            isSelected
+                ? Border.all(color: const Color(0xFFD4A017), width: 2.5)
+                : null,
         color: Colors.white10,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(isSelected ? 6 : 8),
-        child: bytes != null
-            ? Image.memory(bytes!, fit: BoxFit.cover)
-            : const Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+        child:
+            bytes != null
+                ? Image.memory(bytes!, fit: BoxFit.cover)
+                : const Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+                  ),
                 ),
-              ),
       ),
     );
   }
@@ -375,13 +372,15 @@ class _AssetCellState extends State<_AssetCell> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: widget.isSelected
-            ? Border.all(color: const Color(0xFFD4A017), width: 2.5)
-            : null,
+        border:
+            widget.isSelected
+                ? Border.all(color: const Color(0xFFD4A017), width: 2.5)
+                : null,
       ),
-      child: _thumb != null
-          ? Image.memory(_thumb!, fit: BoxFit.cover)
-          : Container(color: Colors.white10),
+      child:
+          _thumb != null
+              ? Image.memory(_thumb!, fit: BoxFit.cover)
+              : Container(color: Colors.white10),
     );
   }
 }

@@ -26,15 +26,15 @@ import 'replay_tone_generator.dart';
 /// | end         | arpeggio + major chord fanfare        | replay complete      |
 class ReplayAudioController {
   ReplayAudioController()
-      : _travelShort = AudioPlayer(),
-        _travelLong = AudioPlayer(),
-        _arrival = AudioPlayer(),
-        _achievement = AudioPlayer(),
-        _end = AudioPlayer(),
-        _heritage = AudioPlayer(),
-        _yearChange = AudioPlayer(),
-        _discovery = AudioPlayer(),
-        _collection = AudioPlayer() {
+    : _travelShort = AudioPlayer(),
+      _travelLong = AudioPlayer(),
+      _arrival = AudioPlayer(),
+      _achievement = AudioPlayer(),
+      _end = AudioPlayer(),
+      _heritage = AudioPlayer(),
+      _yearChange = AudioPlayer(),
+      _discovery = AudioPlayer(),
+      _collection = AudioPlayer() {
     for (final p in _allPlayers) {
       p.setReleaseMode(ReleaseMode.stop).ignore();
     }
@@ -170,8 +170,17 @@ class ReplayAudioController {
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
-  List<AudioPlayer> get _allPlayers =>
-      [_travelShort, _travelLong, _arrival, _achievement, _end, _heritage, _yearChange, _discovery, _collection];
+  List<AudioPlayer> get _allPlayers => [
+    _travelShort,
+    _travelLong,
+    _arrival,
+    _achievement,
+    _end,
+    _heritage,
+    _yearChange,
+    _discovery,
+    _collection,
+  ];
 
   Future<void> _warmUp(AudioPlayer player, Uint8List bytes) async {
     try {

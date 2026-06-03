@@ -201,13 +201,9 @@ class _TimelinePainter extends CustomPainter {
 
     // Single global font size that fits every entry without wrapping.
     const kPad = 10.0; // horizontal padding
-    final fontSize = _computeFontSize(
-      rowH,
-      width,
-      kPad,
-      [for (final e in entries) e.countryName],
-      dateStrs,
-    );
+    final fontSize = _computeFontSize(rowH, width, kPad, [
+      for (final e in entries) e.countryName,
+    ], dateStrs);
     final flagFontSize = (fontSize * 1.5).clamp(8.0, 28.0);
 
     double y = zoneTop + kPadH;
@@ -224,7 +220,16 @@ class _TimelinePainter extends CustomPainter {
         lastYear = year;
       }
       _drawEntryRow(
-          canvas, width, y, rowH, entry, dateStrs[i], fontSize, flagFontSize, kPad);
+        canvas,
+        width,
+        y,
+        rowH,
+        entry,
+        dateStrs[i],
+        fontSize,
+        flagFontSize,
+        kPad,
+      );
       y += rowH;
     }
 
@@ -302,7 +307,10 @@ class _TimelinePainter extends CustomPainter {
 
   // Dynamically compute divider height and row height to fit all entries.
   (double rowH, double divH) _computeHeights(
-      int n, int divCount, double available) {
+    int n,
+    int divCount,
+    double available,
+  ) {
     if (n == 0) return (24.0, 14.0);
 
     // Try full divider height (14px).
@@ -324,8 +332,15 @@ class _TimelinePainter extends CustomPainter {
     return (rowH.clamp(8.0, 32.0), 0.0);
   }
 
-  void _drawYearDivider(Canvas canvas, double width, double y, double divH,
-      int year, double fontSize, double hPad) {
+  void _drawYearDivider(
+    Canvas canvas,
+    double width,
+    double y,
+    double divH,
+    int year,
+    double fontSize,
+    double hPad,
+  ) {
     final midY = y + divH / 2;
 
     // Year label.
@@ -426,8 +441,14 @@ class _TimelinePainter extends CustomPainter {
     }
   }
 
-  void _drawMoreNote(Canvas canvas, double width, double y, int count,
-      double fontSize, double hPad) {
+  void _drawMoreNote(
+    Canvas canvas,
+    double width,
+    double y,
+    int count,
+    double fontSize,
+    double hPad,
+  ) {
     final text = 'and $count more ${count == 1 ? 'trip' : 'trips'}';
     final tp = TextPainter(
       text: TextSpan(

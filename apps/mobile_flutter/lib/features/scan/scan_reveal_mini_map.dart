@@ -90,24 +90,26 @@ class _ScanRevealMiniMapState extends ConsumerState<ScanRevealMiniMap> {
 
     for (final cp in polygons) {
       final isRevealed = _revealed.contains(cp.isoCode);
-      final points = cp.vertices
-          .map((v) => LatLng(v.$1, v.$2))
-          .toList();
+      final points = cp.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
 
       if (isRevealed) {
-        revealedPolygons.add(Polygon(
-          points: points,
-          color: _kRevealedFill,
-          borderColor: _kRevealedBorder,
-          borderStrokeWidth: 0.5,
-        ));
+        revealedPolygons.add(
+          Polygon(
+            points: points,
+            color: _kRevealedFill,
+            borderColor: _kRevealedBorder,
+            borderStrokeWidth: 0.5,
+          ),
+        );
       } else {
-        unvisitedPolygons.add(Polygon(
-          points: points,
-          color: _kUnvisitedFill,
-          borderColor: _kUnvisitedBorder,
-          borderStrokeWidth: 0.5,
-        ));
+        unvisitedPolygons.add(
+          Polygon(
+            points: points,
+            color: _kUnvisitedFill,
+            borderColor: _kUnvisitedBorder,
+            borderStrokeWidth: 0.5,
+          ),
+        );
       }
     }
 
@@ -122,7 +124,8 @@ class _ScanRevealMiniMapState extends ConsumerState<ScanRevealMiniMap> {
             initialCenter: const LatLng(20, 0),
             initialZoom: 1.2,
             interactionOptions: InteractionOptions(
-              flags: InteractiveFlag.all &
+              flags:
+                  InteractiveFlag.all &
                   ~InteractiveFlag.doubleTapZoom &
                   ~InteractiveFlag.doubleTapDragZoom,
             ),

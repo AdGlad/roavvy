@@ -32,8 +32,12 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
   void initState() {
     super.initState();
     _confetti = ConfettiController(duration: const Duration(seconds: 4));
-    final reduceMotion = WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
-        .reduceMotion;
+    final reduceMotion =
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .accessibilityFeatures
+            .reduceMotion;
     if (!reduceMotion) {
       _confetti.play();
     }
@@ -47,9 +51,10 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
 
   void _shareOrder(BuildContext context) {
     final box = context.findRenderObject() as RenderBox?;
-    final origin = box != null
-        ? box.localToGlobal(Offset.zero) & box.size
-        : Rect.fromLTWH(0, 0, 1, 1);
+    final origin =
+        box != null
+            ? box.localToGlobal(Offset.zero) & box.size
+            : Rect.fromLTWH(0, 0, 1, 1);
     Share.share(
       'Just ordered a ${widget.product.name} with all ${widget.countryCount} '
       "countries I've visited — made with Roavvy 🌍",
@@ -95,10 +100,7 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      '🎉',
-                      style: TextStyle(fontSize: 72),
-                    ),
+                    const Text('🎉', style: TextStyle(fontSize: 72)),
                     const SizedBox(height: 24),
                     Text(
                       'Your order is on its way!',
@@ -121,8 +123,10 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () => Navigator.of(context)
-                            .popUntil((route) => route.isFirst),
+                        onPressed:
+                            () => Navigator.of(
+                              context,
+                            ).popUntil((route) => route.isFirst),
                         child: const Text('Back to my map'),
                       ),
                     ),
@@ -130,10 +134,11 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: Builder(
-                        builder: (btnCtx) => OutlinedButton(
-                          onPressed: () => _shareOrder(btnCtx),
-                          child: const Text('Share my order'),
-                        ),
+                        builder:
+                            (btnCtx) => OutlinedButton(
+                              onPressed: () => _shareOrder(btnCtx),
+                              child: const Text('Share my order'),
+                            ),
                       ),
                     ),
                   ],

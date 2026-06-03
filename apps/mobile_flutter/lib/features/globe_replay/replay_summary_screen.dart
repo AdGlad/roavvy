@@ -46,7 +46,9 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
       duration: const Duration(milliseconds: 1200),
     );
     _countUpAnim = CurvedAnimation(
-        parent: _countUpCtrl, curve: Curves.easeOutExpo);
+      parent: _countUpCtrl,
+      curve: Curves.easeOutExpo,
+    );
   }
 
   @override
@@ -177,7 +179,10 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
   static String _summaryTitle(TravelReplayScript script) {
     switch (script.mode) {
       case TravelReplayMode.year:
-        final year = script.legs.isNotEmpty ? script.legs.first.date.year : DateTime.now().year;
+        final year =
+            script.legs.isNotEmpty
+                ? script.legs.first.date.year
+                : DateTime.now().year;
         return 'Your $year Journey';
       case TravelReplayMode.allTime:
         return 'Your Travel Story';
@@ -202,8 +207,10 @@ class _StatRow extends AnimatedWidget {
   @override
   Widget build(BuildContext context) {
     // Shift the 0–1 range to account for stagger delay.
-    final localT = ((_anim.value - fadeDelay) / (1.0 - fadeDelay))
-        .clamp(0.0, 1.0);
+    final localT = ((_anim.value - fadeDelay) / (1.0 - fadeDelay)).clamp(
+      0.0,
+      1.0,
+    );
     final intValue = int.tryParse(stat.value) ?? 0;
     final displayValue = (intValue * localT).round();
 

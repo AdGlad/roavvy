@@ -41,13 +41,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final centroid = kCountryCentroids[widget.trip.countryCode];
     final lat = centroid?.$1 ?? 0.0;
     final lng = centroid?.$2 ?? 0.0;
-    
+
     final centered = GlobeProjection(
       rotLat: lat * math.pi / 180.0,
       rotLng: -lng * math.pi / 180.0,
       scale: 1.0,
     );
-    
+
     // Auto-scale to fit the country.
     _projection = centered.copyWith(
       scale: _autoScale(_allRegionPolygons, centered),
@@ -72,7 +72,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final countryName = kCountryNames[widget.trip.countryCode] ?? widget.trip.countryCode;
+    final countryName =
+        kCountryNames[widget.trip.countryCode] ?? widget.trip.countryCode;
     final flag = _flagEmoji(widget.trip.countryCode);
     final dateRange = _dateRange(widget.trip.startedOn, widget.trip.endedOn);
     final days = _tripDays(widget.trip.startedOn, widget.trip.endedOn);
@@ -98,10 +99,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       builder: (context, snapshot) {
                         final visitedCodes = snapshot.data ?? const {};
                         final countryPolygons = ref.watch(polygonsProvider);
-                        
+
                         return LayoutBuilder(
                           builder: (context, constraints) {
-                            _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                            _canvasSize = Size(
+                              constraints.maxWidth,
+                              constraints.maxHeight,
+                            );
                             return CustomPaint(
                               size: _canvasSize,
                               painter: RegionGlobePainter(
@@ -109,14 +113,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 regionPolygons: _allRegionPolygons,
                                 visitedCodes: visitedCodes,
                                 projection: _projection,
-                                highlightColor: Colors.amber.withValues(alpha: 0.9),
+                                highlightColor: Colors.amber.withValues(
+                                  alpha: 0.9,
+                                ),
                               ),
                             );
                           },
                         );
                       },
                     ),
-                    
+
                     // 2. Metadata Overlays
                     Positioned(
                       bottom: 0,
@@ -182,39 +188,41 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             final assetIds = snapshot.data!;
             if (assetIds.isEmpty) {
               return const Center(
-                child: Text('No photos found for this trip.', style: TextStyle(color: Colors.white54)),
+                child: Text(
+                  'No photos found for this trip.',
+                  style: TextStyle(color: Colors.white54),
+                ),
               );
             }
 
             // Compute the exact physical pixel size of each grid cell so
             // photo_manager requests at exactly the right resolution.
             final mq = MediaQuery.of(context);
-            final cellPx = ((mq.size.width - 4) / 3 * mq.devicePixelRatio).ceil();
+            final cellPx =
+                ((mq.size.width - 4) / 3 * mq.devicePixelRatio).ceil();
 
             return CustomScrollView(
               slivers: [
                 SliverPadding(
                   padding: const EdgeInsets.all(2),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 2,
-                      mainAxisSpacing: 2,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return GestureDetector(
-                          onTap: () => _showFullScreen(context, assetIds[index]),
-                          child: HeroImageView(
-                            assetId: assetIds[index],
-                            fallbackColor: Colors.grey[900]!,
-                            height: double.infinity,
-                            thumbnailSize: ThumbnailSize.square(cellPx),
-                          ),
-                        );
-                      },
-                      childCount: assetIds.length,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 2,
+                          mainAxisSpacing: 2,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return GestureDetector(
+                        onTap: () => _showFullScreen(context, assetIds[index]),
+                        child: HeroImageView(
+                          assetId: assetIds[index],
+                          fallbackColor: Colors.grey[900]!,
+                          height: double.infinity,
+                          thumbnailSize: ThumbnailSize.square(cellPx),
+                        ),
+                      );
+                    }, childCount: assetIds.length),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -228,9 +236,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   void _showFullScreen(BuildContext context, String assetId) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _FullScreenPhotoView(assetId: assetId),
-      ),
+      MaterialPageRoute(builder: (_) => _FullScreenPhotoView(assetId: assetId)),
     );
   }
 }
@@ -243,7 +249,10 @@ class _FullScreenPhotoView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: Colors.white),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+      ),
       body: InteractiveViewer(
         child: Center(
           child: HeroImageView(
@@ -303,8 +312,18 @@ String _flagEmoji(String iso) {
 }
 
 const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _fmtDate(DateTime dt, {bool showYear = true}) {
@@ -319,8 +338,7 @@ String _dateRange(DateTime start, DateTime end) {
   return '${_fmtDate(start)} – ${_fmtDate(end)}';
 }
 
-int _tripDays(DateTime start, DateTime end) =>
-    end.difference(start).inDays + 1;
+int _tripDays(DateTime start, DateTime end) => end.difference(start).inDays + 1;
 
 double _autoScale(List<RegionPolygon> polygons, GlobeProjection centered) {
   const kNorm = Size(1000, 1000);

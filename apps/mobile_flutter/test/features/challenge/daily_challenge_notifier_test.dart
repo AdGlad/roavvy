@@ -36,12 +36,12 @@ const _site = WorldHeritageSite(
 );
 
 DailyChallengeProgress _freshProgress(String date) => DailyChallengeProgress(
-      date: date,
-      siteId: '86',
-      cluesRevealed: 1,
-      guesses: const [],
-      solved: false,
-    );
+  date: date,
+  siteId: '86',
+  cluesRevealed: 1,
+  guesses: const [],
+  solved: false,
+);
 
 DailyChallengeNotifier _makeNotifier({
   DailyChallengeProgress? savedProgress,
@@ -120,8 +120,9 @@ void main() {
     });
 
     test('no-op when already solved', () async {
-      final progress =
-          _freshProgress('2026-05-27').copyWith(solved: true, solvedAtClue: 1);
+      final progress = _freshProgress(
+        '2026-05-27',
+      ).copyWith(solved: true, solvedAtClue: 1);
       final notifier = _makeNotifier(savedProgress: progress);
       await notifier.revealNextClue();
       expect(notifier.state.valueOrNull?.progress.cluesRevealed, 1);
@@ -151,8 +152,9 @@ void main() {
     });
 
     test('no-op when already solved', () async {
-      final progress =
-          _freshProgress('2026-05-27').copyWith(solved: true, solvedAtClue: 1);
+      final progress = _freshProgress(
+        '2026-05-27',
+      ).copyWith(solved: true, solvedAtClue: 1);
       final notifier = _makeNotifier(savedProgress: progress);
       final result = await notifier.submitGuess('petra');
       expect(result, isFalse);
@@ -169,9 +171,14 @@ void main() {
       final notifier = _makeNotifier(
         allSites: [
           const WorldHeritageSite(
-            siteId: '999', name: 'Wrong Site', countryCode: 'FR',
-            latitude: 48.8566, longitude: 2.3522,
-            category: 'cultural', region: 'Europe', inscriptionYear: 2000,
+            siteId: '999',
+            name: 'Wrong Site',
+            countryCode: 'FR',
+            latitude: 48.8566,
+            longitude: 2.3522,
+            category: 'cultural',
+            region: 'Europe',
+            inscriptionYear: 2000,
           ),
         ],
       );
@@ -183,33 +190,40 @@ void main() {
     });
 
     test('no-op after failed', () async {
-      final progress = _freshProgress('2026-05-27').copyWith(
-        guesses: ['a', 'b', 'c', 'd', 'e'],
-        failed: true,
-      );
+      final progress = _freshProgress(
+        '2026-05-27',
+      ).copyWith(guesses: ['a', 'b', 'c', 'd', 'e'], failed: true);
       final notifier = _makeNotifier(savedProgress: progress);
       final result = await notifier.submitGuess('petra');
       expect(result, isFalse);
       expect(notifier.state.valueOrNull?.progress.guesses.length, 5);
     });
 
-    test('wrong guess populates lastGuessResult when guessed site known', () async {
-      final notifier = _makeNotifier(
-        allSites: [
-          const WorldHeritageSite(
-            siteId: '200', name: 'Some Other Site', countryCode: 'FR',
-            latitude: 48.8566, longitude: 2.3522,
-            category: 'cultural', region: 'Europe', inscriptionYear: 2000,
-          ),
-        ],
-      );
-      await notifier.submitGuess('Some Other Site');
-      final result = notifier.state.valueOrNull?.lastGuessResult;
-      expect(result, isNotNull);
-      expect(result!.distanceKm, greaterThan(0));
-      expect(result.direction, isNotEmpty);
-      expect(result.hotColdLabel, isNotEmpty);
-    });
+    test(
+      'wrong guess populates lastGuessResult when guessed site known',
+      () async {
+        final notifier = _makeNotifier(
+          allSites: [
+            const WorldHeritageSite(
+              siteId: '200',
+              name: 'Some Other Site',
+              countryCode: 'FR',
+              latitude: 48.8566,
+              longitude: 2.3522,
+              category: 'cultural',
+              region: 'Europe',
+              inscriptionYear: 2000,
+            ),
+          ],
+        );
+        await notifier.submitGuess('Some Other Site');
+        final result = notifier.state.valueOrNull?.lastGuessResult;
+        expect(result, isNotNull);
+        expect(result!.distanceKm, greaterThan(0));
+        expect(result.direction, isNotEmpty);
+        expect(result.hotColdLabel, isNotEmpty);
+      },
+    );
   });
 
   group('DailyChallengeNotifier.update', () {
@@ -222,8 +236,9 @@ void main() {
 
     test('accepts new data state', () {
       final notifier = _makeNotifier();
-      final newProgress =
-          _freshProgress('2026-05-27').copyWith(cluesRevealed: 2);
+      final newProgress = _freshProgress(
+        '2026-05-27',
+      ).copyWith(cluesRevealed: 2);
       final newState = DailyChallengeState(
         challenge: _challenge,
         progress: newProgress,

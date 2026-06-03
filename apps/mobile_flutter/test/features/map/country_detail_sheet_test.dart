@@ -26,8 +26,9 @@ Widget _wrap(
     overrides: [
       visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
       tripRepositoryProvider.overrideWithValue(tripRepo ?? TripRepository(db)),
-      regionRepositoryProvider
-          .overrideWithValue(regionRepo ?? RegionRepository(db)),
+      regionRepositoryProvider.overrideWithValue(
+        regionRepo ?? RegionRepository(db),
+      ),
     ],
     child: MaterialApp(home: Scaffold(body: child)),
   );
@@ -38,20 +39,16 @@ EffectiveVisitedCountry _inferredVisit({
   int photoCount = 5,
   DateTime? firstSeen,
   DateTime? lastSeen,
-}) =>
-    EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-      photoCount: photoCount,
-      firstSeen: firstSeen ?? DateTime.utc(2019),
-      lastSeen: lastSeen ?? DateTime.utc(2023),
-    );
+}) => EffectiveVisitedCountry(
+  countryCode: code,
+  hasPhotoEvidence: true,
+  photoCount: photoCount,
+  firstSeen: firstSeen ?? DateTime.utc(2019),
+  lastSeen: lastSeen ?? DateTime.utc(2023),
+);
 
 EffectiveVisitedCountry _manualVisit({String code = 'GB'}) =>
-    EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: false,
-    );
+    EffectiveVisitedCountry(countryCode: code, hasPhotoEvidence: false);
 
 TripRecord _trip({
   String countryCode = 'GB',
@@ -90,15 +87,14 @@ RegionVisit _region({
   String tripId = 'GB_2023-07-14T00:00:00.000Z',
   String countryCode = 'GB',
   required String regionCode,
-}) =>
-    RegionVisit(
-      tripId: tripId,
-      countryCode: countryCode,
-      regionCode: regionCode,
-      firstSeen: DateTime.utc(2023, 7, 14),
-      lastSeen: DateTime.utc(2023, 7, 28),
-      photoCount: 5,
-    );
+}) => RegionVisit(
+  tripId: tripId,
+  countryCode: countryCode,
+  regionCode: regionCode,
+  firstSeen: DateTime.utc(2023, 7, 14),
+  lastSeen: DateTime.utc(2023, 7, 28),
+  photoCount: 5,
+);
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
@@ -114,7 +110,9 @@ void main() {
 
     testWidgets('falls back to ISO code for unknown code', (tester) async {
       await tester.pumpWidget(
-        _wrap(CountryDetailSheet(isoCode: 'XX', visit: _inferredVisit(code: 'XX'))),
+        _wrap(
+          CountryDetailSheet(isoCode: 'XX', visit: _inferredVisit(code: 'XX')),
+        ),
       );
       await tester.pump();
       expect(find.text('XX'), findsOneWidget);
@@ -137,8 +135,14 @@ void main() {
 
     testWidgets('shows plural trip count', (tester) async {
       final repo = await _repoWith([
-        _trip(startedOn: DateTime.utc(2022, 1, 1), endedOn: DateTime.utc(2022, 1, 10)),
-        _trip(startedOn: DateTime.utc(2023, 7, 14), endedOn: DateTime.utc(2023, 7, 28)),
+        _trip(
+          startedOn: DateTime.utc(2022, 1, 1),
+          endedOn: DateTime.utc(2022, 1, 10),
+        ),
+        _trip(
+          startedOn: DateTime.utc(2023, 7, 14),
+          endedOn: DateTime.utc(2023, 7, 28),
+        ),
       ]);
       await tester.pumpWidget(
         _wrap(
@@ -153,7 +157,9 @@ void main() {
       expect(find.text('2 trips · First visited 2022'), findsOneWidget);
     });
 
-    testWidgets('shows — for first visited when firstSeen is null', (tester) async {
+    testWidgets('shows — for first visited when firstSeen is null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           CountryDetailSheet(
@@ -169,8 +175,9 @@ void main() {
       expect(find.text('0 trips · First visited —'), findsOneWidget);
     });
 
-    testWidgets('shows manually added badge when hasPhotoEvidence is false',
-        (tester) async {
+    testWidgets('shows manually added badge when hasPhotoEvidence is false', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(CountryDetailSheet(isoCode: 'GB', visit: _manualVisit())),
       );
@@ -178,8 +185,9 @@ void main() {
       expect(find.text('Added manually'), findsOneWidget);
     });
 
-    testWidgets('does not show manually added badge for inferred visit',
-        (tester) async {
+    testWidgets('does not show manually added badge for inferred visit', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(CountryDetailSheet(isoCode: 'GB', visit: _inferredVisit())),
       );
@@ -262,7 +270,9 @@ void main() {
       expect(find.textContaining('43 photos'), findsOneWidget);
     });
 
-    testWidgets('manual trip shows Added manually badge on card', (tester) async {
+    testWidgets('manual trip shows Added manually badge on card', (
+      tester,
+    ) async {
       final repo = await _repoWith([_trip(isManual: true)]);
       await tester.pumpWidget(
         _wrap(
@@ -274,8 +284,9 @@ void main() {
       expect(find.text('Added manually'), findsOneWidget);
     });
 
-    testWidgets('non-manual trip does not show Added manually badge on card',
-        (tester) async {
+    testWidgets('non-manual trip does not show Added manually badge on card', (
+      tester,
+    ) async {
       final repo = await _repoWith([_trip(isManual: false)]);
       await tester.pumpWidget(
         _wrap(
@@ -294,10 +305,7 @@ void main() {
         _wrap(CountryDetailSheet(isoCode: 'GB', visit: _manualVisit())),
       );
       await tester.pump();
-      expect(
-        find.text('No trip data — add a trip manually'),
-        findsOneWidget,
-      );
+      expect(find.text('No trip data — add a trip manually'), findsOneWidget);
     });
 
     testWidgets('shows Add trip manually button when no trips', (tester) async {
@@ -308,8 +316,9 @@ void main() {
       expect(find.text('Add trip manually'), findsOneWidget);
     });
 
-    testWidgets('shows Add trip manually button even with trips present',
-        (tester) async {
+    testWidgets('shows Add trip manually button even with trips present', (
+      tester,
+    ) async {
       final repo = await _repoWith([_trip()]);
       await tester.pumpWidget(
         _wrap(
@@ -323,8 +332,9 @@ void main() {
   });
 
   group('CountryDetailSheet — delete trip', () {
-    testWidgets('long-pressing trip card shows delete confirmation dialog',
-        (tester) async {
+    testWidgets('long-pressing trip card shows delete confirmation dialog', (
+      tester,
+    ) async {
       final repo = await _repoWith([_trip()]);
       await tester.pumpWidget(
         _wrap(
@@ -385,7 +395,9 @@ void main() {
   });
 
   group('CountryDetailSheet — add trip flow', () {
-    testWidgets('tapping Add trip manually opens TripEditSheet', (tester) async {
+    testWidgets('tapping Add trip manually opens TripEditSheet', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(CountryDetailSheet(isoCode: 'GB', visit: _manualVisit())),
       );
@@ -398,7 +410,9 @@ void main() {
       expect(find.text('Add trip'), findsOneWidget);
     });
 
-    testWidgets('tapping card opens TripEditSheet in edit mode', (tester) async {
+    testWidgets('tapping card opens TripEditSheet in edit mode', (
+      tester,
+    ) async {
       final repo = await _repoWith([_trip()]);
       await tester.pumpWidget(
         _wrap(
@@ -417,8 +431,9 @@ void main() {
   });
 
   group('CountryDetailSheet — region section', () {
-    testWidgets('region count row is visible with correct count',
-        (tester) async {
+    testWidgets('region count row is visible with correct count', (
+      tester,
+    ) async {
       final regionRepo = await _regionRepoWith([
         _region(regionCode: 'GB-ENG'),
         _region(regionCode: 'GB-SCT'),
@@ -442,8 +457,9 @@ void main() {
       expect(find.textContaining('region visited'), findsNothing);
     });
 
-    testWidgets('tapping region row shows sorted region name list',
-        (tester) async {
+    testWidgets('tapping region row shows sorted region name list', (
+      tester,
+    ) async {
       final regionRepo = await _regionRepoWith([
         _region(regionCode: 'GB-SCT'),
         _region(regionCode: 'GB-ENG'),
@@ -463,8 +479,9 @@ void main() {
       expect(find.text('Scotland'), findsOneWidget);
     });
 
-    testWidgets('kRegionNames fallback: unknown code displayed as-is',
-        (tester) async {
+    testWidgets('kRegionNames fallback: unknown code displayed as-is', (
+      tester,
+    ) async {
       final regionRepo = await _regionRepoWith([
         _region(regionCode: 'GB-ZZ'), // not in kRegionNames
       ]);
@@ -515,8 +532,9 @@ void main() {
       expect(find.text('Add to my countries'), findsOneWidget);
     });
 
-    testWidgets('tapping add button calls onAdd and pops with true',
-        (tester) async {
+    testWidgets('tapping add button calls onAdd and pops with true', (
+      tester,
+    ) async {
       bool? addCalled;
       bool? poppedWith;
 
@@ -526,25 +544,26 @@ void main() {
           overrides: [
             visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
             tripRepositoryProvider.overrideWithValue(TripRepository(db)),
-            regionRepositoryProvider
-                .overrideWithValue(RegionRepository(db)),
+            regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
           ],
           child: MaterialApp(
             home: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () async {
-                  poppedWith = await showModalBottomSheet<bool>(
-                    context: context,
-                    builder: (_) => CountryDetailSheet(
-                      isoCode: 'JP',
-                      onAdd: () async {
-                        addCalled = true;
-                      },
-                    ),
-                  );
-                },
-                child: const Text('Open'),
-              ),
+              builder:
+                  (context) => ElevatedButton(
+                    onPressed: () async {
+                      poppedWith = await showModalBottomSheet<bool>(
+                        context: context,
+                        builder:
+                            (_) => CountryDetailSheet(
+                              isoCode: 'JP',
+                              onAdd: () async {
+                                addCalled = true;
+                              },
+                            ),
+                      );
+                    },
+                    child: const Text('Open'),
+                  ),
             ),
           ),
         ),

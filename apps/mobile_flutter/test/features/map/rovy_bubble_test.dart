@@ -6,11 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _pumpBubble() {
   return const ProviderScope(
-    child: MaterialApp(
-      home: Scaffold(
-        body: Center(child: RovyBubble()),
-      ),
-    ),
+    child: MaterialApp(home: Scaffold(body: Center(child: RovyBubble()))),
   );
 }
 
@@ -91,8 +87,9 @@ void main() {
       expect(find.text('Dismiss me'), findsNothing);
     });
 
-    testWidgets('message appears when provider is updated programmatically',
-        (tester) async {
+    testWidgets('message appears when provider is updated programmatically', (
+      tester,
+    ) async {
       // Pump with no override; set state via ref after build.
       late WidgetRef capturedRef;
       await tester.pumpWidget(

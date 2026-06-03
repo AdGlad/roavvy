@@ -57,10 +57,11 @@ class _TargetCountryLayerState extends ConsumerState<TargetCountryLayer>
     final regionProgress = ref.watch(regionProgressProvider);
 
     // Regions that are exactly 1 country away from completion.
-    final targetRegions = regionProgress
-        .where((r) => r.remaining == 1 && r.visitedCount > 0)
-        .map((r) => r.region)
-        .toSet();
+    final targetRegions =
+        regionProgress
+            .where((r) => r.remaining == 1 && r.visitedCount > 0)
+            .map((r) => r.region)
+            .toSet();
 
     if (targetRegions.isEmpty) {
       if (_breatheController.isAnimating) _breatheController.stop();
@@ -80,7 +81,9 @@ class _TargetCountryLayerState extends ConsumerState<TargetCountryLayer>
     final targetPoints = <List<LatLng>>[];
     for (final p in polygonData) {
       if (targetCodes.contains(p.isoCode)) {
-        targetPoints.add([for (final (lat, lng) in p.vertices) LatLng(lat, lng)]);
+        targetPoints.add([
+          for (final (lat, lng) in p.vertices) LatLng(lat, lng),
+        ]);
       }
     }
 

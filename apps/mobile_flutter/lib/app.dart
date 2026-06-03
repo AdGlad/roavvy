@@ -35,19 +35,16 @@ final _routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const LandingPage(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const LandingPage()),
       GoRoute(
         path: '/login',
         builder: (context, state) => const SignInScreen(),
       ),
       GoRoute(
         path: '/app',
-        builder: (context, state) => kIsWeb
-            ? const _WebAppShell()
-            : const _OnboardingGate(),
+        builder:
+            (context, state) =>
+                kIsWeb ? const _WebAppShell() : const _OnboardingGate(),
       ),
     ],
   );
@@ -114,8 +111,11 @@ class _WebAppShell extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.check_circle_outline,
-                  color: Color(0xFF001F3F), size: 64),
+              const Icon(
+                Icons.check_circle_outline,
+                color: Color(0xFF001F3F),
+                size: 64,
+              ),
               const SizedBox(height: 24),
               const Text(
                 "You're signed in to Roavvy",
@@ -187,11 +187,14 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
     }
 
     return onboardingAsync.when(
-      data: (complete) => complete
-          ? MainShell(openScanOnLoad: _openScanOnLoad)
-          : OnboardingFlow(onComplete: _completeOnboarding),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      data:
+          (complete) =>
+              complete
+                  ? MainShell(openScanOnLoad: _openScanOnLoad)
+                  : OnboardingFlow(onComplete: _completeOnboarding),
+      loading:
+          () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (_, __) => const MainShell(),
     );
   }

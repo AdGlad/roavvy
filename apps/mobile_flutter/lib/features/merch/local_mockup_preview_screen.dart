@@ -41,9 +41,9 @@ enum _MockupState { configuring, rerendering, approving, ready }
 const _kSwatchColours = <String, Color>{
   'Black': Color(0xFF1A1A1A),
   'White': Color(0xFFF5F5F5),
-  'Blue':  Color(0xFF1A2C5B),
-  'Grey':  Color(0xFFB0B0B0),
-  'Red':   Color(0xFFCC1717),
+  'Blue': Color(0xFF1A2C5B),
+  'Grey': Color(0xFFB0B0B0),
+  'Red': Color(0xFFCC1717),
 };
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -223,8 +223,10 @@ class _LocalMockupPreviewScreenState
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
   String? _checkoutUrl;
+
   /// Front mockup URL from Printful (front or chest placement view).
   String? _mockupUrl;
+
   /// Back mockup URL from Printful (back placement view — separate from front).
   String? _backMockupUrl;
   String? _merchConfigId;
@@ -232,7 +234,8 @@ class _LocalMockupPreviewScreenState
 
   // ── Mockup realtime listener (post-approve) ────────────────────────────────
 
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _mockupSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _mockupSubscription;
   Timer? _mockupListenerTimer;
 
   // ── Flip view key — replaced to reset zoom when colour/placement changes ──
@@ -302,7 +305,8 @@ class _LocalMockupPreviewScreenState
   /// Effective card aspect ratio, respecting portrait/landscape toggle.
   double get _currentAspectRatio {
     final portrait = _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio;
-    final landscape = _isTshirt ? 5.0 / 4.0 : (1.0 / widget.confirmedAspectRatio);
+    final landscape =
+        _isTshirt ? 5.0 / 4.0 : (1.0 / widget.confirmedAspectRatio);
     return _isPortrait ? portrait : landscape;
   }
 
@@ -320,50 +324,52 @@ class _LocalMockupPreviewScreenState
   }
 
   String get _resolvedVariantGid => resolveVariantGid(
-        product: _product,
-        colour: _colour,
-        size: _isTshirt ? _tshirtSize : _posterSize,
-        paper: _posterPaper,
-      );
+    product: _product,
+    colour: _colour,
+    size: _isTshirt ? _tshirtSize : _posterSize,
+    paper: _posterPaper,
+  );
 
   // ── Stamp colour helpers (M64) ─────────────────────────────────────────────
 
-  PassportColorMode _suggestStampColor(String shirtColour) => switch (shirtColour) {
-    'Black'        => PassportColorMode.white,
-    'White'        => PassportColorMode.black,
-    'Navy'         => PassportColorMode.white,
-    'Heather Grey' => PassportColorMode.black,
-    'Red'          => PassportColorMode.white,
-    _              => PassportColorMode.black,
-  };
+  PassportColorMode _suggestStampColor(String shirtColour) =>
+      switch (shirtColour) {
+        'Black' => PassportColorMode.white,
+        'White' => PassportColorMode.black,
+        'Navy' => PassportColorMode.white,
+        'Heather Grey' => PassportColorMode.black,
+        'Red' => PassportColorMode.white,
+        _ => PassportColorMode.black,
+      };
 
   /// Suggests a timeline/grid text colour based on shirt colour luminance.
   /// Dark shirts → white text; light shirts → black text.
   Color _suggestTimelineTextColor(String shirtColour) => switch (shirtColour) {
     'White' => Colors.black,
-    'Grey'  => Colors.black,
-    _       => Colors.white, // Black, Blue, Red → white
+    'Grey' => Colors.black,
+    _ => Colors.white, // Black, Blue, Red → white
   };
 
   Color _suggestGridTextColor(String shirtColour) => switch (shirtColour) {
     'White' => Colors.black,
-    'Grey'  => Colors.black,
-    _       => Colors.white, // Black, Blue, Red → white
+    'Grey' => Colors.black,
+    _ => Colors.white, // Black, Blue, Red → white
   };
 
   Color _suggestWordCloudTextColor(String shirtColour) => switch (shirtColour) {
     'White' => Colors.black,
-    'Grey'  => Colors.black,
-    _       => Colors.white, // Black, Blue, Red → white
+    'Grey' => Colors.black,
+    _ => Colors.white, // Black, Blue, Red → white
   };
 
-  Set<PassportColorMode> _disabledStampColors(String shirtColour) => switch (shirtColour) {
-    'Black'        => {PassportColorMode.black, PassportColorMode.multicolor},
-    'White'        => {PassportColorMode.white},
-    'Navy'         => {PassportColorMode.black, PassportColorMode.multicolor},
-    'Red'          => {PassportColorMode.multicolor},
-    _              => {},
-  };
+  Set<PassportColorMode> _disabledStampColors(String shirtColour) =>
+      switch (shirtColour) {
+        'Black' => {PassportColorMode.black, PassportColorMode.multicolor},
+        'White' => {PassportColorMode.white},
+        'Navy' => {PassportColorMode.black, PassportColorMode.multicolor},
+        'Red' => {PassportColorMode.multicolor},
+        _ => {},
+      };
 
   @override
   void initState() {
@@ -431,7 +437,9 @@ class _LocalMockupPreviewScreenState
         }
         // Same for word cloud cards.
         if (_isTshirt && _template == CardTemplateType.wordCloud) {
-          unawaited(_setWordCloudTextColor(_wordCloudTextColor ?? Colors.white));
+          unawaited(
+            _setWordCloudTextColor(_wordCloudTextColor ?? Colors.white),
+          );
         }
       } else if (_presetConfig != null) {
         // Preset-driven: auto-generate artwork on first frame.
@@ -500,8 +508,12 @@ class _LocalMockupPreviewScreenState
     );
 
     try {
-      final frontImage = await LocalMockupImageCache.instance.load(frontSpec.assetPath);
-      final backImage = await LocalMockupImageCache.instance.load(backSpec.assetPath);
+      final frontImage = await LocalMockupImageCache.instance.load(
+        frontSpec.assetPath,
+      );
+      final backImage = await LocalMockupImageCache.instance.load(
+        backSpec.assetPath,
+      );
       if (!mounted) return;
       setState(() {
         _frontShirtImage = frontImage;
@@ -520,12 +532,15 @@ class _LocalMockupPreviewScreenState
     if (_template == CardTemplateType.timeline && _timelineTextColor != null) {
       textColor = _timelineTextColor!;
     } else {
-      final isDark = _colour == 'Black' || _colour == 'Blue' || _colour == 'Navy' || _colour == 'Red';
+      final isDark =
+          _colour == 'Black' ||
+          _colour == 'Blue' ||
+          _colour == 'Navy' ||
+          _colour == 'Red';
       textColor = isDark ? Colors.white : Colors.black;
     }
-    final ribbonCodes = _frontRibbonMode == 'all'
-        ? widget.allCodes
-        : widget.selectedCodes;
+    final ribbonCodes =
+        _frontRibbonMode == 'all' ? widget.allCodes : widget.selectedCodes;
 
     // Render the active ribbon (used for the shirt mockup).
     try {
@@ -591,10 +606,11 @@ class _LocalMockupPreviewScreenState
     setState(() => _state = _MockupState.rerendering);
     try {
       // Shuffle flag order when a shuffle seed is active (grid/landmark templates).
-      final codes = _shuffleSeed != 0
-          ? (List<String>.from(widget.selectedCodes)
-              ..shuffle(math.Random(_shuffleSeed)))
-          : widget.selectedCodes;
+      final codes =
+          _shuffleSeed != 0
+              ? (List<String>.from(widget.selectedCodes)
+                ..shuffle(math.Random(_shuffleSeed)))
+              : widget.selectedCodes;
       final result = await CardImageRenderer.render(
         context,
         config.layout,
@@ -644,21 +660,20 @@ class _LocalMockupPreviewScreenState
   /// Opens the Layer 2 customisation sheet and regenerates artwork if the
   /// user applies changes (ADR-147).
   Future<void> _openCustomisationSheet() async {
-    final current = _presetConfig ??
+    final current =
+        _presetConfig ??
         MerchPresetConfig(
-          layout:    _template,
-          source:    MerchCountrySource.allTime,
-          jitter:    widget.stampJitterFactor,
-          density:   MerchDensity.balanced,
-          stampMode: widget.confirmedEntryOnly
-              ? MerchStampMode.entryOnly
-              : MerchStampMode.entryExit,
+          layout: _template,
+          source: MerchCountrySource.allTime,
+          jitter: widget.stampJitterFactor,
+          density: MerchDensity.balanced,
+          stampMode:
+              widget.confirmedEntryOnly
+                  ? MerchStampMode.entryOnly
+                  : MerchStampMode.entryExit,
         );
 
-    final updated = await showMerchCustomisationSheet(
-      context,
-      config: current,
-    );
+    final updated = await showMerchCustomisationSheet(context, config: current);
     if (updated == null || !mounted) return;
 
     setState(() {
@@ -674,15 +689,17 @@ class _LocalMockupPreviewScreenState
 
   /// Randomises the stamp layout seed and regenerates artwork.
   Future<void> _shuffle() async {
-    final config = _presetConfig ??
+    final config =
+        _presetConfig ??
         MerchPresetConfig(
           layout: _template,
           source: MerchCountrySource.allTime,
           jitter: widget.stampJitterFactor,
           density: MerchDensity.balanced,
-          stampMode: widget.confirmedEntryOnly
-              ? MerchStampMode.entryOnly
-              : MerchStampMode.entryExit,
+          stampMode:
+              widget.confirmedEntryOnly
+                  ? MerchStampMode.entryOnly
+                  : MerchStampMode.entryExit,
         );
     setState(() {
       _shuffleSeed = DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
@@ -693,15 +710,17 @@ class _LocalMockupPreviewScreenState
 
   /// Toggles portrait ↔ landscape artwork orientation and regenerates.
   Future<void> _toggleOrientation() async {
-    final config = _presetConfig ??
+    final config =
+        _presetConfig ??
         MerchPresetConfig(
           layout: _template,
           source: MerchCountrySource.allTime,
           jitter: widget.stampJitterFactor,
           density: MerchDensity.balanced,
-          stampMode: widget.confirmedEntryOnly
-              ? MerchStampMode.entryOnly
-              : MerchStampMode.entryExit,
+          stampMode:
+              widget.confirmedEntryOnly
+                  ? MerchStampMode.entryOnly
+                  : MerchStampMode.entryExit,
         );
     setState(() {
       _isPortrait = !_isPortrait;
@@ -737,8 +756,7 @@ class _LocalMockupPreviewScreenState
         .doc(configId);
 
     for (int attempt = 0; attempt < _pollMaxAttempts; attempt++) {
-      await Future<void>.delayed(
-          const Duration(seconds: _pollIntervalSeconds));
+      await Future<void>.delayed(const Duration(seconds: _pollIntervalSeconds));
       if (!mounted) return;
       try {
         final snap = await docRef.get();
@@ -746,10 +764,11 @@ class _LocalMockupPreviewScreenState
           if (!mounted) return;
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => MerchPostPurchaseScreen(
-                product: _product,
-                countryCount: widget.selectedCodes.length,
-              ),
+              builder:
+                  (_) => MerchPostPurchaseScreen(
+                    product: _product,
+                    countryCount: widget.selectedCodes.length,
+                  ),
             ),
           );
           return;
@@ -783,22 +802,28 @@ class _LocalMockupPreviewScreenState
     _mockupListenerTimer = Timer(_kMockupListenerTimeout, () {
       _mockupSubscription?.cancel();
       _mockupSubscription = null;
-      debugPrint('[mockup] listener: timed out after ${_kMockupListenerTimeout.inSeconds}s');
+      debugPrint(
+        '[mockup] listener: timed out after ${_kMockupListenerTimeout.inSeconds}s',
+      );
       if (mounted) setState(() => _mockupFailed = true);
     });
 
     _mockupSubscription = docRef.snapshots().listen(
       (snap) {
-        final data      = snap.data();
-        final status    = data?['mockupStatus'] as String?;
-        final frontUrl  = data?['frontMockupUrl'] as String?;
-        final backUrl   = data?['backMockupUrl']  as String?;
+        final data = snap.data();
+        final status = data?['mockupStatus'] as String?;
+        final frontUrl = data?['frontMockupUrl'] as String?;
+        final backUrl = data?['backMockupUrl'] as String?;
 
-        debugPrint('[mockup] listener update: status=$status front=${frontUrl != null ? "✓" : "null"} back=${backUrl != null ? "✓" : "null"}');
+        debugPrint(
+          '[mockup] listener update: status=$status front=${frontUrl != null ? "✓" : "null"} back=${backUrl != null ? "✓" : "null"}',
+        );
 
         // Terminal when server has written a definitive status, or (backwards
         // compat) when a URL is present on a doc that predates mockupStatus.
-        final isTerminal = status == 'ready' || status == 'timeout' ||
+        final isTerminal =
+            status == 'ready' ||
+            status == 'timeout' ||
             status == 'failed' ||
             (status == null && frontUrl != null && frontUrl.isNotEmpty);
 
@@ -811,7 +836,7 @@ class _LocalMockupPreviewScreenState
 
         if (!mounted) return;
         setState(() {
-          _mockupUrl     = frontUrl;
+          _mockupUrl = frontUrl;
           _backMockupUrl = backUrl;
           // Show amber fallback when server explicitly timed out or failed and
           // we have no URLs to display.
@@ -823,11 +848,16 @@ class _LocalMockupPreviewScreenState
         // ── Update cart item with async mockup URLs (M120) ──────────────────
         final cid = _cartItemId;
         if (cid != null && (frontUrl != null || backUrl != null)) {
-          MerchCartRepository(FirebaseFirestore.instance).updateMockupUrls(
-            uid, cid,
-            frontMockupUrl: frontUrl,
-            backMockupUrl:  backUrl,
-          ).catchError((e) => debugPrint('[mockup] cart updateMockupUrls failed: $e'));
+          MerchCartRepository(FirebaseFirestore.instance)
+              .updateMockupUrls(
+                uid,
+                cid,
+                frontMockupUrl: frontUrl,
+                backMockupUrl: backUrl,
+              )
+              .catchError(
+                (e) => debugPrint('[mockup] cart updateMockupUrls failed: $e'),
+              );
         }
       },
       onError: (Object e) {
@@ -843,22 +873,23 @@ class _LocalMockupPreviewScreenState
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text("We're processing your order"),
-        content: const Text(
-          "If you completed payment, you'll receive a confirmation email "
-          'shortly. Your order will appear in your order history once confirmed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            child: const Text('Back to map'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text("We're processing your order"),
+            content: const Text(
+              "If you completed payment, you'll receive a confirmation email "
+              'shortly. Your order will appear in your order history once confirmed.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: const Text('Back to map'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -878,10 +909,22 @@ class _LocalMockupPreviewScreenState
       // For t-shirts all variants are transparent (no parchment border on fabric).
       // Index 2 (white) must pass Colors.white explicitly — null falls back to
       // the original stamp colours, not white.
-      final (Color? stampColor, Color? stampTextColor, bool transparentBg) = switch (index) {
-        1 => (const Color(0xFF000000), const Color(0xFF000000), true),  // black stamps + black text
-        2 => (Colors.white, Colors.white, true),                         // white stamps + white text
-        _ => (widget.stampColor, null, _isTshirt || widget.transparentBackground),  // multicolor/default
+      final (
+        Color? stampColor,
+        Color? stampTextColor,
+        bool transparentBg,
+      ) = switch (index) {
+        1 => (
+          const Color(0xFF000000),
+          const Color(0xFF000000),
+          true,
+        ), // black stamps + black text
+        2 => (Colors.white, Colors.white, true), // white stamps + white text
+        _ => (
+          widget.stampColor,
+          null,
+          _isTshirt || widget.transparentBackground,
+        ), // multicolor/default
       };
       final result = await CardImageRenderer.render(
         context,
@@ -933,8 +976,8 @@ class _LocalMockupPreviewScreenState
     setState(() => _passportColorMode = mode);
     final idx = switch (mode) {
       PassportColorMode.multicolor => 0,
-      PassportColorMode.black      => 1,
-      PassportColorMode.white      => 2,
+      PassportColorMode.black => 1,
+      PassportColorMode.white => 2,
     };
     if (_artworkVariants[idx] != null) {
       await _switchToVariant(idx);
@@ -1043,7 +1086,9 @@ class _LocalMockupPreviewScreenState
   void _cycleTitle() {
     _titleSeed++;
     final next = MerchTitleWordbank.pickGeneric(
-        widget.selectedCodes.length, _titleSeed);
+      widget.selectedCodes.length,
+      _titleSeed,
+    );
     _titleController.text = next;
     setState(() => _titleOverride = next);
     unawaited(_renderVariant(_artworkVariantIndex));
@@ -1066,7 +1111,8 @@ class _LocalMockupPreviewScreenState
     MerchProduct? product,
   }) {
     final colourChanged = colour != null && colour != _colour;
-    final frontChanged = frontPosition != null && frontPosition != _frontPosition;
+    final frontChanged =
+        frontPosition != null && frontPosition != _frontPosition;
     final backChanged = backPosition != null && backPosition != _backPosition;
     final productChanged = product != null && product != _product;
     setState(() {
@@ -1074,7 +1120,8 @@ class _LocalMockupPreviewScreenState
       if (colour != null) _colour = colour;
       if (frontPosition != null) _frontPosition = frontPosition;
       if (backPosition != null) _backPosition = backPosition;
-      if (colourChanged || productChanged || frontChanged || backChanged) _flipViewKey++;
+      if (colourChanged || productChanged || frontChanged || backChanged)
+        _flipViewKey++;
       // Sync the visible face when placement changes.
       if (frontChanged) _showingFront = _frontPosition != 'none';
     });
@@ -1108,15 +1155,18 @@ class _LocalMockupPreviewScreenState
   /// Cap at 2400 so the full render is sent with no downscaling.
   static const int _kBackUploadMaxWidth = 2400;
 
-  Future<Uint8List> _resizeForUpload(Uint8List pngBytes,
-      {int maxWidth = _kUploadMaxWidth}) async {
+  Future<Uint8List> _resizeForUpload(
+    Uint8List pngBytes, {
+    int maxWidth = _kUploadMaxWidth,
+  }) async {
     final codec = await ui.instantiateImageCodec(
       pngBytes,
       targetWidth: maxWidth,
     );
     final frame = await codec.getNextFrame();
-    final byteData =
-        await frame.image.toByteData(format: ui.ImageByteFormat.png);
+    final byteData = await frame.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     frame.image.dispose();
     return byteData!.buffer.asUint8List();
   }
@@ -1158,12 +1208,20 @@ class _LocalMockupPreviewScreenState
 
     debugPrint('[mockup] ── approve started ──────────────────────────────');
     debugPrint('[mockup]   uid=$uid');
-    debugPrint('[mockup]   product=${_product.name}  colour=$_colour  size=$_tshirtSize');
-    debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
+    debugPrint(
+      '[mockup]   product=${_product.name}  colour=$_colour  size=$_tshirtSize',
+    );
+    debugPrint(
+      '[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition',
+    );
     debugPrint('[mockup]   variant=$_resolvedVariantGid');
     debugPrint('[mockup]   artworkBytes=${artworkBytes.length}B');
-    debugPrint('[mockup]   frontRibbonBytes=${_frontRibbonBytes?.length ?? 0}B');
-    debugPrint('[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}');
+    debugPrint(
+      '[mockup]   frontRibbonBytes=${_frontRibbonBytes?.length ?? 0}B',
+    );
+    debugPrint(
+      '[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}',
+    );
 
     setState(() {
       _state = _MockupState.approving;
@@ -1178,20 +1236,20 @@ class _LocalMockupPreviewScreenState
       final newId = 'ci-${DateTime.now().microsecondsSinceEpoch}';
       final now = DateTime.now().toUtc();
       final cartItem = MerchCartItem(
-        id:                   newId,
-        status:               MerchCartItemStatus.mockupGenerating,
-        productType:          _isTshirt ? 'tshirt' : 'poster',
-        variantId:            _resolvedVariantGid,
-        templateType:         _template.name,
-        colour:               _colour,
-        size:                 _isTshirt ? _tshirtSize : _posterSize,
-        frontPosition:        _frontPosition,
-        backPosition:         _backPosition,
+        id: newId,
+        status: MerchCartItemStatus.mockupGenerating,
+        productType: _isTshirt ? 'tshirt' : 'poster',
+        variantId: _resolvedVariantGid,
+        templateType: _template.name,
+        colour: _colour,
+        size: _isTshirt ? _tshirtSize : _posterSize,
+        frontPosition: _frontPosition,
+        backPosition: _backPosition,
         selectedCountryCodes: widget.selectedCodes,
-        createdAt:            now,
-        updatedAt:            now,
-        title:                _titleOverride,
-        cardId:               widget.cardId,
+        createdAt: now,
+        updatedAt: now,
+        title: _titleOverride,
+        cardId: widget.cardId,
         artworkConfirmationId: _artworkConfirmationId,
       );
       try {
@@ -1229,20 +1287,27 @@ class _LocalMockupPreviewScreenState
 
         final priorConfirmationId = widget.artworkConfirmationId;
         if (priorConfirmationId != null) {
-          debugPrint('[mockup]   archiving prior confirmation: $priorConfirmationId');
-          unawaited(ArtworkConfirmationService(FirebaseFirestore.instance)
-              .archive(uid, priorConfirmationId));
+          debugPrint(
+            '[mockup]   archiving prior confirmation: $priorConfirmationId',
+          );
+          unawaited(
+            ArtworkConfirmationService(
+              FirebaseFirestore.instance,
+            ).archive(uid, priorConfirmationId),
+          );
         }
 
         confirmationId = await ArtworkConfirmationService(
-                FirebaseFirestore.instance)
-            .create(newConfirmation);
+          FirebaseFirestore.instance,
+        ).create(newConfirmation);
         debugPrint('[mockup]   confirmationId=$confirmationId ✓');
 
         if (!mounted) return;
         setState(() => _artworkConfirmationId = confirmationId);
       } else {
-        debugPrint('[mockup] step 1: reusing existing confirmationId=$confirmationId');
+        debugPrint(
+          '[mockup] step 1: reusing existing confirmationId=$confirmationId',
+        );
       }
 
       // ── Step 2: mockup approval record ─────────────────────────────────────
@@ -1257,10 +1322,13 @@ class _LocalMockupPreviewScreenState
           artworkConfirmationId: confirmationId,
           templateType: _template,
           variantId: _resolvedVariantGid,
-          placementType: _isTshirt ? 'front:$_frontPosition,back:$_backPosition' : null,
+          placementType:
+              _isTshirt ? 'front:$_frontPosition,back:$_backPosition' : null,
           confirmedAt: DateTime.now().toUtc(),
         );
-        await MockupApprovalService(FirebaseFirestore.instance).create(approval);
+        await MockupApprovalService(
+          FirebaseFirestore.instance,
+        ).create(approval);
         if (!mounted) return;
         setState(() => _mockupApprovalId = newApprovalId);
         debugPrint('[mockup]   approvalId=$newApprovalId ✓ (created)');
@@ -1272,41 +1340,72 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
 
       // ── Step 3: call createMerchCart (with retry) ──────────────────────────
-      final sendFrontImage = _isTshirt &&
+      final sendFrontImage =
+          _isTshirt &&
           PrintfulPlacementMapper.sendsArtwork(_frontPosition) &&
           _frontRibbonBytes != null;
       final sendBackImage = PrintfulPlacementMapper.sendsArtwork(_backPosition);
       // Resize images for upload — the server upscales to print dimensions anyway.
       // Reduces the back-artwork payload from ~1.7 MB to ~400 KB (transparent PNG preserved).
       final encSw = Stopwatch()..start();
-      final uploadBackBytes  = sendBackImage  ? await _resizeForUpload(artworkBytes, maxWidth: _kBackUploadMaxWidth) : null;
-      final uploadFrontBytes = sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!)                           : null;
-      final backImageBase64  = uploadBackBytes  != null ? base64Encode(uploadBackBytes)  : null;
-      final frontImageBase64 = uploadFrontBytes != null ? base64Encode(uploadFrontBytes) : null;
+      final uploadBackBytes =
+          sendBackImage
+              ? await _resizeForUpload(
+                artworkBytes,
+                maxWidth: _kBackUploadMaxWidth,
+              )
+              : null;
+      final uploadFrontBytes =
+          sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!) : null;
+      final backImageBase64 =
+          uploadBackBytes != null ? base64Encode(uploadBackBytes) : null;
+      final frontImageBase64 =
+          uploadFrontBytes != null ? base64Encode(uploadFrontBytes) : null;
       encSw.stop();
-      debugPrint('[mockup] step 3: calling createMerchCart (max retries: $_kMaxRetries)');
-      debugPrint('[mockup]   resize+encode took ${encSw.elapsedMilliseconds}ms');
-      debugPrint('[mockup]   sendFrontImage=$sendFrontImage raw=${_frontRibbonBytes?.length ?? 0}B → upload=${uploadFrontBytes?.length ?? 0}B b64=${frontImageBase64?.length ?? 0}B');
-      debugPrint('[mockup]   sendBackImage=$sendBackImage raw=${artworkBytes.length}B → upload=${uploadBackBytes?.length ?? 0}B b64=${backImageBase64?.length ?? 0}B');
-      debugPrint('[mockup]   total payload ~${((frontImageBase64?.length ?? 0) + (backImageBase64?.length ?? 0)) ~/ 1024}KB');
-      debugPrint('[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition');
-      debugPrint('[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId');
+      debugPrint(
+        '[mockup] step 3: calling createMerchCart (max retries: $_kMaxRetries)',
+      );
+      debugPrint(
+        '[mockup]   resize+encode took ${encSw.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '[mockup]   sendFrontImage=$sendFrontImage raw=${_frontRibbonBytes?.length ?? 0}B → upload=${uploadFrontBytes?.length ?? 0}B b64=${frontImageBase64?.length ?? 0}B',
+      );
+      debugPrint(
+        '[mockup]   sendBackImage=$sendBackImage raw=${artworkBytes.length}B → upload=${uploadBackBytes?.length ?? 0}B b64=${backImageBase64?.length ?? 0}B',
+      );
+      debugPrint(
+        '[mockup]   total payload ~${((frontImageBase64?.length ?? 0) + (backImageBase64?.length ?? 0)) ~/ 1024}KB',
+      );
+      debugPrint(
+        '[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition',
+      );
+      debugPrint(
+        '[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId',
+      );
 
       Object? lastCallError;
       bool callSucceeded = false;
 
       for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
         if (attempt > 0) {
-          debugPrint('[mockup]   retry attempt $attempt/$_kMaxRetries after error: $lastCallError');
+          debugPrint(
+            '[mockup]   retry attempt $attempt/$_kMaxRetries after error: $lastCallError',
+          );
           if (!mounted) return;
-          setState(() => _retryMessage = 'Having trouble generating your mockup. Retrying\u2026');
+          setState(
+            () =>
+                _retryMessage =
+                    'Having trouble generating your mockup. Retrying\u2026',
+          );
           await Future.delayed(const Duration(seconds: 2));
           if (!mounted) return;
         }
 
         try {
-          final callable =
-              FirebaseFunctions.instance.httpsCallable('createMerchCart');
+          final callable = FirebaseFunctions.instance.httpsCallable(
+            'createMerchCart',
+          );
           final sw = Stopwatch()..start();
           final result = await callable
               .call<Map<String, dynamic>>({
@@ -1316,10 +1415,17 @@ class _LocalMockupPreviewScreenState
                 if (widget.cardId != null) 'cardId': widget.cardId,
                 'artworkConfirmationId': confirmationId,
                 'mockupApprovalId': approvalId,
-                if (backImageBase64  != null) 'backImageBase64':  backImageBase64,
-                if (frontImageBase64 != null) 'frontImageBase64': frontImageBase64,
-                if (_isTshirt) 'frontPosition': PrintfulPlacementMapper.mapFront(_frontPosition),
-                if (_isTshirt) 'backPosition':  PrintfulPlacementMapper.mapBack(_backPosition),
+                if (backImageBase64 != null) 'backImageBase64': backImageBase64,
+                if (frontImageBase64 != null)
+                  'frontImageBase64': frontImageBase64,
+                if (_isTshirt)
+                  'frontPosition': PrintfulPlacementMapper.mapFront(
+                    _frontPosition,
+                  ),
+                if (_isTshirt)
+                  'backPosition': PrintfulPlacementMapper.mapBack(
+                    _backPosition,
+                  ),
                 if (_isGift && _giftSubjectCtrl.text.trim().isNotEmpty)
                   'giftSubject': _giftSubjectCtrl.text.trim(),
                 if (_isGift && _giftMessageCtrl.text.trim().isNotEmpty)
@@ -1327,17 +1433,25 @@ class _LocalMockupPreviewScreenState
               })
               .timeout(_kCallTimeout);
           sw.stop();
-          debugPrint('[mockup]   call completed in ${sw.elapsedMilliseconds}ms (attempt $attempt)');
+          debugPrint(
+            '[mockup]   call completed in ${sw.elapsedMilliseconds}ms (attempt $attempt)',
+          );
 
           // ── Step 4: parse response ────────────────────────────────────────
-          final checkoutUrl   = result.data['checkoutUrl']   as String?;
-          final mockupUrl     = result.data['frontMockupUrl'] as String?;
-          final backMockupUrl = result.data['backMockupUrl']  as String?;
-          final merchConfigId = result.data['merchConfigId']  as String?;
+          final checkoutUrl = result.data['checkoutUrl'] as String?;
+          final mockupUrl = result.data['frontMockupUrl'] as String?;
+          final backMockupUrl = result.data['backMockupUrl'] as String?;
+          final merchConfigId = result.data['merchConfigId'] as String?;
           debugPrint('[mockup] step 4: response received');
-          debugPrint('[mockup]   checkoutUrl=${checkoutUrl != null ? "✓ present" : "✗ null"}');
-          debugPrint('[mockup]   frontMockupUrl=${mockupUrl != null ? "✓ $mockupUrl" : "✗ null"}');
-          debugPrint('[mockup]   backMockupUrl=${backMockupUrl != null ? "✓ $backMockupUrl" : "✗ null (expected for collage style)"}');
+          debugPrint(
+            '[mockup]   checkoutUrl=${checkoutUrl != null ? "✓ present" : "✗ null"}',
+          );
+          debugPrint(
+            '[mockup]   frontMockupUrl=${mockupUrl != null ? "✓ $mockupUrl" : "✗ null"}',
+          );
+          debugPrint(
+            '[mockup]   backMockupUrl=${backMockupUrl != null ? "✓ $backMockupUrl" : "✗ null (expected for collage style)"}',
+          );
           debugPrint('[mockup]   merchConfigId=$merchConfigId');
 
           if (checkoutUrl == null || checkoutUrl.isEmpty) {
@@ -1348,39 +1462,48 @@ class _LocalMockupPreviewScreenState
 
           // mockupUrl may be null — the server generates it in the background.
           // We poll Firestore for it after transitioning to ready state.
-          debugPrint('[mockup] ✓ ready — checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (will poll)"}');
+          debugPrint(
+            '[mockup] ✓ ready — checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (will poll)"}',
+          );
           if (!mounted) return;
           setState(() {
-            _state         = _MockupState.ready;
-            _retryMessage  = null;
-            _mockupUrl     = mockupUrl;
+            _state = _MockupState.ready;
+            _retryMessage = null;
+            _mockupUrl = mockupUrl;
             _backMockupUrl = backMockupUrl;
-            _checkoutUrl   = checkoutUrl;
+            _checkoutUrl = checkoutUrl;
             _merchConfigId = merchConfigId;
           });
           // ── Update cart item → mockupReady (M120) ──────────────────────────
           final cid = _cartItemId;
           if (cid != null) {
-            MerchCartRepository(FirebaseFirestore.instance).markMockupReady(
-              uid, cid,
-              checkoutUrl:    checkoutUrl,
-              frontMockupUrl: mockupUrl,
-              backMockupUrl:  backMockupUrl,
-              merchConfigId:  merchConfigId,
-            ).catchError((e) => debugPrint('[mockup] cart markMockupReady failed: $e'));
+            MerchCartRepository(FirebaseFirestore.instance)
+                .markMockupReady(
+                  uid,
+                  cid,
+                  checkoutUrl: checkoutUrl,
+                  frontMockupUrl: mockupUrl,
+                  backMockupUrl: backMockupUrl,
+                  merchConfigId: merchConfigId,
+                )
+                .catchError(
+                  (e) => debugPrint('[mockup] cart markMockupReady failed: $e'),
+                );
           }
-          if ((mockupUrl == null || mockupUrl.isEmpty) && merchConfigId != null) {
+          if ((mockupUrl == null || mockupUrl.isEmpty) &&
+              merchConfigId != null) {
             _startMockupListener(merchConfigId, uid);
           }
           callSucceeded = true;
           break;
-
         } on TimeoutException catch (e) {
           debugPrint('[mockup] ❌ TimeoutException on attempt $attempt: $e');
           lastCallError = e;
           // retryable — continue loop
         } on FirebaseFunctionsException catch (e) {
-          debugPrint('[mockup] ❌ FirebaseFunctionsException on attempt $attempt: code=${e.code} msg=${e.message}');
+          debugPrint(
+            '[mockup] ❌ FirebaseFunctionsException on attempt $attempt: code=${e.code} msg=${e.message}',
+          );
           if (e.code == 'unavailable' ||
               e.code == 'internal' ||
               e.code == 'deadline-exceeded') {
@@ -1404,15 +1527,19 @@ class _LocalMockupPreviewScreenState
         if (err is SocketException) throw err;
         // Default: treat as timeout.
         throw TimeoutException(
-            'Mockup generation did not complete after retries.', _kCallTimeout);
+          'Mockup generation did not complete after retries.',
+          _kCallTimeout,
+        );
       }
-
     } on FirebaseFunctionsException catch (e) {
       debugPrint('[mockup] ❌ FirebaseFunctionsException (final)');
       debugPrint('[mockup]   code=${e.code}');
       debugPrint('[mockup]   message=${e.message}');
       debugPrint('[mockup]   details=${e.details}');
-      _markCartItemFailed(uid, 'FirebaseFunctionsException: ${e.code} ${e.message}');
+      _markCartItemFailed(
+        uid,
+        'FirebaseFunctionsException: ${e.code} ${e.message}',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1423,15 +1550,23 @@ class _LocalMockupPreviewScreenState
           ),
         ),
       );
-      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
+      setState(() {
+        _state = _MockupState.configuring;
+        _retryMessage = null;
+      });
     } on SocketException catch (e) {
       debugPrint('[mockup] ❌ SocketException (final): $e');
       _markCartItemFailed(uid, 'SocketException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No internet connection. Please try again.')),
+        const SnackBar(
+          content: Text('No internet connection. Please try again.'),
+        ),
       );
-      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
+      setState(() {
+        _state = _MockupState.configuring;
+        _retryMessage = null;
+      });
     } on TimeoutException catch (e) {
       debugPrint('[mockup] ❌ TimeoutException (final): $e');
       _markCartItemFailed(uid, 'TimeoutException: $e');
@@ -1439,10 +1574,14 @@ class _LocalMockupPreviewScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'We couldn\'t generate your mockup right now. This may be due to a poor connection. Please try again later.'),
+            'We couldn\'t generate your mockup right now. This may be due to a poor connection. Please try again later.',
+          ),
         ),
       );
-      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
+      setState(() {
+        _state = _MockupState.configuring;
+        _retryMessage = null;
+      });
     } catch (e, stack) {
       debugPrint('[mockup] ❌ unexpected error: $e');
       debugPrint('[mockup]   $stack');
@@ -1451,10 +1590,14 @@ class _LocalMockupPreviewScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'We couldn\'t generate your mockup right now. Please try again later.'),
+            'We couldn\'t generate your mockup right now. Please try again later.',
+          ),
         ),
       );
-      setState(() { _state = _MockupState.configuring; _retryMessage = null; });
+      setState(() {
+        _state = _MockupState.configuring;
+        _retryMessage = null;
+      });
     }
   }
 
@@ -1469,30 +1612,34 @@ class _LocalMockupPreviewScreenState
     if (url == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => MerchOrderConfirmationScreen(
-          frontMockupUrl:    _mockupUrl,
-          backMockupUrl:     _backMockupUrl,
-          frontArtworkBytes: _frontRibbonBytes,
-          artworkBytes:      _artworkBytes!,
-          size:              _isTshirt ? _tshirtSize : _posterSize,
-          colour:            _colour,
-          frontPosition:     _frontPosition,
-          backPosition:      _backPosition,
-          templateType:      _template,
-          checkoutUrl:       url,
-          isTshirt:          _isTshirt,
-          onCheckoutLaunched: () {
-            _checkoutLaunched = true;
-            // Mark cart item as checkout started (M120).
-            final uid = ref.read(currentUidProvider);
-            final cid = _cartItemId;
-            if (uid != null && cid != null) {
-              MerchCartRepository(FirebaseFirestore.instance)
-                  .markCheckoutStarted(uid, cid)
-                  .catchError((e) => debugPrint('[mockup] cart markCheckoutStarted: $e'));
-            }
-          },
-        ),
+        builder:
+            (_) => MerchOrderConfirmationScreen(
+              frontMockupUrl: _mockupUrl,
+              backMockupUrl: _backMockupUrl,
+              frontArtworkBytes: _frontRibbonBytes,
+              artworkBytes: _artworkBytes!,
+              size: _isTshirt ? _tshirtSize : _posterSize,
+              colour: _colour,
+              frontPosition: _frontPosition,
+              backPosition: _backPosition,
+              templateType: _template,
+              checkoutUrl: url,
+              isTshirt: _isTshirt,
+              onCheckoutLaunched: () {
+                _checkoutLaunched = true;
+                // Mark cart item as checkout started (M120).
+                final uid = ref.read(currentUidProvider);
+                final cid = _cartItemId;
+                if (uid != null && cid != null) {
+                  MerchCartRepository(FirebaseFirestore.instance)
+                      .markCheckoutStarted(uid, cid)
+                      .catchError(
+                        (e) =>
+                            debugPrint('[mockup] cart markCheckoutStarted: $e'),
+                      );
+                }
+              },
+            ),
       ),
     );
   }
@@ -1507,11 +1654,9 @@ class _LocalMockupPreviewScreenState
         duration: Duration(seconds: 2),
       ),
     );
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const MerchCartScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const MerchCartScreen()));
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -1529,7 +1674,8 @@ class _LocalMockupPreviewScreenState
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Please stay on this screen while your mockup is being prepared.'),
+                'Please stay on this screen while your mockup is being prepared.',
+              ),
             ),
           );
         }
@@ -1582,42 +1728,46 @@ class _LocalMockupPreviewScreenState
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.82),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-          ),
-          child: Column(
-            children: [
-              // Drag Handle
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: theme.dividerColor,
-                    borderRadius: BorderRadius.circular(2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.82),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
                   ),
+                ],
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.1),
                 ),
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: _buildCompactConfigContent(theme),
-                ),
+              child: Column(
+                children: [
+                  // Drag Handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      child: _buildCompactConfigContent(theme),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
           ),
         );
       },
@@ -1646,21 +1796,30 @@ class _LocalMockupPreviewScreenState
               children: [
                 // Shuffle button
                 GestureDetector(
-                  onTap: _state == _MockupState.rerendering ||
-                          _state == _MockupState.approving
-                      ? null
-                      : () => unawaited(_shuffle()),
+                  onTap:
+                      _state == _MockupState.rerendering ||
+                              _state == _MockupState.approving
+                          ? null
+                          : () => unawaited(_shuffle()),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.shuffle_rounded, size: 13,
-                            color: theme.colorScheme.primary),
+                        Icon(
+                          Icons.shuffle_rounded,
+                          size: 13,
+                          color: theme.colorScheme.primary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Shuffle',
@@ -1676,14 +1835,20 @@ class _LocalMockupPreviewScreenState
                 const SizedBox(width: 6),
                 // Orientation toggle
                 GestureDetector(
-                  onTap: _state == _MockupState.rerendering ||
-                          _state == _MockupState.approving
-                      ? null
-                      : () => unawaited(_toggleOrientation()),
+                  onTap:
+                      _state == _MockupState.rerendering ||
+                              _state == _MockupState.approving
+                          ? null
+                          : () => unawaited(_toggleOrientation()),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -1711,20 +1876,30 @@ class _LocalMockupPreviewScreenState
                 const SizedBox(width: 6),
                 // Flip front/back
                 GestureDetector(
-                  onTap: () => setState(() {
-                    _showingFront = !_showingFront;
-                    _flipViewKey++;
-                  }),
+                  onTap:
+                      () => setState(() {
+                        _showingFront = !_showingFront;
+                        _flipViewKey++;
+                      }),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.flip, size: 13, color: theme.colorScheme.primary),
+                        Icon(
+                          Icons.flip,
+                          size: 13,
+                          color: theme.colorScheme.primary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _showingFront ? 'See Back' : 'See Front',
@@ -1783,10 +1958,16 @@ class _LocalMockupPreviewScreenState
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 7,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 14,
+                      ),
                       activeTrackColor: theme.colorScheme.primary,
-                      inactiveTrackColor: theme.colorScheme.outline.withValues(alpha: 0.25),
+                      inactiveTrackColor: theme.colorScheme.outline.withValues(
+                        alpha: 0.25,
+                      ),
                       thumbColor: theme.colorScheme.primary,
                     ),
                     child: Slider(
@@ -1794,8 +1975,10 @@ class _LocalMockupPreviewScreenState
                       min: 0,
                       max: (tshirtSizes.length - 1).toDouble(),
                       divisions: tshirtSizes.length - 1,
-                      onChanged: (v) =>
-                          setState(() => _tshirtSize = tshirtSizes[v.round()]),
+                      onChanged:
+                          (v) => setState(
+                            () => _tshirtSize = tshirtSizes[v.round()],
+                          ),
                     ),
                   ),
                   Row(
@@ -1808,12 +1991,14 @@ class _LocalMockupPreviewScreenState
                             textAlign: TextAlign.center,
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontSize: 9,
-                              color: s == _tshirtSize
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
-                              fontWeight: s == _tshirtSize
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                              color:
+                                  s == _tshirtSize
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurfaceVariant,
+                              fontWeight:
+                                  s == _tshirtSize
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                             ),
                           ),
                         ),
@@ -1831,10 +2016,10 @@ class _LocalMockupPreviewScreenState
         const SizedBox(height: 6),
         _PlacementSelector(
           options: const [
-            _PlacementOptionData('left_chest',  'Left'),
-            _PlacementOptionData('center',       'Centre'),
+            _PlacementOptionData('left_chest', 'Left'),
+            _PlacementOptionData('center', 'Centre'),
             _PlacementOptionData('right_chest', 'Right'),
-            _PlacementOptionData('none',         'None'),
+            _PlacementOptionData('none', 'None'),
           ],
           selected: _frontPosition,
           isFront: true,
@@ -1860,22 +2045,28 @@ class _LocalMockupPreviewScreenState
                 decoration: InputDecoration(
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                    ),
                   ),
                   hintText: 'Enter a title…',
                   hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.5),
-                      fontSize: 12),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.5,
+                    ),
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
@@ -1884,12 +2075,14 @@ class _LocalMockupPreviewScreenState
               message: 'New suggestion',
               child: IconButton(
                 onPressed: _variantLoading ? null : _cycleTitle,
-                icon: _variantLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.refresh_rounded),
+                icon:
+                    _variantLoading
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Icon(Icons.refresh_rounded),
                 iconSize: 20,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -1914,7 +2107,7 @@ class _LocalMockupPreviewScreenState
                   _PlacementSelector(
                     options: const [
                       _PlacementOptionData('center', 'Centre'),
-                      _PlacementOptionData('none',   'None'),
+                      _PlacementOptionData('none', 'None'),
                     ],
                     selected: _backPosition,
                     isFront: false,
@@ -1938,9 +2131,10 @@ class _LocalMockupPreviewScreenState
                     children: [
                       Expanded(
                         child: _MiniRibbonTile(
-                          image: _frontRibbonMode == 'selected'
-                              ? _frontRibbonImage
-                              : _frontRibbonAllImage,
+                          image:
+                              _frontRibbonMode == 'selected'
+                                  ? _frontRibbonImage
+                                  : _frontRibbonAllImage,
                           label: '${widget.selectedCodes.length}',
                           sublabel: 'Selected',
                           isSelected: _frontRibbonMode == 'selected',
@@ -1954,9 +2148,10 @@ class _LocalMockupPreviewScreenState
                       const SizedBox(width: 6),
                       Expanded(
                         child: _MiniRibbonTile(
-                          image: _frontRibbonMode == 'all'
-                              ? _frontRibbonImage
-                              : _frontRibbonAllImage,
+                          image:
+                              _frontRibbonMode == 'all'
+                                  ? _frontRibbonImage
+                                  : _frontRibbonAllImage,
                           label: '${widget.allCodes.length}',
                           sublabel: 'All',
                           isSelected: _frontRibbonMode == 'all',
@@ -2012,7 +2207,11 @@ class _LocalMockupPreviewScreenState
       final collageUrl = _mockupUrl;
       if (collageUrl != null) {
         // Show the Printful collage mockup (front + back in one image).
-        return _MockupPageView(urls: [collageUrl], labels: const [], fallback: _buildLocalMockupArea(theme));
+        return _MockupPageView(
+          urls: [collageUrl],
+          labels: const [],
+          fallback: _buildLocalMockupArea(theme),
+        );
       }
       // Mockup not yet available — show local preview with a loading overlay
       // while Firestore polling waits for the server to complete generation.
@@ -2026,7 +2225,10 @@ class _LocalMockupPreviewScreenState
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
@@ -2090,39 +2292,48 @@ class _LocalMockupPreviewScreenState
       // Colour change → wipe right-to-left (new shirt slides in from the right).
       area = AnimatedSwitcher(
         duration: const Duration(milliseconds: 320),
-        transitionBuilder: (child, animation) => ClipRect(
-          child: SlideTransition(
-            position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-            child: child,
-          ),
-        ),
-        layoutBuilder: (currentChild, previousChildren) => Stack(
-          fit: StackFit.expand,
-          children: [...previousChildren, if (currentChild != null) currentChild],
-        ),
+        transitionBuilder:
+            (child, animation) => ClipRect(
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                ),
+                child: child,
+              ),
+            ),
+        layoutBuilder:
+            (currentChild, previousChildren) => Stack(
+              fit: StackFit.expand,
+              children: [
+                ...previousChildren,
+                if (currentChild != null) currentChild,
+              ],
+            ),
         child: SizedBox.expand(
           key: ValueKey(_colour),
           child: _ShirtFlipView(
-        key: ValueKey('${_flipViewKey}_$showFront'),
-        frontArtwork: _frontPosition != 'none' ? _frontRibbonImage : null,
-        backArtwork: _backPosition != 'none' ? artworkImage : null,
-        frontShirt: _frontShirtImage,
-        backShirt: _backShirtImage,
-        frontSpec: frontSpec,
-        backSpec: backSpec,
-        showFront: showFront,
-        onFlipped: _onFlipped,
-        artworkBlendMode: _variantIsTransparent
-            ? ui.BlendMode.srcOver
-            : ui.BlendMode.multiply,
-        onNextColour: () {
-          final idx =
-              (tshirtColors.indexOf(_colour) + 1) % tshirtColors.length;
-          _onVariantOptionChanged(colour: tshirtColors[idx]);
-        },
-        onSwipeUp: null,
+            key: ValueKey('${_flipViewKey}_$showFront'),
+            frontArtwork: _frontPosition != 'none' ? _frontRibbonImage : null,
+            backArtwork: _backPosition != 'none' ? artworkImage : null,
+            frontShirt: _frontShirtImage,
+            backShirt: _backShirtImage,
+            frontSpec: frontSpec,
+            backSpec: backSpec,
+            showFront: showFront,
+            onFlipped: _onFlipped,
+            artworkBlendMode:
+                _variantIsTransparent
+                    ? ui.BlendMode.srcOver
+                    : ui.BlendMode.multiply,
+            onNextColour: () {
+              final idx =
+                  (tshirtColors.indexOf(_colour) + 1) % tshirtColors.length;
+              _onVariantOptionChanged(colour: tshirtColors[idx]);
+            },
+            onSwipeUp: null,
           ),
         ),
       );
@@ -2161,16 +2372,17 @@ class _LocalMockupPreviewScreenState
               right: 0,
               child: Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     _kVariantLabels[_artworkVariantIndex],
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 12),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
               ),
@@ -2213,17 +2425,19 @@ class _LocalMockupPreviewScreenState
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             border: Border.all(
-              color: isDisabled
-                  ? onSurface.withValues(alpha: 0.1)
-                  : isSelected
+              color:
+                  isDisabled
+                      ? onSurface.withValues(alpha: 0.1)
+                      : isSelected
                       ? onSurface.withValues(alpha: 0.7)
                       : onSurface.withValues(alpha: 0.2),
               width: isSelected ? 1.5 : 1.0,
             ),
             borderRadius: BorderRadius.circular(6),
-            color: isSelected
-                ? onSurface.withValues(alpha: 0.1)
-                : Colors.transparent,
+            color:
+                isSelected
+                    ? onSurface.withValues(alpha: 0.1)
+                    : Colors.transparent,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -2238,26 +2452,27 @@ class _LocalMockupPreviewScreenState
                     color: onSurface.withValues(alpha: isDisabled ? 0.15 : 0.3),
                   ),
                 ),
-                child: swatch == null
-                    ? Icon(Icons.palette_outlined,
-                        size: 8,
-                        color: isDisabled
-                            ? Colors.white24
-                            : Colors.white70)
-                    : null,
+                child:
+                    swatch == null
+                        ? Icon(
+                          Icons.palette_outlined,
+                          size: 8,
+                          color: isDisabled ? Colors.white24 : Colors.white70,
+                        )
+                        : null,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDisabled
-                      ? onSurface.withValues(alpha: 0.25)
-                      : isSelected
+                  color:
+                      isDisabled
+                          ? onSurface.withValues(alpha: 0.25)
+                          : isSelected
                           ? onSurface.withValues(alpha: 0.9)
                           : onSurface.withValues(alpha: 0.55),
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],
@@ -2296,15 +2511,17 @@ class _LocalMockupPreviewScreenState
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             border: Border.all(
-              color: isSelected
-                  ? onSurface.withValues(alpha: 0.7)
-                  : onSurface.withValues(alpha: 0.2),
+              color:
+                  isSelected
+                      ? onSurface.withValues(alpha: 0.7)
+                      : onSurface.withValues(alpha: 0.2),
               width: isSelected ? 1.5 : 1.0,
             ),
             borderRadius: BorderRadius.circular(6),
-            color: isSelected
-                ? onSurface.withValues(alpha: 0.1)
-                : Colors.transparent,
+            color:
+                isSelected
+                    ? onSurface.withValues(alpha: 0.1)
+                    : Colors.transparent,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -2315,9 +2532,7 @@ class _LocalMockupPreviewScreenState
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: color,
-                  border: Border.all(
-                    color: onSurface.withValues(alpha: 0.3),
-                  ),
+                  border: Border.all(color: onSurface.withValues(alpha: 0.3)),
                 ),
               ),
               const SizedBox(width: 6),
@@ -2325,11 +2540,11 @@ class _LocalMockupPreviewScreenState
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isSelected
-                      ? onSurface.withValues(alpha: 0.9)
-                      : onSurface.withValues(alpha: 0.55),
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color:
+                      isSelected
+                          ? onSurface.withValues(alpha: 0.9)
+                          : onSurface.withValues(alpha: 0.55),
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],
@@ -2360,9 +2575,7 @@ class _LocalMockupPreviewScreenState
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.dividerColor, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
       ),
       constraints: const BoxConstraints(maxHeight: 380),
       child: SingleChildScrollView(
@@ -2377,10 +2590,11 @@ class _LocalMockupPreviewScreenState
               children: [
                 const _SectionLabel('Product Options'),
                 TextButton.icon(
-                  onPressed: () => setState(() {
-                    _showingFront = !_showingFront;
-                    _flipViewKey++;
-                  }),
+                  onPressed:
+                      () => setState(() {
+                        _showingFront = !_showingFront;
+                        _flipViewKey++;
+                      }),
                   icon: const Icon(Icons.flip, size: 18),
                   label: Text(_showingFront ? 'See Back' : 'See Front'),
                   style: TextButton.styleFrom(
@@ -2400,7 +2614,7 @@ class _LocalMockupPreviewScreenState
               selected: _colour,
               onChanged: (c) => _onVariantOptionChanged(colour: c),
             ),
-            
+
             // Passport/Timeline specific colour pickers
             if (_template == CardTemplateType.passport) ...[
               const SizedBox(height: 12),
@@ -2431,19 +2645,20 @@ class _LocalMockupPreviewScreenState
             _SegmentedPicker(
               options: const ['Left', 'Center', 'Right', 'None'],
               selected: switch (_frontPosition) {
-                'center'      => 'Center',
+                'center' => 'Center',
                 'right_chest' => 'Right',
-                'none'        => 'None',
-                _             => 'Left',
+                'none' => 'None',
+                _ => 'Left',
               },
-              onChanged: (v) => _onVariantOptionChanged(
-                frontPosition: switch (v) {
-                  'Center' => 'center',
-                  'Right'  => 'right_chest',
-                  'None'   => 'none',
-                  _        => 'left_chest',
-                },
-              ),
+              onChanged:
+                  (v) => _onVariantOptionChanged(
+                    frontPosition: switch (v) {
+                      'Center' => 'center',
+                      'Right' => 'right_chest',
+                      'None' => 'none',
+                      _ => 'left_chest',
+                    },
+                  ),
             ),
 
             // ── Ribbon countries (conditional) ────────────────────────────
@@ -2453,11 +2668,11 @@ class _LocalMockupPreviewScreenState
               const SizedBox(height: 4),
               _SegmentedPicker(
                 options: const ['Selected', 'All'],
-                selected:
-                    _frontRibbonMode == 'all' ? 'All' : 'Selected',
+                selected: _frontRibbonMode == 'all' ? 'All' : 'Selected',
                 onChanged: (v) {
-                  setState(() =>
-                      _frontRibbonMode = v == 'All' ? 'all' : 'selected');
+                  setState(
+                    () => _frontRibbonMode = v == 'All' ? 'all' : 'selected',
+                  );
                   _loadFrontRibbonImage();
                 },
               ),
@@ -2470,8 +2685,10 @@ class _LocalMockupPreviewScreenState
             _SegmentedPicker(
               options: const ['Center', 'None'],
               selected: _backPosition == 'none' ? 'None' : 'Center',
-              onChanged: (v) => _onVariantOptionChanged(
-                  backPosition: v == 'None' ? 'none' : 'center'),
+              onChanged:
+                  (v) => _onVariantOptionChanged(
+                    backPosition: v == 'None' ? 'none' : 'center',
+                  ),
             ),
           ],
         ),
@@ -2533,11 +2750,18 @@ class _LocalMockupPreviewScreenState
               onPressed: mockupLoaded ? _openConfirmationScreen : null,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: Text(
-                mockupStillLoading ? 'Loading Preview\u2026' : 'Review & Checkout',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                mockupStillLoading
+                    ? 'Loading Preview\u2026'
+                    : 'Review & Checkout',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -2548,7 +2772,9 @@ class _LocalMockupPreviewScreenState
               onPressed: () => _saveToCartAndNavigate(),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text('Save to Cart'),
             ),
@@ -2562,25 +2788,27 @@ class _LocalMockupPreviewScreenState
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
-        onPressed: artworkReady && _state == _MockupState.configuring
-            ? _onApprove
-            : null,
+        onPressed:
+            artworkReady && _state == _MockupState.configuring
+                ? _onApprove
+                : null,
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: Text(
           _state == _MockupState.approving
               ? 'Preparing\u2026'
               : !artworkReady
-                  ? 'Generating\u2026'
-                  : 'Approve & Preview',
+              ? 'Generating\u2026'
+              : 'Approve & Preview',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
-
 }
 
 // ── _ShirtFlipView (M58-03 / M58-05) ─────────────────────────────────────────
@@ -2668,9 +2896,10 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
   void _onAnimationTick() {
     // Swap the displayed face at the 90° midpoint.
     final atMidpoint = _controller.value >= 0.5;
-    final wantFront = _flipDirection > 0
-        ? !atMidpoint  // swiping to back: start front, flip to back
-        : atMidpoint;  // swiping to front: start back, flip to front
+    final wantFront =
+        _flipDirection > 0
+            ? !atMidpoint // swiping to back: start front, flip to back
+            : atMidpoint; // swiping to front: start back, flip to front
     if (wantFront != _showingFront) {
       setState(() => _showingFront = wantFront);
     }
@@ -2731,9 +2960,10 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
         animation: _controller,
         builder: (context, child) {
           final angle = _controller.value * 3.14159265358979;
-          final matrix = Matrix4.identity()
-            ..setEntry(3, 2, 0.001)
-            ..rotateY(angle * _flipDirection);
+          final matrix =
+              Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateY(angle * _flipDirection);
           return Transform(
             transform: matrix,
             alignment: Alignment.center,
@@ -2756,16 +2986,16 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     // Artwork is only shown on the face that matches the placement button.
     // Swiping to peek at the other side shows a blank shirt (no artwork pasted
     // on whichever face happens to be animating).
-    final artwork = (_showingFront == widget.showFront)
-        ? (widget.showFront ? widget.frontArtwork : widget.backArtwork)
-        : null;
+    final artwork =
+        (_showingFront == widget.showFront)
+            ? (widget.showFront ? widget.frontArtwork : widget.backArtwork)
+            : null;
 
     // The front ribbon is always rendered on a transparent canvas (no
     // background fill in _RibbonPainter), so it must always composite with
     // srcOver. The back card varies — use the caller-supplied blend mode.
-    final blendMode = _showingFront
-        ? ui.BlendMode.srcOver
-        : widget.artworkBlendMode;
+    final blendMode =
+        _showingFront ? ui.BlendMode.srcOver : widget.artworkBlendMode;
 
     return CustomPaint(
       painter: LocalMockupPainter(
@@ -2817,9 +3047,10 @@ class _ApprovingViewState extends State<_ApprovingView>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _swing = Tween<double>(begin: -0.033, end: 0.033).animate(
-      CurvedAnimation(parent: _swingCtrl, curve: Curves.easeInOut),
-    );
+    _swing = Tween<double>(
+      begin: -0.033,
+      end: 0.033,
+    ).animate(CurvedAnimation(parent: _swingCtrl, curve: Curves.easeInOut));
     _startProgress();
   }
 
@@ -2828,9 +3059,10 @@ class _ApprovingViewState extends State<_ApprovingView>
       vsync: this,
       duration: const Duration(seconds: 25),
     );
-    _progress = Tween<double>(begin: 0.0, end: 0.9).animate(
-      CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOut),
-    );
+    _progress = Tween<double>(
+      begin: 0.0,
+      end: 0.9,
+    ).animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOut));
     _progressCtrl.forward();
   }
 
@@ -2860,9 +3092,7 @@ class _ApprovingViewState extends State<_ApprovingView>
         // Dimmed shirt — keeps context of what was approved.
         Opacity(opacity: 0.3, child: widget.shirt),
         // Steady semi-transparent scrim.
-        ColoredBox(
-          color: theme.colorScheme.surface.withValues(alpha: 0.60),
-        ),
+        ColoredBox(color: theme.colorScheme.surface.withValues(alpha: 0.60)),
         // Icon + copy centred over the shirt.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -2891,10 +3121,11 @@ class _ApprovingViewState extends State<_ApprovingView>
               // until the API responds. Resets to 0 on each retry.
               AnimatedBuilder(
                 animation: _progress,
-                builder: (context, _) => LinearProgressIndicator(
-                  value: _progress.value,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                builder:
+                    (context, _) => LinearProgressIndicator(
+                      value: _progress.value,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
               ),
               const SizedBox(height: 14),
               if (widget.retryMessage != null)
@@ -2936,10 +3167,7 @@ class _ApprovingViewState extends State<_ApprovingView>
 // ── Colour swatch row (M58-04) ────────────────────────────────────────────────
 
 class _ColourSwatchRow extends StatelessWidget {
-  const _ColourSwatchRow({
-    required this.selected,
-    required this.onChanged,
-  });
+  const _ColourSwatchRow({required this.selected, required this.onChanged});
 
   final String selected;
   final ValueChanged<String> onChanged;
@@ -2950,54 +3178,55 @@ class _ColourSwatchRow extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: _kSwatchColours.entries.map((entry) {
-          final isSelected = entry.key == selected;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onChanged(entry.key),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: entry.value,
-                  border: isSelected
-                      ? Border.all(
-                          color: theme.colorScheme.primary,
-                          width: 2,
-                        )
-                      : Border.all(
-                          color: Colors.transparent,
-                          width: 2,
+        children:
+            _kSwatchColours.entries.map((entry) {
+              final isSelected = entry.key == selected;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => onChanged(entry.key),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: entry.value,
+                      border:
+                          isSelected
+                              ? Border.all(
+                                color: theme.colorScheme.primary,
+                                width: 2,
+                              )
+                              : Border.all(color: Colors.transparent, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(40),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(40),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+                      ],
                     ),
-                  ],
+                    child:
+                        isSelected
+                            ? Center(
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color:
+                                      entry.value.computeLuminance() > 0.5
+                                          ? Colors.black54
+                                          : Colors.white70,
+                                ),
+                              ),
+                            )
+                            : null,
+                  ),
                 ),
-                child: isSelected
-                    ? Center(
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: entry.value.computeLuminance() > 0.5
-                                ? Colors.black54
-                                : Colors.white70,
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
       ),
     );
   }
@@ -3059,17 +3288,19 @@ class _SegmentedPicker extends StatelessWidget {
     return Wrap(
       spacing: compact ? 6 : 8,
       runSpacing: compact ? 6 : 8,
-      children: options.map((opt) {
-        final isSelected = opt == selected;
-        return ChoiceChip(
-          label: Text(opt, style: TextStyle(fontSize: compact ? 12 : 14)),
-          selected: isSelected,
-          onSelected: (_) => onChanged(opt),
-          selectedColor: theme.colorScheme.primaryContainer,
-          padding: compact ? const EdgeInsets.symmetric(horizontal: 4) : null,
-          visualDensity: compact ? VisualDensity.compact : null,
-        );
-      }).toList(),
+      children:
+          options.map((opt) {
+            final isSelected = opt == selected;
+            return ChoiceChip(
+              label: Text(opt, style: TextStyle(fontSize: compact ? 12 : 14)),
+              selected: isSelected,
+              onSelected: (_) => onChanged(opt),
+              selectedColor: theme.colorScheme.primaryContainer,
+              padding:
+                  compact ? const EdgeInsets.symmetric(horizontal: 4) : null,
+              visualDensity: compact ? VisualDensity.compact : null,
+            );
+          }).toList(),
     );
   }
 }
@@ -3143,14 +3374,19 @@ class _MockupPageViewState extends State<_MockupPageView> {
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   widget.labels[_page],
-                  style: theme.textTheme.labelMedium?.copyWith(color: Colors.white),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -3185,7 +3421,6 @@ class _MockupPageViewState extends State<_MockupPageView> {
 
 /// Immutable data for a single placement option.
 @immutable
-
 class _PlacementOptionData {
   const _PlacementOptionData(this.value, this.label);
   final String value;
@@ -3275,7 +3510,11 @@ class _PlacementTile extends StatelessWidget {
         frontPosition: option.value == 'none' ? 'left_chest' : option.value,
       );
     }
-    return ProductMockupSpecs.specsFor(product, colour: colour, placement: 'back');
+    return ProductMockupSpecs.specsFor(
+      product,
+      colour: colour,
+      placement: 'back',
+    );
   }
 
   @override
@@ -3295,9 +3534,10 @@ class _PlacementTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(7),
               border: Border.all(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.outline.withValues(alpha: 0.2),
+                color:
+                    isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline.withValues(alpha: 0.2),
                 width: isSelected ? 1.5 : 1.0,
               ),
             ),
@@ -3322,9 +3562,10 @@ class _PlacementTile extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             style: (theme.textTheme.labelSmall ?? const TextStyle()).copyWith(
               fontSize: 9,
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
+              color:
+                  isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
             ),
             child: Text(option.label, textAlign: TextAlign.center),
@@ -3414,14 +3655,18 @@ class _MiniRibbonTile extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primary.withValues(alpha: 0.07)
-              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          color:
+              isSelected
+                  ? theme.colorScheme.primary.withValues(alpha: 0.07)
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.4,
+                  ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.2),
+            color:
+                isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline.withValues(alpha: 0.2),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -3431,27 +3676,25 @@ class _MiniRibbonTile extends StatelessWidget {
             // Ribbon artwork preview (show the card image directly).
             SizedBox(
               height: imageHeight,
-              child: image != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: RawImage(
-                        image: image,
-                        fit: BoxFit.contain,
-                      ),
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
+              child:
+                  image != null
+                      ? ClipRRect(
                         borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        child: RawImage(image: image, fit: BoxFit.contain),
+                      )
+                      : Container(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 1.5),
+                          ),
                         ),
                       ),
-                    ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -3459,9 +3702,10 @@ class _MiniRibbonTile extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 fontSize: 9,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface,
+                color:
+                    isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
               ),
             ),
             Text(

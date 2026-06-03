@@ -40,17 +40,16 @@ class StatsStrip extends ConsumerWidget {
                 onTap: () {
                   final visits =
                       ref.read(effectiveVisitsProvider).valueOrNull ?? [];
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => CountriesListScreen(visits: visits),
-                  ));
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CountriesListScreen(visits: visits),
+                    ),
+                  );
                 },
               ),
               _Stat(label: 'First visit', value: earliest),
               _Stat(label: 'Latest visit', value: latest),
-              _Stat(
-                label: 'Trips',
-                value: tripCount.toString(),
-              ),
+              _Stat(label: 'Trips', value: tripCount.toString()),
             ],
           ),
         );

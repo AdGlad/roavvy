@@ -54,7 +54,9 @@ class RareArtefactEngine {
     final offsetX = (rng.nextDouble() * 2 - 1) * 3.0; // ±3px
     final offsetY = (rng.nextDouble() * 2 - 1) * 3.0;
     final ghostCenter = center + Offset(offsetX, offsetY);
-    final ghostColor = stamp.inkColor.withValues(alpha: stamp.inkColor.a * 0.20);
+    final ghostColor = stamp.inkColor.withValues(
+      alpha: stamp.inkColor.a * 0.20,
+    );
 
     canvas.drawCircle(
       ghostCenter,
@@ -89,17 +91,23 @@ class RareArtefactEngine {
     final Rect cropRect;
     switch (edge) {
       case 0: // top
-        cropRect = Rect.fromLTWH(
-            center.dx - r, center.dy - r, r * 2, cropSize);
+        cropRect = Rect.fromLTWH(center.dx - r, center.dy - r, r * 2, cropSize);
       case 1: // right
         cropRect = Rect.fromLTWH(
-            center.dx + r - cropSize, center.dy - r, cropSize, r * 2);
+          center.dx + r - cropSize,
+          center.dy - r,
+          cropSize,
+          r * 2,
+        );
       case 2: // bottom
         cropRect = Rect.fromLTWH(
-            center.dx - r, center.dy + r - cropSize, r * 2, cropSize);
+          center.dx - r,
+          center.dy + r - cropSize,
+          r * 2,
+          cropSize,
+        );
       default: // left
-        cropRect = Rect.fromLTWH(
-            center.dx - r, center.dy - r, cropSize, r * 2);
+        cropRect = Rect.fromLTWH(center.dx - r, center.dy - r, cropSize, r * 2);
     }
 
     canvas.drawRect(
@@ -147,20 +155,19 @@ class RareArtefactEngine {
 
     final angle = rng.nextDouble() * math.pi; // random direction
     final length = r * (0.3 + rng.nextDouble() * 0.5);
-    final smudgePaint = Paint()
-      ..color = stamp.inkColor.withValues(alpha: stamp.inkColor.a * 0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
+    final smudgePaint =
+        Paint()
+          ..color = stamp.inkColor.withValues(alpha: stamp.inkColor.a * 0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
 
-    final start = center + Offset(
-      math.cos(angle) * length * 0.5,
-      math.sin(angle) * length * 0.5,
-    );
-    final end = center - Offset(
-      math.cos(angle) * length * 0.5,
-      math.sin(angle) * length * 0.5,
-    );
+    final start =
+        center +
+        Offset(math.cos(angle) * length * 0.5, math.sin(angle) * length * 0.5);
+    final end =
+        center -
+        Offset(math.cos(angle) * length * 0.5, math.sin(angle) * length * 0.5);
 
     canvas.drawLine(start, end, smudgePaint);
   }

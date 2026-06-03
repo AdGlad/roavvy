@@ -10,17 +10,16 @@ Achievement _achievement({
   String? continentScope,
   String? regionScope,
   MerchTriggerType? merch,
-}) =>
-    Achievement(
-      id: 'test',
-      title: 'Test',
-      description: '',
-      category: category,
-      progressTarget: progressTarget,
-      continentScope: continentScope,
-      regionScope: regionScope,
-      merch: merch,
-    );
+}) => Achievement(
+  id: 'test',
+  title: 'Test',
+  description: '',
+  category: category,
+  progressTarget: progressTarget,
+  continentScope: continentScope,
+  regionScope: regionScope,
+  merch: merch,
+);
 
 void main() {
   group('TravelIdentityInfo.forContext — no achievement', () {
@@ -230,37 +229,52 @@ void main() {
       expect(info.identity, equals(TravelIdentity.globalExplorer));
     });
 
-    test('continents category + progressTarget < 4 → does not trigger globalExplorer', () {
-      final info = TravelIdentityInfo.forContext(
-        achievement: _achievement(
-          category: AchievementCategory.continents,
-          progressTarget: 3,
-        ),
-        codes: ['GB'],
-        tripCount: 0,
-        stampCount: 0,
-      );
-      // Falls through to code/trip/stamp checks → adventurer
-      expect(info.identity, equals(TravelIdentity.adventurer));
-    });
+    test(
+      'continents category + progressTarget < 4 → does not trigger globalExplorer',
+      () {
+        final info = TravelIdentityInfo.forContext(
+          achievement: _achievement(
+            category: AchievementCategory.continents,
+            progressTarget: 3,
+          ),
+          codes: ['GB'],
+          tripCount: 0,
+          stampCount: 0,
+        );
+        // Falls through to code/trip/stamp checks → adventurer
+        expect(info.identity, equals(TravelIdentity.adventurer));
+      },
+    );
   });
 
   group('kTravelIdentityInfo', () {
     test('every TravelIdentity has a metadata entry', () {
       for (final identity in TravelIdentity.values) {
-        expect(kTravelIdentityInfo.containsKey(identity), isTrue,
-            reason: '${identity.name} missing from kTravelIdentityInfo');
+        expect(
+          kTravelIdentityInfo.containsKey(identity),
+          isTrue,
+          reason: '${identity.name} missing from kTravelIdentityInfo',
+        );
       }
     });
 
     test('every entry has non-empty displayName, tagline, and emoji', () {
       for (final info in kTravelIdentityInfo.values) {
-        expect(info.displayName, isNotEmpty,
-            reason: '${info.identity.name} has empty displayName');
-        expect(info.tagline, isNotEmpty,
-            reason: '${info.identity.name} has empty tagline');
-        expect(info.emoji, isNotEmpty,
-            reason: '${info.identity.name} has empty emoji');
+        expect(
+          info.displayName,
+          isNotEmpty,
+          reason: '${info.identity.name} has empty displayName',
+        );
+        expect(
+          info.tagline,
+          isNotEmpty,
+          reason: '${info.identity.name} has empty tagline',
+        );
+        expect(
+          info.emoji,
+          isNotEmpty,
+          reason: '${info.identity.name} has empty emoji',
+        );
       }
     });
   });

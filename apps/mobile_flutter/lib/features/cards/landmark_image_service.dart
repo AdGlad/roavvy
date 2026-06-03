@@ -137,10 +137,11 @@ class LandmarkImageService {
   /// Returns PNG bytes on confirmation, null if cancelled/unavailable.
   static Future<Uint8List?> generateCollage(List<String> isoCodes) async {
     final codes = isoCodes.map((c) => c.toUpperCase()).toList()..sort();
-    final descriptions = codes
-        .map((c) => _kLandmarkDescriptions[c])
-        .whereType<String>()
-        .toList();
+    final descriptions =
+        codes
+            .map((c) => _kLandmarkDescriptions[c])
+            .whereType<String>()
+            .toList();
     if (descriptions.isEmpty) return null;
     try {
       final result = await _channel.invokeMethod<Uint8List>(
@@ -174,7 +175,9 @@ class LandmarkImageService {
   }
 
   static Future<void> _saveCollageToDisk(
-      List<String> sortedCodes, Uint8List bytes) async {
+    List<String> sortedCodes,
+    Uint8List bytes,
+  ) async {
     try {
       final file = await _collageFile(sortedCodes);
       await file.writeAsBytes(bytes, flush: true);
@@ -184,8 +187,9 @@ class LandmarkImageService {
   /// Cache file for the collage — keyed on the sorted, joined set of codes
   /// so that different country selections never collide.
   static Future<File> _collageFile(List<String> isoCodes) async {
-    final key =
-        (isoCodes.map((c) => c.toLowerCase()).toList()..sort()).join('_');
+    final key = (isoCodes.map((c) => c.toLowerCase()).toList()..sort()).join(
+      '_',
+    );
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/landmark_collage_$key.png');
   }

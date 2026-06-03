@@ -44,9 +44,9 @@ class GlobeReplayWidget extends ConsumerStatefulWidget {
     this.onClose,
     this.initialCollectedCodes = const [],
   }) : assert(
-          script != null || dataSource != null,
-          'Either script or dataSource must be provided',
-        );
+         script != null || dataSource != null,
+         'Either script or dataSource must be provided',
+       );
 
   /// Historical replay script. Provide either this or [dataSource].
   final TravelReplayScript? script;
@@ -96,7 +96,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   void initState() {
     super.initState();
     final reduceMotion =
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .accessibilityFeatures
             .reduceMotion;
 
     TravelReplayController.setCentroids(kCountryCentroids);
@@ -120,7 +123,8 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
         initialCollectedCodes: widget.initialCollectedCodes,
       );
       _liveCtrl!.reducedMotion = reduceMotion;
-      _liveCtrl!.speedMultiplier = 3.0; // scan replay runs at 3× to keep pace with detection
+      _liveCtrl!.speedMultiplier =
+          3.0; // scan replay runs at 3× to keep pace with detection
       _liveCtrl!.audioController = _audioCtrl;
       _liveCtrl!.addListener(_onControllerUpdate);
     } else {
@@ -207,7 +211,8 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       }
     }
     // M133: pulse the newly inserted slot when flagFlight completes.
-    if (_phase == ReplayPhase.overlay || _phase == ReplayPhase.hold ||
+    if (_phase == ReplayPhase.overlay ||
+        _phase == ReplayPhase.hold ||
         (_phase != ReplayPhase.flagFlight && _lastPhaseWasFlagFlight)) {
       if (_lastPhaseWasFlagFlight) {
         _slotPulseTrigger++;
@@ -223,9 +228,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     final colors = await flagColours(countryCode);
     if (!mounted || _confettiCountry != countryCode) return;
     setState(() {
-      _confettiColors = colors != null && colors.isNotEmpty
-          ? colors
-          : const [Colors.amber, Colors.white70];
+      _confettiColors =
+          colors != null && colors.isNotEmpty
+              ? colors
+              : const [Colors.amber, Colors.white70];
     });
     _confettiCtrl.play();
   }
@@ -233,9 +239,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   void _replayAgain() => _ctrl?.play();
 
   void _share(BuildContext ctx) {
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      const SnackBar(content: Text('Share coming soon')),
-    );
+    ScaffoldMessenger.of(
+      ctx,
+    ).showSnackBar(const SnackBar(content: Text('Share coming soon')));
   }
 
   void _createTShirt(BuildContext ctx) {
@@ -244,8 +250,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
 
   // ── Getter shims ────────────────────────────────────────────────────────────
 
-  ReplayPhase get _phase =>
-      _isLiveMode ? _liveCtrl!.phase : _ctrl!.phase;
+  ReplayPhase get _phase => _isLiveMode ? _liveCtrl!.phase : _ctrl!.phase;
 
   GlobeProjection get _projection =>
       _isLiveMode ? _liveCtrl!.projection : _ctrl!.projection;
@@ -260,10 +265,14 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       _isLiveMode ? _liveCtrl!.completedLegs.length : _ctrl!.currentLegIndex;
 
   List<ReplayOverlayEvent> get _currentOverlayEvents =>
-      _isLiveMode ? _liveCtrl!.currentOverlayEvents : _ctrl!.currentOverlayEvents;
+      _isLiveMode
+          ? _liveCtrl!.currentOverlayEvents
+          : _ctrl!.currentOverlayEvents;
 
   int get _currentOverlayEventIndex =>
-      _isLiveMode ? _liveCtrl!.currentOverlayEventIndex : _ctrl!.currentOverlayEventIndex;
+      _isLiveMode
+          ? _liveCtrl!.currentOverlayEventIndex
+          : _ctrl!.currentOverlayEventIndex;
 
   double get _overlayProgress =>
       _isLiveMode ? _liveCtrl!.overlayProgress : _ctrl!.overlayProgress;
@@ -277,18 +286,16 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   List<String> get _collectedCodes =>
       _isLiveMode ? _liveCtrl!.collectedCodes : (_ctrl!.collectedCodes);
 
-  List<(double, double)> get _heritageSiteCoords => _isLiveMode
-      ? _liveCtrl!.visitedHeritageSiteCoords
-      : widget.script!.visitedHeritageSiteCoords;
+  List<(double, double)> get _heritageSiteCoords =>
+      _isLiveMode
+          ? _liveCtrl!.visitedHeritageSiteCoords
+          : widget.script!.visitedHeritageSiteCoords;
 
   /// All legs known so far (historical: all legs; live: completed + active).
   List<TravelLeg> get _currentLegs {
     if (_isLiveMode) {
       final active = _liveCtrl!.activeLeg;
-      return [
-        ..._liveCtrl!.completedLegs,
-        if (active != null) active,
-      ];
+      return [..._liveCtrl!.completedLegs, if (active != null) active];
     }
     return widget.script!.legs;
   }
@@ -363,7 +370,8 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     ref.watch(countryVisualStatesProvider);
 
     final isDone = _phase == ReplayPhase.done;
-    final isOverlay = _phase == ReplayPhase.overlay &&
+    final isOverlay =
+        _phase == ReplayPhase.overlay &&
         _currentOverlayEvents.isNotEmpty &&
         _currentOverlayEventIndex < _currentOverlayEvents.length;
     final isFlagReveal = _phase == ReplayPhase.flagReveal;
@@ -381,7 +389,7 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     // replayGlobeFrameProvider — we only render the transparent UI overlay.
     final stack = Stack(
       children: [
-          if (!widget.embedded)
+        if (!widget.embedded)
           // Globe + replay arc — non-embedded (full-screen route) only.
           Positioned.fill(
             child: AnimatedOpacity(
@@ -410,183 +418,177 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
             ),
           ),
 
-          // Top bar: label + mute + stop.
+        // Top bar: label + mute + stop.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _isLiveMode
+                          ? 'Scanning your travels…'
+                          : widget.script!.label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  _LegCounter(
+                    current: _currentLegIndex,
+                    total: _isLiveMode ? null : currentLegs.length,
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      _isMuted
+                          ? Icons.volume_off_rounded
+                          : Icons.volume_up_rounded,
+                      color: Colors.white,
+                    ),
+                    tooltip: _isMuted ? 'Unmute' : 'Mute',
+                    onPressed: () {
+                      setState(() {
+                        _isMuted = !_isMuted;
+                        _audioCtrl.isMuted = _isMuted;
+                        if (_isMuted) _audioCtrl.stopAll();
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    tooltip: 'Stop replay',
+                    onPressed: () {
+                      if (_isLiveMode) {
+                        _liveCtrl!.stop();
+                      } else {
+                        _ctrl!.stop();
+                      }
+                      _audioCtrl.stopAll();
+                      if (widget.embedded) {
+                        widget.onClose?.call();
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Bottom: flag list + leg label + speed selector (hidden in live mode).
+        if (!isDone)
           Positioned(
-            top: 0,
+            bottom: 0,
             left: 0,
             right: 0,
             child: SafeArea(
+              top: false,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Text(
-                        _isLiveMode
-                            ? 'Scanning your travels…'
-                            : widget.script!.label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    // Speed selector — historical mode only.
+                    if (!_isLiveMode)
+                      _SpeedSelector(
+                        value: _speedMultiplier,
+                        onChanged: (v) {
+                          setState(() {
+                            _speedMultiplier = v;
+                            _ctrl!.speedMultiplier = v;
+                          });
+                        },
                       ),
-                    ),
-                    _LegCounter(
-                      current: _currentLegIndex,
-                      total: _isLiveMode ? null : currentLegs.length,
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        _isMuted
-                            ? Icons.volume_off_rounded
-                            : Icons.volume_up_rounded,
-                        color: Colors.white,
+                    if (!_isLiveMode) const SizedBox(height: 6),
+                    if (collectedCodes.isNotEmpty)
+                      _CollectedFlagRow(
+                        countryCodes: collectedCodes,
+                        slotPulseTrigger: _slotPulseTrigger,
                       ),
-                      tooltip: _isMuted ? 'Unmute' : 'Mute',
-                      onPressed: () {
-                        setState(() {
-                          _isMuted = !_isMuted;
-                          _audioCtrl.isMuted = _isMuted;
-                          if (_isMuted) _audioCtrl.stopAll();
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      tooltip: 'Stop replay',
-                      onPressed: () {
-                        if (_isLiveMode) {
-                          _liveCtrl!.stop();
-                        } else {
-                          _ctrl!.stop();
-                        }
-                        _audioCtrl.stopAll();
-                        if (widget.embedded) {
-                          widget.onClose?.call();
-                        } else {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                    ),
+                    if (!isOverlay && _currentLeg != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: _LegLabel(leg: _currentLeg!, phase: _phase),
+                      ),
                   ],
                 ),
               ),
             ),
           ),
 
-          // Bottom: flag list + leg label + speed selector (hidden in live mode).
-          if (!isDone)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Speed selector — historical mode only.
-                      if (!_isLiveMode)
-                        _SpeedSelector(
-                          value: _speedMultiplier,
-                          onChanged: (v) {
-                            setState(() {
-                              _speedMultiplier = v;
-                              _ctrl!.speedMultiplier = v;
-                            });
-                          },
-                        ),
-                      if (!_isLiveMode) const SizedBox(height: 6),
-                      if (collectedCodes.isNotEmpty)
-                        _CollectedFlagRow(
-                          countryCodes: collectedCodes,
-                          slotPulseTrigger: _slotPulseTrigger,
-                        ),
-                      if (!isOverlay && _currentLeg != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: _LegLabel(
-                            leg: _currentLeg!,
-                            phase: _phase,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+        // Overlay widget (achievement / stat / heritage) — centred on screen.
+        if (isOverlay) Positioned.fill(child: _buildOverlayWidget()),
+
+        // M133: first-visit flag reveal — large emoji + confetti.
+        if (isFlagReveal && _currentLeg != null)
+          Positioned.fill(
+            child: CountryDiscoveryOverlay(
+              countryCode: _currentLeg!.toCode,
+              revealProgress: _flagRevealProgress,
+              confettiCtrl: _confettiCtrl,
+              confettiColors: _confettiColors,
+            ),
+          ),
+
+        // M133: flag flight — animates from centre to bottom row.
+        if (isFlagFlight && _currentLeg != null)
+          Positioned.fill(
+            child: FlagFlightOverlay(
+              countryCode: _currentLeg!.toCode,
+              flightProgress: _flagFlightProgress,
+            ),
+          ),
+
+        // Live-mode: "Scanning live…" chip when waiting for events.
+        if (_isLiveMode &&
+            _liveCtrl!.liveState == LiveScanReplayState.waitingForEvents)
+          Positioned(
+            top: 80,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _ScanningLiveChip(
+                processedCount: _liveCtrl!.processedCount,
               ),
             ),
+          ),
 
-          // Overlay widget (achievement / stat / heritage) — centred on screen.
-          if (isOverlay)
-            Positioned.fill(
-              child: _buildOverlayWidget(),
-            ),
+        // Live-mode: queue depth badge.
+        if (_isLiveMode && _liveCtrl!.queuedLegCount >= 2)
+          Positioned(
+            top: 80,
+            right: 16,
+            child: _QueueDepthBadge(count: _liveCtrl!.queuedLegCount),
+          ),
 
-          // M133: first-visit flag reveal — large emoji + confetti.
-          if (isFlagReveal && _currentLeg != null)
-            Positioned.fill(
-              child: CountryDiscoveryOverlay(
-                countryCode: _currentLeg!.toCode,
-                revealProgress: _flagRevealProgress,
-                confettiCtrl: _confettiCtrl,
-                confettiColors: _confettiColors,
-              ),
-            ),
+        // Live-mode: year banner overlay.
+        if (_isLiveMode && _liveCtrl!.activeYearBanner != null)
+          Positioned.fill(
+            child: _YearBannerOverlay(year: _liveCtrl!.activeYearBanner!),
+          ),
 
-          // M133: flag flight — animates from centre to bottom row.
-          if (isFlagFlight && _currentLeg != null)
-            Positioned.fill(
-              child: FlagFlightOverlay(
-                countryCode: _currentLeg!.toCode,
-                flightProgress: _flagFlightProgress,
-              ),
+        // Summary screen — slides up when done (suppressed in scan mode or
+        // embedded replay — use onClose / onScanComplete to exit instead).
+        if (widget.onScanComplete == null && !widget.embedded)
+          Positioned.fill(
+            child: ReplaySummaryScreen(
+              script: widget.script!,
+              isVisible: isDone,
+              onReplayAgain: _replayAgain,
+              onShare: () => _share(context),
+              onCreateTShirt: () => _createTShirt(context),
             ),
-
-          // Live-mode: "Scanning live…" chip when waiting for events.
-          if (_isLiveMode &&
-              _liveCtrl!.liveState == LiveScanReplayState.waitingForEvents)
-            Positioned(
-              top: 80,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: _ScanningLiveChip(
-                    processedCount: _liveCtrl!.processedCount),
-              ),
-            ),
-
-          // Live-mode: queue depth badge.
-          if (_isLiveMode && _liveCtrl!.queuedLegCount >= 2)
-            Positioned(
-              top: 80,
-              right: 16,
-              child: _QueueDepthBadge(count: _liveCtrl!.queuedLegCount),
-            ),
-
-          // Live-mode: year banner overlay.
-          if (_isLiveMode && _liveCtrl!.activeYearBanner != null)
-            Positioned.fill(
-              child: _YearBannerOverlay(year: _liveCtrl!.activeYearBanner!),
-            ),
-
-          // Summary screen — slides up when done (suppressed in scan mode or
-          // embedded replay — use onClose / onScanComplete to exit instead).
-          if (widget.onScanComplete == null && !widget.embedded)
-            Positioned.fill(
-              child: ReplaySummaryScreen(
-                script: widget.script!,
-                isVisible: isDone,
-                onReplayAgain: _replayAgain,
-                onShare: () => _share(context),
-                onCreateTShirt: () => _createTShirt(context),
-              ),
-            ),
-        ],
-      );
+          ),
+      ],
+    );
 
     if (widget.embedded) return stack;
     return Scaffold(backgroundColor: Colors.black, body: stack);
@@ -596,17 +598,17 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
     final event = _currentOverlayEvents[_currentOverlayEventIndex];
     return switch (event) {
       ReplayAchievementEvent e => ReplayAchievementOverlay(
-          event: e,
-          overlayProgress: _overlayProgress,
-        ),
+        event: e,
+        overlayProgress: _overlayProgress,
+      ),
       ReplayStatEvent e => ReplayStatOverlay(
-          event: e,
-          overlayProgress: _overlayProgress,
-        ),
+        event: e,
+        overlayProgress: _overlayProgress,
+      ),
       ReplayHeritageEvent e => ReplayHeritageOverlay(
-          event: e,
-          overlayProgress: _overlayProgress,
-        ),
+        event: e,
+        overlayProgress: _overlayProgress,
+      ),
     };
   }
 }
@@ -661,9 +663,10 @@ class _LegCounter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = total != null
-        ? '${(current + 1).clamp(1, total!)} / $total'
-        : '${current + 1}';
+    final label =
+        total != null
+            ? '${(current + 1).clamp(1, total!)} / $total'
+            : '${current + 1}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -810,9 +813,10 @@ class _CollectedFlagRow extends StatelessWidget {
           );
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: isLast
-                ? SlotPulse(trigger: slotPulseTrigger, child: flag)
-                : flag,
+            child:
+                isLast
+                    ? SlotPulse(trigger: slotPulseTrigger, child: flag)
+                    : flag,
           );
         },
       ),
@@ -826,8 +830,6 @@ class _CollectedFlagRow extends StatelessWidget {
     return String.fromCharCodes([a, b]);
   }
 }
-
-
 
 // ── Live-mode-only widgets ─────────────────────────────────────────────────────
 

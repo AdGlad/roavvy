@@ -25,13 +25,15 @@ class AchievementRepository {
     if (ids.isEmpty) return;
     await _db.transaction(() async {
       for (final id in ids) {
-        await _db.into(_db.unlockedAchievements).insertOnConflictUpdate(
-          UnlockedAchievementsCompanion.insert(
-            achievementId: id,
-            unlockedAt: unlockedAt.toUtc(),
-            isDirty: const Value(1),
-          ),
-        );
+        await _db
+            .into(_db.unlockedAchievements)
+            .insertOnConflictUpdate(
+              UnlockedAchievementsCompanion.insert(
+                achievementId: id,
+                unlockedAt: unlockedAt.toUtc(),
+                isDirty: const Value(1),
+              ),
+            );
       }
     });
   }
@@ -54,17 +56,17 @@ class AchievementRepository {
   /// Returns all rows with [isDirty] = 1 (pending Firestore sync).
   Future<List<UnlockedAchievementRow>> loadDirty() =>
       (_db.select(_db.unlockedAchievements)
-            ..where((t) => t.isDirty.equals(1)))
-          .get();
+        ..where((t) => t.isDirty.equals(1))).get();
 
   // ── Mark clean (called by FirestoreSyncService after a successful write) ──
 
   /// Sets [isDirty] = 0 and records [syncedAt] for a single achievement row.
   Future<void> markClean(String id, DateTime syncedAt) =>
       (_db.update(_db.unlockedAchievements)
-            ..where((t) => t.achievementId.equals(id)))
-          .write(UnlockedAchievementsCompanion(
-        isDirty: const Value(0),
-        syncedAt: Value(syncedAt.toUtc()),
-      ));
+        ..where((t) => t.achievementId.equals(id))).write(
+        UnlockedAchievementsCompanion(
+          isDirty: const Value(0),
+          syncedAt: Value(syncedAt.toUtc()),
+        ),
+      );
 }

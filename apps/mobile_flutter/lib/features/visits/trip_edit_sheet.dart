@@ -45,7 +45,8 @@ class _TripEditSheetState extends ConsumerState<TripEditSheet> {
   @override
   void initState() {
     super.initState();
-    _startDate = widget.existingTrip?.startedOn.toLocal() ?? widget.initialStartDate;
+    _startDate =
+        widget.existingTrip?.startedOn.toLocal() ?? widget.initialStartDate;
     _endDate = widget.existingTrip?.endedOn.toLocal() ?? widget.initialEndDate;
   }
 
@@ -116,8 +117,18 @@ class _TripEditSheetState extends ConsumerState<TripEditSheet> {
   }
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _fmtDate(DateTime d) =>
@@ -173,13 +184,14 @@ class _TripEditSheetState extends ConsumerState<TripEditSheet> {
                 const SizedBox(width: 8),
                 FilledButton(
                   onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save'),
+                  child:
+                      _saving
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Text('Save'),
                 ),
               ],
             ),

@@ -8,19 +8,17 @@ import '../../merch/achievement_merch_option_screen.dart';
 ///
 /// Returns [SizedBox.shrink] when no merch-eligible achievements are unlocked.
 class MerchMomentsSection extends StatelessWidget {
-  const MerchMomentsSection({
-    super.key,
-    required this.unlockedById,
-  });
+  const MerchMomentsSection({super.key, required this.unlockedById});
 
   final Map<String, DateTime> unlockedById;
 
   @override
   Widget build(BuildContext context) {
-    final eligible = kAchievements
-        .where((a) => a.merch != null && unlockedById.containsKey(a.id))
-        .toList()
-      ..sort((a, b) => unlockedById[b.id]!.compareTo(unlockedById[a.id]!));
+    final eligible =
+        kAchievements
+            .where((a) => a.merch != null && unlockedById.containsKey(a.id))
+            .toList()
+          ..sort((a, b) => unlockedById[b.id]!.compareTo(unlockedById[a.id]!));
 
     if (eligible.isEmpty) return const SizedBox.shrink();
 
@@ -33,25 +31,22 @@ class MerchMomentsSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
             'Merch Moments',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
-        ...display.map((a) => _MerchMomentTile(
-              achievement: a,
-              unlockedAt: unlockedById[a.id]!,
-            )),
+        ...display.map(
+          (a) =>
+              _MerchMomentTile(achievement: a, unlockedAt: unlockedById[a.id]!),
+        ),
       ],
     );
   }
 }
 
 class _MerchMomentTile extends StatelessWidget {
-  const _MerchMomentTile({
-    required this.achievement,
-    required this.unlockedAt,
-  });
+  const _MerchMomentTile({required this.achievement, required this.unlockedAt});
 
   final Achievement achievement;
   final DateTime unlockedAt;
@@ -69,11 +64,7 @@ class _MerchMomentTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.emoji_events_outlined,
-            color: Colors.amber[700],
-            size: 24,
-          ),
+          Icon(Icons.emoji_events_outlined, color: Colors.amber[700], size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -97,12 +88,15 @@ class _MerchMomentTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           FilledButton.tonal(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    AchievementMerchOptionScreen(achievement: achievement),
-              ),
-            ),
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder:
+                        (_) => AchievementMerchOptionScreen(
+                          achievement: achievement,
+                        ),
+                  ),
+                ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               minimumSize: Size.zero,
@@ -117,10 +111,10 @@ class _MerchMomentTile extends StatelessWidget {
   }
 
   String _productLabel(MerchTriggerType type) => switch (type) {
-        MerchTriggerType.flagGrid => 'Flag Grid Tee',
-        MerchTriggerType.passportStamp => 'Passport Stamp Tee',
-        MerchTriggerType.timeline => 'Travel Timeline Tee',
-        MerchTriggerType.country => 'Country Tee',
-        MerchTriggerType.milestone => 'Milestone Tee',
-      };
+    MerchTriggerType.flagGrid => 'Flag Grid Tee',
+    MerchTriggerType.passportStamp => 'Passport Stamp Tee',
+    MerchTriggerType.timeline => 'Travel Timeline Tee',
+    MerchTriggerType.country => 'Country Tee',
+    MerchTriggerType.milestone => 'Milestone Tee',
+  };
 }

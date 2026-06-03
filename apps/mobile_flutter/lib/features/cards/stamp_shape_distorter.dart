@@ -49,14 +49,30 @@ class StampShapeDistorter {
   /// Each corner radius is independently varied by ±1–2px.
   /// The returned [RRect] represents the outer boundary; callers can use
   /// the same seed offset for an inner boundary to simulate double-border.
-  static RRect distortedRect(Rect bounds, double nominalCornerRadius, int seed) {
+  static RRect distortedRect(
+    Rect bounds,
+    double nominalCornerRadius,
+    int seed,
+  ) {
     final rng = math.Random(seed ^ 0xDECF);
 
     // Each corner varied independently by ±1–2px
-    final tl = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(0.0, nominalCornerRadius * 2);
-    final tr = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(0.0, nominalCornerRadius * 2);
-    final bl = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(0.0, nominalCornerRadius * 2);
-    final br = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(0.0, nominalCornerRadius * 2);
+    final tl = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(
+      0.0,
+      nominalCornerRadius * 2,
+    );
+    final tr = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(
+      0.0,
+      nominalCornerRadius * 2,
+    );
+    final bl = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(
+      0.0,
+      nominalCornerRadius * 2,
+    );
+    final br = (nominalCornerRadius + (rng.nextDouble() * 4 - 2)).clamp(
+      0.0,
+      nominalCornerRadius * 2,
+    );
 
     return RRect.fromRectAndCorners(
       bounds,
@@ -86,8 +102,7 @@ class StampShapeDistorter {
   ///
   /// Simulates rubber stamp pressure imperfection on polygon shapes.
   /// Same [seed] → same result on all calls.
-  static Path distortedPolygon(
-      List<Offset> vertices, int seed, double jitter) {
+  static Path distortedPolygon(List<Offset> vertices, int seed, double jitter) {
     final rng = math.Random(seed ^ 0xF1F1);
     final path = Path();
     for (var i = 0; i < vertices.length; i++) {

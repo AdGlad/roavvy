@@ -46,8 +46,7 @@ class MaskCalculator {
   MaskCalculator._();
 
   // Normalise canvas coordinate to [-1.4, 1.4].
-  static double _nx(double px, double sideLen) =>
-      (px / sideLen - 0.5) * 2.8;
+  static double _nx(double px, double sideLen) => (px / sideLen - 0.5) * 2.8;
 
   static double _ny(double py, double sideLen) =>
       // y axis is inverted in canvas coordinates; heart "top" is at small y.
@@ -120,10 +119,11 @@ class MaskCalculator {
       //   x = 16 sin³(t)
       //   y = 13cos(t) − 5cos(2t) − 2cos(3t) − cos(4t)
       final hx = 16 * math.pow(math.sin(t), 3).toDouble();
-      final hy = -(13 * math.cos(t) -
-          5 * math.cos(2 * t) -
-          2 * math.cos(3 * t) -
-          math.cos(4 * t));
+      final hy =
+          -(13 * math.cos(t) -
+              5 * math.cos(2 * t) -
+              2 * math.cos(3 * t) -
+              math.cos(4 * t));
 
       // Map from parametric range (~[-17,17] x and ~[-10,13] y) to [0,side].
       final px = offsetX + (hx / 17.0 + 1.0) * side / 2.0;
@@ -173,7 +173,12 @@ class HeartLayoutEngine {
     final offsetY = (canvasSize.height - side) / 2;
 
     final sorted = sortCodes(codes, order, trips);
-    final tileSize = _findOptimalTileSize(side, offsetX, offsetY, sorted.length);
+    final tileSize = _findOptimalTileSize(
+      side,
+      offsetX,
+      offsetY,
+      sorted.length,
+    );
     final candidates = _generateCandidates(side, tileSize, offsetX, offsetY);
     final n = math.min(candidates.length, sorted.length);
     return [
@@ -189,7 +194,11 @@ class HeartLayoutEngine {
   /// yields fewer than [count] candidates, the minimum is returned so the
   /// heart is filled as densely as possible.
   static double _findOptimalTileSize(
-      double side, double offsetX, double offsetY, int count) {
+    double side,
+    double offsetX,
+    double offsetY,
+    int count,
+  ) {
     double lo = side * 0.02; // ~20 px at 1024-px reference
     double hi = side * 0.40; // ~410 px at 1024-px reference
     double best = lo;
@@ -208,7 +217,11 @@ class HeartLayoutEngine {
 
   /// Generates valid tile Rects ordered from the heart centre outward.
   static List<Rect> _generateCandidates(
-      double side, double tileSize, double offsetX, double offsetY) {
+    double side,
+    double tileSize,
+    double offsetX,
+    double offsetY,
+  ) {
     if (tileSize <= 0) return const [];
     final candidates = <(Rect, double)>[];
     final center = Offset(offsetX + side / 2, offsetY + side / 2);
@@ -216,7 +229,11 @@ class HeartLayoutEngine {
     for (var row = 0.0; row + tileSize <= side; row += tileSize) {
       for (var col = 0.0; col + tileSize <= side; col += tileSize) {
         final rect = Rect.fromLTWH(
-            offsetX + col, offsetY + row, tileSize, tileSize);
+          offsetX + col,
+          offsetY + row,
+          tileSize,
+          tileSize,
+        );
         final coverage = MaskCalculator.coverageFraction(rect, side);
         if (coverage >= _kCoverageThreshold) {
           final dx = rect.center.dx - center.dx;
@@ -235,8 +252,11 @@ class HeartLayoutEngine {
   /// Exposed as a public static so [CardEditorScreen] can apply the same
   /// ordering to the Grid template (ADR-119).
   static List<String> sortCodes(
-      List<String> codes, HeartFlagOrder order, List<TripRecord> trips,
-      {int shuffleSeed = 0}) {
+    List<String> codes,
+    HeartFlagOrder order,
+    List<TripRecord> trips, {
+    int shuffleSeed = 0,
+  }) {
     final sorted = List<String>.from(codes);
 
     switch (order) {
@@ -285,9 +305,7 @@ class HeartLayoutEngine {
 
   // Continent sort order (West → East, loosely).
   static int _continentOrder(String code) {
-    const order = {
-      'NA': 0, 'SA': 1, 'EU': 2, 'AF': 3, 'AS': 4, 'OC': 5,
-    };
+    const order = {'NA': 0, 'SA': 1, 'EU': 2, 'AF': 3, 'AS': 4, 'OC': 5};
     return order[kCountryContinent[code]] ?? 6;
   }
 
@@ -296,30 +314,140 @@ class HeartLayoutEngine {
     // Rough country centroids for geographic ordering — simplified but
     // sufficient for visual grouping. Extended list covers common travel codes.
     const centroids = <String, double>{
-      'CA': -96, 'US': -98, 'MX': -102, 'GT': -90, 'BZ': -88, 'HN': -87,
-      'SV': -89, 'NI': -85, 'CR': -84, 'PA': -80, 'CU': -77, 'JM': -77,
-      'HT': -73, 'DO': -70, 'PR': -67, 'TT': -61,
-      'CO': -74, 'VE': -66, 'GY': -59, 'SR': -56, 'BR': -51, 'EC': -78,
-      'PE': -76, 'BO': -64, 'PY': -58, 'UY': -56, 'AR': -64, 'CL': -71,
-      'IS': -18, 'PT': -8, 'GB': -2, 'IE': -8, 'ES': -4, 'FR': 2,
-      'NL': 5, 'BE': 4, 'LU': 6, 'DE': 10, 'DK': 10, 'NO': 10,
-      'SE': 18, 'FI': 26, 'CH': 8, 'AT': 14, 'IT': 12, 'MT': 14,
-      'PL': 20, 'CZ': 15, 'SK': 18, 'HU': 19, 'SI': 15, 'HR': 16,
-      'BA': 17, 'RS': 21, 'ME': 19, 'AL': 20, 'MK': 22, 'GR': 22,
-      'BG': 25, 'RO': 25, 'MD': 29, 'UA': 32, 'BY': 28, 'LT': 24,
-      'LV': 25, 'EE': 25, 'RU': 60, 'TR': 36,
-      'MA': -6, 'DZ': 3, 'TN': 9, 'LY': 17, 'EG': 30, 'SD': 30,
-      'ET': 40, 'SO': 46, 'KE': 38, 'TZ': 35, 'MZ': 35, 'ZA': 25,
-      'NG': 8, 'GH': -1, 'SN': -14, 'ML': -2, 'CI': -6, 'CM': 12,
-      'CD': 25, 'AO': 18, 'ZM': 28, 'ZW': 30, 'BW': 24, 'NA': 18,
-      'GE': 44, 'AM': 45, 'AZ': 47, 'IR': 53, 'IQ': 44, 'SA': 45,
-      'AE': 54, 'OM': 57, 'YE': 48, 'JO': 37, 'IL': 35, 'LB': 35,
-      'SY': 38, 'KZ': 67, 'UZ': 63, 'TM': 59, 'AF': 67, 'PK': 70,
-      'IN': 78, 'NP': 84, 'BD': 90, 'LK': 81, 'MV': 73,
-      'CN': 104, 'MN': 103, 'KP': 127, 'KR': 128, 'JP': 138,
-      'MM': 96, 'TH': 101, 'LA': 103, 'VN': 106, 'KH': 105,
-      'PH': 122, 'MY': 112, 'SG': 104, 'ID': 120, 'TL': 126,
-      'AU': 133, 'NZ': 172, 'PG': 144, 'FJ': 178,
+      'CA': -96,
+      'US': -98,
+      'MX': -102,
+      'GT': -90,
+      'BZ': -88,
+      'HN': -87,
+      'SV': -89,
+      'NI': -85,
+      'CR': -84,
+      'PA': -80,
+      'CU': -77,
+      'JM': -77,
+      'HT': -73,
+      'DO': -70,
+      'PR': -67,
+      'TT': -61,
+      'CO': -74,
+      'VE': -66,
+      'GY': -59,
+      'SR': -56,
+      'BR': -51,
+      'EC': -78,
+      'PE': -76,
+      'BO': -64,
+      'PY': -58,
+      'UY': -56,
+      'AR': -64,
+      'CL': -71,
+      'IS': -18,
+      'PT': -8,
+      'GB': -2,
+      'IE': -8,
+      'ES': -4,
+      'FR': 2,
+      'NL': 5,
+      'BE': 4,
+      'LU': 6,
+      'DE': 10,
+      'DK': 10,
+      'NO': 10,
+      'SE': 18,
+      'FI': 26,
+      'CH': 8,
+      'AT': 14,
+      'IT': 12,
+      'MT': 14,
+      'PL': 20,
+      'CZ': 15,
+      'SK': 18,
+      'HU': 19,
+      'SI': 15,
+      'HR': 16,
+      'BA': 17,
+      'RS': 21,
+      'ME': 19,
+      'AL': 20,
+      'MK': 22,
+      'GR': 22,
+      'BG': 25,
+      'RO': 25,
+      'MD': 29,
+      'UA': 32,
+      'BY': 28,
+      'LT': 24,
+      'LV': 25,
+      'EE': 25,
+      'RU': 60,
+      'TR': 36,
+      'MA': -6,
+      'DZ': 3,
+      'TN': 9,
+      'LY': 17,
+      'EG': 30,
+      'SD': 30,
+      'ET': 40,
+      'SO': 46,
+      'KE': 38,
+      'TZ': 35,
+      'MZ': 35,
+      'ZA': 25,
+      'NG': 8,
+      'GH': -1,
+      'SN': -14,
+      'ML': -2,
+      'CI': -6,
+      'CM': 12,
+      'CD': 25,
+      'AO': 18,
+      'ZM': 28,
+      'ZW': 30,
+      'BW': 24,
+      'NA': 18,
+      'GE': 44,
+      'AM': 45,
+      'AZ': 47,
+      'IR': 53,
+      'IQ': 44,
+      'SA': 45,
+      'AE': 54,
+      'OM': 57,
+      'YE': 48,
+      'JO': 37,
+      'IL': 35,
+      'LB': 35,
+      'SY': 38,
+      'KZ': 67,
+      'UZ': 63,
+      'TM': 59,
+      'AF': 67,
+      'PK': 70,
+      'IN': 78,
+      'NP': 84,
+      'BD': 90,
+      'LK': 81,
+      'MV': 73,
+      'CN': 104,
+      'MN': 103,
+      'KP': 127,
+      'KR': 128,
+      'JP': 138,
+      'MM': 96,
+      'TH': 101,
+      'LA': 103,
+      'VN': 106,
+      'KH': 105,
+      'PH': 122,
+      'MY': 112,
+      'SG': 104,
+      'ID': 120,
+      'TL': 126,
+      'AU': 133,
+      'NZ': 172,
+      'PG': 144,
+      'FJ': 178,
     };
     return centroids[code] ?? 0;
   }

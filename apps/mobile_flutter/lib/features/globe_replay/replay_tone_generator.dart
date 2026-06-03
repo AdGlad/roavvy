@@ -18,16 +18,18 @@ import 'dart:typed_data';
 class ReplayToneGenerator {
   const ReplayToneGenerator._();
 
-  static const int _sr = 44100;        // sample rate
-  static const double _vol = 0.70;     // master volume (avoids clipping)
+  static const int _sr = 44100; // sample rate
+  static const double _vol = 0.70; // master volume (avoids clipping)
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /// Short whoosh: flight < 20° arc (≈ 0.25 s).
-  static Uint8List shortWhoosh() => _wav(_whoosh(0.25, loFreq: 250, hiFreq: 900));
+  static Uint8List shortWhoosh() =>
+      _wav(_whoosh(0.25, loFreq: 250, hiFreq: 900));
 
   /// Long whoosh: flight ≥ 20° arc (≈ 0.55 s).
-  static Uint8List longWhoosh() => _wav(_whoosh(0.55, loFreq: 120, hiFreq: 550));
+  static Uint8List longWhoosh() =>
+      _wav(_whoosh(0.55, loFreq: 120, hiFreq: 550));
 
   /// Bell chime for arrival (≈ 0.70 s).
   static Uint8List arrival() => _wav(_bell(880.0, 0.70));
@@ -90,9 +92,10 @@ class ReplayToneGenerator {
       final t = i / n; // normalised 0→1
 
       // Trapezoid envelope: 10 % attack, 70 % sustain, 20 % release.
-      final env = t < 0.10
-          ? t / 0.10
-          : t > 0.80
+      final env =
+          t < 0.10
+              ? t / 0.10
+              : t > 0.80
               ? (1.0 - t) / 0.20
               : 1.0;
 
@@ -115,11 +118,10 @@ class ReplayToneGenerator {
     return List.generate(n, (i) {
       final t = i / _sr;
       final env = math.exp(-t * 4.8);
-      final s = (
-            math.sin(2 * math.pi * freq * t) * 0.50 +
-            math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
-            math.sin(2 * math.pi * freq * 3.01 * t) * 0.10
-          ) *
+      final s =
+          (math.sin(2 * math.pi * freq * t) * 0.50 +
+              math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
+              math.sin(2 * math.pi * freq * 3.01 * t) * 0.10) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -138,8 +140,7 @@ class ReplayToneGenerator {
       final ni = (t / noteSec).floor().clamp(0, freqs.length - 1);
       final freq = freqs[ni];
       final nt = t - ni * noteSec;
-      final env =
-          nt < 0.01 ? nt / 0.01 : math.exp(-(nt - 0.01) * 9.0);
+      final env = nt < 0.01 ? nt / 0.01 : math.exp(-(nt - 0.01) * 9.0);
       final s = math.sin(2 * math.pi * freq * t) * env * _vol;
       return (s * 32767).round().clamp(-32767, 32767);
     });
@@ -162,8 +163,7 @@ class ReplayToneGenerator {
       if (t < arpSec) {
         final ni = (t / noteSec).floor().clamp(0, freqs.length - 1);
         final nt = t - ni * noteSec;
-        final env =
-            nt < 0.01 ? nt / 0.01 : math.exp(-(nt - 0.01) * 4.0);
+        final env = nt < 0.01 ? nt / 0.01 : math.exp(-(nt - 0.01) * 4.0);
         s = math.sin(2 * math.pi * freqs[ni] * t) * env;
       } else {
         final ct = t - arpSec;
@@ -185,11 +185,10 @@ class ReplayToneGenerator {
     return List.generate(n, (i) {
       final t = i / _sr;
       final env = math.exp(-t * 5.5);
-      final s = (
-            math.sin(2 * math.pi * 880.0 * t) * 0.55 +
-            math.sin(2 * math.pi * 1100.0 * t) * 0.30 +
-            math.sin(2 * math.pi * 1760.0 * t) * 0.10
-          ) *
+      final s =
+          (math.sin(2 * math.pi * 880.0 * t) * 0.55 +
+              math.sin(2 * math.pi * 1100.0 * t) * 0.30 +
+              math.sin(2 * math.pi * 1760.0 * t) * 0.10) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -225,11 +224,10 @@ class ReplayToneGenerator {
       final freq = freqs[ni];
       final nt = t - ni * noteSec;
       final env = nt < 0.015 ? nt / 0.015 : math.exp(-(nt - 0.015) * 4.5);
-      final s = (
-            math.sin(2 * math.pi * freq * t) * 0.60 +
-            math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
-            math.sin(2 * math.pi * freq * 3.0 * t) * 0.10
-          ) *
+      final s =
+          (math.sin(2 * math.pi * freq * t) * 0.60 +
+              math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
+              math.sin(2 * math.pi * freq * 3.0 * t) * 0.10) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -243,11 +241,10 @@ class ReplayToneGenerator {
     return List.generate(n, (i) {
       final t = i / _sr;
       final env = t < 0.008 ? t / 0.008 : math.exp(-(t - 0.008) * 9.0);
-      final s = (
-            math.sin(2 * math.pi * 660.0 * t) * 0.55 +
-            math.sin(2 * math.pi * 990.0 * t) * 0.35 +
-            math.sin(2 * math.pi * 1320.0 * t) * 0.08
-          ) *
+      final s =
+          (math.sin(2 * math.pi * 660.0 * t) * 0.55 +
+              math.sin(2 * math.pi * 990.0 * t) * 0.35 +
+              math.sin(2 * math.pi * 1320.0 * t) * 0.08) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -261,10 +258,9 @@ class ReplayToneGenerator {
     return List.generate(n, (i) {
       final t = i / _sr;
       final env = t < 0.006 ? t / 0.006 : math.exp(-(t - 0.006) * 12.0);
-      final s = (
-            math.sin(2 * math.pi * 220.0 * t) * 0.55 +
-            math.sin(2 * math.pi * 233.0 * t) * 0.45
-          ) *
+      final s =
+          (math.sin(2 * math.pi * 220.0 * t) * 0.55 +
+              math.sin(2 * math.pi * 233.0 * t) * 0.45) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -283,11 +279,10 @@ class ReplayToneGenerator {
       final freq = freqs[ni];
       final nt = t - ni * noteSec;
       final env = nt < 0.012 ? nt / 0.012 : math.exp(-(nt - 0.012) * 6.0);
-      final s = (
-            math.sin(2 * math.pi * freq * t) * 0.60 +
-            math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
-            math.sin(2 * math.pi * freq * 3.0 * t) * 0.10
-          ) *
+      final s =
+          (math.sin(2 * math.pi * freq * t) * 0.60 +
+              math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
+              math.sin(2 * math.pi * freq * 3.0 * t) * 0.10) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -313,13 +308,13 @@ class ReplayToneGenerator {
 
     // fmt chunk.
     ascii(12, 'fmt ');
-    buf.setUint32(16, 16, Endian.little);       // chunk size
-    buf.setUint16(20, 1, Endian.little);         // PCM
-    buf.setUint16(22, 1, Endian.little);         // mono
-    buf.setUint32(24, _sr, Endian.little);       // sample rate
-    buf.setUint32(28, _sr * 2, Endian.little);   // byte rate
-    buf.setUint16(32, 2, Endian.little);         // block align
-    buf.setUint16(34, 16, Endian.little);        // bits per sample
+    buf.setUint32(16, 16, Endian.little); // chunk size
+    buf.setUint16(20, 1, Endian.little); // PCM
+    buf.setUint16(22, 1, Endian.little); // mono
+    buf.setUint32(24, _sr, Endian.little); // sample rate
+    buf.setUint32(28, _sr * 2, Endian.little); // byte rate
+    buf.setUint16(32, 2, Endian.little); // block align
+    buf.setUint16(34, 16, Endian.little); // bits per sample
 
     // data chunk.
     ascii(36, 'data');

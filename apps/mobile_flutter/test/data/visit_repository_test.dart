@@ -30,14 +30,13 @@ InferredCountryVisit _inferred(
   int photoCount = 1,
   DateTime? firstSeen,
   DateTime? lastSeen,
-}) =>
-    InferredCountryVisit(
-      countryCode: code,
-      inferredAt: _t0,
-      photoCount: photoCount,
-      firstSeen: firstSeen,
-      lastSeen: lastSeen,
-    );
+}) => InferredCountryVisit(
+  countryCode: code,
+  inferredAt: _t0,
+  photoCount: photoCount,
+  firstSeen: firstSeen,
+  lastSeen: lastSeen,
+);
 
 UserAddedCountry _added(String code) =>
     UserAddedCountry(countryCode: code, addedAt: _t0);
@@ -222,7 +221,10 @@ void main() {
     test('also wipes photo_date_records', () async {
       final (repo, _) = _makeRepoWithTrips();
       await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'FR', capturedAt: DateTime.utc(2023, 7, 14)),
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 14),
+        ),
       ]);
       await repo.clearAll();
       expect(await repo.loadPhotoDates(), isEmpty);
@@ -269,11 +271,14 @@ void main() {
       expect(await repo.getShareToken(), isNull);
     });
 
-    test('saveShareToken persists and getShareToken returns saved value', () async {
-      final repo = _makeRepo();
-      await repo.saveShareToken('abc-123');
-      expect(await repo.getShareToken(), 'abc-123');
-    });
+    test(
+      'saveShareToken persists and getShareToken returns saved value',
+      () async {
+        final repo = _makeRepo();
+        await repo.saveShareToken('abc-123');
+        expect(await repo.getShareToken(), 'abc-123');
+      },
+    );
 
     test('saveShareToken overwrites previous value', () async {
       final repo = _makeRepo();
@@ -325,34 +330,44 @@ void main() {
       final repo = _makeRepo();
       await repo.savePhotoDates([
         PhotoDateRecord(
-            countryCode: 'FR', capturedAt: DateTime.utc(2023, 7, 14)),
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 14),
+        ),
         PhotoDateRecord(
-            countryCode: 'JP', capturedAt: DateTime.utc(2022, 4, 2)),
+          countryCode: 'JP',
+          capturedAt: DateTime.utc(2022, 4, 2),
+        ),
       ]);
       final loaded = await repo.loadPhotoDates();
       expect(loaded, hasLength(2));
       expect(loaded.map((r) => r.countryCode), containsAll(['FR', 'JP']));
     });
 
-    test('duplicate {countryCode, capturedAt} is silently ignored (composite PK)',
-        () async {
-      final repo = _makeRepo();
-      final record = PhotoDateRecord(
-        countryCode: 'FR',
-        capturedAt: DateTime.utc(2023, 7, 14),
-      );
-      await repo.savePhotoDates([record]);
-      await repo.savePhotoDates([record]); // same row — no duplicate
-      expect(await repo.loadPhotoDates(), hasLength(1));
-    });
+    test(
+      'duplicate {countryCode, capturedAt} is silently ignored (composite PK)',
+      () async {
+        final repo = _makeRepo();
+        final record = PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 14),
+        );
+        await repo.savePhotoDates([record]);
+        await repo.savePhotoDates([record]); // same row — no duplicate
+        expect(await repo.loadPhotoDates(), hasLength(1));
+      },
+    );
 
     test('same country, different capturedAt → two rows', () async {
       final repo = _makeRepo();
       await repo.savePhotoDates([
         PhotoDateRecord(
-            countryCode: 'FR', capturedAt: DateTime.utc(2023, 7, 14)),
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 14),
+        ),
         PhotoDateRecord(
-            countryCode: 'FR', capturedAt: DateTime.utc(2023, 7, 28)),
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 28),
+        ),
       ]);
       expect(await repo.loadPhotoDates(), hasLength(2));
     });
@@ -403,7 +418,10 @@ void main() {
     test('assetId is null when not provided', () async {
       final repo = _makeRepo();
       await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'JP', capturedAt: DateTime.utc(2024, 1, 1)),
+        PhotoDateRecord(
+          countryCode: 'JP',
+          capturedAt: DateTime.utc(2024, 1, 1),
+        ),
       ]);
       final loaded = await repo.loadPhotoDates();
       expect(loaded.first.assetId, isNull);
@@ -413,11 +431,14 @@ void main() {
       final repo = _makeRepo();
       await repo.savePhotoDates([
         PhotoDateRecord(
-            countryCode: 'FR',
-            capturedAt: DateTime.utc(2023, 7, 14),
-            regionCode: 'FR-IDF'),
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 14),
+          regionCode: 'FR-IDF',
+        ),
         PhotoDateRecord(
-            countryCode: 'AU', capturedAt: DateTime.utc(2023, 8, 1)),
+          countryCode: 'AU',
+          capturedAt: DateTime.utc(2023, 8, 1),
+        ),
       ]);
       final loaded = await repo.loadPhotoDates();
       final fr = loaded.firstWhere((r) => r.countryCode == 'FR');
@@ -434,7 +455,9 @@ void main() {
       final repo = _makeRepo();
       await repo.savePhotoDates([
         PhotoDateRecord(
-            countryCode: 'FR', capturedAt: DateTime.utc(2023, 7, 14)),
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2023, 7, 14),
+        ),
       ]);
       await repo.clearPhotoDates();
       expect(await repo.loadPhotoDates(), isEmpty);
@@ -493,8 +516,16 @@ void main() {
       const id1 = 'ASSET-001/L0/001';
       const id2 = 'ASSET-002/L0/001';
       await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'GB', capturedAt: DateTime.utc(2024, 1, 1), assetId: id1),
-        PhotoDateRecord(countryCode: 'FR', capturedAt: DateTime.utc(2024, 1, 2), assetId: id2),
+        PhotoDateRecord(
+          countryCode: 'GB',
+          capturedAt: DateTime.utc(2024, 1, 1),
+          assetId: id1,
+        ),
+        PhotoDateRecord(
+          countryCode: 'FR',
+          capturedAt: DateTime.utc(2024, 1, 2),
+          assetId: id2,
+        ),
       ]);
       final ids = await repo.loadAllKnownAssetIds();
       expect(ids, containsAll([id1, id2]));
@@ -504,9 +535,15 @@ void main() {
     test('null-assetId rows are excluded from loadAllKnownAssetIds', () async {
       final repo = _makeRepo();
       await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'DE', capturedAt: DateTime.utc(2024, 1, 1),
-            assetId: 'ASSET-003/L0/001'),
-        PhotoDateRecord(countryCode: 'ES', capturedAt: DateTime.utc(2024, 1, 2)),
+        PhotoDateRecord(
+          countryCode: 'DE',
+          capturedAt: DateTime.utc(2024, 1, 1),
+          assetId: 'ASSET-003/L0/001',
+        ),
+        PhotoDateRecord(
+          countryCode: 'ES',
+          capturedAt: DateTime.utc(2024, 1, 2),
+        ),
       ]);
       final ids = await repo.loadAllKnownAssetIds();
       expect(ids, hasLength(1));
@@ -516,44 +553,68 @@ void main() {
     test('multiple null-assetId rows coexist without dedup', () async {
       final repo = _makeRepo();
       await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'IT', capturedAt: DateTime.utc(2024, 1, 1)),
-        PhotoDateRecord(countryCode: 'PT', capturedAt: DateTime.utc(2024, 1, 2)),
+        PhotoDateRecord(
+          countryCode: 'IT',
+          capturedAt: DateTime.utc(2024, 1, 1),
+        ),
+        PhotoDateRecord(
+          countryCode: 'PT',
+          capturedAt: DateTime.utc(2024, 1, 2),
+        ),
       ]);
       expect(await repo.loadPhotoDates(), hasLength(2));
     });
 
-    test('saving same {countryCode, capturedAt} twice produces one row', () async {
-      final repo = _makeRepo();
-      await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'NL', capturedAt: DateTime.utc(2024, 1, 1)),
-      ]);
-      await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'NL', capturedAt: DateTime.utc(2024, 1, 1)),
-      ]);
-      expect(await repo.loadPhotoDates(), hasLength(1));
-    });
+    test(
+      'saving same {countryCode, capturedAt} twice produces one row',
+      () async {
+        final repo = _makeRepo();
+        await repo.savePhotoDates([
+          PhotoDateRecord(
+            countryCode: 'NL',
+            capturedAt: DateTime.utc(2024, 1, 1),
+          ),
+        ]);
+        await repo.savePhotoDates([
+          PhotoDateRecord(
+            countryCode: 'NL',
+            capturedAt: DateTime.utc(2024, 1, 1),
+          ),
+        ]);
+        expect(await repo.loadPhotoDates(), hasLength(1));
+      },
+    );
 
-    test('clearAll removes all photo date records; loadAllKnownAssetIds returns empty', () async {
-      final repo = _makeRepo();
-      await repo.savePhotoDates([
-        PhotoDateRecord(countryCode: 'AU', capturedAt: DateTime.utc(2024, 1, 1),
-            assetId: 'ASSET-AU'),
-      ]);
-      await repo.clearAll();
-      expect(await repo.loadAllKnownAssetIds(), isEmpty);
-      expect(await repo.loadPhotoDates(), isEmpty);
-    });
+    test(
+      'clearAll removes all photo date records; loadAllKnownAssetIds returns empty',
+      () async {
+        final repo = _makeRepo();
+        await repo.savePhotoDates([
+          PhotoDateRecord(
+            countryCode: 'AU',
+            capturedAt: DateTime.utc(2024, 1, 1),
+            assetId: 'ASSET-AU',
+          ),
+        ]);
+        await repo.clearAll();
+        expect(await repo.loadAllKnownAssetIds(), isEmpty);
+        expect(await repo.loadPhotoDates(), isEmpty);
+      },
+    );
   });
 
   group('saveInferred — deduplication and re-scan', () {
-    test('re-saving same countryCode accumulates photoCount (upsert)', () async {
-      final repo = _makeRepo();
-      await repo.saveInferred(_inferred('GB', photoCount: 3));
-      await repo.saveInferred(_inferred('GB', photoCount: 5));
-      final rows = await repo.loadInferred();
-      expect(rows, hasLength(1));
-      expect(rows.first.photoCount, 8);
-    });
+    test(
+      're-saving same countryCode accumulates photoCount (upsert)',
+      () async {
+        final repo = _makeRepo();
+        await repo.saveInferred(_inferred('GB', photoCount: 3));
+        await repo.saveInferred(_inferred('GB', photoCount: 5));
+        final rows = await repo.loadInferred();
+        expect(rows, hasLength(1));
+        expect(rows.first.photoCount, 8);
+      },
+    );
 
     test('re-scan keeps earliest firstSeen', () async {
       final repo = _makeRepo();
@@ -562,11 +623,14 @@ void main() {
       expect((await repo.loadInferred()).single.firstSeen, _t0);
     });
 
-    test('clearAll removes all inferred visits; subsequent loadInferred is empty', () async {
-      final repo = _makeRepo();
-      await repo.saveAllInferred([_inferred('GB'), _inferred('FR')]);
-      await repo.clearAll();
-      expect(await repo.loadInferred(), isEmpty);
-    });
+    test(
+      'clearAll removes all inferred visits; subsequent loadInferred is empty',
+      () async {
+        final repo = _makeRepo();
+        await repo.saveAllInferred([_inferred('GB'), _inferred('FR')]);
+        await repo.clearAll();
+        expect(await repo.loadInferred(), isEmpty);
+      },
+    );
   });
 }

@@ -30,10 +30,7 @@ class LevelUpSheet extends StatelessWidget {
   final String levelLabel;
 
   /// Convenience method — shows this sheet via [showModalBottomSheet].
-  static Future<void> show(
-    BuildContext context, {
-    required String levelLabel,
-  }) {
+  static Future<void> show(BuildContext context, {required String levelLabel}) {
     return showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -79,8 +76,9 @@ class LevelUpSheet extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     "You're now a $levelLabel!",
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
@@ -106,7 +104,8 @@ class LevelUpSheet extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: RoavvyColours.roavvyCoral,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                       ),
                       icon: const Icon(Icons.style_outlined),
                       label: const Text('Create a travel card'),
@@ -116,7 +115,10 @@ class LevelUpSheet extends StatelessWidget {
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: RoavvyColours.roavvyGold, width: 1.5),
+                      border: Border.all(
+                        color: RoavvyColours.roavvyGold,
+                        width: 1.5,
+                      ),
                     ),
                     child: TextButton(
                       onPressed: () => Navigator.of(context).pop(),

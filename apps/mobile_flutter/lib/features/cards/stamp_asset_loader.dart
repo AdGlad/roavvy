@@ -26,12 +26,12 @@ class StampDateSpec {
   final double letterSpacing;
 
   factory StampDateSpec.fromJson(Map<String, dynamic> json) => StampDateSpec(
-        x: (json['x'] as num).toDouble(),
-        y: (json['y'] as num).toDouble(),
-        fontSize: (json['font_size'] as num).toDouble(),
-        fontWeight: (json['font_weight'] as num).toInt(),
-        letterSpacing: (json['letter_spacing'] as num).toDouble(),
-      );
+    x: (json['x'] as num).toDouble(),
+    y: (json['y'] as num).toDouble(),
+    fontSize: (json['font_size'] as num).toDouble(),
+    fontWeight: (json['font_weight'] as num).toInt(),
+    letterSpacing: (json['letter_spacing'] as num).toDouble(),
+  );
 }
 
 // ── StampMetadata ─────────────────────────────────────────────────────────────
@@ -76,9 +76,10 @@ class StampMetadata {
       imageWidth: (image['width'] as num).toDouble(),
       imageHeight: (image['height'] as num).toDouble(),
       dateSpec: StampDateSpec.fromJson(json['date'] as Map<String, dynamic>),
-      visualScale: json.containsKey('visual_scale')
-          ? (json['visual_scale'] as num).toDouble()
-          : 1.0,
+      visualScale:
+          json.containsKey('visual_scale')
+              ? (json['visual_scale'] as num).toDouble()
+              : 1.0,
     );
   }
 }

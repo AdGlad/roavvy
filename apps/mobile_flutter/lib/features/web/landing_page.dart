@@ -17,30 +17,34 @@ class LandingPage extends ConsumerWidget {
           children: [
             // Hero Section
             _HeroSection(isMobile: isMobile),
-            
+
             // Features
             _FeatureSection(
               title: 'Scan your travel history',
-              description: 'Roavvy automatically detects the countries you\'ve visited by scanning your photo metadata on-device. No manual entry required.',
+              description:
+                  'Roavvy automatically detects the countries you\'ve visited by scanning your photo metadata on-device. No manual entry required.',
               icon: Icons.camera_enhance_outlined,
               isMobile: isMobile,
             ),
             _FeatureSection(
               title: 'See your world map',
-              description: 'Watch your personal travel map grow. Your history is visualised on a beautiful interactive globe.',
+              description:
+                  'Watch your personal travel map grow. Your history is visualised on a beautiful interactive globe.',
               icon: Icons.public_outlined,
               isMobile: isMobile,
               reverse: !isMobile,
             ),
             _FeatureSection(
               title: 'Unlock achievements',
-              description: 'Earn stamps and achievements as you explore new continents and reach travel milestones.',
+              description:
+                  'Earn stamps and achievements as you explore new continents and reach travel milestones.',
               icon: Icons.emoji_events_outlined,
               isMobile: isMobile,
             ),
             _FeatureSection(
               title: 'Create personalised travel merchandise',
-              description: 'Turn your travels into unique t-shirts and posters. Personalised designs based on your actual travel data.',
+              description:
+                  'Turn your travels into unique t-shirts and posters. Personalised designs based on your actual travel data.',
               icon: Icons.shopping_bag_outlined,
               isMobile: isMobile,
               reverse: !isMobile,
@@ -108,8 +112,14 @@ class _HeroSection extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFFFFD700),
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 20,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 child: const Text('Open Roavvy'),
               ),
@@ -119,8 +129,14 @@ class _HeroSection extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
                   side: const BorderSide(color: Colors.white, width: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 20,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 child: const Text('Sign In'),
               ),
@@ -152,17 +168,14 @@ class _FeatureSection extends StatelessWidget {
     final children = [
       Expanded(
         flex: isMobile ? 0 : 1,
-        child: Icon(
-          icon,
-          size: isMobile ? 80 : 160,
-          color: Color(0xFF003366),
-        ),
+        child: Icon(icon, size: isMobile ? 80 : 160, color: Color(0xFF003366)),
       ),
       if (!isMobile) const SizedBox(width: 64),
       Expanded(
         flex: isMobile ? 0 : 1,
         child: Column(
-          crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: [
             Text(
               title,
@@ -194,9 +207,10 @@ class _FeatureSection extends StatelessWidget {
         vertical: 80,
       ),
       color: reverse ? Colors.grey[50] : Colors.white,
-      child: isMobile
-          ? Column(children: children)
-          : Row(children: reverse ? children.reversed.toList() : children),
+      child:
+          isMobile
+              ? Column(children: children)
+              : Row(children: reverse ? children.reversed.toList() : children),
     );
   }
 }
@@ -257,7 +271,11 @@ class _FooterSection extends StatelessWidget {
         children: [
           const Text(
             'Roavvy',
-            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -270,12 +288,18 @@ class _FooterSection extends StatelessWidget {
             children: [
               TextButton(
                 onPressed: () {},
-                child: const Text('Privacy Policy', style: TextStyle(color: Colors.white70)),
+                child: const Text(
+                  'Privacy Policy',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
               const SizedBox(width: 24),
               TextButton(
                 onPressed: () {},
-                child: const Text('Terms of Service', style: TextStyle(color: Colors.white70)),
+                child: const Text(
+                  'Terms of Service',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
             ],
           ),

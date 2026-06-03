@@ -19,11 +19,7 @@ TravelSummary _summary({
 }
 
 Widget _pump(TravelSummary summary) {
-  return MaterialApp(
-    home: Scaffold(
-      body: TravelCardWidget(summary),
-    ),
-  );
+  return MaterialApp(home: Scaffold(body: TravelCardWidget(summary)));
 }
 
 void main() {
@@ -48,20 +44,22 @@ void main() {
     expect(find.text('2018 – 2024'), findsOneWidget);
   });
 
-  testWidgets('renders single year when earliest and latest are the same year',
-      (tester) async {
-    await tester.pumpWidget(
-      _pump(
-        _summary(
-          codes: ['GB'],
-          earliest: DateTime.utc(2024, 3),
-          latest: DateTime.utc(2024, 11),
+  testWidgets(
+    'renders single year when earliest and latest are the same year',
+    (tester) async {
+      await tester.pumpWidget(
+        _pump(
+          _summary(
+            codes: ['GB'],
+            earliest: DateTime.utc(2024, 3),
+            latest: DateTime.utc(2024, 11),
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('2024'), findsOneWidget);
-  });
+      expect(find.text('2024'), findsOneWidget);
+    },
+  );
 
   testWidgets('renders em-dash when no dates', (tester) async {
     await tester.pumpWidget(_pump(_summary(codes: ['GB'])));

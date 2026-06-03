@@ -43,32 +43,30 @@ DailyChallengeProgress _progress({
   List<String> guesses = const [],
   bool solved = false,
   bool failed = false,
-}) =>
-    DailyChallengeProgress(
-      date: '2026-06-03',
-      siteId: '208',
-      cluesRevealed: cluesRevealed,
-      guesses: guesses,
-      solved: solved,
-      failed: failed,
-    );
+}) => DailyChallengeProgress(
+  date: '2026-06-03',
+  siteId: '208',
+  cluesRevealed: cluesRevealed,
+  guesses: guesses,
+  solved: solved,
+  failed: failed,
+);
 
 DailyChallengeState _state({
   int cluesRevealed = 1,
   List<String> guesses = const [],
   bool solved = false,
   bool failed = false,
-}) =>
-    DailyChallengeState(
-      challenge: _challenge,
-      progress: _progress(
-        cluesRevealed: cluesRevealed,
-        guesses: guesses,
-        solved: solved,
-        failed: failed,
-      ),
-      site: _site,
-    );
+}) => DailyChallengeState(
+  challenge: _challenge,
+  progress: _progress(
+    cluesRevealed: cluesRevealed,
+    guesses: guesses,
+    solved: solved,
+    failed: failed,
+  ),
+  site: _site,
+);
 
 /// Builds the screen with an injected AsyncValue state for the notifier.
 Widget _pumpChallenge(
@@ -104,7 +102,9 @@ void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
   group('DailyChallengeScreen — loading state', () {
-    testWidgets('shows CircularProgressIndicator while loading', (tester) async {
+    testWidgets('shows CircularProgressIndicator while loading', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _pumpChallenge(tester, const AsyncValue.loading()),
       );
@@ -139,7 +139,9 @@ void main() {
       expect(find.text('Located in South Asia'), findsOneWidget);
     });
 
-    testWidgets('only revealed clues are visible (cluesRevealed=2)', (tester) async {
+    testWidgets('only revealed clues are visible (cluesRevealed=2)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _pumpChallenge(tester, AsyncValue.data(_state(cluesRevealed: 2))),
       );
@@ -151,8 +153,9 @@ void main() {
       expect(find.text('Built in the 17th century'), findsNothing);
     });
 
-    testWidgets('guess input TextField is visible when game is active',
-        (tester) async {
+    testWidgets('guess input TextField is visible when game is active', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(400, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -187,10 +190,12 @@ void main() {
       await tester.pumpWidget(
         _pumpChallenge(
           tester,
-          AsyncValue.data(_state(
-            failed: true,
-            guesses: ['Wrong 1', 'Wrong 2', 'Wrong 3', 'Wrong 4', 'Wrong 5'],
-          )),
+          AsyncValue.data(
+            _state(
+              failed: true,
+              guesses: ['Wrong 1', 'Wrong 2', 'Wrong 3', 'Wrong 4', 'Wrong 5'],
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();

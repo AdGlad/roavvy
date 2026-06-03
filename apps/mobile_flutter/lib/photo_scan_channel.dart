@@ -28,10 +28,13 @@ Future<void> openAppSettings() async {
 /// [sinceDate]: when non-null, only assets created after this date are included.
 Stream<ScanEvent> startPhotoScan({int limit = 100000, DateTime? sinceDate}) {
   final args = <String, dynamic>{'limit': limit};
-  if (sinceDate != null) args['sinceDate'] = sinceDate.toUtc().toIso8601String();
+  if (sinceDate != null)
+    args['sinceDate'] = sinceDate.toUtc().toIso8601String();
   return _eventChannel
       .receiveBroadcastStream(args)
-      .map((event) => ScanEvent.fromMap(Map<String, dynamic>.from(event as Map)));
+      .map(
+        (event) => ScanEvent.fromMap(Map<String, dynamic>.from(event as Map)),
+      );
 }
 
 // ── Permission type ───────────────────────────────────────────────────────────
@@ -44,17 +47,20 @@ enum PhotoPermissionStatus {
   limited; // 4 (iOS 14+)
 
   static PhotoPermissionStatus fromRaw(int v) =>
-      PhotoPermissionStatus.values[v.clamp(0, PhotoPermissionStatus.values.length - 1)];
+      PhotoPermissionStatus.values[v.clamp(
+        0,
+        PhotoPermissionStatus.values.length - 1,
+      )];
 
   bool get canScan => this == authorized || this == limited;
 
   String get label => switch (this) {
-        notDetermined => 'Not determined',
-        restricted => 'Restricted',
-        denied => 'Denied — open Settings',
-        authorized => 'Authorised',
-        limited => 'Limited access',
-      };
+    notDetermined => 'Not determined',
+    restricted => 'Restricted',
+    denied => 'Denied — open Settings',
+    authorized => 'Authorised',
+    limited => 'Limited access',
+  };
 }
 
 // ── Scan event types ──────────────────────────────────────────────────────────
@@ -76,11 +82,12 @@ class ScanBatchEvent extends ScanEvent {
   const ScanBatchEvent({required this.photos});
 
   factory ScanBatchEvent.fromMap(Map<String, dynamic> m) => ScanBatchEvent(
-        photos: (m['photos'] as List)
+    photos:
+        (m['photos'] as List)
             .cast<Map>()
             .map((p) => PhotoRecord.fromMap(Map<String, dynamic>.from(p)))
             .toList(),
-      );
+  );
 
   final List<PhotoRecord> photos;
 }
@@ -90,9 +97,9 @@ class ScanDoneEvent extends ScanEvent {
   const ScanDoneEvent({required this.inspected, required this.withLocation});
 
   factory ScanDoneEvent.fromMap(Map<String, dynamic> m) => ScanDoneEvent(
-        inspected: m['inspected'] as int? ?? 0,
-        withLocation: m['withLocation'] as int? ?? 0,
-      );
+    inspected: m['inspected'] as int? ?? 0,
+    withLocation: m['withLocation'] as int? ?? 0,
+  );
 
   final int inspected;
   final int withLocation;
@@ -114,7 +121,9 @@ class PhotoRecord {
       lat: (m['lat'] as num).toDouble(),
       lng: (m['lng'] as num).toDouble(),
       capturedAt:
-          capturedAtStr != null ? DateTime.tryParse(capturedAtStr)?.toUtc() : null,
+          capturedAtStr != null
+              ? DateTime.tryParse(capturedAtStr)?.toUtc()
+              : null,
       assetId: m['assetId'] as String?,
     );
   }
@@ -141,10 +150,10 @@ class ScanStats {
 
   /// Legacy factory kept for channel unit tests that parse spike-era payloads.
   factory ScanStats.fromMap(Map<String, dynamic> m) => ScanStats(
-        inspected: m['inspected'] as int? ?? 0,
-        withLocation: m['withLocation'] as int? ?? 0,
-        geocodeSuccesses: m['geocodeSuccesses'] as int? ?? 0,
-      );
+    inspected: m['inspected'] as int? ?? 0,
+    withLocation: m['withLocation'] as int? ?? 0,
+    geocodeSuccesses: m['geocodeSuccesses'] as int? ?? 0,
+  );
 
   final int inspected;
   final int withLocation;
@@ -154,4 +163,3 @@ class ScanStats {
   final int geocodeSuccesses;
   int get geocodeFailures => withLocation - geocodeSuccesses;
 }
-

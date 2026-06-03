@@ -30,12 +30,21 @@ String _flagEmoji(String code) {
 }
 
 const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
-String _fmtDate(DateTime dt) =>
-    '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
+String _fmtDate(DateTime dt) => '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
 
 /// Shown after [ReviewScreen] save completes (ADR-054).
 ///
@@ -115,12 +124,10 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
   }
 
   Future<void> _checkAndShowMilestone(VoidCallback next) async {
-    final allVisits =
-        ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+    final allVisits = ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
     final milestoneRepo = ref.read(milestoneRepositoryProvider);
     final shown = await milestoneRepo.getShownThresholds();
-    final threshold =
-        pendingMilestoneThreshold(allVisits.length, shown);
+    final threshold = pendingMilestoneThreshold(allVisits.length, shown);
 
     if (threshold != null) {
       await milestoneRepo.markShown(threshold);
@@ -155,27 +162,33 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
 
     if (widget.newCodes.isNotEmpty) {
       // Fire newCountry Rovy trigger.
-      final firstName = widget.newCountries.isNotEmpty
-          ? (kCountryNames[widget.newCountries.first.countryCode] ??
-              widget.newCountries.first.countryCode)
-          : null;
-      _postRovyMessage(RovyMessage(
-        text: firstName != null
-            ? 'Nice! You added $firstName to your map!'
-            : 'New country added to your map!',
-        trigger: RovyTrigger.newCountry,
-        emoji: '🗺️',
-      ));
+      final firstName =
+          widget.newCountries.isNotEmpty
+              ? (kCountryNames[widget.newCountries.first.countryCode] ??
+                  widget.newCountries.first.countryCode)
+              : null;
+      _postRovyMessage(
+        RovyMessage(
+          text:
+              firstName != null
+                  ? 'Nice! You added $firstName to your map!'
+                  : 'New country added to your map!',
+          trigger: RovyTrigger.newCountry,
+          emoji: '🗺️',
+        ),
+      );
 
       // Check 10th-country milestone for Rovy.
       final allVisits =
           ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
       if (allVisits.length == 10) {
-        _postRovyMessage(const RovyMessage(
-          text: '10 countries explored — you\'re a real traveller!',
-          trigger: RovyTrigger.milestone,
-          emoji: '🏆',
-        ));
+        _postRovyMessage(
+          const RovyMessage(
+            text: '10 countries explored — you\'re a real traveller!',
+            trigger: RovyTrigger.milestone,
+            emoji: '🏆',
+          ),
+        );
       }
 
       // Show milestone card then push discovery overlays
@@ -210,25 +223,28 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           settings: const RouteSettings(name: DiscoveryOverlay.routeName),
-          builder: (_) => DiscoveryOverlay(
-            isoCode: codes.first,
-            xpEarned: 50,
-            firstVisited: firstVisitedByCode[codes.first],
-            onDone: () => Navigator.of(context).pop(),
-          ),
+          builder:
+              (_) => DiscoveryOverlay(
+                isoCode: codes.first,
+                xpEarned: 50,
+                firstVisited: firstVisitedByCode[codes.first],
+                onDone: () => Navigator.of(context).pop(),
+              ),
         ),
       );
     } else {
       // Multi-country path: single carousel push, no intermediate navigation.
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          settings:
-              const RouteSettings(name: CountryCelebrationCarousel.routeName),
-          builder: (_) => CountryCelebrationCarousel(
-            codes: codes,
-            firstVisitedByCode: firstVisitedByCode,
-            onDone: () => Navigator.of(context).pop(),
+          settings: const RouteSettings(
+            name: CountryCelebrationCarousel.routeName,
           ),
+          builder:
+              (_) => CountryCelebrationCarousel(
+                codes: codes,
+                firstVisitedByCode: firstVisitedByCode,
+                onDone: () => Navigator.of(context).pop(),
+              ),
         ),
       );
     }
@@ -258,58 +274,63 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder:
+          (_) => Padding(
+            padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                MemoryPulseCard(
+                  memories: memories.take(3).toList(),
+                  onViewTrip: (_) => Navigator.of(context).pop(),
+                  service: service,
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
-            MemoryPulseCard(
-              memories: memories.take(3).toList(),
-              onViewTrip: (_) => Navigator.of(context).pop(),
-              service: service,
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   Future<void> _handleCaughtUp() async {
-    _postRovyMessage(const RovyMessage(
-      text: 'All caught up — your map is up to date.',
-      trigger: RovyTrigger.caughtUp,
-      emoji: '✅',
-    ));
-    await _checkAndShowMilestone(
-      () => _checkAndShowLevelUp(widget.onDone),
+    _postRovyMessage(
+      const RovyMessage(
+        text: 'All caught up — your map is up to date.',
+        trigger: RovyTrigger.caughtUp,
+        emoji: '✅',
+      ),
     );
+    await _checkAndShowMilestone(() => _checkAndShowLevelUp(widget.onDone));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: widget.newCountries.isEmpty
-            ? _NothingNewState(onDone: () => _handleCaughtUp(), lastScanAt: widget.lastScanAt)
-            : _NewDiscoveriesState(
-                newCountries: widget.newCountries,
-                newAchievementIds: widget.newAchievementIds,
-                newCodes: widget.newCodes,
-                newTripIds: widget.newTripIds,
-                newHeritageSiteNames: widget.newHeritageSiteNames,
-                totalTripCount: widget.totalTripCount,
-                onDone: _handleDone,
-              ),
+        child:
+            widget.newCountries.isEmpty
+                ? _NothingNewState(
+                  onDone: () => _handleCaughtUp(),
+                  lastScanAt: widget.lastScanAt,
+                )
+                : _NewDiscoveriesState(
+                  newCountries: widget.newCountries,
+                  newAchievementIds: widget.newAchievementIds,
+                  newCodes: widget.newCodes,
+                  newTripIds: widget.newTripIds,
+                  newHeritageSiteNames: widget.newHeritageSiteNames,
+                  totalTripCount: widget.totalTripCount,
+                  onDone: _handleDone,
+                ),
       ),
     );
   }
@@ -398,8 +419,9 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
     if (reduceMotion) return; // rows render at full opacity; no controllers
 
     // Confetti — one-shot burst from top-center (ADR-055).
-    _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 2500));
+    _confettiController = ConfettiController(
+      duration: const Duration(milliseconds: 2500),
+    );
     _confettiController!.play();
 
     // Row stagger — single controller covers the full stagger window.
@@ -439,8 +461,7 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final n = widget.newCountries.length;
-    final heroLabel =
-        '$n new ${n == 1 ? 'country' : 'countries'} discovered';
+    final heroLabel = '$n new ${n == 1 ? 'country' : 'countries'} discovered';
     final colorScheme = theme.colorScheme;
 
     return Stack(
@@ -470,12 +491,15 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (widget.totalTripCount != null && widget.totalTripCount! > 0) ...[
+                    if (widget.totalTripCount != null &&
+                        widget.totalTripCount! > 0) ...[
                       const SizedBox(height: 4),
                       Text(
                         'across ${widget.totalTripCount} ${widget.totalTripCount == 1 ? 'trip' : 'trips'}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],
@@ -503,12 +527,14 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                   if (widget.newAchievementIds.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     _AchievementsSection(
-                        achievementIds: widget.newAchievementIds),
+                      achievementIds: widget.newAchievementIds,
+                    ),
                   ],
                   if (widget.newHeritageSiteNames.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     _HeritageSitesSection(
-                        siteNames: widget.newHeritageSiteNames),
+                      siteNames: widget.newHeritageSiteNames,
+                    ),
                   ],
                   // Best shot — only shown when hero analysis has completed
                   // and returned a result for the new trips (M90, ADR-135).
@@ -522,11 +548,12 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
               child: TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const CardTypePickerScreen(),
-                  ),
-                ),
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CardTypePickerScreen(),
+                      ),
+                    ),
                 child: const Text('Create a travel card →'),
               ),
             ),
@@ -534,13 +561,15 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
               child: TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => MerchCountrySelectionScreen(
-                      preSelectedCodes: widget.newCodes,
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder:
+                            (_) => MerchCountrySelectionScreen(
+                              preSelectedCodes: widget.newCodes,
+                            ),
+                      ),
                     ),
-                  ),
-                ),
                 child: const Text('Get a poster with your new discoveries →'),
               ),
             ),
@@ -565,12 +594,14 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                 emissionFrequency: 0.04,
                 gravity: 0.2,
                 shouldLoop: false,
-                colors: _confettiColors ?? [
-                  colorScheme.primary,
-                  colorScheme.secondary,
-                  Colors.amber[400]!,
-                  Colors.amber[700]!,
-                ],
+                colors:
+                    _confettiColors ??
+                    [
+                      colorScheme.primary,
+                      colorScheme.secondary,
+                      Colors.amber[400]!,
+                      Colors.amber[700]!,
+                    ],
               ),
             ),
           ),
@@ -581,10 +612,7 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
 
 /// Flag timeline — Task 149 (M43). Larger flag cards with staggered reveal.
 class _FlagTimelineList extends StatelessWidget {
-  const _FlagTimelineList({
-    required this.newCountries,
-    this.rowOpacities,
-  });
+  const _FlagTimelineList({required this.newCountries, this.rowOpacities});
 
   final List<EffectiveVisitedCountry> newCountries;
 
@@ -607,9 +635,8 @@ class _FlagTimelineList extends StatelessWidget {
         final isFirstOnContinent =
             continent != null && seenContinents.add(continent);
 
-        final semanticLabel = isFirstOnContinent
-            ? '$name. First country in $continent.'
-            : name;
+        final semanticLabel =
+            isFirstOnContinent ? '$name. First country in $continent.' : name;
 
         final card = Semantics(
           label: semanticLabel,
@@ -618,7 +645,9 @@ class _FlagTimelineList extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -661,9 +690,10 @@ class _FlagTimelineList extends StatelessWidget {
           ),
         );
 
-        final opacity = rowOpacities != null && i < rowOpacities!.length
-            ? rowOpacities![i]
-            : null;
+        final opacity =
+            rowOpacities != null && i < rowOpacities!.length
+                ? rowOpacities![i]
+                : null;
         if (opacity == null) return card;
 
         return FadeTransition(opacity: opacity, child: card);
@@ -693,10 +723,11 @@ class _BestShotSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final countryName = kCountryNames[hero.countryCode] ?? hero.countryCode;
     final fallbackColor = _continentFallback(hero.countryCode);
-    final labels = [
-      if (hero.primaryScene != null) hero.primaryScene!,
-      if (hero.mood.isNotEmpty) hero.mood.first,
-    ].take(2).toList();
+    final labels =
+        [
+          if (hero.primaryScene != null) hero.primaryScene!,
+          if (hero.mood.isNotEmpty) hero.mood.first,
+        ].take(2).toList();
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -705,8 +736,9 @@ class _BestShotSection extends ConsumerWidget {
         children: [
           Text(
             'Best shot from this scan',
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           ClipRRect(
@@ -749,25 +781,30 @@ class _BestShotSection extends ConsumerWidget {
                         if (labels.isNotEmpty)
                           Wrap(
                             spacing: 4,
-                            children: labels
-                                .map(
-                                  (l) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      l,
-                                      style: theme.textTheme.labelSmall
-                                          ?.copyWith(color: Colors.white),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                            children:
+                                labels
+                                    .map(
+                                      (l) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          l,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(color: Colors.white),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
                           ),
                       ],
                     ),
@@ -818,31 +855,34 @@ class _AchievementsSection extends StatelessWidget {
       children: [
         Text(
           n == 1 ? 'Achievement unlocked' : 'Achievements unlocked',
-          style: theme.textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: achievementIds.map((id) {
-            final achievement = achievementById[id];
-            final title = achievement?.title ?? id;
-            return Semantics(
-              label: '$title achievement unlocked. Tap to view.',
-              child: ActionChip(
-                avatar: const Icon(Icons.emoji_events_outlined, size: 16),
-                label: Text(title),
-                onPressed: achievement == null
-                    ? null
-                    : () => AchievementUnlockSheet.show(
-                          context,
-                          achievement: achievement,
-                          unlockedAt: now,
-                        ),
-              ),
-            );
-          }).toList(),
+          children:
+              achievementIds.map((id) {
+                final achievement = achievementById[id];
+                final title = achievement?.title ?? id;
+                return Semantics(
+                  label: '$title achievement unlocked. Tap to view.',
+                  child: ActionChip(
+                    avatar: const Icon(Icons.emoji_events_outlined, size: 16),
+                    label: Text(title),
+                    onPressed:
+                        achievement == null
+                            ? null
+                            : () => AchievementUnlockSheet.show(
+                              context,
+                              achievement: achievement,
+                              unlockedAt: now,
+                            ),
+                  ),
+                );
+              }).toList(),
         ),
       ],
     );
@@ -866,20 +906,28 @@ class _HeritageSitesSection extends StatelessWidget {
       children: [
         Text(
           n == 1 ? 'World Heritage Site found' : 'World Heritage Sites found',
-          style: theme.textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: siteNames.map((name) => Chip(
-            avatar: const Icon(Icons.account_balance_outlined, size: 16,
-                color: Colors.amber),
-            label: Text(name, overflow: TextOverflow.ellipsis),
-            backgroundColor:
-                Colors.amber.withValues(alpha: 0.12),
-          )).toList(),
+          children:
+              siteNames
+                  .map(
+                    (name) => Chip(
+                      avatar: const Icon(
+                        Icons.account_balance_outlined,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+                      label: Text(name, overflow: TextOverflow.ellipsis),
+                      backgroundColor: Colors.amber.withValues(alpha: 0.12),
+                    ),
+                  )
+                  .toList(),
         ),
       ],
     );
@@ -923,8 +971,9 @@ class _NothingNewStateState extends State<_NothingNewState> {
           const SizedBox(height: 16),
           Text(
             'All up to date',
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),

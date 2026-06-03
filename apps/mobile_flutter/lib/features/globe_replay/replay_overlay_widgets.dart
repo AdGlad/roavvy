@@ -52,8 +52,11 @@ class ReplayAchievementOverlay extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Trophy icon.
-              const Icon(Icons.emoji_events_rounded,
-                  color: Color(0xFFFFD700), size: 32),
+              const Icon(
+                Icons.emoji_events_rounded,
+                color: Color(0xFFFFD700),
+                size: 32,
+              ),
               const SizedBox(height: 8),
               // "Achievement Unlocked" label.
               Text(
@@ -116,9 +119,10 @@ class ReplayHeritageOverlay extends StatelessWidget {
     final opacity = replayOverlayOpacity(overlayProgress);
     final isNatural = event.siteType == 'natural';
     final accentColor = isNatural ? Colors.green[400]! : Colors.amber[400]!;
-    final categoryLabel = isNatural
-        ? 'Natural Heritage'
-        : event.siteType == 'mixed'
+    final categoryLabel =
+        isNatural
+            ? 'Natural Heritage'
+            : event.siteType == 'mixed'
             ? 'Mixed Heritage'
             : 'Cultural Heritage';
 
@@ -139,7 +143,11 @@ class ReplayHeritageOverlay extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.account_balance_outlined, color: accentColor, size: 32),
+              Icon(
+                Icons.account_balance_outlined,
+                color: accentColor,
+                size: 32,
+              ),
               const SizedBox(height: 8),
               Text(
                 'UNESCO $categoryLabel Site',

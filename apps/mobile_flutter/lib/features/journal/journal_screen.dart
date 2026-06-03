@@ -140,8 +140,7 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final topInset =
-              MediaQuery.paddingOf(context).top + kToolbarHeight;
+          final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
           final bottomInset = MediaQuery.paddingOf(context).bottom;
           // Available height below the AppBar and above the home indicator.
           final availH = constraints.maxHeight - topInset - bottomInset;
@@ -168,8 +167,7 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
                 alignment: Alignment.center,
                 onSelectedItemChanged: (index) {
                   setState(() => _currentIndex = index);
-                  ref.read(journalCarouselIndexProvider.notifier).state =
-                      index;
+                  ref.read(journalCarouselIndexProvider.notifier).state = index;
                 },
                 // ── Effects ────────────────────────────────────────────────
                 // scrollRatio: -1 = furthest before, 0 = selected, +1 = furthest after.
@@ -186,28 +184,36 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
                       offset: Offset(0, t * cardH * 0.28),
                       child: Transform(
                         alignment: Alignment.center,
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.0007)              // perspective
-                          ..scaleByDouble(1.0 - 0.10 * absT, 1.0 - 0.10 * absT, 1.0, 1.0)  // subtle size reduction
-                          ..rotateX(t * 0.12),                   // ~7° X-axis tilt
+                        transform:
+                            Matrix4.identity()
+                              ..setEntry(3, 2, 0.0007) // perspective
+                              ..scaleByDouble(
+                                1.0 - 0.10 * absT,
+                                1.0 - 0.10 * absT,
+                                1.0,
+                                1.0,
+                              ) // subtle size reduction
+                              ..rotateX(t * 0.12), // ~7° X-axis tilt
                         child: child,
                       ),
                     ),
                   );
                 },
-                children: widget.trips.map((trip) {
-                  return SizedBox(
-                    height: cardH,
-                    child: TripCarouselCard(
-                      trip: trip,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => TripDetailScreen(trip: trip),
+                children:
+                    widget.trips.map((trip) {
+                      return SizedBox(
+                        height: cardH,
+                        child: TripCarouselCard(
+                          trip: trip,
+                          onTap:
+                              () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => TripDetailScreen(trip: trip),
+                                ),
+                              ),
                         ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
               ),
             ),
           );
@@ -216,4 +222,3 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
     );
   }
 }
-

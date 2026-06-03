@@ -66,10 +66,11 @@ void main() {
 
       await service.publishVisits('test-token', 'uid-123', visits);
 
-      final doc = await firestore
-          .collection('sharedTravelCards')
-          .doc('test-token')
-          .get();
+      final doc =
+          await firestore
+              .collection('sharedTravelCards')
+              .doc('test-token')
+              .get();
 
       expect(doc.exists, isTrue);
       expect(doc.data()!['uid'], 'uid-123');
@@ -91,13 +92,15 @@ void main() {
         'createdAt': 'now',
       });
 
-      await ShareTokenService(firestore: firestore)
-          .revokeFirestoreOnly('test-token', 'uid-123');
+      await ShareTokenService(
+        firestore: firestore,
+      ).revokeFirestoreOnly('test-token', 'uid-123');
 
-      final doc = await firestore
-          .collection('sharedTravelCards')
-          .doc('test-token')
-          .get();
+      final doc =
+          await firestore
+              .collection('sharedTravelCards')
+              .doc('test-token')
+              .get();
       expect(doc.exists, isFalse);
     });
 
@@ -112,8 +115,9 @@ void main() {
         'createdAt': 'now',
       });
 
-      await ShareTokenService(firestore: firestore)
-          .revokeFirestoreOnly('test-token', 'uid-123');
+      await ShareTokenService(
+        firestore: firestore,
+      ).revokeFirestoreOnly('test-token', 'uid-123');
 
       expect(await repo.getShareToken(), 'test-token');
     });
@@ -133,13 +137,15 @@ void main() {
         'createdAt': 'now',
       });
 
-      await ShareTokenService(firestore: firestore)
-          .revokeToken('test-token', 'uid-123', repo);
+      await ShareTokenService(
+        firestore: firestore,
+      ).revokeToken('test-token', 'uid-123', repo);
 
-      final doc = await firestore
-          .collection('sharedTravelCards')
-          .doc('test-token')
-          .get();
+      final doc =
+          await firestore
+              .collection('sharedTravelCards')
+              .doc('test-token')
+              .get();
       expect(doc.exists, isFalse);
       expect(await repo.getShareToken(), isNull);
     });

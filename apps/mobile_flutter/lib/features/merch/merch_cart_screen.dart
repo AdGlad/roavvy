@@ -74,11 +74,12 @@ class MerchCartScreen extends ConsumerWidget {
           return ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) => _CartItemTile(
-              item: items[i],
-              uid: uid,
-              onDeleted: () => ref.invalidate(merchCartProvider),
-            ),
+            itemBuilder:
+                (context, i) => _CartItemTile(
+                  item: items[i],
+                  uid: uid,
+                  onDeleted: () => ref.invalidate(merchCartProvider),
+                ),
           );
         },
       ),
@@ -122,10 +123,11 @@ class _CartItemTile extends StatelessWidget {
         tooltip: 'Remove',
         onPressed: () => _confirmDelete(context),
       ),
-      onTap: item.status == MerchCartItemStatus.mockupReady ||
-              item.status == MerchCartItemStatus.checkoutStarted
-          ? () => _openCheckout(context)
-          : null,
+      onTap:
+          item.status == MerchCartItemStatus.mockupReady ||
+                  item.status == MerchCartItemStatus.checkoutStarted
+              ? () => _openCheckout(context)
+              : null,
     );
   }
 
@@ -155,23 +157,24 @@ class _CartItemTile extends StatelessWidget {
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove design?'),
-        content: const Text(
-          'This will remove the saved design from your cart. '
-          'You can always create a new one from the Shop.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Remove design?'),
+            content: const Text(
+              'This will remove the saved design from your cart. '
+              'You can always create a new one from the Shop.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
     );
     if (confirmed != true) return;
     await MerchCartRepository(FirebaseFirestore.instance).delete(uid, item.id);
@@ -252,18 +255,18 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 
-  static (String, Color) _resolve(MerchCartItemStatus status) =>
-      switch (status) {
-        MerchCartItemStatus.mockupGenerating => (
-          'Generating…',
-          Colors.orange
-        ),
-        MerchCartItemStatus.mockupReady =>
-          ('Ready to checkout', const Color(0xFF2E7D32)),
-        MerchCartItemStatus.checkoutStarted => ('Checkout started', Colors.blue),
-        MerchCartItemStatus.purchased => ('Purchased', Colors.green),
-        MerchCartItemStatus.failed => ('Failed', Colors.red),
-      };
+  static (String, Color) _resolve(
+    MerchCartItemStatus status,
+  ) => switch (status) {
+    MerchCartItemStatus.mockupGenerating => ('Generating…', Colors.orange),
+    MerchCartItemStatus.mockupReady => (
+      'Ready to checkout',
+      const Color(0xFF2E7D32),
+    ),
+    MerchCartItemStatus.checkoutStarted => ('Checkout started', Colors.blue),
+    MerchCartItemStatus.purchased => ('Purchased', Colors.green),
+    MerchCartItemStatus.failed => ('Failed', Colors.red),
+  };
 }
 
 // ── Cart item checkout screen ─────────────────────────────────────────────────
@@ -277,8 +280,7 @@ class CartItemCheckoutScreen extends StatefulWidget {
   final MerchCartItem item;
 
   @override
-  State<CartItemCheckoutScreen> createState() =>
-      _CartItemCheckoutScreenState();
+  State<CartItemCheckoutScreen> createState() => _CartItemCheckoutScreenState();
 }
 
 class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
@@ -290,18 +292,18 @@ class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open checkout')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open checkout')));
     }
   }
 
   static String _positionLabel(String position) => switch (position) {
-        'center'      => 'Centre',
-        'left_chest'  => 'Left Chest',
-        'right_chest' => 'Right Chest',
-        _             => 'None',
-      };
+    'center' => 'Centre',
+    'left_chest' => 'Left Chest',
+    'right_chest' => 'Right Chest',
+    _ => 'None',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -327,8 +329,13 @@ class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
                         child: Image.network(
                           item.frontMockupUrl!,
                           fit: BoxFit.contain,
-                          loadingBuilder: (_, child, p) =>
-                              p == null ? child : const Center(child: CircularProgressIndicator()),
+                          loadingBuilder:
+                              (_, child, p) =>
+                                  p == null
+                                      ? child
+                                      : const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
                         ),
                       ),
                     )
@@ -355,8 +362,10 @@ class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Order Details',
-                              style: theme.textTheme.titleMedium),
+                          Text(
+                            'Order Details',
+                            style: theme.textTheme.titleMedium,
+                          ),
                           const SizedBox(height: 12),
                           if (item.isTshirt) ...[
                             _Row(label: 'Colour', value: item.colour),
@@ -440,13 +449,17 @@ class _Row extends StatelessWidget {
           width: 88,
           child: Text(
             label,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
-        Text(value,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }

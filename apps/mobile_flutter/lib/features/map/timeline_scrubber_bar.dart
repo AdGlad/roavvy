@@ -51,8 +51,9 @@ class TimelineScrubberBar extends ConsumerWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: () =>
-                        ref.read(yearFilterProvider.notifier).state = null,
+                    onPressed:
+                        () =>
+                            ref.read(yearFilterProvider.notifier).state = null,
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.black87,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -71,8 +72,7 @@ class TimelineScrubberBar extends ConsumerWidget {
                   inactiveColor: Colors.black26,
                   label: yearFilter.toString(),
                   onChanged: (value) {
-                    ref.read(yearFilterProvider.notifier).state =
-                        value.round();
+                    ref.read(yearFilterProvider.notifier).state = value.round();
                   },
                 )
               else

@@ -37,8 +37,7 @@ class PaperTexturePainter extends CustomPainter {
       final h = 1.0 + rng.nextDouble();
       canvas.drawRect(
         Rect.fromLTWH(x, y, w, h),
-        Paint()
-          ..color = const Color.fromARGB(10, 180, 180, 180),
+        Paint()..color = const Color.fromARGB(10, 180, 180, 180),
       );
     }
   }

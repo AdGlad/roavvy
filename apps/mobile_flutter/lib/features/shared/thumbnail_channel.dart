@@ -14,10 +14,10 @@ class ThumbnailChannel {
   /// the asset cannot be loaded (unavailable, iCloud-only, or permission denied).
   Future<Uint8List?> getThumbnail(String assetId, {int size = 300}) async {
     try {
-      final result = await _channel.invokeMethod<Uint8List>(
-        'getThumbnail',
-        {'assetId': assetId, 'size': size},
-      );
+      final result = await _channel.invokeMethod<Uint8List>('getThumbnail', {
+        'assetId': assetId,
+        'size': size,
+      });
       return result;
     } on PlatformException {
       return null;

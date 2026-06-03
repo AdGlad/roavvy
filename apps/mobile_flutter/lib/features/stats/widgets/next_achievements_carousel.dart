@@ -22,21 +22,22 @@ class NextAchievementsCarousel extends StatelessWidget {
   final Set<String> unlockedIds;
 
   int _currentProgress(Achievement a) => switch (a.category) {
-        AchievementCategory.countries => countryCount,
-        AchievementCategory.continents => continentCount,
-        AchievementCategory.trips => tripCount,
-        AchievementCategory.thisYear => thisYearCount,
-        AchievementCategory.heritageSites => 0, // M119: wired up in future polish
-      };
+    AchievementCategory.countries => countryCount,
+    AchievementCategory.continents => continentCount,
+    AchievementCategory.trips => tripCount,
+    AchievementCategory.thisYear => thisYearCount,
+    AchievementCategory.heritageSites => 0, // M119: wired up in future polish
+  };
 
   @override
   Widget build(BuildContext context) {
-    final unmet = kAchievements
-        .where((a) => !unlockedIds.contains(a.id))
-        .map((a) => (a, a.progressTarget - _currentProgress(a)))
-        .where((t) => t.$2 > 0)
-        .toList()
-      ..sort((a, b) => a.$2.compareTo(b.$2));
+    final unmet =
+        kAchievements
+            .where((a) => !unlockedIds.contains(a.id))
+            .map((a) => (a, a.progressTarget - _currentProgress(a)))
+            .where((t) => t.$2 > 0)
+            .toList()
+          ..sort((a, b) => a.$2.compareTo(b.$2));
 
     final cards = unmet.take(3).toList();
 
@@ -49,9 +50,9 @@ class NextAchievementsCarousel extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
             'Next Achievements',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         SizedBox(
@@ -105,7 +106,9 @@ class _NextAchievementCard extends StatelessWidget {
         children: [
           Text(
             achievement.title,
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -122,7 +125,9 @@ class _NextAchievementCard extends StatelessWidget {
             minHeight: 6,
             borderRadius: BorderRadius.circular(3),
             backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              theme.colorScheme.primary,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -156,18 +161,18 @@ class _NextAchievementCard extends StatelessWidget {
   }
 
   String _unit(AchievementCategory cat) => switch (cat) {
-        AchievementCategory.countries => 'countries',
-        AchievementCategory.continents => 'continents',
-        AchievementCategory.trips => 'trips',
-        AchievementCategory.thisYear => 'countries this year',
-        AchievementCategory.heritageSites => 'heritage sites',
-      };
+    AchievementCategory.countries => 'countries',
+    AchievementCategory.continents => 'continents',
+    AchievementCategory.trips => 'trips',
+    AchievementCategory.thisYear => 'countries this year',
+    AchievementCategory.heritageSites => 'heritage sites',
+  };
 
   String _merchLabel(MerchTriggerType type) => switch (type) {
-        MerchTriggerType.flagGrid => 'Flag Grid Tee',
-        MerchTriggerType.passportStamp => 'Passport Stamp Tee',
-        MerchTriggerType.timeline => 'Travel Timeline Tee',
-        MerchTriggerType.country => 'Country Tee',
-        MerchTriggerType.milestone => 'Milestone Tee',
-      };
+    MerchTriggerType.flagGrid => 'Flag Grid Tee',
+    MerchTriggerType.passportStamp => 'Passport Stamp Tee',
+    MerchTriggerType.timeline => 'Travel Timeline Tee',
+    MerchTriggerType.country => 'Country Tee',
+    MerchTriggerType.milestone => 'Milestone Tee',
+  };
 }

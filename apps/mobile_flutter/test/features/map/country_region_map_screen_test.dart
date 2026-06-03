@@ -18,12 +18,12 @@ import 'package:shared_models/shared_models.dart';
 Uint8List _emptyRegionBin() {
   const bytes = [
     0x52, 0x4C, 0x52, 0x47, // magic "RLRG"
-    0x01,                    // version = 1
-    0xB4,                    // grid_cell_size = 180°
-    0x02, 0x00,              // grid_cols = 2 (LE uint16)
-    0x01, 0x00,              // grid_rows = 1 (LE uint16)
-    0x00, 0x00,              // polygon_count = 0 (LE uint16)
-    0x00, 0x00, 0x00, 0x00,  // poly_refs_size = 0 (LE uint32)
+    0x01, // version = 1
+    0xB4, // grid_cell_size = 180°
+    0x02, 0x00, // grid_cols = 2 (LE uint16)
+    0x01, 0x00, // grid_rows = 1 (LE uint16)
+    0x00, 0x00, // polygon_count = 0 (LE uint16)
+    0x00, 0x00, 0x00, 0x00, // poly_refs_size = 0 (LE uint32)
     // Grid index: 2 cells × 6 bytes, all zeros.
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -33,19 +33,14 @@ Uint8List _emptyRegionBin() {
 
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 
-Widget _pumpScreen(
-  String countryCode, {
-  RegionRepository? regionRepo,
-}) {
+Widget _pumpScreen(String countryCode, {RegionRepository? regionRepo}) {
   final repo = regionRepo ?? RegionRepository(_makeDb());
   return ProviderScope(
     overrides: [
       regionRepositoryProvider.overrideWithValue(repo),
       polygonsProvider.overrideWithValue(const []),
     ],
-    child: MaterialApp(
-      home: CountryRegionMapScreen(countryCode: countryCode),
-    ),
+    child: MaterialApp(home: CountryRegionMapScreen(countryCode: countryCode)),
   );
 }
 
@@ -56,13 +51,13 @@ Future<RegionRepository> _repoWithVisits(List<RegionVisit> visits) async {
 }
 
 RegionVisit _visit(String countryCode, String regionCode) => RegionVisit(
-      tripId: 'trip-1',
-      countryCode: countryCode,
-      regionCode: regionCode,
-      firstSeen: DateTime.utc(2024),
-      lastSeen: DateTime.utc(2024),
-      photoCount: 1,
-    );
+  tripId: 'trip-1',
+  countryCode: countryCode,
+  regionCode: regionCode,
+  firstSeen: DateTime.utc(2024),
+  lastSeen: DateTime.utc(2024),
+  photoCount: 1,
+);
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -87,7 +82,9 @@ void main() {
       expect(find.textContaining('XX'), findsOneWidget);
     });
 
-    testWidgets('shows region count subtitle after visits load', (tester) async {
+    testWidgets('shows region count subtitle after visits load', (
+      tester,
+    ) async {
       final repo = await _repoWithVisits([
         _visit('GB', 'GB-ENG'),
         _visit('GB', 'GB-SCT'),
@@ -99,8 +96,7 @@ void main() {
     });
 
     testWidgets('shows singular "region" for count of 1', (tester) async {
-      final repo =
-          await _repoWithVisits([_visit('DE', 'DE-BY')]);
+      final repo = await _repoWithVisits([_visit('DE', 'DE-BY')]);
       await tester.pumpWidget(_pumpScreen('DE', regionRepo: repo));
       await tester.pumpAndSettle();
 
@@ -116,8 +112,9 @@ void main() {
   });
 
   group('CountryRegionMapScreen — rendering', () {
-    testWidgets('renders without error for country with no region data',
-        (tester) async {
+    testWidgets('renders without error for country with no region data', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pumpScreen('SG'));
       await tester.pumpAndSettle();
 

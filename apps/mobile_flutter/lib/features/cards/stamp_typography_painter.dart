@@ -66,8 +66,14 @@ class StampTypographyPainter {
 
     for (var i = 0; i < date.length; i++) {
       final char = date[i];
-      final tp = _buildSpan(char, color, fontSize,
-          fontWeight: FontWeight.w600, letterSpacing: 0, monospace: true);
+      final tp = _buildSpan(
+        char,
+        color,
+        fontSize,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        monospace: true,
+      );
       tp.layout();
       final x = startX + i * charWidth + charWidth / 2 - tp.width / 2;
       tp.paint(canvas, Offset(x, offset.dy - tp.height / 2));
@@ -111,24 +117,32 @@ class StampTypographyPainter {
     double? maxWidth,
   }) {
     if (text.isEmpty) return;
-    final display =
-        text.length > 11 ? text.substring(0, 11).trim() : text;
+    final display = text.length > 11 ? text.substring(0, 11).trim() : text;
 
     // Auto-shrink font until text fits within maxWidth
     var size = fontSize;
     if (maxWidth != null) {
       while (size > fontSize * 0.45) {
-        final tp = _buildSpan(display, color, size,
-            fontWeight: FontWeight.w900,
-            letterSpacing: _heroSpacingFor(size));
+        final tp = _buildSpan(
+          display,
+          color,
+          size,
+          fontWeight: FontWeight.w900,
+          letterSpacing: _heroSpacingFor(size),
+        );
         tp.layout();
         if (tp.width <= maxWidth) break;
         size -= 0.5;
       }
     }
 
-    final tp = _buildSpan(display, color, size,
-        fontWeight: FontWeight.w900, letterSpacing: _heroSpacingFor(size));
+    final tp = _buildSpan(
+      display,
+      color,
+      size,
+      fontWeight: FontWeight.w900,
+      letterSpacing: _heroSpacingFor(size),
+    );
     tp.layout();
     final rng = math.Random(seed ^ 0xC3C3);
     final jitter = (rng.nextDouble() * 2 - 1) * 0.4;
@@ -147,8 +161,14 @@ class StampTypographyPainter {
   ) {
     if (serial.isEmpty) return;
     final faded = color.withValues(alpha: color.a * 0.55);
-    final tp = _buildSpan(serial, faded, fontSize,
-        fontWeight: FontWeight.normal, letterSpacing: 1.5, monospace: true);
+    final tp = _buildSpan(
+      serial,
+      faded,
+      fontSize,
+      fontWeight: FontWeight.normal,
+      letterSpacing: 1.5,
+      monospace: true,
+    );
     tp.layout();
     tp.paint(canvas, offset - Offset(tp.width / 2, tp.height / 2));
   }
@@ -253,8 +273,7 @@ class StampTypographyPainter {
       final charColor =
           isBreak ? color.withValues(alpha: color.a * 0.60) : color;
 
-      final jitter =
-          baselineJitter ? (rng.nextDouble() * 2 - 1) * 0.5 : 0.0;
+      final jitter = baselineJitter ? (rng.nextDouble() * 2 - 1) * 0.5 : 0.0;
 
       final tp = _buildSpan(
         text[i],
@@ -264,10 +283,7 @@ class StampTypographyPainter {
         letterSpacing: letterSpacingFactor,
       );
       tp.layout();
-      tp.paint(
-        canvas,
-        Offset(x, centreOffset.dy - tp.height / 2 + jitter),
-      );
+      tp.paint(canvas, Offset(x, centreOffset.dy - tp.height / 2 + jitter));
       x += tp.width;
     }
   }

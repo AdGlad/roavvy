@@ -67,8 +67,7 @@ class TravelIdentityInfo {
           'Europe' => kTravelIdentityInfo[TravelIdentity.europeExplorer]!,
           'Asia' => kTravelIdentityInfo[TravelIdentity.asiaExplorer]!,
           'Africa' => kTravelIdentityInfo[TravelIdentity.africaExplorer]!,
-          'North America' ||
-          'South America' =>
+          'North America' || 'South America' =>
             kTravelIdentityInfo[TravelIdentity.americasExplorer]!,
           'Oceania' => kTravelIdentityInfo[TravelIdentity.oceaniaExplorer]!,
           _ => kTravelIdentityInfo[TravelIdentity.adventurer]!,

@@ -54,10 +54,7 @@ class MerchProductBrowserScreen extends StatelessWidget {
           if (artworkImageBytes != null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.memory(
-                artworkImageBytes!,
-                fit: BoxFit.contain,
-              ),
+              child: Image.memory(artworkImageBytes!, fit: BoxFit.contain),
             ),
             const SizedBox(height: 16),
           ],
@@ -104,14 +101,15 @@ class _ProductCard extends StatelessWidget {
   void _goToVariant(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => MerchVariantScreen(
-          product: product,
-          selectedCodes: selectedCodes,
-          cardId: cardId,
-          initialTemplate: initialTemplate,
-          artworkConfirmationId: artworkConfirmationId,
-          artworkImageBytes: artworkImageBytes,
-        ),
+        builder:
+            (_) => MerchVariantScreen(
+              product: product,
+              selectedCodes: selectedCodes,
+              cardId: cardId,
+              initialTemplate: initialTemplate,
+              artworkConfirmationId: artworkConfirmationId,
+              artworkImageBytes: artworkImageBytes,
+            ),
       ),
     );
   }

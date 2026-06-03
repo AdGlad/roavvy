@@ -26,7 +26,8 @@ class ScanToneGenerator {
   static Uint8List countryDiscovery() => _wav(_bell(1046.50, 0.40));
 
   /// G5 → C6 two-note chime — fires on first country in a new continent.
-  static Uint8List continentDiscovery() => _wav(_twoNoteChime(784.0, 1046.50, 0.60));
+  static Uint8List continentDiscovery() =>
+      _wav(_twoNoteChime(784.0, 1046.50, 0.60));
 
   /// Deep A4 resonant bell — fires on UNESCO World Heritage Site discovery.
   static Uint8List heritageDiscovery() => _wav(_bell(440.0, 0.80));
@@ -42,11 +43,10 @@ class ScanToneGenerator {
     return List.generate(n, (i) {
       final t = i / _sr;
       final env = math.exp(-t * 5.0);
-      final s = (
-            math.sin(2 * math.pi * freq * t) * 0.55 +
-            math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
-            math.sin(2 * math.pi * freq * 3.01 * t) * 0.10
-          ) *
+      final s =
+          (math.sin(2 * math.pi * freq * t) * 0.55 +
+              math.sin(2 * math.pi * freq * 2.0 * t) * 0.25 +
+              math.sin(2 * math.pi * freq * 3.01 * t) * 0.10) *
           env *
           _vol;
       return (s * 32767).round().clamp(-32767, 32767);
@@ -74,9 +74,7 @@ class ScanToneGenerator {
     return List.generate(n, (i) {
       final t = i / _sr;
       // 50 ms attack, then decay.
-      final env = t < 0.05
-          ? t / 0.05
-          : math.exp(-(t - 0.05) * 3.5);
+      final env = t < 0.05 ? t / 0.05 : math.exp(-(t - 0.05) * 3.5);
       double s = 0;
       for (final f in freqs) {
         s += math.sin(2 * math.pi * f * t) / freqs.length;
@@ -102,12 +100,12 @@ class ScanToneGenerator {
     ascii(8, 'WAVE');
     ascii(12, 'fmt ');
     buf.setUint32(16, 16, Endian.little);
-    buf.setUint16(20, 1, Endian.little);      // PCM
-    buf.setUint16(22, 1, Endian.little);      // mono
-    buf.setUint32(24, _sr, Endian.little);    // sample rate
+    buf.setUint16(20, 1, Endian.little); // PCM
+    buf.setUint16(22, 1, Endian.little); // mono
+    buf.setUint32(24, _sr, Endian.little); // sample rate
     buf.setUint32(28, _sr * 2, Endian.little); // byte rate
-    buf.setUint16(32, 2, Endian.little);      // block align
-    buf.setUint16(34, 16, Endian.little);     // bits per sample
+    buf.setUint16(32, 2, Endian.little); // block align
+    buf.setUint16(34, 16, Endian.little); // bits per sample
     ascii(36, 'data');
     buf.setUint32(40, dataBytes, Endian.little);
     for (var i = 0; i < samples.length; i++) {

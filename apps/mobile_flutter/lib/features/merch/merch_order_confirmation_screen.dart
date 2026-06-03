@@ -8,9 +8,9 @@ import 'package:url_launcher/url_launcher.dart';
 const _swatchColours = <String, Color>{
   'Black': Color(0xFF1A1A1A),
   'White': Color(0xFFF5F5F5),
-  'Blue':  Color(0xFF1A2C5B),
-  'Grey':  Color(0xFFB0B0B0),
-  'Red':   Color(0xFFCC1717),
+  'Blue': Color(0xFF1A2C5B),
+  'Grey': Color(0xFFB0B0B0),
+  'Red': Color(0xFFCC1717),
 };
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -89,9 +89,9 @@ class _MerchOrderConfirmationScreenState
     final uri = Uri.parse(widget.checkoutUrl);
     if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open checkout')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open checkout')));
       return;
     }
     widget.onCheckoutLaunched?.call();
@@ -209,9 +209,10 @@ class _MockupSectionState extends State<_MockupSection> {
                 width: _page == i ? 20 : 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: _page == i
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outlineVariant,
+                  color:
+                      _page == i
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -232,36 +233,45 @@ class _MockupSectionState extends State<_MockupSection> {
     final pages = <Widget>[];
 
     if (widget.frontMockupUrl != null) {
-      pages.add(Image.network(
-        widget.frontMockupUrl!,
-        fit: BoxFit.contain,
-        loadingBuilder: (_, child, progress) => progress == null
-            ? child
-            : const Center(child: CircularProgressIndicator()),
-        errorBuilder: (_, __, ___) => _localFallback(front: true),
-      ));
+      pages.add(
+        Image.network(
+          widget.frontMockupUrl!,
+          fit: BoxFit.contain,
+          loadingBuilder:
+              (_, child, progress) =>
+                  progress == null
+                      ? child
+                      : const Center(child: CircularProgressIndicator()),
+          errorBuilder: (_, __, ___) => _localFallback(front: true),
+        ),
+      );
     } else {
       pages.add(_localFallback(front: true));
     }
 
     if (widget.backMockupUrl != null) {
-      pages.add(Image.network(
-        widget.backMockupUrl!,
-        fit: BoxFit.contain,
-        loadingBuilder: (_, child, progress) => progress == null
-            ? child
-            : const Center(child: CircularProgressIndicator()),
-        errorBuilder: (_, __, ___) => _localFallback(front: false),
-      ));
+      pages.add(
+        Image.network(
+          widget.backMockupUrl!,
+          fit: BoxFit.contain,
+          loadingBuilder:
+              (_, child, progress) =>
+                  progress == null
+                      ? child
+                      : const Center(child: CircularProgressIndicator()),
+          errorBuilder: (_, __, ___) => _localFallback(front: false),
+        ),
+      );
     }
 
     return pages;
   }
 
   Widget _localFallback({required bool front}) {
-    final bytes = front
-        ? (widget.frontArtworkBytes ?? widget.artworkBytes)
-        : widget.artworkBytes;
+    final bytes =
+        front
+            ? (widget.frontArtworkBytes ?? widget.artworkBytes)
+            : widget.artworkBytes;
     return Image.memory(bytes, fit: BoxFit.contain);
   }
 }
@@ -275,10 +285,7 @@ class _MockupFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: AspectRatio(
-        aspectRatio: 3 / 4,
-        child: child,
-      ),
+      child: AspectRatio(aspectRatio: 3 / 4, child: child),
     );
   }
 }
@@ -326,10 +333,7 @@ class _OrderSummaryCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _swatchColours[colour] ?? Colors.grey,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.black26,
-                          width: 0.5,
-                        ),
+                        border: Border.all(color: Colors.black26, width: 0.5),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -361,23 +365,23 @@ class _OrderSummaryCard extends StatelessWidget {
   }
 
   static String _positionLabel(String position) => switch (position) {
-        'center'      => 'Centre',
-        'left_chest'  => 'Left Chest',
-        'right_chest' => 'Right Chest',
-        _             => 'None',
-      };
+    'center' => 'Centre',
+    'left_chest' => 'Left Chest',
+    'right_chest' => 'Right Chest',
+    _ => 'None',
+  };
 
   static String _templateLabel(CardTemplateType type) => switch (type) {
-        CardTemplateType.passport    => 'Passport Stamps',
-        CardTemplateType.grid        => 'Flag Grid',
-        CardTemplateType.heart       => 'Heart Flags',
-        CardTemplateType.timeline    => 'Travel Log',
-        CardTemplateType.frontRibbon => 'Front Ribbon',
-        CardTemplateType.typography  => 'Typography',
-        CardTemplateType.badge       => 'Explorer Badge',
-        CardTemplateType.wordCloud   => 'Word Cloud',
-        CardTemplateType.landmark     => 'Landmark',
-      };
+    CardTemplateType.passport => 'Passport Stamps',
+    CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.heart => 'Heart Flags',
+    CardTemplateType.timeline => 'Travel Log',
+    CardTemplateType.frontRibbon => 'Front Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
+  };
 }
 
 class _SummaryRow extends StatelessWidget {
@@ -396,15 +400,17 @@ class _SummaryRow extends StatelessWidget {
           width: 88,
           child: Text(
             label,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         trailing ??
             Text(
               value ?? '',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
       ],
     );
@@ -432,8 +438,11 @@ class MerchCustomProductWarning extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded,
-                  color: Colors.amber.shade800, size: 20),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.amber.shade800,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Custom-Made Product',
@@ -477,10 +486,7 @@ class _ActionRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Row(
           children: [
-            TextButton(
-              onPressed: onGoBack,
-              child: const Text('Go Back'),
-            ),
+            TextButton(onPressed: onGoBack, child: const Text('Go Back')),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(

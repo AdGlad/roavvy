@@ -32,11 +32,7 @@ class TitleGenerationRequest {
 /// Each field holds the most-frequently-occurring value across all supplied
 /// hero images, weighted by label confidence.
 class AggregatedLabels {
-  const AggregatedLabels({
-    this.primaryScene,
-    this.mood,
-    this.activity,
-  });
+  const AggregatedLabels({this.primaryScene, this.mood, this.activity});
 
   final String? primaryScene;
   final String? mood;
@@ -62,8 +58,7 @@ class HeroLabelAggregator {
       // Weight by confidence + 1 so even zero-confidence labels contribute.
       final w = l.confidence + 1.0;
       if (l.primaryScene != null) {
-        sceneCounts[l.primaryScene!] =
-            (sceneCounts[l.primaryScene!] ?? 0) + w;
+        sceneCounts[l.primaryScene!] = (sceneCounts[l.primaryScene!] ?? 0) + w;
       }
       for (final m in l.mood) {
         moodCounts[m] = (moodCounts[m] ?? 0) + w;
@@ -75,9 +70,7 @@ class HeroLabelAggregator {
 
     String? topKey(Map<String, double> counts) {
       if (counts.isEmpty) return null;
-      return counts.entries
-          .reduce((a, b) => a.value >= b.value ? a : b)
-          .key;
+      return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
     }
 
     final agg = AggregatedLabels(
@@ -91,10 +84,7 @@ class HeroLabelAggregator {
 
 /// Output of [TitleGenerationService.generate].
 class TitleGenerationResult {
-  const TitleGenerationResult({
-    required this.title,
-    required this.source,
-  });
+  const TitleGenerationResult({required this.title, required this.source});
 
   final String title;
   final TitleSource source;

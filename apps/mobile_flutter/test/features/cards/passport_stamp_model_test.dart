@@ -6,15 +6,14 @@ TripRecord _trip({
   required String countryCode,
   required DateTime startedOn,
   required DateTime endedOn,
-}) =>
-    TripRecord(
-      id: '${countryCode}_${startedOn.toIso8601String()}',
-      countryCode: countryCode,
-      startedOn: startedOn,
-      endedOn: endedOn,
-      photoCount: 10,
-      isManual: false,
-    );
+}) => TripRecord(
+  id: '${countryCode}_${startedOn.toIso8601String()}',
+  countryCode: countryCode,
+  startedOn: startedOn,
+  endedOn: endedOn,
+  photoCount: 10,
+  isManual: false,
+);
 
 void main() {
   group('StampData.fromTrip', () {
@@ -150,20 +149,23 @@ void main() {
     });
 
     test('contains all expected style names', () {
-      expect(StampStyle.values, containsAll([
-        StampStyle.airportEntry,
-        StampStyle.airportExit,
-        StampStyle.landBorder,
-        StampStyle.visaApproval,
-        StampStyle.transit,
-        StampStyle.vintage,
-        StampStyle.modernSans,
-        StampStyle.triangle,
-        StampStyle.hexBadge,
-        StampStyle.dottedCircle,
-        StampStyle.multiRing,
-        StampStyle.blockText,
-      ]));
+      expect(
+        StampStyle.values,
+        containsAll([
+          StampStyle.airportEntry,
+          StampStyle.airportExit,
+          StampStyle.landBorder,
+          StampStyle.visaApproval,
+          StampStyle.transit,
+          StampStyle.vintage,
+          StampStyle.modernSans,
+          StampStyle.triangle,
+          StampStyle.hexBadge,
+          StampStyle.dottedCircle,
+          StampStyle.multiRing,
+          StampStyle.blockText,
+        ]),
+      );
     });
   });
 
@@ -246,12 +248,20 @@ void main() {
   group('StampData.inkColor', () {
     test('worn/faded shifts toward fadedInk', () {
       final fresh = StampData.fromCode(
-        'GB', style: StampStyle.transit, inkFamilyIndex: 0,
-        ageEffect: StampAgeEffect.fresh, rotation: 0, center: Offset.zero,
+        'GB',
+        style: StampStyle.transit,
+        inkFamilyIndex: 0,
+        ageEffect: StampAgeEffect.fresh,
+        rotation: 0,
+        center: Offset.zero,
       );
       final worn = StampData.fromCode(
-        'GB', style: StampStyle.transit, inkFamilyIndex: 0,
-        ageEffect: StampAgeEffect.worn, rotation: 0, center: Offset.zero,
+        'GB',
+        style: StampStyle.transit,
+        inkFamilyIndex: 0,
+        ageEffect: StampAgeEffect.worn,
+        rotation: 0,
+        center: Offset.zero,
       );
       // Worn colour should differ from fresh due to faded blend
       expect(fresh.inkColor, isNot(worn.inkColor));

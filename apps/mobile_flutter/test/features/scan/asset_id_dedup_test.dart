@@ -20,10 +20,11 @@ VisitRepository _makeRepo() =>
 
 /// Replicates the filter expression used in scan_screen.dart `_scan()`.
 List<PhotoRecord> _filterPhotos(
-    List<PhotoRecord> photos, Set<String> knownAssetIds) {
+  List<PhotoRecord> photos,
+  Set<String> knownAssetIds,
+) {
   return photos
-      .where(
-          (p) => p.assetId == null || !knownAssetIds.contains(p.assetId))
+      .where((p) => p.assetId == null || !knownAssetIds.contains(p.assetId))
       .toList();
 }
 
@@ -42,12 +43,12 @@ void main() {
       final t = DateTime.utc(2024, 1, 1);
       // One record with assetId, one without.
       await repo.savePhotoDates([
+        PhotoDateRecord(countryCode: 'GB', capturedAt: t, assetId: 'asset-001'),
         PhotoDateRecord(
-            countryCode: 'GB', capturedAt: t, assetId: 'asset-001'),
-        PhotoDateRecord(
-            countryCode: 'FR',
-            capturedAt: t.add(const Duration(hours: 1)),
-            assetId: null),
+          countryCode: 'FR',
+          capturedAt: t.add(const Duration(hours: 1)),
+          assetId: null,
+        ),
       ]);
       final ids = await repo.loadAllKnownAssetIds();
       expect(ids, {'asset-001'});
@@ -58,13 +59,20 @@ void main() {
       final t = DateTime.utc(2024, 6, 1);
       await repo.savePhotoDates([
         PhotoDateRecord(
-            countryCode: 'DE', capturedAt: t, assetId: 'asset-DE-1'),
+          countryCode: 'DE',
+          capturedAt: t,
+          assetId: 'asset-DE-1',
+        ),
         PhotoDateRecord(
-            countryCode: 'DE',
-            capturedAt: t.add(const Duration(minutes: 1)),
-            assetId: 'asset-DE-2'),
+          countryCode: 'DE',
+          capturedAt: t.add(const Duration(minutes: 1)),
+          assetId: 'asset-DE-2',
+        ),
         PhotoDateRecord(
-            countryCode: 'JP', capturedAt: t, assetId: 'asset-JP-1'),
+          countryCode: 'JP',
+          capturedAt: t,
+          assetId: 'asset-JP-1',
+        ),
       ]);
       final ids = await repo.loadAllKnownAssetIds();
       expect(ids, {'asset-DE-1', 'asset-DE-2', 'asset-JP-1'});
@@ -75,7 +83,10 @@ void main() {
       final t = DateTime.utc(2024, 1, 1);
       await repo.savePhotoDates([
         PhotoDateRecord(
-            countryCode: 'US', capturedAt: t, assetId: 'asset-US-1'),
+          countryCode: 'US',
+          capturedAt: t,
+          assetId: 'asset-US-1',
+        ),
       ]);
       await repo.clearAll();
       final ids = await repo.loadAllKnownAssetIds();
@@ -87,9 +98,7 @@ void main() {
     final known = {'known-1', 'known-2', 'known-3'};
 
     test('photo with null assetId always passes through', () {
-      final photos = [
-        const PhotoRecord(lat: 51.5, lng: -0.1, assetId: null),
-      ];
+      final photos = [const PhotoRecord(lat: 51.5, lng: -0.1, assetId: null)];
       expect(_filterPhotos(photos, known), hasLength(1));
     });
 
@@ -117,24 +126,26 @@ void main() {
 
     test('mixed batch: filters known, passes unknown and null', () {
       final photos = [
-        const PhotoRecord(lat: 51.5, lng: -0.1, assetId: 'known-1'),   // excluded
-        const PhotoRecord(lat: 48.8, lng: 2.3,  assetId: 'known-2'),   // excluded
-        const PhotoRecord(lat: 35.6, lng: 139.7, assetId: 'new-1'),    // included
-        const PhotoRecord(lat: 40.7, lng: -74.0, assetId: null),       // included
-        const PhotoRecord(lat: 52.5, lng: 13.4,  assetId: 'known-3'), // excluded
-        const PhotoRecord(lat: 55.7, lng: 37.6,  assetId: 'new-2'),    // included
+        const PhotoRecord(lat: 51.5, lng: -0.1, assetId: 'known-1'), // excluded
+        const PhotoRecord(lat: 48.8, lng: 2.3, assetId: 'known-2'), // excluded
+        const PhotoRecord(lat: 35.6, lng: 139.7, assetId: 'new-1'), // included
+        const PhotoRecord(lat: 40.7, lng: -74.0, assetId: null), // included
+        const PhotoRecord(lat: 52.5, lng: 13.4, assetId: 'known-3'), // excluded
+        const PhotoRecord(lat: 55.7, lng: 37.6, assetId: 'new-2'), // included
       ];
       final result = _filterPhotos(photos, known);
       expect(result, hasLength(3));
-      expect(result.map((p) => p.assetId).toList(),
-          containsAll(['new-1', null, 'new-2']));
+      expect(
+        result.map((p) => p.assetId).toList(),
+        containsAll(['new-1', null, 'new-2']),
+      );
     });
 
     test('order of remaining photos is preserved', () {
       final photos = [
-        const PhotoRecord(lat: 0, lng: 0, assetId: 'known-1'),  // excluded
+        const PhotoRecord(lat: 0, lng: 0, assetId: 'known-1'), // excluded
         const PhotoRecord(lat: 1, lng: 1, assetId: 'alpha'),
-        const PhotoRecord(lat: 2, lng: 2, assetId: 'known-2'),  // excluded
+        const PhotoRecord(lat: 2, lng: 2, assetId: 'known-2'), // excluded
         const PhotoRecord(lat: 3, lng: 3, assetId: 'beta'),
       ];
       final result = _filterPhotos(photos, known);

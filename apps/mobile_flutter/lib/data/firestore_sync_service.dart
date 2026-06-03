@@ -34,7 +34,7 @@ abstract class SyncService {
 /// identifiers appear in any document written here.
 class FirestoreSyncService implements SyncService {
   FirestoreSyncService([FirebaseFirestore? firestore])
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -51,10 +51,7 @@ class FirestoreSyncService implements SyncService {
     final dirtyInferred = await repo.loadDirtyInferred();
     for (final v in dirtyInferred) {
       try {
-        await userDoc
-            .collection('inferred_visits')
-            .doc(v.countryCode)
-            .set({
+        await userDoc.collection('inferred_visits').doc(v.countryCode).set({
           'inferredAt': v.inferredAt.toIso8601String(),
           'photoCount': v.photoCount,
           if (v.firstSeen != null) 'firstSeen': v.firstSeen!.toIso8601String(),
@@ -70,10 +67,7 @@ class FirestoreSyncService implements SyncService {
     final dirtyAdded = await repo.loadDirtyAdded();
     for (final v in dirtyAdded) {
       try {
-        await userDoc
-            .collection('user_added')
-            .doc(v.countryCode)
-            .set({
+        await userDoc.collection('user_added').doc(v.countryCode).set({
           'addedAt': v.addedAt.toIso8601String(),
           'syncedAt': now.toIso8601String(),
         });
@@ -86,10 +80,7 @@ class FirestoreSyncService implements SyncService {
     final dirtyRemoved = await repo.loadDirtyRemoved();
     for (final v in dirtyRemoved) {
       try {
-        await userDoc
-            .collection('user_removed')
-            .doc(v.countryCode)
-            .set({
+        await userDoc.collection('user_removed').doc(v.countryCode).set({
           'removedAt': v.removedAt.toIso8601String(),
           'syncedAt': now.toIso8601String(),
         });
@@ -107,9 +98,9 @@ class FirestoreSyncService implements SyncService {
               .collection('unlocked_achievements')
               .doc(row.achievementId)
               .set({
-            'unlockedAt': row.unlockedAt.toUtc().toIso8601String(),
-            'syncedAt': now.toIso8601String(),
-          });
+                'unlockedAt': row.unlockedAt.toUtc().toIso8601String(),
+                'syncedAt': now.toIso8601String(),
+              });
           await achievementRepo.markClean(row.achievementId, now);
         } catch (_) {
           // Silent failure — isDirty remains 1; retry on next call.

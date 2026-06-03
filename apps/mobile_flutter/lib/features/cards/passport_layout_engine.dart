@@ -8,10 +8,7 @@ import 'passport_stamp_model.dart';
 
 /// Result returned by [PassportLayoutEngine.layout].
 class PassportLayoutResult {
-  const PassportLayoutResult({
-    required this.stamps,
-    required this.wasForced,
-  });
+  const PassportLayoutResult({required this.stamps, required this.wasForced});
 
   /// The placed stamps for this layout.
   final List<StampData> stamps;
@@ -48,7 +45,6 @@ class PassportLayoutEngine {
   // stamp and one exit stamp per trip (ADR-113).
   static const int _kMaxStamps = 200;
 
-
   // ── Safe Zones (ADR-117 Decision 1) ───────────────────────────────────────
   // Title safe zone: Top 18% of height.
   // Branding safe zone: Bottom-left 110x40 logical pixels.
@@ -79,10 +75,7 @@ class PassportLayoutEngine {
     StampStyle.octagon,
     StampStyle.diamond,
   ];
-  static const _otherStyles = [
-    StampStyle.transit,
-    StampStyle.oval,
-  ];
+  static const _otherStyles = [StampStyle.transit, StampStyle.oval];
 
   /// Derives a stamp style from [code] using category-balanced selection.
   ///
@@ -136,9 +129,13 @@ class PassportLayoutEngine {
     // source list (which randomisation naturally spreads apart).
     final result = <_StampEntry>[];
     for (final trip in deduped) {
-      result.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: true));
+      result.add(
+        _StampEntry(trip: trip, code: trip.countryCode, isEntry: true),
+      );
       if (!entryOnly) {
-        result.add(_StampEntry(trip: trip, code: trip.countryCode, isEntry: false));
+        result.add(
+          _StampEntry(trip: trip, code: trip.countryCode, isEntry: false),
+        );
       }
     }
     for (final code in extraCodes) {
@@ -208,9 +205,10 @@ class PassportLayoutEngine {
     //   n=10 → 45×√2  ≈  64 px
     //   n=20 → 45×√1  =  45 px
     //   n=40 → 45×√0.5 ≈ 32 px
-    final dynamicRadius = totalCount > 0
-        ? (45.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
-        : 100.0;
+    final dynamicRadius =
+        totalCount > 0
+            ? (45.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
+            : 100.0;
 
     // Determine forPrint base radius and check wasForced (ADR-102 / ADR-113).
     double? forPrintBaseRadius;
@@ -221,19 +219,21 @@ class PassportLayoutEngine {
         wasForced = true;
         entryOnly = true;
         // Rebuild entries with forced entryOnly so count is halved.
-        entries = _buildEntries(sortedTrips, extraCodes, true)
-          ..shuffle(rng);
+        entries = _buildEntries(sortedTrips, extraCodes, true)..shuffle(rng);
         totalCount = math.min(entries.length, _kMaxStamps);
         // Recompute radius for the reduced count.
-        forPrintBaseRadius = totalCount > 0
-            ? (56.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
-            : 100.0;
+        forPrintBaseRadius =
+            totalCount > 0
+                ? (56.0 * math.sqrt(20.0 / totalCount)).clamp(6.0, 100.0)
+                : 100.0;
       }
     }
 
     // Stamp-available area: below the title safe zone, above the bottom margin.
-    final safeStartY =
-        math.max(marginY, canvasSize.height * _kTitleSafeZoneHeightFraction);
+    final safeStartY = math.max(
+      marginY,
+      canvasSize.height * _kTitleSafeZoneHeightFraction,
+    );
     final availableH = (canvasSize.height - marginY) - safeStartY;
 
     // Grid: size to fit all stamps exactly (ceil so every stamp gets a cell).
@@ -249,10 +249,11 @@ class PassportLayoutEngine {
     // single-column or single-row grid that spans the full canvas height rather
     // than clustering all stamps in one quadrant of a forced 2×2 grid.
     final stampAreaAspect = usableW / math.max(1.0, availableH);
-    final gridRows =
-        math.max(1, math.sqrt(totalCount.toDouble() / stampAreaAspect).ceil());
-    final gridCols =
-        math.max(1, (totalCount / gridRows).ceil());
+    final gridRows = math.max(
+      1,
+      math.sqrt(totalCount.toDouble() / stampAreaAspect).ceil(),
+    );
+    final gridCols = math.max(1, (totalCount / gridRows).ceil());
 
     final stamps = <StampData>[];
     final placedCentres = <Offset>[];
@@ -278,7 +279,10 @@ class PassportLayoutEngine {
         scale = baseRadius / 38.0;
       } else {
         final variety = 0.9 + rng.nextDouble() * 0.2;
-        baseRadius = (dynamicRadius * variety * sizeMultiplier).clamp(4.0, 100.0);
+        baseRadius = (dynamicRadius * variety * sizeMultiplier).clamp(
+          4.0,
+          100.0,
+        );
         scale = baseRadius / 38.0;
       }
 
@@ -374,7 +378,8 @@ class PassportLayoutEngine {
   /// overlap the top (title) or bottom-left (branding) safe zones.
   static bool _isInSafeZone(Offset center, double radius, Size canvasSize) {
     // 1. Title Safe Zone (Top 18%)
-    if (center.dy - radius < canvasSize.height * _kTitleSafeZoneHeightFraction) {
+    if (center.dy - radius <
+        canvasSize.height * _kTitleSafeZoneHeightFraction) {
       return true;
     }
 
@@ -407,16 +412,32 @@ class PassportLayoutEngine {
 
     if (minD == dLeft) {
       return Rect.fromLTWH(
-          centre.dx - radius + cropAmount, 0, pageSize.width, pageSize.height);
+        centre.dx - radius + cropAmount,
+        0,
+        pageSize.width,
+        pageSize.height,
+      );
     } else if (minD == dRight) {
       return Rect.fromLTWH(
-          0, 0, centre.dx + radius - cropAmount, pageSize.height);
+        0,
+        0,
+        centre.dx + radius - cropAmount,
+        pageSize.height,
+      );
     } else if (minD == dTop) {
       return Rect.fromLTWH(
-          0, centre.dy - radius + cropAmount, pageSize.width, pageSize.height);
+        0,
+        centre.dy - radius + cropAmount,
+        pageSize.width,
+        pageSize.height,
+      );
     } else {
       return Rect.fromLTWH(
-          0, 0, pageSize.width, centre.dy + radius - cropAmount);
+        0,
+        0,
+        pageSize.width,
+        centre.dy + radius - cropAmount,
+      );
     }
   }
 }

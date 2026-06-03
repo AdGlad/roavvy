@@ -62,12 +62,12 @@ void main() {
 
   group('MerchOrdersScreen', () {
     testWidgets('shows empty state when no orders', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const MerchOrdersScreen(),
-        overrides: [
-          merchOrdersProvider.overrideWith((_) async => const []),
-        ],
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MerchOrdersScreen(),
+          overrides: [merchOrdersProvider.overrideWith((_) async => const [])],
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('No orders yet'), findsOneWidget);
@@ -84,12 +84,12 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_wrap(
-        const MerchOrdersScreen(),
-        overrides: [
-          merchOrdersProvider.overrideWith((_) async => orders),
-        ],
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MerchOrdersScreen(),
+          overrides: [merchOrdersProvider.overrideWith((_) async => orders)],
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Roavvy Test Tee'), findsOneWidget);
@@ -108,12 +108,12 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_wrap(
-        const MerchOrdersScreen(),
-        overrides: [
-          merchOrdersProvider.overrideWith((_) async => orders),
-        ],
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          const MerchOrdersScreen(),
+          overrides: [merchOrdersProvider.overrideWith((_) async => orders)],
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Error'), findsOneWidget);

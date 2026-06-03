@@ -83,8 +83,9 @@ class _CountryRegionMapScreenState
   void initState() {
     super.initState();
     _allPolygons = regionPolygonsForCountry(widget.countryCode);
-    final future =
-        ref.read(regionRepositoryProvider).loadByCountry(widget.countryCode);
+    final future = ref
+        .read(regionRepositoryProvider)
+        .loadByCountry(widget.countryCode);
     _visitsFuture = future;
     future.then((visits) {
       if (!mounted) return;
@@ -123,7 +124,9 @@ class _CountryRegionMapScreenState
     // No region polygons — fit to the country outline instead.
     final countryPolygons = ref.read(polygonsProvider);
     final countryPoints = [
-      for (final p in countryPolygons.where((p) => p.isoCode == widget.countryCode))
+      for (final p in countryPolygons.where(
+        (p) => p.isoCode == widget.countryCode,
+      ))
         for (final v in p.vertices) LatLng(v.$1, v.$2),
     ];
     if (countryPoints.isEmpty) return;
@@ -157,8 +160,7 @@ class _CountryRegionMapScreenState
   @override
   Widget build(BuildContext context) {
     final flag = _flagEmoji(widget.countryCode);
-    final countryName =
-        kCountryNames[widget.countryCode] ?? widget.countryCode;
+    final countryName = kCountryNames[widget.countryCode] ?? widget.countryCode;
     final regionWord = _visitedCount == 1 ? 'region' : 'regions';
 
     return Scaffold(
@@ -173,10 +175,9 @@ class _CountryRegionMapScreenState
             if (_visitedCount > 0)
               Text(
                 '$_visitedCount $regionWord visited',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.white70),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.white70),
               ),
           ],
         ),
@@ -190,8 +191,7 @@ class _CountryRegionMapScreenState
             );
           }
 
-          final visitedCodes =
-              snapshot.data!.map((v) => v.regionCode).toSet();
+          final visitedCodes = snapshot.data!.map((v) => v.regionCode).toSet();
           final visitedPolygons = <Polygon<String>>[];
           final unvisitedPolygons = <Polygon>[];
 
@@ -204,24 +204,27 @@ class _CountryRegionMapScreenState
           };
 
           for (final p in _allPolygons) {
-            final points =
-                p.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
+            final points = p.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
             if (visitedCodes.contains(p.regionCode)) {
               final idx = sortedIndex[p.regionCode] ?? 0;
               final fill =
                   _kRegionPastelPalette[idx % _kRegionPastelPalette.length];
-              visitedPolygons.add(Polygon<String>(
-                points: points,
-                color: fill.withValues(alpha: 0.85),
-                borderStrokeWidth: 0,
-                hitValue: p.regionCode,
-              ));
+              visitedPolygons.add(
+                Polygon<String>(
+                  points: points,
+                  color: fill.withValues(alpha: 0.85),
+                  borderStrokeWidth: 0,
+                  hitValue: p.regionCode,
+                ),
+              );
             } else {
-              unvisitedPolygons.add(Polygon(
-                points: points,
-                color: _kUnvisitedFill.withValues(alpha: 0.9),
-                borderStrokeWidth: 0,
-              ));
+              unvisitedPolygons.add(
+                Polygon(
+                  points: points,
+                  color: _kUnvisitedFill.withValues(alpha: 0.9),
+                  borderStrokeWidth: 0,
+                ),
+              );
             }
           }
 

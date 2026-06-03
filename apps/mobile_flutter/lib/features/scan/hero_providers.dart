@@ -13,8 +13,10 @@ final heroImageRepositoryProvider = Provider<HeroImageRepository>(
 ///
 /// Used by journal trip cards to display the hero image reactively.
 /// Emits updated state when background analysis completes.
-final heroForTripProvider =
-    StreamProvider.family<HeroImage?, String>((ref, tripId) {
+final heroForTripProvider = StreamProvider.family<HeroImage?, String>((
+  ref,
+  tripId,
+) {
   final repo = ref.watch(heroImageRepositoryProvider);
   return repo.watchHeroForTrip(tripId);
 });
@@ -22,8 +24,10 @@ final heroForTripProvider =
 /// Streams the single highest-scoring rank-1 hero for [countryCode].
 ///
 /// Used by the country detail sheet cover image (M90, ADR-135).
-final bestHeroForCountryProvider =
-    StreamProvider.family<HeroImage?, String>((ref, countryCode) {
+final bestHeroForCountryProvider = StreamProvider.family<HeroImage?, String>((
+  ref,
+  countryCode,
+) {
   final repo = ref.watch(heroImageRepositoryProvider);
   return repo.watchBestHeroForCountry(countryCode);
 });
@@ -34,6 +38,6 @@ final bestHeroForCountryProvider =
 /// Returns null when no heroes have been analysed for the given trips.
 final bestHeroFromScanProvider =
     FutureProvider.family<HeroImage?, List<String>>((ref, tripIds) {
-  final repo = ref.watch(heroImageRepositoryProvider);
-  return repo.getBestHeroFromTrips(tripIds);
-});
+      final repo = ref.watch(heroImageRepositoryProvider);
+      return repo.getBestHeroFromTrips(tripIds);
+    });

@@ -21,10 +21,10 @@ import '../globe_replay/replay_tone_generator.dart';
 /// | fail   | Descending minor arpeggio, 0.84 s        | Challenge failed     |
 class ChallengeAudioService {
   ChallengeAudioService()
-      : _clue = AudioPlayer(),
-        _wrong = AudioPlayer(),
-        _solve = AudioPlayer(),
-        _fail = AudioPlayer() {
+    : _clue = AudioPlayer(),
+      _wrong = AudioPlayer(),
+      _solve = AudioPlayer(),
+      _fail = AudioPlayer() {
     for (final p in _all) {
       p.setReleaseMode(ReleaseMode.stop).ignore();
     }

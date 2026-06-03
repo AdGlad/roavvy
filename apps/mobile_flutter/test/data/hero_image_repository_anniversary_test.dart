@@ -13,39 +13,43 @@ HeroImage _hero({
   String countryCode = 'GR',
   String tripId = 'trip_1',
   int rank = 1,
-}) =>
-    HeroImage(
-      id: id,
-      assetId: 'asset_$id',
-      tripId: tripId,
-      countryCode: countryCode,
-      capturedAt: capturedAt,
-      heroScore: 0.8,
-      rank: rank,
-      isUserSelected: false,
-      createdAt: capturedAt,
-      updatedAt: capturedAt,
-    );
+}) => HeroImage(
+  id: id,
+  assetId: 'asset_$id',
+  tripId: tripId,
+  countryCode: countryCode,
+  capturedAt: capturedAt,
+  heroScore: 0.8,
+  rank: rank,
+  isUserSelected: false,
+  createdAt: capturedAt,
+  updatedAt: capturedAt,
+);
 
 void main() {
   group('HeroImageRepository.getHeroesWithAnniversaryToday', () {
-    test('returns rank-1 hero whose capturedAt month+day matches today', () async {
-      final repo = _makeRepo();
-      // Photo taken exactly 2 years ago today.
-      final twoYearsAgo = DateTime.utc(
-        DateTime.now().toUtc().year - 2,
-        DateTime.now().toUtc().month,
-        DateTime.now().toUtc().day,
-        10,
-        0,
-      );
-      final hero = _hero(id: 'h1', capturedAt: twoYearsAgo);
-      await repo.upsertHeroesForTrip('trip_1', [hero]);
+    test(
+      'returns rank-1 hero whose capturedAt month+day matches today',
+      () async {
+        final repo = _makeRepo();
+        // Photo taken exactly 2 years ago today.
+        final twoYearsAgo = DateTime.utc(
+          DateTime.now().toUtc().year - 2,
+          DateTime.now().toUtc().month,
+          DateTime.now().toUtc().day,
+          10,
+          0,
+        );
+        final hero = _hero(id: 'h1', capturedAt: twoYearsAgo);
+        await repo.upsertHeroesForTrip('trip_1', [hero]);
 
-      final results = await repo.getHeroesWithAnniversaryToday(DateTime.now());
-      expect(results, hasLength(1));
-      expect(results.first.id, 'h1');
-    });
+        final results = await repo.getHeroesWithAnniversaryToday(
+          DateTime.now(),
+        );
+        expect(results, hasLength(1));
+        expect(results.first.id, 'h1');
+      },
+    );
 
     test('excludes hero captured less than 1 year ago', () async {
       final repo = _makeRepo();
@@ -85,7 +89,9 @@ void main() {
     test('returns empty list when no anniversaries match', () async {
       final repo = _makeRepo();
       // Photo from a completely different date 2 years ago.
-      final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+      final yesterday = DateTime.now().toUtc().subtract(
+        const Duration(days: 1),
+      );
       final twoYearsAgoYesterday = DateTime.utc(
         yesterday.year - 2,
         yesterday.month,

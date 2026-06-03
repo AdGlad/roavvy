@@ -12,16 +12,13 @@ class MockupApprovalService {
   final FirebaseFirestore _firestore;
 
   CollectionReference<Map<String, dynamic>> _collection(String uid) =>
-      _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('mockup_approvals');
+      _firestore.collection('users').doc(uid).collection('mockup_approvals');
 
   /// Writes [approval] to Firestore and returns the [mockupApprovalId].
   Future<String> create(MockupApproval approval) async {
-    await _collection(approval.userId)
-        .doc(approval.mockupApprovalId)
-        .set(approval.toFirestore());
+    await _collection(
+      approval.userId,
+    ).doc(approval.mockupApprovalId).set(approval.toFirestore());
     return approval.mockupApprovalId;
   }
 }

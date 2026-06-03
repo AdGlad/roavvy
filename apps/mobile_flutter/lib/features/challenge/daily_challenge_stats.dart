@@ -55,7 +55,9 @@ class ChallengeStatsService {
     required int cluesUsed,
     int durationSecs = 0,
   }) async {
-    await _db.into(_db.challengeStatsTable).insertOnConflictUpdate(
+    await _db
+        .into(_db.challengeStatsTable)
+        .insertOnConflictUpdate(
           ChallengeStatsTableCompanion.insert(
             date: date,
             siteId: siteId,
@@ -72,17 +74,16 @@ class ChallengeStatsService {
   /// Deletes the stats row for [date]. Used only in debug builds for testing.
   Future<void> deleteForDate(String date) async {
     await (_db.delete(_db.challengeStatsTable)
-          ..where((t) => t.date.equals(date)))
-        .go();
+      ..where((t) => t.date.equals(date))).go();
   }
 
   // ── Reads ─────────────────────────────────────────────────────────────────
 
   /// Computes aggregate statistics from all stored rows.
   Future<ChallengeAggregate> loadAggregate() async {
-    final rows = await (_db.select(_db.challengeStatsTable)
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
-        .get();
+    final rows =
+        await (_db.select(_db.challengeStatsTable)
+          ..orderBy([(t) => OrderingTerm.desc(t.date)])).get();
 
     if (rows.isEmpty) {
       return const ChallengeAggregate(
@@ -99,14 +100,16 @@ class ChallengeStatsService {
     final solvedRows = rows.where((r) => r.solved == 1).toList();
     final totalSolved = solvedRows.length;
 
-    final avgGuesses = totalSolved > 0
-        ? solvedRows.map((r) => r.guessesUsed).reduce((a, b) => a + b) /
-            totalSolved
-        : 0.0;
-    final avgClues = totalSolved > 0
-        ? solvedRows.map((r) => r.cluesUsed).reduce((a, b) => a + b) /
-            totalSolved
-        : 0.0;
+    final avgGuesses =
+        totalSolved > 0
+            ? solvedRows.map((r) => r.guessesUsed).reduce((a, b) => a + b) /
+                totalSolved
+            : 0.0;
+    final avgClues =
+        totalSolved > 0
+            ? solvedRows.map((r) => r.cluesUsed).reduce((a, b) => a + b) /
+                totalSolved
+            : 0.0;
 
     final currentStreak = _currentStreak(rows);
     final bestStreak = _bestStreak(rows);
@@ -122,13 +125,21 @@ class ChallengeStatsService {
   }
 
   /// Returns the most-recent 30 days of challenge history in descending order.
-  Future<List<({String date, bool solved, int guessesUsed})>> last30Days() async {
-    final rows = await (_db.select(_db.challengeStatsTable)
-          ..orderBy([(t) => OrderingTerm.desc(t.date)])
-          ..limit(30))
-        .get();
+  Future<List<({String date, bool solved, int guessesUsed})>>
+  last30Days() async {
+    final rows =
+        await (_db.select(_db.challengeStatsTable)
+              ..orderBy([(t) => OrderingTerm.desc(t.date)])
+              ..limit(30))
+            .get();
     return rows
-        .map((r) => (date: r.date, solved: r.solved == 1, guessesUsed: r.guessesUsed))
+        .map(
+          (r) => (
+            date: r.date,
+            solved: r.solved == 1,
+            guessesUsed: r.guessesUsed,
+          ),
+        )
         .toList();
   }
 
@@ -178,8 +189,7 @@ class ChallengeStatsService {
     for (final row in asc) {
       final rowDate = DateTime.parse(row.date).toUtc();
       if (row.solved == 1) {
-        if (prev == null ||
-            rowDate.difference(prev).inDays == 1) {
+        if (prev == null || rowDate.difference(prev).inDays == 1) {
           current++;
         } else {
           current = 1;

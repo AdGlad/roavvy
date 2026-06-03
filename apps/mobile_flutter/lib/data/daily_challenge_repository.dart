@@ -18,9 +18,9 @@ class DailyChallengeRepository {
 
   /// Returns today's progress row, or null if the user has not started yet.
   Future<DailyChallengeProgress?> loadToday(String date) async {
-    final rows = await (_db.select(_db.dailyChallengeProgressTable)
-          ..where((t) => t.date.equals(date)))
-        .get();
+    final rows =
+        await (_db.select(_db.dailyChallengeProgressTable)
+          ..where((t) => t.date.equals(date))).get();
     if (rows.isEmpty) return null;
     return _fromRow(rows.first);
   }
@@ -30,22 +30,24 @@ class DailyChallengeRepository {
   /// Deletes the progress row for [date], if any. Used for dev testing.
   Future<void> deleteProgress(String date) async {
     await (_db.delete(_db.dailyChallengeProgressTable)
-          ..where((t) => t.date.equals(date)))
-        .go();
+      ..where((t) => t.date.equals(date))).go();
   }
 
   /// Inserts or replaces a progress row for [progress.date].
   Future<void> save(DailyChallengeProgress progress) async {
-    await _db.into(_db.dailyChallengeProgressTable).insertOnConflictUpdate(
+    await _db
+        .into(_db.dailyChallengeProgressTable)
+        .insertOnConflictUpdate(
           DailyChallengeProgressTableCompanion.insert(
             date: progress.date,
             siteId: progress.siteId,
             cluesRevealed: Value(progress.cluesRevealed),
             guesses: Value(jsonEncode(progress.guesses)),
             solved: Value(progress.solved ? 1 : 0),
-            solvedAtClue: progress.solvedAtClue == null
-                ? const Value.absent()
-                : Value(progress.solvedAtClue!),
+            solvedAtClue:
+                progress.solvedAtClue == null
+                    ? const Value.absent()
+                    : Value(progress.solvedAtClue!),
             failed: Value(progress.failed ? 1 : 0),
           ),
         );
@@ -54,8 +56,7 @@ class DailyChallengeRepository {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   static DailyChallengeProgress _fromRow(DailyChallengeProgressRow row) {
-    final guesses =
-        (jsonDecode(row.guesses) as List<dynamic>).cast<String>();
+    final guesses = (jsonDecode(row.guesses) as List<dynamic>).cast<String>();
     return DailyChallengeProgress(
       date: row.date,
       siteId: row.siteId,

@@ -34,9 +34,9 @@ void main() {
   void setHandler(Future<Object?> Function(MethodCall) handler) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      capturedCall = call;
-      return handler(call);
-    });
+          capturedCall = call;
+          return handler(call);
+        });
   }
 
   // ── Channel args contract (ADR-125) ───────────────────────────────────────
@@ -45,16 +45,22 @@ void main() {
     setHandler((_) async => 'Land of the Rising Sun');
     await generator.generate(request);
     final args = capturedCall!.arguments as Map;
-    expect(args.containsKey('startYear'), isFalse,
-        reason: 'startYear must not be sent to AI (ADR-125)');
+    expect(
+      args.containsKey('startYear'),
+      isFalse,
+      reason: 'startYear must not be sent to AI (ADR-125)',
+    );
   });
 
   test('channel args do not contain endYear', () async {
     setHandler((_) async => 'Cherry Blossom Road');
     await generator.generate(request);
     final args = capturedCall!.arguments as Map;
-    expect(args.containsKey('endYear'), isFalse,
-        reason: 'endYear must not be sent to AI (ADR-125)');
+    expect(
+      args.containsKey('endYear'),
+      isFalse,
+      reason: 'endYear must not be sent to AI (ADR-125)',
+    );
   });
 
   test('channel args contain regionNames', () async {

@@ -4,8 +4,11 @@ import 'package:mobile_flutter/features/map/country_centroids.dart';
 void main() {
   test('kCountryCentroids contains key countries', () {
     for (final code in ['JP', 'FR', 'BR', 'AU', 'US', 'GB']) {
-      expect(kCountryCentroids, contains(code),
-          reason: 'Missing centroid for $code');
+      expect(
+        kCountryCentroids,
+        contains(code),
+        reason: 'Missing centroid for $code',
+      );
     }
   });
 
@@ -22,10 +25,16 @@ void main() {
   test('kCountryCentroids all latitudes are in valid range', () {
     for (final entry in kCountryCentroids.entries) {
       final (lat, lng) = entry.value;
-      expect(lat, inInclusiveRange(-90.0, 90.0),
-          reason: '${entry.key} lat out of range');
-      expect(lng, inInclusiveRange(-180.0, 180.0),
-          reason: '${entry.key} lng out of range');
+      expect(
+        lat,
+        inInclusiveRange(-90.0, 90.0),
+        reason: '${entry.key} lat out of range',
+      );
+      expect(
+        lng,
+        inInclusiveRange(-180.0, 180.0),
+        reason: '${entry.key} lng out of range',
+      );
     }
   });
 }

@@ -13,32 +13,76 @@ import 'title_generation_service.dart';
 /// Checked first; most specific path through the label priority chain.
 const _kSceneMoodTitles = <(String, String), List<String>>{
   ('beach', 'sunset'): ['Aegean Sunset', 'Shore at Dusk', 'Golden Coastline'],
-  ('beach', 'golden_hour'): ['Golden Shore', 'Coast at Golden Hour', 'Warm Tides'],
-  ('beach', 'sunrise'): ['Dawn on the Shore', 'Morning Tide', 'First Light Coast'],
+  ('beach', 'golden_hour'): [
+    'Golden Shore',
+    'Coast at Golden Hour',
+    'Warm Tides',
+  ],
+  ('beach', 'sunrise'): [
+    'Dawn on the Shore',
+    'Morning Tide',
+    'First Light Coast',
+  ],
   ('mountain', 'snow'): ['Alpine Snowfields', 'Peak Season', 'White Summits'],
-  ('mountain', 'sunrise'): ['Mountain Dawn', 'Summit Light', 'Above the Clouds'],
-  ('mountain', 'golden_hour'): ['Alpine Gold', 'Mountain at Dusk', 'Peaks at Sunset'],
+  ('mountain', 'sunrise'): [
+    'Mountain Dawn',
+    'Summit Light',
+    'Above the Clouds',
+  ],
+  ('mountain', 'golden_hour'): [
+    'Alpine Gold',
+    'Mountain at Dusk',
+    'Peaks at Sunset',
+  ],
   ('city', 'night'): ['City After Dark', 'Neon Nights', 'Night in the City'],
   ('city', 'golden_hour'): ['Golden Streets', 'City at Dusk', 'Urban Gold'],
   ('desert', 'sunset'): ['Desert Gold', 'Sand at Dusk', 'Sahara Sunset'],
-  ('desert', 'golden_hour'): ['Dunes at Golden Hour', 'Desert Glow', 'Sand and Light'],
-  ('forest', 'sunrise'): ['Forest Dawn', 'Morning in the Trees', 'First Light Forest'],
+  ('desert', 'golden_hour'): [
+    'Dunes at Golden Hour',
+    'Desert Glow',
+    'Sand and Light',
+  ],
+  ('forest', 'sunrise'): [
+    'Forest Dawn',
+    'Morning in the Trees',
+    'First Light Forest',
+  ],
   ('snow', 'sunrise'): ['Frozen Dawn', 'Winter Light', 'Snow at Sunrise'],
   ('island', 'sunset'): ['Island Sunset', 'Tropical Dusk', 'Offshore Gold'],
-  ('island', 'golden_hour'): ['Golden Island', 'Island at Dusk', 'Tropical Gold'],
-  ('lake', 'sunrise'): ['Still Water Dawn', 'Lake at Sunrise', 'Morning Reflections'],
-  ('coast', 'golden_hour'): ['Golden Cliffs', 'Coastal Glow', 'Light on the Coast'],
+  ('island', 'golden_hour'): [
+    'Golden Island',
+    'Island at Dusk',
+    'Tropical Gold',
+  ],
+  ('lake', 'sunrise'): [
+    'Still Water Dawn',
+    'Lake at Sunrise',
+    'Morning Reflections',
+  ],
+  ('coast', 'golden_hour'): [
+    'Golden Cliffs',
+    'Coastal Glow',
+    'Light on the Coast',
+  ],
 };
 
 /// (primaryScene, activity) → title options.
 const _kSceneActivityTitles = <(String, String), List<String>>{
-  ('mountain', 'hiking'): ['Trail Blazer', 'Into the Mountains', 'High Country'],
+  ('mountain', 'hiking'): [
+    'Trail Blazer',
+    'Into the Mountains',
+    'High Country',
+  ],
   ('mountain', 'skiing'): ['Powder Days', 'Off Piste', 'White Run'],
   ('coast', 'boat'): ['Under Sail', 'Blue Water Run', 'Open Horizon'],
   ('beach', 'boat'): ['Island Hopping', 'Sailing the Coast', 'Blue Lagoon'],
   ('city', 'food'): ['Food and City', 'Urban Feast', 'City Bites'],
   ('forest', 'hiking'): ['Deep Woods', 'Through the Trees', 'Green Trail'],
-  ('island', 'boat'): ['Island to Island', 'Archipelago Run', 'Between the Islands'],
+  ('island', 'boat'): [
+    'Island to Island',
+    'Archipelago Run',
+    'Between the Islands',
+  ],
   ('countryside', 'roadtrip'): ['Open Road', 'Rolling Hills', 'Country Miles'],
   ('desert', 'roadtrip'): ['Desert Drive', 'Dust Road', 'Endless Miles'],
 };
@@ -75,7 +119,13 @@ const _kMoodTitles = <String, List<String>>{
 /// for the cluster to fire. Order matters — more specific clusters first.
 const _kSubRegions = <List<String>, Set<String>>{
   // Northern Europe
-  ['Nordic Wander', 'Northern Lights', 'Fjord Life']: {'NO', 'SE', 'FI', 'IS', 'DK'},
+  ['Nordic Wander', 'Northern Lights', 'Fjord Life']: {
+    'NO',
+    'SE',
+    'FI',
+    'IS',
+    'DK',
+  },
   ['Baltic Loop', 'Baltic Run', 'Coast to Coast']: {'EE', 'LV', 'LT'},
   ['British Isles', 'Island Hopping', 'Tea and Moors']: {'GB', 'IE'},
   // Western / Southern Europe
@@ -83,25 +133,84 @@ const _kSubRegions = <List<String>, Set<String>>{
   ['Alpine Escape', 'Peak Season', 'Above the Clouds']: {'CH', 'AT', 'LI'},
   ['Benelux', 'Low Country High', 'Canal Circuit']: {'BE', 'NL', 'LU'},
   ['Mediterranean Escape', 'Blue Water Run', 'Island Life']: {'GR', 'CY', 'MT'},
-  ['Southern Europe', 'Sun Chaser', 'Olive Trail']: {'IT', 'ES', 'PT', 'FR', 'MT'},
-  ['Balkan Trail', 'Balkan Road', 'Old Town Circuit']: {'HR', 'BA', 'ME', 'RS', 'MK', 'AL', 'SI'},
+  ['Southern Europe', 'Sun Chaser', 'Olive Trail']: {
+    'IT',
+    'ES',
+    'PT',
+    'FR',
+    'MT',
+  },
+  ['Balkan Trail', 'Balkan Road', 'Old Town Circuit']: {
+    'HR',
+    'BA',
+    'ME',
+    'RS',
+    'MK',
+    'AL',
+    'SI',
+  },
   // Asia
   ['East Asia', 'Far East Fix', 'Neon and Temples']: {'JP', 'KR', 'CN', 'TW'},
   ['Southeast Asia', 'Spice Route', 'Island Hopper']: {
-    'TH', 'VN', 'KH', 'LA', 'MM', 'SG', 'MY', 'ID', 'PH'
+    'TH',
+    'VN',
+    'KH',
+    'LA',
+    'MM',
+    'SG',
+    'MY',
+    'ID',
+    'PH',
   },
-  ['Indian Subcontinent', 'Monsoon Run', 'Spice and Spirit']: {'IN', 'LK', 'NP', 'BD', 'BT'},
+  ['Indian Subcontinent', 'Monsoon Run', 'Spice and Spirit']: {
+    'IN',
+    'LK',
+    'NP',
+    'BD',
+    'BT',
+  },
   // Oceans
-  ['Indian Ocean', 'Turquoise Run', 'Island Escape']: {'MV', 'SC', 'MU', 'RE', 'YT'},
+  ['Indian Ocean', 'Turquoise Run', 'Island Escape']: {
+    'MV',
+    'SC',
+    'MU',
+    'RE',
+    'YT',
+  },
   ['Pacific Islands', 'Island Life', 'Blue Horizon']: {
-    'FJ', 'WS', 'TO', 'VU', 'PG', 'SB', 'CK', 'NU'
+    'FJ',
+    'WS',
+    'TO',
+    'VU',
+    'PG',
+    'SB',
+    'CK',
+    'NU',
   },
   // Americas
   ['Central America', 'Jungle Run', 'Pacific Swing']: {
-    'MX', 'GT', 'BZ', 'HN', 'SV', 'NI', 'CR', 'PA'
+    'MX',
+    'GT',
+    'BZ',
+    'HN',
+    'SV',
+    'NI',
+    'CR',
+    'PA',
   },
   ['Caribbean Hop', 'Island Circuit', 'Rum and Sun']: {
-    'CU', 'JM', 'HT', 'DO', 'TT', 'BB', 'LC', 'VC', 'GD', 'AG', 'DM', 'KN'
+    'CU',
+    'JM',
+    'HT',
+    'DO',
+    'TT',
+    'BB',
+    'LC',
+    'VC',
+    'GD',
+    'AG',
+    'DM',
+    'KN',
   },
 };
 
@@ -124,7 +233,8 @@ class RuleBasedTitleGenerator implements TitleGenerationService {
 
   final Random _random;
 
-  String _pick(List<String> options) => options[_random.nextInt(options.length)];
+  String _pick(List<String> options) =>
+      options[_random.nextInt(options.length)];
 
   /// Resolves a label-based title from [aggregated] using the priority chain:
   /// scene+mood combo → scene+activity combo → scene solo → mood solo.
@@ -169,7 +279,8 @@ class RuleBasedTitleGenerator implements TitleGenerationService {
 
   String _compute(TitleGenerationRequest request) {
     final codes = request.countryCodes;
-    if (codes.isEmpty) return _pick(['World Tour', 'Everywhere', 'Global Wander']);
+    if (codes.isEmpty)
+      return _pick(['World Tour', 'Everywhere', 'Global Wander']);
 
     // 1. Label-based title — runs before geography (ADR-137).
     if (request.heroLabels != null) {
@@ -204,9 +315,10 @@ class RuleBasedTitleGenerator implements TitleGenerationService {
     }
 
     if (continentCounts.isNotEmpty) {
-      final dominant = continentCounts.entries
-          .reduce((a, b) => a.value >= b.value ? a : b)
-          .key;
+      final dominant =
+          continentCounts.entries
+              .reduce((a, b) => a.value >= b.value ? a : b)
+              .key;
       final options = _kContinentTitles[dominant];
       if (options != null) return _pick(options);
       return dominant;

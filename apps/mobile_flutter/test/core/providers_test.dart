@@ -9,11 +9,11 @@ void main() {
       final mockUser = MockUser(isAnonymous: true, uid: 'test-anonymous-uid');
       final mockAuth = MockFirebaseAuth(signedIn: true, mockUser: mockUser);
 
-      final container = ProviderContainer(overrides: [
-        authStateProvider.overrideWith(
-          (ref) => mockAuth.authStateChanges(),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          authStateProvider.overrideWith((ref) => mockAuth.authStateChanges()),
+        ],
+      );
       addTearDown(container.dispose);
 
       // Wait for the StreamProvider to receive its first emission.
@@ -26,11 +26,11 @@ void main() {
     test('returns null when auth state has no user', () async {
       final mockAuth = MockFirebaseAuth();
 
-      final container = ProviderContainer(overrides: [
-        authStateProvider.overrideWith(
-          (ref) => mockAuth.authStateChanges(),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          authStateProvider.overrideWith((ref) => mockAuth.authStateChanges()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(authStateProvider.future);

@@ -48,12 +48,13 @@ class MemoryRevealSheet extends ConsumerStatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => MemoryRevealSheet(
-        hero: hero,
-        yearsAgo: yearsAgo,
-        question: service.buildQuestion(hero, yearsAgo),
-        service: service,
-      ),
+      builder:
+          (_) => MemoryRevealSheet(
+            hero: hero,
+            yearsAgo: yearsAgo,
+            question: service.buildQuestion(hero, yearsAgo),
+            service: service,
+          ),
     );
   }
 
@@ -103,81 +104,82 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
       initialChildSize: 0.88,
       minChildSize: 0.5,
       maxChildSize: 0.95,
-      builder: (_, scrollController) => SingleChildScrollView(
-        controller: scrollController,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag handle
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Question text (always visible)
-              Text(
-                widget.question,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  height: 1.35,
-                ),
-              ),
-
-              if (!_revealed) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Tap to reveal your memory',
-                  style: TextStyle(color: Colors.white38, fontSize: 14),
-                ),
-                const SizedBox(height: 32),
-                FilledButton(
-                  onPressed: _reveal,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RoavvyColours.roavvyGold,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 14,
+      builder:
+          (_, scrollController) => SingleChildScrollView(
+            controller: scrollController,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    textStyle: const TextStyle(
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Question text (always visible)
+                  Text(
+                    widget.question,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      height: 1.35,
                     ),
                   ),
-                  child: const Text('Reveal'),
-                ),
-              ],
 
-              if (_revealed) ...[
-                const SizedBox(height: 24),
-                FadeTransition(
-                  opacity: _fadeAnim,
-                  child: SlideTransition(
-                    position: _slideAnim,
-                    child: _RevealedContent(
-                      hero: widget.hero,
-                      yearsAgo: widget.yearsAgo,
-                      screenWidth: screenWidth,
-                      service: widget.service,
+                  if (!_revealed) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Tap to reveal your memory',
+                      style: TextStyle(color: Colors.white38, fontSize: 14),
                     ),
-                  ),
-                ),
-              ],
-            ],
+                    const SizedBox(height: 32),
+                    FilledButton(
+                      onPressed: _reveal,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: RoavvyColours.roavvyGold,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 14,
+                        ),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      child: const Text('Reveal'),
+                    ),
+                  ],
+
+                  if (_revealed) ...[
+                    const SizedBox(height: 24),
+                    FadeTransition(
+                      opacity: _fadeAnim,
+                      child: SlideTransition(
+                        position: _slideAnim,
+                        child: _RevealedContent(
+                          hero: widget.hero,
+                          yearsAgo: widget.yearsAgo,
+                          screenWidth: screenWidth,
+                          service: widget.service,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -199,14 +201,16 @@ class _RevealedContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final countryName = hero.countryCode != null
-        ? (kCountryNames[hero.countryCode] ?? hero.countryCode!)
-        : null;
+    final countryName =
+        hero.countryCode != null
+            ? (kCountryNames[hero.countryCode] ?? hero.countryCode!)
+            : null;
     final flagEmoji =
         hero.countryCode != null ? _flagEmoji(hero.countryCode!) : null;
     final dateStr = _formatDate(hero.capturedAt, yearsAgo);
 
-    final physicalWidth = (screenWidth * MediaQuery.devicePixelRatioOf(context)).toInt();
+    final physicalWidth =
+        (screenWidth * MediaQuery.devicePixelRatioOf(context)).toInt();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -223,7 +227,10 @@ class _RevealedContent extends ConsumerWidget {
                   assetId: hero.assetId,
                   fallbackColor: const Color(0xFF2D4A5F),
                   height: 260,
-                  thumbnailSize: ThumbnailSize(physicalWidth, physicalWidth * 2),
+                  thumbnailSize: ThumbnailSize(
+                    physicalWidth,
+                    physicalWidth * 2,
+                  ),
                 ),
                 // Bottom gradient
                 Positioned(
@@ -265,10 +272,7 @@ class _RevealedContent extends ConsumerWidget {
                   bottom: 12,
                   child: Text(
                     dateStr,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
               ],
@@ -310,8 +314,18 @@ class _RevealedContent extends ConsumerWidget {
 
   static String _formatDate(DateTime dt, int yearsAgo) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     final yearsWord = yearsAgo == 1 ? '1 year ago' : '$yearsAgo years ago';
     return '${dt.day} ${months[dt.month - 1]} ${dt.year} · $yearsWord';
@@ -334,13 +348,16 @@ class _PrintMerchButton extends ConsumerWidget {
     return OutlinedButton.icon(
       onPressed: () {
         Navigator.of(context).pop();
-        Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => PulseMerchOptionScreen(
-            hero: hero,
-            allTrips: trips,
-            allVisits: allVisits,
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder:
+                (_) => PulseMerchOptionScreen(
+                  hero: hero,
+                  allTrips: trips,
+                  allVisits: allVisits,
+                ),
           ),
-        ));
+        );
       },
       icon: const Icon(Icons.checkroom_outlined),
       label: const Text('Print on a t-shirt'),
@@ -364,24 +381,21 @@ class _ViewTripButton extends ConsumerWidget {
     final tripsAsync = ref.watch(tripListProvider);
 
     return TextButton(
-      onPressed: tripsAsync.valueOrNull == null
-          ? null
-          : () {
-              final trip = tripsAsync.value!
-                  .where((t) => t.id == tripId)
-                  .firstOrNull;
-              if (trip == null || !context.mounted) return;
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => TripDetailScreen(trip: trip),
-                ),
-              );
-            },
-      child: const Text(
-        'View trip',
-        style: TextStyle(color: Colors.white54),
-      ),
+      onPressed:
+          tripsAsync.valueOrNull == null
+              ? null
+              : () {
+                final trip =
+                    tripsAsync.value!.where((t) => t.id == tripId).firstOrNull;
+                if (trip == null || !context.mounted) return;
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => TripDetailScreen(trip: trip),
+                  ),
+                );
+              },
+      child: const Text('View trip', style: TextStyle(color: Colors.white54)),
     );
   }
 }

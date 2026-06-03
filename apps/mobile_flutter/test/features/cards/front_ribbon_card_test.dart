@@ -6,22 +6,16 @@ void main() {
   group('FrontRibbonCard', () {
     Widget wrap(Widget child) {
       return MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 300,
-              child: child,
-            ),
-          ),
-        ),
+        home: Scaffold(body: Center(child: SizedBox(width: 300, child: child))),
       );
     }
 
     testWidgets('renders empty state for 0 countries', (tester) async {
-      await tester.pumpWidget(wrap(const FrontRibbonCard(
-        countryCodes: [],
-        travelerLevel: 'Explorer',
-      )));
+      await tester.pumpWidget(
+        wrap(
+          const FrontRibbonCard(countryCodes: [], travelerLevel: 'Explorer'),
+        ),
+      );
       // It returns SizedBox.shrink()
       expect(
         find.descendant(
@@ -33,11 +27,25 @@ void main() {
     });
 
     testWidgets('renders correctly with flags', (tester) async {
-      await tester.pumpWidget(wrap(const FrontRibbonCard(
-        countryCodes: ['US', 'GB', 'FR', 'IT', 'DE', 'ES', 'NL', 'BE', 'PT'],
-        travelerLevel: 'Explorer',
-        textColor: Colors.black,
-      )));
+      await tester.pumpWidget(
+        wrap(
+          const FrontRibbonCard(
+            countryCodes: [
+              'US',
+              'GB',
+              'FR',
+              'IT',
+              'DE',
+              'ES',
+              'NL',
+              'BE',
+              'PT',
+            ],
+            travelerLevel: 'Explorer',
+            textColor: Colors.black,
+          ),
+        ),
+      );
 
       expect(
         find.descendant(

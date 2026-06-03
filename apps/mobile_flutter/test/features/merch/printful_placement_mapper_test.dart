@@ -11,12 +11,16 @@ void main() {
 
     test('left_chest maps to front_left', () {
       expect(
-          PrintfulPlacementMapper.mapFront('left_chest'), equals('front_left'));
+        PrintfulPlacementMapper.mapFront('left_chest'),
+        equals('front_left'),
+      );
     });
 
     test('right_chest maps to front_right', () {
-      expect(PrintfulPlacementMapper.mapFront('right_chest'),
-          equals('front_right'));
+      expect(
+        PrintfulPlacementMapper.mapFront('right_chest'),
+        equals('front_right'),
+      );
     });
 
     test('none maps to front (blank shirt, no artwork)', () {
@@ -40,8 +44,11 @@ void main() {
     test('all known front positions produce non-empty Printful value', () {
       for (final pos in ['center', 'left_chest', 'right_chest', 'none']) {
         final result = PrintfulPlacementMapper.mapFront(pos);
-        expect(result, isNotEmpty,
-            reason: 'mapFront($pos) returned empty string');
+        expect(
+          result,
+          isNotEmpty,
+          reason: 'mapFront($pos) returned empty string',
+        );
       }
     });
   });
@@ -72,8 +79,11 @@ void main() {
     test('all known back positions produce non-empty Printful value', () {
       for (final pos in ['center', 'none']) {
         final result = PrintfulPlacementMapper.mapBack(pos);
-        expect(result, isNotEmpty,
-            reason: 'mapBack($pos) returned empty string');
+        expect(
+          result,
+          isNotEmpty,
+          reason: 'mapBack($pos) returned empty string',
+        );
       }
     });
   });

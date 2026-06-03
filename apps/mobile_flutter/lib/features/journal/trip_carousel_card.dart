@@ -14,11 +14,7 @@ import '../shared/hero_override_picker.dart';
 /// Displays a high-quality trip hero image with dual-gradient overlays
 /// and premium typography for trip metadata.
 class TripCarouselCard extends ConsumerWidget {
-  const TripCarouselCard({
-    super.key,
-    required this.trip,
-    this.onTap,
-  });
+  const TripCarouselCard({super.key, required this.trip, this.onTap});
 
   final TripRecord trip;
   final VoidCallback? onTap;
@@ -104,10 +100,7 @@ class TripCarouselCard extends ConsumerWidget {
                 // Top: Country & Flag
                 Row(
                   children: [
-                    Text(
-                      flag,
-                      style: const TextStyle(fontSize: 24),
-                    ),
+                    Text(flag, style: const TextStyle(fontSize: 24)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -185,11 +178,12 @@ class TripCarouselCard extends ConsumerWidget {
             top: 14,
             right: 14,
             child: GestureDetector(
-              onTap: () => showHeroOverridePicker(
-                context,
-                trip.id,
-                fallbackColor: fallbackColor,
-              ),
+              onTap:
+                  () => showHeroOverridePicker(
+                    context,
+                    trip.id,
+                    fallbackColor: fallbackColor,
+                  ),
               child: Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
@@ -216,8 +210,18 @@ String _flagEmoji(String isoCode) {
 }
 
 const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _fmtDate(DateTime dt, {bool showYear = true}) {
@@ -232,8 +236,7 @@ String _dateRange(DateTime start, DateTime end) {
   return '${_fmtDate(start)} – ${_fmtDate(end)}';
 }
 
-int _tripDays(DateTime start, DateTime end) =>
-    end.difference(start).inDays + 1;
+int _tripDays(DateTime start, DateTime end) => end.difference(start).inDays + 1;
 
 Color _continentFallbackColor(String? continent) {
   switch (continent) {

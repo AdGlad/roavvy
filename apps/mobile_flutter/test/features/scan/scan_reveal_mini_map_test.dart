@@ -4,10 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/scan/scan_reveal_mini_map.dart';
 
-Widget _pumpMap({
-  required List<String> newCodes,
-  VoidCallback? onDoubleTap,
-}) {
+Widget _pumpMap({required List<String> newCodes, VoidCallback? onDoubleTap}) {
   return ProviderScope(
     overrides: [
       // Return an empty polygon list so no real asset loading is needed.
@@ -15,10 +12,7 @@ Widget _pumpMap({
     ],
     child: MaterialApp(
       home: Scaffold(
-        body: ScanRevealMiniMap(
-          newCodes: newCodes,
-          onDoubleTap: onDoubleTap,
-        ),
+        body: ScanRevealMiniMap(newCodes: newCodes, onDoubleTap: onDoubleTap),
       ),
     ),
   );
@@ -26,7 +20,9 @@ Widget _pumpMap({
 
 void main() {
   group('ScanRevealMiniMap', () {
-    testWidgets('renders without error with multiple new codes', (tester) async {
+    testWidgets('renders without error with multiple new codes', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pumpMap(newCodes: ['GB', 'JP']));
       // Post-frame callback starts the reveal timer; pump once to process it.
       await tester.pump();
@@ -35,15 +31,13 @@ void main() {
       expect(find.byType(ScanRevealMiniMap), findsOneWidget);
     });
 
-    testWidgets('invokes onDoubleTap callback when double-tapped',
-        (tester) async {
+    testWidgets('invokes onDoubleTap callback when double-tapped', (
+      tester,
+    ) async {
       bool tapped = false;
 
       await tester.pumpWidget(
-        _pumpMap(
-          newCodes: ['GB', 'JP'],
-          onDoubleTap: () => tapped = true,
-        ),
+        _pumpMap(newCodes: ['GB', 'JP'], onDoubleTap: () => tapped = true),
       );
       await tester.pump();
 

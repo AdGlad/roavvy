@@ -18,9 +18,9 @@ import 'globe_projection.dart';
 import 'replay_globe_frame.dart';
 
 // Total zoom sequence duration: zoom-in 400 ms + hold 5 000 ms + zoom-out 1 500 ms.
-const _kZoomInMs   = 400;
-const _kHoldMs     = 5000;
-const _kZoomOutMs  = 1500;
+const _kZoomInMs = 400;
+const _kHoldMs = 5000;
+const _kZoomOutMs = 1500;
 const _kZoomTotalMs = _kZoomInMs + _kHoldMs + _kZoomOutMs; // 6 900
 
 /// Interactive 3D globe widget (ADR-116).
@@ -115,8 +115,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final enabled = ref.read(heritageDotsEnabledProvider);
-      final visited =
-          ref.read(visitedHeritageProvider).valueOrNull ?? const [];
+      final visited = ref.read(visitedHeritageProvider).valueOrNull ?? const [];
       _rebuildHeritageLists(enabled, visited);
     });
   }
@@ -173,17 +172,16 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
     // 3. Integrate
     double newLng = _projection.rotLng + _velocity.dx * dtSec;
-    double newLat = (_projection.rotLat + _velocity.dy * dtSec)
-        .clamp(-math.pi / 2, math.pi / 2);
+    double newLat = (_projection.rotLat + _velocity.dy * dtSec).clamp(
+      -math.pi / 2,
+      math.pi / 2,
+    );
 
     // 4. Normalize Longitude to [-pi, pi]
     newLng = ((newLng + math.pi) % (2 * math.pi)) - math.pi;
 
     setState(() {
-      _projection = _projection.copyWith(
-        rotLng: newLng,
-        rotLat: newLat,
-      );
+      _projection = _projection.copyWith(rotLng: newLng, rotLat: newLat);
     });
   }
 
@@ -223,25 +221,30 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     final diff = ((rawDiff + math.pi) % (2 * math.pi)) - math.pi;
 
     _snapAnims = (
-      Tween<double>(begin: currentRotLng, end: currentRotLng + diff)
-          .animate(CurvedAnimation(parent: _snapController, curve: Curves.easeInOut)),
+      Tween<double>(begin: currentRotLng, end: currentRotLng + diff).animate(
+        CurvedAnimation(parent: _snapController, curve: Curves.easeInOut),
+      ),
       Tween<double>(
         begin: _projection.rotLat,
         end: targetRotLat.clamp(-math.pi / 2, math.pi / 2),
-      ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeInOut)),
+      ).animate(
+        CurvedAnimation(parent: _snapController, curve: Curves.easeInOut),
+      ),
     );
 
     // Scale: zoom-in → hold → slow zoom-out.
     // Weights (must sum to 100): proportional to ms durations.
-    final wIn  = _kZoomInMs  / _kZoomTotalMs * 100; // ~5.8
-    final wHold = _kHoldMs   / _kZoomTotalMs * 100; // ~72.5
+    final wIn = _kZoomInMs / _kZoomTotalMs * 100; // ~5.8
+    final wHold = _kHoldMs / _kZoomTotalMs * 100; // ~72.5
     final wOut = _kZoomOutMs / _kZoomTotalMs * 100; // ~21.7
     final startScale = _projection.scale;
 
     _zoomAnim = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: startScale, end: 2.0)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween<double>(
+          begin: startScale,
+          end: 2.0,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: wIn,
       ),
       TweenSequenceItem(
@@ -249,14 +252,20 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         weight: wHold,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 2.0, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween<double>(
+          begin: 2.0,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: wOut,
       ),
     ]).animate(_zoomController);
 
-    _snapController..reset()..forward();
-    _zoomController..reset()..forward();
+    _snapController
+      ..reset()
+      ..forward();
+    _zoomController
+      ..reset()
+      ..forward();
   }
 
   // ── Gesture handlers ───────────────────────────────────────────────────────
@@ -280,8 +289,10 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         final delta = d.focalPoint - _lastFocalPoint;
         _projection = _projection.copyWith(
           rotLng: _projection.rotLng + delta.dx / _kRotationScale,
-          rotLat: (_projection.rotLat + delta.dy / _kRotationScale)
-              .clamp(-math.pi / 2, math.pi / 2),
+          rotLat: (_projection.rotLat + delta.dy / _kRotationScale).clamp(
+            -math.pi / 2,
+            math.pi / 2,
+          ),
         );
       }
     });
@@ -364,7 +375,11 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     VisitedHeritageSite? nearest;
     double nearestDist = kHitRadius;
     for (final site in _visitedSites) {
-      final pt = _projection.project(site.latitude, site.longitude, _canvasSize);
+      final pt = _projection.project(
+        site.latitude,
+        site.longitude,
+        _canvasSize,
+      );
       if (pt == null) continue;
       final dist = (tapPos - pt).distance;
       if (dist < nearestDist) {
@@ -381,7 +396,11 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     WorldHeritageSite? nearest;
     double nearestDist = kHitRadius;
     for (final site in _allUnvisitedSites) {
-      final pt = _projection.project(site.latitude, site.longitude, _canvasSize);
+      final pt = _projection.project(
+        site.latitude,
+        site.longitude,
+        _canvasSize,
+      );
       if (pt == null) continue;
       final dist = (tapPos - pt).distance;
       if (dist < nearestDist) {
@@ -397,18 +416,22 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     final polygons = ref.watch(polygonsProvider);
     final visualStates = ref.watch(countryVisualStatesProvider);
     final tripCounts =
-        ref.watch(countryTripCountsProvider).valueOrNull ?? const <String, int>{};
+        ref.watch(countryTripCountsProvider).valueOrNull ??
+        const <String, int>{};
 
     final heritageEnabled = ref.watch(heritageDotsEnabledProvider);
     final visitedHeritage =
-        ref.watch(visitedHeritageProvider).valueOrNull ?? const <VisitedHeritageSite>[];
+        ref.watch(visitedHeritageProvider).valueOrNull ??
+        const <VisitedHeritageSite>[];
 
     ref.listen<bool>(heritageDotsEnabledProvider, (_, enabled) {
       _rebuildHeritageLists(enabled, visitedHeritage);
     });
 
-    ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider,
-        (_, next) {
+    ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider, (
+      _,
+      next,
+    ) {
       _rebuildHeritageLists(true, next.valueOrNull ?? const []);
     });
 
@@ -427,8 +450,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       }
     });
 
-    ref.listen<(double, double)?>(challengeSiteHighlightProvider,
-        (_, coord) {
+    ref.listen<(double, double)?>(challengeSiteHighlightProvider, (_, coord) {
       if (coord != null) {
         setState(() => _challengeHighlightCoord = coord);
         _challengeHighlightClearTimer?.cancel();
@@ -474,9 +496,10 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
               naturalSiteCoords: frame != null ? const [] : _naturalCoords,
               unvisitedHeritageSiteCoords:
                   frame != null ? const [] : _unvisitedCoords,
-              heritagePulseValue: frame != null
-                  ? 0.0
-                  : (heritageEnabled ? _heritagePulseCtrl.value : 0.0),
+              heritagePulseValue:
+                  frame != null
+                      ? 0.0
+                      : (heritageEnabled ? _heritagePulseCtrl.value : 0.0),
               challengeHighlightCoord:
                   frame != null ? null : _challengeHighlightCoord,
               challengeHighlightPulse: _challengeHighlightCtrl.value,

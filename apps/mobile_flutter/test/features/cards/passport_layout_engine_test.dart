@@ -4,13 +4,13 @@ import 'package:mobile_flutter/features/cards/passport_layout_engine.dart';
 import 'package:shared_models/shared_models.dart';
 
 TripRecord _trip(String code, DateTime start) => TripRecord(
-      id: '${code}_${start.toIso8601String()}',
-      countryCode: code,
-      startedOn: start,
-      endedOn: start.add(const Duration(days: 7)),
-      photoCount: 5,
-      isManual: false,
-    );
+  id: '${code}_${start.toIso8601String()}',
+  countryCode: code,
+  startedOn: start,
+  endedOn: start.add(const Duration(days: 7)),
+  photoCount: 5,
+  isManual: false,
+);
 
 const _size = Size(400, 267);
 const _codes5 = ['FR', 'DE', 'JP', 'US', 'GB'];
@@ -90,10 +90,16 @@ void main() {
       final marginY = _size.height * 0.08;
       for (final stamp in result.stamps) {
         final halfW = 38.0 * stamp.scale * 1.4; // baseRadius * 1.4
-        expect(stamp.center.dx - halfW, greaterThanOrEqualTo(marginX - 1),
-            reason: 'left edge of stamp must not overflow left margin');
-        expect(stamp.center.dx + halfW, lessThanOrEqualTo(_size.width - marginX + 1),
-            reason: 'right edge of stamp must not overflow right margin');
+        expect(
+          stamp.center.dx - halfW,
+          greaterThanOrEqualTo(marginX - 1),
+          reason: 'left edge of stamp must not overflow left margin',
+        );
+        expect(
+          stamp.center.dx + halfW,
+          lessThanOrEqualTo(_size.width - marginX + 1),
+          reason: 'right edge of stamp must not overflow right margin',
+        );
       }
     });
 
@@ -168,10 +174,16 @@ void main() {
       // Exactly half are entries, half are exits.
       final entryStamps = result.stamps.where((s) => s.isEntry).toList();
       final exitStamps = result.stamps.where((s) => !s.isEntry).toList();
-      expect(entryStamps.length, trips.length,
-          reason: 'should have one entry stamp per trip');
-      expect(exitStamps.length, trips.length,
-          reason: 'should have one exit stamp per trip');
+      expect(
+        entryStamps.length,
+        trips.length,
+        reason: 'should have one entry stamp per trip',
+      );
+      expect(
+        exitStamps.length,
+        trips.length,
+        reason: 'should have one exit stamp per trip',
+      );
     });
   });
 
@@ -196,8 +208,11 @@ void main() {
 
     test('forPrint=true: no stamps have edgeClip', () {
       // Generate enough codes to make edge-clipping likely in normal mode.
-      final codes = List.generate(20, (i) =>
-          '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 3) % 26)}');
+      final codes = List.generate(
+        20,
+        (i) =>
+            '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 3) % 26)}',
+      );
       final result = PassportLayoutEngine.layout(
         trips: [],
         countryCodes: codes,
@@ -206,14 +221,20 @@ void main() {
         seed: 99,
       );
       for (final stamp in result.stamps) {
-        expect(stamp.edgeClip, isNull,
-            reason: 'edge clips must be null in print mode');
+        expect(
+          stamp.edgeClip,
+          isNull,
+          reason: 'edge clips must be null in print mode',
+        );
       }
     });
 
     test('forPrint=true N=10: stamps within 3% safe zone', () {
-      final codes = List.generate(10, (i) =>
-          '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 1) % 26)}');
+      final codes = List.generate(
+        10,
+        (i) =>
+            '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 1) % 26)}',
+      );
       final result = PassportLayoutEngine.layout(
         trips: [],
         countryCodes: codes,
@@ -224,20 +245,35 @@ void main() {
       final safeLeft = _size.width * 0.03;
       final safeTop = _size.height * 0.03;
       for (final stamp in result.stamps) {
-        expect(stamp.center.dx, greaterThanOrEqualTo(safeLeft),
-            reason: 'stamp centre must be within safe zone (left)');
-        expect(stamp.center.dy, greaterThanOrEqualTo(safeTop),
-            reason: 'stamp centre must be within safe zone (top)');
-        expect(stamp.center.dx, lessThanOrEqualTo(_size.width - safeLeft),
-            reason: 'stamp centre must be within safe zone (right)');
-        expect(stamp.center.dy, lessThanOrEqualTo(_size.height - safeTop),
-            reason: 'stamp centre must be within safe zone (bottom)');
+        expect(
+          stamp.center.dx,
+          greaterThanOrEqualTo(safeLeft),
+          reason: 'stamp centre must be within safe zone (left)',
+        );
+        expect(
+          stamp.center.dy,
+          greaterThanOrEqualTo(safeTop),
+          reason: 'stamp centre must be within safe zone (top)',
+        );
+        expect(
+          stamp.center.dx,
+          lessThanOrEqualTo(_size.width - safeLeft),
+          reason: 'stamp centre must be within safe zone (right)',
+        );
+        expect(
+          stamp.center.dy,
+          lessThanOrEqualTo(_size.height - safeTop),
+          reason: 'stamp centre must be within safe zone (bottom)',
+        );
       }
     });
 
     test('forPrint=true N=30: wasForced reflects entryOnly pressure', () {
-      final codes = List.generate(30, (i) =>
-          '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 2) % 26)}');
+      final codes = List.generate(
+        30,
+        (i) =>
+            '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 2) % 26)}',
+      );
       // Layout engine caps at _kMaxStamps=20, so effective N=20.
       final result = PassportLayoutEngine.layout(
         trips: [],
@@ -252,8 +288,11 @@ void main() {
     });
 
     test('forPrint=true N=60 (capped to 20): baseRadius ≥ 20', () {
-      final codes = List.generate(60, (i) =>
-          '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 5) % 26)}');
+      final codes = List.generate(
+        60,
+        (i) =>
+            '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 5) % 26)}',
+      );
       final result = PassportLayoutEngine.layout(
         trips: [],
         countryCodes: codes,
@@ -271,8 +310,11 @@ void main() {
     test('forPrint=true: wasForced=true sets entryOnly on all trip stamps', () {
       // Use a canvas small enough to make radius drop below 20 with enough codes.
       const smallCanvas = Size(150, 100);
-      final codes = List.generate(20, (i) =>
-          '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 1) % 26)}');
+      final codes = List.generate(
+        20,
+        (i) =>
+            '${String.fromCharCode(65 + i % 26)}${String.fromCharCode(65 + (i + 1) % 26)}',
+      );
       final result = PassportLayoutEngine.layout(
         trips: [],
         countryCodes: codes,
@@ -281,8 +323,11 @@ void main() {
       );
       if (result.wasForced) {
         for (final stamp in result.stamps) {
-          expect(stamp.isEntry, isTrue,
-              reason: 'all stamps must be entry stamps when wasForced=true');
+          expect(
+            stamp.isEntry,
+            isTrue,
+            reason: 'all stamps must be entry stamps when wasForced=true',
+          );
         }
       }
     });

@@ -139,10 +139,26 @@ void main() {
     });
 
     test('progressFraction is always in [0.0, 1.0] for all levels', () {
-      for (final xp in [0, 99, 100, 249, 250, 499, 500, 999, 1000, 7999, 8000, 10000]) {
+      for (final xp in [
+        0,
+        99,
+        100,
+        249,
+        250,
+        499,
+        500,
+        999,
+        1000,
+        7999,
+        8000,
+        10000,
+      ]) {
         final frac = xpStateFromTotal(xp).progressFraction;
-        expect(frac, inInclusiveRange(0.0, 1.0),
-            reason: 'progressFraction out of range for XP=$xp');
+        expect(
+          frac,
+          inInclusiveRange(0.0, 1.0),
+          reason: 'progressFraction out of range for XP=$xp',
+        );
       }
     });
   });
@@ -172,8 +188,11 @@ void main() {
 
     test('thresholds are strictly ascending', () {
       for (int i = 1; i < kXpThresholds.length; i++) {
-        expect(kXpThresholds[i], greaterThan(kXpThresholds[i - 1]),
-            reason: 'Threshold at index $i is not greater than index ${i - 1}');
+        expect(
+          kXpThresholds[i],
+          greaterThan(kXpThresholds[i - 1]),
+          reason: 'Threshold at index $i is not greater than index ${i - 1}',
+        );
       }
     });
 

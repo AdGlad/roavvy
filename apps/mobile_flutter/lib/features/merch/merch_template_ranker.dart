@@ -25,12 +25,8 @@ enum MerchDensityClass {
 ///
 /// [priority] is lower for higher priority (shown first). [exclude] means the
 /// template should be omitted from the gallery entirely.
-typedef MerchTemplateRank = ({
-  CardTemplateType template,
-  String label,
-  int priority,
-  bool exclude,
-});
+typedef MerchTemplateRank =
+    ({CardTemplateType template, String label, int priority, bool exclude});
 
 /// Ranks [CardTemplateType] values for a given travel context, producing a
 /// curated rather than exhaustive list of merch gallery options (ADR-154).
@@ -61,12 +57,12 @@ class MerchTemplateRanker {
 
   /// Maximum number of non-excluded template groups to show for a density class.
   static int maxForDensity(MerchDensityClass density) => switch (density) {
-        MerchDensityClass.solo => 4,
-        MerchDensityClass.small => 5,
-        MerchDensityClass.medium => 6,
-        MerchDensityClass.large => 5,
-        MerchDensityClass.massive => 4,
-      };
+    MerchDensityClass.solo => 4,
+    MerchDensityClass.small => 5,
+    MerchDensityClass.medium => 6,
+    MerchDensityClass.large => 5,
+    MerchDensityClass.massive => 4,
+  };
 
   // ── Main ranking entry point ───────────────────────────────────────────────
 
@@ -107,60 +103,60 @@ class MerchTemplateRanker {
   static List<MerchTemplateRank> _densityRanks(MerchDensityClass density) =>
       switch (density) {
         MerchDensityClass.solo => [
-            _rank(CardTemplateType.passport, 1),
-            _rank(CardTemplateType.badge, 2),
-            _rank(CardTemplateType.typography, 3),
-            _rank(CardTemplateType.grid, 4),
-            _rank(CardTemplateType.heart, 5),
-            _rank(CardTemplateType.timeline, 6),
-            _excluded(CardTemplateType.wordCloud),
-            _excluded(CardTemplateType.frontRibbon),
-            _excluded(CardTemplateType.landmark),
-          ],
+          _rank(CardTemplateType.passport, 1),
+          _rank(CardTemplateType.badge, 2),
+          _rank(CardTemplateType.typography, 3),
+          _rank(CardTemplateType.grid, 4),
+          _rank(CardTemplateType.heart, 5),
+          _rank(CardTemplateType.timeline, 6),
+          _excluded(CardTemplateType.wordCloud),
+          _excluded(CardTemplateType.frontRibbon),
+          _excluded(CardTemplateType.landmark),
+        ],
         MerchDensityClass.small => [
-            _rank(CardTemplateType.passport, 1),
-            _rank(CardTemplateType.grid, 2),
-            _rank(CardTemplateType.badge, 3),
-            _rank(CardTemplateType.heart, 4),
-            _rank(CardTemplateType.typography, 5),
-            _rank(CardTemplateType.timeline, 6),
-            _excluded(CardTemplateType.wordCloud),
-            _excluded(CardTemplateType.frontRibbon),
-            _excluded(CardTemplateType.landmark),
-          ],
+          _rank(CardTemplateType.passport, 1),
+          _rank(CardTemplateType.grid, 2),
+          _rank(CardTemplateType.badge, 3),
+          _rank(CardTemplateType.heart, 4),
+          _rank(CardTemplateType.typography, 5),
+          _rank(CardTemplateType.timeline, 6),
+          _excluded(CardTemplateType.wordCloud),
+          _excluded(CardTemplateType.frontRibbon),
+          _excluded(CardTemplateType.landmark),
+        ],
         MerchDensityClass.medium => [
-            _rank(CardTemplateType.grid, 1),
-            _rank(CardTemplateType.passport, 2),
-            _rank(CardTemplateType.heart, 3),
-            _rank(CardTemplateType.wordCloud, 4),
-            _rank(CardTemplateType.landmark, 5),
-            _rank(CardTemplateType.timeline, 6),
-            _rank(CardTemplateType.typography, 7),
-            _rank(CardTemplateType.badge, 8),
-            _excluded(CardTemplateType.frontRibbon),
-          ],
+          _rank(CardTemplateType.grid, 1),
+          _rank(CardTemplateType.passport, 2),
+          _rank(CardTemplateType.heart, 3),
+          _rank(CardTemplateType.wordCloud, 4),
+          _rank(CardTemplateType.landmark, 5),
+          _rank(CardTemplateType.timeline, 6),
+          _rank(CardTemplateType.typography, 7),
+          _rank(CardTemplateType.badge, 8),
+          _excluded(CardTemplateType.frontRibbon),
+        ],
         MerchDensityClass.large => [
-            _rank(CardTemplateType.grid, 1),
-            _rank(CardTemplateType.heart, 2),
-            _rank(CardTemplateType.wordCloud, 3),
-            _rank(CardTemplateType.landmark, 4),
-            _rank(CardTemplateType.timeline, 5),
-            _rank(CardTemplateType.typography, 6),
-            _rank(CardTemplateType.passport, 7),
-            _excluded(CardTemplateType.badge),
-            _excluded(CardTemplateType.frontRibbon),
-          ],
+          _rank(CardTemplateType.grid, 1),
+          _rank(CardTemplateType.heart, 2),
+          _rank(CardTemplateType.wordCloud, 3),
+          _rank(CardTemplateType.landmark, 4),
+          _rank(CardTemplateType.timeline, 5),
+          _rank(CardTemplateType.typography, 6),
+          _rank(CardTemplateType.passport, 7),
+          _excluded(CardTemplateType.badge),
+          _excluded(CardTemplateType.frontRibbon),
+        ],
         MerchDensityClass.massive => [
-            _rank(CardTemplateType.wordCloud, 1),
-            _rank(CardTemplateType.grid, 2),
-            _rank(CardTemplateType.heart, 3),
-            _rank(CardTemplateType.landmark, 4),
-            _rank(CardTemplateType.typography, 5),
-            _rank(CardTemplateType.timeline, 6),
-            _excluded(CardTemplateType.badge),
-            _excluded(CardTemplateType.passport),
-            _excluded(CardTemplateType.frontRibbon),
-          ],
+          _rank(CardTemplateType.wordCloud, 1),
+          _rank(CardTemplateType.grid, 2),
+          _rank(CardTemplateType.heart, 3),
+          _rank(CardTemplateType.landmark, 4),
+          _rank(CardTemplateType.typography, 5),
+          _rank(CardTemplateType.timeline, 6),
+          _excluded(CardTemplateType.badge),
+          _excluded(CardTemplateType.passport),
+          _excluded(CardTemplateType.frontRibbon),
+        ],
       };
 
   // ── Achievement-type-specific rankings ─────────────────────────────────────
@@ -200,7 +196,8 @@ class MerchTemplateRanker {
   }
 
   static List<MerchTemplateRank> _passportMilestoneRanks(
-      MerchDensityClass density) {
+    MerchDensityClass density,
+  ) {
     return [
       _rank(CardTemplateType.passport, 1),
       _rank(CardTemplateType.timeline, 2),
@@ -231,28 +228,28 @@ class MerchTemplateRanker {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   static MerchTemplateRank _rank(CardTemplateType template, int priority) => (
-        template: template,
-        label: _labelFor(template),
-        priority: priority,
-        exclude: false,
-      );
+    template: template,
+    label: _labelFor(template),
+    priority: priority,
+    exclude: false,
+  );
 
   static MerchTemplateRank _excluded(CardTemplateType template) => (
-        template: template,
-        label: _labelFor(template),
-        priority: 99,
-        exclude: true,
-      );
+    template: template,
+    label: _labelFor(template),
+    priority: 99,
+    exclude: true,
+  );
 
   static String _labelFor(CardTemplateType template) => switch (template) {
-        CardTemplateType.passport => 'Passport',
-        CardTemplateType.grid => 'Flags',
-        CardTemplateType.timeline => 'Tour Dates',
-        CardTemplateType.heart => 'Heart Flags',
-        CardTemplateType.frontRibbon => 'Ribbon',
-        CardTemplateType.typography => 'Typography',
-        CardTemplateType.badge => 'Explorer Badge',
-        CardTemplateType.wordCloud => 'Word Cloud',
-        CardTemplateType.landmark => 'Landmark',
-      };
+    CardTemplateType.passport => 'Passport',
+    CardTemplateType.grid => 'Flags',
+    CardTemplateType.timeline => 'Tour Dates',
+    CardTemplateType.heart => 'Heart Flags',
+    CardTemplateType.frontRibbon => 'Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
+  };
 }

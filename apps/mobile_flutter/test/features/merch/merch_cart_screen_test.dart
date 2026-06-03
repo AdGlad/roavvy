@@ -19,22 +19,21 @@ MerchCartItem _item({
   String productType = 'tshirt',
   String? title,
   List<String> selectedCountryCodes = const ['GB', 'FR'],
-}) =>
-    MerchCartItem(
-      id: id,
-      status: status,
-      productType: productType,
-      variantId: 'gid://shopify/ProductVariant/1',
-      templateType: 'grid',
-      colour: 'Black',
-      size: 'M',
-      frontPosition: 'center',
-      backPosition: 'none',
-      selectedCountryCodes: selectedCountryCodes,
-      createdAt: _now,
-      updatedAt: _now,
-      title: title,
-    );
+}) => MerchCartItem(
+  id: id,
+  status: status,
+  productType: productType,
+  variantId: 'gid://shopify/ProductVariant/1',
+  templateType: 'grid',
+  colour: 'Black',
+  size: 'M',
+  frontPosition: 'center',
+  backPosition: 'none',
+  selectedCountryCodes: selectedCountryCodes,
+  createdAt: _now,
+  updatedAt: _now,
+  title: title,
+);
 
 // ── Pump helpers ───────────────────────────────────────────────────────────────
 
@@ -83,7 +82,9 @@ void main() {
   });
 
   group('MerchCartScreen — loading state', () {
-    testWidgets('shows CircularProgressIndicator while loading', (tester) async {
+    testWidgets('shows CircularProgressIndicator while loading', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pump(uid: 'user-001', loading: true));
       await tester.pump();
 
@@ -109,37 +110,41 @@ void main() {
 
   group('MerchCartScreen — non-empty cart', () {
     testWidgets('renders a ListTile for each cart item', (tester) async {
-      await tester.pumpWidget(_pump(
-        uid: 'user-001',
-        items: [_item(id: 'a'), _item(id: 'b')],
-      ));
+      await tester.pumpWidget(
+        _pump(uid: 'user-001', items: [_item(id: 'a'), _item(id: 'b')]),
+      );
       await tester.pump();
 
       expect(find.byType(ListTile), findsNWidgets(2));
     });
 
     testWidgets('shows custom title when item.title is set', (tester) async {
-      await tester.pumpWidget(_pump(
-        uid: 'user-001',
-        items: [_item(title: 'My Europe Tour')],
-      ));
+      await tester.pumpWidget(
+        _pump(uid: 'user-001', items: [_item(title: 'My Europe Tour')]),
+      );
       await tester.pump();
 
       expect(find.text('My Europe Tour'), findsOneWidget);
     });
 
-    testWidgets('shows default title derived from product/country count when title is null',
-        (tester) async {
-      await tester.pumpWidget(_pump(
-        uid: 'user-001',
-        items: [_item(title: null, selectedCountryCodes: const ['GB', 'FR'])],
-      ));
-      await tester.pump();
+    testWidgets(
+      'shows default title derived from product/country count when title is null',
+      (tester) async {
+        await tester.pumpWidget(
+          _pump(
+            uid: 'user-001',
+            items: [
+              _item(title: null, selectedCountryCodes: const ['GB', 'FR']),
+            ],
+          ),
+        );
+        await tester.pump();
 
-      // Default title: "T-shirt · 2 countries"
-      expect(find.textContaining('T-shirt'), findsOneWidget);
-      expect(find.textContaining('countries'), findsOneWidget);
-    });
+        // Default title: "T-shirt · 2 countries"
+        expect(find.textContaining('T-shirt'), findsOneWidget);
+        expect(find.textContaining('countries'), findsOneWidget);
+      },
+    );
 
     testWidgets('shows delete button for each item', (tester) async {
       await tester.pumpWidget(_pump(uid: 'user-001', items: [_item()]));
@@ -151,10 +156,9 @@ void main() {
 
   group('MerchCartScreen — error state', () {
     testWidgets('shows error message on async error', (tester) async {
-      await tester.pumpWidget(_pump(
-        uid: 'user-001',
-        error: 'connection failed',
-      ));
+      await tester.pumpWidget(
+        _pump(uid: 'user-001', error: 'connection failed'),
+      );
       await tester.pump();
 
       expect(find.textContaining('Could not load cart'), findsOneWidget);

@@ -42,7 +42,9 @@ class CountryDiscoveryOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Scale-in with elastic bounce: grows from 0 → 1.08 → 1.0
-    final elasticT = Curves.elasticOut.transform(revealProgress.clamp(0.0, 1.0));
+    final elasticT = Curves.elasticOut.transform(
+      revealProgress.clamp(0.0, 1.0),
+    );
     final scale = elasticT * 1.0;
 
     // Opacity: quick fade-in (first 20%) then stay visible
@@ -50,7 +52,9 @@ class CountryDiscoveryOverlay extends StatelessWidget {
 
     // Hold opacity: fade out last 15% of reveal phase
     final holdOpacity =
-        revealProgress > 0.85 ? ((1.0 - revealProgress) / 0.15).clamp(0.0, 1.0) : 1.0;
+        revealProgress > 0.85
+            ? ((1.0 - revealProgress) / 0.15).clamp(0.0, 1.0)
+            : 1.0;
     final finalOpacity = opacity * holdOpacity;
 
     return IgnorePointer(
@@ -58,7 +62,8 @@ class CountryDiscoveryOverlay extends StatelessWidget {
         children: [
           // Dimmed globe backdrop (subtle)
           Opacity(
-            opacity: (revealProgress * 2.0).clamp(0.0, 0.3) *
+            opacity:
+                (revealProgress * 2.0).clamp(0.0, 0.3) *
                 (revealProgress > 0.85
                     ? ((1.0 - revealProgress) / 0.15).clamp(0.0, 1.0)
                     : 1.0),
@@ -79,9 +84,10 @@ class CountryDiscoveryOverlay extends StatelessWidget {
                 minBlastForce: 10,
                 minimumSize: const Size(6, 6),
                 maximumSize: const Size(12, 12),
-                colors: confettiColors.isNotEmpty
-                    ? confettiColors
-                    : const [Colors.amber, Colors.white],
+                colors:
+                    confettiColors.isNotEmpty
+                        ? confettiColors
+                        : const [Colors.amber, Colors.white],
                 createParticlePath: _drawStar,
               ),
             ),
@@ -102,7 +108,9 @@ class CountryDiscoveryOverlay extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.15 * finalOpacity),
+                          color: Colors.white.withValues(
+                            alpha: 0.15 * finalOpacity,
+                          ),
                           blurRadius: 40,
                           spreadRadius: 20,
                         ),

@@ -46,8 +46,10 @@ GridLayout gridLayout(Size canvasSize, int n) {
     return GridLayout.empty;
   }
 
-  final cols =
-      math.max(1, (math.sqrt(n * canvasSize.width / canvasSize.height)).ceil());
+  final cols = math.max(
+    1,
+    (math.sqrt(n * canvasSize.width / canvasSize.height)).ceil(),
+  );
   final tileSize = (canvasSize.width / cols).clamp(28.0, 90.0);
   final rows = (n / cols).ceil();
   final overflow = math.max(0, n - 40);

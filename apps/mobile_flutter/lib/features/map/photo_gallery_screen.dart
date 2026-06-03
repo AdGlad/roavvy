@@ -52,16 +52,21 @@ class PhotoGalleryScreen extends StatelessWidget {
         mainAxisSpacing: 2,
       ),
       itemCount: assetIds.length,
-      itemBuilder: (context, i) => _ThumbnailCell(
-        assetId: assetIds[i],
-        fetcher: fetcher,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                _FullScreenPhoto(assetId: assetIds[i], fetcher: fetcher),
+      itemBuilder:
+          (context, i) => _ThumbnailCell(
+            assetId: assetIds[i],
+            fetcher: fetcher,
+            onTap:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder:
+                        (_) => _FullScreenPhoto(
+                          assetId: assetIds[i],
+                          fetcher: fetcher,
+                        ),
+                  ),
+                ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -150,9 +155,7 @@ class _FullScreenPhotoState extends State<_FullScreenPhoto> {
               child: Icon(Icons.broken_image_outlined, size: 64),
             );
           }
-          return InteractiveViewer(
-            child: Center(child: Image.memory(data)),
-          );
+          return InteractiveViewer(child: Center(child: Image.memory(data)));
         },
       ),
     );

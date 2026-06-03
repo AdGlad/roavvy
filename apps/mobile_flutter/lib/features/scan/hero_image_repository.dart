@@ -30,37 +30,41 @@ class HeroImageRepository {
     if (heroes.isEmpty) return;
 
     // Load existing user-selected IDs for this trip.
-    final existing = await (_db.select(_db.heroImages)
-          ..where((t) =>
-              t.tripId.equals(tripId) & t.isUserSelected.equals(1)))
-        .get();
+    final existing =
+        await (_db.select(_db.heroImages)..where(
+          (t) => t.tripId.equals(tripId) & t.isUserSelected.equals(1),
+        )).get();
     final userSelectedIds = existing.map((r) => r.id).toSet();
 
     await _db.transaction(() async {
       for (final hero in heroes) {
         if (userSelectedIds.contains(hero.id)) continue; // never overwrite
 
-        await _db.into(_db.heroImages).insertOnConflictUpdate(
-          _toCompanion(hero),
-        );
+        await _db
+            .into(_db.heroImages)
+            .insertOnConflictUpdate(_toCompanion(hero));
       }
     });
   }
 
   /// Returns the rank-1 hero image for [tripId], or null if none exists.
   Future<HeroImage?> getHeroForTrip(String tripId) async {
-    final row = await (_db.select(_db.heroImages)
-          ..where((t) => t.tripId.equals(tripId) & t.rank.equals(1)))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.heroImages)..where(
+          (t) => t.tripId.equals(tripId) & t.rank.equals(1),
+        )).getSingleOrNull();
     return row == null ? null : _fromRow(row);
   }
 
   /// Returns all hero candidates (rank 1–3) for [tripId], ordered by rank.
   Future<List<HeroImage>> getCandidatesForTrip(String tripId) async {
-    final rows = await (_db.select(_db.heroImages)
-          ..where((t) => t.tripId.equals(tripId) & t.rank.isBiggerOrEqualValue(1))
-          ..orderBy([(t) => OrderingTerm.asc(t.rank)]))
-        .get();
+    final rows =
+        await (_db.select(_db.heroImages)
+              ..where(
+                (t) => t.tripId.equals(tripId) & t.rank.isBiggerOrEqualValue(1),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.rank)]))
+            .get();
     return rows.map(_fromRow).toList();
   }
 
@@ -69,18 +73,18 @@ class HeroImageRepository {
   /// Used by [MemoryPulseService] to find the next future anniversary for
   /// notification scheduling (M91, ADR-136).
   Future<List<HeroImage>> getHeroesForRank1() async {
-    final rows = await (_db.select(_db.heroImages)
-          ..where((t) => t.rank.equals(1)))
-        .get();
+    final rows =
+        await (_db.select(_db.heroImages)
+          ..where((t) => t.rank.equals(1))).get();
     return rows.map(_fromRow).toList();
   }
 
   /// Returns all rank-1 heroes for the given [countryCode].
   Future<List<HeroImage>> getHeroesForCountry(String countryCode) async {
-    final rows = await (_db.select(_db.heroImages)
-          ..where((t) =>
-              t.countryCode.equals(countryCode) & t.rank.equals(1)))
-        .get();
+    final rows =
+        await (_db.select(_db.heroImages)..where(
+          (t) => t.countryCode.equals(countryCode) & t.rank.equals(1),
+        )).get();
     return rows.map(_fromRow).toList();
   }
 
@@ -101,8 +105,7 @@ class HeroImageRepository {
   /// Deletes all hero rows for [tripId] (used when a trip is deleted).
   Future<void> deleteHeroesForTrip(String tripId) async {
     await (_db.delete(_db.heroImages)
-          ..where((t) => t.tripId.equals(tripId)))
-        .go();
+      ..where((t) => t.tripId.equals(tripId))).go();
   }
 
   // ── Streams ───────────────────────────────────────────────────────────────
@@ -110,10 +113,9 @@ class HeroImageRepository {
   /// Watches the rank-1 hero image for [tripId], emitting whenever the row
   /// changes (e.g. after background analysis completes).
   Stream<HeroImage?> watchHeroForTrip(String tripId) {
-    return (_db.select(_db.heroImages)
-          ..where((t) => t.tripId.equals(tripId) & t.rank.equals(1)))
-        .watchSingleOrNull()
-        .map((row) => row == null ? null : _fromRow(row));
+    return (_db.select(_db.heroImages)..where(
+      (t) => t.tripId.equals(tripId) & t.rank.equals(1),
+    )).watchSingleOrNull().map((row) => row == null ? null : _fromRow(row));
   }
 
   // ── M91 Memory Pulse queries ──────────────────────────────────────────────
@@ -132,19 +134,20 @@ class HeroImageRepository {
     final oneYearAgoMs =
         utc.subtract(const Duration(days: 365)).millisecondsSinceEpoch;
 
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM hero_images '
-          "WHERE strftime('%m-%d', captured_at / 1000, 'unixepoch') = ? "
-          'AND captured_at < ? '
-          'AND rank = 1',
-          variables: [
-            Variable.withString(mmdd),
-            Variable.withInt(oneYearAgoMs),
-          ],
-          readsFrom: {_db.heroImages},
-        )
-        .get();
+    final rows =
+        await _db
+            .customSelect(
+              'SELECT * FROM hero_images '
+              "WHERE strftime('%m-%d', captured_at / 1000, 'unixepoch') = ? "
+              'AND captured_at < ? '
+              'AND rank = 1',
+              variables: [
+                Variable.withString(mmdd),
+                Variable.withInt(oneYearAgoMs),
+              ],
+              readsFrom: {_db.heroImages},
+            )
+            .get();
 
     return rows.map(_fromQueryRow).toList();
   }
@@ -200,9 +203,11 @@ class HeroImageRepository {
   /// Emits null when no hero exists for the country.
   Stream<HeroImage?> watchBestHeroForCountry(String countryCode) {
     return (_db.select(_db.heroImages)
-          ..where((t) =>
-              t.countryCode.equals(countryCode) &
-              t.rank.isBiggerOrEqualValue(1))
+          ..where(
+            (t) =>
+                t.countryCode.equals(countryCode) &
+                t.rank.isBiggerOrEqualValue(1),
+          )
           ..orderBy([(t) => OrderingTerm.desc(t.heroScore)])
           ..limit(1))
         .watchSingleOrNull()
@@ -215,12 +220,14 @@ class HeroImageRepository {
   /// have been analysed for the given trips yet.
   Future<HeroImage?> getBestHeroFromTrips(List<String> tripIds) async {
     if (tripIds.isEmpty) return null;
-    final rows = await (_db.select(_db.heroImages)
-          ..where((t) =>
-              t.tripId.isIn(tripIds) & t.rank.isBiggerOrEqualValue(1))
-          ..orderBy([(t) => OrderingTerm.desc(t.heroScore)])
-          ..limit(1))
-        .get();
+    final rows =
+        await (_db.select(_db.heroImages)
+              ..where(
+                (t) => t.tripId.isIn(tripIds) & t.rank.isBiggerOrEqualValue(1),
+              )
+              ..orderBy([(t) => OrderingTerm.desc(t.heroScore)])
+              ..limit(1))
+            .get();
     return rows.isEmpty ? null : _fromRow(rows.first);
   }
 
@@ -231,17 +238,15 @@ class HeroImageRepository {
   /// The isUserSelected guard (ADR-134) then protects it from re-scan.
   Future<void> setUserSelected(String assetId, String tripId) async {
     await _db.transaction(() async {
-      await (_db.update(_db.heroImages)
-            ..where((t) => t.tripId.equals(tripId)))
-          .write(const HeroImagesCompanion(isUserSelected: Value(0)));
+      await (_db.update(_db.heroImages)..where(
+        (t) => t.tripId.equals(tripId),
+      )).write(const HeroImagesCompanion(isUserSelected: Value(0)));
 
-      await (_db.update(_db.heroImages)
-            ..where((t) =>
-                t.assetId.equals(assetId) & t.tripId.equals(tripId)))
-          .write(const HeroImagesCompanion(
-            isUserSelected: Value(1),
-            rank: Value(1),
-          ));
+      await (_db.update(_db.heroImages)..where(
+        (t) => t.assetId.equals(assetId) & t.tripId.equals(tripId),
+      )).write(
+        const HeroImagesCompanion(isUserSelected: Value(1), rank: Value(1)),
+      );
     });
   }
 
@@ -263,29 +268,31 @@ class HeroImageRepository {
     final now = DateTime.now().toUtc();
     await _db.transaction(() async {
       // Clear selection on existing rows.
-      await (_db.update(_db.heroImages)
-            ..where((t) => t.tripId.equals(tripId)))
-          .write(const HeroImagesCompanion(isUserSelected: Value(0)));
+      await (_db.update(_db.heroImages)..where(
+        (t) => t.tripId.equals(tripId),
+      )).write(const HeroImagesCompanion(isUserSelected: Value(0)));
 
       // Upsert the selected photo as the rank-1 hero.
       // If a row already exists for this assetId+tripId it is updated;
       // if not, a minimal row is inserted (scores default to 0).
-      await _db.into(_db.heroImages).insertOnConflictUpdate(
-        HeroImagesCompanion(
-          id: Value('hero_$tripId'),
-          assetId: Value(assetId),
-          tripId: Value(tripId),
-          countryCode: Value(countryCode),
-          capturedAt: Value(capturedAt.millisecondsSinceEpoch),
-          heroScore: const Value(0.0),
-          rank: const Value(1),
-          isUserSelected: const Value(1),
-          labelConfidence: const Value(0.0),
-          qualityScore: const Value(0.0),
-          createdAt: Value(now.millisecondsSinceEpoch),
-          updatedAt: Value(now.millisecondsSinceEpoch),
-        ),
-      );
+      await _db
+          .into(_db.heroImages)
+          .insertOnConflictUpdate(
+            HeroImagesCompanion(
+              id: Value('hero_$tripId'),
+              assetId: Value(assetId),
+              tripId: Value(tripId),
+              countryCode: Value(countryCode),
+              capturedAt: Value(capturedAt.millisecondsSinceEpoch),
+              heroScore: const Value(0.0),
+              rank: const Value(1),
+              isUserSelected: const Value(1),
+              labelConfidence: const Value(0.0),
+              qualityScore: const Value(0.0),
+              createdAt: Value(now.millisecondsSinceEpoch),
+              updatedAt: Value(now.millisecondsSinceEpoch),
+            ),
+          );
     });
   }
 
@@ -294,9 +301,9 @@ class HeroImageRepository {
   /// The next scan/analysis pass will overwrite these rows with auto-ranked
   /// results (the isUserSelected guard no longer blocks them).
   Future<void> clearUserSelected(String tripId) async {
-    await (_db.update(_db.heroImages)
-          ..where((t) => t.tripId.equals(tripId)))
-        .write(const HeroImagesCompanion(isUserSelected: Value(0)));
+    await (_db.update(_db.heroImages)..where(
+      (t) => t.tripId.equals(tripId),
+    )).write(const HeroImagesCompanion(isUserSelected: Value(0)));
   }
 
   // ── Queries for cache validation ──────────────────────────────────────────
@@ -304,17 +311,17 @@ class HeroImageRepository {
   /// Returns all assetIds where rank >= 0 (non-tombstoned) for batch
   /// existence checking by [HeroCacheValidator].
   Future<List<String>> getAllActiveAssetIds() async {
-    final rows = await (_db.select(_db.heroImages)
-          ..where((t) => t.rank.isBiggerOrEqualValue(0)))
-        .get();
+    final rows =
+        await (_db.select(_db.heroImages)
+          ..where((t) => t.rank.isBiggerOrEqualValue(0))).get();
     return rows.map((r) => r.assetId).toList();
   }
 
   /// Returns all hero rows for a given [assetId] (used by cache validator).
   Future<List<HeroImage>> getCandidatesForAssetId(String assetId) async {
-    final rows = await (_db.select(_db.heroImages)
-          ..where((t) => t.assetId.equals(assetId)))
-        .get();
+    final rows =
+        await (_db.select(_db.heroImages)
+          ..where((t) => t.assetId.equals(assetId))).get();
     return rows.map(_fromRow).toList();
   }
 
@@ -330,15 +337,9 @@ class HeroImageRepository {
       capturedAt: Value(hero.capturedAt.millisecondsSinceEpoch),
       primaryScene: Value(hero.primaryScene),
       secondaryScene: Value(hero.secondaryScene),
-      activity: Value(
-        hero.activity.isEmpty ? null : jsonEncode(hero.activity),
-      ),
-      mood: Value(
-        hero.mood.isEmpty ? null : jsonEncode(hero.mood),
-      ),
-      subjects: Value(
-        hero.subjects.isEmpty ? null : jsonEncode(hero.subjects),
-      ),
+      activity: Value(hero.activity.isEmpty ? null : jsonEncode(hero.activity)),
+      mood: Value(hero.mood.isEmpty ? null : jsonEncode(hero.mood)),
+      subjects: Value(hero.subjects.isEmpty ? null : jsonEncode(hero.subjects)),
       landmark: Value(hero.landmark),
       labelConfidence: Value(hero.labelConfidence),
       qualityScore: Value(hero.qualityScore),

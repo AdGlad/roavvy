@@ -22,14 +22,13 @@ InferredCountryVisit _inferred(
   int photoCount = 5,
   DateTime? firstSeen,
   DateTime? lastSeen,
-}) =>
-    InferredCountryVisit(
-      countryCode: code,
-      inferredAt: _t0,
-      photoCount: photoCount,
-      firstSeen: firstSeen ?? _t0,
-      lastSeen: lastSeen ?? _t1,
-    );
+}) => InferredCountryVisit(
+  countryCode: code,
+  inferredAt: _t0,
+  photoCount: photoCount,
+  firstSeen: firstSeen ?? _t0,
+  lastSeen: lastSeen ?? _t1,
+);
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
@@ -49,7 +48,9 @@ void main() {
 
   test('trip startedOn = firstSeen, endedOn = lastSeen', () async {
     final (visitRepo, tripRepo) = _makeRepos();
-    await visitRepo.saveAllInferred([_inferred('DE', firstSeen: _t0, lastSeen: _t1)]);
+    await visitRepo.saveAllInferred([
+      _inferred('DE', firstSeen: _t0, lastSeen: _t1),
+    ]);
 
     await bootstrapExistingUser(visitRepo, tripRepo);
 

@@ -23,10 +23,10 @@ class RegionBreakdownSheet extends ConsumerWidget {
 
   /// Convenience helper — opens this sheet as a modal bottom sheet.
   static Future<void> show(BuildContext context) => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => const RegionBreakdownSheet(),
-      );
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => const RegionBreakdownSheet(),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,7 +47,9 @@ class RegionBreakdownSheet extends ConsumerWidget {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -56,13 +58,12 @@ class RegionBreakdownSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 'Regions visited',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            Expanded(
-              child: _RegionList(scrollController: scrollController),
-            ),
+            Expanded(child: _RegionList(scrollController: scrollController)),
           ],
         );
       },
@@ -110,67 +111,73 @@ class _RegionList extends ConsumerWidget {
         }
 
         // Sort countries by display name.
-        final sortedCountries = byCountry.keys.toList()
-          ..sort((a, b) {
-            final na = kCountryNames[a] ?? a;
-            final nb = kCountryNames[b] ?? b;
-            return na.compareTo(nb);
-          });
+        final sortedCountries =
+            byCountry.keys.toList()..sort((a, b) {
+              final na = kCountryNames[a] ?? a;
+              final nb = kCountryNames[b] ?? b;
+              return na.compareTo(nb);
+            });
 
         return ListView.builder(
           controller: scrollController,
           itemCount: sortedCountries.length,
           itemBuilder: (context, i) {
             final code = sortedCountries[i];
-            final regionCodes = byCountry[code]!.toList()
-              ..sort((a, b) {
-                final na = kRegionNames[a] ?? a;
-                final nb = kRegionNames[b] ?? b;
-                return na.compareTo(nb);
-              });
+            final regionCodes =
+                byCountry[code]!.toList()..sort((a, b) {
+                  final na = kRegionNames[a] ?? a;
+                  final nb = kRegionNames[b] ?? b;
+                  return na.compareTo(nb);
+                });
             final countryName = kCountryNames[code] ?? code;
             final flag = _flag(code);
-            final regionWord =
-                regionCodes.length == 1 ? 'region' : 'regions';
+            final regionWord = regionCodes.length == 1 ? 'region' : 'regions';
 
             return ExpansionTile(
               leading: Text(flag, style: const TextStyle(fontSize: 24)),
-              title: Text(countryName,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              title: Text(
+                countryName,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               subtitle: Text(
                 '${regionCodes.length} $regionWord',
                 style: theme.textTheme.bodySmall?.copyWith(color: secondary),
               ),
               trailing: IconButton(
-                icon: Icon(Icons.map_outlined,
-                    size: 20, color: secondary),
+                icon: Icon(Icons.map_outlined, size: 20, color: secondary),
                 tooltip: 'View on map',
                 onPressed: () {
                   final nav = Navigator.of(context);
                   nav.pop();
                   nav.push(
                     MaterialPageRoute<void>(
-                      builder: (_) =>
-                          CountryRegionGlobeScreen(countryCode: code),
+                      builder:
+                          (_) => CountryRegionGlobeScreen(countryCode: code),
                     ),
                   );
                 },
               ),
-              children: regionCodes
-                  .map(
-                    (rc) => ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 32),
-                      dense: true,
-                      title: Text(
-                        kRegionNames[rc] ?? rc,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      leading: const Icon(Icons.location_on_outlined, size: 16),
-                    ),
-                  )
-                  .toList(),
+              children:
+                  regionCodes
+                      .map(
+                        (rc) => ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                          ),
+                          dense: true,
+                          title: Text(
+                            kRegionNames[rc] ?? rc,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          leading: const Icon(
+                            Icons.location_on_outlined,
+                            size: 16,
+                          ),
+                        ),
+                      )
+                      .toList(),
             );
           },
         );

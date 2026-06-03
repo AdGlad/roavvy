@@ -72,8 +72,9 @@ void main() {
       expect(find.text('Not now'), findsOneWidget);
     });
 
-    testWidgets('Skip on screen 1 calls onComplete with goToScan=false',
-        (tester) async {
+    testWidgets('Skip on screen 1 calls onComplete with goToScan=false', (
+      tester,
+    ) async {
       final db = await pumpOnboarding(tester);
       // Re-pump with a capturing closure
       bool? captured;
@@ -95,33 +96,35 @@ void main() {
     });
 
     testWidgets(
-        'Scan my photos on screen 3 calls onComplete with goToScan=true',
-        (tester) async {
-      final db = _makeDb();
-      bool? captured;
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
-          child: MaterialApp(
-            home: OnboardingFlow(
-              onComplete: ({bool goToScan = false}) async {
-                captured = goToScan;
-              },
+      'Scan my photos on screen 3 calls onComplete with goToScan=true',
+      (tester) async {
+        final db = _makeDb();
+        bool? captured;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+            child: MaterialApp(
+              home: OnboardingFlow(
+                onComplete: ({bool goToScan = false}) async {
+                  captured = goToScan;
+                },
+              ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.text('Get started'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Got it'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Scan my photos'));
-      await tester.pumpAndSettle();
-      expect(captured, isTrue);
-    });
+        );
+        await tester.tap(find.text('Get started'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Got it'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Scan my photos'));
+        await tester.pumpAndSettle();
+        expect(captured, isTrue);
+      },
+    );
 
-    testWidgets('Not now on screen 3 calls onComplete with goToScan=false',
-        (tester) async {
+    testWidgets('Not now on screen 3 calls onComplete with goToScan=false', (
+      tester,
+    ) async {
       final db = _makeDb();
       bool? captured;
       await tester.pumpWidget(
@@ -167,7 +170,9 @@ void main() {
   });
 
   group('OnboardingFlow — onboardingCompleteProvider', () {
-    testWidgets('returns false when DB not marked and no visits', (tester) async {
+    testWidgets('returns false when DB not marked and no visits', (
+      tester,
+    ) async {
       final db = _makeDb();
       late bool result;
       await tester.pumpWidget(

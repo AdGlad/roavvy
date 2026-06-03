@@ -1,6 +1,6 @@
 /// Mapping of ISO 3166-1 alpha-2 country codes to landmark icon names.
 ///
-/// Icons are sourced from Tabler (MIT License) and stored in 
+/// Icons are sourced from Tabler (MIT License) and stored in
 /// assets/landmarks/ as SVGs.
 const Map<String, String> kCountryLandmarks = {
   'FR': 'eiffel_tower',

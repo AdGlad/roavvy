@@ -77,7 +77,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       case 'invalid-credential':
         return 'Incorrect email or password.';
       default:
-        return _isSignUp ? 'Sign up failed. Try again.' : 'Sign in failed. Try again.';
+        return _isSignUp
+            ? 'Sign up failed. Try again.'
+            : 'Sign in failed. Try again.';
     }
   }
 
@@ -123,7 +125,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = null;
     });
     try {
-      await facebook.signInWithFacebook(repo: ref.read(visitRepositoryProvider));
+      await facebook.signInWithFacebook(
+        repo: ref.read(visitRepositoryProvider),
+      );
     } on FirebaseAuthException catch (_) {
       if (mounted) setState(() => _error = 'Sign in failed. Try again.');
     } catch (_) {
@@ -142,7 +146,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       await FirebaseAuth.instance.signInAnonymously();
       if (mounted) context.go('/app');
     } on FirebaseAuthException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'Sign in failed. Try again.');
+      if (mounted)
+        setState(() => _error = e.message ?? 'Sign in failed. Try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -203,10 +208,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () => setState(() {
-                    _isSignUp = !_isSignUp;
-                    _error = null;
-                  }),
+                  onPressed:
+                      () => setState(() {
+                        _isSignUp = !_isSignUp;
+                        _error = null;
+                      }),
                   child: Text(
                     _isSignUp
                         ? 'Already have an account? Sign in'

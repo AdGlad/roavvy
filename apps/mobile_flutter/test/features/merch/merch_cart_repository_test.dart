@@ -60,7 +60,10 @@ void main() {
       final fs = FakeFirebaseFirestore();
       final repo = MerchCartRepository(fs);
 
-      await repo.create(_uid, _item(productType: 'poster', colour: 'White', size: 'A3'));
+      await repo.create(
+        _uid,
+        _item(productType: 'poster', colour: 'White', size: 'A3'),
+      );
 
       final items = await repo.loadActive(_uid);
       expect(items.first.productType, 'poster');
@@ -79,15 +82,18 @@ void main() {
       expect(active.map((i) => i.id), containsAll(['item-a', 'item-b']));
     });
 
-    test('creating item for different uid does not appear in first uid', () async {
-      final fs = FakeFirebaseFirestore();
-      final repo = MerchCartRepository(fs);
+    test(
+      'creating item for different uid does not appear in first uid',
+      () async {
+        final fs = FakeFirebaseFirestore();
+        final repo = MerchCartRepository(fs);
 
-      await repo.create('user-other', _item(id: 'other-item'));
+        await repo.create('user-other', _item(id: 'other-item'));
 
-      final active = await repo.loadActive(_uid);
-      expect(active, isEmpty);
-    });
+        final active = await repo.loadActive(_uid);
+        expect(active, isEmpty);
+      },
+    );
   });
 
   // ── loadActive — purchased exclusion ──────────────────────────────────────
@@ -97,10 +103,14 @@ void main() {
       final fs = FakeFirebaseFirestore();
       final repo = MerchCartRepository(fs);
 
-      await repo.create(_uid, _item(id: 'purchased-item',
-          status: MerchCartItemStatus.purchased));
-      await repo.create(_uid, _item(id: 'active-item',
-          status: MerchCartItemStatus.mockupReady));
+      await repo.create(
+        _uid,
+        _item(id: 'purchased-item', status: MerchCartItemStatus.purchased),
+      );
+      await repo.create(
+        _uid,
+        _item(id: 'active-item', status: MerchCartItemStatus.mockupReady),
+      );
 
       final active = await repo.loadActive(_uid);
       expect(active.map((i) => i.id), isNot(contains('purchased-item')));
@@ -120,13 +130,15 @@ void main() {
 
       for (final status in MerchCartItemStatus.values) {
         if (status == MerchCartItemStatus.purchased) continue;
-        await repo.create(_uid, _item(id: 'item-${status.name}', status: status));
+        await repo.create(
+          _uid,
+          _item(id: 'item-${status.name}', status: status),
+        );
       }
 
       final active = await repo.loadActive(_uid);
       // All non-purchased statuses should appear.
-      expect(active.length,
-          equals(MerchCartItemStatus.values.length - 1));
+      expect(active.length, equals(MerchCartItemStatus.values.length - 1));
     });
   });
 
@@ -151,10 +163,7 @@ void main() {
       final fs = FakeFirebaseFirestore();
       final repo = MerchCartRepository(fs);
 
-      await expectLater(
-        repo.delete(_uid, 'ghost-item'),
-        completes,
-      );
+      await expectLater(repo.delete(_uid, 'ghost-item'), completes);
     });
   });
 
@@ -167,23 +176,28 @@ void main() {
 
       await repo.create(_uid, _item(id: 'item-1'));
       await repo.markMockupReady(
-        _uid, 'item-1',
+        _uid,
+        'item-1',
         checkoutUrl: 'https://shop.example.com/checkout',
         frontMockupUrl: 'https://cdn.example.com/front.png',
         backMockupUrl: null,
         merchConfigId: 'mc-001',
       );
 
-      final doc = await fs
-          .collection('users')
-          .doc(_uid)
-          .collection('cartItems')
-          .doc('item-1')
-          .get();
+      final doc =
+          await fs
+              .collection('users')
+              .doc(_uid)
+              .collection('cartItems')
+              .doc('item-1')
+              .get();
 
       expect(doc.data()!['status'], MerchCartItemStatus.mockupReady.value);
       expect(doc.data()!['checkoutUrl'], 'https://shop.example.com/checkout');
-      expect(doc.data()!['frontMockupUrl'], 'https://cdn.example.com/front.png');
+      expect(
+        doc.data()!['frontMockupUrl'],
+        'https://cdn.example.com/front.png',
+      );
       expect(doc.data()!.containsKey('backMockupUrl'), isFalse);
     });
 
@@ -194,49 +208,57 @@ void main() {
       await repo.create(_uid, _item(id: 'item-2'));
       await repo.markFailed(_uid, 'item-2', reason: 'Printful timeout');
 
-      final doc = await fs
-          .collection('users')
-          .doc(_uid)
-          .collection('cartItems')
-          .doc('item-2')
-          .get();
+      final doc =
+          await fs
+              .collection('users')
+              .doc(_uid)
+              .collection('cartItems')
+              .doc('item-2')
+              .get();
 
       expect(doc.data()!['status'], MerchCartItemStatus.failed.value);
       expect(doc.data()!['failureReason'], 'Printful timeout');
     });
 
-    test('markFailed without reason does not write failureReason key', () async {
-      final fs = FakeFirebaseFirestore();
-      final repo = MerchCartRepository(fs);
+    test(
+      'markFailed without reason does not write failureReason key',
+      () async {
+        final fs = FakeFirebaseFirestore();
+        final repo = MerchCartRepository(fs);
 
-      await repo.create(_uid, _item(id: 'item-3'));
-      await repo.markFailed(_uid, 'item-3');
+        await repo.create(_uid, _item(id: 'item-3'));
+        await repo.markFailed(_uid, 'item-3');
 
-      final doc = await fs
-          .collection('users')
-          .doc(_uid)
-          .collection('cartItems')
-          .doc('item-3')
-          .get();
+        final doc =
+            await fs
+                .collection('users')
+                .doc(_uid)
+                .collection('cartItems')
+                .doc('item-3')
+                .get();
 
-      expect(doc.data()!['status'], MerchCartItemStatus.failed.value);
-      expect(doc.data()!.containsKey('failureReason'), isFalse);
-    });
+        expect(doc.data()!['status'], MerchCartItemStatus.failed.value);
+        expect(doc.data()!.containsKey('failureReason'), isFalse);
+      },
+    );
 
     test('markCheckoutStarted updates status', () async {
       final fs = FakeFirebaseFirestore();
       final repo = MerchCartRepository(fs);
 
-      await repo.create(_uid, _item(id: 'item-4',
-          status: MerchCartItemStatus.mockupReady));
+      await repo.create(
+        _uid,
+        _item(id: 'item-4', status: MerchCartItemStatus.mockupReady),
+      );
       await repo.markCheckoutStarted(_uid, 'item-4');
 
-      final doc = await fs
-          .collection('users')
-          .doc(_uid)
-          .collection('cartItems')
-          .doc('item-4')
-          .get();
+      final doc =
+          await fs
+              .collection('users')
+              .doc(_uid)
+              .collection('cartItems')
+              .doc('item-4')
+              .get();
 
       expect(doc.data()!['status'], MerchCartItemStatus.checkoutStarted.value);
     });
@@ -252,12 +274,13 @@ void main() {
       await repo.create(_uid, _item(id: 'item-5'));
       await repo.update(_uid, 'item-5', {'title': 'My World Tour'});
 
-      final doc = await fs
-          .collection('users')
-          .doc(_uid)
-          .collection('cartItems')
-          .doc('item-5')
-          .get();
+      final doc =
+          await fs
+              .collection('users')
+              .doc(_uid)
+              .collection('cartItems')
+              .doc('item-5')
+              .get();
 
       expect(doc.data()!['title'], 'My World Tour');
       // Original fields preserved.
@@ -271,12 +294,13 @@ void main() {
       await repo.create(_uid, _item(id: 'item-6'));
       await repo.update(_uid, 'item-6', {'colour': 'Navy'});
 
-      final doc = await fs
-          .collection('users')
-          .doc(_uid)
-          .collection('cartItems')
-          .doc('item-6')
-          .get();
+      final doc =
+          await fs
+              .collection('users')
+              .doc(_uid)
+              .collection('cartItems')
+              .doc('item-6')
+              .get();
 
       expect(doc.data()!.containsKey('updatedAt'), isTrue);
     });

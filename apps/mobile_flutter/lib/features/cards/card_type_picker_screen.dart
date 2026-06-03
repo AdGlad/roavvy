@@ -52,17 +52,16 @@ class CardTypePickerScreen extends ConsumerWidget {
     final tripsAsync = ref.watch(tripListProvider);
     final landmarkAvailable =
         ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
-    final types = landmarkAvailable
-        ? _allTypes
-        : _allTypes
-            .where((t) => t != CardTemplateType.landmark)
-            .toList();
+    final types =
+        landmarkAvailable
+            ? _allTypes
+            : _allTypes.where((t) => t != CardTemplateType.landmark).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create Card')),
       body: visitsAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        loading:
+            () => const Center(child: CircularProgressIndicator.adaptive()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (visits) {
           if (visits.isEmpty) {
@@ -78,9 +77,9 @@ class CardTypePickerScreen extends ConsumerWidget {
             );
           }
 
-          final allCodes =
-              visits.map((v) => v.countryCode).toList()..sort();
-          final allTrips = tripsAsync.valueOrNull
+          final allCodes = visits.map((v) => v.countryCode).toList()..sort();
+          final allTrips =
+              tripsAsync.valueOrNull
                   ?.where((t) => allCodes.contains(t.countryCode))
                   .toList() ??
               [];
@@ -93,10 +92,7 @@ class CardTypePickerScreen extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   'Choose a style',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(height: 4),
@@ -105,10 +101,7 @@ class CardTypePickerScreen extends ConsumerWidget {
                 child: Text(
                   '${allCodes.length} '
                   '${allCodes.length == 1 ? 'country' : 'countries'} ready',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white54,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white54),
                 ),
               ),
               const SizedBox(height: 20),
@@ -126,12 +119,13 @@ class CardTypePickerScreen extends ConsumerWidget {
                       tagline: _taglines[type]!,
                       countryCodes: allCodes,
                       trips: allTrips,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              CardEditorScreen(templateType: type),
-                        ),
-                      ),
+                      onTap:
+                          () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder:
+                                  (_) => CardEditorScreen(templateType: type),
+                            ),
+                          ),
                     );
                   },
                 ),
@@ -184,10 +178,7 @@ class _CardTypeTile extends StatelessWidget {
                     FittedBox(
                       fit: BoxFit.cover,
                       alignment: Alignment.topCenter,
-                      child: SizedBox(
-                        width: 300,
-                        child: _buildPreview(),
-                      ),
+                      child: SizedBox(width: 300, child: _buildPreview()),
                     ),
                     // Bottom gradient overlay
                     Positioned(
@@ -233,10 +224,7 @@ class _CardTypeTile extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 2),
             Text(
@@ -297,10 +285,7 @@ class _CardTypeTile extends StatelessWidget {
           transparentBackground: false,
         );
       case CardTemplateType.badge:
-        return BadgeCard(
-          codes: countryCodes,
-          transparentBackground: false,
-        );
+        return BadgeCard(codes: countryCodes, transparentBackground: false);
       case CardTemplateType.wordCloud:
         return TravelWordCloudCard(
           codes: countryCodes,
@@ -308,9 +293,7 @@ class _CardTypeTile extends StatelessWidget {
           colorMode: WordCloudColorMode.pastel,
         );
       case CardTemplateType.landmark:
-        return LandmarkFlagsCard(
-          countryCodes: countryCodes,
-        );
+        return LandmarkFlagsCard(countryCodes: countryCodes);
     }
   }
 }

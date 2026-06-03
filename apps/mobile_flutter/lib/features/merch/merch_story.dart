@@ -77,29 +77,26 @@ class MerchStory {
     if (n == 1) {
       return switch (template) {
         CardTemplateType.passport => MerchStory(
-            title: '$countryName Calling',
-            subtitle: subtitle,
-          ),
+          title: '$countryName Calling',
+          subtitle: subtitle,
+        ),
         CardTemplateType.badge => MerchStory(
-            title: '$countryName Dreams',
-            subtitle: subtitle,
-          ),
+          title: '$countryName Dreams',
+          subtitle: subtitle,
+        ),
         CardTemplateType.typography => MerchStory(
-            title: countryName,
-            subtitle: subtitle,
-          ),
+          title: countryName,
+          subtitle: subtitle,
+        ),
         CardTemplateType.heart => MerchStory(
-            title: '$countryName \u2014 Heart',
-            subtitle: subtitle,
-          ),
+          title: '$countryName \u2014 Heart',
+          subtitle: subtitle,
+        ),
         CardTemplateType.timeline => MerchStory(
-            title: 'Where It Began',
-            subtitle: subtitle,
-          ),
-        _ => MerchStory(
-            title: countryName,
-            subtitle: subtitle,
-          ),
+          title: 'Where It Began',
+          subtitle: subtitle,
+        ),
+        _ => MerchStory(title: countryName, subtitle: subtitle),
       };
     }
 
@@ -107,30 +104,27 @@ class MerchStory {
     final wordTitle = MerchTitleWordbank.pickGeneric(codes.length, seed);
 
     return switch (template) {
-      CardTemplateType.grid => MerchStory(
-          title: wordTitle,
-          subtitle: subtitle,
-        ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
       CardTemplateType.passport => MerchStory(
-          title: n == 50 ? 'Half the World' : wordTitle,
-          subtitle: subtitle,
-        ),
+        title: n == 50 ? 'Half the World' : wordTitle,
+        subtitle: subtitle,
+      ),
       CardTemplateType.typography => MerchStory(
-          title: n == 50 ? 'Half the World' : wordTitle,
-          subtitle: subtitle,
-        ),
+        title: n == 50 ? 'Half the World' : wordTitle,
+        subtitle: subtitle,
+      ),
       CardTemplateType.timeline => MerchStory(
-          title: wordTitle,
-          subtitle: subtitle,
-        ),
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       CardTemplateType.badge => MerchStory(
-          title: wordTitle,
-          subtitle: subtitle,
-        ),
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       CardTemplateType.heart => MerchStory(
-          title: wordTitle,
-          subtitle: subtitle,
-        ),
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -148,20 +142,29 @@ class MerchStory {
       codes.length,
       continent: n >= 6 ? null : '$n Continents',
     );
-    final wordTitle = n >= 6
-        ? 'Global Citizen'
-        : MerchTitleWordbank.pickGeneric(codes.length, seed);
+    final wordTitle =
+        n >= 6
+            ? 'Global Citizen'
+            : MerchTitleWordbank.pickGeneric(codes.length, seed);
 
     return switch (template) {
       CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.typography =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.passport =>
-        MerchStory(title: 'The Grand Tour', subtitle: subtitle),
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.typography => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.passport => MerchStory(
+        title: 'The Grand Tour',
+        subtitle: subtitle,
+      ),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -180,19 +183,23 @@ class MerchStory {
       codes.length,
       tripLabel: tripCtx,
     );
-    final wordTitle = n == 1
-        ? 'Where It Began'
-        : MerchTitleWordbank.pickForTrips(seed);
+    final wordTitle =
+        n == 1 ? 'Where It Began' : MerchTitleWordbank.pickForTrips(seed);
 
     return switch (template) {
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.passport =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.grid =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.passport => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -212,16 +219,23 @@ class MerchStory {
     final wordTitle = MerchTitleWordbank.pickForYear(year, seed);
 
     return switch (template) {
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.typography =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.grid =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.passport =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.typography => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.passport => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -244,21 +258,32 @@ class MerchStory {
 
     return switch (template) {
       CardTemplateType.badge => MerchStory(
-          title: '$continent Explorer',
-          subtitle: identity != null
-              ? MerchTitleWordbank.buildSubtitleLine(codes.length,
-                  continent: continent)
-              : subtitle,
-        ),
+        title: '$continent Explorer',
+        subtitle:
+            identity != null
+                ? MerchTitleWordbank.buildSubtitleLine(
+                  codes.length,
+                  continent: continent,
+                )
+                : subtitle,
+      ),
       CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.typography =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.passport =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.typography => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.passport => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -281,20 +306,27 @@ class MerchStory {
     final wordTitle = MerchTitleWordbank.pickForRegion(regionKey, seed);
 
     return switch (template) {
-      CardTemplateType.passport =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       CardTemplateType.badge => MerchStory(
-          title: '$regionName Explorer',
-          subtitle: subtitle,
-        ),
-      CardTemplateType.typography =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.grid =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+        title: '$regionName Explorer',
+        subtitle: subtitle,
+      ),
+      CardTemplateType.typography => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -311,14 +343,19 @@ class MerchStory {
     final wordTitle = MerchTitleWordbank.pickGeneric(codes.length, seed);
 
     return switch (template) {
-      CardTemplateType.passport =>
-        MerchStory(title: 'Every Entry, Every Exit', subtitle: subtitle),
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.grid =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport => MerchStory(
+        title: 'Every Entry, Every Exit',
+        subtitle: subtitle,
+      ),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }
@@ -333,23 +370,33 @@ class MerchStory {
   ) {
     final n = codes.length;
     final subtitle = MerchTitleWordbank.buildSubtitleLine(n);
-    final wordTitle = n == 1
-        ? _countryName(codes.firstOrNull)
-        : MerchTitleWordbank.pickGeneric(n, seed);
+    final wordTitle =
+        n == 1
+            ? _countryName(codes.firstOrNull)
+            : MerchTitleWordbank.pickGeneric(n, seed);
 
     return switch (template) {
-      CardTemplateType.passport =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.grid =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.heart =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.timeline =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.typography =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
-      CardTemplateType.badge =>
-        MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.passport => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.heart => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.timeline => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.typography => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
+      CardTemplateType.badge => MerchStory(
+        title: wordTitle,
+        subtitle: subtitle,
+      ),
       _ => MerchStory(title: wordTitle, subtitle: subtitle),
     };
   }

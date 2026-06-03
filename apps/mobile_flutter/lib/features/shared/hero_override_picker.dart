@@ -26,10 +26,9 @@ Future<void> showHeroOverridePicker(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _HeroOverridePicker(
-      tripId: tripId,
-      fallbackColor: fallbackColor,
-    ),
+    builder:
+        (_) =>
+            _HeroOverridePicker(tripId: tripId, fallbackColor: fallbackColor),
   );
 }
 
@@ -116,7 +115,8 @@ class _HeroOverridePickerState extends ConsumerState<_HeroOverridePicker> {
 
         // Default selection: user-selected candidate → rank-1 candidate → first photo.
         if (_selectedAssetId == null && data != null) {
-          _selectedAssetId = candidates.values
+          _selectedAssetId =
+              candidates.values
                   .where((c) => c.isUserSelected)
                   .map((c) => c.assetId)
                   .firstOrNull ??
@@ -177,8 +177,8 @@ class _HeroOverridePickerState extends ConsumerState<_HeroOverridePicker> {
                         final candidate = candidates[assetId];
                         final isSelected = _selectedAssetId == assetId;
                         return GestureDetector(
-                          onTap: () =>
-                              setState(() => _selectedAssetId = assetId),
+                          onTap:
+                              () => setState(() => _selectedAssetId = assetId),
                           child: Stack(
                             children: [
                               ClipRRect(
@@ -190,7 +190,9 @@ class _HeroOverridePickerState extends ConsumerState<_HeroOverridePicker> {
                                     assetId: assetId,
                                     fallbackColor: widget.fallbackColor,
                                     height: 120,
-                                    thumbnailSize: const ThumbnailSize.square(300),
+                                    thumbnailSize: const ThumbnailSize.square(
+                                      300,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -221,11 +223,12 @@ class _HeroOverridePickerState extends ConsumerState<_HeroOverridePicker> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      borderRadius:
-                                          const BorderRadius.vertical(
+                                      borderRadius: const BorderRadius.vertical(
                                         bottom: Radius.circular(8),
                                       ),
-                                      color: Colors.black.withValues(alpha: 0.45),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.45,
+                                      ),
                                     ),
                                     child: Text(
                                       '#${candidate.rank}',
@@ -247,38 +250,41 @@ class _HeroOverridePickerState extends ConsumerState<_HeroOverridePicker> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () async {
-                                setState(() => _saving = true);
-                                await heroRepo
-                                    .clearUserSelected(widget.tripId);
-                                if (context.mounted) Navigator.pop(context);
-                              },
+                        onPressed:
+                            _saving
+                                ? null
+                                : () async {
+                                  setState(() => _saving = true);
+                                  await heroRepo.clearUserSelected(
+                                    widget.tripId,
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                },
                         child: const Text('Reset to auto'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton(
-                        onPressed: (_saving ||
-                                _selectedAssetId == null ||
-                                data == null ||
-                                data.trip.id.isEmpty)
-                            ? null
-                            : () async {
-                                setState(() => _saving = true);
-                                final photo = data.photos.firstWhere(
-                                  (p) => p.assetId == _selectedAssetId,
-                                );
-                                await heroRepo.upsertUserSelected(
-                                  assetId: _selectedAssetId!,
-                                  tripId: widget.tripId,
-                                  countryCode: data.trip.countryCode,
-                                  capturedAt: photo.capturedAt,
-                                );
-                                if (context.mounted) Navigator.pop(context);
-                              },
+                        onPressed:
+                            (_saving ||
+                                    _selectedAssetId == null ||
+                                    data == null ||
+                                    data.trip.id.isEmpty)
+                                ? null
+                                : () async {
+                                  setState(() => _saving = true);
+                                  final photo = data.photos.firstWhere(
+                                    (p) => p.assetId == _selectedAssetId,
+                                  );
+                                  await heroRepo.upsertUserSelected(
+                                    assetId: _selectedAssetId!,
+                                    tripId: widget.tripId,
+                                    countryCode: data.trip.countryCode,
+                                    capturedAt: photo.capturedAt,
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                },
                         child: const Text('Use this photo'),
                       ),
                     ),

@@ -143,8 +143,7 @@ class _ArtworkConfirmationScreenState
 
   String _computeDateLabel() {
     if (widget.filteredTrips.isEmpty) return '';
-    final years =
-        widget.filteredTrips.map((t) => t.startedOn.year).toSet();
+    final years = widget.filteredTrips.map((t) => t.startedOn.year).toSet();
     final minYear = years.reduce(math.min);
     final maxYear = years.reduce(math.max);
     return minYear == maxYear ? '$minYear' : '$minYear\u2013$maxYear';
@@ -169,8 +168,7 @@ class _ArtworkConfirmationScreenState
       if (!mounted) return;
 
       final confirmationId = 'ac-${DateTime.now().microsecondsSinceEpoch}';
-      final effectiveEntryOnly =
-          widget.entryOnly || result.wasForced;
+      final effectiveEntryOnly = widget.entryOnly || result.wasForced;
 
       final confirmation = ArtworkConfirmation(
         confirmationId: confirmationId,
@@ -189,8 +187,9 @@ class _ArtworkConfirmationScreenState
         status: ArtworkConfirmationStatus.confirmed,
       );
 
-      await ArtworkConfirmationService(FirebaseFirestore.instance)
-          .create(confirmation);
+      await ArtworkConfirmationService(
+        FirebaseFirestore.instance,
+      ).create(confirmation);
 
       if (!mounted) return;
       Navigator.of(context).pop<ArtworkConfirmResult>(
@@ -216,7 +215,8 @@ class _ArtworkConfirmationScreenState
     final attrs = <({String key, String label, String? detail})>[
       (
         key: 'countries',
-        label: '${countryCount == 1 ? '1 country' : '$countryCount countries'} included',
+        label:
+            '${countryCount == 1 ? '1 country' : '$countryCount countries'} included',
         detail: null,
       ),
       if (dateLabel.isNotEmpty)
@@ -249,7 +249,8 @@ class _ArtworkConfirmationScreenState
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: 'Change something',
-          onPressed: () => Navigator.of(context).pop<ArtworkConfirmResult>(null),
+          onPressed:
+              () => Navigator.of(context).pop<ArtworkConfirmResult>(null),
         ),
       ),
       body: SafeArea(
@@ -262,7 +263,9 @@ class _ArtworkConfirmationScreenState
                 Container(
                   color: _kAmber.withValues(alpha: 0.15),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       const Icon(Icons.info_outline, size: 16, color: _kAmber),
@@ -282,40 +285,40 @@ class _ArtworkConfirmationScreenState
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: AspectRatio(
                   aspectRatio: widget.aspectRatio,
-                  child: _rendering
-                      ? const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircularProgressIndicator.adaptive(),
-                              SizedBox(height: 12),
-                              Text(
-                                'Rendering your artwork…',
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.white54),
-                              ),
-                            ],
-                          ),
-                        )
-                      : result != null
+                  child:
+                      _rendering
+                          ? const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator.adaptive(),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Rendering your artwork…',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          : result != null
                           ? widget.transparentBackground
                               ? ColoredBox(
-                                  color: Colors.black,
-                                  child: Image.memory(
-                                    result.bytes,
-                                    fit: BoxFit.contain,
-                                  ),
-                                )
-                              : Image.memory(
+                                color: Colors.black,
+                                child: Image.memory(
                                   result.bytes,
                                   fit: BoxFit.contain,
-                                )
+                                ),
+                              )
+                              : Image.memory(result.bytes, fit: BoxFit.contain)
                           : const Center(
-                              child: Text(
-                                'Could not render artwork.',
-                                style: TextStyle(color: Colors.white54),
-                              ),
+                            child: Text(
+                              'Could not render artwork.',
+                              style: TextStyle(color: Colors.white54),
                             ),
+                          ),
                 ),
               ),
 
@@ -336,25 +339,28 @@ class _ArtworkConfirmationScreenState
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 6,
-                  children: widget.countryCodes.map((code) {
-                    final name = kCountryNames[code] ?? code;
-                    final flag = _flagEmoji(code);
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white10,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$flag  $name',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children:
+                      widget.countryCodes.map((code) {
+                        final name = kCountryNames[code] ?? code;
+                        final flag = _flagEmoji(code);
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white10,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$flag  $name',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      }).toList(),
                 ),
               ),
 
@@ -369,21 +375,24 @@ class _ArtworkConfirmationScreenState
               ...attrs.map((a) {
                 return CheckboxListTile(
                   value: _confirmed[a.key] ?? false,
-                  onChanged: (v) =>
-                      setState(() => _confirmed[a.key] = v ?? false),
+                  onChanged:
+                      (v) => setState(() => _confirmed[a.key] = v ?? false),
                   activeColor: _kAmber,
                   checkColor: Colors.black,
                   title: Text(
                     a.label,
                     style: const TextStyle(fontSize: 14, color: Colors.white),
                   ),
-                  subtitle: a.detail != null
-                      ? Text(
-                          a.detail!,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.white54),
-                        )
-                      : null,
+                  subtitle:
+                      a.detail != null
+                          ? Text(
+                            a.detail!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white54,
+                            ),
+                          )
+                          : null,
                   controlAffinity: ListTileControlAffinity.leading,
                   dense: true,
                 );
@@ -400,20 +409,24 @@ class _ArtworkConfirmationScreenState
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: canConfirm ? _onConfirm : null,
-                        child: _confirming
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator.adaptive(
-                                    strokeWidth: 2),
-                              )
-                            : const Text('Confirm artwork'),
+                        child:
+                            _confirming
+                                ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator.adaptive(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Text('Confirm artwork'),
                       ),
                     ),
                     const SizedBox(height: 4),
                     TextButton(
-                      onPressed: () => Navigator.of(context)
-                          .pop<ArtworkConfirmResult>(null),
+                      onPressed:
+                          () => Navigator.of(
+                            context,
+                          ).pop<ArtworkConfirmResult>(null),
                       child: const Text('Change something'),
                     ),
                   ],

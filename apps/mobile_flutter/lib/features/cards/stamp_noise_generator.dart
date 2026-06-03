@@ -44,7 +44,8 @@ class StampNoiseGenerator {
           ],
           stops: const [0.45, 1.0],
         ).createShader(
-            Rect.fromCircle(center: centre, radius: shortSide * 0.6)),
+          Rect.fromCircle(center: centre, radius: shortSide * 0.6),
+        ),
     );
 
     // 2. Blotchy wear spots: ink-void circles scattered across the stamp.
@@ -55,8 +56,10 @@ class StampNoiseGenerator {
       final x = bounds.left + rng.nextDouble() * bounds.width;
       final y = bounds.top + rng.nextDouble() * bounds.height;
       final spotR = shortSide * (0.07 + rng.nextDouble() * 0.13 * intensity);
-      final voidDepth =
-          ((0.25 + rng.nextDouble() * 0.45) * intensity).clamp(0.0, 0.85);
+      final voidDepth = ((0.25 + rng.nextDouble() * 0.45) * intensity).clamp(
+        0.0,
+        0.85,
+      );
 
       // Transparent at centre → fully opaque at edge (BlendMode.dstIn removes
       // ink where the source alpha is low)
@@ -68,7 +71,11 @@ class StampNoiseGenerator {
           ..shader = RadialGradient(
             colors: [
               Color.fromARGB(
-                  (voidDepth * 0.2 * 255).round().clamp(0, 255), 255, 255, 255),
+                (voidDepth * 0.2 * 255).round().clamp(0, 255),
+                255,
+                255,
+                255,
+              ),
               const Color(0xFFFFFFFF),
             ],
             stops: const [0.0, 1.0],

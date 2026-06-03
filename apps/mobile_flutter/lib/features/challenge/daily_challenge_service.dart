@@ -21,7 +21,7 @@ String todayLocal() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 class DailyChallengeService {
   /// [firestore] may be injected for testing; defaults to the singleton instance.
   const DailyChallengeService({FirebaseFirestore? firestore})
-      : _firestore = firestore;
+    : _firestore = firestore;
 
   final FirebaseFirestore? _firestore;
 
@@ -60,9 +60,7 @@ class DailyChallengeService {
     FirebaseFunctions.instance
         .httpsCallable(
           'getDailyChallenge',
-          options: HttpsCallableOptions(
-            timeout: const Duration(seconds: 90),
-          ),
+          options: HttpsCallableOptions(timeout: const Duration(seconds: 90)),
         )
         .call({'date': todayLocal()})
         .ignore();
@@ -76,9 +74,7 @@ class DailyChallengeService {
       await FirebaseFunctions.instance
           .httpsCallable(
             'getDailyChallenge',
-            options: HttpsCallableOptions(
-              timeout: const Duration(seconds: 90),
-            ),
+            options: HttpsCallableOptions(timeout: const Duration(seconds: 90)),
           )
           .call({'date': date});
       return fetchToday();
@@ -91,9 +87,10 @@ class DailyChallengeService {
     final rawClues = data['clues'] as List<dynamic>;
     return DailyChallenge(
       siteId: data['siteId'] as String,
-      clues: rawClues
-          .map<ChallengeClue>((e) => ChallengeClue.fromJson(e as Object))
-          .toList(),
+      clues:
+          rawClues
+              .map<ChallengeClue>((e) => ChallengeClue.fromJson(e as Object))
+              .toList(),
       difficulty: data['difficulty'] as String? ?? 'medium',
     );
   }

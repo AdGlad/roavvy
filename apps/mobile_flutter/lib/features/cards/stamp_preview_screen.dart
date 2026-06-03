@@ -4,21 +4,57 @@ import 'card_templates.dart';
 
 /// All ISO 3166-1 alpha-2 codes for European sovereign states and territories.
 const List<String> kEuropeanCodes = [
-  'AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR', 'CY', 'CZ',
-  'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT',
-  'LV', 'LI', 'LT', 'LU', 'MT', 'MD', 'MC', 'ME', 'NL', 'MK',
-  'NO', 'PL', 'PT', 'RO', 'SM', 'RS', 'SK', 'SI', 'ES', 'SE',
-  'CH', 'UA', 'GB', 'VA',
+  'AL',
+  'AD',
+  'AT',
+  'BY',
+  'BE',
+  'BA',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
+  'FR',
+  'DE',
+  'GR',
+  'HU',
+  'IS',
+  'IE',
+  'IT',
+  'LV',
+  'LI',
+  'LT',
+  'LU',
+  'MT',
+  'MD',
+  'MC',
+  'ME',
+  'NL',
+  'MK',
+  'NO',
+  'PL',
+  'PT',
+  'RO',
+  'SM',
+  'RS',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+  'CH',
+  'UA',
+  'GB',
+  'VA',
 ];
 
 /// Split [codes] into chunks of at most [pageSize] each.
 List<List<String>> _chunkCodes(List<String> codes, int pageSize) {
   final result = <List<String>>[];
   for (var i = 0; i < codes.length; i += pageSize) {
-    result.add(codes.sublist(
-      i,
-      (i + pageSize).clamp(0, codes.length),
-    ));
+    result.add(codes.sublist(i, (i + pageSize).clamp(0, codes.length)));
   }
   return result;
 }
@@ -82,9 +118,7 @@ class _StampPreviewScreenState extends State<StampPreviewScreen> {
                     children: [
                       Expanded(
                         child: Center(
-                          child: PassportStampsCard(
-                            countryCodes: codes,
-                          ),
+                          child: PassportStampsCard(countryCodes: codes),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -120,9 +154,7 @@ class _PageIndicator extends StatelessWidget {
           width: i == current ? 20 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: i == current
-                ? const Color(0xFFD4A017)
-                : Colors.white24,
+            color: i == current ? const Color(0xFFD4A017) : Colors.white24,
             borderRadius: BorderRadius.circular(4),
           ),
         );
@@ -142,25 +174,29 @@ class _CodeChips extends StatelessWidget {
       spacing: 6,
       runSpacing: 4,
       alignment: WrapAlignment.center,
-      children: codes
-          .map(
-            (c) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                c,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
-                  fontFamily: 'Courier New',
+      children:
+          codes
+              .map(
+                (c) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    c,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                      fontFamily: 'Courier New',
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          )
-          .toList(),
+              )
+              .toList(),
     );
   }
 }

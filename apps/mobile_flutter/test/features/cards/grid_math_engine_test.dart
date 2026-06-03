@@ -63,16 +63,22 @@ void main() {
     test('tile size is always >= 28', () {
       for (final n in [1, 5, 20, 50, 100, 200]) {
         final layout = gridLayout(const Size(300, 200), n);
-        expect(layout.tileSize, greaterThanOrEqualTo(28.0),
-            reason: 'n=$n must produce tileSize >= 28');
+        expect(
+          layout.tileSize,
+          greaterThanOrEqualTo(28.0),
+          reason: 'n=$n must produce tileSize >= 28',
+        );
       }
     });
 
     test('tile size is always <= 90', () {
       for (final n in [1, 2, 3]) {
         final layout = gridLayout(const Size(300, 200), n);
-        expect(layout.tileSize, lessThanOrEqualTo(90.0),
-            reason: 'n=$n must produce tileSize <= 90');
+        expect(
+          layout.tileSize,
+          lessThanOrEqualTo(90.0),
+          reason: 'n=$n must produce tileSize <= 90',
+        );
       }
     });
 
@@ -104,10 +110,12 @@ void main() {
       const sizes = [1, 5, 10, 20, 30, 40, 50, 100];
       for (final n in sizes) {
         final layout = gridLayout(const Size(300, 200), n);
-        expect(layout.cols * layout.rows, greaterThanOrEqualTo(n),
-            reason: 'n=$n: grid must have capacity for all flags');
+        expect(
+          layout.cols * layout.rows,
+          greaterThanOrEqualTo(n),
+          reason: 'n=$n: grid must have capacity for all flags',
+        );
       }
     });
   });
-
 }

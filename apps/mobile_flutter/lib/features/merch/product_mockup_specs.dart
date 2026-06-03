@@ -41,16 +41,16 @@ const _kPosterA4 = 'assets/mockups/poster_a4.png';
 const _kTshirtFront = <String, String>{
   'Black': 'assets/mockups/Black-tshirt-front.jpeg',
   'White': 'assets/mockups/White-tshirt-front.jpg',
-  'Blue':  'assets/mockups/Blue-tshirt-front.jpeg',
-  'Grey':  'assets/mockups/Grey-tshirt-front.jpeg',
-  'Red':   'assets/mockups/Red-tshirt-front.jpeg',
+  'Blue': 'assets/mockups/Blue-tshirt-front.jpeg',
+  'Grey': 'assets/mockups/Grey-tshirt-front.jpeg',
+  'Red': 'assets/mockups/Red-tshirt-front.jpeg',
 };
 const _kTshirtBack = <String, String>{
   'Black': 'assets/mockups/Black-tshirt-back.jpeg',
   'White': 'assets/mockups/White-tshirt-back.jpg',
-  'Blue':  'assets/mockups/Blue-tshirt-back.jpeg',
-  'Grey':  'assets/mockups/Grey-tshirt-back.jpeg',
-  'Red':   'assets/mockups/Red-tshirt-back.jpeg',
+  'Blue': 'assets/mockups/Blue-tshirt-back.jpeg',
+  'Grey': 'assets/mockups/Grey-tshirt-back.jpeg',
+  'Red': 'assets/mockups/Red-tshirt-back.jpeg',
 };
 
 // ── Print area constants ──────────────────────────────────────────────────────
@@ -64,10 +64,10 @@ const _kTshirtBack = <String, String>{
 //   Front right-chest (wearer's right = viewer's left):
 //     left=0.27, top=0.25, width=0.18, height=0.25
 //   Back: left=0.30, top=0.22, width=0.40, height=0.50
-const _kTshirtFrontLeftChestArea  = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
-const _kTshirtFrontCenterArea     = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
+const _kTshirtFrontLeftChestArea = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
+const _kTshirtFrontCenterArea = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
 const _kTshirtFrontRightChestArea = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
-const _kTshirtBackPrintArea       = Rect.fromLTWH(0.30, 0.22, 0.40, 0.50);
+const _kTshirtBackPrintArea = Rect.fromLTWH(0.30, 0.22, 0.40, 0.50);
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
 const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
@@ -117,9 +117,9 @@ abstract final class ProductMockupSpecs {
     final Rect printArea;
     if (isFront) {
       printArea = switch (frontPosition) {
-        'center'      => _kTshirtFrontCenterArea,
+        'center' => _kTshirtFrontCenterArea,
         'right_chest' => _kTshirtFrontRightChestArea,
-        _             => _kTshirtFrontLeftChestArea, // 'left_chest' + default
+        _ => _kTshirtFrontLeftChestArea, // 'left_chest' + default
       };
     } else {
       printArea = _kTshirtBackPrintArea;

@@ -10,14 +10,14 @@ import 'travel_replay_engine.dart';
 enum ReplayPhase {
   idle,
   departureSettle, // rotate + zoom in to departure country
-  departureHold,   // hold on departure before flight
-  flight,          // arc draws while camera pans to arrival with scale dip (variable)
-  pulse,           // arrival country pulses
-  hold,            // brief pause before next leg
-  flagReveal,      // large emoji flag appears over country + confetti (M133, first visit only)
-  flagFlight,      // flag flies down into collection row (M133)
-  overlay,         // achievement / stat overlay reveal (M110, 1 600 ms × N events)
-  done,            // script complete
+  departureHold, // hold on departure before flight
+  flight, // arc draws while camera pans to arrival with scale dip (variable)
+  pulse, // arrival country pulses
+  hold, // brief pause before next leg
+  flagReveal, // large emoji flag appears over country + confetti (M133, first visit only)
+  flagFlight, // flag flies down into collection row (M133)
+  overlay, // achievement / stat overlay reveal (M110, 1 600 ms × N events)
+  done, // script complete
 }
 
 /// Drives the cinematic globe replay (M108).
@@ -26,10 +26,8 @@ enum ReplayPhase {
 /// [GlobeReplayWidget]. The controller owns [AnimationController]s internally
 /// and requires a [TickerProvider] (pass `this` from a [StateMixin] state).
 class TravelReplayController extends ChangeNotifier {
-  TravelReplayController({
-    required this.script,
-    required TickerProvider vsync,
-  }) : _vsync = vsync;
+  TravelReplayController({required this.script, required TickerProvider vsync})
+    : _vsync = vsync;
 
   final TravelReplayScript script;
   final TickerProvider _vsync;
@@ -72,8 +70,7 @@ class TravelReplayController extends ChangeNotifier {
   /// committed to the bottom collection row. The flag row only shows these.
   List<String> collectedCodes = const [];
 
-  bool get isPlaying =>
-      phase != ReplayPhase.idle && phase != ReplayPhase.done;
+  bool get isPlaying => phase != ReplayPhase.idle && phase != ReplayPhase.done;
 
   // ── Audio (M111) ───────────────────────────────────────────────────────────
 
@@ -128,7 +125,8 @@ class TravelReplayController extends ChangeNotifier {
     arcProgress = 0.0;
     pulseValue = 0.0;
     // Seed collection row with the starting country (leg[0].fromCode).
-    collectedCodes = script.legs.isNotEmpty ? [script.legs[0].fromCode] : const [];
+    collectedCodes =
+        script.legs.isNotEmpty ? [script.legs[0].fromCode] : const [];
     _startLeg();
   }
 
@@ -174,15 +172,19 @@ class TravelReplayController extends ChangeNotifier {
   void _runDepartureSettle() {
     final leg = script.legs[currentLegIndex];
     final pacing = _currentPacing();
-    final fromLat = leg.hasFromGps
-        ? leg.fromLat! * math.pi / 180.0
-        : _centroidLat(leg.fromCode);
-    final fromLng = leg.hasFromGps
-        ? -(leg.fromLng! * math.pi / 180.0)
-        : _centroidLng(leg.fromCode);
+    final fromLat =
+        leg.hasFromGps
+            ? leg.fromLat! * math.pi / 180.0
+            : _centroidLat(leg.fromCode);
+    final fromLng =
+        leg.hasFromGps
+            ? -(leg.fromLng! * math.pi / 180.0)
+            : _centroidLng(leg.fromCode);
 
     final settleMs =
-        reducedMotion ? pacing.departureSettleMs ~/ 2 : pacing.departureSettleMs;
+        reducedMotion
+            ? pacing.departureSettleMs ~/ 2
+            : pacing.departureSettleMs;
     final startProjection = projection;
     final ctrl = _makeCtrl(Duration(milliseconds: settleMs));
     _phaseCtrl = ctrl;
@@ -232,21 +234,22 @@ class TravelReplayController extends ChangeNotifier {
   void _runFlight() {
     final leg = script.legs[currentLegIndex];
     final pacing = _currentPacing();
-    final fromLat = leg.hasFromGps
-        ? leg.fromLat! * math.pi / 180.0
-        : _centroidLat(leg.fromCode);
-    final fromLng = leg.hasFromGps
-        ? -(leg.fromLng! * math.pi / 180.0)
-        : _centroidLng(leg.fromCode);
-    final toLat = leg.hasToGps
-        ? leg.toLat! * math.pi / 180.0
-        : _centroidLat(leg.toCode);
-    final toLng = leg.hasToGps
-        ? -(leg.toLng! * math.pi / 180.0)
-        : _centroidLng(leg.toCode);
+    final fromLat =
+        leg.hasFromGps
+            ? leg.fromLat! * math.pi / 180.0
+            : _centroidLat(leg.fromCode);
+    final fromLng =
+        leg.hasFromGps
+            ? -(leg.fromLng! * math.pi / 180.0)
+            : _centroidLng(leg.fromCode);
+    final toLat =
+        leg.hasToGps ? leg.toLat! * math.pi / 180.0 : _centroidLat(leg.toCode);
+    final toLng =
+        leg.hasToGps
+            ? -(leg.toLng! * math.pi / 180.0)
+            : _centroidLng(leg.toCode);
 
-    final flightMs =
-        reducedMotion ? pacing.flightMs ~/ 2 : pacing.flightMs;
+    final flightMs = reducedMotion ? pacing.flightMs ~/ 2 : pacing.flightMs;
     final ctrl = _makeCtrl(Duration(milliseconds: flightMs));
     _phaseCtrl = ctrl;
     phase = ReplayPhase.flight;
@@ -271,8 +274,9 @@ class TravelReplayController extends ChangeNotifier {
 
       // Scale: 1.7 at departure → dip at mid-arc → peakScale at arrival.
       // Dip magnitude scales with arc distance for a sense of global height.
-      final newScale = _lerp(1.7, pacing.peakScale, rawT)
-          - dipAmount * math.sin(math.pi * rawT);
+      final newScale =
+          _lerp(1.7, pacing.peakScale, rawT) -
+          dipAmount * math.sin(math.pi * rawT);
 
       projection = projection.copyWith(
         rotLat: newLat,
@@ -433,10 +437,17 @@ class TravelReplayController extends ChangeNotifier {
 
   AnimationController _makeCtrl(Duration duration) {
     _phaseCtrl?.dispose();
-    final ms = speedMultiplier <= 1.0
-        ? duration.inMilliseconds
-        : (duration.inMilliseconds / speedMultiplier).round().clamp(30, duration.inMilliseconds);
-    return AnimationController(vsync: _vsync, duration: Duration(milliseconds: ms));
+    final ms =
+        speedMultiplier <= 1.0
+            ? duration.inMilliseconds
+            : (duration.inMilliseconds / speedMultiplier).round().clamp(
+              30,
+              duration.inMilliseconds,
+            );
+    return AnimationController(
+      vsync: _vsync,
+      duration: Duration(milliseconds: ms),
+    );
   }
 
   /// Dispatches audio cue [kind] to [_audioController].
@@ -448,9 +459,10 @@ class TravelReplayController extends ChangeNotifier {
     if (ac == null) return;
     switch (kind) {
       case 'travel':
-        final dist = pacing != null
-            ? ReplayPacingRules.legArcDistance(script.legs[currentLegIndex])
-            : 45.0;
+        final dist =
+            pacing != null
+                ? ReplayPacingRules.legArcDistance(script.legs[currentLegIndex])
+                : 45.0;
         ac.playTravelMovement(dist);
       case 'arrival':
         ac.playArrival();
@@ -491,8 +503,12 @@ class TravelReplayController extends ChangeNotifier {
   static double _lerpAngle(double a, double b, double t) {
     var diff = b - a;
     // Normalise to [-π, π]
-    while (diff > math.pi) { diff -= 2 * math.pi; }
-    while (diff < -math.pi) { diff += 2 * math.pi; }
+    while (diff > math.pi) {
+      diff -= 2 * math.pi;
+    }
+    while (diff < -math.pi) {
+      diff += 2 * math.pi;
+    }
     return a + diff * t;
   }
 

@@ -49,6 +49,7 @@ class LandmarkFlagsCard extends StatefulWidget {
   final Color? textColor;
   final VoidCallback? onAssetsLoaded;
   final FlagGridLayoutMode layoutMode;
+
   /// When true and no collage is cached, automatically opens Image Playground
   /// to generate one. Use this in design contexts (not read-only previews).
   final bool autoGenerate;
@@ -89,8 +90,9 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
 
   Future<void> _checkAiAndLoadCache() async {
     // Try loading a cached collage first (preferred rendering path).
-    final collageBytes =
-        await LandmarkImageService.loadCachedCollage(widget.countryCodes);
+    final collageBytes = await LandmarkImageService.loadCachedCollage(
+      widget.countryCodes,
+    );
     ui.Image? collage;
     if (collageBytes != null) {
       collage = await _decodeImage(collageBytes);
@@ -131,8 +133,9 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
     final available = await LandmarkImageService.isAvailable();
     if (!available || !mounted) return;
     setState(() => _generating = true);
-    final bytes =
-        await LandmarkImageService.generateCollage(widget.countryCodes);
+    final bytes = await LandmarkImageService.generateCollage(
+      widget.countryCodes,
+    );
     if (!mounted) return;
     if (bytes != null) {
       final img = await _decodeImage(bytes);
@@ -159,7 +162,8 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveTitle = widget.titleOverride ??
+    final effectiveTitle =
+        widget.titleOverride ??
         '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
@@ -173,7 +177,9 @@ class _LandmarkFlagsCardState extends State<LandmarkFlagsCard> {
           final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
           final gridSize = Size(size.width, gridH);
           final reprWidth = FlagGridLayoutEngine.representativeTileWidth(
-              gridSize, widget.countryCodes.length);
+            gridSize,
+            widget.countryCodes.length,
+          );
 
           return CustomPaint(
             size: size,
@@ -225,8 +231,10 @@ class _LandmarkPainter extends CustomPainter {
   final double reprWidth;
   final bool transparentBackground;
   final Color? textColor;
+
   /// AI-generated images keyed by uppercase ISO code.
   final Map<String, ui.Image> generatedImages;
+
   /// Single collage image that replaces the individual-icon grid when present.
   final ui.Image? collageImage;
 
@@ -237,14 +245,34 @@ class _LandmarkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (!transparentBackground) {
-      canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF0D2137));
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = const Color(0xFF0D2137),
+      );
     }
 
     final effectiveTextColor = textColor ?? CardTextRenderer.defaultTextColor;
-    final effectiveStripColor = transparentBackground ? Colors.transparent : CardTextRenderer.defaultStripColor;
+    final effectiveStripColor =
+        transparentBackground
+            ? Colors.transparent
+            : CardTextRenderer.defaultStripColor;
 
-    CardTextRenderer.drawTitle(canvas, size, title, textColor: effectiveTextColor, stripColor: effectiveStripColor);
-    CardTextRenderer.drawBranding(canvas, size, countryCount: countryCodes.length, dateLabel: dateLabel, subtitleLine: subtitleOverride, textColor: effectiveTextColor, stripColor: effectiveStripColor);
+    CardTextRenderer.drawTitle(
+      canvas,
+      size,
+      title,
+      textColor: effectiveTextColor,
+      stripColor: effectiveStripColor,
+    );
+    CardTextRenderer.drawBranding(
+      canvas,
+      size,
+      countryCount: countryCodes.length,
+      dateLabel: dateLabel,
+      subtitleLine: subtitleOverride,
+      textColor: effectiveTextColor,
+      stripColor: effectiveStripColor,
+    );
 
     if (countryCodes.isEmpty) return;
 
@@ -282,10 +310,17 @@ class _LandmarkPainter extends CustomPainter {
     // 1. Procedural shape (instant, no assets).
     canvas.save();
     canvas.translate(dst.left, dst.top);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final drawn = LandmarkShapePainter.draw(canvas, dst.width, dst.height, code, paint);
+    final paint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
+    final drawn = LandmarkShapePainter.draw(
+      canvas,
+      dst.width,
+      dst.height,
+      code,
+      paint,
+    );
     canvas.restore();
     if (drawn) return;
 
@@ -326,13 +361,20 @@ class _LandmarkPainter extends CustomPainter {
       text: TextSpan(text: emoji, style: TextStyle(fontSize: dst.width * 0.7)),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(dst.left + (dst.width - tp.width) / 2, dst.top + (dst.height - tp.height) / 2));
+    tp.paint(
+      canvas,
+      Offset(
+        dst.left + (dst.width - tp.width) / 2,
+        dst.top + (dst.height - tp.height) / 2,
+      ),
+    );
   }
 
   String _flagEmoji(String code) {
     if (code.length != 2) return '';
     const base = 0x1F1E6;
-    return String.fromCharCode(base + code.codeUnitAt(0) - 65) + String.fromCharCode(base + code.codeUnitAt(1) - 65);
+    return String.fromCharCode(base + code.codeUnitAt(0) - 65) +
+        String.fromCharCode(base + code.codeUnitAt(1) - 65);
   }
 
   @override
@@ -484,11 +526,14 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     if (reprWidth <= 0 || _preloadStarted) return;
     _preloadStarted = true;
 
-    final toLoad = widget.countryCodes
-        .where((code) =>
-            FlagTileRenderer.hasSvg(code) &&
-            _GridPainter._sharedCache.get(code, reprWidth) == null)
-        .toList();
+    final toLoad =
+        widget.countryCodes
+            .where(
+              (code) =>
+                  FlagTileRenderer.hasSvg(code) &&
+                  _GridPainter._sharedCache.get(code, reprWidth) == null,
+            )
+            .toList();
 
     if (toLoad.isEmpty) {
       _fireOnAssetsLoaded();
@@ -497,8 +542,11 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
     var remaining = toLoad.length;
     for (final code in toLoad) {
-      FlagTileRenderer.loadSvgToCache(code, reprWidth, _GridPainter._sharedCache)
-          .then((img) {
+      FlagTileRenderer.loadSvgToCache(
+        code,
+        reprWidth,
+        _GridPainter._sharedCache,
+      ).then((img) {
         if (mounted && img != null) _repaintNotifier.value++;
         remaining--;
         if (remaining == 0) _fireOnAssetsLoaded();
@@ -530,7 +578,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       );
     }
 
-    final effectiveTitle = widget.titleOverride ??
+    final effectiveTitle =
+        widget.titleOverride ??
         '${widget.countryCodes.length} ${widget.countryCodes.length == 1 ? 'Country' : 'Countries'}'
             '${widget.dateLabel.isNotEmpty ? ' \u00B7 ${widget.dateLabel}' : ''}';
 
@@ -550,7 +599,9 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
           final gridH = (size.height - topH - botH).clamp(1.0, double.infinity);
           final gridSize = Size(size.width, gridH);
           final reprWidth = FlagGridLayoutEngine.representativeTileWidth(
-              gridSize, widget.countryCodes.length);
+            gridSize,
+            widget.countryCodes.length,
+          );
           _preloadSvgs(reprWidth);
 
           return CustomPaint(
@@ -646,13 +697,18 @@ class _GridPainter extends CustomPainter {
     }
 
     // 1. Text zones (drawn first so flags sit on top if text is transparent).
-    final effectiveStripColor = transparentBackground
-        ? Colors.transparent
-        : CardTextRenderer.defaultStripColor;
-    final effectiveTextColor =
-        textColor ?? CardTextRenderer.defaultTextColor;
-    CardTextRenderer.drawTitle(canvas, size, title,
-        textColor: effectiveTextColor, stripColor: effectiveStripColor);
+    final effectiveStripColor =
+        transparentBackground
+            ? Colors.transparent
+            : CardTextRenderer.defaultStripColor;
+    final effectiveTextColor = textColor ?? CardTextRenderer.defaultTextColor;
+    CardTextRenderer.drawTitle(
+      canvas,
+      size,
+      title,
+      textColor: effectiveTextColor,
+      stripColor: effectiveStripColor,
+    );
     CardTextRenderer.drawBranding(
       canvas,
       size,
@@ -679,8 +735,12 @@ class _GridPainter extends CustomPainter {
     for (final tile in tiles) {
       final cached = _sharedCache.get(tile.code, reprWidth);
       if (cached != null) {
-        FlagTileRenderer.drawContained(canvas, cached, tile.rect,
-            cornerRadius: 0.0);
+        FlagTileRenderer.drawContained(
+          canvas,
+          cached,
+          tile.rect,
+          cornerRadius: 0.0,
+        );
       } else {
         // Placeholder while SVG loads — transparent rect.
         canvas.drawRect(tile.rect, _placeholderPaint);
@@ -854,8 +914,11 @@ class _HeartFlagsCardState extends State<HeartFlagsCard> {
       if (!FlagTileRenderer.hasSvg(code)) continue;
       if (_HeartPainter._sharedCache.get(code, tileSize) != null) continue;
       futures.add(
-        FlagTileRenderer.loadSvgToCache(code, tileSize, _HeartPainter._sharedCache)
-            .then((img) {
+        FlagTileRenderer.loadSvgToCache(
+          code,
+          tileSize,
+          _HeartPainter._sharedCache,
+        ).then((img) {
           if (mounted && img != null) _repaintNotifier.value++;
         }),
       );
@@ -1004,8 +1067,7 @@ class _HeartPainter extends CustomPainter {
       canvas.drawPath(
         heartPath,
         Paint()
-          ..maskFilter =
-              MaskFilter.blur(BlurStyle.normal, config.edgeFeatherPx)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, config.edgeFeatherPx)
           ..color = const Color(0xFFFFFFFF),
       );
       canvas.restore();
@@ -1131,33 +1193,36 @@ class PassportStampsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: aspectRatio,
-      child: countryCodes.isEmpty
-          ? const _PassportEmptyState()
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final size =
-                    Size(constraints.maxWidth, constraints.maxHeight);
-                return _PassportPagePainter(
-                  countryCodes: countryCodes,
-                  trips: trips,
-                  canvasSize: size,
-                  entryOnly: entryOnly,
-                  forPrint: forPrint,
-                  onWasForced: onWasForced,
-                  onAssetsLoaded: onAssetsLoaded,
-                  dateLabel: dateLabel,
-                  titleOverride: titleOverride,
-                  stampColor: stampColor,
-                  dateColor: dateColor,
-                  textColor: textColor,
-                  transparentBackground: transparentBackground,
-                  seed: seed,
-                  sizeMultiplier: sizeMultiplier,
-                  jitterFactor: jitterFactor,
-                  backgroundImageBytes: backgroundImageBytes,
-                );
-              },
-            ),
+      child:
+          countryCodes.isEmpty
+              ? const _PassportEmptyState()
+              : LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  return _PassportPagePainter(
+                    countryCodes: countryCodes,
+                    trips: trips,
+                    canvasSize: size,
+                    entryOnly: entryOnly,
+                    forPrint: forPrint,
+                    onWasForced: onWasForced,
+                    onAssetsLoaded: onAssetsLoaded,
+                    dateLabel: dateLabel,
+                    titleOverride: titleOverride,
+                    stampColor: stampColor,
+                    dateColor: dateColor,
+                    textColor: textColor,
+                    transparentBackground: transparentBackground,
+                    seed: seed,
+                    sizeMultiplier: sizeMultiplier,
+                    jitterFactor: jitterFactor,
+                    backgroundImageBytes: backgroundImageBytes,
+                  );
+                },
+              ),
     );
   }
 }
@@ -1259,7 +1324,8 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
         _decodeBackgroundImage(widget.backgroundImageBytes!);
       }
     }
-    final layoutChanged = !listEquals(old.countryCodes, widget.countryCodes) ||
+    final layoutChanged =
+        !listEquals(old.countryCodes, widget.countryCodes) ||
         !listEquals(old.trips, widget.trips) ||
         old.canvasSize != widget.canvasSize ||
         old.entryOnly != widget.entryOnly ||
@@ -1306,15 +1372,15 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
   }
 
   PassportLayoutResult _computeLayoutResult() => PassportLayoutEngine.layout(
-        trips: widget.trips,
-        countryCodes: widget.countryCodes,
-        canvasSize: widget.canvasSize,
-        entryOnly: widget.entryOnly,
-        forPrint: widget.forPrint,
-        seed: widget.seed,
-        sizeMultiplier: widget.sizeMultiplier,
-        jitterFactor: widget.jitterFactor,
-      );
+    trips: widget.trips,
+    countryCodes: widget.countryCodes,
+    canvasSize: widget.canvasSize,
+    entryOnly: widget.entryOnly,
+    forPrint: widget.forPrint,
+    seed: widget.seed,
+    sizeMultiplier: widget.sizeMultiplier,
+    jitterFactor: widget.jitterFactor,
+  );
 
   Future<void> _loadAssets() async {
     // Capture the stamp list in case it changes while we await.
@@ -1346,25 +1412,30 @@ class _PassportPagePainterState extends State<_PassportPagePainter> {
   @override
   Widget build(BuildContext context) {
     // Map override colors into stamps if provided (ADR-117)
-    final effectiveStamps = (widget.stampColor != null || widget.dateColor != null)
-        ? _stamps.map((s) => StampData(
-            countryCode: s.countryCode,
-            countryName: s.countryName,
-            style: s.style,
-            inkFamilyIndex: s.inkFamilyIndex,
-            ageEffect: s.ageEffect,
-            rotation: s.rotation,
-            center: s.center,
-            scale: s.scale,
-            isEntry: s.isEntry,
-            dateLabel: s.dateLabel,
-            entryLabel: s.entryLabel,
-            edgeClip: s.edgeClip,
-            renderConfig: s.renderConfig,
-            overrideInkColor: widget.stampColor,
-            overrideDateColor: widget.dateColor,
-          )).toList()
-        : _stamps;
+    final effectiveStamps =
+        (widget.stampColor != null || widget.dateColor != null)
+            ? _stamps
+                .map(
+                  (s) => StampData(
+                    countryCode: s.countryCode,
+                    countryName: s.countryName,
+                    style: s.style,
+                    inkFamilyIndex: s.inkFamilyIndex,
+                    ageEffect: s.ageEffect,
+                    rotation: s.rotation,
+                    center: s.center,
+                    scale: s.scale,
+                    isEntry: s.isEntry,
+                    dateLabel: s.dateLabel,
+                    entryLabel: s.entryLabel,
+                    edgeClip: s.edgeClip,
+                    renderConfig: s.renderConfig,
+                    overrideInkColor: widget.stampColor,
+                    overrideDateColor: widget.dateColor,
+                  ),
+                )
+                .toList()
+            : _stamps;
 
     return CustomPaint(
       painter: _MultiStampPainter(
@@ -1443,8 +1514,10 @@ class _MultiStampPainter extends CustomPainter {
     // photo shows through while the ink-on-paper multiply blend still works.
     if (!transparentBackground) {
       if (backgroundImage != null) {
-        canvas.saveLayer(Offset.zero & size,
-            Paint()..color = const Color(0x40FFFFFF));
+        canvas.saveLayer(
+          Offset.zero & size,
+          Paint()..color = const Color(0x40FFFFFF),
+        );
         const PaperTexturePainter().paint(canvas, size);
         canvas.restore();
       } else {
@@ -1504,7 +1577,13 @@ class _MultiStampPainter extends CustomPainter {
     }
   }
 
-  void _drawBranding(Canvas canvas, Size size, int count, String date, Color color) {
+  void _drawBranding(
+    Canvas canvas,
+    Size size,
+    int count,
+    String date,
+    Color color,
+  ) {
     const double fontSize = 9.0;
     final tpRoavvy = TextPainter(
       text: TextSpan(
@@ -1548,7 +1627,10 @@ class _MultiStampPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tpDate.paint(canvas, Offset(12 + tpRoavvy.width + 8 + tpCount.width + 6, y));
+      tpDate.paint(
+        canvas,
+        Offset(12 + tpRoavvy.width + 8 + tpCount.width + 6, y),
+      );
     }
   }
 
@@ -1595,14 +1677,16 @@ class _MultiStampPainter extends CustomPainter {
     final Paint imgPaint;
     final inkOverride = stamp.overrideInkColor;
     if (inkOverride != null) {
-      imgPaint = Paint()
-        ..colorFilter = ColorFilter.mode(
-          inkOverride.withValues(alpha: stamp.ageEffect.opacity),
-          BlendMode.srcIn,
-        );
+      imgPaint =
+          Paint()
+            ..colorFilter = ColorFilter.mode(
+              inkOverride.withValues(alpha: stamp.ageEffect.opacity),
+              BlendMode.srcIn,
+            );
     } else {
-      imgPaint = Paint()
-        ..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity);
+      imgPaint =
+          Paint()
+            ..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity);
     }
     canvas.drawImageRect(
       asset.image,
@@ -1771,10 +1855,7 @@ class _TypographyPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (!transparentBackground) {
-      canvas.drawRect(
-        Offset.zero & size,
-        Paint()..color = _bgColor,
-      );
+      canvas.drawRect(Offset.zero & size, Paint()..color = _bgColor);
       // Subtle gradient overlay for depth.
       canvas.drawRect(
         Offset.zero & size,
@@ -1788,8 +1869,14 @@ class _TypographyPainter extends CustomPainter {
     }
 
     if (codes.isEmpty) {
-      _drawCentredText(canvas, size, 'No countries yet', 16,
-          Colors.white54, FontWeight.normal);
+      _drawCentredText(
+        canvas,
+        size,
+        'No countries yet',
+        16,
+        Colors.white54,
+        FontWeight.normal,
+      );
       return;
     }
 
@@ -1805,13 +1892,25 @@ class _TypographyPainter extends CustomPainter {
     final flag = _flag(codes.first);
 
     // Flag emoji centred at 30% height.
-    _drawCentredText(canvas, size, flag, size.width * 0.15,
-        Colors.white, FontWeight.normal,
-        offsetY: -size.height * 0.12);
+    _drawCentredText(
+      canvas,
+      size,
+      flag,
+      size.width * 0.15,
+      Colors.white,
+      FontWeight.normal,
+      offsetY: -size.height * 0.12,
+    );
 
     // Country name headline.
-    _drawCentredText(canvas, size, name, size.width * 0.08,
-        Colors.white, FontWeight.w700);
+    _drawCentredText(
+      canvas,
+      size,
+      name,
+      size.width * 0.08,
+      Colors.white,
+      FontWeight.w700,
+    );
 
     // Gold accent rule.
     final ruleY = size.height * 0.58;
@@ -1824,17 +1923,21 @@ class _TypographyPainter extends CustomPainter {
     );
 
     // Subtitle.
-    _drawCentredText(canvas, size, titleOverride ?? 'My First Country',
-        size.width * 0.045, _accentColor, FontWeight.w500,
-        offsetY: size.height * 0.1);
+    _drawCentredText(
+      canvas,
+      size,
+      titleOverride ?? 'My First Country',
+      size.width * 0.045,
+      _accentColor,
+      FontWeight.w500,
+      offsetY: size.height * 0.1,
+    );
   }
 
   void _drawMultiCountry(Canvas canvas, Size size) {
     final displayCodes = codes.take(_maxNames).toList();
     final overflow = codes.length - displayCodes.length;
-    final names = displayCodes
-        .map((c) => kCountryNames[c] ?? c)
-        .toList();
+    final names = displayCodes.map((c) => kCountryNames[c] ?? c).toList();
 
     final pad = size.width * 0.06;
     final colWidth = (size.width - pad * 3) / 2;
@@ -1882,9 +1985,15 @@ class _TypographyPainter extends CustomPainter {
 
     // Bottom count label.
     final countLabel = titleOverride ?? '${codes.length} countries';
-    _drawCentredText(canvas, size, countLabel, size.width * 0.038,
-        _accentColor, FontWeight.w500,
-        offsetY: size.height * 0.43);
+    _drawCentredText(
+      canvas,
+      size,
+      countLabel,
+      size.width * 0.038,
+      _accentColor,
+      FontWeight.w500,
+      offsetY: size.height * 0.43,
+    );
   }
 
   void _drawCentredText(
@@ -2050,9 +2159,10 @@ class _BadgePainter extends CustomPainter {
 
   void _drawTickMarks(Canvas canvas, double cx, double cy, double r) {
     const tickCount = 36;
-    final tickPaint = Paint()
-      ..color = _ringColor.withValues(alpha: 0.7)
-      ..strokeWidth = 1.2;
+    final tickPaint =
+        Paint()
+          ..color = _ringColor.withValues(alpha: 0.7)
+          ..strokeWidth = 1.2;
     for (int i = 0; i < tickCount; i++) {
       final angle = (i / tickCount) * 2 * math.pi - math.pi / 2;
       final isMajor = i % 9 == 0;
@@ -2066,16 +2176,24 @@ class _BadgePainter extends CustomPainter {
     }
   }
 
-  void _drawFlagArc(Canvas canvas, double cx, double cy, double arcR, Size size) {
+  void _drawFlagArc(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double arcR,
+    Size size,
+  ) {
     final displayCodes = codes.take(_maxFlags).toList();
     if (displayCodes.isEmpty) return;
 
     final flagFontSize = _flagFontSize(displayCodes.length, size);
 
     for (int i = 0; i < displayCodes.length; i++) {
-      final angle = displayCodes.length == 1
-          ? -math.pi / 2 // single flag centred at top
-          : (i / displayCodes.length) * 2 * math.pi - math.pi / 2;
+      final angle =
+          displayCodes.length == 1
+              ? -math.pi /
+                  2 // single flag centred at top
+              : (i / displayCodes.length) * 2 * math.pi - math.pi / 2;
 
       final r = displayCodes.length == 1 ? 0.0 : arcR;
       final x = cx + r * math.cos(angle);
@@ -2083,10 +2201,7 @@ class _BadgePainter extends CustomPainter {
 
       final emoji = _flag(displayCodes[i]);
       final tp = TextPainter(
-        text: TextSpan(
-          text: emoji,
-          style: TextStyle(fontSize: flagFontSize),
-        ),
+        text: TextSpan(text: emoji, style: TextStyle(fontSize: flagFontSize)),
         textDirection: TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
@@ -2139,13 +2254,34 @@ class _BadgePainter extends CustomPainter {
     final fontSize = _labelFontSize(label.length, size);
 
     if (line2 == null) {
-      _paintCentred(canvas, line1, cx, cy, fontSize, Colors.white,
-          FontWeight.w700);
+      _paintCentred(
+        canvas,
+        line1,
+        cx,
+        cy,
+        fontSize,
+        Colors.white,
+        FontWeight.w700,
+      );
     } else {
-      _paintCentred(canvas, line1, cx, cy - fontSize * 0.7, fontSize,
-          Colors.white, FontWeight.w700);
-      _paintCentred(canvas, line2, cx, cy + fontSize * 0.7, fontSize,
-          Colors.white, FontWeight.w700);
+      _paintCentred(
+        canvas,
+        line1,
+        cx,
+        cy - fontSize * 0.7,
+        fontSize,
+        Colors.white,
+        FontWeight.w700,
+      );
+      _paintCentred(
+        canvas,
+        line2,
+        cx,
+        cy + fontSize * 0.7,
+        fontSize,
+        Colors.white,
+        FontWeight.w700,
+      );
     }
   }
 
@@ -2156,7 +2292,12 @@ class _BadgePainter extends CustomPainter {
   }
 
   void _drawOuterText(
-      Canvas canvas, double cx, double cy, double textR, Size size) {
+    Canvas canvas,
+    double cx,
+    double cy,
+    double textR,
+    Size size,
+  ) {
     final year = DateTime.now().year;
     final outerLabel = 'ROAVVY · TRAVEL · $year';
     final chars = outerLabel.split('');
@@ -2189,8 +2330,15 @@ class _BadgePainter extends CustomPainter {
     }
   }
 
-  void _paintCentred(Canvas canvas, String text, double cx, double cy,
-      double fontSize, Color color, FontWeight weight) {
+  void _paintCentred(
+    Canvas canvas,
+    String text,
+    double cx,
+    double cy,
+    double fontSize,
+    Color color,
+    FontWeight weight,
+  ) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,

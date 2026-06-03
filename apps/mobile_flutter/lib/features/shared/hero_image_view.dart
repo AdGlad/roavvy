@@ -148,9 +148,10 @@ class _HeroImageViewState extends State<HeroImageView>
     if (_loading) {
       child = AnimatedBuilder(
         animation: _shimmerAnim,
-        builder: (_, __) => Container(
-          color: widget.fallbackColor.withValues(alpha: _shimmerAnim.value),
-        ),
+        builder:
+            (_, __) => Container(
+              color: widget.fallbackColor.withValues(alpha: _shimmerAnim.value),
+            ),
       );
     } else if (_bytes != null) {
       child = Image.memory(

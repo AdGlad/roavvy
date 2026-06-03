@@ -54,8 +54,8 @@ class YearInReviewService {
   const YearInReviewService({
     required TripRepository tripRepo,
     required HeroImageRepository heroRepo,
-  })  : _tripRepo = tripRepo,
-        _heroRepo = heroRepo;
+  }) : _tripRepo = tripRepo,
+       _heroRepo = heroRepo;
 
   final TripRepository _tripRepo;
   final HeroImageRepository _heroRepo;
@@ -63,19 +63,16 @@ class YearInReviewService {
   /// Returns [YearInReviewData] for [year], or null if no trips started in [year].
   Future<YearInReviewData?> getDataForYear(int year) async {
     final allTrips = await _tripRepo.loadAll();
-    final trips = allTrips
-        .where((t) => t.startedOn.year == year)
-        .toList()
-      ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+    final trips =
+        allTrips.where((t) => t.startedOn.year == year).toList()
+          ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
     if (trips.isEmpty) return null;
 
     // Single query for all rank-1 heroes, then filter to relevant trips.
     final allHeroes = await _heroRepo.getHeroesForRank1();
     final tripIds = {for (final t in trips) t.id};
-    final heroMap = <String, HeroImage?>{
-      for (final t in trips) t.id: null,
-    };
+    final heroMap = <String, HeroImage?>{for (final t in trips) t.id: null};
     for (final hero in allHeroes) {
       if (tripIds.contains(hero.tripId)) {
         heroMap[hero.tripId] = hero;
@@ -91,7 +88,9 @@ class YearInReviewService {
       countryCount: {for (final t in trips) t.countryCode}.length,
       tripCount: trips.length,
       totalPhotos: trips.fold(0, (sum, t) => sum + t.photoCount),
-      topScene: _topLabel(heroes.map((h) => h.primaryScene).whereType<String>()),
+      topScene: _topLabel(
+        heroes.map((h) => h.primaryScene).whereType<String>(),
+      ),
       topMood: _topLabel(heroes.expand((h) => h.mood.take(1))),
       topActivity: _topLabel(heroes.expand((h) => h.activity.take(1))),
       topCountry: _topCountry(trips),
@@ -105,7 +104,13 @@ class YearInReviewService {
     }
     if (freq.isEmpty) return null;
     return freq.entries
-        .reduce((a, b) => a.value > b.value || (a.value == b.value && a.key.compareTo(b.key) < 0) ? a : b)
+        .reduce(
+          (a, b) =>
+              a.value > b.value ||
+                      (a.value == b.value && a.key.compareTo(b.key) < 0)
+                  ? a
+                  : b,
+        )
         .key;
   }
 

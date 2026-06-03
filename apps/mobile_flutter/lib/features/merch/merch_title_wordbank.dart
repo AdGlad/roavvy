@@ -158,15 +158,16 @@ abstract final class MerchTitleWordbank {
   /// [seed] is incremented each time the user presses Regenerate, ensuring
   /// the phrase cycles through the bank without consecutive repeats.
   static String pickGeneric(int n, int seed) {
-    final bank = n <= 1
-        ? _solo
-        : n <= 5
+    final bank =
+        n <= 1
+            ? _solo
+            : n <= 5
             ? _small
             : n <= 15
-                ? _medium
-                : n <= 30
-                    ? _large
-                    : _massive;
+            ? _medium
+            : n <= 30
+            ? _large
+            : _massive;
     return bank[seed.abs() % bank.length];
   }
 

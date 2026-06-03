@@ -72,9 +72,8 @@ class DailyChallengeState {
       progress: progress ?? this.progress,
       site: site,
       submitting: submitting ?? this.submitting,
-      lastGuessResult: clearLastGuessResult
-          ? null
-          : lastGuessResult ?? this.lastGuessResult,
+      lastGuessResult:
+          clearLastGuessResult ? null : lastGuessResult ?? this.lastGuessResult,
     );
   }
 }
@@ -91,10 +90,10 @@ class DailyChallengeNotifier
     required DailyChallengeRepository repo,
     required List<WorldHeritageSite> allSites,
     required ChallengeStatsService statsService,
-  })  : _repo = repo,
-        _allSites = allSites,
-        _stats = statsService,
-        super(initial);
+  }) : _repo = repo,
+       _allSites = allSites,
+       _stats = statsService,
+       super(initial);
 
   final DailyChallengeRepository _repo;
   final List<WorldHeritageSite> _allSites;
@@ -126,7 +125,9 @@ class DailyChallengeNotifier
       cluesUsed: updated.cluesRevealed,
     );
     if (mounted) {
-      state = AsyncValue.data(current.copyWith(progress: updated, submitting: false));
+      state = AsyncValue.data(
+        current.copyWith(progress: updated, submitting: false),
+      );
     }
   }
 
@@ -138,8 +139,9 @@ class DailyChallengeNotifier
     }
     if (current.progress.cluesRevealed >= 5) return;
 
-    final updated =
-        current.progress.copyWith(cluesRevealed: current.progress.cluesRevealed + 1);
+    final updated = current.progress.copyWith(
+      cluesRevealed: current.progress.cluesRevealed + 1,
+    );
     state = AsyncValue.data(current.copyWith(progress: updated));
     await _repo.save(updated);
   }
@@ -176,11 +178,13 @@ class DailyChallengeNotifier
         cluesUsed: updated.cluesRevealed,
       );
       if (mounted) {
-        state = AsyncValue.data(current.copyWith(
-          progress: updated,
-          submitting: false,
-          clearLastGuessResult: true,
-        ));
+        state = AsyncValue.data(
+          current.copyWith(
+            progress: updated,
+            submitting: false,
+            clearLastGuessResult: true,
+          ),
+        );
       }
       return true;
     }
@@ -204,11 +208,13 @@ class DailyChallengeNotifier
       );
     }
     if (mounted) {
-      state = AsyncValue.data(current.copyWith(
-        progress: updated,
-        submitting: false,
-        lastGuessResult: guessResult,
-      ));
+      state = AsyncValue.data(
+        current.copyWith(
+          progress: updated,
+          submitting: false,
+          lastGuessResult: guessResult,
+        ),
+      );
     }
     return false;
   }
@@ -221,19 +227,25 @@ class DailyChallengeNotifier
     final normalised = normalizeForGuess(input);
     final guessedSite = _allSites.firstWhere(
       (s) => normalizeForGuess(s.name) == normalised,
-      orElse: () => _allSites.firstWhere(
-        (s) => normalizeForGuess(s.name).contains(normalised) &&
-            normalised.length >= 4,
-        orElse: () => target, // fallback: use target (distance = 0)
-      ),
+      orElse:
+          () => _allSites.firstWhere(
+            (s) =>
+                normalizeForGuess(s.name).contains(normalised) &&
+                normalised.length >= 4,
+            orElse: () => target, // fallback: use target (distance = 0)
+          ),
     );
     final km = distanceKm(
-      guessedSite.latitude, guessedSite.longitude,
-      target.latitude, target.longitude,
+      guessedSite.latitude,
+      guessedSite.longitude,
+      target.latitude,
+      target.longitude,
     );
     final bearing = bearingDeg(
-      guessedSite.latitude, guessedSite.longitude,
-      target.latitude, target.longitude,
+      guessedSite.latitude,
+      guessedSite.longitude,
+      target.latitude,
+      target.longitude,
     );
     final direction = cardinalDirection(bearing);
     final rating = hotColdRating(km);
@@ -261,17 +273,20 @@ DailyChallengeState buildInitialChallengeState({
 }) {
   final site = allSites.where((s) => s.siteId == challenge.siteId).firstOrNull;
   if (site == null) {
-    throw StateError('WHS site ${challenge.siteId} not found in bundled dataset');
+    throw StateError(
+      'WHS site ${challenge.siteId} not found in bundled dataset',
+    );
   }
   final today = todayLocal();
   // Discard saved progress if the siteId changed (e.g. challenge was corrected
   // server-side). Using stale progress for a different site would show the
   // challenge as already solved / partially played when it is actually fresh.
-  final validProgress = (savedProgress != null &&
-          savedProgress.siteId == challenge.siteId)
-      ? savedProgress
-      : null;
-  final progress = validProgress ??
+  final validProgress =
+      (savedProgress != null && savedProgress.siteId == challenge.siteId)
+          ? savedProgress
+          : null;
+  final progress =
+      validProgress ??
       DailyChallengeProgress(
         date: today,
         siteId: challenge.siteId,
@@ -279,5 +294,9 @@ DailyChallengeState buildInitialChallengeState({
         guesses: const [],
         solved: false,
       );
-  return DailyChallengeState(challenge: challenge, progress: progress, site: site);
+  return DailyChallengeState(
+    challenge: challenge,
+    progress: progress,
+    site: site,
+  );
 }

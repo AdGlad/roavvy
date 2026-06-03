@@ -39,7 +39,8 @@ class _YearInReviewScreenState extends ConsumerState<YearInReviewScreen> {
     setState(() => _sharing = true);
     try {
       final boundary =
-          _shareKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          _shareKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
 
       final image = await boundary.toImage(pixelRatio: 3.0);
@@ -85,11 +86,15 @@ class _YearInReviewScreenState extends ConsumerState<YearInReviewScreen> {
         elevation: 0,
       ),
       body: dataAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-        error: (e, _) => Center(
-          child: Text('Failed to load. $e',
-              style: const TextStyle(color: Colors.white54)),
-        ),
+        loading:
+            () => const Center(child: CircularProgressIndicator.adaptive()),
+        error:
+            (e, _) => Center(
+              child: Text(
+                'Failed to load. $e',
+                style: const TextStyle(color: Colors.white54),
+              ),
+            ),
         data: (data) {
           if (data == null) {
             return Center(
@@ -151,7 +156,9 @@ class _YearInReviewBody extends StatelessWidget {
         SliverToBoxAdapter(child: _Header(data: data)),
 
         // Highlights row
-        if (data.topScene != null || data.topMood != null || data.topActivity != null)
+        if (data.topScene != null ||
+            data.topMood != null ||
+            data.topActivity != null)
           SliverToBoxAdapter(child: _HighlightsRow(data: data)),
 
         // Section label
@@ -196,16 +203,17 @@ class _YearInReviewBody extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
-              child: sharing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.black54,
-                      ),
-                    )
-                  : const Text('Share Card'),
+              child:
+                  sharing
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.black54,
+                        ),
+                      )
+                      : const Text('Share Card'),
             ),
           ),
         ),
@@ -248,11 +256,15 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _StatChip(value: '${data.countryCount}',
-                  label: data.countryCount == 1 ? 'Country' : 'Countries'),
+              _StatChip(
+                value: '${data.countryCount}',
+                label: data.countryCount == 1 ? 'Country' : 'Countries',
+              ),
               const SizedBox(width: 8),
-              _StatChip(value: '${data.tripCount}',
-                  label: data.tripCount == 1 ? 'Trip' : 'Trips'),
+              _StatChip(
+                value: '${data.tripCount}',
+                label: data.tripCount == 1 ? 'Trip' : 'Trips',
+              ),
               const SizedBox(width: 8),
               _StatChip(value: '${data.totalPhotos}', label: 'Photos'),
             ],
@@ -278,13 +290,18 @@ class _StatChip extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white)),
-          Text(label,
-              style: const TextStyle(fontSize: 11, color: Colors.white54)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
         ],
       ),
     );
@@ -333,26 +350,30 @@ class _HighlightsRow extends StatelessWidget {
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: chips.map((label) {
-          final emoji = _kLabelEmoji[label] ?? '';
-          final display = _capitalise(label.replaceAll('_', ' '));
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: _kGold.withValues(alpha: 0.12),
-              border: Border.all(color: _kGold.withValues(alpha: 0.35)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              '$emoji $display',
-              style: const TextStyle(
-                fontSize: 12,
-                color: _kGold,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          );
-        }).toList(),
+        children:
+            chips.map((label) {
+              final emoji = _kLabelEmoji[label] ?? '';
+              final display = _capitalise(label.replaceAll('_', ' '));
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: _kGold.withValues(alpha: 0.12),
+                  border: Border.all(color: _kGold.withValues(alpha: 0.35)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '$emoji $display',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _kGold,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
       ),
     );
   }
@@ -420,8 +441,18 @@ class _TripTile extends StatelessWidget {
   }
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _fmtRange(DateTime start, DateTime end) {
@@ -431,9 +462,10 @@ class _TripTile extends StatelessWidget {
         start.day == end.day) {
       return startStr;
     }
-    final endStr = start.month == end.month
-        ? '${end.day}'
-        : '${_months[end.month - 1]} ${end.day}';
+    final endStr =
+        start.month == end.month
+            ? '${end.day}'
+            : '${_months[end.month - 1]} ${end.day}';
     return '$startStr – $endStr';
   }
 }
