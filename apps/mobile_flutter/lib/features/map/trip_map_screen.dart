@@ -11,8 +11,8 @@ import '../../core/providers.dart';
 // ── Colours (match CountryPolygonLayer, ADR-080) ──────────────────────────────
 
 const _kOceanBackground = Color(0xFF0D2137);
-const _kVisitedFill = Color(0xFFD4A017);     // amber tier-1 (depthFillColor(1))
-const _kUnvisitedFill = Color(0xFF1E3A5F);   // dark navy land
+const _kVisitedFill = Color(0xFFD4A017); // amber tier-1 (depthFillColor(1))
+const _kUnvisitedFill = Color(0xFF1E3A5F); // dark navy land
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -24,8 +24,18 @@ String _flagEmoji(String isoCode) {
 }
 
 const _kMonths = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _fmtMonth(DateTime dt) => '${_kMonths[dt.month - 1]} ${dt.year}';
@@ -86,10 +96,7 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
     ];
     final bounds = LatLngBounds.fromPoints(allPoints);
     _mapController.fitCamera(
-      CameraFit.bounds(
-        bounds: bounds,
-        padding: const EdgeInsets.all(24),
-      ),
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(24)),
     );
   }
 
@@ -98,7 +105,10 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
     final countryName =
         kCountryNames[widget.trip.countryCode] ?? widget.trip.countryCode;
     final flag = _flagEmoji(widget.trip.countryCode);
-    final dateRange = _tripDateRange(widget.trip.startedOn, widget.trip.endedOn);
+    final dateRange = _tripDateRange(
+      widget.trip.startedOn,
+      widget.trip.endedOn,
+    );
 
     return Scaffold(
       backgroundColor: _kOceanBackground,
@@ -111,10 +121,9 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
             Text('$flag  $countryName'),
             Text(
               dateRange,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.white70),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.white70),
             ),
           ],
         ),
@@ -133,20 +142,23 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
           final unvisitedPolygons = <Polygon>[];
 
           for (final p in _allPolygons) {
-            final points =
-                p.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
+            final points = p.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
             if (visitedCodes.contains(p.regionCode)) {
-              visitedPolygons.add(Polygon(
-                points: points,
-                color: _kVisitedFill.withValues(alpha: 0.85),
-                borderStrokeWidth: 0,
-              ));
+              visitedPolygons.add(
+                Polygon(
+                  points: points,
+                  color: _kVisitedFill.withValues(alpha: 0.85),
+                  borderStrokeWidth: 0,
+                ),
+              );
             } else {
-              unvisitedPolygons.add(Polygon(
-                points: points,
-                color: _kUnvisitedFill.withValues(alpha: 0.9),
-                borderStrokeWidth: 0,
-              ));
+              unvisitedPolygons.add(
+                Polygon(
+                  points: points,
+                  color: _kUnvisitedFill.withValues(alpha: 0.9),
+                  borderStrokeWidth: 0,
+                ),
+              );
             }
           }
 

@@ -23,17 +23,23 @@ Future<CardRenderResult> _render(
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: Builder(builder: (context) {
-          ctx = context;
-          return const SizedBox.shrink();
-        }),
+        body: Builder(
+          builder: (context) {
+            ctx = context;
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     ),
   );
 
   // Ensure the Builder has run and ctx is captured.
   await tester.pump();
-  expect(ctx, isNotNull, reason: 'BuildContext not captured — test setup error');
+  expect(
+    ctx,
+    isNotNull,
+    reason: 'BuildContext not captured — test setup error',
+  );
 
   late CardRenderResult result;
   await tester.runAsync(() async {
@@ -65,26 +71,41 @@ Future<CardRenderResult> _render(
 
 void main() {
   group('CardImageRenderer', () {
-    testWidgets('render(grid, [GB, FR]) returns non-empty bytes',
-        (tester) async {
-      final result =
-          await _render(tester, CardTemplateType.grid, codes: ['GB', 'FR']);
+    testWidgets('render(grid, [GB, FR]) returns non-empty bytes', (
+      tester,
+    ) async {
+      final result = await _render(
+        tester,
+        CardTemplateType.grid,
+        codes: ['GB', 'FR'],
+      );
       expect(result.bytes, isNotEmpty);
     });
 
-    testWidgets('returned bytes start with PNG magic bytes (0x89 0x50)',
-        (tester) async {
-      final result =
-          await _render(tester, CardTemplateType.grid, codes: ['GB', 'FR']);
+    testWidgets('returned bytes start with PNG magic bytes (0x89 0x50)', (
+      tester,
+    ) async {
+      final result = await _render(
+        tester,
+        CardTemplateType.grid,
+        codes: ['GB', 'FR'],
+      );
       expect(result.bytes.length, greaterThanOrEqualTo(2));
-      expect(result.bytes[0], equals(0x89),
-          reason: 'First PNG magic byte mismatch');
-      expect(result.bytes[1], equals(0x50),
-          reason: 'Second PNG magic byte mismatch');
+      expect(
+        result.bytes[0],
+        equals(0x89),
+        reason: 'First PNG magic byte mismatch',
+      );
+      expect(
+        result.bytes[1],
+        equals(0x50),
+        reason: 'Second PNG magic byte mismatch',
+      );
     });
 
-    testWidgets('render completes for every CardTemplateType without throwing',
-        (tester) async {
+    testWidgets('render completes for every CardTemplateType without throwing', (
+      tester,
+    ) async {
       for (final template in CardTemplateType.values) {
         // wordCloud uses the word_cloud package which computes a negative font
         // size in the headless test environment (test TextScaler + no system
@@ -93,14 +114,20 @@ void main() {
         // card_type_picker_screen_test.dart. Skip here — covered by QA.
         if (template == CardTemplateType.wordCloud) continue;
         final result = await _render(tester, template, codes: ['GB', 'FR']);
-        expect(result.bytes, isNotEmpty,
-            reason: 'render(${template.name}) returned empty bytes');
+        expect(
+          result.bytes,
+          isNotEmpty,
+          reason: 'render(${template.name}) returned empty bytes',
+        );
       }
     });
 
     testWidgets('imageHash is 64 lowercase hex characters', (tester) async {
-      final result =
-          await _render(tester, CardTemplateType.grid, codes: ['GB', 'FR']);
+      final result = await _render(
+        tester,
+        CardTemplateType.grid,
+        codes: ['GB', 'FR'],
+      );
       expect(result.imageHash, hasLength(64));
       expect(
         RegExp(r'^[0-9a-f]{64}$').hasMatch(result.imageHash),
@@ -109,19 +136,31 @@ void main() {
       );
     });
 
-    testWidgets('identical inputs produce identical hash within same test run',
-        (tester) async {
-      final result1 =
-          await _render(tester, CardTemplateType.grid, codes: ['GB', 'FR']);
-      final result2 =
-          await _render(tester, CardTemplateType.grid, codes: ['GB', 'FR']);
-      expect(result1.imageHash, equals(result2.imageHash),
-          reason: 'Hash must be deterministic for identical inputs');
-    });
+    testWidgets(
+      'identical inputs produce identical hash within same test run',
+      (tester) async {
+        final result1 = await _render(
+          tester,
+          CardTemplateType.grid,
+          codes: ['GB', 'FR'],
+        );
+        final result2 = await _render(
+          tester,
+          CardTemplateType.grid,
+          codes: ['GB', 'FR'],
+        );
+        expect(
+          result1.imageHash,
+          equals(result2.imageHash),
+          reason: 'Hash must be deterministic for identical inputs',
+        );
+      },
+    );
 
     // ADR-112: new params are forwarded to template widgets.
-    testWidgets('render completes with entryOnly=true for passport template',
-        (tester) async {
+    testWidgets('render completes with entryOnly=true for passport template', (
+      tester,
+    ) async {
       final result = await _render(
         tester,
         CardTemplateType.passport,
@@ -131,8 +170,9 @@ void main() {
       expect(result.bytes, isNotEmpty);
     });
 
-    testWidgets('render completes with portrait cardAspectRatio for grid',
-        (tester) async {
+    testWidgets('render completes with portrait cardAspectRatio for grid', (
+      tester,
+    ) async {
       final result = await _render(
         tester,
         CardTemplateType.grid,
@@ -143,19 +183,21 @@ void main() {
     });
 
     testWidgets(
-        'render completes with heartOrder=alphabetical for heart template',
-        (tester) async {
-      final result = await _render(
-        tester,
-        CardTemplateType.heart,
-        codes: ['GB', 'FR', 'DE'],
-        heartOrder: HeartFlagOrder.alphabetical,
-      );
-      expect(result.bytes, isNotEmpty);
-    });
+      'render completes with heartOrder=alphabetical for heart template',
+      (tester) async {
+        final result = await _render(
+          tester,
+          CardTemplateType.heart,
+          codes: ['GB', 'FR', 'DE'],
+          heartOrder: HeartFlagOrder.alphabetical,
+        );
+        expect(result.bytes, isNotEmpty);
+      },
+    );
 
-    testWidgets('render with dateLabel produces non-empty bytes',
-        (tester) async {
+    testWidgets('render with dateLabel produces non-empty bytes', (
+      tester,
+    ) async {
       final result = await _render(
         tester,
         CardTemplateType.grid,

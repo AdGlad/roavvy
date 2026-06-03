@@ -85,10 +85,7 @@ class PassportPdfPage {
 /// Contains both the assembled PDF bytes and the per-page PNG images so the
 /// [PassportBookScreen] can display previews without re-rendering (ADR-140 §4).
 class PassportPdfResult {
-  const PassportPdfResult({
-    required this.pdfBytes,
-    required this.pages,
-  });
+  const PassportPdfResult({required this.pdfBytes, required this.pages});
 
   /// Complete multi-page PDF file bytes.
   final Uint8List pdfBytes;
@@ -131,12 +128,14 @@ abstract final class PassportPdfService {
   ) {
     final pages = <PassportPdfPage>[];
 
-    pages.add(PassportPdfPage(
-      type: PassportPdfPageType.cover,
-      stamps: const [],
-      trips: trips,
-      countryCodes: countryCodes,
-    ));
+    pages.add(
+      PassportPdfPage(
+        type: PassportPdfPageType.cover,
+        stamps: const [],
+        trips: trips,
+        countryCodes: countryCodes,
+      ),
+    );
 
     final sorted = List<TripRecord>.from(trips)
       ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
@@ -146,8 +145,7 @@ abstract final class PassportPdfService {
         countryCodes.where((c) => !tripCodes.contains(c)).toList();
 
     const n = PassportPrintConfig.tripsPerPage;
-    final stampPageCount =
-        sorted.isEmpty ? 1 : ((sorted.length + n - 1) ~/ n);
+    final stampPageCount = sorted.isEmpty ? 1 : ((sorted.length + n - 1) ~/ n);
 
     for (var p = 0; p < stampPageCount; p++) {
       final start = p * n;
@@ -177,21 +175,25 @@ abstract final class PassportPdfService {
         stamps = result.stamps;
       }
 
-      pages.add(PassportPdfPage(
-        type: PassportPdfPageType.stamps,
-        stamps: stamps,
-        trips: sorted,
-        countryCodes: countryCodes,
-        pageIndex: p + 1, // 1-based page number for display
-      ));
+      pages.add(
+        PassportPdfPage(
+          type: PassportPdfPageType.stamps,
+          stamps: stamps,
+          trips: sorted,
+          countryCodes: countryCodes,
+          pageIndex: p + 1, // 1-based page number for display
+        ),
+      );
     }
 
-    pages.add(PassportPdfPage(
-      type: PassportPdfPageType.summary,
-      stamps: const [],
-      trips: sorted,
-      countryCodes: countryCodes,
-    ));
+    pages.add(
+      PassportPdfPage(
+        type: PassportPdfPageType.summary,
+        stamps: const [],
+        trips: sorted,
+        countryCodes: countryCodes,
+      ),
+    );
 
     return pages;
   }
@@ -221,42 +223,52 @@ abstract final class PassportPdfService {
     );
 
     // Fine horizontal microprint lines
-    final linePaint = Paint()
-      ..color = PassportPrintConfig.gold.withValues(alpha: 0.1)
-      ..strokeWidth = 1.5;
+    final linePaint =
+        Paint()
+          ..color = PassportPrintConfig.gold.withValues(alpha: 0.1)
+          ..strokeWidth = 1.5;
     for (var y = 0.0; y < h; y += 20) {
       canvas.drawLine(Offset(0, y), Offset(w, y), linePaint);
     }
 
-    _paintCentred(canvas, 'ROAVVY',
-        fontSize: 148,
-        fontWeight: FontWeight.w800,
-        color: Colors.white,
-        letterSpacing: 14,
-        y: h * 0.37,
-        maxWidth: w);
+    _paintCentred(
+      canvas,
+      'ROAVVY',
+      fontSize: 148,
+      fontWeight: FontWeight.w800,
+      color: Colors.white,
+      letterSpacing: 14,
+      y: h * 0.37,
+      maxWidth: w,
+    );
 
     canvas.drawRect(
       Rect.fromLTWH(w * 0.2, h * 0.455, w * 0.6, 3),
       Paint()..color = PassportPrintConfig.gold,
     );
 
-    _paintCentred(canvas, 'PASSPORT',
-        fontSize: 60,
-        fontWeight: FontWeight.w300,
-        color: PassportPrintConfig.gold,
-        letterSpacing: 16,
-        y: h * 0.472,
-        maxWidth: w);
+    _paintCentred(
+      canvas,
+      'PASSPORT',
+      fontSize: 60,
+      fontWeight: FontWeight.w300,
+      color: PassportPrintConfig.gold,
+      letterSpacing: 16,
+      y: h * 0.472,
+      maxWidth: w,
+    );
 
     final range = _yearRange(page.trips);
     if (range != null) {
-      _paintCentred(canvas, range,
-          fontSize: 40,
-          fontWeight: FontWeight.w400,
-          color: Colors.white54,
-          y: h * 0.88,
-          maxWidth: w);
+      _paintCentred(
+        canvas,
+        range,
+        fontSize: 40,
+        fontWeight: FontWeight.w400,
+        color: Colors.white54,
+        y: h * 0.88,
+        maxWidth: w,
+      );
     }
 
     return _finish(recorder);
@@ -299,8 +311,12 @@ abstract final class PassportPdfService {
       final asset = assets[key];
       if (asset != null) {
         // Fixed PDF base radius so stamps fill the A6 page (bypasses engine clamp).
-        _drawAssetStamp(canvas, stamp, asset,
-            baseRadiusOverride: PassportPrintConfig.stampPdfBaseRadius);
+        _drawAssetStamp(
+          canvas,
+          stamp,
+          asset,
+          baseRadiusOverride: PassportPrintConfig.stampPdfBaseRadius,
+        );
       } else {
         // Procedural fallback: scale stamp to match the fixed PDF radius.
         final scaledStamp = StampData(
@@ -345,32 +361,35 @@ abstract final class PassportPdfService {
       Paint()..color = PassportPrintConfig.coverBackground,
     );
 
-    final linePaint = Paint()
-      ..color = PassportPrintConfig.gold.withValues(alpha: 0.1)
-      ..strokeWidth = 1.5;
+    final linePaint =
+        Paint()
+          ..color = PassportPrintConfig.gold.withValues(alpha: 0.1)
+          ..strokeWidth = 1.5;
     for (var y = 0.0; y < h; y += 20) {
       canvas.drawLine(Offset(0, y), Offset(w, y), linePaint);
     }
 
-    _paintCentred(canvas, 'YOUR TRAVELS',
-        fontSize: 72,
-        fontWeight: FontWeight.w700,
-        color: PassportPrintConfig.gold,
-        letterSpacing: 6,
-        y: 80,
-        maxWidth: w);
+    _paintCentred(
+      canvas,
+      'YOUR TRAVELS',
+      fontSize: 72,
+      fontWeight: FontWeight.w700,
+      color: PassportPrintConfig.gold,
+      letterSpacing: 6,
+      y: 80,
+      maxWidth: w,
+    );
 
     canvas.drawRect(
       Rect.fromLTWH(w * 0.15, 188, w * 0.7, 2),
       Paint()..color = PassportPrintConfig.gold.withValues(alpha: 0.45),
     );
 
-    final sorted = List<String>.from(page.countryCodes)
-      ..sort((a, b) {
-        final na = kCountryNames[a] ?? a;
-        final nb = kCountryNames[b] ?? b;
-        return na.compareTo(nb);
-      });
+    final sorted = List<String>.from(page.countryCodes)..sort((a, b) {
+      final na = kCountryNames[a] ?? a;
+      final nb = kCountryNames[b] ?? b;
+      return na.compareTo(nb);
+    });
 
     const startY = 218.0;
     const itemH = 52.0;
@@ -387,25 +406,31 @@ abstract final class PassportPdfService {
       final code = sorted[i];
       final flag = _flagEmoji(code);
       final name = kCountryNames[code] ?? code;
-      _paintAt(canvas, '$flag  $name',
-          fontSize: 32,
-          fontWeight: FontWeight.w400,
-          color: Colors.white.withValues(alpha: 0.88),
-          x: x,
-          y: y,
-          maxWidth: w / 2 - 100);
+      _paintAt(
+        canvas,
+        '$flag  $name',
+        fontSize: 32,
+        fontWeight: FontWeight.w400,
+        color: Colors.white.withValues(alpha: 0.88),
+        x: x,
+        y: y,
+        maxWidth: w / 2 - 100,
+      );
     }
 
     final range = _yearRange(page.trips);
     final count = page.countryCodes.length;
     final countStr = '$count ${count == 1 ? 'country' : 'countries'}';
     final footer = range != null ? '$countStr · $range' : countStr;
-    _paintCentred(canvas, footer,
-        fontSize: 36,
-        fontWeight: FontWeight.w600,
-        color: PassportPrintConfig.gold,
-        y: h - 110,
-        maxWidth: w);
+    _paintCentred(
+      canvas,
+      footer,
+      fontSize: 36,
+      fontWeight: FontWeight.w600,
+      color: PassportPrintConfig.gold,
+      y: h - 110,
+      maxWidth: w,
+    );
 
     return _finish(recorder);
   }
@@ -435,16 +460,12 @@ abstract final class PassportPdfService {
         pw.Page(
           pageFormat: pageFormat,
           margin: pw.EdgeInsets.zero,
-          build: (pw.Context ctx) =>
-              pw.Image(pdfImage, fit: pw.BoxFit.fill),
+          build: (pw.Context ctx) => pw.Image(pdfImage, fit: pw.BoxFit.fill),
         ),
       );
     }
 
-    return PassportPdfResult(
-      pdfBytes: await doc.save(),
-      pages: renderedPages,
-    );
+    return PassportPdfResult(pdfBytes: await doc.save(), pages: renderedPages);
   }
 
   // ── Passport page background ───────────────────────────────────────────────
@@ -470,10 +491,11 @@ abstract final class PassportPdfService {
     // ── Horizontal layers ────────────────────────────────────────────────────
 
     // H1 — primary teal-blue sweep
-    final pH1 = Paint()
-      ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.12)
-      ..strokeWidth = 0.7
-      ..style = PaintingStyle.stroke;
+    final pH1 =
+        Paint()
+          ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.12)
+          ..strokeWidth = 0.7
+          ..style = PaintingStyle.stroke;
     final hFreq1 = 2 * math.pi / (w * 0.13); // slow wave ~full-width cycle
     const hAmp1 = 5.5;
     for (var baseY = 0.0; baseY < h; baseY += gap) {
@@ -485,17 +507,17 @@ abstract final class PassportPdfService {
     }
 
     // H2 — offset phase, higher frequency, creates interlock nodes with H1
-    final pH2 = Paint()
-      ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.075)
-      ..strokeWidth = 0.55
-      ..style = PaintingStyle.stroke;
+    final pH2 =
+        Paint()
+          ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.075)
+          ..strokeWidth = 0.55
+          ..style = PaintingStyle.stroke;
     final hFreq2 = 2 * math.pi / (w * 0.075);
     const hAmp2 = 4.0;
     for (var baseY = gap / 2; baseY < h; baseY += gap) {
       final path = Path()..moveTo(0, baseY);
       for (var x = 1.5; x <= w; x += 1.5) {
-        path.lineTo(
-            x, baseY + hAmp2 * math.sin(hFreq2 * x + math.pi * 0.6));
+        path.lineTo(x, baseY + hAmp2 * math.sin(hFreq2 * x + math.pi * 0.6));
       }
       canvas.drawPath(path, pH2);
     }
@@ -503,10 +525,11 @@ abstract final class PassportPdfService {
     // ── Vertical layers ──────────────────────────────────────────────────────
 
     // V1 — blue-green crosses horizontal mesh
-    final pV1 = Paint()
-      ..color = const Color(0xFF2EA87A).withValues(alpha: 0.09)
-      ..strokeWidth = 0.7
-      ..style = PaintingStyle.stroke;
+    final pV1 =
+        Paint()
+          ..color = const Color(0xFF2EA87A).withValues(alpha: 0.09)
+          ..strokeWidth = 0.7
+          ..style = PaintingStyle.stroke;
     final vFreq1 = 2 * math.pi / (h * 0.13);
     for (var baseX = 0.0; baseX < w; baseX += gap) {
       final path = Path()..moveTo(baseX, 0);
@@ -517,16 +540,16 @@ abstract final class PassportPdfService {
     }
 
     // V2 — offset, tighter frequency, completes diamond mesh
-    final pV2 = Paint()
-      ..color = const Color(0xFF2EA87A).withValues(alpha: 0.06)
-      ..strokeWidth = 0.55
-      ..style = PaintingStyle.stroke;
+    final pV2 =
+        Paint()
+          ..color = const Color(0xFF2EA87A).withValues(alpha: 0.06)
+          ..strokeWidth = 0.55
+          ..style = PaintingStyle.stroke;
     final vFreq2 = 2 * math.pi / (h * 0.075);
     for (var baseX = gap / 2; baseX < w; baseX += gap) {
       final path = Path()..moveTo(baseX, 0);
       for (var y = 1.5; y <= h; y += 1.5) {
-        path.lineTo(
-            baseX + hAmp2 * math.sin(vFreq2 * y + math.pi * 0.6), y);
+        path.lineTo(baseX + hAmp2 * math.sin(vFreq2 * y + math.pi * 0.6), y);
       }
       canvas.drawPath(path, pV2);
     }
@@ -556,9 +579,10 @@ abstract final class PassportPdfService {
     const margin = 52.0;
 
     // Thin horizontal rule above number
-    final rulePaint = Paint()
-      ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.25)
-      ..strokeWidth = 1.5;
+    final rulePaint =
+        Paint()
+          ..color = const Color(0xFF2E8BA5).withValues(alpha: 0.25)
+          ..strokeWidth = 1.5;
     canvas.drawLine(
       Offset(w * 0.38, h - margin - 28),
       Offset(w * 0.62, h - margin - 28),
@@ -599,8 +623,9 @@ abstract final class PassportPdfService {
     canvas.translate(stamp.center.dx, stamp.center.dy);
     canvas.rotate(stamp.rotation);
 
-    final imgPaint = Paint()
-      ..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity);
+    final imgPaint =
+        Paint()
+          ..color = Colors.white.withValues(alpha: stamp.ageEffect.opacity);
     canvas.drawImageRect(
       asset.image,
       Rect.fromLTWH(0, 0, meta.imageWidth, meta.imageHeight),
@@ -631,8 +656,7 @@ abstract final class PassportPdfService {
       text: TextSpan(
         text: stamp.dateLabel,
         style: TextStyle(
-          color:
-              stamp.dateColor.withValues(alpha: stamp.ageEffect.opacity),
+          color: stamp.dateColor.withValues(alpha: stamp.ageEffect.opacity),
           fontSize: spec.fontSize * scaleY,
           fontWeight: FontWeight.w700,
           letterSpacing: spec.letterSpacing * scaleX,
@@ -678,8 +702,7 @@ abstract final class PassportPdfService {
       PassportPrintConfig.pageWidthPx.round(),
       PassportPrintConfig.pageHeightPx.round(),
     );
-    final byteData =
-        await image.toByteData(format: ui.ImageByteFormat.png);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
     return byteData!.buffer.asUint8List();
   }

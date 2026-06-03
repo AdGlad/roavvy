@@ -86,20 +86,20 @@ class _CardParams {
 
   @override
   int get hashCode => Object.hash(
-        templateType,
-        Object.hashAll(countryCodes),
-        aspectRatio,
-        entryOnly,
-        order,
-        yearStart,
-        yearEnd,
-        titleOverride,
-        stampLayoutSeed,
-        stampSizeMultiplier,
-        stampJitterFactor,
-        backgroundAssetId,
-        gridLayoutMode,
-      );
+    templateType,
+    Object.hashAll(countryCodes),
+    aspectRatio,
+    entryOnly,
+    order,
+    yearStart,
+    yearEnd,
+    titleOverride,
+    stampLayoutSeed,
+    stampSizeMultiplier,
+    stampJitterFactor,
+    backgroundAssetId,
+    gridLayoutMode,
+  );
 }
 
 // ── CardEditorScreen ───────────────────────────────────────────────────────────
@@ -130,6 +130,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   double _stampJitterFactor = 0.4;
   bool _showPassportControls = true;
   RangeValues? _yearSelection;
+
   /// Country codes manually deselected by the user. Cleared when year range changes.
   Set<String> _manuallyDeselectedCodes = {};
   late TextEditingController _titleController;
@@ -177,16 +178,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   void _resetZoom() => _transformController.value = Matrix4.identity();
 
   String _typeName(CardTemplateType type) => switch (type) {
-        CardTemplateType.grid => 'Flag Grid',
-        CardTemplateType.heart => 'Heart',
-        CardTemplateType.passport => 'Passport',
-        CardTemplateType.timeline => 'Timeline',
-        CardTemplateType.frontRibbon => 'Front Ribbon',
-        CardTemplateType.typography => 'Typography',
-        CardTemplateType.badge => 'Explorer Badge',
-        CardTemplateType.wordCloud => 'Word Cloud',
-        CardTemplateType.landmark => 'Landmark',
-      };
+    CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.heart => 'Heart',
+    CardTemplateType.passport => 'Passport',
+    CardTemplateType.timeline => 'Timeline',
+    CardTemplateType.frontRibbon => 'Front Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -197,8 +198,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text(_typeName(widget.templateType))),
       body: visitsAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        loading:
+            () => const Center(child: CircularProgressIndicator.adaptive()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (visits) {
           if (visits.isEmpty) {
@@ -214,57 +215,59 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
             );
           }
 
-          final allCodes =
-              visits.map((v) => v.countryCode).toList()..sort();
-          final allTrips = tripsAsync.valueOrNull
+          final allCodes = visits.map((v) => v.countryCode).toList()..sort();
+          final allTrips =
+              tripsAsync.valueOrNull
                   ?.where((t) => allCodes.contains(t.countryCode))
                   .toList() ??
               [];
 
           // ── Date range ──────────────────────────────────────────────────
           final tripYears = allTrips.map((t) => t.startedOn.year).toSet();
-          final yearMin = tripYears.isEmpty
-              ? null
-              : tripYears.reduce(math.min).toDouble();
-          final yearMax = tripYears.isEmpty
-              ? null
-              : tripYears.reduce(math.max).toDouble();
+          final yearMin =
+              tripYears.isEmpty ? null : tripYears.reduce(math.min).toDouble();
+          final yearMax =
+              tripYears.isEmpty ? null : tripYears.reduce(math.max).toDouble();
           final showDateSlider =
               yearMin != null && yearMax != null && yearMax > yearMin;
 
-          final effectiveRange = _yearSelection ??
+          final effectiveRange =
+              _yearSelection ??
               (showDateSlider ? RangeValues(yearMin, yearMax) : null);
 
-          final filteredTrips = (effectiveRange == null || !showDateSlider)
-              ? allTrips
-              : allTrips
-                  .where((t) =>
-                      t.startedOn.year >= effectiveRange.start.round() &&
-                      t.startedOn.year <= effectiveRange.end.round())
-                  .toList();
+          final filteredTrips =
+              (effectiveRange == null || !showDateSlider)
+                  ? allTrips
+                  : allTrips
+                      .where(
+                        (t) =>
+                            t.startedOn.year >= effectiveRange.start.round() &&
+                            t.startedOn.year <= effectiveRange.end.round(),
+                      )
+                      .toList();
 
-          final isDateFiltered = showDateSlider &&
+          final isDateFiltered =
+              showDateSlider &&
               effectiveRange != null &&
-              (effectiveRange.start > yearMin ||
-                  effectiveRange.end < yearMax);
+              (effectiveRange.start > yearMin || effectiveRange.end < yearMax);
 
-          final displayedCodes = isDateFiltered
-              ? (filteredTrips
-                      .map((t) => t.countryCode)
-                      .toSet()
-                      .toList()
+          final displayedCodes =
+              isDateFiltered
+                  ? (filteredTrips.map((t) => t.countryCode).toSet().toList()
                     ..sort())
-              : allCodes;
+                  : allCodes;
 
           // Country multi-select: effectiveCodes = displayedCodes minus
           // any codes the user has manually deselected (M74-T3).
-          final effectiveCodes = displayedCodes
-              .where((c) => !_manuallyDeselectedCodes.contains(c))
-              .toList();
+          final effectiveCodes =
+              displayedCodes
+                  .where((c) => !_manuallyDeselectedCodes.contains(c))
+                  .toList();
           // Trips for the effective code set.
-          final effectiveTrips = filteredTrips
-              .where((t) => effectiveCodes.contains(t.countryCode))
-              .toList();
+          final effectiveTrips =
+              filteredTrips
+                  .where((t) => effectiveCodes.contains(t.countryCode))
+                  .toList();
 
           final dateLabel = _computeDateLabel(effectiveTrips);
           final defaultTitle =
@@ -283,13 +286,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           void onCountryToggle(String code) {
             setState(() {
               if (_manuallyDeselectedCodes.contains(code)) {
-                _manuallyDeselectedCodes =
-                    {..._manuallyDeselectedCodes}..remove(code);
+                _manuallyDeselectedCodes = {..._manuallyDeselectedCodes}
+                  ..remove(code);
               } else if (effectiveCodes.length > 1) {
-                _manuallyDeselectedCodes = {
-                  ..._manuallyDeselectedCodes,
-                  code
-                };
+                _manuallyDeselectedCodes = {..._manuallyDeselectedCodes, code};
               }
             });
             _generateTitle(
@@ -298,7 +298,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   .toList(),
               filteredTrips
                   .where(
-                      (t) => !_manuallyDeselectedCodes.contains(t.countryCode))
+                    (t) => !_manuallyDeselectedCodes.contains(t.countryCode),
+                  )
                   .toList(),
               effectiveRange,
             );
@@ -337,43 +338,55 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                       titleOverride: _titleOverride,
                       defaultTitle: defaultTitle,
                       isTitleGenerating: _isTitleGenerating,
-                      onTitleChanged: (v) => setState(
-                          () => _titleOverride = v.isEmpty ? null : v),
+                      onTitleChanged:
+                          (v) => setState(
+                            () => _titleOverride = v.isEmpty ? null : v,
+                          ),
                       onTitleCleared: () {
                         setState(() => _titleOverride = null);
                         _titleController.clear();
                       },
-                      onGenerateTitle: () => _generateTitle(
-                          effectiveCodes, effectiveTrips, effectiveRange),
-                      onShuffleStamps: () => setState(() =>
-                          _stampLayoutSeed =
-                              math.Random().nextInt(0x7FFFFFFF)),
+                      onGenerateTitle:
+                          () => _generateTitle(
+                            effectiveCodes,
+                            effectiveTrips,
+                            effectiveRange,
+                          ),
+                      onShuffleStamps:
+                          () => setState(
+                            () =>
+                                _stampLayoutSeed = math.Random().nextInt(
+                                  0x7FFFFFFF,
+                                ),
+                          ),
                       stampSizeMultiplier: _stampSizeMultiplier,
                       stampJitterFactor: _stampJitterFactor,
-                      onSizeChanged: (v) =>
-                          setState(() => _stampSizeMultiplier = v),
-                      onJitterChanged: (v) =>
-                          setState(() => _stampJitterFactor = v),
+                      onSizeChanged:
+                          (v) => setState(() => _stampSizeMultiplier = v),
+                      onJitterChanged:
+                          (v) => setState(() => _stampJitterFactor = v),
                       showDateSlider: showDateSlider,
                       yearMin: yearMin,
                       yearMax: yearMax,
                       effectiveRange: effectiveRange,
                       countryCount: effectiveCodes.length,
-                      onYearChanged: (v) => setState(() {
-                        _yearSelection = v;
-                        _manuallyDeselectedCodes = {};
-                      }),
-                      onYearChangeEnd: (v) =>
-                          _generateTitle(effectiveCodes, effectiveTrips, v),
+                      onYearChanged:
+                          (v) => setState(() {
+                            _yearSelection = v;
+                            _manuallyDeselectedCodes = {};
+                          }),
+                      onYearChangeEnd:
+                          (v) =>
+                              _generateTitle(effectiveCodes, effectiveTrips, v),
                       displayedCodes: displayedCodes,
                       deselectedCodes: _manuallyDeselectedCodes,
                       onCountryToggle: onCountryToggle,
-                      onDismiss: () =>
-                          setState(() => _showPassportControls = false),
+                      onDismiss:
+                          () => setState(() => _showPassportControls = false),
                       backgroundAssetId: _backgroundAssetId,
                       backgroundImageBytes: _backgroundImageBytes,
-                      onBackgroundTap: () =>
-                          _openBackgroundPicker(context, effectiveTrips),
+                      onBackgroundTap:
+                          () => _openBackgroundPicker(context, effectiveTrips),
                     ),
                   ),
                 // Floating show-controls button when overlay is dismissed
@@ -382,27 +395,34 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                     top: MediaQuery.paddingOf(context).top + 8,
                     right: 10,
                     child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _showPassportControls = true),
+                      onTap: () => setState(() => _showPassportControls = true),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: BackdropFilter(
                           filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             color: Colors.black.withValues(alpha: 0.38),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.tune_rounded,
-                                    size: 14, color: Colors.white70),
+                                Icon(
+                                  Icons.tune_rounded,
+                                  size: 14,
+                                  color: Colors.white70,
+                                ),
                                 SizedBox(width: 4),
-                                Text('Controls',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white70,
-                                        fontWeight: FontWeight.w600)),
+                                Text(
+                                  'Controls',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -419,18 +439,32 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                     sharing: _sharing,
                     printing: _printing,
                     bottomPadding: MediaQuery.paddingOf(context).bottom,
-                    onShare: () => _onShare(
-                        context, effectiveCodes, effectiveTrips, dateLabel),
-                    onPrint: () => _onPrint(context, effectiveCodes, allCodes,
-                        effectiveTrips, effectiveRange, showDateSlider),
-                    onBook: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PassportBookScreen(
-                          trips: effectiveTrips,
-                          countryCodes: effectiveCodes,
+                    onShare:
+                        () => _onShare(
+                          context,
+                          effectiveCodes,
+                          effectiveTrips,
+                          dateLabel,
                         ),
-                      ),
-                    ),
+                    onPrint:
+                        () => _onPrint(
+                          context,
+                          effectiveCodes,
+                          allCodes,
+                          effectiveTrips,
+                          effectiveRange,
+                          showDateSlider,
+                        ),
+                    onBook:
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder:
+                                (_) => PassportBookScreen(
+                                  trips: effectiveTrips,
+                                  countryCodes: effectiveCodes,
+                                ),
+                          ),
+                        ),
                   ),
                 ),
               ],
@@ -450,28 +484,38 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 isTitleGenerating: _isTitleGenerating,
                 showOrientationToggle: true,
                 showShuffleButton: false,
-                onTitleChanged: (v) =>
-                    setState(() => _titleOverride = v.isEmpty ? null : v),
+                onTitleChanged:
+                    (v) =>
+                        setState(() => _titleOverride = v.isEmpty ? null : v),
                 onTitleCleared: () {
                   setState(() => _titleOverride = null);
                   _titleController.clear();
                 },
-                onGenerateTitle: () => _generateTitle(
-                    effectiveCodes, effectiveTrips, effectiveRange),
-                onOrientationToggle: () => setState(() {
-                  _portrait = !_portrait;
-                  _resetZoom();
-                }),
+                onGenerateTitle:
+                    () => _generateTitle(
+                      effectiveCodes,
+                      effectiveTrips,
+                      effectiveRange,
+                    ),
+                onOrientationToggle:
+                    () => setState(() {
+                      _portrait = !_portrait;
+                      _resetZoom();
+                    }),
                 onShuffleStamps: () {},
                 // Subtitle editing for grid (and other templates that support it).
-                subtitleController: widget.templateType == CardTemplateType.grid
-                    ? _subtitleController
-                    : null,
+                subtitleController:
+                    widget.templateType == CardTemplateType.grid
+                        ? _subtitleController
+                        : null,
                 subtitleOverride: _subtitleOverride,
                 subtitleHint: MerchTitleWordbank.buildSubtitleLine(
-                    effectiveCodes.length),
-                onSubtitleChanged: (v) =>
-                    setState(() => _subtitleOverride = v.isEmpty ? null : v),
+                  effectiveCodes.length,
+                ),
+                onSubtitleChanged:
+                    (v) => setState(
+                      () => _subtitleOverride = v.isEmpty ? null : v,
+                    ),
                 onSubtitleCleared: () {
                   setState(() => _subtitleOverride = null);
                   _subtitleController.clear();
@@ -483,13 +527,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 const SizedBox(height: 4),
                 _SortOrderPicker(
                   order: _order,
-                  onChanged: (o) => setState(() {
-                    if (widget.templateType == CardTemplateType.grid &&
-                        o == HeartFlagOrder.randomized) {
-                      _gridShuffleSeed++;
-                    }
-                    _order = o;
-                  }),
+                  onChanged:
+                      (o) => setState(() {
+                        if (widget.templateType == CardTemplateType.grid &&
+                            o == HeartFlagOrder.randomized) {
+                          _gridShuffleSeed++;
+                        }
+                        _order = o;
+                      }),
                 ),
               ],
               // ── Year range slider ────────────────────────────────────
@@ -500,12 +545,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   yearMax: yearMax,
                   values: effectiveRange,
                   countryCount: effectiveCodes.length,
-                  onChanged: (v) => setState(() {
-                    _yearSelection = v;
-                    _manuallyDeselectedCodes = {};
-                  }),
-                  onChangeEnd: (v) =>
-                      _generateTitle(effectiveCodes, effectiveTrips, v),
+                  onChanged:
+                      (v) => setState(() {
+                        _yearSelection = v;
+                        _manuallyDeselectedCodes = {};
+                      }),
+                  onChangeEnd:
+                      (v) => _generateTitle(effectiveCodes, effectiveTrips, v),
                 ),
               ],
               // ── Country filter chips ─────────────────────────────────
@@ -523,8 +569,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 _BackgroundPickerRow(
                   assetId: _backgroundAssetId,
                   thumbBytes: _backgroundImageBytes,
-                  onTap: () =>
-                      _openBackgroundPicker(context, effectiveTrips),
+                  onTap: () => _openBackgroundPicker(context, effectiveTrips),
                 ),
                 const SizedBox(height: 4),
                 _GridLayoutPicker(
@@ -559,10 +604,22 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
               _ActionBar(
                 sharing: _sharing,
                 printing: _printing,
-                onShare: () => _onShare(
-                    context, effectiveCodes, effectiveTrips, dateLabel),
-                onPrint: () => _onPrint(context, effectiveCodes, allCodes,
-                    effectiveTrips, effectiveRange, showDateSlider),
+                onShare:
+                    () => _onShare(
+                      context,
+                      effectiveCodes,
+                      effectiveTrips,
+                      dateLabel,
+                    ),
+                onPrint:
+                    () => _onPrint(
+                      context,
+                      effectiveCodes,
+                      allCodes,
+                      effectiveTrips,
+                      effectiveRange,
+                      showDateSlider,
+                    ),
               ),
               SizedBox(height: MediaQuery.paddingOf(context).bottom + 8),
             ],
@@ -584,15 +641,17 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       final heroAsync = ref.read(heroForTripProvider(trip.id));
       final hero = heroAsync.valueOrNull;
       if (hero != null) {
-        labels.add(HeroLabels(
-          primaryScene: hero.primaryScene,
-          secondaryScene: hero.secondaryScene,
-          activity: hero.activity,
-          mood: hero.mood,
-          subjects: hero.subjects,
-          landmark: hero.landmark,
-          confidence: hero.labelConfidence,
-        ));
+        labels.add(
+          HeroLabels(
+            primaryScene: hero.primaryScene,
+            secondaryScene: hero.secondaryScene,
+            activity: hero.activity,
+            mood: hero.mood,
+            subjects: hero.subjects,
+            landmark: hero.landmark,
+            confidence: hero.labelConfidence,
+          ),
+        );
       }
     }
     return labels.isEmpty ? null : labels;
@@ -607,7 +666,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       return;
     }
     setState(() => _backgroundAssetId = assetId);
-    final bytes = await const ThumbnailChannel().getThumbnail(assetId, size: 1024);
+    final bytes = await const ThumbnailChannel().getThumbnail(
+      assetId,
+      size: 1024,
+    );
     if (mounted && _backgroundAssetId == assetId) {
       setState(() => _backgroundImageBytes = bytes);
     }
@@ -628,10 +690,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useRootNavigator: true,
-      builder: (_) => CardBackgroundPicker(
-        heroImages: heroImages,
-        currentAssetId: _backgroundAssetId,
-      ),
+      builder:
+          (_) => CardBackgroundPicker(
+            heroImages: heroImages,
+            currentAssetId: _backgroundAssetId,
+          ),
     );
 
     // null → sheet dismissed without selection (tapped outside) — no change.
@@ -657,18 +720,20 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     final request = TitleGenerationRequest(
       countryCodes: codes,
       countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
-      regionNames: codes
-          .map((c) => kCountryContinent[c])
-          .whereType<String>()
-          .toSet()
-          .toList(),
+      regionNames:
+          codes
+              .map((c) => kCountryContinent[c])
+              .whereType<String>()
+              .toSet()
+              .toList(),
       cardType: widget.templateType,
       heroLabels: _fetchHeroLabelsForTrips(trips),
     );
 
     try {
-      final result =
-          await ref.read(titleGenerationServiceProvider).generate(request);
+      final result = await ref
+          .read(titleGenerationServiceProvider)
+          .generate(request);
       debugPrint('[TitleGen] source=${result.source} title="${result.title}"');
       if (mounted) {
         setState(() {
@@ -690,7 +755,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     String dateLabel,
   ) {
     final template = _buildTemplate(
-        displayedCodes, filteredTrips, dateLabel, _backgroundImageBytes);
+      displayedCodes,
+      filteredTrips,
+      dateLabel,
+      _backgroundImageBytes,
+    );
     final boundary = RepaintBoundary(key: _previewKey, child: template);
     // Transparent templates — wrap with white so text is readable on-screen.
     // The RepaintBoundary is inside, so share/export PNGs remain transparent.
@@ -711,7 +780,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       case CardTemplateType.grid:
         // Apply sort order to codes before passing to the stateless widget.
         final sortedCodes = HeartLayoutEngine.sortCodes(
-            codes, _order, trips, shuffleSeed: _gridShuffleSeed);
+          codes,
+          _order,
+          trips,
+          shuffleSeed: _gridShuffleSeed,
+        );
         return GridFlagsCard(
           countryCodes: sortedCodes,
           aspectRatio: _aspectRatio,
@@ -758,10 +831,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           transparentBackground: true,
         );
       case CardTemplateType.frontRibbon:
-        return FrontRibbonCard(
-          countryCodes: codes,
-          travelerLevel: 'Explorer',
-        );
+        return FrontRibbonCard(countryCodes: codes, travelerLevel: 'Explorer');
       case CardTemplateType.typography:
         return TypographyCard(
           codes: codes,
@@ -818,13 +888,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     setState(() => _sharing = true);
 
     try {
-      final boundary = _previewKey.currentContext
-          ?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary =
+          _previewKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
 
       final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
 
       final bytes = byteData.buffer.asUint8List();
@@ -842,8 +912,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           countryCount: codes.length,
           createdAt: DateTime.now().toUtc(),
         );
-        unawaited(
-            TravelCardService(FirebaseFirestore.instance).create(card));
+        unawaited(TravelCardService(FirebaseFirestore.instance).create(card));
       }
 
       if (!context.mounted) return;
@@ -852,7 +921,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         [XFile(file.path)],
         subject: 'My Roavvy travel card',
         sharePositionOrigin: Rect.fromLTWH(
-            size.width / 2 - 22, size.height - 88, 44, 44),
+          size.width / 2 - 22,
+          size.height - 88,
+          44,
+          44,
+        ),
       );
     } finally {
       if (mounted) setState(() => _sharing = false);
@@ -871,7 +944,15 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   ) {
     if (_sharing || _printing) return;
     unawaited(
-        _navigateToPrint(context, codes, allCodes, trips, effectiveRange, showDateSlider));
+      _navigateToPrint(
+        context,
+        codes,
+        allCodes,
+        trips,
+        effectiveRange,
+        showDateSlider,
+      ),
+    );
   }
 
   Future<void> _navigateToPrint(
@@ -882,12 +963,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     RangeValues? effectiveRange,
     bool showDateSlider,
   ) async {
-    final int? yearStart = showDateSlider && effectiveRange != null
-        ? effectiveRange.start.round()
-        : null;
-    final int? yearEnd = showDateSlider && effectiveRange != null
-        ? effectiveRange.end.round()
-        : null;
+    final int? yearStart =
+        showDateSlider && effectiveRange != null
+            ? effectiveRange.start.round()
+            : null;
+    final int? yearEnd =
+        showDateSlider && effectiveRange != null
+            ? effectiveRange.end.round()
+            : null;
 
     final currentParams = _CardParams(
       templateType: widget.templateType,
@@ -906,8 +989,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     );
 
     // Same params → skip re-render (ADR-103).
-    if (currentParams == _lastConfirmedParams &&
-        _artworkImageBytes != null) {
+    if (currentParams == _lastConfirmedParams && _artworkImageBytes != null) {
       if (!context.mounted) return;
       _goToProductBrowser(context, codes, allCodes);
       return;
@@ -923,32 +1005,41 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
       if (widget.templateType == CardTemplateType.passport) {
         // WYSIWYG: capture from the live preview boundary (ADR-133).
-        final boundary = _previewKey.currentContext
-            ?.findRenderObject() as RenderRepaintBoundary?;
+        final boundary =
+            _previewKey.currentContext?.findRenderObject()
+                as RenderRepaintBoundary?;
         if (boundary != null) {
           final image = await boundary.toImage(pixelRatio: 3.5);
-          final byteData =
-              await image.toByteData(format: ui.ImageByteFormat.png);
+          final byteData = await image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
           capturedBytes = byteData?.buffer.asUint8List();
         }
       } else {
         final dateLabel = _computeDateLabel(trips);
-        final renderCodes = widget.templateType == CardTemplateType.grid
-            ? HeartLayoutEngine.sortCodes(codes, _order, trips,
-                shuffleSeed: _gridShuffleSeed)
-            : codes;
+        final renderCodes =
+            widget.templateType == CardTemplateType.grid
+                ? HeartLayoutEngine.sortCodes(
+                  codes,
+                  _order,
+                  trips,
+                  shuffleSeed: _gridShuffleSeed,
+                )
+                : codes;
         // Fetch full-resolution background bytes for print quality (M93).
         Uint8List? printBgBytes;
         if (_backgroundAssetId != null) {
-          printBgBytes = await const ThumbnailChannel()
-              .getFullResolutionImage(_backgroundAssetId!);
+          printBgBytes = await const ThumbnailChannel().getFullResolutionImage(
+            _backgroundAssetId!,
+          );
         }
         // For grid: ensure a structured subtitle is always present so the
         // branding zone shows achievement context, not the same text as the title.
-        final effectiveSubtitle = widget.templateType == CardTemplateType.grid
-            ? (_subtitleOverride ??
-                MerchTitleWordbank.buildSubtitleLine(renderCodes.length))
-            : _subtitleOverride;
+        final effectiveSubtitle =
+            widget.templateType == CardTemplateType.grid
+                ? (_subtitleOverride ??
+                    MerchTitleWordbank.buildSubtitleLine(renderCodes.length))
+                : _subtitleOverride;
 
         final result = await CardImageRenderer.render(
           context,
@@ -964,11 +1055,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           subtitleOverride: effectiveSubtitle,
           stampColor: null,
           dateColor: null,
-          transparentBackground: widget.templateType == CardTemplateType.grid ||
+          transparentBackground:
+              widget.templateType == CardTemplateType.grid ||
               widget.templateType == CardTemplateType.wordCloud,
-          textColor: widget.templateType == CardTemplateType.grid
-              ? Colors.black
-              : null,
+          textColor:
+              widget.templateType == CardTemplateType.grid
+                  ? Colors.black
+                  : null,
           stampSeed: _stampLayoutSeed,
           stampSizeMultiplier: _stampSizeMultiplier,
           stampJitterFactor: _stampJitterFactor,
@@ -995,7 +1088,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     _goToProductBrowser(context, codes, allCodes);
   }
 
-  void _goToProductBrowser(BuildContext context, List<String> codes, List<String> allCodes) {
+  void _goToProductBrowser(
+    BuildContext context,
+    List<String> codes,
+    List<String> allCodes,
+  ) {
     final uid = ref.read(currentUidProvider);
     String? cardId;
     if (uid != null) {
@@ -1008,34 +1105,38 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         countryCount: codes.length,
         createdAt: DateTime.now().toUtc(),
       );
-      unawaited(
-          TravelCardService(FirebaseFirestore.instance).create(card));
+      unawaited(TravelCardService(FirebaseFirestore.instance).create(card));
     }
 
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => LocalMockupPreviewScreen(
-        selectedCodes: codes,
-        allCodes: allCodes,
-        trips: _lastConfirmedTrips ?? const [],
-        artworkImageBytes: _artworkImageBytes!,
-        artworkConfirmationId: null,
-        initialTemplate: widget.templateType,
-        confirmedAspectRatio: _aspectRatio,
-        confirmedEntryOnly: _entryOnly,
-        cardId: cardId,
-        titleOverride: _titleOverride,
-        subtitleOverride: widget.templateType == CardTemplateType.grid
-            ? (_subtitleOverride ??
-                MerchTitleWordbank.buildSubtitleLine(codes.length))
-            : _subtitleOverride,
-        stampColor: null,
-        dateColor: null,
-        transparentBackground: widget.templateType == CardTemplateType.grid,
-        stampSizeMultiplier: _stampSizeMultiplier,
-        stampJitterFactor: _stampJitterFactor,
-        stampLayoutSeed: _stampLayoutSeed,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: codes,
+              allCodes: allCodes,
+              trips: _lastConfirmedTrips ?? const [],
+              artworkImageBytes: _artworkImageBytes!,
+              artworkConfirmationId: null,
+              initialTemplate: widget.templateType,
+              confirmedAspectRatio: _aspectRatio,
+              confirmedEntryOnly: _entryOnly,
+              cardId: cardId,
+              titleOverride: _titleOverride,
+              subtitleOverride:
+                  widget.templateType == CardTemplateType.grid
+                      ? (_subtitleOverride ??
+                          MerchTitleWordbank.buildSubtitleLine(codes.length))
+                      : _subtitleOverride,
+              stampColor: null,
+              dateColor: null,
+              transparentBackground:
+                  widget.templateType == CardTemplateType.grid,
+              stampSizeMultiplier: _stampSizeMultiplier,
+              stampJitterFactor: _stampJitterFactor,
+              stampLayoutSeed: _stampLayoutSeed,
+            ),
       ),
-    ));
+    );
   }
 }
 
@@ -1103,32 +1204,33 @@ class _ControlStrip extends StatelessWidget {
                 hintText: defaultTitle,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 9),
+                  horizontal: 10,
+                  vertical: 9,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide:
-                      const BorderSide(color: Colors.white24),
+                  borderSide: const BorderSide(color: Colors.white24),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide:
-                      const BorderSide(color: Colors.white24),
+                  borderSide: const BorderSide(color: Colors.white24),
                 ),
-                suffixIcon: isTitleGenerating
-                    ? const Padding(
-                        padding: EdgeInsets.all(11),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : titleOverride != null
+                suffixIcon:
+                    isTitleGenerating
+                        ? const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                        : titleOverride != null
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 16),
-                            onPressed: onTitleCleared,
-                            padding: EdgeInsets.zero,
-                          )
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: onTitleCleared,
+                          padding: EdgeInsets.zero,
+                        )
                         : null,
               ),
               style: const TextStyle(fontSize: 13),
@@ -1145,11 +1247,12 @@ class _ControlStrip extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: _kAmber,
               side: const BorderSide(color: _kAmber, width: 1.5),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
               minimumSize: const Size(0, 38),
               textStyle: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1166,7 +1269,8 @@ class _ControlStrip extends StatelessWidget {
             style: IconButton.styleFrom(
               padding: const EdgeInsets.all(8),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
               side: const BorderSide(color: Colors.white24),
               minimumSize: const Size(38, 38),
             ),
@@ -1199,24 +1303,25 @@ class _ControlStrip extends StatelessWidget {
                         hintText: subtitleHint ?? 'Roavvy: N Countries • …',
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 8),
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: Colors.white24),
+                          borderSide: const BorderSide(color: Colors.white24),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: Colors.white24),
+                          borderSide: const BorderSide(color: Colors.white24),
                         ),
-                        suffixIcon: subtitleOverride != null
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 16),
-                                onPressed: onSubtitleCleared,
-                                padding: EdgeInsets.zero,
-                              )
-                            : null,
+                        suffixIcon:
+                            subtitleOverride != null
+                                ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: onSubtitleCleared,
+                                  padding: EdgeInsets.zero,
+                                )
+                                : null,
                       ),
                       style: const TextStyle(fontSize: 11),
                       onChanged: onSubtitleChanged,
@@ -1235,10 +1340,7 @@ class _ControlStrip extends StatelessWidget {
 // ── Sort order picker (Grid + Heart) ──────────────────────────────────────────
 
 class _SortOrderPicker extends StatelessWidget {
-  const _SortOrderPicker({
-    required this.order,
-    required this.onChanged,
-  });
+  const _SortOrderPicker({required this.order, required this.onChanged});
 
   final HeartFlagOrder order;
   final ValueChanged<HeartFlagOrder> onChanged;
@@ -1304,19 +1406,18 @@ class _SortChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           border: Border.all(
-            color: selected
-                ? onSurface.withValues(alpha: 0.7)
-                : onSurface.withValues(alpha: 0.2),
+            color:
+                selected
+                    ? onSurface.withValues(alpha: 0.7)
+                    : onSurface.withValues(alpha: 0.2),
             width: selected ? 1.5 : 1.0,
           ),
           borderRadius: BorderRadius.circular(6),
-          color: selected
-              ? onSurface.withValues(alpha: 0.1)
-              : Colors.transparent,
+          color:
+              selected ? onSurface.withValues(alpha: 0.1) : Colors.transparent,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1324,21 +1425,21 @@ class _SortChip extends StatelessWidget {
             Icon(
               icon,
               size: 12,
-              color: selected
-                  ? onSurface.withValues(alpha: 0.9)
-                  : onSurface.withValues(alpha: 0.5),
+              color:
+                  selected
+                      ? onSurface.withValues(alpha: 0.9)
+                      : onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: selected
-                    ? onSurface.withValues(alpha: 0.9)
-                    : onSurface.withValues(alpha: 0.55),
-                fontWeight: selected
-                    ? FontWeight.w600
-                    : FontWeight.normal,
+                color:
+                    selected
+                        ? onSurface.withValues(alpha: 0.9)
+                        : onSurface.withValues(alpha: 0.55),
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],
@@ -1431,8 +1532,10 @@ class _PassportTopOverlay extends StatelessWidget {
                       icon: const Icon(Icons.auto_awesome, size: 17),
                       tooltip: 'Generate title',
                       padding: const EdgeInsets.all(4),
-                      constraints:
-                          const BoxConstraints(minWidth: 28, minHeight: 28),
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
                     ),
                     const SizedBox(width: 4),
                     // Title field
@@ -1445,33 +1548,39 @@ class _PassportTopOverlay extends StatelessWidget {
                             hintText: defaultTitle,
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 7),
+                              horizontal: 10,
+                              vertical: 7,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: Colors.white24),
+                              borderSide: const BorderSide(
+                                color: Colors.white24,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: Colors.white24),
+                              borderSide: const BorderSide(
+                                color: Colors.white24,
+                              ),
                             ),
-                            suffixIcon: isTitleGenerating
-                                ? const Padding(
-                                    padding: EdgeInsets.all(9),
-                                    child: SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    ),
-                                  )
-                                : titleOverride != null
+                            suffixIcon:
+                                isTitleGenerating
+                                    ? const Padding(
+                                      padding: EdgeInsets.all(9),
+                                      child: SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    )
+                                    : titleOverride != null
                                     ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 14),
-                                        onPressed: onTitleCleared,
-                                        padding: EdgeInsets.zero,
-                                      )
+                                      icon: const Icon(Icons.clear, size: 14),
+                                      onPressed: onTitleCleared,
+                                      padding: EdgeInsets.zero,
+                                    )
                                     : null,
                           ),
                           style: const TextStyle(fontSize: 12),
@@ -1489,10 +1598,14 @@ class _PassportTopOverlay extends StatelessWidget {
                         foregroundColor: _kAmber,
                         side: const BorderSide(color: _kAmber, width: 1.5),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 0),
+                          horizontal: 8,
+                          vertical: 0,
+                        ),
                         minimumSize: const Size(0, 32),
                         textStyle: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     // Dismiss
@@ -1502,8 +1615,10 @@ class _PassportTopOverlay extends StatelessWidget {
                       icon: const Icon(Icons.expand_less_rounded, size: 18),
                       tooltip: 'Hide controls',
                       padding: const EdgeInsets.all(4),
-                      constraints:
-                          const BoxConstraints(minWidth: 28, minHeight: 28),
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
                     ),
                   ],
                 ),
@@ -1585,14 +1700,16 @@ class _PassportBottomBar extends StatelessWidget {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: (sharing || printing) ? null : onShare,
-                  icon: sharing
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator.adaptive(
-                              strokeWidth: 2),
-                        )
-                      : const Icon(Icons.share, size: 16),
+                  icon:
+                      sharing
+                          ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator.adaptive(
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : const Icon(Icons.share, size: 16),
                   label: const Text('Share'),
                 ),
               ),
@@ -1600,14 +1717,16 @@ class _PassportBottomBar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: (sharing || printing) ? null : onPrint,
-                  icon: printing
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator.adaptive(
-                              strokeWidth: 2),
-                        )
-                      : const Icon(Icons.print_outlined, size: 16),
+                  icon:
+                      printing
+                          ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator.adaptive(
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : const Icon(Icons.print_outlined, size: 16),
                   label: const Text('Print'),
                 ),
               ),
@@ -1643,10 +1762,20 @@ class _PassportSlidersRow extends StatelessWidget {
   final ValueChanged<double> onJitterChanged;
 
   static String _sizeLabel(double v) =>
-      v == 1.0 ? 'Default' : v < 1.0 ? 'Smaller' : 'Larger';
+      v == 1.0
+          ? 'Default'
+          : v < 1.0
+          ? 'Smaller'
+          : 'Larger';
 
   static String _scatterLabel(double v) =>
-      v < 0.3 ? 'Grid' : v < 1.2 ? 'Natural' : v < 2.0 ? 'Scattered' : 'Max';
+      v < 0.3
+          ? 'Grid'
+          : v < 1.2
+          ? 'Natural'
+          : v < 2.0
+          ? 'Scattered'
+          : 'Max';
 
   @override
   Widget build(BuildContext context) {
@@ -1672,19 +1801,27 @@ class _PassportSlidersRow extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.photo_size_select_small,
-                          size: 12, color: Colors.white38),
+                      const Icon(
+                        Icons.photo_size_select_small,
+                        size: 12,
+                        color: Colors.white38,
+                      ),
                       const SizedBox(width: 5),
-                      const Text('Size',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white60,
-                              fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Size',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white60,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const Spacer(),
                       Text(
                         _sizeLabel(stampSizeMultiplier),
                         style: const TextStyle(
-                            fontSize: 10, color: Colors.white38),
+                          fontSize: 10,
+                          color: Colors.white38,
+                        ),
                       ),
                     ],
                   ),
@@ -1715,19 +1852,27 @@ class _PassportSlidersRow extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.scatter_plot_outlined,
-                          size: 12, color: Colors.white38),
+                      const Icon(
+                        Icons.scatter_plot_outlined,
+                        size: 12,
+                        color: Colors.white38,
+                      ),
                       const SizedBox(width: 5),
-                      const Text('Scatter',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white60,
-                              fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Scatter',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white60,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const Spacer(),
                       Text(
                         _scatterLabel(stampJitterFactor),
                         style: const TextStyle(
-                            fontSize: 10, color: Colors.white38),
+                          fontSize: 10,
+                          color: Colors.white38,
+                        ),
                       ),
                     ],
                   ),
@@ -1785,24 +1930,28 @@ class _YearSlider extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.date_range_outlined,
-                  size: 13,
-                  color: onSurface.withValues(alpha: 0.35)),
+              Icon(
+                Icons.date_range_outlined,
+                size: 13,
+                color: onSurface.withValues(alpha: 0.35),
+              ),
               const SizedBox(width: 6),
               Text(
                 isFullRange ? 'All time' : '$startYear \u2013 $endYear',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: onSurface.withValues(alpha: 0.55)),
+                  fontSize: 12,
+                  color: onSurface.withValues(alpha: 0.55),
+                ),
               ),
               const Spacer(),
               Text(
                 '$countryCount '
                 '${countryCount == 1 ? 'country' : 'countries'}',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: onSurface.withValues(alpha: 0.55),
-                    fontWeight: FontWeight.w600),
+                  fontSize: 12,
+                  color: onSurface.withValues(alpha: 0.55),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1811,8 +1960,7 @@ class _YearSlider extends StatelessWidget {
             min: yearMin,
             max: yearMax,
             divisions: (yearMax - yearMin).round(),
-            labels: RangeLabels(
-                startYear.toString(), endYear.toString()),
+            labels: RangeLabels(startYear.toString(), endYear.toString()),
             onChanged: onChanged,
             onChangeEnd: onChangeEnd,
           ),
@@ -1846,14 +1994,16 @@ class _ActionBar extends StatelessWidget {
           Expanded(
             child: FilledButton.icon(
               onPressed: (sharing || printing) ? null : onShare,
-              icon: sharing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2),
-                    )
-                  : const Icon(Icons.share),
+              icon:
+                  sharing
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Icon(Icons.share),
               label: const Text('Share'),
             ),
           ),
@@ -1861,14 +2011,16 @@ class _ActionBar extends StatelessWidget {
           Expanded(
             child: OutlinedButton.icon(
               onPressed: (sharing || printing) ? null : onPrint,
-              icon: printing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2),
-                    )
-                  : const Icon(Icons.print_outlined),
+              icon:
+                  printing
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Icon(Icons.print_outlined),
               label: const Text('Print'),
             ),
           ),
@@ -1916,12 +2068,15 @@ class _GridLayoutPicker extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(0, 30),
               ),
-              segments: FlagGridLayoutMode.values
-                  .map((m) => ButtonSegment<FlagGridLayoutMode>(
-                        value: m,
-                        label: Text(_labels[m]!),
-                      ))
-                  .toList(),
+              segments:
+                  FlagGridLayoutMode.values
+                      .map(
+                        (m) => ButtonSegment<FlagGridLayoutMode>(
+                          value: m,
+                          label: Text(_labels[m]!),
+                        ),
+                      )
+                      .toList(),
               selected: {mode},
               onSelectionChanged: (s) => onChanged(s.first),
             ),
@@ -1962,9 +2117,10 @@ class _BackgroundPickerRow extends StatelessWidget {
               width: hasBackground ? 1.5 : 1.0,
             ),
             borderRadius: BorderRadius.circular(8),
-            color: hasBackground
-                ? amber.withValues(alpha: 0.08)
-                : Colors.transparent,
+            color:
+                hasBackground
+                    ? amber.withValues(alpha: 0.08)
+                    : Colors.transparent,
           ),
           child: Row(
             children: [
@@ -1979,9 +2135,8 @@ class _BackgroundPickerRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   color: hasBackground ? Colors.white70 : Colors.white38,
-                  fontWeight: hasBackground
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+                  fontWeight:
+                      hasBackground ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
               const Spacer(),
@@ -2045,7 +2200,8 @@ class _CountryFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeCount = availableCodes.where((c) => !deselectedCodes.contains(c)).length;
+    final activeCount =
+        availableCodes.where((c) => !deselectedCodes.contains(c)).length;
     final hasDeselected = deselectedCodes.isNotEmpty;
 
     return Padding(
@@ -2079,16 +2235,20 @@ class _CountryFilterRow extends StatelessWidget {
                   onTap: () => onToggle(code),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 120),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: isSelected ? _kAmber : Colors.white24,
                         width: isSelected ? 1.5 : 1.0,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      color: isSelected
-                          ? _kAmber.withValues(alpha: 0.12)
-                          : Colors.transparent,
+                      color:
+                          isSelected
+                              ? _kAmber.withValues(alpha: 0.12)
+                              : Colors.transparent,
                     ),
                     child: Opacity(
                       opacity: isSelected ? 1.0 : 0.4,

@@ -142,10 +142,7 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
             style: TextStyle(fontSize: 15, color: Colors.white70),
           ),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: _generate,
-            child: const Text('Try again'),
-          ),
+          TextButton(onPressed: _generate, child: const Text('Try again')),
         ],
       ),
     );
@@ -160,14 +157,11 @@ class _PassportBookScreenState extends State<PassportBookScreen> {
             pageCount: _pages.length,
             pageViewMode: PageViewMode.single,
             paperBoundaryDecoration: PaperBoundaryDecoration.modern,
-            settings: FlipSettings(
-              flippingTime: 600,
-              swipeDistance: 60.0,
-            ),
-            onPageChanged: (left, right) =>
-                setState(() => _currentPage = left),
-            builder: (context, i, constraints) =>
-                Image.memory(_pages[i], fit: BoxFit.fill),
+            settings: FlipSettings(flippingTime: 600, swipeDistance: 60.0),
+            onPageChanged: (left, right) => setState(() => _currentPage = left),
+            builder:
+                (context, i, constraints) =>
+                    Image.memory(_pages[i], fit: BoxFit.fill),
           ),
         ),
         _BottomBar(
@@ -217,19 +211,19 @@ class _BottomBar extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFD4A017),
               foregroundColor: Colors.black,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
-            icon: sharing
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.black54,
-                    ),
-                  )
-                : const Icon(Icons.picture_as_pdf_outlined, size: 16),
+            icon:
+                sharing
+                    ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black54,
+                      ),
+                    )
+                    : const Icon(Icons.picture_as_pdf_outlined, size: 16),
             label: const Text(
               'Share PDF',
               style: TextStyle(fontWeight: FontWeight.w700),

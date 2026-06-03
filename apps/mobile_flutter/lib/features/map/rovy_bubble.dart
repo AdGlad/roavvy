@@ -6,21 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ── Domain model ──────────────────────────────────────────────────────────────
 
 /// The contextual trigger that caused a Rovy message to appear (ADR-071).
-enum RovyTrigger {
-  newCountry,
-  regionOneAway,
-  milestone,
-  postShare,
-  caughtUp,
-}
+enum RovyTrigger { newCountry, regionOneAway, milestone, postShare, caughtUp }
 
 /// A short message shown in the Rovy avatar bubble (ADR-071).
 class RovyMessage {
-  const RovyMessage({
-    required this.text,
-    required this.trigger,
-    this.emoji,
-  });
+  const RovyMessage({required this.text, required this.trigger, this.emoji});
 
   final String text;
   final RovyTrigger trigger;
@@ -105,75 +95,80 @@ class _RovyBubbleState extends ConsumerState<RovyBubble> {
       transitionBuilder: (child, animation) {
         return ScaleTransition(scale: animation, child: child);
       },
-      child: message == null
-          ? const SizedBox.shrink(key: ValueKey('hidden'))
-          : GestureDetector(
-              key: ValueKey(message.text),
-              onTap: _dismiss,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Speech bubble (extends left of avatar)
-                  Flexible(
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 180),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
+      child:
+          message == null
+              ? const SizedBox.shrink(key: ValueKey('hidden'))
+              : GestureDetector(
+                key: ValueKey(message.text),
+                onTap: _dismiss,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Speech bubble (extends left of avatar)
+                    Flexible(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 180),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
                         ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 6,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          message.emoji != null
+                              ? '${message.emoji} ${message.text}'
+                              : message.text,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Rovy avatar — 48 px circle, amber border, "R" placeholder (ADR-071)
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFB300),
+                        border: Border.all(color: Colors.white, width: 2),
                         boxShadow: const [
                           BoxShadow(
                             color: Colors.black26,
-                            blurRadius: 6,
-                            offset: Offset(0, 3),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Text(
-                        message.emoji != null
-                            ? '${message.emoji} ${message.text}'
-                            : message.text,
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black87),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Rovy avatar — 48 px circle, amber border, "R" placeholder (ADR-071)
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFFFB300),
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'R',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'R',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
     );
   }
 }

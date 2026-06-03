@@ -66,10 +66,7 @@ class GlobeOverlayNotifier extends StateNotifier<GlobeOverlayState> {
   ///
   /// [onDone] is called when replay completes (phase == done).
   void showReplay(TravelReplayScript script, {VoidCallback? onDone}) {
-    state = GlobeOverlayState(
-      replayScript: script,
-      onScanComplete: onDone,
-    );
+    state = GlobeOverlayState(replayScript: script, onScanComplete: onDone);
   }
 
   /// Hides the overlay and resets state.
@@ -82,5 +79,5 @@ class GlobeOverlayNotifier extends StateNotifier<GlobeOverlayState> {
 
 final globeOverlayProvider =
     StateNotifierProvider<GlobeOverlayNotifier, GlobeOverlayState>(
-  (ref) => GlobeOverlayNotifier(),
-);
+      (ref) => GlobeOverlayNotifier(),
+    );

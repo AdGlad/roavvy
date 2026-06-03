@@ -76,23 +76,32 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
   @override
   void initState() {
     super.initState();
-    _tripsFuture =
-        ref.read(tripRepositoryProvider).loadByCountry(widget.isoCode);
-    _regionsFuture =
-        ref.read(regionRepositoryProvider).loadByCountry(widget.isoCode);
+    _tripsFuture = ref
+        .read(tripRepositoryProvider)
+        .loadByCountry(widget.isoCode);
+    _regionsFuture = ref
+        .read(regionRepositoryProvider)
+        .loadByCountry(widget.isoCode);
     // When a trip filter is provided, show only photos from that trip's
     // date range; otherwise show all country photos. (ADR-082)
     final tripF = widget.tripFilter;
-    _assetIdsFuture = tripF != null
-        ? ref.read(visitRepositoryProvider).loadAssetIdsByDateRange(
-            widget.isoCode, tripF.startedOn, tripF.endedOn)
-        : ref.read(visitRepositoryProvider).loadAssetIds(widget.isoCode);
+    _assetIdsFuture =
+        tripF != null
+            ? ref
+                .read(visitRepositoryProvider)
+                .loadAssetIdsByDateRange(
+                  widget.isoCode,
+                  tripF.startedOn,
+                  tripF.endedOn,
+                )
+            : ref.read(visitRepositoryProvider).loadAssetIds(widget.isoCode);
   }
 
   void _reload() {
     setState(() {
-      _tripsFuture =
-          ref.read(tripRepositoryProvider).loadByCountry(widget.isoCode);
+      _tripsFuture = ref
+          .read(tripRepositoryProvider)
+          .loadByCountry(widget.isoCode);
     });
     ref.invalidate(travelSummaryProvider);
   }
@@ -121,13 +130,14 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                 fallbackColor: fallbackColor,
                 height: 200,
                 useFullResolution: true,
-                onEditTap: hero != null
-                    ? () => showHeroOverridePicker(
+                onEditTap:
+                    hero != null
+                        ? () => showHeroOverridePicker(
                           context,
                           hero.tripId,
                           fallbackColor: fallbackColor,
                         )
-                    : null,
+                        : null,
               ),
             // ── Header ─────────────────────────────────────────────────────
             Padding(
@@ -145,9 +155,7 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                 ],
               ),
             ),
-            const TabBar(
-              tabs: [Tab(text: 'Details'), Tab(text: 'Photos')],
-            ),
+            const TabBar(tabs: [Tab(text: 'Details'), Tab(text: 'Photos')]),
             Expanded(
               child: TabBarView(
                 children: [
@@ -186,25 +194,31 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                                   if (regions.isEmpty) {
                                     return const SizedBox.shrink();
                                   }
-                                  final codes = regions
-                                      .map((r) => r.regionCode)
-                                      .toSet()
-                                      .toList()
-                                    ..sort((a, b) =>
-                                        (kRegionNames[a] ?? a)
-                                            .compareTo(kRegionNames[b] ?? b));
+                                  final codes =
+                                      regions
+                                          .map((r) => r.regionCode)
+                                          .toSet()
+                                          .toList()
+                                        ..sort(
+                                          (a, b) => (kRegionNames[a] ?? a)
+                                              .compareTo(kRegionNames[b] ?? b),
+                                        );
                                   return Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       const Divider(),
                                       InkWell(
-                                        onTap: () => setState(() =>
-                                            _regionsExpanded =
-                                                !_regionsExpanded),
+                                        onTap:
+                                            () => setState(
+                                              () =>
+                                                  _regionsExpanded =
+                                                      !_regionsExpanded,
+                                            ),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
+                                            vertical: 8,
+                                          ),
                                           child: Row(
                                             children: [
                                               Expanded(
@@ -212,9 +226,10 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                                                   '${codes.length} '
                                                   'region${codes.length == 1 ? '' : 's'} '
                                                   'visited',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium,
+                                                  style:
+                                                      Theme.of(
+                                                        context,
+                                                      ).textTheme.bodyMedium,
                                                 ),
                                               ),
                                               Icon(
@@ -230,12 +245,15 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                                         ...codes.map(
                                           (code) => Padding(
                                             padding: const EdgeInsets.only(
-                                                left: 8, bottom: 4),
+                                              left: 8,
+                                              bottom: 4,
+                                            ),
                                             child: Text(
                                               kRegionNames[code] ?? code,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
+                                              style:
+                                                  Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall,
                                             ),
                                           ),
                                         ),
@@ -244,21 +262,23 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                                 },
                               ),
 
-                            // ── Unvisited country section ───────────────
+                              // ── Unvisited country section ───────────────
                             ] else if (widget.onAdd != null) ...[
                               const SizedBox(height: 4),
                               SizedBox(
                                 width: double.infinity,
                                 child: FilledButton(
                                   onPressed: _saving ? null : _handleAdd,
-                                  child: _saving
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
-                                      : const Text('Add to my countries'),
+                                  child:
+                                      _saving
+                                          ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                          : const Text('Add to my countries'),
                                 ),
                               ),
                             ],
@@ -307,8 +327,8 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) =>
-          TripEditSheet(countryCode: widget.isoCode, existingTrip: trip),
+      builder:
+          (_) => TripEditSheet(countryCode: widget.isoCode, existingTrip: trip),
     );
     if (result == true && mounted) _reload();
   }
@@ -316,19 +336,20 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
   Future<void> _confirmDelete(TripRecord trip) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete this trip?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete this trip?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
     if (confirmed == true && mounted) {
       await ref.read(tripRepositoryProvider).delete(trip.id);
@@ -355,8 +376,8 @@ class _EmptyTripsMessage extends StatelessWidget {
       child: Text(
         'No trip data — add a trip manually',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -383,8 +404,18 @@ class _TripCard extends StatelessWidget {
   final TripRecord trip;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _fmt(DateTime d) => '${d.day} ${_months[d.month - 1]}';
@@ -416,8 +447,8 @@ class _TripCard extends StatelessWidget {
                   Text(
                     _dateRange(trip),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(

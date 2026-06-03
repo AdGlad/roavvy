@@ -105,19 +105,23 @@ class WorldHeritageLookupService {
   /// Using Dart 3 record tuples keeps this service free of dependencies on
   /// scan-layer types (no import of [PhotoGpsRecord]).
   static List<WhsMatch?> findBatch(
-      List<(double lat, double lng, String countryCode)> records) {
-    return records
-        .map((r) => findNearest(r.$1, r.$2, r.$3))
-        .toList();
+    List<(double lat, double lng, String countryCode)> records,
+  ) {
+    return records.map((r) => findNearest(r.$1, r.$2, r.$3)).toList();
   }
 
   /// Haversine great-circle distance in kilometres.
   static double _haversineKm(
-      double lat1, double lng1, double lat2, double lng2) {
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     const r = 6371.0; // Earth radius in km
     final dLat = _toRad(lat2 - lat1);
     final dLng = _toRad(lng2 - lng1);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(_toRad(lat1)) * cos(_toRad(lat2)) * sin(dLng / 2) * sin(dLng / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return r * c;

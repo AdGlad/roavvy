@@ -116,8 +116,9 @@ void main() {
         shareTokenService: shareService,
       );
 
-      when(() => shareService.revokeFirestoreOnly(any(), any()))
-          .thenAnswer((_) async {});
+      when(
+        () => shareService.revokeFirestoreOnly(any(), any()),
+      ).thenAnswer((_) async {});
     });
 
     tearDown(() async => db.close());
@@ -137,11 +138,12 @@ void main() {
 
       await service.deleteAccount('user-del');
 
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-del')
-          .collection('inferred_visits')
-          .get();
+      final snap =
+          await fakeFirestore
+              .collection('users')
+              .doc('user-del')
+              .collection('inferred_visits')
+              .get();
       expect(snap.docs, isEmpty);
     });
 
@@ -155,18 +157,20 @@ void main() {
 
       await service.deleteAccount('user-del');
 
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-del')
-          .collection('unlocked_achievements')
-          .get();
+      final snap =
+          await fakeFirestore
+              .collection('users')
+              .doc('user-del')
+              .collection('unlocked_achievements')
+              .get();
       expect(snap.docs, isEmpty);
     });
 
     test('deleteAccount with shareToken calls revokeFirestoreOnly', () async {
       await service.deleteAccount('user-del', shareToken: 'tok-123');
-      verify(() => shareService.revokeFirestoreOnly('tok-123', 'user-del'))
-          .called(1);
+      verify(
+        () => shareService.revokeFirestoreOnly('tok-123', 'user-del'),
+      ).called(1);
     });
   });
 }

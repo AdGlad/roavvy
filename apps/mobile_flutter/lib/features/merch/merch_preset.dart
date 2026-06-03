@@ -16,17 +16,10 @@ enum MerchCountrySource {
 }
 
 /// Layout density for the generated card design.
-enum MerchDensity {
-  sparse,
-  balanced,
-  dense,
-}
+enum MerchDensity { sparse, balanced, dense }
 
 /// Whether to show entry-only stamps or entry + exit stamps.
-enum MerchStampMode {
-  entryOnly,
-  entryExit,
-}
+enum MerchStampMode { entryOnly, entryExit }
 
 /// Configuration values that drive artwork generation for a merch preset.
 ///
@@ -65,10 +58,10 @@ class MerchPresetConfig {
     MerchStampMode? stampMode,
   }) {
     return MerchPresetConfig(
-      layout:    layout    ?? this.layout,
-      source:    source    ?? this.source,
-      jitter:    jitter    ?? this.jitter,
-      density:   density   ?? this.density,
+      layout: layout ?? this.layout,
+      source: source ?? this.source,
+      jitter: jitter ?? this.jitter,
+      density: density ?? this.density,
       stampMode: stampMode ?? this.stampMode,
     );
   }
@@ -80,9 +73,9 @@ class MerchPresetConfig {
   ///
   /// Dense layouts use a slightly smaller multiplier to fit more flags.
   double get stampSizeMultiplier => switch (density) {
-    MerchDensity.sparse   => 1.2,
+    MerchDensity.sparse => 1.2,
     MerchDensity.balanced => 1.0,
-    MerchDensity.dense    => 0.8,
+    MerchDensity.dense => 0.8,
   };
 
   /// Returns `entryOnly` value for [CardImageRenderer.render].
@@ -111,10 +104,10 @@ const MerchPreset kPresetRecentTrip = MerchPreset(
   id: 'recent_trip',
   label: 'Recent Trip',
   config: MerchPresetConfig(
-    layout:    CardTemplateType.passport,
-    source:    MerchCountrySource.recentTrip,
-    jitter:    0.8,
-    density:   MerchDensity.balanced,
+    layout: CardTemplateType.passport,
+    source: MerchCountrySource.recentTrip,
+    jitter: 0.8,
+    density: MerchDensity.balanced,
     stampMode: MerchStampMode.entryExit,
   ),
 );
@@ -123,10 +116,10 @@ const MerchPreset kPresetThisYear = MerchPreset(
   id: 'this_year',
   label: 'This Year',
   config: MerchPresetConfig(
-    layout:    CardTemplateType.grid,
-    source:    MerchCountrySource.thisYear,
-    jitter:    0.2,
-    density:   MerchDensity.balanced,
+    layout: CardTemplateType.grid,
+    source: MerchCountrySource.thisYear,
+    jitter: 0.2,
+    density: MerchDensity.balanced,
     stampMode: MerchStampMode.entryExit,
   ),
 );
@@ -135,10 +128,10 @@ const MerchPreset kPresetAllTime = MerchPreset(
   id: 'all_time',
   label: 'All Countries',
   config: MerchPresetConfig(
-    layout:    CardTemplateType.grid,
-    source:    MerchCountrySource.allTime,
-    jitter:    0.1,
-    density:   MerchDensity.dense,
+    layout: CardTemplateType.grid,
+    source: MerchCountrySource.allTime,
+    jitter: 0.1,
+    density: MerchDensity.dense,
     stampMode: MerchStampMode.entryExit,
   ),
 );
@@ -147,10 +140,10 @@ const MerchPreset kPresetSingleCountry = MerchPreset(
   id: 'single_country',
   label: 'Single Country',
   config: MerchPresetConfig(
-    layout:    CardTemplateType.passport,
-    source:    MerchCountrySource.singleCountry,
-    jitter:    0.5,
-    density:   MerchDensity.sparse,
+    layout: CardTemplateType.passport,
+    source: MerchCountrySource.singleCountry,
+    jitter: 0.5,
+    density: MerchDensity.sparse,
     stampMode: MerchStampMode.entryOnly,
   ),
 );
@@ -159,10 +152,10 @@ const MerchPreset kPresetLandmarks = MerchPreset(
   id: 'landmarks',
   label: 'Landmarks',
   config: MerchPresetConfig(
-    layout:    CardTemplateType.landmark,
-    source:    MerchCountrySource.allTime,
-    jitter:    0.0,
-    density:   MerchDensity.balanced,
+    layout: CardTemplateType.landmark,
+    source: MerchCountrySource.allTime,
+    jitter: 0.0,
+    density: MerchDensity.balanced,
     stampMode: MerchStampMode.entryOnly,
   ),
 );

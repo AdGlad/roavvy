@@ -18,24 +18,23 @@ TripRecord _inferred(
   DateTime? startedOn,
   DateTime? endedOn,
   int photoCount = 1,
-}) =>
-    TripRecord(
-      id: id,
-      countryCode: countryCode,
-      startedOn: startedOn ?? _t0,
-      endedOn: endedOn ?? _t1,
-      photoCount: photoCount,
-      isManual: false,
-    );
+}) => TripRecord(
+  id: id,
+  countryCode: countryCode,
+  startedOn: startedOn ?? _t0,
+  endedOn: endedOn ?? _t1,
+  photoCount: photoCount,
+  isManual: false,
+);
 
 TripRecord _manual(String id, String countryCode) => TripRecord(
-      id: id,
-      countryCode: countryCode,
-      startedOn: _t0,
-      endedOn: _t1,
-      photoCount: 0,
-      isManual: true,
-    );
+  id: id,
+  countryCode: countryCode,
+  startedOn: _t0,
+  endedOn: _t1,
+  photoCount: 0,
+  isManual: true,
+);
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
@@ -52,18 +51,20 @@ void main() {
       expect(rows.first.countryCode, 'FR');
     });
 
-    test('insertOrReplace updates endedOn and photoCount on re-inference',
-        () async {
-      final repo = _makeRepo();
-      await repo.upsertAll([_inferred('FR_2023-01-01', 'FR', photoCount: 5)]);
-      await repo.upsertAll([
-        _inferred('FR_2023-01-01', 'FR', endedOn: _t2, photoCount: 8),
-      ]);
-      final rows = await repo.loadAll();
-      expect(rows, hasLength(1));
-      expect(rows.first.endedOn, _t2);
-      expect(rows.first.photoCount, 8);
-    });
+    test(
+      'insertOrReplace updates endedOn and photoCount on re-inference',
+      () async {
+        final repo = _makeRepo();
+        await repo.upsertAll([_inferred('FR_2023-01-01', 'FR', photoCount: 5)]);
+        await repo.upsertAll([
+          _inferred('FR_2023-01-01', 'FR', endedOn: _t2, photoCount: 8),
+        ]);
+        final rows = await repo.loadAll();
+        expect(rows, hasLength(1));
+        expect(rows.first.endedOn, _t2);
+        expect(rows.first.photoCount, 8);
+      },
+    );
 
     test('no-op for empty list', () async {
       final repo = _makeRepo();
@@ -118,12 +119,18 @@ void main() {
 
     test('returns most recent trip first', () async {
       final repo = _makeRepo();
-      final older = _inferred('FR_2022-01-01', 'FR',
-          startedOn: DateTime.utc(2022, 1, 1),
-          endedOn: DateTime.utc(2022, 3, 1));
-      final newer = _inferred('FR_2023-06-01', 'FR',
-          startedOn: DateTime.utc(2023, 6, 1),
-          endedOn: DateTime.utc(2023, 6, 30));
+      final older = _inferred(
+        'FR_2022-01-01',
+        'FR',
+        startedOn: DateTime.utc(2022, 1, 1),
+        endedOn: DateTime.utc(2022, 3, 1),
+      );
+      final newer = _inferred(
+        'FR_2023-06-01',
+        'FR',
+        startedOn: DateTime.utc(2023, 6, 1),
+        endedOn: DateTime.utc(2023, 6, 30),
+      );
       await repo.upsertAll([older, newer]);
       final rows = await repo.loadByCountry('FR');
       expect(rows.first.startedOn.year, 2023);

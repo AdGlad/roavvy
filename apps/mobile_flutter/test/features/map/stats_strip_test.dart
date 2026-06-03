@@ -27,9 +27,7 @@ Widget _pumpStrip(
       ),
       polygonsProvider.overrideWithValue(const []),
     ],
-    child: const MaterialApp(
-      home: Scaffold(body: StatsStrip()),
-    ),
+    child: const MaterialApp(home: Scaffold(body: StatsStrip())),
   );
 }
 
@@ -37,13 +35,17 @@ void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
   group('StatsStrip', () {
-    testWidgets('shows 0 countries and — dates when repository is empty',
-        (tester) async {
+    testWidgets('shows 0 countries and — dates when repository is empty', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pumpStrip(_makeRepo()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('0'), findsWidgets); // Countries=0 and Trips=0 both show '0'
+      expect(
+        find.text('0'),
+        findsWidgets,
+      ); // Countries=0 and Trips=0 both show '0'
       expect(find.text('Countries'), findsOneWidget);
       expect(find.text('—'), findsWidgets);
     });
@@ -84,23 +86,27 @@ void main() {
       expect(find.text('2024'), findsOneWidget);
     });
 
-    testWidgets('renders nothing (SizedBox.shrink) while loading',
-        (tester) async {
+    testWidgets('renders nothing (SizedBox.shrink) while loading', (
+      tester,
+    ) async {
       await tester.pumpWidget(_pumpStrip(_makeRepo()));
       // Do not pumpAndSettle — captures the loading state
       expect(find.text('Countries'), findsNothing);
     });
 
-    testWidgets('renders stats strip labels when achievements are unlocked',
-        (tester) async {
+    testWidgets('renders stats strip labels when achievements are unlocked', (
+      tester,
+    ) async {
       final db = _makeDb();
       final achievementRepo = AchievementRepository(db);
-      await achievementRepo.upsertAll(
-        {'countries_1', 'countries_5'},
-        DateTime.utc(2025),
-      );
+      await achievementRepo.upsertAll({
+        'countries_1',
+        'countries_5',
+      }, DateTime.utc(2025));
 
-      await tester.pumpWidget(_pumpStrip(_makeRepo(), achievementRepo: achievementRepo));
+      await tester.pumpWidget(
+        _pumpStrip(_makeRepo(), achievementRepo: achievementRepo),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 

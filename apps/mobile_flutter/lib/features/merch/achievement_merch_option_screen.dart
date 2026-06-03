@@ -18,10 +18,7 @@ import 'travel_identity.dart';
 /// Converges on [LocalMockupPreviewScreen] → [MerchOrderConfirmationScreen]
 /// → Shopify checkout — the same downstream pipeline as [PulseMerchOptionScreen].
 class AchievementMerchOptionScreen extends ConsumerWidget {
-  const AchievementMerchOptionScreen({
-    super.key,
-    required this.achievement,
-  });
+  const AchievementMerchOptionScreen({super.key, required this.achievement});
 
   final Achievement achievement;
 
@@ -106,7 +103,8 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
                   backgroundColor: RoavvyColours.roavvyCoral,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
                 child: const Text('Retry'),
               ),
@@ -159,21 +157,22 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
               itemBuilder: (_, i) {
                 final item = items[i];
                 return switch (item) {
-                  MerchOptionHeaderItem() =>
-                    MerchOptionSectionHeader(item.label),
+                  MerchOptionHeaderItem() => MerchOptionSectionHeader(
+                    item.label,
+                  ),
                   MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                    ),
+                    option: item.option,
+                    allCodes: allCodes,
+                  ),
                   MerchOptionEntry() => MerchOptionCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                      index: i,
-                    ),
+                    option: item.option,
+                    allCodes: allCodes,
+                    index: i,
+                  ),
                   MerchOptionCustomiseEntry() => MerchOptionCustomCard(
-                      template: item.template,
-                      label: item.label,
-                    ),
+                    template: item.template,
+                    label: item.label,
+                  ),
                 };
               },
             ),
@@ -189,10 +188,7 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
 /// Displays the identity emoji with a scale-in animation, identity display
 /// name in gold, and the identity tagline below the achievement subtitle.
 class _CelebrationHeader extends StatelessWidget {
-  const _CelebrationHeader({
-    required this.identity,
-    required this.subtitle,
-  });
+  const _CelebrationHeader({required this.identity, required this.subtitle});
 
   final TravelIdentityInfo identity;
   final String subtitle;
@@ -208,12 +204,10 @@ class _CelebrationHeader extends StatelessWidget {
             tween: Tween(begin: 0.4, end: 1.0),
             duration: const Duration(milliseconds: 500),
             curve: Curves.elasticOut,
-            builder: (_, value, child) =>
-                Transform.scale(scale: value, child: child),
-            child: Text(
-              identity.emoji,
-              style: const TextStyle(fontSize: 36),
-            ),
+            builder:
+                (_, value, child) =>
+                    Transform.scale(scale: value, child: child),
+            child: Text(identity.emoji, style: const TextStyle(fontSize: 36)),
           ),
           const SizedBox(width: 12),
           Expanded(

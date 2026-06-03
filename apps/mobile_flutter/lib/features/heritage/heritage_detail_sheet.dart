@@ -21,7 +21,10 @@ void showHeritageDetailSheet(BuildContext context, VisitedHeritageSite site) {
 /// Shows the heritage detail sheet for any [WorldHeritageSite] — including
 /// ones the user has not visited. Visit-specific stats (photos, dates) are
 /// hidden when called from this overload.
-void showHeritageDetailSheetForSite(BuildContext context, WorldHeritageSite whs) {
+void showHeritageDetailSheetForSite(
+  BuildContext context,
+  WorldHeritageSite whs,
+) {
   // Construct a proxy VisitedHeritageSite with photoCount = 0 to signal
   // "not visited" — the sheet hides visit stats when photoCount == 0.
   final proxy = VisitedHeritageSite(
@@ -89,8 +92,10 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
       );
       if (!mounted) return;
       final km = _haversineKm(
-        pos.latitude, pos.longitude,
-        widget.site.latitude, widget.site.longitude,
+        pos.latitude,
+        pos.longitude,
+        widget.site.latitude,
+        widget.site.longitude,
       );
       setState(() => _distanceKm = km);
     } catch (_) {
@@ -115,157 +120,161 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
       initialChildSize: 0.72,
       minChildSize: 0.4,
       maxChildSize: 0.92,
-      builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0D2137),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: CustomScrollView(
-          controller: controller,
-          slivers: [
-            // ── Hero image (or gradient header) ──────────────────────────
-            SliverToBoxAdapter(
-              child: hasImage
-                  ? _HeroImage(
-                      url: imageUrl,
-                      siteName: site.name,
-                      categoryLabel: categoryLabel,
-                      categoryColor: categoryColor,
-                    )
-                  : _HeaderNoImage(
-                      siteName: site.name,
-                      categoryLabel: categoryLabel,
-                      categoryColor: categoryColor,
-                    ),
+      builder:
+          (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF0D2137),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
+            clipBehavior: Clip.hardEdge,
+            child: CustomScrollView(
+              controller: controller,
+              slivers: [
+                // ── Hero image (or gradient header) ──────────────────────────
+                SliverToBoxAdapter(
+                  child:
+                      hasImage
+                          ? _HeroImage(
+                            url: imageUrl,
+                            siteName: site.name,
+                            categoryLabel: categoryLabel,
+                            categoryColor: categoryColor,
+                          )
+                          : _HeaderNoImage(
+                            siteName: site.name,
+                            categoryLabel: categoryLabel,
+                            categoryColor: categoryColor,
+                          ),
+                ),
 
-            // ── Body content ──────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Country + region row
-                    Row(
+                // ── Body content ──────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(flag, style: const TextStyle(fontSize: 22)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                countryName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (enriched?.region case final region?) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  region,
-                                  style: const TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 13,
+                        // Country + region row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(flag, style: const TextStyle(fontSize: 22)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    countryName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        // Distance chip
-                        _DistanceChip(distanceKm: _distanceKm),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-                    const Divider(color: Colors.white12, height: 1),
-                    const SizedBox(height: 20),
-
-                    // Description
-                    if (hasDescription) ...[
-                      Text(
-                        description,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          height: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Divider(color: Colors.white12, height: 1),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Wikipedia link when no description available
-                    if (!hasDescription) ...[
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          final query = Uri.encodeComponent(site.name);
-                          launchUrl(
-                            Uri.parse(
-                              'https://en.wikipedia.org/w/index.php?search=$query+UNESCO',
+                                  if (enriched?.region case final region?) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      region,
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                            mode: LaunchMode.externalApplication,
-                          );
-                        },
-                        icon: const Icon(Icons.open_in_new, size: 16),
-                        label: const Text('Learn more on Wikipedia'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                          side: const BorderSide(color: Colors.white24),
-                          textStyle: const TextStyle(fontSize: 13),
+                            // Distance chip
+                            _DistanceChip(distanceKm: _distanceKm),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Divider(color: Colors.white12, height: 1),
-                      const SizedBox(height: 20),
-                    ],
 
-                    // Stats grid
-                    Wrap(
-                      spacing: 24,
-                      runSpacing: 16,
-                      children: [
-                        _StatCell(
-                          label: 'UNESCO Listed',
-                          value: site.inscriptionYear > 0
-                              ? '${site.inscriptionYear}'
-                              : '—',
-                        ),
-                        if (site.photoCount > 0) ...[
-                          _StatCell(
-                            label: 'First Visited',
-                            value: _fmtDate(site.firstSeen),
+                        const SizedBox(height: 20),
+                        const Divider(color: Colors.white12, height: 1),
+                        const SizedBox(height: 20),
+
+                        // Description
+                        if (hasDescription) ...[
+                          Text(
+                            description,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              height: 1.55,
+                            ),
                           ),
-                          _StatCell(
-                            label: 'Last Visited',
-                            value: _fmtDate(site.lastSeen),
-                          ),
-                          _StatCell(
-                            label: 'Photos',
-                            value: '${site.photoCount}',
-                          ),
+                          const SizedBox(height: 20),
+                          const Divider(color: Colors.white12, height: 1),
+                          const SizedBox(height: 20),
                         ],
-                        _StatCell(
-                          label: 'Coordinates',
-                          value: '${site.latitude.toStringAsFixed(3)}°, '
-                              '${site.longitude.toStringAsFixed(3)}°',
+
+                        // Wikipedia link when no description available
+                        if (!hasDescription) ...[
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              final query = Uri.encodeComponent(site.name);
+                              launchUrl(
+                                Uri.parse(
+                                  'https://en.wikipedia.org/w/index.php?search=$query+UNESCO',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Learn more on Wikipedia'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white24),
+                              textStyle: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(color: Colors.white12, height: 1),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Stats grid
+                        Wrap(
+                          spacing: 24,
+                          runSpacing: 16,
+                          children: [
+                            _StatCell(
+                              label: 'UNESCO Listed',
+                              value:
+                                  site.inscriptionYear > 0
+                                      ? '${site.inscriptionYear}'
+                                      : '—',
+                            ),
+                            if (site.photoCount > 0) ...[
+                              _StatCell(
+                                label: 'First Visited',
+                                value: _fmtDate(site.firstSeen),
+                              ),
+                              _StatCell(
+                                label: 'Last Visited',
+                                value: _fmtDate(site.lastSeen),
+                              ),
+                              _StatCell(
+                                label: 'Photos',
+                                value: '${site.photoCount}',
+                              ),
+                            ],
+                            _StatCell(
+                              label: 'Coordinates',
+                              value:
+                                  '${site.latitude.toStringAsFixed(3)}°, '
+                                  '${site.longitude.toStringAsFixed(3)}°',
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -277,29 +286,46 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
   }
 
   static String _categoryLabel(String c) => switch (c) {
-        'natural' => 'Natural',
-        'mixed'   => 'Mixed',
-        _         => 'Cultural',
-      };
+    'natural' => 'Natural',
+    'mixed' => 'Mixed',
+    _ => 'Cultural',
+  };
 
   static Color _categoryColor(String c) => switch (c) {
-        'natural' => const Color(0xFF4CAF50),
-        'mixed'   => const Color(0xFF26C6DA),
-        _         => const Color(0xFFD4A017),
-      };
+    'natural' => const Color(0xFF4CAF50),
+    'mixed' => const Color(0xFF26C6DA),
+    _ => const Color(0xFFD4A017),
+  };
 
   static String _fmtDate(DateTime dt) {
-    const m = ['Jan','Feb','Mar','Apr','May','Jun',
-                'Jul','Aug','Sep','Oct','Nov','Dec'];
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${m[dt.month - 1]} ${dt.year}';
   }
 
   static double _haversineKm(
-      double lat1, double lng1, double lat2, double lng2) {
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     const r = 6371.0;
     final dLat = _rad(lat2 - lat1);
     final dLng = _rad(lng2 - lng1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_rad(lat1)) *
             math.cos(_rad(lat2)) *
             math.sin(dLng / 2) *
@@ -335,11 +361,15 @@ class _HeroImage extends StatelessWidget {
           Image.network(
             url,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: const Color(0xFF1B3A5C),
-              child: const Icon(Icons.landscape_outlined,
-                  color: Colors.white24, size: 48),
-            ),
+            errorBuilder:
+                (_, __, ___) => Container(
+                  color: const Color(0xFF1B3A5C),
+                  child: const Icon(
+                    Icons.landscape_outlined,
+                    color: Colors.white24,
+                    size: 48,
+                  ),
+                ),
           ),
           // Bottom gradient so name/badges are readable.
           Positioned.fill(
@@ -438,8 +468,11 @@ class _HeaderNoImage extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(Icons.account_balance_outlined,
-                  color: Colors.white38, size: 16),
+              const Icon(
+                Icons.account_balance_outlined,
+                color: Colors.white38,
+                size: 16,
+              ),
               const SizedBox(width: 6),
               const Text(
                 'UNESCO World Heritage',

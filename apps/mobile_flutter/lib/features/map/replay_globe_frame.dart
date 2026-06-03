@@ -46,4 +46,6 @@ class ReplayGlobeFrame {
 
 /// Holds the current [ReplayGlobeFrame] while a replay or scan overlay is
 /// active. Null when the main globe is in its normal interactive state.
-final replayGlobeFrameProvider = StateProvider<ReplayGlobeFrame?>((ref) => null);
+final replayGlobeFrameProvider = StateProvider<ReplayGlobeFrame?>(
+  (ref) => null,
+);

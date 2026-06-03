@@ -27,7 +27,10 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
   @override
   void initState() {
     super.initState();
-    _earnedSub = ref.read(xpNotifierProvider.notifier).xpEarned.listen(_onXpEarned);
+    _earnedSub = ref
+        .read(xpNotifierProvider.notifier)
+        .xpEarned
+        .listen(_onXpEarned);
   }
 
   @override
@@ -113,7 +116,9 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                     child: LinearProgressIndicator(
                       value: xp.progressFraction,
                       backgroundColor: const Color(0xFF1E3A5F),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFFFFD700),
+                      ),
                       minHeight: 6,
                     ),
                   ),
@@ -122,34 +127,35 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                 // Next level label or +XP flash
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
-                  child: _flashLabel != null
-                      ? Text(
-                          _flashLabel!,
-                          key: ValueKey(_flashLabel),
-                          style: const TextStyle(
-                            color: Color(0xFFFFCA28),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : xp.xpToNextLevel > 0
+                  child:
+                      _flashLabel != null
                           ? Text(
-                              'L${xp.level + 1}',
-                              key: const ValueKey('next'),
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
-                              ),
-                            )
-                          : const Text(
-                              'MAX',
-                              key: ValueKey('max'),
-                              style: TextStyle(
-                                color: Color(0xFFFFB300),
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            _flashLabel!,
+                            key: ValueKey(_flashLabel),
+                            style: const TextStyle(
+                              color: Color(0xFFFFCA28),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
                             ),
+                          )
+                          : xp.xpToNextLevel > 0
+                          ? Text(
+                            'L${xp.level + 1}',
+                            key: const ValueKey('next'),
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                          )
+                          : const Text(
+                            'MAX',
+                            key: ValueKey('max'),
+                            style: TextStyle(
+                              color: Color(0xFFFFB300),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                 ),
               ],
             ),
@@ -169,9 +175,7 @@ class _XpProgressionSheet extends StatelessWidget {
 
   final XpState xp;
 
-  static const _levelEmojis = [
-    '✈️', '🧭', '🗺️', '🌍', '🏕️', '⚓', '🚀', '👑',
-  ];
+  static const _levelEmojis = ['✈️', '🧭', '🗺️', '🌍', '🏕️', '⚓', '🚀', '👑'];
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +217,10 @@ class _XpProgressionSheet extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     '${xp.xpToNextLevel} XP to next level',
-                    style: const TextStyle(color: Color(0xFFFFD700), fontSize: 13),
+                    style: const TextStyle(
+                      color: Color(0xFFFFD700),
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               const SizedBox(height: 16),
@@ -258,13 +265,15 @@ class _LevelRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: highlight
-            ? const Color(0xFFFFD700).withValues(alpha: 0.15)
-            : Colors.white.withValues(alpha: 0.04),
+        color:
+            highlight
+                ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(10),
-        border: highlight
-            ? Border.all(color: const Color(0xFFFFD700), width: 1)
-            : null,
+        border:
+            highlight
+                ? Border.all(color: const Color(0xFFFFD700), width: 1)
+                : null,
       ),
       child: Row(
         children: [
@@ -273,9 +282,10 @@ class _LevelRow extends StatelessWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: isUnlocked || isCurrent
-                  ? const Color(0xFFFFD700)
-                  : Colors.white12,
+              color:
+                  isUnlocked || isCurrent
+                      ? const Color(0xFFFFD700)
+                      : Colors.white12,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -295,9 +305,10 @@ class _LevelRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: isCurrent
-                    ? const Color(0xFFFFD700)
-                    : isUnlocked
+                color:
+                    isCurrent
+                        ? const Color(0xFFFFD700)
+                        : isUnlocked
                         ? Colors.white
                         : Colors.white38,
                 fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
@@ -314,7 +325,10 @@ class _LevelRow extends StatelessWidget {
           ),
           if (isCurrent) ...[
             const SizedBox(width: 6),
-            const Text('◀', style: TextStyle(color: Color(0xFFFFD700), fontSize: 10)),
+            const Text(
+              '◀',
+              style: TextStyle(color: Color(0xFFFFD700), fontSize: 10),
+            ),
           ],
         ],
       ),

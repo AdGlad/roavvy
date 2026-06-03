@@ -62,32 +62,83 @@ abstract final class LandmarkShapePainter {
     Paint paint,
   ) {
     switch (isoCode.toUpperCase()) {
-      case 'FR': _eiffelTower(canvas, w, h, paint); return true;
-      case 'GB': _bigBen(canvas, w, h, paint); return true;
-      case 'IT': _colosseum(canvas, w, h, paint); return true;
-      case 'US': _statuOfLiberty(canvas, w, h, paint); return true;
-      case 'EG': _pyramids(canvas, w, h, paint); return true;
-      case 'IN': _tajMahal(canvas, w, h, paint); return true;
-      case 'JP': _toriiGate(canvas, w, h, paint); return true;
-      case 'CN': _greatWall(canvas, w, h, paint); return true;
-      case 'AU': _operaHouse(canvas, w, h, paint); return true;
-      case 'BR': _christRedeemer(canvas, w, h, paint); return true;
-      case 'GR': _parthenon(canvas, w, h, paint); return true;
-      case 'RU': _stBasils(canvas, w, h, paint); return true;
-      case 'ES': _sagradaFamilia(canvas, w, h, paint); return true;
-      case 'DE': _brandenburgGate(canvas, w, h, paint); return true;
-      case 'NL': _windmill(canvas, w, h, paint); return true;
-      case 'PE': _machupicchu(canvas, w, h, paint); return true;
-      case 'MX': _chichenItza(canvas, w, h, paint); return true;
-      case 'CA': _cnTower(canvas, w, h, paint); return true;
-      case 'JO': _petra(canvas, w, h, paint); return true;
-      case 'AE': _burjKhalifa(canvas, w, h, paint); return true;
-      case 'SG': _merlion(canvas, w, h, paint); return true;
-      case 'KH': _angkorWat(canvas, w, h, paint); return true;
-      case 'TH': _watArun(canvas, w, h, paint); return true;
-      case 'KR': _seoulTower(canvas, w, h, paint); return true;
-      case 'TR': _hagiaSophia(canvas, w, h, paint); return true;
-      default:   return false;
+      case 'FR':
+        _eiffelTower(canvas, w, h, paint);
+        return true;
+      case 'GB':
+        _bigBen(canvas, w, h, paint);
+        return true;
+      case 'IT':
+        _colosseum(canvas, w, h, paint);
+        return true;
+      case 'US':
+        _statuOfLiberty(canvas, w, h, paint);
+        return true;
+      case 'EG':
+        _pyramids(canvas, w, h, paint);
+        return true;
+      case 'IN':
+        _tajMahal(canvas, w, h, paint);
+        return true;
+      case 'JP':
+        _toriiGate(canvas, w, h, paint);
+        return true;
+      case 'CN':
+        _greatWall(canvas, w, h, paint);
+        return true;
+      case 'AU':
+        _operaHouse(canvas, w, h, paint);
+        return true;
+      case 'BR':
+        _christRedeemer(canvas, w, h, paint);
+        return true;
+      case 'GR':
+        _parthenon(canvas, w, h, paint);
+        return true;
+      case 'RU':
+        _stBasils(canvas, w, h, paint);
+        return true;
+      case 'ES':
+        _sagradaFamilia(canvas, w, h, paint);
+        return true;
+      case 'DE':
+        _brandenburgGate(canvas, w, h, paint);
+        return true;
+      case 'NL':
+        _windmill(canvas, w, h, paint);
+        return true;
+      case 'PE':
+        _machupicchu(canvas, w, h, paint);
+        return true;
+      case 'MX':
+        _chichenItza(canvas, w, h, paint);
+        return true;
+      case 'CA':
+        _cnTower(canvas, w, h, paint);
+        return true;
+      case 'JO':
+        _petra(canvas, w, h, paint);
+        return true;
+      case 'AE':
+        _burjKhalifa(canvas, w, h, paint);
+        return true;
+      case 'SG':
+        _merlion(canvas, w, h, paint);
+        return true;
+      case 'KH':
+        _angkorWat(canvas, w, h, paint);
+        return true;
+      case 'TH':
+        _watArun(canvas, w, h, paint);
+        return true;
+      case 'KR':
+        _seoulTower(canvas, w, h, paint);
+        return true;
+      case 'TR':
+        _hagiaSophia(canvas, w, h, paint);
+        return true;
+      default:
+        return false;
     }
   }
 
@@ -131,17 +182,27 @@ abstract final class LandmarkShapePainter {
     // Belfry (slightly wider)
     canvas.drawRect(Rect.fromLTWH(w * 0.22, h * 0.22, w * 0.56, h * 0.10), p);
     // Clock face cutout (white circle inside tower)
-    final clockPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
+    final clockPaint =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(w * 0.50, h * 0.52), w * 0.11, clockPaint);
     // Hands (small cross)
-    final handPaint = Paint()
-      ..color = p.color
-      ..strokeWidth = w * 0.03
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(w * 0.50, h * 0.44), Offset(w * 0.50, h * 0.60), handPaint);
-    canvas.drawLine(Offset(w * 0.42, h * 0.52), Offset(w * 0.58, h * 0.52), handPaint);
+    final handPaint =
+        Paint()
+          ..color = p.color
+          ..strokeWidth = w * 0.03
+          ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(w * 0.50, h * 0.44),
+      Offset(w * 0.50, h * 0.60),
+      handPaint,
+    );
+    canvas.drawLine(
+      Offset(w * 0.42, h * 0.52),
+      Offset(w * 0.58, h * 0.52),
+      handPaint,
+    );
     // Gothic spire
     final spire = Path();
     spire.moveTo(w * 0.22, h * 0.22);
@@ -160,24 +221,40 @@ abstract final class LandmarkShapePainter {
     final ry = h * 0.40;
 
     // Outer ellipse (filled)
-    canvas.drawOval(Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2), p);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2),
+      p,
+    );
 
     // Inner hollow (white)
-    final hollow = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawOval(Rect.fromCenter(center: Offset(cx, cy), width: rx * 1.5, height: ry * 1.35), hollow);
+    final hollow =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(cx, cy),
+        width: rx * 1.5,
+        height: ry * 1.35,
+      ),
+      hollow,
+    );
 
     // Three tiers of arches
-    final archPaint = Paint()
-      ..color = p.color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = h * 0.025;
+    final archPaint =
+        Paint()
+          ..color = p.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = h * 0.025;
     for (int tier = 0; tier < 3; tier++) {
       final tRx = rx * (1.0 - tier * 0.14);
       final tRy = ry * (1.0 - tier * 0.14);
       canvas.drawOval(
-        Rect.fromCenter(center: Offset(cx, cy), width: tRx * 2, height: tRy * 2),
+        Rect.fromCenter(
+          center: Offset(cx, cy),
+          width: tRx * 2,
+          height: tRy * 2,
+        ),
         archPaint,
       );
     }
@@ -261,7 +338,10 @@ abstract final class LandmarkShapePainter {
     // Central arch body
     canvas.drawRect(Rect.fromLTWH(w * 0.28, h * 0.44, w * 0.44, h * 0.28), p);
     // Arch cutout (white)
-    final archWhite = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final archWhite =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawRRect(
       RRect.fromRectAndCorners(
         Rect.fromLTWH(w * 0.35, h * 0.50, w * 0.30, h * 0.22),
@@ -282,7 +362,14 @@ abstract final class LandmarkShapePainter {
     canvas.drawCircle(Offset(w * 0.50, h * 0.02), w * 0.025, p);
   }
 
-  static void _roundedTop(Canvas canvas, double cx, double cy, double rx, double ry, Paint p) {
+  static void _roundedTop(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double rx,
+    double ry,
+    Paint p,
+  ) {
     final path = Path();
     path.moveTo(cx - rx, cy + ry);
     path.quadraticBezierTo(cx - rx, cy, cx, cy - ry);
@@ -371,7 +458,10 @@ abstract final class LandmarkShapePainter {
     sail2.quadraticBezierTo(w * 0.22, h * 0.40, w * 0.54, h * 0.46);
     sail2.quadraticBezierTo(w * 0.54, h * 0.65, w * 0.54, h * 0.82);
     sail2.close();
-    final s2fill = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final s2fill =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawPath(sail2, s2fill);
     // Right section sails
     final sail3 = Path();
@@ -450,7 +540,14 @@ abstract final class LandmarkShapePainter {
     _onionDome(canvas, w * 0.86, h * 0.64, w * 0.08, h * 0.14, p);
   }
 
-  static void _onionDome(Canvas canvas, double cx, double cy, double rx, double ry, Paint p) {
+  static void _onionDome(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double rx,
+    double ry,
+    Paint p,
+  ) {
     final path = Path();
     path.moveTo(cx - rx, cy);
     path.quadraticBezierTo(cx - rx * 1.3, cy - ry * 0.5, cx, cy - ry);
@@ -467,7 +564,10 @@ abstract final class LandmarkShapePainter {
     // Base facade
     canvas.drawRect(Rect.fromLTWH(w * 0.14, h * 0.48, w * 0.72, h * 0.52), p);
     // Central entrance arch
-    final arch = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final arch =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawRRect(
       RRect.fromRectAndCorners(
         Rect.fromLTWH(w * 0.38, h * 0.62, w * 0.24, h * 0.38),
@@ -484,7 +584,14 @@ abstract final class LandmarkShapePainter {
     _spire(canvas, w * 0.84, h * 0.48, w * 0.055, h * 0.25, p);
   }
 
-  static void _spire(Canvas canvas, double cx, double baseY, double rx, double height, Paint p) {
+  static void _spire(
+    Canvas canvas,
+    double cx,
+    double baseY,
+    double rx,
+    double height,
+    Paint p,
+  ) {
     final path = Path();
     path.moveTo(cx - rx, baseY);
     path.lineTo(cx - rx * 0.6, baseY - height * 0.7);
@@ -514,11 +621,7 @@ abstract final class LandmarkShapePainter {
     canvas.drawPath(quad, p);
     // Horses (3 bumps on top)
     for (int i = 0; i < 4; i++) {
-      canvas.drawCircle(
-        Offset(w * (0.30 + i * 0.13), h * 0.10),
-        w * 0.06,
-        p,
-      );
+      canvas.drawCircle(Offset(w * (0.30 + i * 0.13), h * 0.10), w * 0.06, p);
     }
     // 6 columns
     const int cols = 6;
@@ -551,23 +654,29 @@ abstract final class LandmarkShapePainter {
     // Hub
     canvas.drawCircle(Offset(w * 0.50, h * 0.38), w * 0.04, p);
     // 4 blades at 45-degree increments
-    final bladePaint = Paint()
-      ..color = p.color
-      ..strokeWidth = w * 0.06
-      ..strokeCap = StrokeCap.butt
-      ..style = PaintingStyle.stroke;
+    final bladePaint =
+        Paint()
+          ..color = p.color
+          ..strokeWidth = w * 0.06
+          ..strokeCap = StrokeCap.butt
+          ..style = PaintingStyle.stroke;
     for (int i = 0; i < 4; i++) {
       final angle = i * math.pi / 2 + math.pi / 4;
       const bladeLen = 0.36;
       canvas.drawLine(
         Offset(w * 0.50, h * 0.38),
-        Offset(w * 0.50 + math.cos(angle) * w * bladeLen,
-               h * 0.38 + math.sin(angle) * w * bladeLen),
+        Offset(
+          w * 0.50 + math.cos(angle) * w * bladeLen,
+          h * 0.38 + math.sin(angle) * w * bladeLen,
+        ),
         bladePaint,
       );
     }
     // Window cutout
-    final win = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final win =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawRect(Rect.fromLTWH(w * 0.43, h * 0.56, w * 0.14, h * 0.14), win);
   }
 
@@ -590,11 +699,18 @@ abstract final class LandmarkShapePainter {
     mtn2.close();
     canvas.drawPath(mtn2, p);
     // Terraces (horizontal step layers)
-    final terraceWhite = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final terraceWhite =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     for (int i = 0; i < 5; i++) {
       canvas.drawRect(
-        Rect.fromLTWH(w * 0.22 + i * w * 0.01, h * (0.56 + i * 0.08),
-                      w * (0.56 - i * 0.04), h * 0.015),
+        Rect.fromLTWH(
+          w * 0.22 + i * w * 0.01,
+          h * (0.56 + i * 0.08),
+          w * (0.56 - i * 0.04),
+          h * 0.015,
+        ),
         terraceWhite,
       );
     }
@@ -610,8 +726,12 @@ abstract final class LandmarkShapePainter {
     for (int i = 0; i < levels; i++) {
       final inset = i * 0.09;
       canvas.drawRect(
-        Rect.fromLTWH(w * (0.04 + inset), h * (0.68 + i * 0.01 - levels * 0.07 + i * 0.065),
-                      w * (0.92 - inset * 2), h * 0.065),
+        Rect.fromLTWH(
+          w * (0.04 + inset),
+          h * (0.68 + i * 0.01 - levels * 0.07 + i * 0.065),
+          w * (0.92 - inset * 2),
+          h * 0.065,
+        ),
         p,
       );
     }
@@ -654,7 +774,10 @@ abstract final class LandmarkShapePainter {
     // Cliff face background
     canvas.drawRect(Rect.fromLTWH(0, h * 0.06, w, h * 0.94), p);
     // Façade cut-out elements (white)
-    final cut = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final cut =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     // Main entrance arch
     canvas.drawRRect(
       RRect.fromRectAndCorners(
@@ -702,12 +825,17 @@ abstract final class LandmarkShapePainter {
     body.close();
     canvas.drawPath(body, p);
     // Setbacks (white lines to indicate tier changes)
-    final setback = Paint()
-      ..color = Colors.white
-      ..strokeWidth = h * 0.012
-      ..style = PaintingStyle.stroke;
+    final setback =
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = h * 0.012
+          ..style = PaintingStyle.stroke;
     for (final yFrac in [0.26, 0.36, 0.52, 0.60]) {
-      canvas.drawLine(Offset(w * 0.22, h * yFrac), Offset(w * 0.78, h * yFrac), setback);
+      canvas.drawLine(
+        Offset(w * 0.22, h * yFrac),
+        Offset(w * 0.78, h * yFrac),
+        setback,
+      );
     }
   }
 
@@ -732,7 +860,11 @@ abstract final class LandmarkShapePainter {
     canvas.drawPath(body, p);
     // Lion head
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(w * 0.50, h * 0.28), width: w * 0.54, height: h * 0.32),
+      Rect.fromCenter(
+        center: Offset(w * 0.50, h * 0.28),
+        width: w * 0.54,
+        height: h * 0.32,
+      ),
       p,
     );
     // Mane (rough circle, slightly lighter)
@@ -744,7 +876,10 @@ abstract final class LandmarkShapePainter {
     spout.close();
     canvas.drawPath(spout, p);
     // Eyes
-    final eye = Paint()..color = Colors.white..style = PaintingStyle.fill;
+    final eye =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(w * 0.40, h * 0.24), w * 0.04, eye);
     canvas.drawCircle(Offset(w * 0.60, h * 0.24), w * 0.04, eye);
   }
@@ -760,17 +895,41 @@ abstract final class LandmarkShapePainter {
     final heights = [0.36, 0.20, 0.04, 0.20, 0.36];
     final positions = [0.16, 0.31, 0.50, 0.69, 0.84];
     for (int i = 0; i < 5; i++) {
-      _lotusSpire(canvas, w * positions[i], h * heights[i], h * 0.62, w * 0.09, p);
+      _lotusSpire(
+        canvas,
+        w * positions[i],
+        h * heights[i],
+        h * 0.62,
+        w * 0.09,
+        p,
+      );
     }
   }
 
-  static void _lotusSpire(Canvas canvas, double cx, double topY, double baseY, double rx, Paint p) {
+  static void _lotusSpire(
+    Canvas canvas,
+    double cx,
+    double topY,
+    double baseY,
+    double rx,
+    Paint p,
+  ) {
     final path = Path();
     final mid = topY + (baseY - topY) * 0.6;
     path.moveTo(cx - rx * 0.5, baseY);
     path.lineTo(cx - rx * 0.7, mid);
-    path.quadraticBezierTo(cx - rx * 0.8, topY + (baseY - topY) * 0.2, cx, topY);
-    path.quadraticBezierTo(cx + rx * 0.8, topY + (baseY - topY) * 0.2, cx + rx * 0.7, mid);
+    path.quadraticBezierTo(
+      cx - rx * 0.8,
+      topY + (baseY - topY) * 0.2,
+      cx,
+      topY,
+    );
+    path.quadraticBezierTo(
+      cx + rx * 0.8,
+      topY + (baseY - topY) * 0.2,
+      cx + rx * 0.7,
+      mid,
+    );
     path.lineTo(cx + rx * 0.5, baseY);
     path.close();
     canvas.drawPath(path, p);
@@ -793,7 +952,11 @@ abstract final class LandmarkShapePainter {
     mainPrang.close();
     canvas.drawPath(mainPrang, p);
     // Horizontal tier bands
-    final band = Paint()..color = Colors.white..strokeWidth = h * 0.018..style = PaintingStyle.stroke;
+    final band =
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = h * 0.018
+          ..style = PaintingStyle.stroke;
     for (final y in [0.36, 0.52, 0.68]) {
       canvas.drawLine(Offset(w * 0.10, h * y), Offset(w * 0.90, h * y), band);
     }
@@ -858,17 +1021,19 @@ abstract final class LandmarkShapePainter {
     canvas.drawRect(Rect.fromLTWH(w * 0.04, h * 0.20, w * 0.07, h * 0.80), p);
     canvas.drawRect(Rect.fromLTWH(w * 0.89, h * 0.20, w * 0.07, h * 0.80), p);
     // Minaret tips
-    final lTip = Path()
-      ..moveTo(w * 0.04, h * 0.20)
-      ..lineTo(w * 0.075, h * 0.06)
-      ..lineTo(w * 0.11, h * 0.20)
-      ..close();
+    final lTip =
+        Path()
+          ..moveTo(w * 0.04, h * 0.20)
+          ..lineTo(w * 0.075, h * 0.06)
+          ..lineTo(w * 0.11, h * 0.20)
+          ..close();
     canvas.drawPath(lTip, p);
-    final rTip = Path()
-      ..moveTo(w * 0.89, h * 0.20)
-      ..lineTo(w * 0.925, h * 0.06)
-      ..lineTo(w * 0.96, h * 0.20)
-      ..close();
+    final rTip =
+        Path()
+          ..moveTo(w * 0.89, h * 0.20)
+          ..lineTo(w * 0.925, h * 0.06)
+          ..lineTo(w * 0.96, h * 0.20)
+          ..close();
     canvas.drawPath(rTip, p);
   }
 }

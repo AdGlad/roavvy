@@ -17,9 +17,12 @@ void main() {
       expect(pendingMilestoneThreshold(10, {5}), 10);
     });
 
-    test('returns highest crossed threshold (10) when jumping from 4 to 12', () {
-      expect(pendingMilestoneThreshold(12, {}), 10);
-    });
+    test(
+      'returns highest crossed threshold (10) when jumping from 4 to 12',
+      () {
+        expect(pendingMilestoneThreshold(12, {}), 10);
+      },
+    );
 
     test('returns null when all crossed thresholds already shown', () {
       expect(pendingMilestoneThreshold(10, {5, 10}), isNull);
@@ -33,9 +36,7 @@ void main() {
   group('MilestoneCardSheet widget', () {
     Widget buildSheet(int threshold) {
       return MaterialApp(
-        home: Scaffold(
-          body: MilestoneCardSheet(threshold: threshold),
-        ),
+        home: Scaffold(body: MilestoneCardSheet(threshold: threshold)),
       );
     }
 
@@ -43,7 +44,10 @@ void main() {
       await tester.pumpWidget(buildSheet(10));
       expect(find.text('🗺️'), findsOneWidget);
       expect(find.text("You've visited 10 countries!"), findsOneWidget);
-      expect(find.text('A new milestone for your travel story.'), findsOneWidget);
+      expect(
+        find.text('A new milestone for your travel story.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders correct badge for 100', (tester) async {
@@ -53,14 +57,17 @@ void main() {
     });
 
     testWidgets('Continue button dismisses sheet', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showMilestoneCardSheet(context, 10),
-            child: const Text('open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder:
+                (context) => TextButton(
+                  onPressed: () => showMilestoneCardSheet(context, 10),
+                  child: const Text('open'),
+                ),
           ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();

@@ -48,7 +48,9 @@ class PulseMerchOptionScreen extends ConsumerWidget {
     final isPassport = template == CardTemplateType.passport;
 
     ({double jitter, double size}) tune(
-        List<TripRecord> trips, List<String> codes) {
+      List<TripRecord> trips,
+      List<String> codes,
+    ) {
       if (isPassport) return merchAutoTuneStamps(trips.length * 2);
       return merchAutoTuneCodes(codes.length);
     }
@@ -59,69 +61,83 @@ class PulseMerchOptionScreen extends ConsumerWidget {
     final tripList = heroTrip != null ? [heroTrip] : const <TripRecord>[];
     final heroCountryCode = hero.countryCode ?? '';
     final t1 = tune(tripList, [heroCountryCode]);
-    options.add(PulseMerchOption(
-      id: '${template.name}_trip',
-      title: '$countryName $year',
-      description: 'Your $countryName trip',
-      scope: PulseMerchScope.pulseTrip,
-      template: template,
-      codes: [heroCountryCode],
-      trips: tripList,
-      jitter: t1.jitter,
-      stampSizeMultiplier: t1.size,
-      artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(1, year: year),
-    ));
+    options.add(
+      PulseMerchOption(
+        id: '${template.name}_trip',
+        title: '$countryName $year',
+        description: 'Your $countryName trip',
+        scope: PulseMerchScope.pulseTrip,
+        template: template,
+        codes: [heroCountryCode],
+        trips: tripList,
+        jitter: t1.jitter,
+        stampSizeMultiplier: t1.size,
+        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(1, year: year),
+      ),
+    );
 
     // 2. Year in review (only when multiple countries that year)
     if (yearCodes.length > 1) {
       final t2 = tune(yearTrips, yearCodes);
-      options.add(PulseMerchOption(
-        id: '${template.name}_year',
-        title: '$year Travels',
-        description: '${yearCodes.length} countries visited in $year',
-        scope: PulseMerchScope.pulseYear,
-        template: template,
-        codes: yearCodes,
-        trips: yearTrips,
-        jitter: t2.jitter,
-        stampSizeMultiplier: t2.size,
-        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(yearCodes.length, year: year),
-      ));
+      options.add(
+        PulseMerchOption(
+          id: '${template.name}_year',
+          title: '$year Travels',
+          description: '${yearCodes.length} countries visited in $year',
+          scope: PulseMerchScope.pulseYear,
+          template: template,
+          codes: yearCodes,
+          trips: yearTrips,
+          jitter: t2.jitter,
+          stampSizeMultiplier: t2.size,
+          artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(
+            yearCodes.length,
+            year: year,
+          ),
+        ),
+      );
     }
 
     // 3. All visits to this country
     final t3 = tune(countryTrips, [heroCountryCode]);
-    options.add(PulseMerchOption(
-      id: '${template.name}_country',
-      title: '$countryName Memories',
-      description: countryTrips.isEmpty
-          ? 'All your $countryName stamps'
-          : '${countryTrips.length} '
-              '${countryTrips.length == 1 ? "trip" : "trips"} to $countryName',
-      scope: PulseMerchScope.allVisitsToCountry,
-      template: template,
-      codes: [heroCountryCode],
-      trips: countryTrips,
-      jitter: t3.jitter,
-      stampSizeMultiplier: t3.size,
-      artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(1),
-    ));
+    options.add(
+      PulseMerchOption(
+        id: '${template.name}_country',
+        title: '$countryName Memories',
+        description:
+            countryTrips.isEmpty
+                ? 'All your $countryName stamps'
+                : '${countryTrips.length} '
+                    '${countryTrips.length == 1 ? "trip" : "trips"} to $countryName',
+        scope: PulseMerchScope.allVisitsToCountry,
+        template: template,
+        codes: [heroCountryCode],
+        trips: countryTrips,
+        jitter: t3.jitter,
+        stampSizeMultiplier: t3.size,
+        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(1),
+      ),
+    );
 
     // 4. All-time collection (only when more than one country exists)
     if (allCodes.length > 1) {
       final t4 = tune(allTrips, allCodes);
-      options.add(PulseMerchOption(
-        id: '${template.name}_alltime',
-        title: 'World Collection',
-        description: '${allCodes.length} countries across all your travels',
-        scope: PulseMerchScope.allTime,
-        template: template,
-        codes: allCodes,
-        trips: allTrips,
-        jitter: t4.jitter,
-        stampSizeMultiplier: t4.size,
-        artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(allCodes.length),
-      ));
+      options.add(
+        PulseMerchOption(
+          id: '${template.name}_alltime',
+          title: 'World Collection',
+          description: '${allCodes.length} countries across all your travels',
+          scope: PulseMerchScope.allTime,
+          template: template,
+          codes: allCodes,
+          trips: allTrips,
+          jitter: t4.jitter,
+          stampSizeMultiplier: t4.size,
+          artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(
+            allCodes.length,
+          ),
+        ),
+      );
     }
 
     return options;
@@ -130,17 +146,20 @@ class PulseMerchOptionScreen extends ConsumerWidget {
   List<MerchOptionListItem> _buildItems({required bool landmarkAvailable}) {
     final year = hero.capturedAt.year;
     final heroCountryCode = hero.countryCode ?? '';
-    final countryName = heroCountryCode.isNotEmpty
-        ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
-        : 'Your travels';
-    final heroTrip = hero.tripId != null
-        ? allTrips.where((t) => t.id == hero.tripId).firstOrNull
-        : null;
+    final countryName =
+        heroCountryCode.isNotEmpty
+            ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
+            : 'Your travels';
+    final heroTrip =
+        hero.tripId != null
+            ? allTrips.where((t) => t.id == hero.tripId).firstOrNull
+            : null;
     final yearTrips = allTrips.where((t) => t.startedOn.year == year).toList();
     final yearCodes = yearTrips.map((t) => t.countryCode).toSet().toList();
-    final countryTrips = heroCountryCode.isNotEmpty
-        ? allTrips.where((t) => t.countryCode == heroCountryCode).toList()
-        : const <TripRecord>[];
+    final countryTrips =
+        heroCountryCode.isNotEmpty
+            ? allTrips.where((t) => t.countryCode == heroCountryCode).toList()
+            : const <TripRecord>[];
     final allCodes = allVisits.map((v) => v.countryCode).toList();
 
     final groups = [
@@ -167,10 +186,12 @@ class PulseMerchOptionScreen extends ConsumerWidget {
       )) {
         items.add(MerchOptionEntry(opt));
       }
-      items.add(MerchOptionCustomiseEntry(
-        template: g.template,
-        label: 'Customise ${g.label}',
-      ));
+      items.add(
+        MerchOptionCustomiseEntry(
+          template: g.template,
+          label: 'Customise ${g.label}',
+        ),
+      );
     }
     return items;
   }
@@ -183,9 +204,10 @@ class PulseMerchOptionScreen extends ConsumerWidget {
     final allCodes = allVisits.map((v) => v.countryCode).toList();
     final year = hero.capturedAt.year;
     final heroCountryCode = hero.countryCode ?? '';
-    final countryName = heroCountryCode.isNotEmpty
-        ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
-        : 'Your travels';
+    final countryName =
+        heroCountryCode.isNotEmpty
+            ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
+            : 'Your travels';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
@@ -213,21 +235,22 @@ class PulseMerchOptionScreen extends ConsumerWidget {
               itemBuilder: (ctx, i) {
                 final item = items[i];
                 return switch (item) {
-                  MerchOptionHeaderItem() =>
-                    MerchOptionSectionHeader(item.label),
+                  MerchOptionHeaderItem() => MerchOptionSectionHeader(
+                    item.label,
+                  ),
                   MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                    ),
+                    option: item.option,
+                    allCodes: allCodes,
+                  ),
                   MerchOptionEntry() => MerchOptionCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                      index: i,
-                    ),
+                    option: item.option,
+                    allCodes: allCodes,
+                    index: i,
+                  ),
                   MerchOptionCustomiseEntry() => MerchOptionCustomCard(
-                      template: item.template,
-                      label: item.label,
-                    ),
+                    template: item.template,
+                    label: item.label,
+                  ),
                 };
               },
             ),

@@ -46,9 +46,29 @@ void main() {
 
   group('FlagTileRenderer.hasSvg', () {
     test('returns true for common bundled codes', () {
-      for (final code in ['gb', 'us', 'fr', 'de', 'jp', 'au', 'ca', 'br',
-                          'cn', 'in', 'it', 'es', 'mx', 'za', 'nl', 'se']) {
-        expect(FlagTileRenderer.hasSvg(code), isTrue, reason: '$code should be bundled');
+      for (final code in [
+        'gb',
+        'us',
+        'fr',
+        'de',
+        'jp',
+        'au',
+        'ca',
+        'br',
+        'cn',
+        'in',
+        'it',
+        'es',
+        'mx',
+        'za',
+        'nl',
+        'se',
+      ]) {
+        expect(
+          FlagTileRenderer.hasSvg(code),
+          isTrue,
+          reason: '$code should be bundled',
+        );
       }
     });
 

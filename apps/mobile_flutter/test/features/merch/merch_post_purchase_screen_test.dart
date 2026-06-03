@@ -7,13 +7,17 @@ Widget _wrap(Widget child) => MaterialApp(home: child);
 
 void main() {
   group('MerchPostPurchaseScreen', () {
-    testWidgets('renders product name and country count (tshirt)', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const MerchPostPurchaseScreen(
-          product: MerchProduct.tshirt,
-          countryCount: 23,
+    testWidgets('renders product name and country count (tshirt)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MerchPostPurchaseScreen(
+            product: MerchProduct.tshirt,
+            countryCount: 23,
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       expect(find.text('Your order is on its way!'), findsOneWidget);
@@ -21,13 +25,17 @@ void main() {
       expect(find.textContaining('23 countries'), findsOneWidget);
     });
 
-    testWidgets('renders product name and country count (poster)', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const MerchPostPurchaseScreen(
-          product: MerchProduct.poster,
-          countryCount: 1,
+    testWidgets('renders product name and country count (poster)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MerchPostPurchaseScreen(
+            product: MerchProduct.poster,
+            countryCount: 1,
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       expect(find.textContaining('Roavvy Travel Poster'), findsOneWidget);
@@ -35,13 +43,17 @@ void main() {
       expect(find.textContaining('1 country'), findsOneWidget);
     });
 
-    testWidgets('shows Back to my map and Share my order buttons', (tester) async {
-      await tester.pumpWidget(_wrap(
-        const MerchPostPurchaseScreen(
-          product: MerchProduct.tshirt,
-          countryCount: 5,
+    testWidgets('shows Back to my map and Share my order buttons', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MerchPostPurchaseScreen(
+            product: MerchProduct.tshirt,
+            countryCount: 5,
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       expect(find.text('Back to my map'), findsOneWidget);
@@ -53,19 +65,22 @@ void main() {
         MaterialApp(
           home: const Scaffold(body: Text('root')),
           routes: {
-            '/post': (_) => const MerchPostPurchaseScreen(
+            '/post':
+                (_) => const MerchPostPurchaseScreen(
                   product: MerchProduct.tshirt,
                   countryCount: 3,
                 ),
           },
         ),
       );
-      await tester.pumpWidget(_wrap(
-        const MerchPostPurchaseScreen(
-          product: MerchProduct.tshirt,
-          countryCount: 3,
+      await tester.pumpWidget(
+        _wrap(
+          const MerchPostPurchaseScreen(
+            product: MerchProduct.tshirt,
+            countryCount: 3,
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       // automaticallyImplyLeading: false means no back arrow

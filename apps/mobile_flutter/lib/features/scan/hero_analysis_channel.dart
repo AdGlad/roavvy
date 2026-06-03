@@ -11,8 +11,7 @@ import 'package:shared_models/shared_models.dart';
 /// only when local candidates are insufficient (ADR-134 extended).
 class HeroAnalysisChannel {
   HeroAnalysisChannel({MethodChannel? channel})
-      : _channel = channel ??
-            const MethodChannel('roavvy/hero_analysis');
+    : _channel = channel ?? const MethodChannel('roavvy/hero_analysis');
 
   final MethodChannel _channel;
 

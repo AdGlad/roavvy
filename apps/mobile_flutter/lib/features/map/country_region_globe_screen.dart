@@ -96,7 +96,9 @@ class _CountryRegionGlobeScreenState
       rotLng: -lng * math.pi / 180.0,
       scale: 1.0,
     );
-    _projection = centered.copyWith(scale: _autoScale(_allRegionPolygons, centered));
+    _projection = centered.copyWith(
+      scale: _autoScale(_allRegionPolygons, centered),
+    );
 
     // Load visited region codes.
     final tripFilter = widget.tripFilter;
@@ -128,8 +130,10 @@ class _CountryRegionGlobeScreenState
         final delta = d.focalPoint - _lastFocalPoint;
         _projection = _projection.copyWith(
           rotLng: _projection.rotLng + delta.dx / 150.0,
-          rotLat: (_projection.rotLat + delta.dy / 150.0)
-              .clamp(-math.pi / 2, math.pi / 2),
+          rotLat: (_projection.rotLat + delta.dy / 150.0).clamp(
+            -math.pi / 2,
+            math.pi / 2,
+          ),
         );
       }
     });
@@ -156,10 +160,9 @@ class _CountryRegionGlobeScreenState
             if (widget.subtitle != null)
               Text(
                 widget.subtitle!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.white70),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.white70),
               ),
           ],
         ),

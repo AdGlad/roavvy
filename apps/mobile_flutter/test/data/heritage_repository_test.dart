@@ -26,21 +26,20 @@ VisitedHeritageSite _site({
   int photoCount = 1,
   String confidence = 'strong',
   double nearestDistanceKm = 0.5,
-}) =>
-    VisitedHeritageSite(
-      siteId: siteId,
-      name: name,
-      countryCode: countryCode,
-      category: category,
-      latitude: latitude,
-      longitude: longitude,
-      inscriptionYear: inscriptionYear,
-      firstSeen: firstSeen ?? _firstSeen,
-      lastSeen: lastSeen ?? _lastSeen,
-      photoCount: photoCount,
-      confidence: confidence,
-      nearestDistanceKm: nearestDistanceKm,
-    );
+}) => VisitedHeritageSite(
+  siteId: siteId,
+  name: name,
+  countryCode: countryCode,
+  category: category,
+  latitude: latitude,
+  longitude: longitude,
+  inscriptionYear: inscriptionYear,
+  firstSeen: firstSeen ?? _firstSeen,
+  lastSeen: lastSeen ?? _lastSeen,
+  photoCount: photoCount,
+  confidence: confidence,
+  nearestDistanceKm: nearestDistanceKm,
+);
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
@@ -67,7 +66,12 @@ void main() {
       final repo = _makeRepo();
       await repo.upsertAll([
         _site(siteId: '208', name: 'Taj Mahal', countryCode: 'IN'),
-        _site(siteId: '1', name: 'Galápagos', countryCode: 'EC', category: 'natural'),
+        _site(
+          siteId: '1',
+          name: 'Galápagos',
+          countryCode: 'EC',
+          category: 'natural',
+        ),
       ]);
       final all = await repo.loadAll();
       expect(all, hasLength(2));
@@ -120,7 +124,10 @@ void main() {
 
       final inSites = await repo.loadByCountry('IN');
       expect(inSites, hasLength(2));
-      expect(inSites.map((s) => s.name), containsAll(['Taj Mahal', 'Agra Fort']));
+      expect(
+        inSites.map((s) => s.name),
+        containsAll(['Taj Mahal', 'Agra Fort']),
+      );
 
       final gbSites = await repo.loadByCountry('GB');
       expect(gbSites, hasLength(1));
@@ -167,15 +174,21 @@ void main() {
       final repo = _makeRepo();
       await repo.upsertAll([_site(nearestDistanceKm: 5.0)]);
       await repo.upsertAll([_site(nearestDistanceKm: 1.2)]);
-      expect((await repo.loadAll()).first.nearestDistanceKm, closeTo(1.2, 0.001));
+      expect(
+        (await repo.loadAll()).first.nearestDistanceKm,
+        closeTo(1.2, 0.001),
+      );
     });
 
-    test('confidence upgrades from nearby to strong, never downgrades', () async {
-      final repo = _makeRepo();
-      await repo.upsertAll([_site(confidence: 'nearby')]);
-      await repo.upsertAll([_site(confidence: 'strong')]);
-      expect((await repo.loadAll()).first.confidence, 'strong');
-    });
+    test(
+      'confidence upgrades from nearby to strong, never downgrades',
+      () async {
+        final repo = _makeRepo();
+        await repo.upsertAll([_site(confidence: 'nearby')]);
+        await repo.upsertAll([_site(confidence: 'strong')]);
+        expect((await repo.loadAll()).first.confidence, 'strong');
+      },
+    );
 
     test('confidence does not downgrade from strong to nearby', () async {
       final repo = _makeRepo();

@@ -142,7 +142,8 @@ class _CountryCelebrationCarouselState
                         currentIndex: index,
                         totalCount: total,
                         xpEarned: widget.xpPerCountry,
-                        firstVisited: widget.firstVisitedByCode[widget.codes[index]],
+                        firstVisited:
+                            widget.firstVisitedByCode[widget.codes[index]],
                         isActive: index == _currentPage,
                         onPrimary: _advance,
                       );
@@ -152,15 +153,16 @@ class _CountryCelebrationCarouselState
                 // Page dots (≤10 countries) or text indicator (>10).
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: total <= 10
-                      ? _DotIndicator(count: total, active: _currentPage)
-                      : Text(
-                          '${_currentPage + 1} of $total',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white60,
+                  child:
+                      total <= 10
+                          ? _DotIndicator(count: total, active: _currentPage)
+                          : Text(
+                            '${_currentPage + 1} of $total',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white60,
+                            ),
                           ),
-                        ),
                 ),
               ],
             ),
@@ -208,8 +210,9 @@ class _CelebrationPageState extends State<_CelebrationPage> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
-    _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 3000));
+    _confettiController = ConfettiController(
+      duration: const Duration(milliseconds: 3000),
+    );
     flagColours(widget.isoCode).then((colors) {
       if (mounted && colors != null) {
         setState(() => _confettiColors = colors);
@@ -307,10 +310,7 @@ class _CelebrationPageState extends State<_CelebrationPage> {
               const SizedBox(height: 6),
               Text(
                 'First visited: ${_firstVisitedFmt.format(widget.firstVisited!)}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.white70,
-                ),
+                style: const TextStyle(fontSize: 13, color: Colors.white70),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -363,9 +363,10 @@ class _DotIndicator extends StatelessWidget {
           width: i == active ? 16 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: i == active
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.4),
+            color:
+                i == active
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(3),
           ),
         );

@@ -10,7 +10,7 @@ import 'title_generation_service.dart';
 /// (ADR-124).
 class IosOnDeviceTitleGenerator implements TitleGenerationService {
   IosOnDeviceTitleGenerator({required TitleGenerationService fallback})
-      : _fallback = fallback;
+    : _fallback = fallback;
 
   static const _channel = MethodChannel('roavvy/ai_title');
   final TitleGenerationService _fallback;
@@ -20,14 +20,11 @@ class IosOnDeviceTitleGenerator implements TitleGenerationService {
     try {
       // Year fields are intentionally omitted — titles must not include years
       // (ADR-125). The Swift plugin no longer reads startYear / endYear.
-      final response = await _channel.invokeMethod<String>(
-        'generateTitle',
-        {
-          'countryCodes': request.countryCodes,
-          'countryNames': request.countryNames,
-          'regionNames': request.regionNames,
-        },
-      );
+      final response = await _channel.invokeMethod<String>('generateTitle', {
+        'countryCodes': request.countryCodes,
+        'countryNames': request.countryNames,
+        'regionNames': request.regionNames,
+      });
 
       final title = response?.trim() ?? '';
       if (title.isEmpty) return _fallback.generate(request);

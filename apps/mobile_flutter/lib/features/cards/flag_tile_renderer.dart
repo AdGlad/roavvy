@@ -16,14 +16,13 @@ class FlagImageCache {
 
   final int maxEntries;
 
-  final _cache = <String, ui.Image>{};  // insertion-ordered Map for LRU
+  final _cache = <String, ui.Image>{}; // insertion-ordered Map for LRU
 
   String _key(String code, double tileSize) =>
       '${code.toLowerCase()}_${tileSize.round()}';
 
   /// Returns the cached [ui.Image] for [code] at [tileSize], or `null`.
-  ui.Image? get(String code, double tileSize) =>
-      _cache[_key(code, tileSize)];
+  ui.Image? get(String code, double tileSize) => _cache[_key(code, tileSize)];
 
   /// Stores [image] for [code] at [tileSize], evicting oldest entry if full.
   void put(String code, double tileSize, ui.Image image) {
@@ -56,7 +55,8 @@ class FlagTileRenderer {
   /// Returns `true` when a flag SVG asset is expected for [code].
   ///
   /// Checks against the known bundle list.
-  static bool hasSvg(String code) => _kBundledCodes.contains(code.toLowerCase());
+  static bool hasSvg(String code) =>
+      _kBundledCodes.contains(code.toLowerCase());
 
   /// Draws the flag for [tile.countryCode] onto [canvas].
   ///
@@ -124,7 +124,9 @@ class FlagTileRenderer {
 
     canvas.save();
     if (cornerRadius > 0) {
-      canvas.clipRRect(RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)));
+      canvas.clipRRect(
+        RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)),
+      );
     }
     canvas.drawImageRect(
       image,
@@ -136,7 +138,11 @@ class FlagTileRenderer {
   }
 
   static void _drawImageInRect(
-      Canvas canvas, ui.Image image, Rect dst, double cornerRadius) {
+    Canvas canvas,
+    ui.Image image,
+    Rect dst,
+    double cornerRadius,
+  ) {
     final imgW = image.width.toDouble();
     final imgH = image.height.toDouble();
 
@@ -150,7 +156,9 @@ class FlagTileRenderer {
 
     canvas.save();
     if (cornerRadius > 0) {
-      canvas.clipRRect(RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)));
+      canvas.clipRRect(
+        RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)),
+      );
     }
     canvas.drawImageRect(
       image,
@@ -162,21 +170,23 @@ class FlagTileRenderer {
   }
 
   static void _drawEmoji(
-      Canvas canvas, String code, Rect dst, double cornerRadius) {
+    Canvas canvas,
+    String code,
+    Rect dst,
+    double cornerRadius,
+  ) {
     final emoji = _flagEmoji(code);
     if (emoji.isEmpty) return;
 
     canvas.save();
     if (cornerRadius > 0) {
       canvas.clipRRect(
-          RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)));
+        RRect.fromRectAndRadius(dst, Radius.circular(cornerRadius)),
+      );
     }
 
     final tp = TextPainter(
-      text: TextSpan(
-        text: emoji,
-        style: TextStyle(fontSize: dst.width * 0.7),
-      ),
+      text: TextSpan(text: emoji, style: TextStyle(fontSize: dst.width * 0.7)),
       textDirection: TextDirection.ltr,
     )..layout();
 
@@ -223,16 +233,19 @@ class FlagTileRenderer {
       final srcSize = pictureInfo.size;
       final scale = targetSize / srcSize.width;
       // Render at natural aspect ratio (e.g. 640×480 → targetSize × targetSize*0.75).
-      final imgH = srcSize.height > 0
-          ? (targetSize * srcSize.height / srcSize.width).round().clamp(1, 4096)
-          : targetSize.round();
+      final imgH =
+          srcSize.height > 0
+              ? (targetSize * srcSize.height / srcSize.width).round().clamp(
+                1,
+                4096,
+              )
+              : targetSize.round();
       c.scale(scale, scale);
       c.drawPicture(pictureInfo.picture);
       pictureInfo.picture.dispose();
 
       final picture = recorder.endRecording();
-      final image =
-          await picture.toImage(targetSize.round(), imgH);
+      final image = await picture.toImage(targetSize.round(), imgH);
       picture.dispose();
 
       cache.put(key, targetSize, image);
@@ -309,26 +322,265 @@ class LandmarkTileRenderer {
 // Set of lowercase ISO codes for which an SVG is bundled (flag-icons 4x3).
 // Trimmed to common travel codes; all others fall back to emoji.
 const Set<String> _kBundledCodes = {
-  'ac', 'ad', 'ae', 'af', 'ag', 'ai', 'al', 'am', 'ao', 'aq', 'ar', 'as',
-  'at', 'au', 'aw', 'ax', 'az', 'ba', 'bb', 'bd', 'be', 'bf', 'bg', 'bh',
-  'bi', 'bj', 'bl', 'bm', 'bn', 'bo', 'bq', 'br', 'bs', 'bt', 'bv', 'bw',
-  'by', 'bz', 'ca', 'cc', 'cd', 'cf', 'cg', 'ch', 'ci', 'ck', 'cl', 'cm',
-  'cn', 'co', 'cp', 'cq', 'cr', 'cu', 'cv', 'cw', 'cx', 'cy', 'cz', 'de',
-  'dg', 'dj', 'dk', 'dm', 'do', 'dz', 'ea', 'ec', 'ee', 'eg', 'eh', 'er',
-  'es', 'et', 'eu', 'ez', 'fi', 'fj', 'fk', 'fm', 'fo', 'fr', 'fx', 'ga',
-  'gb', 'gd', 'ge', 'gf', 'gg', 'gh', 'gi', 'gl', 'gm', 'gn', 'gp', 'gq',
-  'gr', 'gs', 'gt', 'gu', 'gw', 'gy', 'hk', 'hm', 'hn', 'hr', 'ht', 'hu',
-  'ic', 'id', 'ie', 'il', 'im', 'in', 'io', 'iq', 'ir', 'is', 'it', 'je',
-  'jm', 'jo', 'jp', 'ke', 'kg', 'kh', 'ki', 'km', 'kn', 'kp', 'kr', 'kw',
-  'ky', 'kz', 'la', 'lb', 'lc', 'li', 'lk', 'lr', 'ls', 'lt', 'lu', 'lv',
-  'ly', 'ma', 'mc', 'md', 'me', 'mf', 'mg', 'mh', 'mk', 'ml', 'mm', 'mn',
-  'mo', 'mp', 'mq', 'mr', 'ms', 'mt', 'mu', 'mv', 'mw', 'mx', 'my', 'mz',
-  'na', 'nc', 'ne', 'nf', 'ng', 'ni', 'nl', 'no', 'np', 'nr', 'nu', 'nz',
-  'om', 'pa', 'pe', 'pf', 'pg', 'ph', 'pk', 'pl', 'pm', 'pn', 'pr', 'ps',
-  'pt', 'pw', 'py', 'qa', 're', 'ro', 'rs', 'ru', 'rw', 'sa', 'sb', 'sc',
-  'sd', 'se', 'sg', 'sh', 'si', 'sj', 'sk', 'sl', 'sm', 'sn', 'so', 'sr',
-  'ss', 'st', 'sv', 'sx', 'sy', 'sz', 'ta', 'tc', 'td', 'tf', 'tg', 'th',
-  'tj', 'tk', 'tl', 'tm', 'tn', 'to', 'tr', 'tt', 'tv', 'tw', 'tz', 'ua',
-  'ug', 'um', 'un', 'us', 'uy', 'uz', 'va', 'vc', 've', 'vg', 'vi', 'vn',
-  'vu', 'wf', 'ws', 'xk', 'ye', 'yt', 'za', 'zm', 'zw',
+  'ac',
+  'ad',
+  'ae',
+  'af',
+  'ag',
+  'ai',
+  'al',
+  'am',
+  'ao',
+  'aq',
+  'ar',
+  'as',
+  'at',
+  'au',
+  'aw',
+  'ax',
+  'az',
+  'ba',
+  'bb',
+  'bd',
+  'be',
+  'bf',
+  'bg',
+  'bh',
+  'bi',
+  'bj',
+  'bl',
+  'bm',
+  'bn',
+  'bo',
+  'bq',
+  'br',
+  'bs',
+  'bt',
+  'bv',
+  'bw',
+  'by',
+  'bz',
+  'ca',
+  'cc',
+  'cd',
+  'cf',
+  'cg',
+  'ch',
+  'ci',
+  'ck',
+  'cl',
+  'cm',
+  'cn',
+  'co',
+  'cp',
+  'cq',
+  'cr',
+  'cu',
+  'cv',
+  'cw',
+  'cx',
+  'cy',
+  'cz',
+  'de',
+  'dg',
+  'dj',
+  'dk',
+  'dm',
+  'do',
+  'dz',
+  'ea',
+  'ec',
+  'ee',
+  'eg',
+  'eh',
+  'er',
+  'es',
+  'et',
+  'eu',
+  'ez',
+  'fi',
+  'fj',
+  'fk',
+  'fm',
+  'fo',
+  'fr',
+  'fx',
+  'ga',
+  'gb',
+  'gd',
+  'ge',
+  'gf',
+  'gg',
+  'gh',
+  'gi',
+  'gl',
+  'gm',
+  'gn',
+  'gp',
+  'gq',
+  'gr',
+  'gs',
+  'gt',
+  'gu',
+  'gw',
+  'gy',
+  'hk',
+  'hm',
+  'hn',
+  'hr',
+  'ht',
+  'hu',
+  'ic',
+  'id',
+  'ie',
+  'il',
+  'im',
+  'in',
+  'io',
+  'iq',
+  'ir',
+  'is',
+  'it',
+  'je',
+  'jm',
+  'jo',
+  'jp',
+  'ke',
+  'kg',
+  'kh',
+  'ki',
+  'km',
+  'kn',
+  'kp',
+  'kr',
+  'kw',
+  'ky',
+  'kz',
+  'la',
+  'lb',
+  'lc',
+  'li',
+  'lk',
+  'lr',
+  'ls',
+  'lt',
+  'lu',
+  'lv',
+  'ly',
+  'ma',
+  'mc',
+  'md',
+  'me',
+  'mf',
+  'mg',
+  'mh',
+  'mk',
+  'ml',
+  'mm',
+  'mn',
+  'mo',
+  'mp',
+  'mq',
+  'mr',
+  'ms',
+  'mt',
+  'mu',
+  'mv',
+  'mw',
+  'mx',
+  'my',
+  'mz',
+  'na',
+  'nc',
+  'ne',
+  'nf',
+  'ng',
+  'ni',
+  'nl',
+  'no',
+  'np',
+  'nr',
+  'nu',
+  'nz',
+  'om',
+  'pa',
+  'pe',
+  'pf',
+  'pg',
+  'ph',
+  'pk',
+  'pl',
+  'pm',
+  'pn',
+  'pr',
+  'ps',
+  'pt',
+  'pw',
+  'py',
+  'qa',
+  're',
+  'ro',
+  'rs',
+  'ru',
+  'rw',
+  'sa',
+  'sb',
+  'sc',
+  'sd',
+  'se',
+  'sg',
+  'sh',
+  'si',
+  'sj',
+  'sk',
+  'sl',
+  'sm',
+  'sn',
+  'so',
+  'sr',
+  'ss',
+  'st',
+  'sv',
+  'sx',
+  'sy',
+  'sz',
+  'ta',
+  'tc',
+  'td',
+  'tf',
+  'tg',
+  'th',
+  'tj',
+  'tk',
+  'tl',
+  'tm',
+  'tn',
+  'to',
+  'tr',
+  'tt',
+  'tv',
+  'tw',
+  'tz',
+  'ua',
+  'ug',
+  'um',
+  'un',
+  'us',
+  'uy',
+  'uz',
+  'va',
+  'vc',
+  've',
+  'vg',
+  'vi',
+  'vn',
+  'vu',
+  'wf',
+  'ws',
+  'xk',
+  'ye',
+  'yt',
+  'za',
+  'zm',
+  'zw',
 };

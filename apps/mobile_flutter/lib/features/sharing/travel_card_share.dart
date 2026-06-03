@@ -24,16 +24,14 @@ Future<void> captureAndShare(
   late OverlayEntry entry;
 
   entry = OverlayEntry(
-    builder: (_) => Positioned(
-      left: -10000,
-      top: -10000,
-      width: 300,
-      height: 200,
-      child: RepaintBoundary(
-        key: key,
-        child: TravelCardWidget(summary),
-      ),
-    ),
+    builder:
+        (_) => Positioned(
+          left: -10000,
+          top: -10000,
+          width: 300,
+          height: 200,
+          child: RepaintBoundary(key: key, child: TravelCardWidget(summary)),
+        ),
   );
 
   // Read MediaQuery values before any async gap.

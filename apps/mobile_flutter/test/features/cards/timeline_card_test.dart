@@ -17,7 +17,9 @@ Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
   group('TimelineCard', () {
-    testWidgets('renders landscape 3:2 as an AspectRatio widget', (tester) async {
+    testWidgets('renders landscape 3:2 as an AspectRatio widget', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           TimelineCard(
@@ -31,7 +33,9 @@ void main() {
       expect(find.byType(TimelineCard), findsOneWidget);
     });
 
-    testWidgets('renders portrait 2:3 as an AspectRatio widget', (tester) async {
+    testWidgets('renders portrait 2:3 as an AspectRatio widget', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           TimelineCard(
@@ -63,12 +67,7 @@ void main() {
 
     testWidgets('empty state shown when no trips', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const TimelineCard(
-            trips: [],
-            countryCodes: ['US'],
-          ),
-        ),
+        _wrap(const TimelineCard(trips: [], countryCodes: ['US'])),
       );
       await tester.pump();
       // TimelineCard draws empty state text on canvas via CustomPainter —
@@ -109,19 +108,13 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('truncation note visible when truncatedCount > 0', (tester) async {
+    testWidgets('truncation note visible when truncatedCount > 0', (
+      tester,
+    ) async {
       // 40 trips in different years → many dividers → likely truncation
-      final trips = List.generate(
-        40,
-        (i) => _trip('FR', 1985 + i, 6, 7),
-      );
+      final trips = List.generate(40, (i) => _trip('FR', 1985 + i, 6, 7));
       await tester.pumpWidget(
-        _wrap(
-          TimelineCard(
-            trips: trips,
-            countryCodes: const ['FR'],
-          ),
-        ),
+        _wrap(TimelineCard(trips: trips, countryCodes: const ['FR'])),
       );
       await tester.pump();
       // Find "and N more trips" — may or may not truncate depending on height

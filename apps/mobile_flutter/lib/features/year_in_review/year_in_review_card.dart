@@ -41,11 +41,7 @@ const Map<String, String> _kSceneEmoji = {
 ///
 /// Requires pre-loaded [thumbs] from [YearInReviewCardLoader].
 class YearInReviewCard extends StatelessWidget {
-  const YearInReviewCard({
-    super.key,
-    required this.data,
-    required this.thumbs,
-  });
+  const YearInReviewCard({super.key, required this.data, required this.thumbs});
 
   final YearInReviewData data;
 
@@ -99,9 +95,7 @@ class YearInReviewCard extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Mosaic grid
-            Expanded(
-              child: _MosaicGrid(slots: heroSlots, thumbs: thumbs),
-            ),
+            Expanded(child: _MosaicGrid(slots: heroSlots, thumbs: thumbs)),
 
             const SizedBox(height: 12),
 
@@ -123,7 +117,10 @@ class YearInReviewCard extends StatelessWidget {
               const SizedBox(height: 8),
               Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: _kGold.withValues(alpha: 0.15),
                     border: Border.all(color: _kGold.withValues(alpha: 0.4)),
@@ -183,12 +180,13 @@ class _MosaicGrid extends StatelessWidget {
         return Container(
           color: const Color(0xFF1A2233),
           alignment: Alignment.center,
-          child: slot.countryCode.isNotEmpty
-              ? Text(
-                  _flagEmoji(slot.countryCode),
-                  style: const TextStyle(fontSize: 28),
-                )
-              : const SizedBox.shrink(),
+          child:
+              slot.countryCode.isNotEmpty
+                  ? Text(
+                    _flagEmoji(slot.countryCode),
+                    style: const TextStyle(fontSize: 28),
+                  )
+                  : const SizedBox.shrink(),
         );
       }),
     );
@@ -248,10 +246,12 @@ class _YearInReviewCardLoaderState extends State<YearInReviewCardLoader> {
       return;
     }
 
-    await Future.wait(assetIds.map((id) async {
-      final bytes = await _thumb.getThumbnail(id, size: 300);
-      if (mounted) setState(() => _thumbs[id] = bytes);
-    }));
+    await Future.wait(
+      assetIds.map((id) async {
+        final bytes = await _thumb.getThumbnail(id, size: 300);
+        if (mounted) setState(() => _thumbs[id] = bytes);
+      }),
+    );
 
     _maybeNotify();
   }

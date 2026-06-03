@@ -19,7 +19,8 @@ VisitRepository _makeRepo() => VisitRepository(_makeDb());
 Widget _pumpScreen(
   VisitRepository repo, {
   MockUser? mockUser,
-  Future<void> Function(String uid, {String? shareToken})? deleteAccountOverride,
+  Future<void> Function(String uid, {String? shareToken})?
+  deleteAccountOverride,
 }) {
   final user = mockUser ?? MockUser(isAnonymous: false, uid: 'apple-uid');
   final mockAuth = MockFirebaseAuth(signedIn: true, mockUser: user);
@@ -36,9 +37,7 @@ Widget _pumpScreen(
       authStateProvider.overrideWith((_) => mockAuth.authStateChanges()),
     ],
     child: MaterialApp(
-      home: PrivacyAccountScreen(
-        deleteAccountOverride: deleteAccountOverride,
-      ),
+      home: PrivacyAccountScreen(deleteAccountOverride: deleteAccountOverride),
     ),
   );
 }
@@ -90,8 +89,9 @@ void main() {
     expect(find.text('Cancel'), findsOneWidget);
   });
 
-  testWidgets('cancelling removal keeps the active sharing state',
-      (tester) async {
+  testWidgets('cancelling removal keeps the active sharing state', (
+    tester,
+  ) async {
     final repo = _makeRepo();
     await repo.saveShareToken('abcd1234-efgh-ijkl-mnop-qrstuvwxyz12');
 
@@ -107,8 +107,9 @@ void main() {
     expect(find.text('Your map is shared'), findsOneWidget);
   });
 
-  testWidgets('confirming removal switches to inactive sharing state',
-      (tester) async {
+  testWidgets('confirming removal switches to inactive sharing state', (
+    tester,
+  ) async {
     final repo = _makeRepo();
     await repo.saveShareToken('abcd1234-efgh-ijkl-mnop-qrstuvwxyz12');
 
@@ -134,8 +135,9 @@ void main() {
     expect(find.text('Delete account'), findsOneWidget);
   });
 
-  testWidgets('tapping Delete account shows first confirmation dialog',
-      (tester) async {
+  testWidgets('tapping Delete account shows first confirmation dialog', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpScreen(_makeRepo()));
     await tester.pumpAndSettle();
 
@@ -147,8 +149,9 @@ void main() {
     expect(find.text('Cancel'), findsOneWidget);
   });
 
-  testWidgets('tapping Continue to delete shows second confirmation dialog',
-      (tester) async {
+  testWidgets('tapping Continue to delete shows second confirmation dialog', (
+    tester,
+  ) async {
     await tester.pumpWidget(_pumpScreen(_makeRepo()));
     await tester.pumpAndSettle();
 

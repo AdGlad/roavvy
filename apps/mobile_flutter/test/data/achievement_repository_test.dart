@@ -33,7 +33,9 @@ void main() {
     test('is idempotent — re-upsert does not duplicate or throw', () async {
       final repo = _makeRepo();
       await repo.upsertAll({'countries_1'}, _t0);
-      await repo.upsertAll({'countries_1'}, _t1); // second call with different time
+      await repo.upsertAll({
+        'countries_1',
+      }, _t1); // second call with different time
       final all = await repo.loadAll();
       expect(all.where((id) => id == 'countries_1'), hasLength(1));
     });

@@ -69,13 +69,14 @@ void main() {
     });
 
     test('9 stamps → medium (lower boundary)', () {
-      expect(
-          MerchTemplateRanker.densityForStamps(9), MerchDensityClass.medium);
+      expect(MerchTemplateRanker.densityForStamps(9), MerchDensityClass.medium);
     });
 
     test('24 stamps → medium (upper boundary)', () {
       expect(
-          MerchTemplateRanker.densityForStamps(24), MerchDensityClass.medium);
+        MerchTemplateRanker.densityForStamps(24),
+        MerchDensityClass.medium,
+      );
     });
 
     test('25 stamps → large (lower boundary)', () {
@@ -84,7 +85,9 @@ void main() {
 
     test('75 stamps → massive (lower boundary)', () {
       expect(
-          MerchTemplateRanker.densityForStamps(75), MerchDensityClass.massive);
+        MerchTemplateRanker.densityForStamps(75),
+        MerchDensityClass.massive,
+      );
     });
   });
 
@@ -98,21 +101,24 @@ void main() {
     });
 
     test('passport is ranked first (priority 1)', () {
-      final passport =
-          ranks.firstWhere((r) => r.template == CardTemplateType.passport);
+      final passport = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.passport,
+      );
       expect(passport.priority, equals(1));
       expect(passport.exclude, isFalse);
     });
 
     test('wordCloud is excluded for solo', () {
-      final wc =
-          ranks.firstWhere((r) => r.template == CardTemplateType.wordCloud);
+      final wc = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.wordCloud,
+      );
       expect(wc.exclude, isTrue);
     });
 
     test('frontRibbon is excluded for solo', () {
-      final ribbon =
-          ranks.firstWhere((r) => r.template == CardTemplateType.frontRibbon);
+      final ribbon = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.frontRibbon,
+      );
       expect(ribbon.exclude, isTrue);
     });
 
@@ -138,15 +144,17 @@ void main() {
     });
 
     test('passport ranked above grid for small (priority 1 vs 2)', () {
-      final passport =
-          ranks.firstWhere((r) => r.template == CardTemplateType.passport);
+      final passport = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.passport,
+      );
       final grid = ranks.firstWhere((r) => r.template == CardTemplateType.grid);
       expect(passport.priority, lessThan(grid.priority));
     });
 
     test('frontRibbon is excluded', () {
-      final ribbon =
-          ranks.firstWhere((r) => r.template == CardTemplateType.frontRibbon);
+      final ribbon = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.frontRibbon,
+      );
       expect(ribbon.exclude, isTrue);
     });
   });
@@ -154,15 +162,17 @@ void main() {
   group('MerchTemplateRanker.rankFor — large (16+ countries)', () {
     test('badge is excluded for 16 countries (large density)', () {
       final ranks = MerchTemplateRanker.rankFor(codeCount: 16);
-      final badge =
-          ranks.firstWhere((r) => r.template == CardTemplateType.badge);
+      final badge = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.badge,
+      );
       expect(badge.exclude, isTrue);
     });
 
     test('badge is excluded for 20 countries', () {
       final ranks = MerchTemplateRanker.rankFor(codeCount: 20);
-      final badge =
-          ranks.firstWhere((r) => r.template == CardTemplateType.badge);
+      final badge = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.badge,
+      );
       expect(badge.exclude, isTrue);
     });
   });
@@ -171,21 +181,22 @@ void main() {
 
   group('MerchTemplateRanker.rankFor — continent achievement', () {
     Achievement _continentAchievement(String continent) => Achievement(
-          id: 'europe_10',
-          title: 'Europe Explorer',
-          description: '',
-          category: AchievementCategory.countries,
-          progressTarget: 10,
-          continentScope: continent,
-        );
+      id: 'europe_10',
+      title: 'Europe Explorer',
+      description: '',
+      category: AchievementCategory.countries,
+      progressTarget: 10,
+      continentScope: continent,
+    );
 
     test('badge is ranked first for continent achievement (≤15 countries)', () {
       final ranks = MerchTemplateRanker.rankFor(
         achievement: _continentAchievement('Europe'),
         codeCount: 8,
       );
-      final badge =
-          ranks.firstWhere((r) => r.template == CardTemplateType.badge);
+      final badge = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.badge,
+      );
       expect(badge.priority, equals(1));
       expect(badge.exclude, isFalse);
     });
@@ -195,8 +206,9 @@ void main() {
         achievement: _continentAchievement('Europe'),
         codeCount: 16,
       );
-      final badge =
-          ranks.firstWhere((r) => r.template == CardTemplateType.badge);
+      final badge = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.badge,
+      );
       expect(badge.exclude, isTrue);
     });
 
@@ -205,8 +217,9 @@ void main() {
         achievement: _continentAchievement('Asia'),
         codeCount: 5,
       );
-      final ribbon =
-          ranks.firstWhere((r) => r.template == CardTemplateType.frontRibbon);
+      final ribbon = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.frontRibbon,
+      );
       expect(ribbon.exclude, isTrue);
     });
   });
@@ -226,8 +239,9 @@ void main() {
         achievement: passportAchievement,
         codeCount: 5,
       );
-      final passport =
-          ranks.firstWhere((r) => r.template == CardTemplateType.passport);
+      final passport = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.passport,
+      );
       expect(passport.priority, equals(1));
     });
 
@@ -236,8 +250,9 @@ void main() {
         achievement: passportAchievement,
         codeCount: 5,
       );
-      final badge =
-          ranks.firstWhere((r) => r.template == CardTemplateType.badge);
+      final badge = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.badge,
+      );
       expect(badge.exclude, isTrue);
     });
   });
@@ -256,8 +271,9 @@ void main() {
         achievement: yearAchievement,
         codeCount: 5,
       );
-      final timeline =
-          ranks.firstWhere((r) => r.template == CardTemplateType.timeline);
+      final timeline = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.timeline,
+      );
       expect(timeline.priority, equals(1));
     });
 
@@ -266,8 +282,9 @@ void main() {
         achievement: yearAchievement,
         codeCount: 5,
       );
-      final badge =
-          ranks.firstWhere((r) => r.template == CardTemplateType.badge);
+      final badge = ranks.firstWhere(
+        (r) => r.template == CardTemplateType.badge,
+      );
       expect(badge.exclude, isTrue);
     });
   });
@@ -277,27 +294,37 @@ void main() {
   group('MerchTemplateRanker.maxForDensity', () {
     test('solo → 4', () {
       expect(
-          MerchTemplateRanker.maxForDensity(MerchDensityClass.solo), equals(4));
+        MerchTemplateRanker.maxForDensity(MerchDensityClass.solo),
+        equals(4),
+      );
     });
 
     test('small → 5', () {
-      expect(MerchTemplateRanker.maxForDensity(MerchDensityClass.small),
-          equals(5));
+      expect(
+        MerchTemplateRanker.maxForDensity(MerchDensityClass.small),
+        equals(5),
+      );
     });
 
     test('medium → 6', () {
-      expect(MerchTemplateRanker.maxForDensity(MerchDensityClass.medium),
-          equals(6));
+      expect(
+        MerchTemplateRanker.maxForDensity(MerchDensityClass.medium),
+        equals(6),
+      );
     });
 
     test('large → 5', () {
-      expect(MerchTemplateRanker.maxForDensity(MerchDensityClass.large),
-          equals(5));
+      expect(
+        MerchTemplateRanker.maxForDensity(MerchDensityClass.large),
+        equals(5),
+      );
     });
 
     test('massive → 4', () {
-      expect(MerchTemplateRanker.maxForDensity(MerchDensityClass.massive),
-          equals(4));
+      expect(
+        MerchTemplateRanker.maxForDensity(MerchDensityClass.massive),
+        equals(4),
+      );
     });
   });
 }

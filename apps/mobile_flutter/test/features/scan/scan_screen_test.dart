@@ -32,21 +32,25 @@ Future<void> _pump(WidgetTester tester) async {
 
   final db = _makeDb();
 
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      roavvyDatabaseProvider.overrideWithValue(db),
-      visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
-      achievementRepositoryProvider.overrideWithValue(AchievementRepository(db)),
-      tripRepositoryProvider.overrideWithValue(TripRepository(db)),
-      regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
-      heritageRepositoryProvider.overrideWithValue(HeritageRepository(db)),
-      polygonsProvider.overrideWithValue(const []),
-      geodataBytesProvider.overrideWithValue(_emptyBytes),
-      regionGeodataBytesProvider.overrideWithValue(_emptyBytes),
-      currentUidProvider.overrideWithValue(null),
-    ],
-    child: const MaterialApp(home: ScanScreen()),
-  ));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        roavvyDatabaseProvider.overrideWithValue(db),
+        visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
+        achievementRepositoryProvider.overrideWithValue(
+          AchievementRepository(db),
+        ),
+        tripRepositoryProvider.overrideWithValue(TripRepository(db)),
+        regionRepositoryProvider.overrideWithValue(RegionRepository(db)),
+        heritageRepositoryProvider.overrideWithValue(HeritageRepository(db)),
+        polygonsProvider.overrideWithValue(const []),
+        geodataBytesProvider.overrideWithValue(_emptyBytes),
+        regionGeodataBytesProvider.overrideWithValue(_emptyBytes),
+        currentUidProvider.overrideWithValue(null),
+      ],
+      child: const MaterialApp(home: ScanScreen()),
+    ),
+  );
 
   // Wait for _loadPersisted() to complete (sets _loading = false)
   await tester.pump();
@@ -69,19 +73,21 @@ void main() {
       expect(find.text('Scan my photo library'), findsOneWidget);
     });
 
-    testWidgets('"Scan my photo library" button is disabled without permission',
-        (tester) async {
-      await _pump(tester);
+    testWidgets(
+      '"Scan my photo library" button is disabled without permission',
+      (tester) async {
+        await _pump(tester);
 
-      final btn = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Scan my photo library'),
-          matching: find.byType(FilledButton),
-        ),
-      );
-      // Permission is null → canScan is false → button is disabled
-      expect(btn.onPressed, isNull);
-    });
+        final btn = tester.widget<FilledButton>(
+          find.ancestor(
+            of: find.text('Scan my photo library'),
+            matching: find.byType(FilledButton),
+          ),
+        );
+        // Permission is null → canScan is false → button is disabled
+        expect(btn.onPressed, isNull);
+      },
+    );
 
     testWidgets('no progress indicator visible in idle state', (tester) async {
       await _pump(tester);

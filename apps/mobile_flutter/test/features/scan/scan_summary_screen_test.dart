@@ -10,10 +10,10 @@ import 'package:shared_models/shared_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 EffectiveVisitedCountry _country(String code) => EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-      photoCount: 1,
-    );
+  countryCode: code,
+  hasPhotoEvidence: true,
+  photoCount: 1,
+);
 
 /// Stub XpNotifier that never reads from the database.
 /// Starts at XpState.zero (level 1 — Traveller) and ignores awards.
@@ -37,9 +37,7 @@ Future<void> pumpSummary(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        xpNotifierProvider.overrideWith((_) => _StubXpNotifier()),
-      ],
+      overrides: [xpNotifierProvider.overrideWith((_) => _StubXpNotifier())],
       child: MaterialApp(
         home: ScanSummaryScreen(
           newCountries: newCountries,
@@ -64,7 +62,9 @@ void main() {
 
     testWidgets('shows hero count for multiple new countries', (tester) async {
       await pumpSummary(
-          tester, newCountries: [_country('GB'), _country('JP'), _country('US')]);
+        tester,
+        newCountries: [_country('GB'), _country('JP'), _country('US')],
+      );
       expect(find.text('3'), findsOneWidget);
       expect(find.text('new countries discovered'), findsOneWidget);
     });
@@ -75,22 +75,26 @@ void main() {
       expect(find.textContaining('France'), findsOneWidget);
     });
 
-    testWidgets('shows continent badge for first country on a continent',
-        (tester) async {
+    testWidgets('shows continent badge for first country on a continent', (
+      tester,
+    ) async {
       // GB = Europe, JP = Asia — each first on their continent
-      await pumpSummary(
-          tester, newCountries: [_country('GB'), _country('JP')]);
+      await pumpSummary(tester, newCountries: [_country('GB'), _country('JP')]);
       expect(find.textContaining('First country in Europe'), findsOneWidget);
       expect(find.textContaining('First country in Asia'), findsOneWidget);
     });
 
-    testWidgets('does not show continent badge for second country on same continent',
-        (tester) async {
-      // FR and DE are both Europe — only one continent badge
-      await pumpSummary(
-          tester, newCountries: [_country('FR'), _country('DE')]);
-      expect(find.textContaining('First country in Europe'), findsOneWidget);
-    });
+    testWidgets(
+      'does not show continent badge for second country on same continent',
+      (tester) async {
+        // FR and DE are both Europe — only one continent badge
+        await pumpSummary(
+          tester,
+          newCountries: [_country('FR'), _country('DE')],
+        );
+        expect(find.textContaining('First country in Europe'), findsOneWidget);
+      },
+    );
 
     testWidgets('shows Explore your map CTA', (tester) async {
       await pumpSummary(tester, newCountries: [_country('GB')]);
@@ -110,13 +114,17 @@ void main() {
       expect(called, isTrue);
     });
 
-    testWidgets('achievements section hidden when no achievements', (tester) async {
+    testWidgets('achievements section hidden when no achievements', (
+      tester,
+    ) async {
       await pumpSummary(tester, newCountries: [_country('GB')]);
       expect(find.text('Achievement unlocked'), findsNothing);
       expect(find.text('Achievements unlocked'), findsNothing);
     });
 
-    testWidgets('shows achievement chip when achievement unlocked', (tester) async {
+    testWidgets('shows achievement chip when achievement unlocked', (
+      tester,
+    ) async {
       final achievementId = kAchievements.first.id;
       await pumpSummary(
         tester,
@@ -127,7 +135,9 @@ void main() {
       expect(find.text(kAchievements.first.title), findsOneWidget);
     });
 
-    testWidgets('shows plural header for multiple achievements', (tester) async {
+    testWidgets('shows plural header for multiple achievements', (
+      tester,
+    ) async {
       final ids = kAchievements.take(2).map((a) => a.id).toList();
       await pumpSummary(
         tester,
@@ -139,14 +149,17 @@ void main() {
   });
 
   group('ScanSummaryScreen — Task 52 animation (Task 52)', () {
-    testWidgets('confetti widget absent in nothing-new variant', (tester) async {
+    testWidgets('confetti widget absent in nothing-new variant', (
+      tester,
+    ) async {
       await pumpSummary(tester); // newCountries empty
       await tester.pumpAndSettle();
       expect(find.byType(ConfettiWidget), findsNothing);
     });
 
-    testWidgets('confetti widget absent when disableAnimations is true',
-        (tester) async {
+    testWidgets('confetti widget absent when disableAnimations is true', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           child: MediaQuery(
@@ -167,7 +180,9 @@ void main() {
       expect(find.byType(ConfettiWidget), findsNothing);
     });
 
-    testWidgets('confetti widget present when new countries exist', (tester) async {
+    testWidgets('confetti widget present when new countries exist', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
@@ -194,10 +209,7 @@ void main() {
     });
 
     testWidgets('shows last scan date when provided', (tester) async {
-      await pumpSummary(
-        tester,
-        lastScanAt: DateTime(2026, 3, 15),
-      );
+      await pumpSummary(tester, lastScanAt: DateTime(2026, 3, 15));
       expect(find.text('Last scanned 15 Mar 2026'), findsOneWidget);
     });
 
@@ -252,7 +264,9 @@ void main() {
       expect(find.text('Create a travel card →'), findsOneWidget);
     });
 
-    testWidgets('Create a travel card CTA not shown in State B', (tester) async {
+    testWidgets('Create a travel card CTA not shown in State B', (
+      tester,
+    ) async {
       await pumpSummary(tester); // no new countries
       expect(find.text('Create a travel card →'), findsNothing);
     });
@@ -266,10 +280,7 @@ void main() {
     });
 
     testWidgets('shows flag emoji for each new country', (tester) async {
-      await pumpSummary(
-        tester,
-        newCountries: [_country('GB'), _country('JP')],
-      );
+      await pumpSummary(tester, newCountries: [_country('GB'), _country('JP')]);
       expect(find.text('🇬🇧'), findsOneWidget);
       expect(find.text('🇯🇵'), findsOneWidget);
     });

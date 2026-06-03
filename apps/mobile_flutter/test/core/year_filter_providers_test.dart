@@ -13,13 +13,13 @@ import 'package:shared_models/shared_models.dart';
 RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 
 TripRecord _trip(String id, String countryCode, int year) => TripRecord(
-      id: id,
-      countryCode: countryCode,
-      startedOn: DateTime.utc(year),
-      endedOn: DateTime.utc(year, 12, 31),
-      photoCount: 1,
-      isManual: false,
-    );
+  id: id,
+  countryCode: countryCode,
+  startedOn: DateTime.utc(year),
+  endedOn: DateTime.utc(year, 12, 31),
+  photoCount: 1,
+  isManual: false,
+);
 
 InferredCountryVisit _inferred(String countryCode, int year) =>
     InferredCountryVisit(
@@ -70,9 +70,9 @@ void main() {
       final db = _makeDb();
       addTearDown(db.close);
 
-      final container = ProviderContainer(overrides: [
-        roavvyDatabaseProvider.overrideWithValue(db),
-      ]);
+      final container = ProviderContainer(
+        overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+      );
       addTearDown(container.dispose);
 
       final result = await container.read(earliestVisitYearProvider.future);
@@ -89,9 +89,9 @@ void main() {
         _trip('DE_2018', 'DE', 2018),
       ]);
 
-      final container = ProviderContainer(overrides: [
-        roavvyDatabaseProvider.overrideWithValue(db),
-      ]);
+      final container = ProviderContainer(
+        overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+      );
       addTearDown(container.dispose);
 
       final result = await container.read(earliestVisitYearProvider.future);
@@ -104,9 +104,9 @@ void main() {
 
       await TripRepository(db).upsertAll([_trip('AU_2019', 'AU', 2019)]);
 
-      final container = ProviderContainer(overrides: [
-        roavvyDatabaseProvider.overrideWithValue(db),
-      ]);
+      final container = ProviderContainer(
+        overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+      );
       addTearDown(container.dispose);
 
       final result = await container.read(earliestVisitYearProvider.future);
@@ -127,9 +127,9 @@ void main() {
       visitRepo = VisitRepository(db);
       tripRepo = TripRepository(db);
 
-      container = ProviderContainer(overrides: [
-        roavvyDatabaseProvider.overrideWithValue(db),
-      ]);
+      container = ProviderContainer(
+        overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+      );
     });
 
     tearDown(() async {
@@ -148,8 +148,9 @@ void main() {
       ]);
 
       // Filter is null by default.
-      final results =
-          await container.read(filteredEffectiveVisitsProvider.future);
+      final results = await container.read(
+        filteredEffectiveVisitsProvider.future,
+      );
       final codes = results.map((v) => v.countryCode).toSet();
       expect(codes, containsAll(['FR', 'JP']));
       expect(codes.length, 2);
@@ -169,69 +170,77 @@ void main() {
 
       container.read(yearFilterProvider.notifier).state = 2015;
 
-      final results =
-          await container.read(filteredEffectiveVisitsProvider.future);
+      final results = await container.read(
+        filteredEffectiveVisitsProvider.future,
+      );
       final codes = results.map((v) => v.countryCode).toSet();
       expect(codes, containsAll(['FR', 'DE']));
       expect(codes.contains('JP'), isFalse);
     });
 
-    test('null filter returns same results as effectiveVisitsProvider', () async {
-      await visitRepo.saveAllInferred([
-        _inferred('GB', 2012),
-        _inferred('ES', 2018),
-      ]);
-      await tripRepo.upsertAll([
-        _trip('GB_2012', 'GB', 2012),
-        _trip('ES_2018', 'ES', 2018),
-      ]);
+    test(
+      'null filter returns same results as effectiveVisitsProvider',
+      () async {
+        await visitRepo.saveAllInferred([
+          _inferred('GB', 2012),
+          _inferred('ES', 2018),
+        ]);
+        await tripRepo.upsertAll([
+          _trip('GB_2012', 'GB', 2012),
+          _trip('ES_2018', 'ES', 2018),
+        ]);
 
-      final allVisits = await container.read(effectiveVisitsProvider.future);
-      final filtered =
-          await container.read(filteredEffectiveVisitsProvider.future);
+        final allVisits = await container.read(effectiveVisitsProvider.future);
+        final filtered = await container.read(
+          filteredEffectiveVisitsProvider.future,
+        );
 
-      final allCodes = allVisits.map((v) => v.countryCode).toSet();
-      final filteredCodes = filtered.map((v) => v.countryCode).toSet();
-      expect(filteredCodes, equals(allCodes));
-    });
+        final allCodes = allVisits.map((v) => v.countryCode).toSet();
+        final filteredCodes = filtered.map((v) => v.countryCode).toSet();
+        expect(filteredCodes, equals(allCodes));
+      },
+    );
 
-    test('manually-added country with no trips is excluded when filter active',
-        () async {
-      // User-added country has no trip records and no firstSeen.
-      await visitRepo.saveAdded(
-        UserAddedCountry(
-          countryCode: 'NZ',
-          addedAt: DateTime.utc(2022),
-        ),
-      );
+    test(
+      'manually-added country with no trips is excluded when filter active',
+      () async {
+        // User-added country has no trip records and no firstSeen.
+        await visitRepo.saveAdded(
+          UserAddedCountry(countryCode: 'NZ', addedAt: DateTime.utc(2022)),
+        );
 
-      container.read(yearFilterProvider.notifier).state = 2022;
+        container.read(yearFilterProvider.notifier).state = 2022;
 
-      final results =
-          await container.read(filteredEffectiveVisitsProvider.future);
-      final codes = results.map((v) => v.countryCode).toSet();
-      // NZ has no trip records and no firstSeen → excluded (conservative behaviour).
-      expect(codes.contains('NZ'), isFalse);
-    });
+        final results = await container.read(
+          filteredEffectiveVisitsProvider.future,
+        );
+        final codes = results.map((v) => v.countryCode).toSet();
+        // NZ has no trip records and no firstSeen → excluded (conservative behaviour).
+        expect(codes.contains('NZ'), isFalse);
+      },
+    );
 
-    test('country with all trips after filter year shows as unvisited in visual states',
-        () async {
-      await visitRepo.saveAllInferred([
-        _inferred('FR', 2015),
-        _inferred('JP', 2022),
-      ]);
-      await tripRepo.upsertAll([
-        _trip('FR_2015', 'FR', 2015),
-        _trip('JP_2022', 'JP', 2022),
-      ]);
+    test(
+      'country with all trips after filter year shows as unvisited in visual states',
+      () async {
+        await visitRepo.saveAllInferred([
+          _inferred('FR', 2015),
+          _inferred('JP', 2022),
+        ]);
+        await tripRepo.upsertAll([
+          _trip('FR_2015', 'FR', 2015),
+          _trip('JP_2022', 'JP', 2022),
+        ]);
 
-      container.read(yearFilterProvider.notifier).state = 2018;
+        container.read(yearFilterProvider.notifier).state = 2018;
 
-      final results =
-          await container.read(filteredEffectiveVisitsProvider.future);
-      final codes = results.map((v) => v.countryCode).toSet();
-      expect(codes.contains('FR'), isTrue);
-      expect(codes.contains('JP'), isFalse);
-    });
+        final results = await container.read(
+          filteredEffectiveVisitsProvider.future,
+        );
+        final codes = results.map((v) => v.countryCode).toSet();
+        expect(codes.contains('FR'), isTrue);
+        expect(codes.contains('JP'), isFalse);
+      },
+    );
   });
 }

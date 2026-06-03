@@ -32,10 +32,9 @@ Future<void> signInWithApple({
     nonce: nonce,
   );
 
-  final oauthCredential = OAuthProvider('apple.com').credential(
-    idToken: appleCredential.identityToken,
-    rawNonce: rawNonce,
-  );
+  final oauthCredential = OAuthProvider(
+    'apple.com',
+  ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
 
   final currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser != null) {
@@ -58,11 +57,13 @@ Future<void> signInWithApple({
   // persistent UID (ADR-030). Fire-and-forget: failures are silent.
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid != null) {
-    unawaited((syncService ?? FirestoreSyncService()).flushDirty(
-      uid,
-      repo,
-      tripRepo: tripRepo,
-    ));
+    unawaited(
+      (syncService ?? FirestoreSyncService()).flushDirty(
+        uid,
+        repo,
+        tripRepo: tripRepo,
+      ),
+    );
   }
 }
 
@@ -71,8 +72,10 @@ String _generateNonce([int length = 32]) {
   const charset =
       '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
   final random = Random.secure();
-  return List.generate(length, (_) => charset[random.nextInt(charset.length)])
-      .join();
+  return List.generate(
+    length,
+    (_) => charset[random.nextInt(charset.length)],
+  ).join();
 }
 
 /// Returns the SHA-256 hex digest of [input], used as the nonce sent to Apple.

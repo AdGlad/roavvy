@@ -19,9 +19,14 @@ void main() {
     });
 
     test('bleedSigma differs for different seeds (probabilistically)', () {
-      final values = {0, 42, 999, 12345, 0xBEEF}
-          .map(StampNoiseGenerator.bleedSigma)
-          .toSet();
+      final values =
+          {
+            0,
+            42,
+            999,
+            12345,
+            0xBEEF,
+          }.map(StampNoiseGenerator.bleedSigma).toSet();
       // With 5 different seeds, expect at least 3 distinct sigma values
       expect(values.length, greaterThanOrEqualTo(3));
     });

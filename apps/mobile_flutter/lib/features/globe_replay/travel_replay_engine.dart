@@ -123,7 +123,8 @@ class TravelLeg {
   bool get hasToGps => toLat != null && toLng != null;
 
   @override
-  String toString() => 'TravelLeg($fromCode→$toCode, ${date.year}, '
+  String toString() =>
+      'TravelLeg($fromCode→$toCode, ${date.year}, '
       'gps: ${hasFromGps ? "($fromLat,$fromLng)" : "centroid"}→'
       '${hasToGps ? "($toLat,$toLng)" : "centroid"})';
 }
@@ -198,19 +199,18 @@ class TravelReplayScriptBuilder {
     };
 
     // Sort chronologically.
-    final sorted = filtered.toList()
-      ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+    final sorted =
+        filtered.toList()..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
     // For year mode: if the user was already in a different country at the start
     // of the year (trip started before targetYear), seed the leg list with that
     // trip so the cross-year departure leg is captured.
     // e.g. AU stay started in 2025, first 2026 trip is JP → we get AU→JP as leg 0.
     if (mode == TravelReplayMode.year && sorted.isNotEmpty) {
-      final allSorted = trips.toList()
-        ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
-      final lastBefore = allSorted
-          .where((t) => t.startedOn.year < targetYear)
-          .lastOrNull;
+      final allSorted =
+          trips.toList()..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+      final lastBefore =
+          allSorted.where((t) => t.startedOn.year < targetYear).lastOrNull;
       if (lastBefore != null &&
           lastBefore.countryCode != sorted.first.countryCode) {
         sorted.insert(0, lastBefore);
@@ -230,16 +230,20 @@ class TravelReplayScriptBuilder {
       final from = sorted[i];
       final to = sorted[i + 1];
       if (from.countryCode == to.countryCode) continue;
-      legs.add(TravelLeg(
-        fromCode: from.countryCode,
-        toCode: to.countryCode,
-        date: to.startedOn,
-        fromLat: from.lastLat,
-        fromLng: from.lastLng,
-        toLat: to.firstLat,
-        toLng: to.firstLng,
-        isFirstVisit: seenDestinations.add(to.countryCode), // true = newly seen
-      ));
+      legs.add(
+        TravelLeg(
+          fromCode: from.countryCode,
+          toCode: to.countryCode,
+          date: to.startedOn,
+          fromLat: from.lastLat,
+          fromLng: from.lastLng,
+          toLat: to.firstLat,
+          toLng: to.firstLng,
+          isFirstVisit: seenDestinations.add(
+            to.countryCode,
+          ), // true = newly seen
+        ),
+      );
     }
 
     final label = switch (mode) {
@@ -345,12 +349,17 @@ class ReplayPacingRules {
   ///
   /// Uses the haversine formula; returns a value in [0, 180].
   static double arcDistanceDeg(
-      double lat1, double lng1, double lat2, double lng2) {
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     final dLat = (lat2 - lat1) * math.pi / 180.0;
     final dLng = (lng2 - lng1) * math.pi / 180.0;
     final lat1R = lat1 * math.pi / 180.0;
     final lat2R = lat2 * math.pi / 180.0;
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(lat1R) *
             math.cos(lat2R) *
             math.sin(dLng / 2) *
@@ -369,11 +378,17 @@ class ReplayPacingRules {
 
     if (fromLat == null || fromLng == null) {
       final c = kCountryCentroids[leg.fromCode];
-      if (c != null) { fromLat = c.$1; fromLng = c.$2; }
+      if (c != null) {
+        fromLat = c.$1;
+        fromLng = c.$2;
+      }
     }
     if (toLat == null || toLng == null) {
       final c = kCountryCentroids[leg.toCode];
-      if (c != null) { toLat = c.$1; toLng = c.$2; }
+      if (c != null) {
+        toLat = c.$1;
+        toLng = c.$2;
+      }
     }
 
     if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
@@ -389,9 +404,10 @@ class ReplayPacingRules {
   /// [TravelReplayScriptBuilder.legDurationMs].
   static LegPacing compute(TravelLeg leg, int totalLegs) {
     final dist = legArcDistance(leg);
-    final base = dist < 20.0
-        ? _kShort
-        : dist < 90.0
+    final base =
+        dist < 20.0
+            ? _kShort
+            : dist < 90.0
             ? _kMedium
             : _kLong;
 
@@ -416,9 +432,7 @@ class ReplayPacingRules {
   /// [TravelReplayScript.legPacing].
   static List<LegPacing> buildPacingList(TravelReplayScript script) {
     final totalLegs = script.legs.length;
-    return [
-      for (final leg in script.legs) compute(leg, totalLegs),
-    ];
+    return [for (final leg in script.legs) compute(leg, totalLegs)];
   }
 
   /// Returns the peak globe scale for a given arc distance.
@@ -463,7 +477,8 @@ class ReplayTimelineBuilder {
   static ({
     Map<int, List<ReplayOverlayEvent>> events,
     List<ReplayStatEvent> summary,
-  }) build({
+  })
+  build({
     required List<TravelLeg> legs,
     required List<TripRecord> allTrips,
     required Set<String> unlockedIds,
@@ -480,8 +495,9 @@ class ReplayTimelineBuilder {
         allTrips.where((t) => t.startedOn.year == targetYear).toList(),
       TravelReplayMode.trip => allTrips,
     };
-    final sortedTrips = scopedTrips.toList()
-      ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+    final sortedTrips =
+        scopedTrips.toList()
+          ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
 
     // ── Achievement detection ─────────────────────────────────────────────────
     final events = <int, List<ReplayOverlayEvent>>{};
@@ -491,19 +507,23 @@ class ReplayTimelineBuilder {
     // replay even though they were actually unlocked in a prior year.
     var prevUnlocked = <String>{};
     if (mode == TravelReplayMode.year) {
-      final preScope = allTrips
-          .where((t) => t.startedOn.year < targetYear)
-          .toList();
+      final preScope =
+          allTrips.where((t) => t.startedOn.year < targetYear).toList();
       if (preScope.isNotEmpty) {
         final preCodes = preScope.map((t) => t.countryCode).toSet();
-        final preVisits = preCodes
-            .map((c) => EffectiveVisitedCountry(
-                  countryCode: c,
-                  hasPhotoEvidence: true,
-                ))
-            .toList();
-        prevUnlocked =
-            AchievementEngine.evaluate(preVisits, tripCount: preScope.length);
+        final preVisits =
+            preCodes
+                .map(
+                  (c) => EffectiveVisitedCountry(
+                    countryCode: c,
+                    hasPhotoEvidence: true,
+                  ),
+                )
+                .toList();
+        prevUnlocked = AchievementEngine.evaluate(
+          preVisits,
+          tripCount: preScope.length,
+        );
       }
     }
 
@@ -520,17 +540,25 @@ class ReplayTimelineBuilder {
       // Build running visit list up to and including this leg's arrival.
       seenCodes.add(leg.toCode);
       // Find the trip that corresponds to arriving in toCode on leg.date.
-      final matchedTrip = sortedTrips.where((t) =>
-          t.countryCode == leg.toCode &&
-          !t.startedOn.isAfter(leg.date.add(const Duration(days: 1)))).lastOrNull;
+      final matchedTrip =
+          sortedTrips
+              .where(
+                (t) =>
+                    t.countryCode == leg.toCode &&
+                    !t.startedOn.isAfter(leg.date.add(const Duration(days: 1))),
+              )
+              .lastOrNull;
       if (matchedTrip != null) seenTripCount++;
 
-      final runningVisits = seenCodes
-          .map((code) => EffectiveVisitedCountry(
-                countryCode: code,
-                hasPhotoEvidence: true,
-              ))
-          .toList();
+      final runningVisits =
+          seenCodes
+              .map(
+                (code) => EffectiveVisitedCountry(
+                  countryCode: code,
+                  hasPhotoEvidence: true,
+                ),
+              )
+              .toList();
 
       final nowUnlocked = AchievementEngine.evaluate(
         runningVisits,
@@ -541,18 +569,25 @@ class ReplayTimelineBuilder {
 
       // Achievement event: pick the most significant newly unlocked achievement
       // (prefer higher progressTarget). Only include if in user's unlockedIds.
-      final showable = kAchievements
-          .where((a) => newlyUnlocked.contains(a.id) && unlockedIds.contains(a.id))
-          .toList()
-        ..sort((a, b) => b.progressTarget.compareTo(a.progressTarget));
+      final showable =
+          kAchievements
+              .where(
+                (a) =>
+                    newlyUnlocked.contains(a.id) && unlockedIds.contains(a.id),
+              )
+              .toList()
+            ..sort((a, b) => b.progressTarget.compareTo(a.progressTarget));
 
       if (showable.isNotEmpty) {
         final a = showable.first;
-        addEvent(i, ReplayAchievementEvent(
-          achievementId: a.id,
-          title: a.title,
-          subtitle: a.description,
-        ));
+        addEvent(
+          i,
+          ReplayAchievementEvent(
+            achievementId: a.id,
+            title: a.title,
+            subtitle: a.description,
+          ),
+        );
       }
 
       // Stat event: every 5th leg (0-indexed: legs 4, 9, 14…) and final leg.
@@ -571,15 +606,18 @@ class ReplayTimelineBuilder {
     }
 
     // ── Summary stats ─────────────────────────────────────────────────────────
-    final allSeenCodes = legs.map((l) => l.toCode).toSet()
-      ..addAll(legs.map((l) => l.fromCode));
-    final continents = allSeenCodes
-        .map((c) => kCountryContinent[c])
-        .whereType<String>()
-        .toSet();
+    final allSeenCodes =
+        legs.map((l) => l.toCode).toSet()..addAll(legs.map((l) => l.fromCode));
+    final continents =
+        allSeenCodes
+            .map((c) => kCountryContinent[c])
+            .whereType<String>()
+            .toSet();
     final totalPhotos = scopedTrips.fold(0, (sum, t) => sum + t.photoCount);
-    final totalDays = scopedTrips.fold(0, (sum, t) =>
-        sum + t.endedOn.difference(t.startedOn).inDays + 1);
+    final totalDays = scopedTrips.fold(
+      0,
+      (sum, t) => sum + t.endedOn.difference(t.startedOn).inDays + 1,
+    );
 
     final summary = [
       ReplayStatEvent(label: 'Countries', value: '${allSeenCodes.length}'),
@@ -601,11 +639,14 @@ class ReplayTimelineBuilder {
     switch (mode) {
       case TravelReplayMode.trip:
         // Trip mode: show days travelled so far.
-        final tripsInWindow = sortedTrips
-            .where((t) => !t.startedOn.isAfter(legs[upToIndex].date))
-            .toList();
-        final days = tripsInWindow.fold(0, (sum, t) =>
-            sum + t.endedOn.difference(t.startedOn).inDays + 1);
+        final tripsInWindow =
+            sortedTrips
+                .where((t) => !t.startedOn.isAfter(legs[upToIndex].date))
+                .toList();
+        final days = tripsInWindow.fold(
+          0,
+          (sum, t) => sum + t.endedOn.difference(t.startedOn).inDays + 1,
+        );
         return ReplayStatEvent(label: 'Days', value: '$days');
 
       case TravelReplayMode.year:

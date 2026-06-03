@@ -64,8 +64,7 @@ class StampInkPalette {
   /// Deterministic family index from a 2-char country code.
   static int familyIndexForCode(String code) {
     if (code.length < 2) return 0;
-    return (code.codeUnitAt(0) * 31 + code.codeUnitAt(1)).abs() %
-        familyCount;
+    return (code.codeUnitAt(0) * 31 + code.codeUnitAt(1)).abs() % familyCount;
   }
 }
 
@@ -82,19 +81,19 @@ enum StampAgeEffect {
 
   /// Overall ink opacity for this aging level.
   double get opacity => switch (this) {
-        StampAgeEffect.fresh => 0.90,
-        StampAgeEffect.aged => 0.78,
-        StampAgeEffect.worn => 0.62,
-        StampAgeEffect.faded => 0.45,
-      };
+    StampAgeEffect.fresh => 0.90,
+    StampAgeEffect.aged => 0.78,
+    StampAgeEffect.worn => 0.62,
+    StampAgeEffect.faded => 0.45,
+  };
 
   /// Noise intensity scalar (higher = more gaps and variation).
   double get noiseIntensity => switch (this) {
-        StampAgeEffect.fresh => 0.6,
-        StampAgeEffect.aged => 0.8,
-        StampAgeEffect.worn => 1.1,
-        StampAgeEffect.faded => 1.4,
-      };
+    StampAgeEffect.fresh => 0.6,
+    StampAgeEffect.aged => 0.8,
+    StampAgeEffect.worn => 1.1,
+    StampAgeEffect.faded => 1.4,
+  };
 
   /// Whether this age level shifts colour toward fadedInk family.
   bool get shiftsToFaded =>
@@ -170,18 +169,18 @@ class StampData {
     this.renderConfig = const StampRenderConfig(),
     this.overrideInkColor,
     this.overrideDateColor,
-    });
+  });
 
-    final String countryCode;
-    final String countryName;
+  final String countryCode;
+  final String countryName;
 
-    /// Optional user-override ink colour (ADR-117 Decision 3).
-    final Color? overrideInkColor;
+  /// Optional user-override ink colour (ADR-117 Decision 3).
+  final Color? overrideInkColor;
 
-    /// Optional user-override date colour (ADR-117 Decision 3).
-    final Color? overrideDateColor;
+  /// Optional user-override date colour (ADR-117 Decision 3).
+  final Color? overrideDateColor;
 
-    /// Stamp visual template (ADR-097: 12 styles replacing 4-shape StampShape).
+  /// Stamp visual template (ADR-097: 12 styles replacing 4-shape StampShape).
 
   final StampStyle style;
 
@@ -305,9 +304,10 @@ class StampData {
     StampRenderConfig renderConfig = const StampRenderConfig(),
   }) {
     final variant = (trip.countryCode.hashCode ^ style.index) % 3;
-    final label = isEntry
-        ? nativeArrivalLabel(trip.countryCode)
-        : nativeDepartureLabel(trip.countryCode);
+    final label =
+        isEntry
+            ? nativeArrivalLabel(trip.countryCode)
+            : nativeDepartureLabel(trip.countryCode);
     final date = stampDate ?? trip.startedOn;
     return StampData(
       countryCode: trip.countryCode,
@@ -378,17 +378,17 @@ class StampData {
 
   @override
   int get hashCode => Object.hash(
-        countryCode,
-        style,
-        inkFamilyIndex,
-        ageEffect,
-        rotation,
-        center,
-        scale,
-        isEntry,
-        dateLabel,
-        entryLabel,
-        edgeClip,
-        renderConfig,
-      );
+    countryCode,
+    style,
+    inkFamilyIndex,
+    ageEffect,
+    rotation,
+    center,
+    scale,
+    isEntry,
+    dateLabel,
+    entryLabel,
+    edgeClip,
+    renderConfig,
+  );
 }

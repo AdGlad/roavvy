@@ -75,10 +75,11 @@ void main() {
 
     test('different sides produce different widths', () {
       const nominal = 2.0;
-      final widths = List.generate(
-        4,
-        (i) => StampShapeDistorter.distortedBorderWidth(nominal, 42, i),
-      ).toSet();
+      final widths =
+          List.generate(
+            4,
+            (i) => StampShapeDistorter.distortedBorderWidth(nominal, 42, i),
+          ).toSet();
       expect(widths.length, greaterThanOrEqualTo(2));
     });
   });

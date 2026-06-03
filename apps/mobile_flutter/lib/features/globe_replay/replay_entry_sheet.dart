@@ -73,7 +73,9 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
             tripsAsync.when(
               data: (trips) {
                 final script = TravelReplayScriptBuilder.build(
-                    trips: trips, mode: _mode);
+                  trips: trips,
+                  mode: _mode,
+                );
                 return Text(
                   '${script.legs.length} travel ${script.legs.length == 1 ? 'leg' : 'legs'}',
                   textAlign: TextAlign.center,
@@ -89,9 +91,12 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
             // Play button — waits for both trips and unlocked IDs.
             tripsAsync.when(
               data: (trips) {
-                final unlockedIds = unlockedAsync.valueOrNull ?? const <String>{};
+                final unlockedIds =
+                    unlockedAsync.valueOrNull ?? const <String>{};
                 final baseScript = TravelReplayScriptBuilder.build(
-                    trips: trips, mode: _mode);
+                  trips: trips,
+                  mode: _mode,
+                );
 
                 // Pre-compute overlay events.
                 final timeline = ReplayTimelineBuilder.build(
@@ -114,22 +119,26 @@ class _ReplayEntrySheetState extends ConsumerState<ReplayEntrySheet> {
                 return FilledButton.icon(
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('Play Replay'),
-                  onPressed: script.isEmpty
-                      ? null
-                      : () {
-                          // M134: show replay via MainShell overlay — no route push.
-                          // onDone is handled by MainShell (using its own ref) so
-                          // we don't capture a ref that may be stale after pop().
-                          Navigator.of(context).pop(); // close sheet
-                          ref.read(globeOverlayProvider.notifier).showReplay(script);
-                        },
+                  onPressed:
+                      script.isEmpty
+                          ? null
+                          : () {
+                            // M134: show replay via MainShell overlay — no route push.
+                            // onDone is handled by MainShell (using its own ref) so
+                            // we don't capture a ref that may be stale after pop().
+                            Navigator.of(context).pop(); // close sheet
+                            ref
+                                .read(globeOverlayProvider.notifier)
+                                .showReplay(script);
+                          },
                 );
               },
-              loading: () => FilledButton.icon(
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Play Replay'),
-                onPressed: null,
-              ),
+              loading:
+                  () => FilledButton.icon(
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Play Replay'),
+                    onPressed: null,
+                  ),
               error: (_, __) => const SizedBox.shrink(),
             ),
           ],

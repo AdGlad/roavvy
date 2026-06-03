@@ -28,20 +28,21 @@ Future<void> pumpReview(
 }
 
 EffectiveVisitedCountry autoVisit(String code) => EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-      photoCount: 1,
-    );
+  countryCode: code,
+  hasPhotoEvidence: true,
+  photoCount: 1,
+);
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
   group('ReviewScreen — rendering', () {
     testWidgets('shows all active visits', (tester) async {
-      await pumpReview(
-        tester,
-        [autoVisit('GB'), autoVisit('JP'), autoVisit('US')],
-      );
+      await pumpReview(tester, [
+        autoVisit('GB'),
+        autoVisit('JP'),
+        autoVisit('US'),
+      ]);
       expect(find.text('GB'), findsOneWidget);
       expect(find.text('JP'), findsOneWidget);
       expect(find.text('US'), findsOneWidget);
@@ -64,7 +65,9 @@ void main() {
   });
 
   group('ReviewScreen — remove', () {
-    testWidgets('tapping remove icon moves country to Removed section', (tester) async {
+    testWidgets('tapping remove icon moves country to Removed section', (
+      tester,
+    ) async {
       await pumpReview(tester, [autoVisit('GB'), autoVisit('JP')]);
 
       final removeIcon = find.byIcon(Icons.remove_circle_outline).first;
@@ -158,11 +161,7 @@ void main() {
       final repo = _makeRepo();
       final now = DateTime.utc(2025, 1, 1);
       await repo.saveInferred(
-        InferredCountryVisit(
-          countryCode: 'GB',
-          inferredAt: now,
-          photoCount: 1,
-        ),
+        InferredCountryVisit(countryCode: 'GB', inferredAt: now, photoCount: 1),
       );
 
       await pumpReview(tester, [autoVisit('GB')], repository: repo);
@@ -179,17 +178,20 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ReviewScreen(
-                    initialVisits: [autoVisit('GB')],
-                    repository: _makeRepo(),
-                  ),
+            builder:
+                (context) => ElevatedButton(
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (_) => ReviewScreen(
+                                initialVisits: [autoVisit('GB')],
+                                repository: _makeRepo(),
+                              ),
+                        ),
+                      ),
+                  child: const Text('Open'),
                 ),
-              ),
-              child: const Text('Open'),
-            ),
           ),
         ),
       );
@@ -207,37 +209,43 @@ void main() {
   });
 
   group('ReviewScreen — achievement unlock (Task 53: no SnackBar on save)', () {
-    testWidgets('no SnackBar shown on save when onScanComplete is null',
-        (tester) async {
+    testWidgets('no SnackBar shown on save when onScanComplete is null', (
+      tester,
+    ) async {
       // Achievement SnackBar is removed from ReviewScreen save path (ADR-054).
       // Achievements are shown in ScanSummaryScreen instead.
       final db = _makeDb();
       final visitRepo = VisitRepository(db);
       final achievementRepo = AchievementRepository(db);
 
-      await visitRepo.saveInferred(InferredCountryVisit(
-        countryCode: 'GB',
-        inferredAt: DateTime.utc(2025, 1, 1),
-        photoCount: 3,
-      ));
+      await visitRepo.saveInferred(
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2025, 1, 1),
+          photoCount: 3,
+        ),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => ReviewScreen(
-                      initialVisits: [autoVisit('GB')],
-                      repository: visitRepo,
-                      achievementRepo: achievementRepo,
-                    ),
+              builder:
+                  (context) => ElevatedButton(
+                    onPressed:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder:
+                                (_) => ReviewScreen(
+                                  initialVisits: [autoVisit('GB')],
+                                  repository: visitRepo,
+                                  achievementRepo: achievementRepo,
+                                ),
+                          ),
+                        ),
+                    child: const Text('Open'),
                   ),
-                ),
-                child: const Text('Open'),
-              ),
             ),
           ),
         ),
@@ -251,28 +259,34 @@ void main() {
       expect(find.text('🏆 First Stamp'), findsNothing);
     });
 
-    testWidgets('no SnackBar when achievement already unlocked', (tester) async {
+    testWidgets('no SnackBar when achievement already unlocked', (
+      tester,
+    ) async {
       final db = _makeDb();
       final visitRepo = VisitRepository(db);
       final achievementRepo = AchievementRepository(db);
 
-      await visitRepo.saveInferred(InferredCountryVisit(
-        countryCode: 'GB',
-        inferredAt: DateTime.utc(2025, 1, 1),
-        photoCount: 1,
-      ));
+      await visitRepo.saveInferred(
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2025, 1, 1),
+          photoCount: 1,
+        ),
+      );
 
       // Pre-unlock countries_1 and mark clean.
       await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025));
       await achievementRepo.markClean('countries_1', DateTime.utc(2025));
 
-      await tester.pumpWidget(MaterialApp(
-        home: ReviewScreen(
-          initialVisits: [autoVisit('GB')],
-          repository: visitRepo,
-          achievementRepo: achievementRepo,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReviewScreen(
+            initialVisits: [autoVisit('GB')],
+            repository: visitRepo,
+            achievementRepo: achievementRepo,
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -283,17 +297,21 @@ void main() {
   });
 
   group('ReviewScreen — achievement evaluation at save', () {
-    testWidgets('saving with achievementRepo unlocks countries_1', (tester) async {
+    testWidgets('saving with achievementRepo unlocks countries_1', (
+      tester,
+    ) async {
       final db = _makeDb();
       final visitRepo = VisitRepository(db);
       final achievementRepo = AchievementRepository(db);
 
       // Pre-populate an inferred visit so loadEffective returns one country.
-      await visitRepo.saveInferred(InferredCountryVisit(
-        countryCode: 'GB',
-        inferredAt: DateTime.utc(2025, 1, 1),
-        photoCount: 3,
-      ));
+      await visitRepo.saveInferred(
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2025, 1, 1),
+          photoCount: 3,
+        ),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -311,7 +329,9 @@ void main() {
       expect(await achievementRepo.loadAll(), contains('countries_1'));
     });
 
-    testWidgets('saving without achievementRepo does not throw', (tester) async {
+    testWidgets('saving without achievementRepo does not throw', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: ReviewScreen(
@@ -327,16 +347,20 @@ void main() {
       // Simply verifies no exception is thrown.
     });
 
-    testWidgets('already-unlocked achievement is not re-stored as dirty', (tester) async {
+    testWidgets('already-unlocked achievement is not re-stored as dirty', (
+      tester,
+    ) async {
       final db = _makeDb();
       final visitRepo = VisitRepository(db);
       final achievementRepo = AchievementRepository(db);
 
-      await visitRepo.saveInferred(InferredCountryVisit(
-        countryCode: 'GB',
-        inferredAt: DateTime.utc(2025, 1, 1),
-        photoCount: 1,
-      ));
+      await visitRepo.saveInferred(
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2025, 1, 1),
+          photoCount: 1,
+        ),
+      );
 
       // Pre-unlock countries_1 and mark it clean.
       await achievementRepo.upsertAll({'countries_1'}, DateTime.utc(2025));

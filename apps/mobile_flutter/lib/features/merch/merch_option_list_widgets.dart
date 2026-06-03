@@ -48,16 +48,16 @@ class MerchOptionFeaturedEntry extends MerchOptionListItem {
 
 /// Human-readable label for a [CardTemplateType].
 String merchTemplateLabel(CardTemplateType t) => switch (t) {
-      CardTemplateType.passport => 'Passport',
-      CardTemplateType.grid => 'Flags',
-      CardTemplateType.timeline => 'Tour Dates',
-      CardTemplateType.heart => 'Heart Flags',
-      CardTemplateType.frontRibbon => 'Ribbon',
-      CardTemplateType.typography => 'Typography',
-      CardTemplateType.badge => 'Explorer Badge',
-      CardTemplateType.wordCloud => 'Word Cloud',
-      CardTemplateType.landmark => 'Landmark',
-    };
+  CardTemplateType.passport => 'Passport',
+  CardTemplateType.grid => 'Flags',
+  CardTemplateType.timeline => 'Tour Dates',
+  CardTemplateType.heart => 'Heart Flags',
+  CardTemplateType.frontRibbon => 'Ribbon',
+  CardTemplateType.typography => 'Typography',
+  CardTemplateType.badge => 'Explorer Badge',
+  CardTemplateType.wordCloud => 'Word Cloud',
+  CardTemplateType.landmark => 'Landmark',
+};
 
 /// Suggests a suitable shirt colour for a given template and density (ADR-154).
 ///
@@ -71,7 +71,8 @@ String merchSuggestShirtColor(
   final isSoloOrSmall =
       density == MerchDensityClass.solo || density == MerchDensityClass.small;
   final isLargeOrMassive =
-      density == MerchDensityClass.large || density == MerchDensityClass.massive;
+      density == MerchDensityClass.large ||
+      density == MerchDensityClass.massive;
 
   return switch (template) {
     CardTemplateType.passport => isSoloOrSmall ? 'White' : 'Black',
@@ -107,9 +108,12 @@ String merchSuggestShirtColor(
 /// Flag-based (grid) and horizontal timeline designs render better in landscape
 /// so they fill the shirt back correctly without excess letterboxing.
 /// Passport designs remain portrait to match stamp page proportions.
-double merchBackCardAspectRatio(CardTemplateType template) => switch (template) {
+double merchBackCardAspectRatio(CardTemplateType template) =>
+    switch (template) {
       CardTemplateType.grid || CardTemplateType.timeline => 3.0 / 2.0,
-      CardTemplateType.badge || CardTemplateType.typography || CardTemplateType.wordCloud => 1.0,
+      CardTemplateType.badge ||
+      CardTemplateType.typography ||
+      CardTemplateType.wordCloud => 1.0,
       _ => 2.0 / 3.0, // passport, heart, frontRibbon — portrait
     };
 
@@ -224,9 +228,10 @@ class _MerchOptionCardState extends State<MerchOptionCard>
       if (!mounted) return;
     }
 
-    final stampCount = opt.template == CardTemplateType.passport
-        ? opt.trips.length * (opt.entryOnly ? 1 : 2)
-        : opt.codes.length;
+    final stampCount =
+        opt.template == CardTemplateType.passport
+            ? opt.trips.length * (opt.entryOnly ? 1 : 2)
+            : opt.codes.length;
     final aspectRatio = merchBackCardAspectRatio(opt.template);
     final orientation = aspectRatio > 1.0 ? 'landscape(3:2)' : 'portrait(2:3)';
     debugPrint(
@@ -326,23 +331,28 @@ class _MerchOptionCardState extends State<MerchOptionCard>
   void _navigate() {
     final bytes = _artworkBytes;
     if (bytes == null) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => LocalMockupPreviewScreen(
-        selectedCodes: widget.option.codes,
-        allCodes: widget.allCodes,
-        trips: widget.option.trips,
-        artworkImageBytes: bytes,
-        initialTemplate: widget.option.template,
-        confirmedAspectRatio: merchBackCardAspectRatio(widget.option.template),
-        confirmedEntryOnly: widget.option.entryOnly,
-        transparentBackground: true,
-        stampJitterFactor: widget.option.jitter,
-        stampSizeMultiplier: widget.option.stampSizeMultiplier,
-        initialColour: widget.option.suggestedShirtColor,
-        titleOverride: widget.option.title,
-        subtitleOverride: widget.option.artworkSubtitle,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: widget.option.codes,
+              allCodes: widget.allCodes,
+              trips: widget.option.trips,
+              artworkImageBytes: bytes,
+              initialTemplate: widget.option.template,
+              confirmedAspectRatio: merchBackCardAspectRatio(
+                widget.option.template,
+              ),
+              confirmedEntryOnly: widget.option.entryOnly,
+              transparentBackground: true,
+              stampJitterFactor: widget.option.jitter,
+              stampSizeMultiplier: widget.option.stampSizeMultiplier,
+              initialColour: widget.option.suggestedShirtColor,
+              titleOverride: widget.option.title,
+              subtitleOverride: widget.option.artworkSubtitle,
+            ),
       ),
-    ));
+    );
   }
 
   @override
@@ -396,7 +406,10 @@ class _MerchOptionCardState extends State<MerchOptionCard>
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white38,
+          ),
         ),
       ),
     );
@@ -414,14 +427,18 @@ class _MerchOptionCardState extends State<MerchOptionCard>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.broken_image_outlined,
-                color: Colors.white30, size: 22),
+            const Icon(
+              Icons.broken_image_outlined,
+              color: Colors.white30,
+              size: 22,
+            ),
             const SizedBox(height: 6),
             GestureDetector(
               onTap: () {
                 setState(() => _state = _MerchGenState.loading);
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _generate());
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _generate(),
+                );
               },
               child: const Text(
                 'Retry',
@@ -490,16 +507,20 @@ class _MerchOptionCardState extends State<MerchOptionCard>
             SizedBox(
               width: kMerchThumbW,
               child: const Center(
-                child: Text('Back',
-                    style: TextStyle(color: Colors.white30, fontSize: 9)),
+                child: Text(
+                  'Back',
+                  style: TextStyle(color: Colors.white30, fontSize: 9),
+                ),
               ),
             ),
             const SizedBox(width: 8),
             SizedBox(
               width: kMerchThumbW,
               child: const Center(
-                child: Text('Front',
-                    style: TextStyle(color: Colors.white30, fontSize: 9)),
+                child: Text(
+                  'Front',
+                  style: TextStyle(color: Colors.white30, fontSize: 9),
+                ),
               ),
             ),
           ],
@@ -691,23 +712,28 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
   void _navigate() {
     final bytes = _artworkBytes;
     if (bytes == null) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => LocalMockupPreviewScreen(
-        selectedCodes: widget.option.codes,
-        allCodes: widget.allCodes,
-        trips: widget.option.trips,
-        artworkImageBytes: bytes,
-        initialTemplate: widget.option.template,
-        confirmedAspectRatio: merchBackCardAspectRatio(widget.option.template),
-        confirmedEntryOnly: widget.option.entryOnly,
-        transparentBackground: true,
-        stampJitterFactor: widget.option.jitter,
-        stampSizeMultiplier: widget.option.stampSizeMultiplier,
-        initialColour: widget.option.suggestedShirtColor,
-        titleOverride: widget.option.title,
-        subtitleOverride: widget.option.artworkSubtitle,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: widget.option.codes,
+              allCodes: widget.allCodes,
+              trips: widget.option.trips,
+              artworkImageBytes: bytes,
+              initialTemplate: widget.option.template,
+              confirmedAspectRatio: merchBackCardAspectRatio(
+                widget.option.template,
+              ),
+              confirmedEntryOnly: widget.option.entryOnly,
+              transparentBackground: true,
+              stampJitterFactor: widget.option.jitter,
+              stampSizeMultiplier: widget.option.stampSizeMultiplier,
+              initialColour: widget.option.suggestedShirtColor,
+              titleOverride: widget.option.title,
+              subtitleOverride: widget.option.artworkSubtitle,
+            ),
       ),
-    ));
+    );
   }
 
   @override
@@ -717,89 +743,99 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
       child: SlideTransition(
         position: _slide,
         child: Material(
-      color: const Color(0xFF0E2A44),
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _state == _MerchGenState.ready ? _navigate : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildPreview(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          color: const Color(0xFF0E2A44),
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _state == _MerchGenState.ready ? _navigate : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildPreview(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                              color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
-                        ),
-                        child: const Text(
-                          '✦ Best Match',
-                          style: TextStyle(
-                            color: Color(0xFFFFD700),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.option.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.option.description,
-                    style: const TextStyle(color: Colors.white60, fontSize: 12),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Design This Shirt',
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFFFD700,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFFFFD700,
+                                ).withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: const Text(
+                              '✦ Best Match',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Color(0xFFFFD700),
+                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                letterSpacing: 0.5,
                               ),
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.option.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.option.description,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Design This Shirt',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
         ),
       ),
     );
@@ -815,8 +851,10 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
           child: SizedBox(
             width: 24,
             height: 24,
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white38,
+            ),
           ),
         ),
       );
@@ -826,8 +864,11 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         height: h,
         color: Colors.white.withValues(alpha: 0.04),
         child: const Center(
-          child: Icon(Icons.broken_image_outlined,
-              color: Colors.white30, size: 28),
+          child: Icon(
+            Icons.broken_image_outlined,
+            color: Colors.white30,
+            size: 28,
+          ),
         ),
       );
     }
@@ -875,9 +916,11 @@ class MerchOptionCustomCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => CardEditorScreen(templateType: template),
-          ));
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => CardEditorScreen(templateType: template),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -890,8 +933,11 @@ class MerchOptionCustomCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.tune_rounded,
-                    color: Colors.white54, size: 22),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: Colors.white54,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -914,8 +960,11 @@ class MerchOptionCustomCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded,
-                  size: 13, color: Colors.white38),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 13,
+                color: Colors.white38,
+              ),
             ],
           ),
         ),

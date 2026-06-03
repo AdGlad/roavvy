@@ -13,7 +13,13 @@ import '../../core/providers.dart';
 ///
 /// Priority (highest to lowest): [newlyDiscovered] > [reviewed] > [visited] > [unvisited].
 /// [target] is reserved for M23 (region progress chips); rendered as [visited] for now.
-enum CountryVisualState { unvisited, visited, reviewed, newlyDiscovered, target }
+enum CountryVisualState {
+  unvisited,
+  visited,
+  reviewed,
+  newlyDiscovered,
+  target,
+}
 
 // ── RecentDiscoveriesNotifier ─────────────────────────────────────────────────
 
@@ -27,7 +33,9 @@ enum CountryVisualState { unvisited, visited, reviewed, newlyDiscovered, target 
 class RecentDiscoveriesNotifier extends StateNotifier<Set<String>> {
   RecentDiscoveriesNotifier() : super({}) {
     _readyCompleter = Completer<void>();
-    _loadFromPrefs().then((_) => _readyCompleter.complete()).catchError((Object _) {
+    _loadFromPrefs().then((_) => _readyCompleter.complete()).catchError((
+      Object _,
+    ) {
       if (!_readyCompleter.isCompleted) _readyCompleter.complete();
     });
   }
@@ -101,12 +109,15 @@ class RecentDiscoveriesNotifier extends StateNotifier<Set<String>> {
   }
 
   Future<void> _persist() async {
-    final list = _entries.entries
-        .map((e) => {
-              'isoCode': e.key,
-              'discoveredAt': e.value.toIso8601String(),
-            })
-        .toList();
+    final list =
+        _entries.entries
+            .map(
+              (e) => {
+                'isoCode': e.key,
+                'discoveredAt': e.value.toIso8601String(),
+              },
+            )
+            .toList();
     await _prefs!.setString(_kPrefsKey, jsonEncode(list));
   }
 }
@@ -116,8 +127,8 @@ class RecentDiscoveriesNotifier extends StateNotifier<Set<String>> {
 /// Tracks ISO codes discovered in the last 24 h, persisted across restarts (ADR-067).
 final recentDiscoveriesProvider =
     StateNotifierProvider<RecentDiscoveriesNotifier, Set<String>>(
-  (ref) => RecentDiscoveriesNotifier(),
-);
+      (ref) => RecentDiscoveriesNotifier(),
+    );
 
 /// Derived map of isoCode → [CountryVisualState] for all visited countries.
 ///
@@ -125,7 +136,9 @@ final recentDiscoveriesProvider =
 /// When [yearFilterProvider] is active, derives states from [filteredEffectiveVisitsProvider]
 /// instead of [effectiveVisitsProvider]. [recentDiscoveriesProvider] (newlyDiscovered state)
 /// is always overlaid on top regardless of the year filter. (ADR-076)
-final countryVisualStatesProvider = Provider<Map<String, CountryVisualState>>((ref) {
+final countryVisualStatesProvider = Provider<Map<String, CountryVisualState>>((
+  ref,
+) {
   final yearFilter = ref.watch(yearFilterProvider);
   final recentCodes = ref.watch(recentDiscoveriesProvider);
 
@@ -137,7 +150,8 @@ final countryVisualStatesProvider = Provider<Map<String, CountryVisualState>>((r
   if (yearFilter == null) {
     visits = allVisitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
   } else {
-    visits = filteredVisitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
+    visits =
+        filteredVisitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
   }
 
   final result = <String, CountryVisualState>{};
@@ -157,8 +171,10 @@ final countryVisualStatesProvider = Provider<Map<String, CountryVisualState>>((r
 });
 
 /// Per-country [CountryVisualState] lookup, derived from [countryVisualStatesProvider].
-final countryVisualStateProvider =
-    Provider.family<CountryVisualState, String>((ref, isoCode) {
+final countryVisualStateProvider = Provider.family<CountryVisualState, String>((
+  ref,
+  isoCode,
+) {
   return ref.watch(countryVisualStatesProvider)[isoCode] ??
       CountryVisualState.unvisited;
 });

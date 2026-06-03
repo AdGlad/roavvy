@@ -15,7 +15,9 @@ Widget _wrap(Widget child) {
     overrides: [
       polygonsProvider.overrideWithValue(const []),
       countryVisualStatesProvider.overrideWithValue(const {}),
-      countryTripCountsProvider.overrideWith((_) async => const <String, int>{}),
+      countryTripCountsProvider.overrideWith(
+        (_) async => const <String, int>{},
+      ),
     ],
     child: MaterialApp(home: child),
   );
@@ -25,11 +27,7 @@ void main() {
   group('DiscoveryOverlay', () {
     testWidgets('renders country name and XP amount', (tester) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'GB',
-          xpEarned: 50,
-          onDone: () {},
-        )),
+        _wrap(DiscoveryOverlay(isoCode: 'GB', xpEarned: 50, onDone: () {})),
       );
       await tester.pump(); // post-frame haptic callback
 
@@ -42,11 +40,7 @@ void main() {
 
     testWidgets('renders flag emoji for country code', (tester) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'JP',
-          xpEarned: 50,
-          onDone: () {},
-        )),
+        _wrap(DiscoveryOverlay(isoCode: 'JP', xpEarned: 50, onDone: () {})),
       );
       await tester.pump();
 
@@ -55,13 +49,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 2200));
     });
 
-    testWidgets('shows Explore your map CTA for single overlay', (tester) async {
+    testWidgets('shows Explore your map CTA for single overlay', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'GB',
-          xpEarned: 50,
-          onDone: () {},
-        )),
+        _wrap(DiscoveryOverlay(isoCode: 'GB', xpEarned: 50, onDone: () {})),
       );
       await tester.pump();
 
@@ -70,17 +62,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 2200));
     });
 
-    testWidgets('shows Next arrow and Skip all for multi-country sequence',
-        (tester) async {
+    testWidgets('shows Next arrow and Skip all for multi-country sequence', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'GB',
-          xpEarned: 50,
-          currentIndex: 0,
-          totalCount: 3,
-          onDone: () {},
-          onSkipAll: () {},
-        )),
+        _wrap(
+          DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            currentIndex: 0,
+            totalCount: 3,
+            onDone: () {},
+            onSkipAll: () {},
+          ),
+        ),
       );
       await tester.pump();
 
@@ -94,20 +89,13 @@ void main() {
     testWidgets('fires HeavyImpact haptic on appear', (tester) async {
       final log = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          log.add(call);
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            log.add(call);
+            return null;
+          });
 
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'GB',
-          xpEarned: 50,
-          onDone: () {},
-        )),
+        _wrap(DiscoveryOverlay(isoCode: 'GB', xpEarned: 50, onDone: () {})),
       );
       await tester.pump(); // post-frame haptic fires
 
@@ -133,13 +121,15 @@ void main() {
     testWidgets('primary CTA calls onDone on last overlay', (tester) async {
       bool doneCalled = false;
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'DE',
-          xpEarned: 50,
-          currentIndex: 0,
-          totalCount: 1,
-          onDone: () => doneCalled = true,
-        )),
+        _wrap(
+          DiscoveryOverlay(
+            isoCode: 'DE',
+            xpEarned: 50,
+            currentIndex: 0,
+            totalCount: 1,
+            onDone: () => doneCalled = true,
+          ),
+        ),
       );
       await tester.pump();
 
@@ -156,12 +146,14 @@ void main() {
   group('DiscoveryOverlay — M56 enhancements', () {
     testWidgets('shows first-visited date when provided', (tester) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'GB',
-          xpEarned: 50,
-          firstVisited: DateTime(2019, 3, 15),
-          onDone: () {},
-        )),
+        _wrap(
+          DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            firstVisited: DateTime(2019, 3, 15),
+            onDone: () {},
+          ),
+        ),
       );
       await tester.pump();
 
@@ -172,15 +164,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 2200));
     });
 
-    testWidgets('omits first-visited line when firstVisited is null',
-        (tester) async {
+    testWidgets('omits first-visited line when firstVisited is null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'GB',
-          xpEarned: 50,
-          onDone: () {},
-          // firstVisited intentionally omitted (defaults to null)
-        )),
+        _wrap(
+          DiscoveryOverlay(
+            isoCode: 'GB',
+            xpEarned: 50,
+            onDone: () {},
+            // firstVisited intentionally omitted (defaults to null)
+          ),
+        ),
       );
       await tester.pump();
 
@@ -189,17 +184,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 2200));
     });
 
-    testWidgets('shows Skip all for non-final overlay in sequence',
-        (tester) async {
+    testWidgets('shows Skip all for non-final overlay in sequence', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'FR',
-          xpEarned: 30,
-          currentIndex: 0,
-          totalCount: 3,
-          onDone: () {},
-          onSkipAll: () {},
-        )),
+        _wrap(
+          DiscoveryOverlay(
+            isoCode: 'FR',
+            xpEarned: 30,
+            currentIndex: 0,
+            totalCount: 3,
+            onDone: () {},
+            onSkipAll: () {},
+          ),
+        ),
       );
       await tester.pump();
 
@@ -210,14 +208,16 @@ void main() {
 
     testWidgets('no Skip all on final overlay in sequence', (tester) async {
       await tester.pumpWidget(
-        _wrap(DiscoveryOverlay(
-          isoCode: 'DE',
-          xpEarned: 30,
-          currentIndex: 2,
-          totalCount: 3,
-          onDone: () {},
-          // onSkipAll is null — no skip button expected
-        )),
+        _wrap(
+          DiscoveryOverlay(
+            isoCode: 'DE',
+            xpEarned: 30,
+            currentIndex: 2,
+            totalCount: 3,
+            onDone: () {},
+            // onSkipAll is null — no skip button expected
+          ),
+        ),
       );
       await tester.pump();
 

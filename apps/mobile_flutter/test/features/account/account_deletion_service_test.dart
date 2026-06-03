@@ -34,9 +34,8 @@ class _RecentLoginAuth extends Fake implements FirebaseAuth {
 
 class _RecentLoginUser extends Fake implements User {
   @override
-  Future<void> delete() => Future.error(
-        FirebaseAuthException(code: 'requires-recent-login'),
-      );
+  Future<void> delete() =>
+      Future.error(FirebaseAuthException(code: 'requires-recent-login'));
 }
 
 /// Auth stub whose [currentUser.delete] throws a generic error.
@@ -99,8 +98,9 @@ void main() {
       await _seedSubcollection(firestore, uid, 'inferred_visits', ['GB', 'JP']);
       await _seedSubcollection(firestore, uid, 'user_added', ['DE']);
       await _seedSubcollection(firestore, uid, 'user_removed', ['FR']);
-      await _seedSubcollection(
-          firestore, uid, 'unlocked_achievements', ['first_country']);
+      await _seedSubcollection(firestore, uid, 'unlocked_achievements', [
+        'first_country',
+      ]);
 
       final service = _makeService(
         auth: _SuccessAuth(),
@@ -116,12 +116,13 @@ void main() {
         'user_removed',
         'unlocked_achievements',
       ]) {
-        final snap = await firestore
-            .collection('users')
-            .doc(uid)
-            .collection(sub)
-            .get();
-        expect(snap.docs, isEmpty, reason: '$sub should be empty after deletion');
+        final snap =
+            await firestore.collection('users').doc(uid).collection(sub).get();
+        expect(
+          snap.docs,
+          isEmpty,
+          reason: '$sub should be empty after deletion',
+        );
       }
     });
 
@@ -168,71 +169,75 @@ void main() {
       // Allow the unawaited revokeFirestoreOnly to complete.
       await Future<void>.delayed(Duration.zero);
 
-      final doc = await firestore
-          .collection('sharedTravelCards')
-          .doc(token)
-          .get();
+      final doc =
+          await firestore.collection('sharedTravelCards').doc(token).get();
       expect(doc.exists, isFalse);
     });
 
-    test('does not call revokeFirestoreOnly when shareToken is absent', () async {
-      final firestore = FakeFirebaseFirestore();
-      const token = 'other-token';
-      await firestore.collection('sharedTravelCards').doc(token).set({
-        'uid': uid,
-        'visitedCodes': <String>[],
-        'countryCount': 0,
-        'createdAt': 'now',
-      });
+    test(
+      'does not call revokeFirestoreOnly when shareToken is absent',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        const token = 'other-token';
+        await firestore.collection('sharedTravelCards').doc(token).set({
+          'uid': uid,
+          'visitedCodes': <String>[],
+          'countryCount': 0,
+          'createdAt': 'now',
+        });
 
-      final service = _makeService(
-        auth: _SuccessAuth(),
-        firestore: firestore,
-        repo: _makeRepo(),
-      );
+        final service = _makeService(
+          auth: _SuccessAuth(),
+          firestore: firestore,
+          repo: _makeRepo(),
+        );
 
-      // No shareToken supplied — Firestore doc should remain.
-      await service.deleteAccount(uid);
+        // No shareToken supplied — Firestore doc should remain.
+        await service.deleteAccount(uid);
 
-      await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
-      final doc = await firestore
-          .collection('sharedTravelCards')
-          .doc(token)
-          .get();
-      expect(doc.exists, isTrue);
-    });
+        final doc =
+            await firestore.collection('sharedTravelCards').doc(token).get();
+        expect(doc.exists, isTrue);
+      },
+    );
   });
 
   // ── deleteAccount — error paths ────────────────────────────────────────────
 
   group('deleteAccount errors', () {
-    test('propagates requires-recent-login without deleting local data',
-        () async {
-      final firestore = FakeFirebaseFirestore();
-      final repo = _makeRepo();
-      await repo.saveInferred(
-        InferredCountryVisit(
-          countryCode: 'GB',
-          inferredAt: DateTime.utc(2024),
-          photoCount: 1,
-        ),
-      );
+    test(
+      'propagates requires-recent-login without deleting local data',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final repo = _makeRepo();
+        await repo.saveInferred(
+          InferredCountryVisit(
+            countryCode: 'GB',
+            inferredAt: DateTime.utc(2024),
+            photoCount: 1,
+          ),
+        );
 
-      final service = _makeService(
-        auth: _RecentLoginAuth(),
-        firestore: firestore,
-        repo: repo,
-      );
+        final service = _makeService(
+          auth: _RecentLoginAuth(),
+          firestore: firestore,
+          repo: repo,
+        );
 
-      expect(
-        () => service.deleteAccount(uid),
-        throwsA(
-          isA<FirebaseAuthException>()
-              .having((e) => e.code, 'code', 'requires-recent-login'),
-        ),
-      );
-    });
+        expect(
+          () => service.deleteAccount(uid),
+          throwsA(
+            isA<FirebaseAuthException>().having(
+              (e) => e.code,
+              'code',
+              'requires-recent-login',
+            ),
+          ),
+        );
+      },
+    );
 
     test('propagates generic auth error', () async {
       final service = _makeService(
@@ -241,37 +246,36 @@ void main() {
         repo: _makeRepo(),
       );
 
-      await expectLater(
-        service.deleteAccount(uid),
-        throwsA(isA<Exception>()),
-      );
+      await expectLater(service.deleteAccount(uid), throwsA(isA<Exception>()));
     });
 
-    test('Firestore batch failure does not prevent clearAll from running',
-        () async {
-      // This is implicitly tested: the FakeFirebaseFirestore never throws,
-      // so we verify that even if subcollections are empty (no-op deletes),
-      // clearAll still ran by checking local data is gone.
-      final firestore = FakeFirebaseFirestore();
-      final repo = _makeRepo();
-      await repo.saveInferred(
-        InferredCountryVisit(
-          countryCode: 'GB',
-          inferredAt: DateTime.utc(2024),
-          photoCount: 3,
-        ),
-      );
+    test(
+      'Firestore batch failure does not prevent clearAll from running',
+      () async {
+        // This is implicitly tested: the FakeFirebaseFirestore never throws,
+        // so we verify that even if subcollections are empty (no-op deletes),
+        // clearAll still ran by checking local data is gone.
+        final firestore = FakeFirebaseFirestore();
+        final repo = _makeRepo();
+        await repo.saveInferred(
+          InferredCountryVisit(
+            countryCode: 'GB',
+            inferredAt: DateTime.utc(2024),
+            photoCount: 3,
+          ),
+        );
 
-      final service = _makeService(
-        auth: _SuccessAuth(),
-        firestore: firestore,
-        repo: repo,
-      );
+        final service = _makeService(
+          auth: _SuccessAuth(),
+          firestore: firestore,
+          repo: repo,
+        );
 
-      await service.deleteAccount(uid);
+        await service.deleteAccount(uid);
 
-      // clearAll must have run even though subcollections were empty.
-      expect(await repo.loadInferred(), isEmpty);
-    });
+        // clearAll must have run even though subcollections were empty.
+        expect(await repo.loadInferred(), isEmpty);
+      },
+    );
   });
 }

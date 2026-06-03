@@ -91,9 +91,8 @@ XpState xpStateFromTotal(int totalXp) {
   final levelStart = kXpThresholds[level - 1];
   final levelEnd = isMaxLevel ? null : kXpThresholds[level];
 
-  final progressFraction = isMaxLevel
-      ? 1.0
-      : (totalXp - levelStart) / (levelEnd! - levelStart);
+  final progressFraction =
+      isMaxLevel ? 1.0 : (totalXp - levelStart) / (levelEnd! - levelStart);
 
   final xpToNextLevel = isMaxLevel ? 0 : levelEnd! - totalXp;
 

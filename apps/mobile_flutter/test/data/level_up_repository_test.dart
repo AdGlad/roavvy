@@ -20,12 +20,15 @@ void main() {
       expect(await repo.getLastShownLevel(), 3);
     });
 
-    test('markShown is idempotent — calling twice leaves the latest value', () async {
-      final repo = LevelUpRepository();
-      await repo.markShown(2);
-      await repo.markShown(2);
-      expect(await repo.getLastShownLevel(), 2);
-    });
+    test(
+      'markShown is idempotent — calling twice leaves the latest value',
+      () async {
+        final repo = LevelUpRepository();
+        await repo.markShown(2);
+        await repo.markShown(2);
+        expect(await repo.getLastShownLevel(), 2);
+      },
+    );
 
     test('markShown with higher level overwrites lower', () async {
       final repo = LevelUpRepository();

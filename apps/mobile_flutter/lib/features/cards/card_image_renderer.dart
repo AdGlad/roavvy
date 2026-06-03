@@ -87,6 +87,7 @@ class CardImageRenderer {
     Duration assetsTimeout = const Duration(seconds: 10),
     Uint8List? backgroundImageBytes,
     FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
+
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
     /// fixed print area without changing the overall canvas aspect ratio.
@@ -127,30 +128,39 @@ class CardImageRenderer {
     void doCapture() {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         try {
-          final boundary = repaintKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
+          final boundary =
+              repaintKey.currentContext?.findRenderObject()
+                  as RenderRepaintBoundary?;
           if (boundary == null) {
             completer.completeError(
-                Exception('CardImageRenderer: render boundary not found'));
+              Exception('CardImageRenderer: render boundary not found'),
+            );
             return;
           }
           final image = await boundary.toImage(pixelRatio: pixelRatio);
-          final byteData =
-              await image.toByteData(format: ui.ImageByteFormat.png);
+          final byteData = await image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
           if (byteData == null) {
             completer.completeError(
-                Exception('CardImageRenderer: failed to encode image'));
+              Exception('CardImageRenderer: failed to encode image'),
+            );
             return;
           }
           final bytes = byteData.buffer.asUint8List();
-          final imageHash = sha256.convert(bytes).bytes
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join();
-          completer.complete(CardRenderResult(
-            bytes: bytes,
-            imageHash: imageHash,
-            wasForced: wasForced,
-          ));
+          final imageHash =
+              sha256
+                  .convert(bytes)
+                  .bytes
+                  .map((b) => b.toRadixString(16).padLeft(2, '0'))
+                  .join();
+          completer.complete(
+            CardRenderResult(
+              bytes: bytes,
+              imageHash: imageHash,
+              wasForced: wasForced,
+            ),
+          );
         } catch (e, st) {
           completer.completeError(e, st);
         } finally {
@@ -163,18 +173,24 @@ class CardImageRenderer {
     // alone. The transparent gap height is derived so that:
     //   gap / (gap + cardHeight) == topPaddingFraction
     // → gap = cardHeight * topPaddingFraction / (1 - topPaddingFraction)
-    final topGapHeight = topPaddingFraction > 0
-        ? (_logicalWidth / cardAspectRatio) *
-              topPaddingFraction /
-              (1 - topPaddingFraction)
-        : 0.0;
+    final topGapHeight =
+        topPaddingFraction > 0
+            ? (_logicalWidth / cardAspectRatio) *
+                topPaddingFraction /
+                (1 - topPaddingFraction)
+            : 0.0;
 
     final cardWidgetInstance = _cardWidget(
       template,
       codes,
       trips,
       forPrint: forPrint,
-      onWasForced: forPrint ? (v) { wasForced = v; } : null,
+      onWasForced:
+          forPrint
+              ? (v) {
+                wasForced = v;
+              }
+              : null,
       entryOnly: entryOnly,
       cardAspectRatio: cardAspectRatio,
       heartOrder: heartOrder,
@@ -191,36 +207,39 @@ class CardImageRenderer {
       stampJitterFactor: stampJitterFactor,
       backgroundImageBytes: backgroundImageBytes,
       gridLayoutMode: gridLayoutMode,
-      onAssetsLoaded: assetsCompleter != null
-          ? () {
-              if (!assetsCompleter.isCompleted) {
-                assetsCompleter.complete();
+      onAssetsLoaded:
+          assetsCompleter != null
+              ? () {
+                if (!assetsCompleter.isCompleted) {
+                  assetsCompleter.complete();
+                }
               }
-            }
-          : null,
+              : null,
     );
 
     entry = OverlayEntry(
-      builder: (_) => Positioned(
-        // Place far off-screen so it is invisible to the user.
-        left: -10000,
-        top: -10000,
-        child: SizedBox(
-          width: _logicalWidth,
-          child: RepaintBoundary(
-            key: repaintKey,
-            child: topGapHeight > 0
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(height: topGapHeight), // transparent gap
-                      cardWidgetInstance,
-                    ],
-                  )
-                : cardWidgetInstance,
+      builder:
+          (_) => Positioned(
+            // Place far off-screen so it is invisible to the user.
+            left: -10000,
+            top: -10000,
+            child: SizedBox(
+              width: _logicalWidth,
+              child: RepaintBoundary(
+                key: repaintKey,
+                child:
+                    topGapHeight > 0
+                        ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(height: topGapHeight), // transparent gap
+                            cardWidgetInstance,
+                          ],
+                        )
+                        : cardWidgetInstance,
+              ),
+            ),
           ),
-        ),
-      ),
     );
 
     Overlay.of(context).insert(entry);

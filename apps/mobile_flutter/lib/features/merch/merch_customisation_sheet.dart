@@ -82,7 +82,10 @@ class _MerchCustomisationSheetState
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: Row(
                   children: [
                     Text(
@@ -111,18 +114,19 @@ class _MerchCustomisationSheetState
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: kMerchPresets.map((preset) {
-                        // Highlight the chip if the current layout+source match.
-                        final isActive =
-                            _config.layout == preset.config.layout &&
-                            _config.source == preset.config.source;
-                        return ChoiceChip(
-                          label: Text(preset.label),
-                          selected: isActive,
-                          onSelected: (_) => _applyPreset(preset),
-                          selectedColor: theme.colorScheme.primaryContainer,
-                        );
-                      }).toList(),
+                      children:
+                          kMerchPresets.map((preset) {
+                            // Highlight the chip if the current layout+source match.
+                            final isActive =
+                                _config.layout == preset.config.layout &&
+                                _config.source == preset.config.source;
+                            return ChoiceChip(
+                              label: Text(preset.label),
+                              selected: isActive,
+                              onSelected: (_) => _applyPreset(preset),
+                              selectedColor: theme.colorScheme.primaryContainer,
+                            );
+                          }).toList(),
                     ),
                     const SizedBox(height: 20),
 
@@ -137,20 +141,21 @@ class _MerchCustomisationSheetState
                       ],
                       selected: switch (_config.layout) {
                         CardTemplateType.passport => 'Passport',
-                        CardTemplateType.grid     => 'Grid',
+                        CardTemplateType.grid => 'Grid',
                         CardTemplateType.landmark =>
                           landmarkAvailable ? 'Landmark' : 'Grid',
-                        _                         => 'Grid',
+                        _ => 'Grid',
                       },
-                      onChanged: (v) => setState(() {
-                        _config = _config.copyWithOverrides(
-                          layout: switch (v) {
-                            'Passport' => CardTemplateType.passport,
-                            'Landmark' => CardTemplateType.landmark,
-                            _          => CardTemplateType.grid,
-                          },
-                        );
-                      }),
+                      onChanged:
+                          (v) => setState(() {
+                            _config = _config.copyWithOverrides(
+                              layout: switch (v) {
+                                'Passport' => CardTemplateType.passport,
+                                'Landmark' => CardTemplateType.landmark,
+                                _ => CardTemplateType.grid,
+                              },
+                            );
+                          }),
                     ),
                     const SizedBox(height: 20),
 
@@ -159,20 +164,22 @@ class _MerchCustomisationSheetState
                     const SizedBox(height: 8),
                     _OptionRow(
                       options: const ['Low', 'Medium', 'High'],
-                      selected: _config.jitter < 0.35
-                          ? 'Low'
-                          : _config.jitter < 0.65
+                      selected:
+                          _config.jitter < 0.35
+                              ? 'Low'
+                              : _config.jitter < 0.65
                               ? 'Medium'
                               : 'High',
-                      onChanged: (v) => setState(() {
-                        _config = _config.copyWithOverrides(
-                          jitter: switch (v) {
-                            'Low'    => 0.2,
-                            'High'   => 0.8,
-                            _        => 0.5,
-                          },
-                        );
-                      }),
+                      onChanged:
+                          (v) => setState(() {
+                            _config = _config.copyWithOverrides(
+                              jitter: switch (v) {
+                                'Low' => 0.2,
+                                'High' => 0.8,
+                                _ => 0.5,
+                              },
+                            );
+                          }),
                     ),
                     const SizedBox(height: 20),
 
@@ -182,19 +189,20 @@ class _MerchCustomisationSheetState
                     _OptionRow(
                       options: const ['Sparse', 'Balanced', 'Dense'],
                       selected: switch (_config.density) {
-                        MerchDensity.sparse   => 'Sparse',
+                        MerchDensity.sparse => 'Sparse',
                         MerchDensity.balanced => 'Balanced',
-                        MerchDensity.dense    => 'Dense',
+                        MerchDensity.dense => 'Dense',
                       },
-                      onChanged: (v) => setState(() {
-                        _config = _config.copyWithOverrides(
-                          density: switch (v) {
-                            'Sparse' => MerchDensity.sparse,
-                            'Dense'  => MerchDensity.dense,
-                            _        => MerchDensity.balanced,
-                          },
-                        );
-                      }),
+                      onChanged:
+                          (v) => setState(() {
+                            _config = _config.copyWithOverrides(
+                              density: switch (v) {
+                                'Sparse' => MerchDensity.sparse,
+                                'Dense' => MerchDensity.dense,
+                                _ => MerchDensity.balanced,
+                              },
+                            );
+                          }),
                     ),
                     const SizedBox(height: 20),
 
@@ -203,16 +211,19 @@ class _MerchCustomisationSheetState
                     const SizedBox(height: 8),
                     _OptionRow(
                       options: const ['Entry only', 'Entry + Exit'],
-                      selected: _config.stampMode == MerchStampMode.entryOnly
-                          ? 'Entry only'
-                          : 'Entry + Exit',
-                      onChanged: (v) => setState(() {
-                        _config = _config.copyWithOverrides(
-                          stampMode: v == 'Entry only'
-                              ? MerchStampMode.entryOnly
-                              : MerchStampMode.entryExit,
-                        );
-                      }),
+                      selected:
+                          _config.stampMode == MerchStampMode.entryOnly
+                              ? 'Entry only'
+                              : 'Entry + Exit',
+                      onChanged:
+                          (v) => setState(() {
+                            _config = _config.copyWithOverrides(
+                              stampMode:
+                                  v == 'Entry only'
+                                      ? MerchStampMode.entryOnly
+                                      : MerchStampMode.entryExit,
+                            );
+                          }),
                     ),
                   ],
                 ),
@@ -275,15 +286,16 @@ class _OptionRow extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: options.map((opt) {
-        final isSelected = opt == selected;
-        return ChoiceChip(
-          label: Text(opt),
-          selected: isSelected,
-          onSelected: (_) => onChanged(opt),
-          selectedColor: theme.colorScheme.primaryContainer,
-        );
-      }).toList(),
+      children:
+          options.map((opt) {
+            final isSelected = opt == selected;
+            return ChoiceChip(
+              label: Text(opt),
+              selected: isSelected,
+              onSelected: (_) => onChanged(opt),
+              selectedColor: theme.colorScheme.primaryContainer,
+            );
+          }).toList(),
     );
   }
 }

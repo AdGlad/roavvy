@@ -9,10 +9,12 @@ import 'globe_projection.dart';
 
 // ── Colour constants (mirror country_polygon_layer.dart — ADR-116) ─────────────
 
-const _kOcean = Color(0xFF1B3A5C);      // lighter navy ocean (M86)
+const _kOcean = Color(0xFF1B3A5C); // lighter navy ocean (M86)
 const _kAtmosphere = Color(0xFF3A6A9A); // lighter atmosphere rim (M86)
 
-const _kUnvisitedFill = Color(0xFF2D5280);   // mid-navy — visible against ocean (M86)
+const _kUnvisitedFill = Color(
+  0xFF2D5280,
+); // mid-navy — visible against ocean (M86)
 const _kUnvisitedBorder = Color(0xFF3D6490);
 
 const _kVisitedBorder = Color(0xFFFFD700);
@@ -116,8 +118,7 @@ class GlobePainter extends CustomPainter {
           poly.vertices.fold(0.0, (s, v) => s + v.$2) / poly.vertices.length;
       if (!projection.isVisible(centroidLat, centroidLng)) continue;
 
-      final state =
-          visualStates[poly.isoCode] ?? CountryVisualState.unvisited;
+      final state = visualStates[poly.isoCode] ?? CountryVisualState.unvisited;
       final fillColor = _fillColor(poly.isoCode, state);
       final borderColor = _borderColor(state);
 
@@ -142,17 +143,13 @@ class GlobePainter extends CustomPainter {
     if (highlightedCode != null && pulseValue > 0.0) {
       final centroid = kCountryCentroids[highlightedCode];
       if (centroid != null) {
-        final haloCenter =
-            projection.project(centroid.$1, centroid.$2, size);
+        final haloCenter = projection.project(centroid.$1, centroid.$2, size);
         if (haloCenter != null) {
-          final haloRadius =
-              r * 0.06 * (1.0 + pulseValue * 0.5);
+          final haloRadius = r * 0.06 * (1.0 + pulseValue * 0.5);
           canvas.drawCircle(
             haloCenter,
             haloRadius,
-            Paint()
-              ..color =
-                  Colors.white.withValues(alpha: pulseValue * 0.35),
+            Paint()..color = Colors.white.withValues(alpha: pulseValue * 0.35),
           );
         }
       }
@@ -162,7 +159,10 @@ class GlobePainter extends CustomPainter {
     // Cultural/Mixed = amber; Natural = green.
     // Inner dot always visible; outer glow ring pulses.
     void paintHeritageDots(
-        List<(double, double)> coords, Color dotColor, Color glowColor) {
+      List<(double, double)> coords,
+      Color dotColor,
+      Color glowColor,
+    ) {
       for (final coord in coords) {
         final pt = projection.project(coord.$1, coord.$2, size);
         if (pt == null) continue;
@@ -170,11 +170,15 @@ class GlobePainter extends CustomPainter {
           canvas.drawCircle(
             pt,
             r * 0.008 * (1.0 + heritagePulseValue * 0.6),
-            Paint()..color = glowColor.withValues(alpha: heritagePulseValue * 0.30),
+            Paint()
+              ..color = glowColor.withValues(alpha: heritagePulseValue * 0.30),
           );
         }
-        canvas.drawCircle(pt, r * 0.0036,
-            Paint()..color = dotColor.withValues(alpha: 0.90));
+        canvas.drawCircle(
+          pt,
+          r * 0.0036,
+          Paint()..color = dotColor.withValues(alpha: 0.90),
+        );
       }
     }
 
@@ -192,11 +196,17 @@ class GlobePainter extends CustomPainter {
     }
     if (culturalSiteCoords.isNotEmpty) {
       paintHeritageDots(
-          culturalSiteCoords, Colors.amber[300]!, Colors.amber[400]!);
+        culturalSiteCoords,
+        Colors.amber[300]!,
+        Colors.amber[400]!,
+      );
     }
     if (naturalSiteCoords.isNotEmpty) {
       paintHeritageDots(
-          naturalSiteCoords, Colors.green[400]!, Colors.green[300]!);
+        naturalSiteCoords,
+        Colors.green[400]!,
+        Colors.green[300]!,
+      );
     }
 
     // 6. Challenge site highlight — large pulsing red dot (M134+).
@@ -209,15 +219,12 @@ class GlobePainter extends CustomPainter {
           pt,
           r * 0.022 * (1.0 + challengeHighlightPulse * 0.6),
           Paint()
-            ..color =
-                Colors.red.withValues(alpha: 0.30 * challengeHighlightPulse),
+            ..color = Colors.red.withValues(
+              alpha: 0.30 * challengeHighlightPulse,
+            ),
         );
         // Solid red dot.
-        canvas.drawCircle(
-          pt,
-          r * 0.014,
-          Paint()..color = Colors.redAccent,
-        );
+        canvas.drawCircle(pt, r * 0.014, Paint()..color = Colors.redAccent);
       }
     }
 
@@ -269,24 +276,21 @@ class GlobePainter extends CustomPainter {
     );
   }
 
-  Color _fillColor(String isoCode, CountryVisualState state) =>
-      switch (state) {
-        CountryVisualState.newlyDiscovered => _kNewFill,
-        CountryVisualState.reviewed => _kReviewedFill,
-        CountryVisualState.visited ||
-        CountryVisualState.target =>
-          _depthFillColor(tripCounts[isoCode] ?? 0),
-        CountryVisualState.unvisited => _kUnvisitedFill,
-      };
+  Color _fillColor(String isoCode, CountryVisualState state) => switch (state) {
+    CountryVisualState.newlyDiscovered => _kNewFill,
+    CountryVisualState.reviewed => _kReviewedFill,
+    CountryVisualState.visited ||
+    CountryVisualState.target => _depthFillColor(tripCounts[isoCode] ?? 0),
+    CountryVisualState.unvisited => _kUnvisitedFill,
+  };
 
   Color _borderColor(CountryVisualState state) => switch (state) {
-        CountryVisualState.newlyDiscovered => _kNewBorder,
-        CountryVisualState.reviewed ||
-        CountryVisualState.visited ||
-        CountryVisualState.target =>
-          _kVisitedBorder,
-        CountryVisualState.unvisited => _kUnvisitedBorder,
-      };
+    CountryVisualState.newlyDiscovered => _kNewBorder,
+    CountryVisualState.reviewed ||
+    CountryVisualState.visited ||
+    CountryVisualState.target => _kVisitedBorder,
+    CountryVisualState.unvisited => _kUnvisitedBorder,
+  };
 
   @override
   bool shouldRepaint(GlobePainter old) =>
@@ -298,7 +302,10 @@ class GlobePainter extends CustomPainter {
       pulseValue != old.pulseValue ||
       !identical(culturalSiteCoords, old.culturalSiteCoords) ||
       !identical(naturalSiteCoords, old.naturalSiteCoords) ||
-      !identical(unvisitedHeritageSiteCoords, old.unvisitedHeritageSiteCoords) ||
+      !identical(
+        unvisitedHeritageSiteCoords,
+        old.unvisitedHeritageSiteCoords,
+      ) ||
       heritagePulseValue != old.heritagePulseValue ||
       challengeHighlightCoord != old.challengeHighlightCoord ||
       challengeHighlightPulse != old.challengeHighlightPulse ||

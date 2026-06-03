@@ -17,10 +17,10 @@ import 'scan_tone_generator.dart';
 /// country discovery while a previous tone is still ringing) play correctly.
 class ScanAudioController {
   ScanAudioController()
-      : _country = AudioPlayer(),
-        _continent = AudioPlayer(),
-        _heritage = AudioPlayer(),
-        _milestone = AudioPlayer() {
+    : _country = AudioPlayer(),
+      _continent = AudioPlayer(),
+      _heritage = AudioPlayer(),
+      _milestone = AudioPlayer() {
     for (final p in _allPlayers) {
       p.setReleaseMode(ReleaseMode.stop).ignore();
     }
@@ -41,15 +41,15 @@ class ScanAudioController {
   /// Generates all tones and warms up players so first playback has no latency.
   /// Safe to call multiple times (generation is idempotent).
   Future<void> preload() async {
-    _countryBytes  ??= ScanToneGenerator.countryDiscovery();
+    _countryBytes ??= ScanToneGenerator.countryDiscovery();
     _continentBytes ??= ScanToneGenerator.continentDiscovery();
-    _heritageBytes  ??= ScanToneGenerator.heritageDiscovery();
+    _heritageBytes ??= ScanToneGenerator.heritageDiscovery();
     _milestoneBytes ??= ScanToneGenerator.majorMilestone();
 
     await Future.wait([
-      _warmUp(_country,   _countryBytes!),
+      _warmUp(_country, _countryBytes!),
       _warmUp(_continent, _continentBytes!),
-      _warmUp(_heritage,  _heritageBytes!),
+      _warmUp(_heritage, _heritageBytes!),
       _warmUp(_milestone, _milestoneBytes!),
     ]);
   }
@@ -74,7 +74,12 @@ class ScanAudioController {
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
-  List<AudioPlayer> get _allPlayers => [_country, _continent, _heritage, _milestone];
+  List<AudioPlayer> get _allPlayers => [
+    _country,
+    _continent,
+    _heritage,
+    _milestone,
+  ];
 
   Future<void> _warmUp(AudioPlayer player, Uint8List bytes) async {
     try {

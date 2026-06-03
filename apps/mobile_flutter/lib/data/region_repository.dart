@@ -23,17 +23,19 @@ class RegionRepository {
     if (visits.isEmpty) return;
     await _db.transaction(() async {
       for (final v in visits) {
-        await _db.into(_db.regionVisits).insertOnConflictUpdate(
-          RegionVisitsCompanion(
-            tripId: Value(v.tripId),
-            regionCode: Value(v.regionCode),
-            countryCode: Value(v.countryCode),
-            firstSeen: Value(v.firstSeen.toUtc()),
-            lastSeen: Value(v.lastSeen.toUtc()),
-            photoCount: Value(v.photoCount),
-            isDirty: const Value(1),
-          ),
-        );
+        await _db
+            .into(_db.regionVisits)
+            .insertOnConflictUpdate(
+              RegionVisitsCompanion(
+                tripId: Value(v.tripId),
+                regionCode: Value(v.regionCode),
+                countryCode: Value(v.countryCode),
+                firstSeen: Value(v.firstSeen.toUtc()),
+                lastSeen: Value(v.lastSeen.toUtc()),
+                photoCount: Value(v.photoCount),
+                isDirty: const Value(1),
+              ),
+            );
       }
     });
   }
@@ -44,17 +46,20 @@ class RegionRepository {
   ///
   /// Used by the Stats screen to display the "Regions" stat tile (ADR-052).
   Future<int> countUnique() async {
-    final result = await _db.customSelect(
-      'SELECT COUNT(DISTINCT region_code) AS cnt FROM region_visits',
-    ).getSingle();
+    final result =
+        await _db
+            .customSelect(
+              'SELECT COUNT(DISTINCT region_code) AS cnt FROM region_visits',
+            )
+            .getSingle();
     return result.read<int>('cnt');
   }
 
   /// Returns all region visits for [countryCode], across all trips.
   Future<List<RegionVisit>> loadByCountry(String countryCode) async {
-    final rows = await (_db.select(_db.regionVisits)
-          ..where((t) => t.countryCode.equals(countryCode)))
-        .get();
+    final rows =
+        await (_db.select(_db.regionVisits)
+          ..where((t) => t.countryCode.equals(countryCode))).get();
     return rows.map(_rowToRecord).toList();
   }
 
@@ -73,31 +78,36 @@ class RegionRepository {
   /// aggregate. Used by [TripMapScreen] to highlight visited regions.
   Future<List<String>> loadRegionCodesForTrip(TripRecord trip) async {
     final startUtc =
-        DateTime(trip.startedOn.year, trip.startedOn.month, trip.startedOn.day)
-            .toUtc();
-    final endUtc = DateTime(
-      trip.endedOn.year,
-      trip.endedOn.month,
-      trip.endedOn.day,
-      23,
-      59,
-      59,
-      999,
-    ).toUtc();
-    final rows = await (_db.select(_db.photoDateRecords)
-          ..where((t) =>
+        DateTime(
+          trip.startedOn.year,
+          trip.startedOn.month,
+          trip.startedOn.day,
+        ).toUtc();
+    final endUtc =
+        DateTime(
+          trip.endedOn.year,
+          trip.endedOn.month,
+          trip.endedOn.day,
+          23,
+          59,
+          59,
+          999,
+        ).toUtc();
+    final rows =
+        await (_db.select(_db.photoDateRecords)..where(
+          (t) =>
               t.countryCode.equals(trip.countryCode) &
               t.regionCode.isNotNull() &
-              t.capturedAt.isBetweenValues(startUtc, endUtc)))
-        .get();
+              t.capturedAt.isBetweenValues(startUtc, endUtc),
+        )).get();
     return rows.map((r) => r.regionCode!).toSet().toList();
   }
 
   /// Returns all region visits belonging to [tripId].
   Future<List<RegionVisit>> loadByTrip(String tripId) async {
-    final rows = await (_db.select(_db.regionVisits)
-          ..where((t) => t.tripId.equals(tripId)))
-        .get();
+    final rows =
+        await (_db.select(_db.regionVisits)
+          ..where((t) => t.tripId.equals(tripId))).get();
     return rows.map(_rowToRecord).toList();
   }
 
@@ -107,8 +117,8 @@ class RegionRepository {
   ///
   /// Called when the user deletes a trip (Correction 3 — ADR-051).
   Future<void> deleteByTrip(String tripId) =>
-      (_db.delete(_db.regionVisits)..where((t) => t.tripId.equals(tripId)))
-          .go();
+      (_db.delete(_db.regionVisits)
+        ..where((t) => t.tripId.equals(tripId))).go();
 
   /// Deletes all rows.
   ///
@@ -118,11 +128,11 @@ class RegionRepository {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   static RegionVisit _rowToRecord(RegionVisitRow r) => RegionVisit(
-        tripId: r.tripId,
-        countryCode: r.countryCode,
-        regionCode: r.regionCode,
-        firstSeen: r.firstSeen.toUtc(),
-        lastSeen: r.lastSeen.toUtc(),
-        photoCount: r.photoCount,
-      );
+    tripId: r.tripId,
+    countryCode: r.countryCode,
+    regionCode: r.regionCode,
+    firstSeen: r.firstSeen.toUtc(),
+    lastSeen: r.lastSeen.toUtc(),
+    photoCount: r.photoCount,
+  );
 }

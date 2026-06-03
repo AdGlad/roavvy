@@ -58,13 +58,14 @@ class _TermsScreenState extends State<TermsScreen> {
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Accept & Continue'),
+                child:
+                    _saving
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Accept & Continue'),
               ),
             ),
           ] else
@@ -346,36 +347,31 @@ class _TermsContent extends StatelessWidget {
   }
 
   Widget _version() => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          'Version $kCurrentTermsVersion — Last updated [DATE]',
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      'Version $kCurrentTermsVersion — Last updated [DATE]',
+      style: const TextStyle(fontSize: 11, color: Colors.grey),
+    ),
+  );
 
   Widget _h1(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text(
-          text,
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      text,
+      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+    ),
+  );
 
   Widget _h2(String text) => Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 6),
-        child: Text(
-          text,
-          style: theme.textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 20, bottom: 6),
+    child: Text(
+      text,
+      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+    ),
+  );
 
   Widget _p(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(height: 1.5)),
+  );
 }

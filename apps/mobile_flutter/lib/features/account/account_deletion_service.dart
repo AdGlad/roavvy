@@ -22,10 +22,10 @@ class AccountDeletionService {
     required FirebaseFirestore firestore,
     required VisitRepository repo,
     required ShareTokenService shareTokenService,
-  })  : _auth = auth,
-        _firestore = firestore,
-        _repo = repo,
-        _shareTokenService = shareTokenService;
+  }) : _auth = auth,
+       _firestore = firestore,
+       _repo = repo,
+       _shareTokenService = shareTokenService;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -59,7 +59,9 @@ class AccountDeletionService {
         await _deleteSubcollection(uid, sub);
       } catch (e, st) {
         // ignore: avoid_print
-        print('AccountDeletionService._deleteSubcollection($sub) error: $e\n$st');
+        print(
+          'AccountDeletionService._deleteSubcollection($sub) error: $e\n$st',
+        );
       }
     }
   }
@@ -73,7 +75,10 @@ class AccountDeletionService {
 
   /// Deletes all documents in `users/{uid}/{subcollectionName}` in batches of
   /// up to 500 — the Firestore write-batch maximum.
-  Future<void> _deleteSubcollection(String uid, String subcollectionName) async {
+  Future<void> _deleteSubcollection(
+    String uid,
+    String subcollectionName,
+  ) async {
     const batchSize = 500;
     final collRef = _firestore
         .collection('users')

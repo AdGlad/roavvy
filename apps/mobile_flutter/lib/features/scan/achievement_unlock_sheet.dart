@@ -3,12 +3,21 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
 const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
-String _fmtDate(DateTime dt) =>
-    '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
+String _fmtDate(DateTime dt) => '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
 
 /// Shows detail for an achievement — unlocked or locked.
 ///
@@ -46,10 +55,11 @@ class AchievementUnlockSheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: false,
-      builder: (_) => AchievementUnlockSheet(
-        achievement: achievement,
-        unlockedAt: unlockedAt,
-      ),
+      builder:
+          (_) => AchievementUnlockSheet(
+            achievement: achievement,
+            unlockedAt: unlockedAt,
+          ),
     );
   }
 
@@ -87,8 +97,9 @@ class AchievementUnlockSheet extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               achievement.title,
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -137,9 +148,10 @@ class AchievementUnlockSheet extends StatelessWidget {
         '${achievement.title} — ${achievement.description}. '
         'Unlocked on $dateStr. Discovered with Roavvy.';
     final box = context.findRenderObject() as RenderBox?;
-    final origin = box != null
-        ? box.localToGlobal(Offset.zero) & box.size
-        : Rect.fromLTWH(0, 0, 1, 1);
+    final origin =
+        box != null
+            ? box.localToGlobal(Offset.zero) & box.size
+            : Rect.fromLTWH(0, 0, 1, 1);
     Share.share(text, sharePositionOrigin: origin);
   }
 }

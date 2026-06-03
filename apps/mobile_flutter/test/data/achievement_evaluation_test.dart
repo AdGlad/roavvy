@@ -18,10 +18,8 @@ RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 
 // ── T2.9 helpers ────────────────────────────────────────────────────────────
 
-EffectiveVisitedCountry _visit(String code) => EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-    );
+EffectiveVisitedCountry _visit(String code) =>
+    EffectiveVisitedCountry(countryCode: code, hasPhotoEvidence: true);
 
 List<EffectiveVisitedCountry> _visits(List<String> codes) =>
     codes.map(_visit).toList();
@@ -56,35 +54,57 @@ void main() {
     });
 
     test('4 countries → countries_3 but not countries_5', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['GB', 'FR', 'DE', 'ES']));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(['GB', 'FR', 'DE', 'ES']),
+      );
       expect(unlocked, contains('countries_3'));
       expect(unlocked, isNot(contains('countries_5')));
     });
 
     test('5 countries → countries_5 (exact threshold)', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['GB', 'FR', 'DE', 'ES', 'IT']));
-      expect(unlocked, containsAll(['countries_1', 'countries_3', 'countries_5']));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(['GB', 'FR', 'DE', 'ES', 'IT']),
+      );
+      expect(
+        unlocked,
+        containsAll(['countries_1', 'countries_3', 'countries_5']),
+      );
       expect(unlocked, isNot(contains('countries_10')));
     });
 
     test('10 countries → countries_10 (exact threshold)', () {
-      final codes = ['GB', 'FR', 'DE', 'ES', 'IT', 'PT', 'NL', 'BE', 'CH', 'AT'];
+      final codes = [
+        'GB',
+        'FR',
+        'DE',
+        'ES',
+        'IT',
+        'PT',
+        'NL',
+        'BE',
+        'CH',
+        'AT',
+      ];
       final unlocked = AchievementEngine.evaluate(_visits(codes));
       expect(unlocked, contains('countries_10'));
       expect(unlocked, isNot(contains('countries_15')));
     });
 
     test('50 countries → countries_50 (exact threshold)', () {
-      final codes = List.generate(50, (i) => 'C${i.toString().padLeft(2, '0')}');
+      final codes = List.generate(
+        50,
+        (i) => 'C${i.toString().padLeft(2, '0')}',
+      );
       final unlocked = AchievementEngine.evaluate(_visits(codes));
       expect(unlocked, contains('countries_50'));
       expect(unlocked, isNot(contains('countries_75')));
     });
 
     test('49 countries → not countries_50', () {
-      final codes = List.generate(49, (i) => 'C${i.toString().padLeft(2, '0')}');
+      final codes = List.generate(
+        49,
+        (i) => 'C${i.toString().padLeft(2, '0')}',
+      );
       final unlocked = AchievementEngine.evaluate(_visits(codes));
       expect(unlocked, isNot(contains('countries_50')));
     });
@@ -105,14 +125,24 @@ void main() {
 
     test('6 continents → continents_all', () {
       final unlocked = AchievementEngine.evaluate(
-          _visits(['GB', 'JP', 'ZA', 'US', 'BR', 'AU']));
-      expect(unlocked,
-          containsAll(['continents_2', 'continents_3', 'continents_4', 'continents_5', 'continents_all']));
+        _visits(['GB', 'JP', 'ZA', 'US', 'BR', 'AU']),
+      );
+      expect(
+        unlocked,
+        containsAll([
+          'continents_2',
+          'continents_3',
+          'continents_4',
+          'continents_5',
+          'continents_all',
+        ]),
+      );
     });
 
     test('5 continents → continents_5 but not continents_all', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['GB', 'JP', 'ZA', 'US', 'BR']));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(['GB', 'JP', 'ZA', 'US', 'BR']),
+      );
       expect(unlocked, contains('continents_5'));
       expect(unlocked, isNot(contains('continents_all')));
     });
@@ -168,47 +198,67 @@ void main() {
 
   group('AchievementEngine.evaluate — this-year country count boundaries', () {
     test('2 this-year countries → no year achievement', () {
-      final unlocked =
-          AchievementEngine.evaluate([], thisYearCountryCount: 2);
+      final unlocked = AchievementEngine.evaluate([], thisYearCountryCount: 2);
       expect(unlocked, isNot(contains('year_countries_3')));
     });
 
     test('3 this-year countries → year_countries_3 (exact threshold)', () {
-      final unlocked =
-          AchievementEngine.evaluate([], thisYearCountryCount: 3);
+      final unlocked = AchievementEngine.evaluate([], thisYearCountryCount: 3);
       expect(unlocked, contains('year_countries_3'));
       expect(unlocked, isNot(contains('year_countries_5')));
     });
 
     test('10 this-year countries → all three year achievements', () {
-      final unlocked =
-          AchievementEngine.evaluate([], thisYearCountryCount: 10);
-      expect(unlocked, containsAll(
-          ['year_countries_3', 'year_countries_5', 'year_countries_10']));
+      final unlocked = AchievementEngine.evaluate([], thisYearCountryCount: 10);
+      expect(
+        unlocked,
+        containsAll([
+          'year_countries_3',
+          'year_countries_5',
+          'year_countries_10',
+        ]),
+      );
     });
   });
 
   group('AchievementEngine.evaluate — continent explorer boundaries', () {
     // European countries in kCountryContinent
-    final europeCodes = ['GB', 'FR', 'DE', 'ES', 'IT', 'PT', 'NL', 'BE', 'CH', 'AT'];
+    final europeCodes = [
+      'GB',
+      'FR',
+      'DE',
+      'ES',
+      'IT',
+      'PT',
+      'NL',
+      'BE',
+      'CH',
+      'AT',
+    ];
 
     test('2 Europe countries → no continent_europe_3', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(europeCodes.take(2).toList()));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(europeCodes.take(2).toList()),
+      );
       expect(unlocked, isNot(contains('continent_europe_3')));
     });
 
     test('3 Europe countries → continent_europe_3 (exact threshold)', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(europeCodes.take(3).toList()));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(europeCodes.take(3).toList()),
+      );
       expect(unlocked, contains('continent_europe_3'));
       expect(unlocked, isNot(contains('continent_europe_5')));
     });
 
     test('5 Europe countries → continent_europe_5', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(europeCodes.take(5).toList()));
-      expect(unlocked, containsAll(['continent_europe_3', 'continent_europe_5']));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(europeCodes.take(5).toList()),
+      );
+      expect(
+        unlocked,
+        containsAll(['continent_europe_3', 'continent_europe_5']),
+      );
       expect(unlocked, isNot(contains('continent_europe_10')));
     });
 
@@ -222,28 +272,38 @@ void main() {
     // Mediterranean: FR, IT, GR, ES, PT, HR, MT, CY (from subregion map)
     // SoutheastAsia: TH, VN, KH, LA, MM, MY
     test('4 Mediterranean countries → not region_mediterranean', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['FR', 'IT', 'GR', 'ES']));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(['FR', 'IT', 'GR', 'ES']),
+      );
       expect(unlocked, isNot(contains('region_mediterranean')));
     });
 
-    test('5 Mediterranean countries → region_mediterranean (exact threshold)', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['FR', 'IT', 'GR', 'ES', 'HR']));
-      expect(unlocked, contains('region_mediterranean'));
-    });
+    test(
+      '5 Mediterranean countries → region_mediterranean (exact threshold)',
+      () {
+        final unlocked = AchievementEngine.evaluate(
+          _visits(['FR', 'IT', 'GR', 'ES', 'HR']),
+        );
+        expect(unlocked, contains('region_mediterranean'));
+      },
+    );
 
     test('4 SoutheastAsia countries → not region_southeast_asia', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['TH', 'VN', 'KH', 'LA']));
+      final unlocked = AchievementEngine.evaluate(
+        _visits(['TH', 'VN', 'KH', 'LA']),
+      );
       expect(unlocked, isNot(contains('region_southeast_asia')));
     });
 
-    test('5 SoutheastAsia countries → region_southeast_asia (exact threshold)', () {
-      final unlocked =
-          AchievementEngine.evaluate(_visits(['TH', 'VN', 'KH', 'LA', 'MM']));
-      expect(unlocked, contains('region_southeast_asia'));
-    });
+    test(
+      '5 SoutheastAsia countries → region_southeast_asia (exact threshold)',
+      () {
+        final unlocked = AchievementEngine.evaluate(
+          _visits(['TH', 'VN', 'KH', 'LA', 'MM']),
+        );
+        expect(unlocked, contains('region_southeast_asia'));
+      },
+    );
   });
 
   group('AchievementEngine.evaluate — heritage site boundaries', () {
@@ -270,8 +330,15 @@ void main() {
         heritageCount: 1,
         heritageByCategory: {'cultural': 1, 'natural': 1, 'mixed': 1},
       );
-      expect(unlocked,
-          containsAll(['whs_1', 'whs_cultural_1', 'whs_natural_1', 'whs_mixed_1']));
+      expect(
+        unlocked,
+        containsAll([
+          'whs_1',
+          'whs_cultural_1',
+          'whs_natural_1',
+          'whs_mixed_1',
+        ]),
+      );
     });
 
     test('0 cultural heritage → no whs_cultural_1', () {
@@ -285,23 +352,30 @@ void main() {
     });
   });
 
-  group('AchievementEngine.evaluate — no double-counting across categories', () {
-    test('unknown country codes do not contribute to continent count', () {
-      // Codes not in kCountryContinent are silently ignored for continents.
-      final unlocked = AchievementEngine.evaluate(
-          _visits(['XX', 'YY'])); // fake codes
-      expect(unlocked, contains('countries_1'));
-      expect(unlocked, isNot(contains('continents_2')));
-    });
+  group(
+    'AchievementEngine.evaluate — no double-counting across categories',
+    () {
+      test('unknown country codes do not contribute to continent count', () {
+        // Codes not in kCountryContinent are silently ignored for continents.
+        final unlocked = AchievementEngine.evaluate(
+          _visits(['XX', 'YY']),
+        ); // fake codes
+        expect(unlocked, contains('countries_1'));
+        expect(unlocked, isNot(contains('continents_2')));
+      });
 
-    test('returned set contains only IDs for satisfied thresholds', () {
-      final unlocked = AchievementEngine.evaluate(_visits(['GB']), tripCount: 1);
-      // countries_1, trips_1 are unlocked; countries_3, trips_3 are not.
-      expect(unlocked, containsAll(['countries_1', 'trips_1']));
-      expect(unlocked, isNot(contains('countries_3')));
-      expect(unlocked, isNot(contains('trips_3')));
-    });
-  });
+      test('returned set contains only IDs for satisfied thresholds', () {
+        final unlocked = AchievementEngine.evaluate(
+          _visits(['GB']),
+          tripCount: 1,
+        );
+        // countries_1, trips_1 are unlocked; countries_3, trips_3 are not.
+        expect(unlocked, containsAll(['countries_1', 'trips_1']));
+        expect(unlocked, isNot(contains('countries_3')));
+        expect(unlocked, isNot(contains('trips_3')));
+      });
+    },
+  );
 
   // ── Scan site ─────────────────────────────────────────────────────────────
 
@@ -335,31 +409,38 @@ void main() {
       expect(stored, isNot(contains('countries_10')));
     });
 
-    test('second scan does not re-dirty already-unlocked achievements', () async {
-      final db = _makeDb();
-      final visitRepo = VisitRepository(db);
-      final achievementRepo = AchievementRepository(db);
-      final now = DateTime.utc(2025, 6, 1);
+    test(
+      'second scan does not re-dirty already-unlocked achievements',
+      () async {
+        final db = _makeDb();
+        final visitRepo = VisitRepository(db);
+        final achievementRepo = AchievementRepository(db);
+        final now = DateTime.utc(2025, 6, 1);
 
-      // First scan — unlock countries_1 and mark it clean (simulating a sync).
-      await visitRepo.saveAllInferred([
-        InferredCountryVisit(countryCode: 'GB', inferredAt: now, photoCount: 1),
-      ]);
-      await achievementRepo.upsertAll({'countries_1'}, now);
-      await achievementRepo.markClean('countries_1', now);
-      expect(await achievementRepo.loadDirty(), isEmpty);
+        // First scan — unlock countries_1 and mark it clean (simulating a sync).
+        await visitRepo.saveAllInferred([
+          InferredCountryVisit(
+            countryCode: 'GB',
+            inferredAt: now,
+            photoCount: 1,
+          ),
+        ]);
+        await achievementRepo.upsertAll({'countries_1'}, now);
+        await achievementRepo.markClean('countries_1', now);
+        expect(await achievementRepo.loadDirty(), isEmpty);
 
-      // Second scan — same single country, no new achievements.
-      final effective = await visitRepo.loadEffective();
-      final priorIds = (await achievementRepo.loadAll()).toSet();
-      final unlockedIds = AchievementEngine.evaluate(effective);
-      final newlyUnlockedIds = unlockedIds.difference(priorIds);
-      if (newlyUnlockedIds.isNotEmpty) {
-        await achievementRepo.upsertAll(newlyUnlockedIds, now);
-      }
+        // Second scan — same single country, no new achievements.
+        final effective = await visitRepo.loadEffective();
+        final priorIds = (await achievementRepo.loadAll()).toSet();
+        final unlockedIds = AchievementEngine.evaluate(effective);
+        final newlyUnlockedIds = unlockedIds.difference(priorIds);
+        if (newlyUnlockedIds.isNotEmpty) {
+          await achievementRepo.upsertAll(newlyUnlockedIds, now);
+        }
 
-      // countries_1 was already known — not re-dirtied.
-      expect(await achievementRepo.loadDirty(), isEmpty);
-    });
+        // countries_1 was already known — not re-dirtied.
+        expect(await achievementRepo.loadDirty(), isEmpty);
+      },
+    );
   });
 }

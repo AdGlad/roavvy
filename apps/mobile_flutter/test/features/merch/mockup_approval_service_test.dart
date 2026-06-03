@@ -11,16 +11,15 @@ void main() {
     String id = 'ma-001',
     String? artworkConfirmationId = 'ac-001',
     String? placementType = 'front',
-  }) =>
-      MockupApproval(
-        mockupApprovalId: id,
-        userId: uid,
-        artworkConfirmationId: artworkConfirmationId,
-        templateType: CardTemplateType.grid,
-        variantId: 'gid://shopify/ProductVariant/12345',
-        placementType: placementType,
-        confirmedAt: confirmedAt,
-      );
+  }) => MockupApproval(
+    mockupApprovalId: id,
+    userId: uid,
+    artworkConfirmationId: artworkConfirmationId,
+    templateType: CardTemplateType.grid,
+    variantId: 'gid://shopify/ProductVariant/12345',
+    placementType: placementType,
+    confirmedAt: confirmedAt,
+  );
 
   group('MockupApprovalService', () {
     late FakeFirebaseFirestore fakeFirestore;
@@ -31,21 +30,24 @@ void main() {
       service = MockupApprovalService(fakeFirestore);
     });
 
-    test('create() writes document to users/{uid}/mockup_approvals/{id}',
-        () async {
-      final approval = makeApproval();
-      await service.create(approval);
+    test(
+      'create() writes document to users/{uid}/mockup_approvals/{id}',
+      () async {
+        final approval = makeApproval();
+        await service.create(approval);
 
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-001')
-          .collection('mockup_approvals')
-          .doc('ma-001')
-          .get();
+        final snap =
+            await fakeFirestore
+                .collection('users')
+                .doc('user-001')
+                .collection('mockup_approvals')
+                .doc('ma-001')
+                .get();
 
-      expect(snap.exists, isTrue);
-      expect(snap.data()?['mockupApprovalId'], 'ma-001');
-    });
+        expect(snap.exists, isTrue);
+        expect(snap.data()?['mockupApprovalId'], 'ma-001');
+      },
+    );
 
     test('create() returns the mockupApprovalId', () async {
       final approval = makeApproval(id: 'ma-999');
@@ -57,12 +59,13 @@ void main() {
       final approval = makeApproval(uid: 'user-xyz', id: 'ma-abc');
       await service.create(approval);
 
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-xyz')
-          .collection('mockup_approvals')
-          .doc('ma-abc')
-          .get();
+      final snap =
+          await fakeFirestore
+              .collection('users')
+              .doc('user-xyz')
+              .collection('mockup_approvals')
+              .doc('ma-abc')
+              .get();
 
       final data = snap.data()!;
       expect(data['userId'], 'user-xyz');
@@ -78,12 +81,13 @@ void main() {
       await expectLater(service.create(approval), completes);
 
       // Document should still exist with original data.
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-001')
-          .collection('mockup_approvals')
-          .doc('ma-001')
-          .get();
+      final snap =
+          await fakeFirestore
+              .collection('users')
+              .doc('user-001')
+              .collection('mockup_approvals')
+              .doc('ma-001')
+              .get();
       expect(snap.exists, isTrue);
     });
 
@@ -91,12 +95,13 @@ void main() {
       final approval = makeApproval(artworkConfirmationId: null);
       await service.create(approval);
 
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-001')
-          .collection('mockup_approvals')
-          .doc('ma-001')
-          .get();
+      final snap =
+          await fakeFirestore
+              .collection('users')
+              .doc('user-001')
+              .collection('mockup_approvals')
+              .doc('ma-001')
+              .get();
 
       // toFirestore() uses conditional inclusion — null fields are omitted.
       expect(snap.exists, isTrue);
@@ -107,12 +112,13 @@ void main() {
       final approval = makeApproval(placementType: null);
       await service.create(approval);
 
-      final snap = await fakeFirestore
-          .collection('users')
-          .doc('user-001')
-          .collection('mockup_approvals')
-          .doc('ma-001')
-          .get();
+      final snap =
+          await fakeFirestore
+              .collection('users')
+              .doc('user-001')
+              .collection('mockup_approvals')
+              .doc('ma-001')
+              .get();
 
       expect(snap.data()!.containsKey('placementType'), isFalse);
     });

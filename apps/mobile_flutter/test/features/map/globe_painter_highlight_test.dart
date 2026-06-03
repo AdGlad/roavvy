@@ -10,15 +10,14 @@ void main() {
   GlobePainter makePainter({
     String? highlightedCode,
     double pulseValue = 0.0,
-  }) =>
-      GlobePainter(
-        polygons: const [],
-        visualStates: const {},
-        tripCounts: const {},
-        projection: proj,
-        highlightedCode: highlightedCode,
-        pulseValue: pulseValue,
-      );
+  }) => GlobePainter(
+    polygons: const [],
+    visualStates: const {},
+    tripCounts: const {},
+    projection: proj,
+    highlightedCode: highlightedCode,
+    pulseValue: pulseValue,
+  );
 
   group('GlobePainter.shouldRepaint', () {
     test('returns false when nothing changes', () {

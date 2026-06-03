@@ -9,7 +9,8 @@ double distanceKm(double lat1, double lng1, double lat2, double lng2) {
   const r = 6371.0;
   final dLat = _rad(lat2 - lat1);
   final dLng = _rad(lng2 - lng1);
-  final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+  final a =
+      math.sin(dLat / 2) * math.sin(dLat / 2) +
       math.cos(_rad(lat1)) *
           math.cos(_rad(lat2)) *
           math.sin(dLng / 2) *
@@ -24,7 +25,8 @@ double bearingDeg(double fromLat, double fromLng, double toLat, double toLng) {
   final lat1 = _rad(fromLat);
   final lat2 = _rad(toLat);
   final y = math.sin(dLng) * math.cos(lat2);
-  final x = math.cos(lat1) * math.sin(lat2) -
+  final x =
+      math.cos(lat1) * math.sin(lat2) -
       math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
   return (_deg(math.atan2(y, x)) + 360) % 360;
 }

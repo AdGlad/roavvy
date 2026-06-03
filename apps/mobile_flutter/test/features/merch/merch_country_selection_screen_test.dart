@@ -9,16 +9,12 @@ import 'package:shared_models/shared_models.dart';
 
 // ── Fixture helpers ────────────────────────────────────────────────────────────
 
-EffectiveVisitedCountry _visit(String code) => EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-    );
+EffectiveVisitedCountry _visit(String code) =>
+    EffectiveVisitedCountry(countryCode: code, hasPhotoEvidence: true);
 
 Widget _pump(List<EffectiveVisitedCountry> visits) {
   return ProviderScope(
-    overrides: [
-      effectiveVisitsProvider.overrideWith((_) async => visits),
-    ],
+    overrides: [effectiveVisitsProvider.overrideWith((_) async => visits)],
     child: const MaterialApp(home: MerchCountrySelectionScreen()),
   );
 }
@@ -134,26 +130,30 @@ void main() {
   });
 
   group('MerchCountrySelectionScreen — Continue button', () {
-    testWidgets('"Choose a design" button is enabled when countries are selected',
-        (tester) async {
-      await tester.pumpWidget(_pump([_visit('GB')]));
-      await tester.pumpAndSettle();
+    testWidgets(
+      '"Choose a design" button is enabled when countries are selected',
+      (tester) async {
+        await tester.pumpWidget(_pump([_visit('GB')]));
+        await tester.pumpAndSettle();
 
-      final btn = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(btn.onPressed, isNotNull);
-    });
+        final btn = tester.widget<FilledButton>(find.byType(FilledButton));
+        expect(btn.onPressed, isNotNull);
+      },
+    );
 
-    testWidgets('"Choose a design" button is disabled when no countries selected',
-        (tester) async {
-      await tester.pumpWidget(_pump([_visit('GB')]));
-      await tester.pumpAndSettle();
+    testWidgets(
+      '"Choose a design" button is disabled when no countries selected',
+      (tester) async {
+        await tester.pumpWidget(_pump([_visit('GB')]));
+        await tester.pumpAndSettle();
 
-      // Deselect the only country
-      await tester.tap(find.byType(CheckboxListTile).first);
-      await tester.pump();
+        // Deselect the only country
+        await tester.tap(find.byType(CheckboxListTile).first);
+        await tester.pump();
 
-      final btn = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(btn.onPressed, isNull);
-    });
+        final btn = tester.widget<FilledButton>(find.byType(FilledButton));
+        expect(btn.onPressed, isNull);
+      },
+    );
   });
 }

@@ -28,19 +28,23 @@ Widget _wrap(
   );
 }
 
-List<EffectiveVisitedCountry> _makeVisits(List<String> codes) => codes
-    .map((c) => EffectiveVisitedCountry(
-          countryCode: c,
-          hasPhotoEvidence: true,
-          firstSeen: DateTime(2020),
-          lastSeen: DateTime(2023),
-        ))
-    .toList();
+List<EffectiveVisitedCountry> _makeVisits(List<String> codes) =>
+    codes
+        .map(
+          (c) => EffectiveVisitedCountry(
+            countryCode: c,
+            hasPhotoEvidence: true,
+            firstSeen: DateTime(2020),
+            lastSeen: DateTime(2023),
+          ),
+        )
+        .toList();
 
 void main() {
   group('CardTypePickerScreen', () {
-    testWidgets('shows first three card-type labels when visits exist',
-        (tester) async {
+    testWidgets('shows first three card-type labels when visits exist', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const CardTypePickerScreen(),
@@ -57,8 +61,9 @@ void main() {
       expect(find.text('Passport'), findsOneWidget);
     });
 
-    testWidgets('Timeline tile becomes visible after scrolling',
-        (tester) async {
+    testWidgets('Timeline tile becomes visible after scrolling', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const CardTypePickerScreen(),
@@ -72,8 +77,7 @@ void main() {
       // Use a smaller drag distance to avoid scrolling into the word_cloud tile
       // (index 4), which triggers a negative-fontSize assertion in the test
       // environment when rendered at zero width.
-      await tester.drag(
-          find.byType(ListView), const Offset(-400, 0));
+      await tester.drag(find.byType(ListView), const Offset(-400, 0));
       await tester.pump();
       // The word_cloud tile may render at zero width in tests, causing an
       // internal fontSize assertion. Absorb it — the Timeline tile is still
@@ -90,20 +94,15 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(
-        find.text('Scan your photos to generate a card'),
-        findsOneWidget,
-      );
+      expect(find.text('Scan your photos to generate a card'), findsOneWidget);
       expect(find.text('Flag Grid'), findsNothing);
     });
 
-    testWidgets('shows "Choose a style" heading when visits exist',
-        (tester) async {
+    testWidgets('shows "Choose a style" heading when visits exist', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(
-          const CardTypePickerScreen(),
-          visits: _makeVisits(['GB']),
-        ),
+        _wrap(const CardTypePickerScreen(), visits: _makeVisits(['GB'])),
       );
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -111,13 +110,11 @@ void main() {
       expect(find.text('Choose a style'), findsOneWidget);
     });
 
-    testWidgets('tapping Flag Grid tile pushes CardEditorScreen',
-        (tester) async {
+    testWidgets('tapping Flag Grid tile pushes CardEditorScreen', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(
-          const CardTypePickerScreen(),
-          visits: _makeVisits(['GB', 'US']),
-        ),
+        _wrap(const CardTypePickerScreen(), visits: _makeVisits(['GB', 'US'])),
       );
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -129,13 +126,9 @@ void main() {
       expect(find.byType(CardEditorScreen), findsOneWidget);
     });
 
-    testWidgets('tapping Heart tile pushes CardEditorScreen',
-        (tester) async {
+    testWidgets('tapping Heart tile pushes CardEditorScreen', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const CardTypePickerScreen(),
-          visits: _makeVisits(['GB', 'US']),
-        ),
+        _wrap(const CardTypePickerScreen(), visits: _makeVisits(['GB', 'US'])),
       );
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));

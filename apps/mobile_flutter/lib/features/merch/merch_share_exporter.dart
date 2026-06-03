@@ -14,16 +14,18 @@ class MerchShareExporter {
   /// Shares [artworkBytes] as a PNG file with [title] as the share subject.
   ///
   /// Returns true if the share sheet was presented successfully.
-  static Future<bool> share(Uint8List artworkBytes, {String title = 'My Travel Design'}) async {
+  static Future<bool> share(
+    Uint8List artworkBytes, {
+    String title = 'My Travel Design',
+  }) async {
     try {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/roavvy_design.png');
       await file.writeAsBytes(artworkBytes);
 
-      final result = await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'image/png')],
-        subject: title,
-      );
+      final result = await Share.shareXFiles([
+        XFile(file.path, mimeType: 'image/png'),
+      ], subject: title);
 
       return result.status == ShareResultStatus.success ||
           result.status == ShareResultStatus.dismissed;

@@ -36,6 +36,7 @@ class CountryDiscoveredEvent extends ReplayEvent {
   final String toCode;
   final DateTime date;
   final double? fromLat, fromLng, toLat, toLng;
+
   /// True when this is the first time [toCode] is visited in this replay.
   /// Drives the flag-reveal + confetti discovery animation (M133).
   final bool isFirstVisit;
@@ -126,32 +127,38 @@ class HistoricalReplayDataSource extends ChangeNotifier
         _queue.add(YearStartedEvent(year: leg.date.year));
         lastYear = leg.date.year;
       }
-      _queue.add(CountryDiscoveredEvent(
-        fromCode: leg.fromCode,
-        toCode: leg.toCode,
-        date: leg.date,
-        fromLat: leg.fromLat,
-        fromLng: leg.fromLng,
-        toLat: leg.toLat,
-        toLng: leg.toLng,
-        isFirstVisit: leg.isFirstVisit,
-      ));
+      _queue.add(
+        CountryDiscoveredEvent(
+          fromCode: leg.fromCode,
+          toCode: leg.toCode,
+          date: leg.date,
+          fromLat: leg.fromLat,
+          fromLng: leg.fromLng,
+          toLat: leg.toLat,
+          toLng: leg.toLng,
+          isFirstVisit: leg.isFirstVisit,
+        ),
+      );
       // Per-leg overlay events (heritage, achievements).
       for (final oe in script.overlayEvents[i] ?? const []) {
         switch (oe) {
           case ReplayHeritageEvent e:
-            _queue.add(HeritageSiteDiscoveredEvent(
-              countryCode: leg.toCode,
-              siteName: e.siteName,
-              siteType: e.siteType,
-            ));
+            _queue.add(
+              HeritageSiteDiscoveredEvent(
+                countryCode: leg.toCode,
+                siteName: e.siteName,
+                siteType: e.siteType,
+              ),
+            );
           case ReplayAchievementEvent e:
-            _queue.add(AchievementUnlockedEvent(
-              achievementId: e.achievementId,
-              title: e.title,
-              subtitle: e.subtitle,
-              countryCode: leg.toCode,
-            ));
+            _queue.add(
+              AchievementUnlockedEvent(
+                achievementId: e.achievementId,
+                title: e.title,
+                subtitle: e.subtitle,
+                countryCode: leg.toCode,
+              ),
+            );
           case ReplayStatEvent _:
             break; // stat events not surfaced through this interface
         }

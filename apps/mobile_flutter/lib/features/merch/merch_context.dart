@@ -80,10 +80,9 @@ class MerchContext {
     required List<TripRecord> allTrips,
   }) {
     // Sort by firstSeen so "first N" picks the chronologically earliest.
-    final byDate = allVisits
-        .where((v) => v.firstSeen != null)
-        .toList()
-      ..sort((a, b) => a.firstSeen!.compareTo(b.firstSeen!));
+    final byDate =
+        allVisits.where((v) => v.firstSeen != null).toList()
+          ..sort((a, b) => a.firstSeen!.compareTo(b.firstSeen!));
 
     final allCodes = allVisits.map((v) => v.countryCode).toList();
 
@@ -122,8 +121,10 @@ class MerchContext {
     // Continent-explorer: filter to only countries in the specified continent.
     if (achievement.continentScope != null) {
       return allVisits
-          .where((v) =>
-              kCountryContinent[v.countryCode] == achievement.continentScope)
+          .where(
+            (v) =>
+                kCountryContinent[v.countryCode] == achievement.continentScope,
+          )
           .map((v) => v.countryCode)
           .toList();
     }
@@ -131,8 +132,9 @@ class MerchContext {
     // Region: filter to only countries in the specified sub-region.
     if (achievement.regionScope != null) {
       return allVisits
-          .where((v) =>
-              kCountrySubRegion[v.countryCode] == achievement.regionScope)
+          .where(
+            (v) => kCountrySubRegion[v.countryCode] == achievement.regionScope,
+          )
           .map((v) => v.countryCode)
           .toList();
     }
@@ -148,16 +150,21 @@ class MerchContext {
       // For large country milestones and all continent achievements, the scope
       // is every visited country — the achievement is about breadth, not a
       // specific subset.
-      AchievementCategory.countries || AchievementCategory.continents =>
-        allCodes,
-      AchievementCategory.trips =>
-        _codesForFirstNTrips(allTrips, achievement.progressTarget),
-      AchievementCategory.thisYear => allVisits
-          .where((v) =>
-              v.firstSeen != null &&
-              v.firstSeen!.year == DateTime.now().year)
-          .map((v) => v.countryCode)
-          .toList(),
+      AchievementCategory.countries ||
+      AchievementCategory.continents => allCodes,
+      AchievementCategory.trips => _codesForFirstNTrips(
+        allTrips,
+        achievement.progressTarget,
+      ),
+      AchievementCategory.thisYear =>
+        allVisits
+            .where(
+              (v) =>
+                  v.firstSeen != null &&
+                  v.firstSeen!.year == DateTime.now().year,
+            )
+            .map((v) => v.countryCode)
+            .toList(),
       AchievementCategory.heritageSites => allCodes,
     };
   }
@@ -175,23 +182,20 @@ class MerchContext {
     }
 
     return switch (achievement.category) {
-      AchievementCategory.trips => (allTrips.toList()
-            ..sort((a, b) => a.startedOn.compareTo(b.startedOn)))
-          .take(achievement.progressTarget)
-          .toList(),
-      AchievementCategory.thisYear => allTrips
-          .where((t) => t.startedOn.year == DateTime.now().year)
-          .toList(),
-      _ => allTrips
-          .where((t) => resolvedCodes.contains(t.countryCode))
-          .toList(),
+      AchievementCategory.trips =>
+        (allTrips.toList()..sort((a, b) => a.startedOn.compareTo(b.startedOn)))
+            .take(achievement.progressTarget)
+            .toList(),
+      AchievementCategory.thisYear =>
+        allTrips.where((t) => t.startedOn.year == DateTime.now().year).toList(),
+      _ =>
+        allTrips.where((t) => resolvedCodes.contains(t.countryCode)).toList(),
     };
   }
 
-  static List<String> _codesForFirstNTrips(
-      List<TripRecord> allTrips, int n) {
-    final sorted = allTrips.toList()
-      ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+  static List<String> _codesForFirstNTrips(List<TripRecord> allTrips, int n) {
+    final sorted =
+        allTrips.toList()..sort((a, b) => a.startedOn.compareTo(b.startedOn));
     return sorted.take(n).map((t) => t.countryCode).toSet().toList();
   }
 
@@ -213,8 +217,7 @@ class MerchContext {
     };
   }
 
-  static String _scopeDescription(
-      Achievement achievement, List<String> codes) {
+  static String _scopeDescription(Achievement achievement, List<String> codes) {
     final n = achievement.progressTarget;
     final year = DateTime.now().year;
     final firstName =
@@ -287,8 +290,8 @@ class MerchContext {
 
       // Badge and typography are scoped — don't offer a "World Collection"
       // variant for these templates.
-      final includeWorld = _hasWorldCollection &&
-          rank.template != CardTemplateType.badge;
+      final includeWorld =
+          _hasWorldCollection && rank.template != CardTemplateType.badge;
 
       // Prefix the section label with any active drop badge.
       final drop = MerchDrop.forTemplate(rank.template);
@@ -376,12 +379,15 @@ class MerchContext {
     if (codes.isNotEmpty) {
       final isPassport = template == CardTemplateType.passport;
       final density = MerchTemplateRanker.densityFor(codes.length);
-      final tune = isPassport
-          ? merchAutoTuneStamps(trips.length * 2)
-          : merchAutoTuneCodes(codes.length);
+      final tune =
+          isPassport
+              ? merchAutoTuneStamps(trips.length * 2)
+              : merchAutoTuneCodes(codes.length);
 
-      final suggestedColour =
-          merchSuggestShirtColor(template, density: density);
+      final suggestedColour = merchSuggestShirtColor(
+        template,
+        density: density,
+      );
 
       final option = PulseMerchOption(
         id: '${template.name}_scoped_${achievement?.id ?? 'ctx'}',
@@ -397,32 +403,42 @@ class MerchContext {
         contextLabel: contextLabel,
         artworkSubtitle: artworkSubtitle,
       );
-      items.add(isFeatured
-          ? MerchOptionFeaturedEntry(option)
-          : MerchOptionEntry(option));
+      items.add(
+        isFeatured
+            ? MerchOptionFeaturedEntry(option)
+            : MerchOptionEntry(option),
+      );
 
       if (includeWorldCollection && allCodes.isNotEmpty) {
-        final allTune = isPassport
-            ? merchAutoTuneStamps(allTrips.length * 2)
-            : merchAutoTuneCodes(allCodes.length);
-        items.add(MerchOptionEntry(PulseMerchOption(
-          id: '${template.name}_world_${achievement?.id ?? 'ctx'}',
-          title: 'World Collection',
-          description: '${allCodes.length} countries across all your travels',
-          scope: PulseMerchScope.allTime,
-          template: template,
-          codes: allCodes,
-          trips: allTrips,
-          jitter: allTune.jitter,
-          stampSizeMultiplier: allTune.size,
-          suggestedShirtColor: suggestedColour,
-        )));
+        final allTune =
+            isPassport
+                ? merchAutoTuneStamps(allTrips.length * 2)
+                : merchAutoTuneCodes(allCodes.length);
+        items.add(
+          MerchOptionEntry(
+            PulseMerchOption(
+              id: '${template.name}_world_${achievement?.id ?? 'ctx'}',
+              title: 'World Collection',
+              description:
+                  '${allCodes.length} countries across all your travels',
+              scope: PulseMerchScope.allTime,
+              template: template,
+              codes: allCodes,
+              trips: allTrips,
+              jitter: allTune.jitter,
+              stampSizeMultiplier: allTune.size,
+              suggestedShirtColor: suggestedColour,
+            ),
+          ),
+        );
       }
     }
 
-    items.add(MerchOptionCustomiseEntry(
-      template: template,
-      label: 'Customise ${merchTemplateLabel(template)}',
-    ));
+    items.add(
+      MerchOptionCustomiseEntry(
+        template: template,
+        label: 'Customise ${merchTemplateLabel(template)}',
+      ),
+    );
   }
 }

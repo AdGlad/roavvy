@@ -15,16 +15,78 @@ RoavvyDatabase _makeDb() => RoavvyDatabase(NativeDatabase.memory());
 // Minimal valid 1×1 RGB PNG — generated with Python's zlib + struct (69 bytes).
 // Decodes successfully via ui.instantiateImageCodec in Flutter tests.
 final _kFakeArtwork = Uint8List.fromList([
-  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1,
-  0, 0, 0, 1, 8, 2, 0, 0, 0, 144, 119, 83, 222, 0, 0, 0, 12, 73, 68, 65, 84,
-  120, 156, 99, 72, 153, 118, 2, 0, 3, 36, 1, 195, 32, 85, 100, 163, 0, 0, 0,
-  0, 73, 69, 78, 68, 174, 66, 96, 130,
+  137,
+  80,
+  78,
+  71,
+  13,
+  10,
+  26,
+  10,
+  0,
+  0,
+  0,
+  13,
+  73,
+  72,
+  68,
+  82,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  1,
+  8,
+  2,
+  0,
+  0,
+  0,
+  144,
+  119,
+  83,
+  222,
+  0,
+  0,
+  0,
+  12,
+  73,
+  68,
+  65,
+  84,
+  120,
+  156,
+  99,
+  72,
+  153,
+  118,
+  2,
+  0,
+  3,
+  36,
+  1,
+  195,
+  32,
+  85,
+  100,
+  163,
+  0,
+  0,
+  0,
+  0,
+  73,
+  69,
+  78,
+  68,
+  174,
+  66,
+  96,
+  130,
 ]);
 
-Widget _wrap(
-  Widget child, {
-  String? uid = 'test-uid',
-}) {
+Widget _wrap(Widget child, {String? uid = 'test-uid'}) {
   final db = _makeDb();
   return ProviderScope(
     overrides: [
@@ -62,13 +124,15 @@ void main() {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
-      tester.takeException(); // absorb CardImageRenderer: render boundary not found
+      tester
+          .takeException(); // absorb CardImageRenderer: render boundary not found
 
       expect(find.text('T-Shirt Preview'), findsOneWidget);
     });
 
-    testWidgets('shows "Approve & Preview" CTA when no template change',
-        (tester) async {
+    testWidgets('shows "Approve & Preview" CTA when no template change', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
@@ -89,8 +153,7 @@ void main() {
       expect(find.text('Approve & Preview'), findsOneWidget);
     });
 
-    testWidgets('back button pops (returns null) when tapped',
-        (tester) async {
+    testWidgets('back button pops (returns null) when tapped', (tester) async {
       final navigatorKey = GlobalKey<NavigatorState>();
       final db = _makeDb();
       await tester.pumpWidget(
@@ -102,14 +165,15 @@ void main() {
           child: MaterialApp(
             navigatorKey: navigatorKey,
             home: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => _makeScreen()),
-                  );
-                },
-                child: const Text('Go'),
-              ),
+              builder:
+                  (context) => ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => _makeScreen()),
+                      );
+                    },
+                    child: const Text('Go'),
+                  ),
             ),
           ),
         ),
@@ -118,7 +182,9 @@ void main() {
 
       await tester.tap(find.text('Go'));
       await tester.pump(); // start route transition
-      await tester.pump(const Duration(milliseconds: 300)); // complete transition
+      await tester.pump(
+        const Duration(milliseconds: 300),
+      ); // complete transition
       tester.takeException(); // absorb any image-decode errors
       await tester.pump();
       tester.takeException(); // absorb CardImageRenderer error
@@ -134,7 +200,6 @@ void main() {
       // Screen popped.
       expect(find.byType(LocalMockupPreviewScreen), findsNothing);
     });
-
   });
 
   group('M55-C — inline re-confirmation banner', () {
@@ -142,11 +207,13 @@ void main() {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
-      tester.takeException(); // absorb CardImageRenderer: render boundary not found
+      tester
+          .takeException(); // absorb CardImageRenderer: render boundary not found
 
       expect(
         find.text(
-            'Design changed — please confirm this is correct before ordering'),
+          'Design changed — please confirm this is correct before ordering',
+        ),
         findsNothing,
       );
     });
@@ -157,40 +224,46 @@ void main() {
     // unaffected by the M65 changes. Ready-state (Printful URL) tests require
     // Firebase Function mocking and are covered by manual QA.
 
-    testWidgets('unavailable banner NOT shown in configuring state',
-        (tester) async {
+    testWidgets('unavailable banner NOT shown in configuring state', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
-      tester.takeException(); // absorb CardImageRenderer: render boundary not found
+      tester
+          .takeException(); // absorb CardImageRenderer: render boundary not found
 
       expect(find.text('Front mockup unavailable'), findsNothing);
       expect(find.text('Back mockup unavailable'), findsNothing);
     });
 
-    testWidgets('unavailable banner NOT shown in configuring state — back face',
-        (tester) async {
-      await tester.pumpWidget(_wrap(_makeScreen()));
-      tester.takeException();
-      await tester.pump();
-
-      // Simulate toggling to back face via placement toggle.
-      // The toggle is inside the compact strip which renders for t-shirt.
-      final backFinders = find.text('Back');
-      if (backFinders.evaluate().isNotEmpty) {
-        await tester.tap(backFinders.first);
+    testWidgets(
+      'unavailable banner NOT shown in configuring state — back face',
+      (tester) async {
+        await tester.pumpWidget(_wrap(_makeScreen()));
+        tester.takeException();
         await tester.pump();
-      }
 
-      expect(find.text('Back mockup unavailable'), findsNothing);
-    });
+        // Simulate toggling to back face via placement toggle.
+        // The toggle is inside the compact strip which renders for t-shirt.
+        final backFinders = find.text('Back');
+        if (backFinders.evaluate().isNotEmpty) {
+          await tester.tap(backFinders.first);
+          await tester.pump();
+        }
 
-    testWidgets('Approve CTA still present in configuring state after M65',
-        (tester) async {
+        expect(find.text('Back mockup unavailable'), findsNothing);
+      },
+    );
+
+    testWidgets('Approve CTA still present in configuring state after M65', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(_makeScreen()));
       tester.takeException();
       await tester.pump();
-      tester.takeException(); // absorb CardImageRenderer: render boundary not found
+      tester
+          .takeException(); // absorb CardImageRenderer: render boundary not found
 
       expect(find.text('Approve & Preview'), findsOneWidget);
     });
@@ -201,11 +274,14 @@ void main() {
       await tester.pumpWidget(_wrap(_makeScreen(), uid: null));
       tester.takeException();
       await tester.pump();
-      tester.takeException(); // absorb CardImageRenderer: render boundary not found
+      tester
+          .takeException(); // absorb CardImageRenderer: render boundary not found
 
-      tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Approve & Preview'),
-      ).onPressed!();
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Approve & Preview'),
+          )
+          .onPressed!();
       await tester.pump();
 
       expect(find.text('Please sign in to continue'), findsOneWidget);
@@ -215,11 +291,14 @@ void main() {
       await tester.pumpWidget(_wrap(_makeScreen(), uid: null));
       tester.takeException();
       await tester.pump();
-      tester.takeException(); // absorb CardImageRenderer: render boundary not found
+      tester
+          .takeException(); // absorb CardImageRenderer: render boundary not found
 
-      tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Approve & Preview'),
-      ).onPressed!();
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Approve & Preview'),
+          )
+          .onPressed!();
       await tester.pump();
 
       // Screen stays open.

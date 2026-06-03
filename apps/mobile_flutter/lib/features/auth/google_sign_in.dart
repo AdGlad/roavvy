@@ -51,10 +51,12 @@ Future<void> signInWithGoogle({
   // persistent UID (ADR-030). Fire-and-forget: failures are silent.
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid != null) {
-    unawaited((syncService ?? FirestoreSyncService()).flushDirty(
-      uid,
-      repo,
-      tripRepo: tripRepo,
-    ));
+    unawaited(
+      (syncService ?? FirestoreSyncService()).flushDirty(
+        uid,
+        repo,
+        tripRepo: tripRepo,
+      ),
+    );
   }
 }

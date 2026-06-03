@@ -21,10 +21,10 @@ class HeroAnalysisService {
     HeroAnalysisChannel? channel,
     HeroCandidateSelector? selector,
     HeroScoringEngine? scoringEngine,
-  })  : _repository = repository,
-        _channel = channel ?? HeroAnalysisChannel(),
-        _selector = selector ?? const HeroCandidateSelector(),
-        _scoringEngine = scoringEngine ?? const HeroScoringEngine();
+  }) : _repository = repository,
+       _channel = channel ?? HeroAnalysisChannel(),
+       _selector = selector ?? const HeroCandidateSelector(),
+       _scoringEngine = scoringEngine ?? const HeroScoringEngine();
 
   final HeroImageRepository _repository;
   final HeroAnalysisChannel _channel;

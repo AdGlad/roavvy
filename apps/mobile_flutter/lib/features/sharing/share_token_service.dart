@@ -10,7 +10,7 @@ import '../../data/visit_repository.dart';
 /// (ADR-041, ADR-043).
 class ShareTokenService {
   const ShareTokenService({FirebaseFirestore? firestore})
-      : _firestoreOverride = firestore;
+    : _firestoreOverride = firestore;
 
   final FirebaseFirestore? _firestoreOverride;
 

@@ -5,22 +5,21 @@ import 'package:mobile_flutter/features/cards/passport_stamp_model.dart';
 import 'package:mobile_flutter/features/cards/rare_artefact_engine.dart';
 
 StampData _stamp({bool enableArtefacts = true}) => StampData.fromCode(
-      'JP',
-      style: StampStyle.airportEntry,
-      inkFamilyIndex: 0,
-      ageEffect: StampAgeEffect.fresh,
-      rotation: 0,
-      center: const Offset(100, 100),
-      renderConfig: StampRenderConfig(enableRareArtefacts: enableArtefacts),
-    );
+  'JP',
+  style: StampStyle.airportEntry,
+  inkFamilyIndex: 0,
+  ageEffect: StampAgeEffect.fresh,
+  rotation: 0,
+  center: const Offset(100, 100),
+  renderConfig: StampRenderConfig(enableRareArtefacts: enableArtefacts),
+);
 
 void main() {
   group('RareArtefactEngine', () {
     test('apply does not throw with artefacts enabled', () {
       final recorder = PictureRecorder();
       final canvas = Canvas(recorder);
-      RareArtefactEngine.apply(
-          canvas, _stamp(), const Offset(100, 100), 40.0);
+      RareArtefactEngine.apply(canvas, _stamp(), const Offset(100, 100), 40.0);
       final picture = recorder.endRecording();
       picture.dispose();
     });
@@ -32,7 +31,11 @@ void main() {
       final recorder = PictureRecorder();
       final canvas = Canvas(recorder);
       RareArtefactEngine.apply(
-          canvas, _stamp(enableArtefacts: false), const Offset(50, 50), 30.0);
+        canvas,
+        _stamp(enableArtefacts: false),
+        const Offset(50, 50),
+        30.0,
+      );
       final picture = recorder.endRecording();
       expect(picture, isNotNull);
       picture.dispose();

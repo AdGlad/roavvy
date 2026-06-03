@@ -23,12 +23,16 @@ const kPastelPalette = [
   Color(0xFFE8D5B7), // pastel tan
 ];
 
-const kOcean          = Color(0xFF1B3A5C); // lighter navy ocean
-const kAtmosphere     = Color(0xFF3A6A9A); // atmosphere rim
-const kWorldCountry   = Color(0xFF2D5280); // world map background countries
-const kWorldBorder    = Color(0xFF3D6490); // world country borders
-const kUnvisitedRegion = Color(0xFF3A6080); // unvisited regions of selected country
-const kUnvisitedBorder = Color(0xFF4E7AA0); // unvisited region borders (clearly visible)
+const kOcean = Color(0xFF1B3A5C); // lighter navy ocean
+const kAtmosphere = Color(0xFF3A6A9A); // atmosphere rim
+const kWorldCountry = Color(0xFF2D5280); // world map background countries
+const kWorldBorder = Color(0xFF3D6490); // world country borders
+const kUnvisitedRegion = Color(
+  0xFF3A6080,
+); // unvisited regions of selected country
+const kUnvisitedBorder = Color(
+  0xFF4E7AA0,
+); // unvisited region borders (clearly visible)
 
 /// Average-of-vertices centroid for back-face culling.
 (double, double) polyCentroid(RegionPolygon p) {
@@ -64,7 +68,7 @@ class RegionGlobePainter extends CustomPainter {
   final List<RegionPolygon> regionPolygons;
   final Set<String> visitedCodes;
   final GlobeProjection projection;
-  
+
   /// If provided, visited regions use this color instead of the pastel palette.
   final Color? highlightColor;
 
@@ -94,7 +98,9 @@ class RegionGlobePainter extends CustomPainter {
         if (pts.length < 3) continue;
 
         final path = ui.Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (final p in pts.skip(1)) { path.lineTo(p.dx, p.dy); }
+        for (final p in pts.skip(1)) {
+          path.lineTo(p.dx, p.dy);
+        }
         path.close();
 
         canvas.drawPath(path, Paint()..color = kWorldCountry);
@@ -109,9 +115,11 @@ class RegionGlobePainter extends CustomPainter {
     }
 
     // Sort region codes for deterministic pastel assignment.
-    final allCodes = regionPolygons.map((p) => p.regionCode).toSet().toList()
-      ..sort();
-    final codeIndex = {for (var i = 0; i < allCodes.length; i++) allCodes[i]: i};
+    final allCodes =
+        regionPolygons.map((p) => p.regionCode).toSet().toList()..sort();
+    final codeIndex = {
+      for (var i = 0; i < allCodes.length; i++) allCodes[i]: i,
+    };
 
     // 3. Unvisited regions.
     _drawRegions(canvas, size, visited: false, codeIndex: codeIndex);
@@ -152,7 +160,9 @@ class RegionGlobePainter extends CustomPainter {
         if (pts.length < 3) continue;
 
         final path = ui.Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (final p in pts.skip(1)) { path.lineTo(p.dx, p.dy); }
+        for (final p in pts.skip(1)) {
+          path.lineTo(p.dx, p.dy);
+        }
         path.close();
 
         final Color fill;
@@ -162,8 +172,9 @@ class RegionGlobePainter extends CustomPainter {
             fill = highlightColor!;
           } else {
             final idx = codeIndex[poly.regionCode] ?? 0;
-            fill = kPastelPalette[idx % kPastelPalette.length]
-                .withValues(alpha: 0.92);
+            fill = kPastelPalette[idx % kPastelPalette.length].withValues(
+              alpha: 0.92,
+            );
           }
           border = fill.withValues(alpha: 0.6);
         } else {

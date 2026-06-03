@@ -39,7 +39,11 @@ import '../stats/stats_screen.dart';
 /// the first frame. Used by [_OnboardingGate] when the user tapped "Scan my
 /// photos" during onboarding (Scan is no longer a nav tab — ADR-052).
 class MainShell extends ConsumerStatefulWidget {
-  const MainShell({super.key, this.initialTab = 0, this.openScanOnLoad = false});
+  const MainShell({
+    super.key,
+    this.initialTab = 0,
+    this.openScanOnLoad = false,
+  });
 
   final int initialTab;
   final bool openScanOnLoad;
@@ -61,12 +65,11 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.initState();
     _selectedIndex = widget.initialTab;
     _lastKnownDate = _todayLocal();
-    _lifecycleListener = AppLifecycleListener(
-      onResume: _onAppResume,
-    );
+    _lifecycleListener = AppLifecycleListener(onResume: _onAppResume);
     _scheduleMidnightRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.openScanOnLoad) _goToScan(autoStart: true, forceFullScan: true);
+      if (widget.openScanOnLoad)
+        _goToScan(autoStart: true, forceFullScan: true);
       _handleLaunchNotification();
       // Schedule the full anniversary batch on every app open so notifications
       // keep firing even if the app is never opened again (M118).
@@ -83,8 +86,12 @@ class _MainShellState extends ConsumerState<MainShell> {
       }
     });
     NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
-    NotificationService.instance.pendingMemoryTripId.addListener(_onPendingMemoryTripId);
-    NotificationService.instance.pendingMemoryCountryCode.addListener(_onPendingMemoryCountryCode);
+    NotificationService.instance.pendingMemoryTripId.addListener(
+      _onPendingMemoryTripId,
+    );
+    NotificationService.instance.pendingMemoryCountryCode.addListener(
+      _onPendingMemoryCountryCode,
+    );
     AppOpenTracker.recordNow();
   }
 
@@ -93,8 +100,12 @@ class _MainShellState extends ConsumerState<MainShell> {
     _midnightTimer?.cancel();
     _lifecycleListener.dispose();
     NotificationService.instance.pendingTabIndex.removeListener(_onPendingTab);
-    NotificationService.instance.pendingMemoryTripId.removeListener(_onPendingMemoryTripId);
-    NotificationService.instance.pendingMemoryCountryCode.removeListener(_onPendingMemoryCountryCode);
+    NotificationService.instance.pendingMemoryTripId.removeListener(
+      _onPendingMemoryTripId,
+    );
+    NotificationService.instance.pendingMemoryCountryCode.removeListener(
+      _onPendingMemoryCountryCode,
+    );
     super.dispose();
   }
 
@@ -181,9 +192,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   Future<void> _navigateToTrip(String tripId) async {
     final trip = await ref.read(tripRepositoryProvider).loadById(tripId);
     if (trip != null && mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => TripDetailScreen(trip: trip)),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => TripDetailScreen(trip: trip)));
     }
   }
 
@@ -215,11 +226,12 @@ class _MainShellState extends ConsumerState<MainShell> {
       Navigator.of(context).push(
         PageRouteBuilder<void>(
           opaque: false,
-          pageBuilder: (_, __, ___) => ScanScreen(
-            onScanComplete: _goToMap,
-            autoStart: true,
-            initialForceFullScan: forceFullScan,
-          ),
+          pageBuilder:
+              (_, __, ___) => ScanScreen(
+                onScanComplete: _goToMap,
+                autoStart: true,
+                initialForceFullScan: forceFullScan,
+              ),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
         ),
@@ -244,16 +256,16 @@ class _MainShellState extends ConsumerState<MainShell> {
             index: _selectedIndex,
             children: [
               MapScreen(
-                onNavigateToScan: () =>
-                    _goToScan(autoStart: true, forceFullScan: true),
-                onNavigateToScanFull: () =>
-                    _goToScan(autoStart: true, forceFullScan: true),
-                onNavigateToScanPartial: () =>
-                    _goToScan(autoStart: true, forceFullScan: false),
+                onNavigateToScan:
+                    () => _goToScan(autoStart: true, forceFullScan: true),
+                onNavigateToScanFull:
+                    () => _goToScan(autoStart: true, forceFullScan: true),
+                onNavigateToScanPartial:
+                    () => _goToScan(autoStart: true, forceFullScan: false),
               ),
               JournalScreen(
-                onNavigateToScan: () =>
-                    _goToScan(autoStart: true, forceFullScan: true),
+                onNavigateToScan:
+                    () => _goToScan(autoStart: true, forceFullScan: true),
               ),
               const StatsScreen(),
               const MerchShopScreen(),
@@ -270,9 +282,10 @@ class _MainShellState extends ConsumerState<MainShell> {
                 initialCollectedCodes: overlay.initialCollectedCodes,
                 // For replay mode, use MainShell's own ref so hide() is always
                 // reachable regardless of whether the entry sheet is disposed.
-                onScanComplete: overlay.isReplayMode
-                    ? () => ref.read(globeOverlayProvider.notifier).hide()
-                    : overlay.onScanComplete,
+                onScanComplete:
+                    overlay.isReplayMode
+                        ? () => ref.read(globeOverlayProvider.notifier).hide()
+                        : overlay.onScanComplete,
                 // Always call hide() on cancel so the overlay is never stuck.
                 // For scan mode, also invoke onScanComplete to clean up the
                 // scan controller; for replay mode hide() is already enough.
@@ -334,9 +347,6 @@ class _CartBadgeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (cartCount == 0) return Icon(icon);
-    return Badge(
-      isLabelVisible: true,
-      child: Icon(icon),
-    );
+    return Badge(isLabelVisible: true, child: Icon(icon));
   }
 }

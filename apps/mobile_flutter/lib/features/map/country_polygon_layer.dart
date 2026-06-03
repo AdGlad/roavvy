@@ -12,17 +12,19 @@ const _kSuppressedCodes = {'AQ'};
 // ── Colour definitions (ADR-066, updated ADR-080) ─────────────────────────────
 
 // Dark navy ocean theme (ADR-080).
-const _kUnvisitedFill = Color(0xFF1E3A5F);     // dark blue-grey land
-const _kUnvisitedBorder = Color(0xFF2A4F7A);   // slightly lighter border, 0.4 stroke
+const _kUnvisitedFill = Color(0xFF1E3A5F); // dark blue-grey land
+const _kUnvisitedBorder = Color(
+  0xFF2A4F7A,
+); // slightly lighter border, 0.4 stroke
 
-const _kVisitedFill = Color(0xFFD4A017);       // rich gold tier-0 fallback
-const _kVisitedBorder = Color(0xFFFFD700);     // bright gold border
+const _kVisitedFill = Color(0xFFD4A017); // rich gold tier-0 fallback
+const _kVisitedBorder = Color(0xFFFFD700); // bright gold border
 
-const _kReviewedFill = Color(0xFFC8860A);      // reviewed — gold tier-2
-const _kReviewedBorder = Color(0xFFFFD700);    // bright gold border
+const _kReviewedFill = Color(0xFFC8860A); // reviewed — gold tier-2
+const _kReviewedBorder = Color(0xFFFFD700); // bright gold border
 
-const _kNewFill = Color(0xFFFFD700);           // newly discovered — bright gold
-const _kNewBorder = Color(0xFFFFFFFF);         // white border for pop
+const _kNewFill = Color(0xFFFFD700); // newly discovered — bright gold
+const _kNewBorder = Color(0xFFFFFFFF); // white border for pop
 
 // Depth colouring tiers — more trips → richer/darker gold (ADR-066, ADR-080).
 const _kDepth1Fill = Color(0xFFD4A017); // 1 trip:  gold (light)
@@ -57,7 +59,8 @@ class CountryPolygonLayer extends ConsumerStatefulWidget {
   const CountryPolygonLayer({super.key});
 
   @override
-  ConsumerState<CountryPolygonLayer> createState() => _CountryPolygonLayerState();
+  ConsumerState<CountryPolygonLayer> createState() =>
+      _CountryPolygonLayerState();
 }
 
 class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
@@ -112,7 +115,8 @@ class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
     // Only animate when there are newly-discovered polygons and animations are
     // enabled. Stopping when the list is empty prevents pumpAndSettle timeouts
     // in tests (ADR-055).
-    final shouldAnimate = newlyDiscoveredPolygons.isNotEmpty &&
+    final shouldAnimate =
+        newlyDiscoveredPolygons.isNotEmpty &&
         !MediaQuery.disableAnimationsOf(context);
     if (shouldAnimate && !_pulseController.isAnimating) {
       _pulseController.repeat(reverse: true);
@@ -123,75 +127,77 @@ class _CountryPolygonLayerState extends ConsumerState<CountryPolygonLayer>
     return Stack(
       children: [
         // Static layer — rebuilt only when polygonData or visualStates change.
-        PolygonLayer(
-          polygonCulling: true,
-          polygons: staticPolygons,
-        ),
+        PolygonLayer(polygonCulling: true, polygons: staticPolygons),
         // Animated layer — rebuilds on every animation tick.
         // Respects MediaQuery.disableAnimations (ADR-055): static opacity in
         // reduced-motion / test environments so pumpAndSettle can settle.
         if (newlyDiscoveredPolygons.isNotEmpty)
           MediaQuery.disableAnimationsOf(context)
               ? PolygonLayer(
-                  polygonCulling: true,
-                  polygons: [
-                    for (final spec in newlyDiscoveredPolygons)
-                      Polygon(
-                        points: spec.points,
-                        color: _kNewFill.withValues(alpha: 0.75),
-                        borderColor: _kNewBorder,
-                        borderStrokeWidth: 1.5,
-                      ),
-                  ],
-                )
+                polygonCulling: true,
+                polygons: [
+                  for (final spec in newlyDiscoveredPolygons)
+                    Polygon(
+                      points: spec.points,
+                      color: _kNewFill.withValues(alpha: 0.75),
+                      borderColor: _kNewBorder,
+                      borderStrokeWidth: 1.5,
+                    ),
+                ],
+              )
               : AnimatedBuilder(
-                  animation: _pulseOpacity,
-                  builder: (context, _) {
-                    return PolygonLayer(
-                      polygonCulling: true,
-                      polygons: [
-                        for (final spec in newlyDiscoveredPolygons)
-                          Polygon(
-                            points: spec.points,
-                            color: _kNewFill.withValues(alpha: _pulseOpacity.value),
-                            borderColor: _kNewBorder,
-                            borderStrokeWidth: 1.5,
+                animation: _pulseOpacity,
+                builder: (context, _) {
+                  return PolygonLayer(
+                    polygonCulling: true,
+                    polygons: [
+                      for (final spec in newlyDiscoveredPolygons)
+                        Polygon(
+                          points: spec.points,
+                          color: _kNewFill.withValues(
+                            alpha: _pulseOpacity.value,
                           ),
-                      ],
-                    );
-                  },
-                ),
+                          borderColor: _kNewBorder,
+                          borderStrokeWidth: 1.5,
+                        ),
+                    ],
+                  );
+                },
+              ),
       ],
     );
   }
 
   Polygon _buildStaticPolygon(
-      List<LatLng> points, CountryVisualState state, int tripCount) {
+    List<LatLng> points,
+    CountryVisualState state,
+    int tripCount,
+  ) {
     return switch (state) {
       CountryVisualState.visited => Polygon(
-          points: points,
-          color: depthFillColor(tripCount).withValues(alpha: 0.85),
-          borderColor: _kVisitedBorder,
-          borderStrokeWidth: 0.8,
-        ),
+        points: points,
+        color: depthFillColor(tripCount).withValues(alpha: 0.85),
+        borderColor: _kVisitedBorder,
+        borderStrokeWidth: 0.8,
+      ),
       CountryVisualState.target => Polygon(
-          points: points,
-          color: _kVisitedFill.withValues(alpha: 0.6),
-          borderColor: const Color(0xFFFF8C00),
-          borderStrokeWidth: 1.2,
-        ),
+        points: points,
+        color: _kVisitedFill.withValues(alpha: 0.6),
+        borderColor: const Color(0xFFFF8C00),
+        borderStrokeWidth: 1.2,
+      ),
       CountryVisualState.reviewed => Polygon(
-          points: points,
-          color: _kReviewedFill.withValues(alpha: 0.85),
-          borderColor: _kReviewedBorder,
-          borderStrokeWidth: 0.8,
-        ),
+        points: points,
+        color: _kReviewedFill.withValues(alpha: 0.85),
+        borderColor: _kReviewedBorder,
+        borderStrokeWidth: 0.8,
+      ),
       _ => Polygon(
-          points: points,
-          color: _kUnvisitedFill.withValues(alpha: 0.9),
-          borderColor: _kUnvisitedBorder,
-          borderStrokeWidth: 0.4,
-        ),
+        points: points,
+        color: _kUnvisitedFill.withValues(alpha: 0.9),
+        borderColor: _kUnvisitedBorder,
+        borderStrokeWidth: 0.4,
+      ),
     };
   }
 }

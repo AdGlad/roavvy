@@ -7,12 +7,11 @@ PhotoDateRecord _photo(
   String assetId,
   DateTime capturedAt, {
   String countryCode = 'GR',
-}) =>
-    PhotoDateRecord(
-      countryCode: countryCode,
-      capturedAt: capturedAt,
-      assetId: assetId,
-    );
+}) => PhotoDateRecord(
+  countryCode: countryCode,
+  capturedAt: capturedAt,
+  assetId: assetId,
+);
 
 DateTime _t(int hour, {int minute = 0}) =>
     DateTime.utc(2024, 7, 12, hour, minute);
@@ -84,7 +83,10 @@ void main() {
       // Default maxCandidates was updated from 5 to 25 (M89 spec).
       final photos = List.generate(
         30,
-        (i) => _photo('a$i', DateTime.utc(2024, 7, 12, i ~/ 2 + 1, i.isOdd ? 30 : 0)),
+        (i) => _photo(
+          'a$i',
+          DateTime.utc(2024, 7, 12, i ~/ 2 + 1, i.isOdd ? 30 : 0),
+        ),
       );
       final result = _selector.select(photos);
       expect(result.length, lessThanOrEqualTo(25));

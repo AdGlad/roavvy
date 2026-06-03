@@ -201,12 +201,13 @@ class LocalMockupPainter extends CustomPainter {
 
     final dst = Rect.fromLTWH(dstX, dstY, dstW, dstH);
 
-    final paint = Paint()
-      ..color = ui.Color.fromRGBO(255, 255, 255, opacity)
-      ..blendMode = blendMode;
+    final paint =
+        Paint()
+          ..color = ui.Color.fromRGBO(255, 255, 255, opacity)
+          ..blendMode = blendMode;
 
     canvas.drawImageRect(image, srcFullPixels, dst, paint);
-    
+
     return dst;
   }
 
@@ -233,9 +234,10 @@ class LocalMockupPainter extends CustomPainter {
     final src = Rect.fromLTWH(0, 0, imgW, imgH);
     final dst = Rect.fromLTWH(dstX, dstY, dstW, dstH);
 
-    final paint = Paint()
-      ..color = ui.Color.fromRGBO(255, 255, 255, opacity)
-      ..blendMode = blendMode;
+    final paint =
+        Paint()
+          ..color = ui.Color.fromRGBO(255, 255, 255, opacity)
+          ..blendMode = blendMode;
 
     canvas.drawImageRect(image, src, dst, paint);
   }

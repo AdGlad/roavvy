@@ -88,21 +88,21 @@ class _CardParams {
 
   @override
   int get hashCode => Object.hash(
-        templateType,
-        Object.hashAll(countryCodes),
-        aspectRatio,
-        entryOnly,
-        heartOrder,
-        yearStart,
-        yearEnd,
-        titleOverride,
-        stampColor,
-        dateColor,
-        transparentBackground,
-        stampSeed,
-        stampSizeMultiplier,
-        stampJitterFactor,
-      );
+    templateType,
+    Object.hashAll(countryCodes),
+    aspectRatio,
+    entryOnly,
+    heartOrder,
+    yearStart,
+    yearEnd,
+    titleOverride,
+    stampColor,
+    dateColor,
+    transparentBackground,
+    stampSeed,
+    stampSizeMultiplier,
+    stampJitterFactor,
+  );
 }
 
 // ── Card generator screen ─────────────────────────────────────────────────────
@@ -180,17 +180,18 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           IconButton(
             icon: const Icon(Icons.travel_explore),
             tooltip: 'European stamps preview',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const StampPreviewScreen(),
-              ),
-            ),
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const StampPreviewScreen(),
+                  ),
+                ),
           ),
         ],
       ),
       body: visitsAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        loading:
+            () => const Center(child: CircularProgressIndicator.adaptive()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (visits) {
           if (visits.isEmpty) {
@@ -208,56 +209,63 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
 
           final allCodes = visits.map((v) => v.countryCode).toList()..sort();
           _cachedAllCodes = allCodes; // cache for _goToProductBrowser callback
-          final allTrips = tripsAsync.valueOrNull
+          final allTrips =
+              tripsAsync.valueOrNull
                   ?.where((t) => allCodes.contains(t.countryCode))
                   .toList() ??
               [];
 
           // ── Date range ────────────────────────────────────────────────────
           final tripYears = allTrips.map((t) => t.startedOn.year).toSet();
-          final yearMin = tripYears.isEmpty
-              ? null
-              : tripYears.reduce(math.min).toDouble();
-          final yearMax = tripYears.isEmpty
-              ? null
-              : tripYears.reduce(math.max).toDouble();
+          final yearMin =
+              tripYears.isEmpty ? null : tripYears.reduce(math.min).toDouble();
+          final yearMax =
+              tripYears.isEmpty ? null : tripYears.reduce(math.max).toDouble();
           final showDateSlider =
               yearMin != null && yearMax != null && yearMax > yearMin;
 
-          final effectiveRange = _yearSelection ??
+          final effectiveRange =
+              _yearSelection ??
               (showDateSlider ? RangeValues(yearMin, yearMax) : null);
 
-          final filteredTrips = (effectiveRange == null || !showDateSlider)
-              ? allTrips
-              : allTrips
-                  .where((t) =>
-                      t.startedOn.year >= effectiveRange.start.round() &&
-                      t.startedOn.year <= effectiveRange.end.round())
-                  .toList();
+          final filteredTrips =
+              (effectiveRange == null || !showDateSlider)
+                  ? allTrips
+                  : allTrips
+                      .where(
+                        (t) =>
+                            t.startedOn.year >= effectiveRange.start.round() &&
+                            t.startedOn.year <= effectiveRange.end.round(),
+                      )
+                      .toList();
 
-          final isDateFiltered = showDateSlider &&
+          final isDateFiltered =
+              showDateSlider &&
               effectiveRange != null &&
-              (effectiveRange.start > yearMin ||
-                  effectiveRange.end < yearMax);
+              (effectiveRange.start > yearMin || effectiveRange.end < yearMax);
 
-          final displayedCodes = isDateFiltered
-              ? (filteredTrips.map((t) => t.countryCode).toSet().toList()
-                ..sort())
-              : allCodes;
+          final displayedCodes =
+              isDateFiltered
+                  ? (filteredTrips.map((t) => t.countryCode).toSet().toList()
+                    ..sort())
+                  : allCodes;
 
           // Country-level filter: exclude any codes the user has deselected.
-          final activeDeselected =
-              _deselectedCodes.intersection(displayedCodes.toSet());
-          final selectedCodes = activeDeselected.isEmpty
-              ? displayedCodes
-              : displayedCodes
-                  .where((c) => !activeDeselected.contains(c))
-                  .toList();
-          final selectedTrips = activeDeselected.isEmpty
-              ? filteredTrips
-              : filteredTrips
-                  .where((t) => !activeDeselected.contains(t.countryCode))
-                  .toList();
+          final activeDeselected = _deselectedCodes.intersection(
+            displayedCodes.toSet(),
+          );
+          final selectedCodes =
+              activeDeselected.isEmpty
+                  ? displayedCodes
+                  : displayedCodes
+                      .where((c) => !activeDeselected.contains(c))
+                      .toList();
+          final selectedTrips =
+              activeDeselected.isEmpty
+                  ? filteredTrips
+                  : filteredTrips
+                      .where((t) => !activeDeselected.contains(t.countryCode))
+                      .toList();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -273,13 +281,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                       const SizedBox(height: 12),
                       _TemplatePicker(
                         selected: _selected,
-                        onChanged: (t) => setState(() {
-                          _selected = t;
-                          if (t != CardTemplateType.heart) {
-                            _heartOrder = HeartFlagOrder.randomized;
-                          }
-                          _resetZoom();
-                        }),
+                        onChanged:
+                            (t) => setState(() {
+                              _selected = t;
+                              if (t != CardTemplateType.heart) {
+                                _heartOrder = HeartFlagOrder.randomized;
+                              }
+                              _resetZoom();
+                            }),
                       ),
                       const SizedBox(height: 8),
                       // Template-specific controls
@@ -321,17 +330,29 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                               ),
                               const Spacer(),
                               FilledButton.icon(
-                                icon: const Icon(Icons.shuffle_rounded, size: 16),
+                                icon: const Icon(
+                                  Icons.shuffle_rounded,
+                                  size: 16,
+                                ),
                                 label: const Text('Shuffle'),
-                                onPressed: () => setState(() =>
-                                    _stampSeed = DateTime.now().millisecondsSinceEpoch),
+                                onPressed:
+                                    () => setState(
+                                      () =>
+                                          _stampSeed =
+                                              DateTime.now()
+                                                  .millisecondsSinceEpoch,
+                                    ),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: _kAmber,
                                   foregroundColor: Colors.black,
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
                                   textStyle: const TextStyle(
-                                      fontSize: 13, fontWeight: FontWeight.w600),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
@@ -340,25 +361,28 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                       const SizedBox(height: 8),
                       _SharedTitleEditor(
                         titleOverride: _titleOverride,
-                        onTitleChanged: (v) => setState(() => _titleOverride = v),
+                        onTitleChanged:
+                            (v) => setState(() => _titleOverride = v),
                         countryCount: selectedCodes.length,
                         dateLabel: _computeDateLabel(selectedTrips),
                       ),
                       if (_selected == CardTemplateType.passport)
                         _PassportCustomizer(
                           stampColor: _stampColor,
-                          onStampColorChanged: (c) => setState(() => _stampColor = c),
+                          onStampColorChanged:
+                              (c) => setState(() => _stampColor = c),
                           dateColor: _dateColor,
-                          onDateColorChanged: (c) => setState(() => _dateColor = c),
+                          onDateColorChanged:
+                              (c) => setState(() => _dateColor = c),
                           transparentBackground: _transparentBackground,
-                          onTransparentBackgroundChanged: (v) =>
-                              setState(() => _transparentBackground = v),
+                          onTransparentBackgroundChanged:
+                              (v) => setState(() => _transparentBackground = v),
                           stampSizeMultiplier: _stampSizeMultiplier,
-                          onStampSizeChanged: (v) =>
-                              setState(() => _stampSizeMultiplier = v),
+                          onStampSizeChanged:
+                              (v) => setState(() => _stampSizeMultiplier = v),
                           stampJitterFactor: _stampJitterFactor,
-                          onStampJitterChanged: (v) =>
-                              setState(() => _stampJitterFactor = v),
+                          onStampJitterChanged:
+                              (v) => setState(() => _stampJitterFactor = v),
                         ),
                       const SizedBox(height: 4),
                       // Global controls: orientation
@@ -367,18 +391,20 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                           _OptionChip(
                             label: 'Landscape',
                             selected: !_portrait,
-                            onTap: () => setState(() {
-                              _portrait = false;
-                              _resetZoom();
-                            }),
+                            onTap:
+                                () => setState(() {
+                                  _portrait = false;
+                                  _resetZoom();
+                                }),
                           ),
                           _OptionChip(
                             label: 'Portrait',
                             selected: _portrait,
-                            onTap: () => setState(() {
-                              _portrait = true;
-                              _resetZoom();
-                            }),
+                            onTap:
+                                () => setState(() {
+                                  _portrait = true;
+                                  _resetZoom();
+                                }),
                           ),
                         ],
                       ),
@@ -390,10 +416,12 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                           yearMax: yearMax,
                           values: effectiveRange,
                           countryCount: selectedCodes.length,
-                          onChanged: (v) => setState(() {
-                            _yearSelection = v;
-                            _deselectedCodes = {}; // reset per-country filter on year change
-                          }),
+                          onChanged:
+                              (v) => setState(() {
+                                _yearSelection = v;
+                                _deselectedCodes =
+                                    {}; // reset per-country filter on year change
+                              }),
                         ),
                       ],
                       // Per-country toggle: shown whenever there are 2+ countries.
@@ -405,7 +433,8 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                           onToggle: (code) {
                             setState(() {
                               if (_deselectedCodes.contains(code)) {
-                                _deselectedCodes = Set.of(_deselectedCodes)..remove(code);
+                                _deselectedCodes = Set.of(_deselectedCodes)
+                                  ..remove(code);
                               } else if (selectedCodes.length > 1) {
                                 // Prevent removing the last selected country.
                                 _deselectedCodes = {..._deselectedCodes, code};
@@ -430,14 +459,18 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 340, maxHeight: 300),
+                    constraints: const BoxConstraints(
+                      maxWidth: 340,
+                      maxHeight: 300,
+                    ),
                     // Timeline is transparent — show a white canvas behind it so
                     // the ink text is readable on-screen. The RepaintBoundary is
                     // inside this container, so share/export PNGs remain transparent.
                     child: Container(
-                      color: _selected == CardTemplateType.timeline
-                          ? Colors.white
-                          : null,
+                      color:
+                          _selected == CardTemplateType.timeline
+                              ? Colors.white
+                              : null,
                       child: InteractiveViewer(
                         transformationController: _transformController,
                         minScale: 1.0,
@@ -456,13 +489,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                 sharing: _sharing,
                 printing: _printing,
                 onShare: () => _onShare(context, selectedCodes),
-                onPrint: () => _onPrint(
-                  context,
-                  selectedCodes,
-                  selectedTrips,
-                  effectiveRange,
-                  showDateSlider,
-                ),
+                onPrint:
+                    () => _onPrint(
+                      context,
+                      selectedCodes,
+                      selectedTrips,
+                      effectiveRange,
+                      showDateSlider,
+                    ),
               ),
               SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
             ],
@@ -521,20 +555,11 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           transparentBackground: true,
         );
       case CardTemplateType.frontRibbon:
-        return FrontRibbonCard(
-          countryCodes: codes,
-          travelerLevel: 'Explorer',
-        );
+        return FrontRibbonCard(countryCodes: codes, travelerLevel: 'Explorer');
       case CardTemplateType.typography:
-        return TypographyCard(
-          codes: codes,
-          transparentBackground: true,
-        );
+        return TypographyCard(codes: codes, transparentBackground: true);
       case CardTemplateType.badge:
-        return BadgeCard(
-          codes: codes,
-          transparentBackground: false,
-        );
+        return BadgeCard(codes: codes, transparentBackground: false);
       case CardTemplateType.wordCloud:
         return TravelWordCloudCard(
           codes: codes,
@@ -572,7 +597,8 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
 
     try {
       final boundary =
-          _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          _previewKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
 
       final image = await boundary.toImage(pixelRatio: 3.0);
@@ -602,8 +628,12 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
       await Share.shareXFiles(
         [XFile(file.path)],
         subject: 'My Roavvy travel card',
-        sharePositionOrigin:
-            Rect.fromLTWH(size.width / 2 - 22, size.height - 88, 44, 44),
+        sharePositionOrigin: Rect.fromLTWH(
+          size.width / 2 - 22,
+          size.height - 88,
+          44,
+          44,
+        ),
       );
     } finally {
       if (mounted) setState(() => _sharing = false);
@@ -618,8 +648,9 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     bool showDateSlider,
   ) {
     if (_sharing || _printing) return;
-    unawaited(_navigateToPrint(
-      context, codes, trips, effectiveRange, showDateSlider));
+    unawaited(
+      _navigateToPrint(context, codes, trips, effectiveRange, showDateSlider),
+    );
   }
 
   Future<void> _navigateToPrint(
@@ -629,20 +660,21 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     RangeValues? effectiveRange,
     bool showDateSlider,
   ) async {
-    final int? yearStart = showDateSlider && effectiveRange != null
-        ? effectiveRange.start.round()
-        : null;
-    final int? yearEnd = showDateSlider && effectiveRange != null
-        ? effectiveRange.end.round()
-        : null;
+    final int? yearStart =
+        showDateSlider && effectiveRange != null
+            ? effectiveRange.start.round()
+            : null;
+    final int? yearEnd =
+        showDateSlider && effectiveRange != null
+            ? effectiveRange.end.round()
+            : null;
 
     // Timeline is always rendered with a transparent background regardless of
     // the shared _transparentBackground toggle (which is only relevant for
     // passport/grid). This prevents stale passport toggle state leaking into
     // the timeline render call.
-    final effectiveTransparentBg = _selected == CardTemplateType.timeline
-        ? true
-        : _transparentBackground;
+    final effectiveTransparentBg =
+        _selected == CardTemplateType.timeline ? true : _transparentBackground;
 
     final currentParams = _CardParams(
       templateType: _selected,
@@ -706,30 +738,28 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
 
     // Route through ArtworkConfirmationScreen
     final showUpdatedBanner = _artworkConfirmationId != null;
-    final dateRangeStart =
-        yearStart != null ? DateTime(yearStart) : null;
-    final dateRangeEnd =
-        yearEnd != null ? DateTime(yearEnd, 12, 31) : null;
+    final dateRangeStart = yearStart != null ? DateTime(yearStart) : null;
+    final dateRangeEnd = yearEnd != null ? DateTime(yearEnd, 12, 31) : null;
 
     if (!context.mounted) return;
-    final result =
-        await Navigator.of(context).push<ArtworkConfirmResult?>(
+    final result = await Navigator.of(context).push<ArtworkConfirmResult?>(
       MaterialPageRoute(
-        builder: (_) => ArtworkConfirmationScreen(
-          templateType: _selected,
-          countryCodes: codes,
-          filteredTrips: trips,
-          dateRangeStart: dateRangeStart,
-          dateRangeEnd: dateRangeEnd,
-          aspectRatio: _aspectRatio,
-          entryOnly: _entryOnly,
-          showUpdatedBanner: showUpdatedBanner,
-          preRenderedResult: preRender,
-          titleOverride: _titleOverride,
-          stampColor: _stampColor,
-          dateColor: _dateColor,
-          transparentBackground: effectiveTransparentBg,
-        ),
+        builder:
+            (_) => ArtworkConfirmationScreen(
+              templateType: _selected,
+              countryCodes: codes,
+              filteredTrips: trips,
+              dateRangeStart: dateRangeStart,
+              dateRangeEnd: dateRangeEnd,
+              aspectRatio: _aspectRatio,
+              entryOnly: _entryOnly,
+              showUpdatedBanner: showUpdatedBanner,
+              preRenderedResult: preRender,
+              titleOverride: _titleOverride,
+              stampColor: _stampColor,
+              dateColor: _dateColor,
+              transparentBackground: effectiveTransparentBg,
+            ),
       ),
     );
 
@@ -740,8 +770,11 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     if (priorId != null && priorId != result.confirmationId) {
       final uid = ref.read(currentUidProvider);
       if (uid != null) {
-        unawaited(ArtworkConfirmationService(FirebaseFirestore.instance)
-            .archive(uid, priorId));
+        unawaited(
+          ArtworkConfirmationService(
+            FirebaseFirestore.instance,
+          ).archive(uid, priorId),
+        );
       }
     }
 
@@ -780,24 +813,28 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     // guarded by _navigateToPrint which sets them before calling this method.
     // Pass confirmedAspectRatio and confirmedEntryOnly so any template-change
     // re-render inside LocalMockupPreviewScreen uses consistent params.
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => LocalMockupPreviewScreen(
-        selectedCodes: codes,
-        allCodes: _cachedAllCodes,
-        trips: _lastConfirmedTrips ?? const [],
-        artworkImageBytes: _artworkImageBytes!,
-        artworkConfirmationId: _artworkConfirmationId!,
-        initialTemplate: _selected,
-        confirmedAspectRatio: _aspectRatio,
-        confirmedEntryOnly: _entryOnly,
-        cardId: cardId,
-        titleOverride: _titleOverride,
-        stampColor: _stampColor,
-        dateColor: _dateColor,
-        // Use the confirmed params' value — always set before this is called.
-        transparentBackground: _lastConfirmedParams!.transparentBackground,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: codes,
+              allCodes: _cachedAllCodes,
+              trips: _lastConfirmedTrips ?? const [],
+              artworkImageBytes: _artworkImageBytes!,
+              artworkConfirmationId: _artworkConfirmationId!,
+              initialTemplate: _selected,
+              confirmedAspectRatio: _aspectRatio,
+              confirmedEntryOnly: _entryOnly,
+              cardId: cardId,
+              titleOverride: _titleOverride,
+              stampColor: _stampColor,
+              dateColor: _dateColor,
+              // Use the confirmed params' value — always set before this is called.
+              transparentBackground:
+                  _lastConfirmedParams!.transparentBackground,
+            ),
       ),
-    ));
+    );
   }
 }
 
@@ -900,10 +937,9 @@ class _ChipRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: children
-          .expand((w) => [w, const SizedBox(width: 6)])
-          .toList()
-        ..removeLast(),
+      children:
+          children.expand((w) => [w, const SizedBox(width: 6)]).toList()
+            ..removeLast(),
     );
   }
 }
@@ -932,9 +968,8 @@ class _OptionChip extends StatelessWidget {
             color: selected ? _kAmber : onSurface.withValues(alpha: 0.25),
           ),
           borderRadius: BorderRadius.circular(20),
-          color: selected
-              ? _kAmber.withValues(alpha: 0.12)
-              : Colors.transparent,
+          color:
+              selected ? _kAmber.withValues(alpha: 0.12) : Colors.transparent,
         ),
         child: Text(
           label,
@@ -1017,8 +1052,11 @@ class _DateRangeRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.date_range_outlined,
-                  size: 14, color: Colors.white38),
+              const Icon(
+                Icons.date_range_outlined,
+                size: 14,
+                color: Colors.white38,
+              ),
               const SizedBox(width: 6),
               Text(
                 isFullRange ? 'All time' : '$startYear – $endYear',
@@ -1041,8 +1079,9 @@ class _DateRangeRow extends StatelessWidget {
               thumbColor: _kAmber,
               inactiveTrackColor: Colors.white24,
               overlayColor: _kAmber.withValues(alpha: 0.15),
-              rangeThumbShape:
-                  const RoundRangeSliderThumbShape(enabledThumbRadius: 7),
+              rangeThumbShape: const RoundRangeSliderThumbShape(
+                enabledThumbRadius: 7,
+              ),
               trackHeight: 2,
             ),
             child: RangeSlider(
@@ -1088,17 +1127,19 @@ class _SharedTitleEditor extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Colors.white24),
           ),
-          suffixIcon: titleOverride != null
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () => onTitleChanged(null),
-                )
-              : null,
+          suffixIcon:
+              titleOverride != null
+                  ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () => onTitleChanged(null),
+                  )
+                  : null,
         ),
         style: const TextStyle(fontSize: 13),
         controller: TextEditingController(text: titleOverride)
           ..selection = TextSelection.fromPosition(
-              TextPosition(offset: (titleOverride ?? '').length)),
+            TextPosition(offset: (titleOverride ?? '').length),
+          ),
         onChanged: (v) => onTitleChanged(v.isEmpty ? null : v),
       ),
     );
@@ -1164,17 +1205,23 @@ class _PassportCustomizer extends StatelessWidget {
           // Stamp size slider
           Row(
             children: [
-              const Icon(Icons.photo_size_select_small, size: 14, color: Colors.white38),
+              const Icon(
+                Icons.photo_size_select_small,
+                size: 14,
+                color: Colors.white38,
+              ),
               const SizedBox(width: 6),
-              const Text('Stamp size',
-                  style: TextStyle(fontSize: 12, color: Colors.white60)),
+              const Text(
+                'Stamp size',
+                style: TextStyle(fontSize: 12, color: Colors.white60),
+              ),
               const Spacer(),
               Text(
                 stampSizeMultiplier == 1.0
                     ? 'Default'
                     : stampSizeMultiplier < 1.0
-                        ? 'Smaller'
-                        : 'Larger',
+                    ? 'Smaller'
+                    : 'Larger',
                 style: const TextStyle(fontSize: 11, color: Colors.white38),
               ),
             ],
@@ -1199,17 +1246,23 @@ class _PassportCustomizer extends StatelessWidget {
           // Scatter slider
           Row(
             children: [
-              const Icon(Icons.scatter_plot_outlined, size: 14, color: Colors.white38),
+              const Icon(
+                Icons.scatter_plot_outlined,
+                size: 14,
+                color: Colors.white38,
+              ),
               const SizedBox(width: 6),
-              const Text('Scatter',
-                  style: TextStyle(fontSize: 12, color: Colors.white60)),
+              const Text(
+                'Scatter',
+                style: TextStyle(fontSize: 12, color: Colors.white60),
+              ),
               const Spacer(),
               Text(
                 stampJitterFactor < 0.2
                     ? 'Grid'
                     : stampJitterFactor > 0.6
-                        ? 'Scattered'
-                        : 'Natural',
+                    ? 'Scattered'
+                    : 'Natural',
                 style: const TextStyle(fontSize: 11, color: Colors.white38),
               ),
             ],
@@ -1234,10 +1287,16 @@ class _PassportCustomizer extends StatelessWidget {
           // Background toggle
           Row(
             children: [
-              const Icon(Icons.layers_outlined, size: 14, color: Colors.white38),
+              const Icon(
+                Icons.layers_outlined,
+                size: 14,
+                color: Colors.white38,
+              ),
               const SizedBox(width: 6),
-              const Text('Tinted background',
-                  style: TextStyle(fontSize: 12, color: Colors.white60)),
+              const Text(
+                'Tinted background',
+                style: TextStyle(fontSize: 12, color: Colors.white60),
+              ),
               const Spacer(),
               Switch.adaptive(
                 value: !transparentBackground,
@@ -1253,8 +1312,11 @@ class _PassportCustomizer extends StatelessWidget {
 }
 
 class _ColorSection extends StatelessWidget {
-  const _ColorSection(
-      {required this.label, required this.selected, required this.onChanged});
+  const _ColorSection({
+    required this.label,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final String label;
   final Color? selected;
@@ -1274,12 +1336,15 @@ class _ColorSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white38,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.white38,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
         const SizedBox(height: 6),
         SizedBox(
           height: 28,
@@ -1304,11 +1369,16 @@ class _ColorSection extends StatelessWidget {
                       width: isSelected ? 2.0 : 1.0,
                     ),
                   ),
-                  child: color == null
-                      ? const Center(
-                          child: Icon(Icons.palette_outlined,
-                              size: 14, color: Colors.white70))
-                      : null,
+                  child:
+                      color == null
+                          ? const Center(
+                            child: Icon(
+                              Icons.palette_outlined,
+                              size: 14,
+                              color: Colors.white70,
+                            ),
+                          )
+                          : null,
                 ),
               );
             },
@@ -1386,17 +1456,20 @@ class _CountryChipSelector extends StatelessWidget {
                   onTap: () => onToggle(code),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 120),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: isSelected ? _kAmber : Colors.white24,
                         width: isSelected ? 1.5 : 1.0,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      color: isSelected
-                          ? _kAmber.withValues(alpha: 0.12)
-                          : Colors.transparent,
+                      color:
+                          isSelected
+                              ? _kAmber.withValues(alpha: 0.12)
+                              : Colors.transparent,
                     ),
                     child: Opacity(
                       opacity: isSelected ? 1.0 : 0.4,
@@ -1470,13 +1543,16 @@ class _ActionBar extends StatelessWidget {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: (sharing || printing) ? null : onShare,
-              icon: sharing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.share),
+              icon:
+                  sharing
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Icon(Icons.share),
               label: const Text('Share'),
             ),
           ),
@@ -1485,13 +1561,16 @@ class _ActionBar extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: (sharing || printing) ? null : onPrint,
-              icon: printing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.print_outlined),
+              icon:
+                  printing
+                      ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Icon(Icons.print_outlined),
               label: const Text('Print your card'),
             ),
           ),

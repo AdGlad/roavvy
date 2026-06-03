@@ -20,10 +20,7 @@ const _onboardingImages = [
 /// "Scan my photos" on the final screen, or `goToScan = false` for skip/
 /// "Not now".
 class OnboardingFlow extends ConsumerStatefulWidget {
-  const OnboardingFlow({
-    super.key,
-    required this.onComplete,
-  });
+  const OnboardingFlow({super.key, required this.onComplete});
 
   /// Called after [RoavvyDatabase.markOnboardingComplete] completes.
   /// `goToScan` is true only when the user explicitly taps "Scan my photos".
@@ -54,9 +51,10 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
 
   Future<void> _advance() async {
     if (_page < 2) {
-      final duration = MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 300);
+      final duration =
+          MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 300);
       _controller.nextPage(duration: duration, curve: Curves.easeInOut);
     }
   }
@@ -86,7 +84,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               currentPage: _page,
               imagePath: _images[0],
               title: 'Your travels, discovered',
-              body: 'Roavvy finds every country you\'ve visited — '
+              body:
+                  'Roavvy finds every country you\'ve visited — '
                   'automatically, using the photos already on your phone.',
               ctaLabel: 'Get started',
               onCta: _advance,
@@ -98,7 +97,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               currentPage: _page,
               imagePath: _images[1],
               title: 'Your photos never leave your phone',
-              body: 'Roavvy reads only location and date from your photos — '
+              body:
+                  'Roavvy reads only location and date from your photos — '
                   'not the images themselves. Nothing is uploaded. '
                   'Your travel data stays on your device.',
               ctaLabel: 'Got it',
@@ -111,7 +111,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               currentPage: _page,
               imagePath: _images[2],
               title: 'Ready to discover your travels?',
-              body: 'Scanning usually takes a few minutes. '
+              body:
+                  'Scanning usually takes a few minutes. '
                   'You can explore the app while it runs.',
               ctaLabel: 'Scan my photos',
               onCta: () => _complete(goToScan: true),
@@ -186,9 +187,10 @@ class _OnboardingPage extends StatelessWidget {
                     height: 8,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: filled
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outlineVariant,
+                      color:
+                          filled
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outlineVariant,
                     ),
                   ),
                 ),
@@ -198,8 +200,9 @@ class _OnboardingPage extends StatelessWidget {
           const SizedBox(height: 32),
           Text(
             title,
-            style: theme.textTheme.headlineMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -211,15 +214,9 @@ class _OnboardingPage extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const Spacer(),
-          FilledButton(
-            onPressed: onCta,
-            child: Text(ctaLabel),
-          ),
+          FilledButton(onPressed: onCta, child: Text(ctaLabel)),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: onSkip,
-            child: Text(skipLabel),
-          ),
+          TextButton(onPressed: onSkip, child: Text(skipLabel)),
           const SizedBox(height: 24),
         ],
       ),

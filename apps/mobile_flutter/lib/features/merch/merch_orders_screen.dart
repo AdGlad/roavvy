@@ -31,10 +31,7 @@ class MerchOrderSummary {
   /// Country codes from the original order — used for "Buy Again" (M120).
   final List<String> selectedCountryCodes;
 
-  factory MerchOrderSummary.fromDoc(
-    String id,
-    Map<String, dynamic> data,
-  ) {
+  factory MerchOrderSummary.fromDoc(String id, Map<String, dynamic> data) {
     // templateId is 'flag_grid_v1'; derive product name from variantId prefix.
     final variantId = data['variantId'] as String? ?? '';
     final productName =
@@ -68,18 +65,21 @@ class MerchOrderSummary {
 /// Reads up to 20 merch configs for the current user from Firestore (ADR-075).
 ///
 /// Returns an empty list for anonymous or unauthenticated users.
-final merchOrdersProvider = FutureProvider<List<MerchOrderSummary>>((ref) async {
+final merchOrdersProvider = FutureProvider<List<MerchOrderSummary>>((
+  ref,
+) async {
   final userAsync = ref.watch(authStateProvider);
   final user = userAsync.valueOrNull;
   if (user == null) return const [];
 
-  final snapshot = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .collection('merch_configs')
-      .orderBy('createdAt', descending: true)
-      .limit(20)
-      .get();
+  final snapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('merch_configs')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
 
   return snapshot.docs
       .map((doc) => MerchOrderSummary.fromDoc(doc.id, doc.data()))
@@ -134,7 +134,10 @@ class MerchOrdersBody extends ConsumerWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: Text('Sign in to view your orders.', textAlign: TextAlign.center),
+          child: Text(
+            'Sign in to view your orders.',
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -195,7 +198,7 @@ class _OrderTile extends ConsumerWidget {
 
     // Load current context data required by LocalMockupPreviewScreen.
     final visits = await ref.read(effectiveVisitsProvider.future);
-    final trips  = await ref.read(tripListProvider.future);
+    final trips = await ref.read(tripListProvider.future);
 
     final allCodes = visits.map((v) => v.countryCode).toList();
 
@@ -203,19 +206,31 @@ class _OrderTile extends ConsumerWidget {
 
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: selectedCodes,
-          allCodes: allCodes,
-          trips: trips,
-        ),
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: selectedCodes,
+              allCodes: allCodes,
+              trips: trips,
+            ),
       ),
     );
   }
 
   String _formatDate(DateTime dt) {
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }

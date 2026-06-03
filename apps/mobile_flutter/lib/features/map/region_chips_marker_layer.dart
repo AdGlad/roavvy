@@ -34,17 +34,18 @@ class RegionChipsMarkerLayer extends ConsumerWidget {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
     final visits = visitsAsync.valueOrNull ?? const <EffectiveVisitedCountry>[];
 
-    final markers = regions.map((data) {
-      return Marker(
-        point: data.centroid,
-        width: 80,
-        height: 40,
-        child: GestureDetector(
-          onTap: () => showRegionDetailSheet(context, data, visits),
-          child: _RegionChip(data: data),
-        ),
-      );
-    }).toList();
+    final markers =
+        regions.map((data) {
+          return Marker(
+            point: data.centroid,
+            width: 80,
+            height: 40,
+            child: GestureDetector(
+              onTap: () => showRegionDetailSheet(context, data, visits),
+              child: _RegionChip(data: data),
+            ),
+          );
+        }).toList();
 
     return MarkerLayer(markers: markers);
   }
@@ -67,11 +68,7 @@ class _RegionChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFFB300), width: 2),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -82,7 +79,10 @@ class _RegionChip extends StatelessWidget {
             width: 22,
             height: 22,
             child: CustomPaint(
-              painter: _ArcPainter(fraction: data.ratio, isComplete: data.isComplete),
+              painter: _ArcPainter(
+                fraction: data.ratio,
+                isComplete: data.isComplete,
+              ),
             ),
           ),
           const SizedBox(width: 4),
@@ -124,43 +124,48 @@ class _ArcPainter extends CustomPainter {
     final strokeWidth = 2.5;
 
     // Background ring
-    final bgPaint = Paint()
-      ..color = _grey
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final bgPaint =
+        Paint()
+          ..color = _grey
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round;
     canvas.drawCircle(Offset(cx, cy), radius, bgPaint);
 
     if (fraction <= 0) return;
 
     if (isComplete) {
       // Full ring in amber
-      final completePaint = Paint()
-        ..color = _amberDark
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round;
+      final completePaint =
+          Paint()
+            ..color = _amberDark
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = strokeWidth
+            ..strokeCap = StrokeCap.round;
       canvas.drawCircle(Offset(cx, cy), radius, completePaint);
 
       // Checkmark
-      final checkPaint = Paint()
-        ..color = _amberDark
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-      final path = ui.Path()
-        ..moveTo(cx - 4, cy)
-        ..lineTo(cx - 1, cy + 3)
-        ..lineTo(cx + 5, cy - 4);
+      final checkPaint =
+          Paint()
+            ..color = _amberDark
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round;
+      final path =
+          ui.Path()
+            ..moveTo(cx - 4, cy)
+            ..lineTo(cx - 1, cy + 3)
+            ..lineTo(cx + 5, cy - 4);
       canvas.drawPath(path, checkPaint);
     } else {
       // Partial arc
-      final arcPaint = Paint()
-        ..color = _amber
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round;
+      final arcPaint =
+          Paint()
+            ..color = _amber
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = strokeWidth
+            ..strokeCap = StrokeCap.round;
 
       const startAngle = -math.pi / 2; // top of circle
       final sweepAngle = 2 * math.pi * fraction.clamp(0.0, 1.0);

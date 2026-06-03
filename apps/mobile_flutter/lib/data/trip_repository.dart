@@ -27,21 +27,23 @@ class TripRepository {
     if (trips.isEmpty) return;
     await _db.transaction(() async {
       for (final t in trips) {
-        await _db.into(_db.trips).insertOnConflictUpdate(
-          TripsCompanion(
-            id: Value(t.id),
-            countryCode: Value(t.countryCode),
-            startedOn: Value(t.startedOn.toUtc()),
-            endedOn: Value(t.endedOn.toUtc()),
-            photoCount: Value(t.photoCount),
-            isManual: Value(t.isManual ? 1 : 0),
-            isDirty: const Value(1),
-            firstLat: Value(t.firstLat),
-            firstLng: Value(t.firstLng),
-            lastLat: Value(t.lastLat),
-            lastLng: Value(t.lastLng),
-          ),
-        );
+        await _db
+            .into(_db.trips)
+            .insertOnConflictUpdate(
+              TripsCompanion(
+                id: Value(t.id),
+                countryCode: Value(t.countryCode),
+                startedOn: Value(t.startedOn.toUtc()),
+                endedOn: Value(t.endedOn.toUtc()),
+                photoCount: Value(t.photoCount),
+                isManual: Value(t.isManual ? 1 : 0),
+                isDirty: const Value(1),
+                firstLat: Value(t.firstLat),
+                firstLng: Value(t.firstLng),
+                lastLat: Value(t.lastLat),
+                lastLng: Value(t.lastLng),
+              ),
+            );
       }
     });
   }
@@ -57,18 +59,19 @@ class TripRepository {
   /// Returns all trips for [countryCode], sorted by [startedOn] descending
   /// (most recent first).
   Future<List<TripRecord>> loadByCountry(String countryCode) async {
-    final rows = await (_db.select(_db.trips)
-          ..where((t) => t.countryCode.equals(countryCode))
-          ..orderBy([(t) => OrderingTerm.desc(t.startedOn)]))
-        .get();
+    final rows =
+        await (_db.select(_db.trips)
+              ..where((t) => t.countryCode.equals(countryCode))
+              ..orderBy([(t) => OrderingTerm.desc(t.startedOn)]))
+            .get();
     return rows.map(_rowToRecord).toList();
   }
 
   /// Returns the trip with [id], or null if it does not exist.
   Future<TripRecord?> loadById(String id) async {
-    final row = await (_db.select(_db.trips)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.trips)
+          ..where((t) => t.id.equals(id))).getSingleOrNull();
     return row == null ? null : _rowToRecord(row);
   }
 
@@ -76,9 +79,8 @@ class TripRepository {
 
   /// Returns all rows with [isDirty] = 1.
   Future<List<TripRecord>> loadDirty() async {
-    final rows = await (_db.select(_db.trips)
-          ..where((t) => t.isDirty.equals(1)))
-        .get();
+    final rows =
+        await (_db.select(_db.trips)..where((t) => t.isDirty.equals(1))).get();
     return rows.map(_rowToRecord).toList();
   }
 
@@ -109,15 +111,15 @@ class TripRepository {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   static TripRecord _rowToRecord(TripRow r) => TripRecord(
-        id: r.id,
-        countryCode: r.countryCode,
-        startedOn: r.startedOn.toUtc(),
-        endedOn: r.endedOn.toUtc(),
-        photoCount: r.photoCount,
-        isManual: r.isManual == 1,
-        firstLat: r.firstLat,
-        firstLng: r.firstLng,
-        lastLat: r.lastLat,
-        lastLng: r.lastLng,
-      );
+    id: r.id,
+    countryCode: r.countryCode,
+    startedOn: r.startedOn.toUtc(),
+    endedOn: r.endedOn.toUtc(),
+    photoCount: r.photoCount,
+    isManual: r.isManual == 1,
+    firstLat: r.firstLat,
+    firstLng: r.firstLng,
+    lastLat: r.lastLat,
+    lastLng: r.lastLng,
+  );
 }

@@ -89,12 +89,10 @@ final visitedHeritageProvider = FutureProvider<List<VisitedHeritageSite>>(
 
 /// Set of unlocked achievement IDs for the current user (M110).
 /// Used by [ReplayTimelineBuilder] to filter which achievements appear in replay.
-final unlockedAchievementIdsProvider = FutureProvider<Set<String>>(
-  (ref) async {
-    final ids = await ref.watch(achievementRepositoryProvider).loadAll();
-    return ids.toSet();
-  },
-);
+final unlockedAchievementIdsProvider = FutureProvider<Set<String>>((ref) async {
+  final ids = await ref.watch(achievementRepositoryProvider).loadAll();
+  return ids.toSet();
+});
 
 final regionRepositoryProvider = Provider<RegionRepository>(
   (ref) => RegionRepository(ref.watch(roavvyDatabaseProvider)),
@@ -102,7 +100,9 @@ final regionRepositoryProvider = Provider<RegionRepository>(
 
 /// Calls [loadPolygons()] once; requires [initCountryLookup] to have run first.
 final polygonsProvider = Provider<List<CountryPolygon>>((ref) {
-  ref.watch(geodataBytesProvider); // establishes dependency, ensures init ordering
+  ref.watch(
+    geodataBytesProvider,
+  ); // establishes dependency, ensures init ordering
   return loadPolygons();
 });
 
@@ -206,8 +206,9 @@ final globeTargetProvider = StateProvider<(double, double)?>((_) => null);
 /// Coordinate (lat, lng) of the challenge site to highlight with a red dot on
 /// the globe after a daily challenge completes. Auto-cleared by [GlobeMapWidget]
 /// after ~6 seconds. Null = no highlight.
-final challengeSiteHighlightProvider =
-    StateProvider<(double, double)?>((_) => null);
+final challengeSiteHighlightProvider = StateProvider<(double, double)?>(
+  (_) => null,
+);
 
 /// The earliest trip `startedOn` year across all trips; null if no trips exist.
 /// Used to compute the scrubber range in [TimelineScrubberBar]. (ADR-076)
@@ -223,8 +224,9 @@ final earliestVisitYearProvider = FutureProvider<int?>((ref) async {
 /// When set to year Y, retains only countries that have at least one trip with
 /// `startedOn.year <= Y`, or (for manually-added countries with no trips)
 /// `firstSeen != null && firstSeen.year <= Y`. (ADR-076)
-final filteredEffectiveVisitsProvider =
-    FutureProvider<List<EffectiveVisitedCountry>>((ref) async {
+final filteredEffectiveVisitsProvider = FutureProvider<
+  List<EffectiveVisitedCountry>
+>((ref) async {
   final year = ref.watch(yearFilterProvider);
   final allVisits = await ref.watch(effectiveVisitsProvider.future);
 
@@ -260,16 +262,14 @@ final scanNudgeDismissedProvider = StateProvider<bool>((ref) => false);
 // ── M91 Memory Pulse providers ────────────────────────────────────────────
 
 /// Provides the [MemoryPulseService] instance (M91, M114, ADR-136).
-final memoryPulseServiceProvider = Provider<MemoryPulseService>(
-  (ref) {
-    final db = ref.watch(roavvyDatabaseProvider);
-    return MemoryPulseService(
-      heroRepo: HeroImageRepository(db),
-      notifications: NotificationService.instance,
-      db: db,
-    );
-  },
-);
+final memoryPulseServiceProvider = Provider<MemoryPulseService>((ref) {
+  final db = ref.watch(roavvyDatabaseProvider);
+  return MemoryPulseService(
+    heroRepo: HeroImageRepository(db),
+    notifications: NotificationService.instance,
+    db: db,
+  );
+});
 
 /// Debug toggle: when true, [todaysMemoriesProvider] skips anniversary date
 /// filtering and returns hero images instead (for manual testing).
@@ -283,28 +283,32 @@ final memoryPulseDebugOverrideProvider = StateProvider<bool>((ref) => false);
 ///
 /// Set [memoryPulseDebugOverrideProvider] to true to force-fire without the
 /// anniversary date filter (shows hero images instead).
-final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>(
-  (ref) async {
-    if (ref.watch(memoryPulseDebugOverrideProvider)) {
-      // In debug override mode, use the hero-image path so tester can see
-      // cards without needing an actual anniversary date.
-      final heroes = await HeroImageRepository(ref.watch(roavvyDatabaseProvider))
-          .getHeroesForRank1();
-      return heroes
-          .take(3)
-          .map((h) => MemoryAnniversaryPhoto(
-                assetId: h.assetId,
-                capturedAt: h.capturedAt,
-                countryCode: h.countryCode,
-                tripId: h.tripId,
-              ))
-          .toList();
-    }
-    return ref
-        .watch(memoryPulseServiceProvider)
-        .checkTodayFromPhotoLibrary(DateTime.now());
-  },
-);
+final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>((
+  ref,
+) async {
+  if (ref.watch(memoryPulseDebugOverrideProvider)) {
+    // In debug override mode, use the hero-image path so tester can see
+    // cards without needing an actual anniversary date.
+    final heroes =
+        await HeroImageRepository(
+          ref.watch(roavvyDatabaseProvider),
+        ).getHeroesForRank1();
+    return heroes
+        .take(3)
+        .map(
+          (h) => MemoryAnniversaryPhoto(
+            assetId: h.assetId,
+            capturedAt: h.capturedAt,
+            countryCode: h.countryCode,
+            tripId: h.tripId,
+          ),
+        )
+        .toList();
+  }
+  return ref
+      .watch(memoryPulseServiceProvider)
+      .checkTodayFromPhotoLibrary(DateTime.now());
+});
 
 /// Session-scoped set of assetIds dismissed by the user this session.
 ///
@@ -331,8 +335,8 @@ final challengeAggregateProvider = FutureProvider<ChallengeAggregate>(
 /// Last 30 days of challenge history for the stats screen (M136).
 final challengeLast30Provider =
     FutureProvider<List<({String date, bool solved, int guessesUsed})>>(
-  (ref) => ref.watch(challengeStatsServiceProvider).last30Days(),
-);
+      (ref) => ref.watch(challengeStatsServiceProvider).last30Days(),
+    );
 
 /// Fetches today's challenge from Firestore.
 /// autoDispose so the date is re-evaluated on every screen open — ensures a
@@ -351,8 +355,10 @@ final dailyChallengeProvider = FutureProvider.autoDispose<DailyChallenge>(
 /// [dailyChallengeProvider] errored (ADR-158).
 final dailyChallengeProgressProvider =
     FutureProvider.autoDispose<DailyChallengeProgress?>((ref) {
-  return ref.watch(dailyChallengeRepositoryProvider).loadToday(todayLocal());
-});
+      return ref
+          .watch(dailyChallengeRepositoryProvider)
+          .loadToday(todayLocal());
+    });
 
 /// Raw JSON string from bundled whs_sites.json. Loaded once per app lifetime.
 final whsSitesJsonProvider = FutureProvider<String>(
@@ -360,7 +366,9 @@ final whsSitesJsonProvider = FutureProvider<String>(
 );
 
 /// All unique [WorldHeritageSite]s parsed from the bundled JSON. Cached.
-final allWhsSitesProvider = FutureProvider<List<WorldHeritageSite>>((ref) async {
+final allWhsSitesProvider = FutureProvider<List<WorldHeritageSite>>((
+  ref,
+) async {
   final json = await ref.watch(whsSitesJsonProvider.future);
   return parseWhsSitesJson(json);
 });
@@ -369,34 +377,34 @@ final allWhsSitesProvider = FutureProvider<List<WorldHeritageSite>>((ref) async 
 /// Used as initial state for [dailyChallengeNotifierProvider].
 final _dailyChallengeInitProvider =
     FutureProvider.autoDispose<DailyChallengeState>((ref) async {
-  final challenge = await ref.watch(dailyChallengeProvider.future);
-  final sites = await ref.watch(allWhsSitesProvider.future);
-  final progress = await ref.watch(dailyChallengeProgressProvider.future);
-  return buildInitialChallengeState(
-    challenge: challenge,
-    savedProgress: progress,
-    allSites: sites,
-  );
-});
+      final challenge = await ref.watch(dailyChallengeProvider.future);
+      final sites = await ref.watch(allWhsSitesProvider.future);
+      final progress = await ref.watch(dailyChallengeProgressProvider.future);
+      return buildInitialChallengeState(
+        challenge: challenge,
+        savedProgress: progress,
+        allSites: sites,
+      );
+    });
 
 /// Drives [DailyChallengeScreen]. Auto-disposed when the screen is popped.
 final dailyChallengeNotifierProvider = StateNotifierProvider.autoDispose<
-    DailyChallengeNotifier, AsyncValue<DailyChallengeState>>(
-  (ref) {
-    final init = ref.watch(_dailyChallengeInitProvider);
-    final repo = ref.watch(dailyChallengeRepositoryProvider);
-    final allSites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
-    final statsService = ref.watch(challengeStatsServiceProvider);
-    final notifier = DailyChallengeNotifier(
-      initial: init,
-      repo: repo,
-      allSites: allSites,
-      statsService: statsService,
-    );
-    ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
-    return notifier;
-  },
-);
+  DailyChallengeNotifier,
+  AsyncValue<DailyChallengeState>
+>((ref) {
+  final init = ref.watch(_dailyChallengeInitProvider);
+  final repo = ref.watch(dailyChallengeRepositoryProvider);
+  final allSites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
+  final statsService = ref.watch(challengeStatsServiceProvider);
+  final notifier = DailyChallengeNotifier(
+    initial: init,
+    repo: repo,
+    allSites: allSites,
+    statsService: statsService,
+  );
+  ref.listen(_dailyChallengeInitProvider, (_, next) => notifier.update(next));
+  return notifier;
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 

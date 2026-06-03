@@ -110,8 +110,9 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
-    _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 1500));
+    _confettiController = ConfettiController(
+      duration: const Duration(milliseconds: 1500),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -139,7 +140,8 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
 
   Future<void> _playCelebrationAudio() async {
     try {
-      final sound = _celebrationSounds[math.Random().nextInt(_celebrationSounds.length)];
+      final sound =
+          _celebrationSounds[math.Random().nextInt(_celebrationSounds.length)];
       await _audioPlayer.play(AssetSource(sound));
     } catch (_) {
       // Silently suppressed in test environments (MissingPluginException).

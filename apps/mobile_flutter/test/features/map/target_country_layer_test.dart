@@ -46,7 +46,9 @@ void main() {
       expect(find.byType(FlutterMap), findsOneWidget);
     });
 
-    testWidgets('renders SizedBox.shrink when no target regions', (tester) async {
+    testWidgets('renders SizedBox.shrink when no target regions', (
+      tester,
+    ) async {
       // No visits → no region is 1-away → no target layer.
       final repo = VisitRepository(_makeDb());
       await tester.pumpWidget(_pumpLayer(repo));
@@ -55,16 +57,17 @@ void main() {
       expect(find.byType(SizedBox), findsWidgets);
     });
 
-    testWidgets('renders without crash when polygons are empty', (tester) async {
+    testWidgets('renders without crash when polygons are empty', (
+      tester,
+    ) async {
       final db = _makeDb();
       final repo = VisitRepository(db);
       // Add many European visits to get close to completion without
       // completing (hard to reach exactly 1-away in a unit test with real
       // kCountryContinent data, so we just verify it doesn't crash).
-      await repo.saveAdded(UserAddedCountry(
-        countryCode: 'GB',
-        addedAt: DateTime(2024).toUtc(),
-      ));
+      await repo.saveAdded(
+        UserAddedCountry(countryCode: 'GB', addedAt: DateTime(2024).toUtc()),
+      );
       await tester.pumpWidget(_pumpLayer(repo));
       await tester.pumpAndSettle();
       expect(find.byType(FlutterMap), findsOneWidget);

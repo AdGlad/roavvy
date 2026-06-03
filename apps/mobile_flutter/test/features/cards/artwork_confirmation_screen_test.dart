@@ -12,27 +12,85 @@ import 'package:shared_models/shared_models.dart';
 
 // Minimal valid 1×1 RGB PNG (69 bytes).
 final _kFakePng = Uint8List.fromList([
-  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1,
-  0, 0, 0, 1, 8, 2, 0, 0, 0, 144, 119, 83, 222, 0, 0, 0, 12, 73, 68, 65, 84,
-  120, 156, 99, 72, 153, 118, 2, 0, 3, 36, 1, 195, 32, 85, 100, 163, 0, 0, 0,
-  0, 73, 69, 78, 68, 174, 66, 96, 130,
+  137,
+  80,
+  78,
+  71,
+  13,
+  10,
+  26,
+  10,
+  0,
+  0,
+  0,
+  13,
+  73,
+  72,
+  68,
+  82,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  1,
+  8,
+  2,
+  0,
+  0,
+  0,
+  144,
+  119,
+  83,
+  222,
+  0,
+  0,
+  0,
+  12,
+  73,
+  68,
+  65,
+  84,
+  120,
+  156,
+  99,
+  72,
+  153,
+  118,
+  2,
+  0,
+  3,
+  36,
+  1,
+  195,
+  32,
+  85,
+  100,
+  163,
+  0,
+  0,
+  0,
+  0,
+  73,
+  69,
+  78,
+  68,
+  174,
+  66,
+  96,
+  130,
 ]);
 
 /// Minimal widget test harness for [ArtworkConfirmationScreen].
 ///
 /// Overrides [currentUidProvider] and [FirebaseFirestore.instance] via
 /// FakeFirebaseFirestore (ADR-103 / M51-E1).
-Widget _wrap(
-  Widget child, {
-  String? uid = 'test-uid',
-}) {
+Widget _wrap(Widget child, {String? uid = 'test-uid'}) {
   return ProviderScope(
-    overrides: [
-      currentUidProvider.overrideWith((ref) => uid),
-    ],
-    child: MaterialApp(
-      home: child,
-    ),
+    overrides: [currentUidProvider.overrideWith((ref) => uid)],
+    child: MaterialApp(home: child),
   );
 }
 
@@ -57,13 +115,18 @@ void main() {
       final hasIndicator =
           find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
       final hasImage = find.byType(Image).evaluate().isNotEmpty;
-      final hasError = find.text('Could not render artwork.').evaluate().isNotEmpty;
-      expect(hasIndicator || hasImage || hasError, isTrue,
-          reason: 'Screen must show either loading, result, or error state');
+      final hasError =
+          find.text('Could not render artwork.').evaluate().isNotEmpty;
+      expect(
+        hasIndicator || hasImage || hasError,
+        isTrue,
+        reason: 'Screen must show either loading, result, or error state',
+      );
     });
 
-    testWidgets('Confirm artwork button is disabled while rendering',
-        (tester) async {
+    testWidgets('Confirm artwork button is disabled while rendering', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const ArtworkConfirmationScreen(
@@ -78,8 +141,11 @@ void main() {
       final button = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Confirm artwork'),
       );
-      expect(button.onPressed, isNull,
-          reason: 'Button must be disabled during render');
+      expect(
+        button.onPressed,
+        isNull,
+        reason: 'Button must be disabled during render',
+      );
     });
 
     testWidgets('Change something button is always enabled', (tester) async {
@@ -100,38 +166,45 @@ void main() {
       );
     });
 
-    testWidgets('Change something pops without Firestore write', (tester) async {
+    testWidgets('Change something pops without Firestore write', (
+      tester,
+    ) async {
       final fakeFs = FakeFirebaseFirestore();
       bool popped = false;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            currentUidProvider.overrideWith((ref) => 'test-uid'),
-          ],
+          overrides: [currentUidProvider.overrideWith((ref) => 'test-uid')],
           child: MaterialApp(
             home: Navigator(
-              onGenerateRoute: (_) => MaterialPageRoute<void>(
-                builder: (_) => Scaffold(
-                  body: Builder(
-                    builder: (ctx) => ElevatedButton(
-                      onPressed: () async {
-                        final result = await Navigator.of(ctx)
-                            .push<ArtworkConfirmResult?>(
-                          MaterialPageRoute(
-                            builder: (_) => const ArtworkConfirmationScreen(
-                              templateType: CardTemplateType.grid,
-                              countryCodes: ['GB', 'FR'],
-                            ),
+              onGenerateRoute:
+                  (_) => MaterialPageRoute<void>(
+                    builder:
+                        (_) => Scaffold(
+                          body: Builder(
+                            builder:
+                                (ctx) => ElevatedButton(
+                                  onPressed: () async {
+                                    final result = await Navigator.of(
+                                      ctx,
+                                    ).push<ArtworkConfirmResult?>(
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) =>
+                                                const ArtworkConfirmationScreen(
+                                                  templateType:
+                                                      CardTemplateType.grid,
+                                                  countryCodes: ['GB', 'FR'],
+                                                ),
+                                      ),
+                                    );
+                                    if (result == null) popped = true;
+                                  },
+                                  child: const Text('Open'),
+                                ),
                           ),
-                        );
-                        if (result == null) popped = true;
-                      },
-                      child: const Text('Open'),
-                    ),
+                        ),
                   ),
-                ),
-              ),
             ),
           ),
         ),
@@ -153,17 +226,18 @@ void main() {
       expect(popped, isTrue, reason: 'Screen should pop with null result');
 
       // Verify no Firestore writes
-      final docs = await fakeFs
-          .collection('users')
-          .doc('test-uid')
-          .collection('artwork_confirmations')
-          .get();
-      expect(docs.docs, isEmpty,
-          reason: 'No Firestore write on dismiss');
+      final docs =
+          await fakeFs
+              .collection('users')
+              .doc('test-uid')
+              .collection('artwork_confirmations')
+              .get();
+      expect(docs.docs, isEmpty, reason: 'No Firestore write on dismiss');
     });
 
-    testWidgets('shows updated banner when showUpdatedBanner=true',
-        (tester) async {
+    testWidgets('shows updated banner when showUpdatedBanner=true', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const ArtworkConfirmationScreen(
@@ -184,8 +258,9 @@ void main() {
       );
     });
 
-    testWidgets('does not show updated banner when showUpdatedBanner=false',
-        (tester) async {
+    testWidgets('does not show updated banner when showUpdatedBanner=false', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const ArtworkConfirmationScreen(
@@ -222,8 +297,9 @@ void main() {
       expect(find.textContaining('3 countries'), findsWidgets);
     });
 
-    testWidgets('shows date label when trips span multiple years',
-        (tester) async {
+    testWidgets('shows date label when trips span multiple years', (
+      tester,
+    ) async {
       final trips = [
         TripRecord(
           id: 't1',
@@ -259,8 +335,9 @@ void main() {
       expect(find.text('2018\u20132024'), findsOneWidget);
     });
 
-    testWidgets('wasForced notice shown for passport with wasForced=true',
-        (tester) async {
+    testWidgets('wasForced notice shown for passport with wasForced=true', (
+      tester,
+    ) async {
       // The notice is conditioned on CardRenderResult.wasForced=true.
       // We can't easily trigger a real render in widget tests; verify the
       // notice widget itself renders when the condition is satisfied.
@@ -288,110 +365,117 @@ void main() {
 
   group('ArtworkConfirmationScreen — ADR-112 preRenderedResult', () {
     testWidgets(
-        'when preRenderedResult provided, shows image immediately without loading',
-        (tester) async {
-      final preRender = CardRenderResult(
-        bytes: _kFakePng,
-        imageHash: 'a' * 64,
-      );
+      'when preRenderedResult provided, shows image immediately without loading',
+      (tester) async {
+        final preRender = CardRenderResult(
+          bytes: _kFakePng,
+          imageHash: 'a' * 64,
+        );
 
-      await tester.pumpWidget(
-        _wrap(
-          ArtworkConfirmationScreen(
-            templateType: CardTemplateType.grid,
-            countryCodes: const ['GB', 'FR'],
-            preRenderedResult: preRender,
+        await tester.pumpWidget(
+          _wrap(
+            ArtworkConfirmationScreen(
+              templateType: CardTemplateType.grid,
+              countryCodes: const ['GB', 'FR'],
+              preRenderedResult: preRender,
+            ),
           ),
-        ),
-      );
+        );
 
-      // First frame — _rendering is false because preRenderedResult was set.
-      await tester.pump();
+        // First frame — _rendering is false because preRenderedResult was set.
+        await tester.pump();
 
-      // No loading indicator — render was skipped.
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-    });
+        // No loading indicator — render was skipped.
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+      },
+    );
 
     testWidgets(
-        'when preRenderedResult provided, Confirm artwork button is enabled immediately',
-        (tester) async {
-      final preRender = CardRenderResult(
-        bytes: _kFakePng,
-        imageHash: 'b' * 64,
-      );
+      'when preRenderedResult provided, Confirm artwork button is enabled immediately',
+      (tester) async {
+        final preRender = CardRenderResult(
+          bytes: _kFakePng,
+          imageHash: 'b' * 64,
+        );
 
-      await tester.pumpWidget(
-        _wrap(
-          ArtworkConfirmationScreen(
-            templateType: CardTemplateType.grid,
-            countryCodes: const ['GB'],
-            preRenderedResult: preRender,
+        await tester.pumpWidget(
+          _wrap(
+            ArtworkConfirmationScreen(
+              templateType: CardTemplateType.grid,
+              countryCodes: const ['GB'],
+              preRenderedResult: preRender,
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-
-      // With preRenderedResult, rendering is skipped so _rendering=false and
-      // _result is set. However canConfirm also requires all per-attribute
-      // checkboxes to be ticked. Tick all visible checkboxes then verify.
-      for (final tile in tester
-          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
-          .toList()) {
-        tile.onChanged!(true);
         await tester.pump();
-      }
 
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Confirm artwork'),
-      );
-      expect(button.onPressed, isNotNull,
-          reason: 'Button must be enabled when preRenderedResult is set and all checkboxes ticked');
-    });
+        // With preRenderedResult, rendering is skipped so _rendering=false and
+        // _result is set. However canConfirm also requires all per-attribute
+        // checkboxes to be ticked. Tick all visible checkboxes then verify.
+        for (final tile
+            in tester
+                .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+                .toList()) {
+          tile.onChanged!(true);
+          await tester.pump();
+        }
+
+        final button = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Confirm artwork'),
+        );
+        expect(
+          button.onPressed,
+          isNotNull,
+          reason:
+              'Button must be enabled when preRenderedResult is set and all checkboxes ticked',
+        );
+      },
+    );
   });
 
   group('ArtworkConfirmationScreen — M54-G3 null-UID guard', () {
     testWidgets(
-        'shows SnackBar and resets loading state when UID is null on confirm',
-        (tester) async {
-      // Wrap in a scaffold with scaffold messenger so SnackBar can render.
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            currentUidProvider.overrideWith((ref) => null), // UID is null
-          ],
-          child: const MaterialApp(
-            home: ArtworkConfirmationScreen(
-              templateType: CardTemplateType.grid,
-              countryCodes: ['GB', 'FR'],
+      'shows SnackBar and resets loading state when UID is null on confirm',
+      (tester) async {
+        // Wrap in a scaffold with scaffold messenger so SnackBar can render.
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              currentUidProvider.overrideWith((ref) => null), // UID is null
+            ],
+            child: const MaterialApp(
+              home: ArtworkConfirmationScreen(
+                templateType: CardTemplateType.grid,
+                countryCodes: ['GB', 'FR'],
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      // Wait for rendering to complete so the Confirm button is enabled.
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
+        // Wait for rendering to complete so the Confirm button is enabled.
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(seconds: 1));
 
-      // If the Confirm button is enabled, tap it.
-      final confirmFinder =
-          find.widgetWithText(FilledButton, 'Confirm artwork');
-      if (confirmFinder.evaluate().isNotEmpty) {
-        final btn = tester.widget<FilledButton>(confirmFinder);
-        if (btn.onPressed != null) {
-          await tester.tap(confirmFinder);
-          await tester.pump();
+        // If the Confirm button is enabled, tap it.
+        final confirmFinder = find.widgetWithText(
+          FilledButton,
+          'Confirm artwork',
+        );
+        if (confirmFinder.evaluate().isNotEmpty) {
+          final btn = tester.widget<FilledButton>(confirmFinder);
+          if (btn.onPressed != null) {
+            await tester.tap(confirmFinder);
+            await tester.pump();
 
-          // SnackBar with sign-in message must appear.
-          expect(
-            find.text('Please sign in to continue'),
-            findsOneWidget,
-          );
+            // SnackBar with sign-in message must appear.
+            expect(find.text('Please sign in to continue'), findsOneWidget);
+          }
         }
-      }
 
-      // Screen must remain on the confirmation screen (not popped).
-      expect(find.byType(ArtworkConfirmationScreen), findsOneWidget);
-    });
+        // Screen must remain on the confirmation screen (not popped).
+        expect(find.byType(ArtworkConfirmationScreen), findsOneWidget);
+      },
+    );
   });
 }

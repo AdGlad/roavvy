@@ -191,9 +191,7 @@ class _TravelWordCloudCardState extends State<TravelWordCloudCard> {
   static Map<String, String>? _reverseNameMap;
 
   String? _codeForName(String name) {
-    _reverseNameMap ??= {
-      for (final e in kCountryNames.entries) e.value: e.key,
-    };
+    _reverseNameMap ??= {for (final e in kCountryNames.entries) e.value: e.key};
     return _reverseNameMap![name];
   }
 
@@ -207,9 +205,10 @@ class _TravelWordCloudCardState extends State<TravelWordCloudCard> {
       return AspectRatio(
         aspectRatio: 1.0,
         child: Container(
-          color: widget.transparentBackground
-              ? Colors.transparent
-              : const Color(0xFF0D1B2A),
+          color:
+              widget.transparentBackground
+                  ? Colors.transparent
+                  : const Color(0xFF0D1B2A),
           child: const Center(
             child: Text(
               'Scan your photos\nto fill your word cloud',
@@ -232,16 +231,20 @@ class _TravelWordCloudCardState extends State<TravelWordCloudCard> {
             // Reserve space for title and subtitle strips.
             const titleH = CardTextRenderer.titleZoneH;
             const brandH = CardTextRenderer.brandingZoneH;
-            final cloudH = (totalH - titleH - brandH).clamp(1.0, double.infinity);
+            final cloudH = (totalH - titleH - brandH).clamp(
+              1.0,
+              double.infinity,
+            );
 
             final wordData = _buildWordData();
             final colors = _colorsFor(wordData);
 
             // When only one country, size is constant → give it a visible min.
             final minSize = wordData.length == 1 ? 32.0 : 11.0;
-            final maxSize = wordData.length <= 3
-                ? 52.0
-                : wordData.length <= 10
+            final maxSize =
+                wordData.length <= 3
+                    ? 52.0
+                    : wordData.length <= 10
                     ? 44.0
                     : 36.0;
 
@@ -325,10 +328,14 @@ class _TitleStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (title.isEmpty) return const SizedBox.shrink();
-    final color = textColor ??
-        (transparent ? const Color(0xFF1A237E) : CardTextRenderer.defaultTextColor);
+    final color =
+        textColor ??
+        (transparent
+            ? const Color(0xFF1A237E)
+            : CardTextRenderer.defaultTextColor);
     return Container(
-      color: transparent ? Colors.transparent : CardTextRenderer.defaultStripColor,
+      color:
+          transparent ? Colors.transparent : CardTextRenderer.defaultStripColor,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Text(
@@ -364,12 +371,17 @@ class _BrandingStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = subtitleLine ??
+    final label =
+        subtitleLine ??
         'Roavvy: $countryCount ${countryCount == 1 ? 'Country' : 'Countries'}';
-    final color = textColor ??
-        (transparent ? const Color(0xFF1A237E) : CardTextRenderer.defaultTextColor);
+    final color =
+        textColor ??
+        (transparent
+            ? const Color(0xFF1A237E)
+            : CardTextRenderer.defaultTextColor);
     return Container(
-      color: transparent ? Colors.transparent : CardTextRenderer.defaultStripColor,
+      color:
+          transparent ? Colors.transparent : CardTextRenderer.defaultStripColor,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Text(

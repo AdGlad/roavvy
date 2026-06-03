@@ -24,11 +24,7 @@ class GlobeProjection {
   /// Zoom scale. 1.0 = globe fills the shorter canvas dimension. Range [0.8, 8.0].
   final double scale;
 
-  GlobeProjection copyWith({
-    double? rotLat,
-    double? rotLng,
-    double? scale,
-  }) =>
+  GlobeProjection copyWith({double? rotLat, double? rotLng, double? scale}) =>
       GlobeProjection(
         rotLat: (rotLat ?? this.rotLat).clamp(-math.pi / 2, math.pi / 2),
         rotLng: rotLng ?? this.rotLng,
@@ -38,8 +34,7 @@ class GlobeProjection {
   // ── Coordinate helpers ──────────────────────────────────────────────────────
 
   /// Radius of the globe circle in logical pixels given [canvasSize].
-  double radius(Size canvasSize) =>
-      canvasSize.shortestSide / 2.0 * scale;
+  double radius(Size canvasSize) => canvasSize.shortestSide / 2.0 * scale;
 
   /// Canvas centre offset.
   Offset centre(Size canvasSize) =>
@@ -60,14 +55,15 @@ class GlobeProjection {
   }
 
   /// Returns true when [lat]/[lng] is on the visible hemisphere.
-  bool isVisible(double lat, double lng) =>
-      _rotate(_toUnit(lat, lng)).$3 >= 0;
+  bool isVisible(double lat, double lng) => _rotate(_toUnit(lat, lng)).$3 >= 0;
 
   /// Inverse-projects [screenPoint] on [canvasSize] back to (lat, lng) degrees.
   ///
   /// Returns `null` when [screenPoint] is outside the globe circle.
   (double lat, double lng)? inverseProject(
-      Offset screenPoint, Size canvasSize) {
+    Offset screenPoint,
+    Size canvasSize,
+  ) {
     final c = centre(canvasSize);
     final r = radius(canvasSize);
     final nx = (screenPoint.dx - c.dx) / r;
@@ -76,10 +72,8 @@ class GlobeProjection {
     if (d2 > 1.0) return null; // outside the globe
     final nz = math.sqrt(1.0 - d2);
     final unrotated = _unrotate((nx, ny, nz));
-    final lat =
-        math.asin(unrotated.$2.clamp(-1.0, 1.0)) * 180.0 / math.pi;
-    final lng =
-        math.atan2(unrotated.$1, unrotated.$3) * 180.0 / math.pi;
+    final lat = math.asin(unrotated.$2.clamp(-1.0, 1.0)) * 180.0 / math.pi;
+    final lng = math.atan2(unrotated.$1, unrotated.$3) * 180.0 / math.pi;
     return (lat, lng);
   }
 
@@ -90,7 +84,8 @@ class GlobeProjection {
   /// Returns a list of one or two sub-rings. A single-element list means no
   /// crossing was detected.
   List<List<(double, double)>> splitAtAntimeridian(
-      List<(double, double)> ring) {
+    List<(double, double)> ring,
+  ) {
     if (ring.length < 2) return [ring];
 
     bool hasCrossing = false;
@@ -138,11 +133,7 @@ class GlobeProjection {
     final latR = lat * math.pi / 180.0;
     final lngR = lng * math.pi / 180.0;
     final cosLat = math.cos(latR);
-    return (
-      cosLat * math.sin(lngR),
-      math.sin(latR),
-      cosLat * math.cos(lngR),
-    );
+    return (cosLat * math.sin(lngR), math.sin(latR), cosLat * math.cos(lngR));
   }
 
   /// Applies the camera rotation (rotLng then rotLat) to unit vector [v].

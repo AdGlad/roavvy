@@ -39,22 +39,35 @@ class StampPainter extends CustomPainter {
     final offscreen = Canvas(recorder);
 
     // Apply ink bleed to stroke paints (MaskFilter.blur)
-    final bleedSigma = stamp.renderConfig.enableNoise
-        ? StampNoiseGenerator.bleedSigma(stamp.seed)
-        : 0.0;
+    final bleedSigma =
+        stamp.renderConfig.enableNoise
+            ? StampNoiseGenerator.bleedSigma(stamp.seed)
+            : 0.0;
 
     final color = stamp.inkColor;
 
     // Draw geometry on offscreen canvas
     switch (stamp.style) {
       case StampStyle.airportEntry:
-        _drawAirportEntry(offscreen, color, baseRadius, localCenter, bleedSigma);
+        _drawAirportEntry(
+          offscreen,
+          color,
+          baseRadius,
+          localCenter,
+          bleedSigma,
+        );
       case StampStyle.airportExit:
         _drawAirportExit(offscreen, color, baseRadius, localCenter, bleedSigma);
       case StampStyle.landBorder:
         _drawLandBorder(offscreen, color, baseRadius, localCenter, bleedSigma);
       case StampStyle.visaApproval:
-        _drawVisaApproval(offscreen, color, baseRadius, localCenter, bleedSigma);
+        _drawVisaApproval(
+          offscreen,
+          color,
+          baseRadius,
+          localCenter,
+          bleedSigma,
+        );
       case StampStyle.transit:
         _drawTransit(offscreen, color, baseRadius, localCenter, bleedSigma);
       case StampStyle.vintage:
@@ -66,7 +79,13 @@ class StampPainter extends CustomPainter {
       case StampStyle.hexBadge:
         _drawHexBadge(offscreen, color, baseRadius, localCenter, bleedSigma);
       case StampStyle.dottedCircle:
-        _drawDottedCircle(offscreen, color, baseRadius, localCenter, bleedSigma);
+        _drawDottedCircle(
+          offscreen,
+          color,
+          baseRadius,
+          localCenter,
+          bleedSigma,
+        );
       case StampStyle.multiRing:
         _drawMultiRing(offscreen, color, baseRadius, localCenter, bleedSigma);
       case StampStyle.blockText:
@@ -104,7 +123,8 @@ class StampPainter extends CustomPainter {
     if (needsAlphaLayer) {
       canvas.saveLayer(
         bounds,
-        Paint()..color = Color.fromARGB((ageOpacity * 255).round(), 255, 255, 255),
+        Paint()
+          ..color = Color.fromARGB((ageOpacity * 255).round(), 255, 255, 255),
       );
     }
     canvas.drawPicture(picture);
@@ -118,38 +138,69 @@ class StampPainter extends CustomPainter {
 
   // ── Style renderers ──────────────────────────────────────────────────────────
 
-  void _drawAirportEntry(Canvas c, Color color, double r, Offset o, double bleed) {
+  void _drawAirportEntry(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed,
+  ) {
     _doubleCircle(c, color, r, o, bleed);
     // Takeoff: plane angled up-right
     _drawAirplane(c, color, r * 0.38, o, -math.pi / 6);
     // Airport code arced along the top ring
     StampTypographyPainter.drawArcText(
-        c, stamp.airportCode, color, 5.0 * stamp.scale, o, r * 0.87,
-        -math.pi / 2);
+      c,
+      stamp.airportCode,
+      color,
+      5.0 * stamp.scale,
+      o,
+      r * 0.87,
+      -math.pi / 2,
+    );
     // Serial number arced along the bottom ring
     StampTypographyPainter.drawArcText(
-        c,
-        stamp.serialCode,
-        color.withValues(alpha: color.a * 0.55),
-        3.5 * stamp.scale,
-        o,
-        r * 0.87,
-        math.pi / 2);
+      c,
+      stamp.serialCode,
+      color.withValues(alpha: color.a * 0.55),
+      3.5 * stamp.scale,
+      o,
+      r * 0.87,
+      math.pi / 2,
+    );
     _stampLabels(c, color, r, o, sublabel: 'IMMIGRATION');
   }
 
-  void _drawAirportExit(Canvas c, Color color, double r, Offset o, double bleed) {
+  void _drawAirportExit(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed,
+  ) {
     _singleCircle(c, color, r, o, bleed);
     // Landing: plane angled down-left (mirrored)
     _drawAirplane(c, color, r * 0.38, o, math.pi / 6);
     // Airport code arced along the top
     StampTypographyPainter.drawArcText(
-        c, stamp.airportCode, color, 5.0 * stamp.scale, o, r * 0.87,
-        -math.pi / 2);
+      c,
+      stamp.airportCode,
+      color,
+      5.0 * stamp.scale,
+      o,
+      r * 0.87,
+      -math.pi / 2,
+    );
     _stampLabels(c, color, r, o, sublabel: 'DEPARTURE');
   }
 
-  void _drawLandBorder(Canvas c, Color color, double r, Offset o, double bleed) {
+  void _drawLandBorder(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed,
+  ) {
     final w = r * 2.2;
     final h = r * 1.5;
     final rect = Rect.fromCenter(center: o, width: w, height: h);
@@ -159,7 +210,13 @@ class StampPainter extends CustomPainter {
     _stampLabels(c, color, r * 0.65, o, textMaxWidth: r * 2.0);
   }
 
-  void _drawVisaApproval(Canvas c, Color color, double r, Offset o, double bleed) {
+  void _drawVisaApproval(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed,
+  ) {
     final w = r * 2.0;
     final h = r * 1.4;
     final outer = Rect.fromCenter(center: o, width: w, height: h);
@@ -167,44 +224,64 @@ class StampPainter extends CustomPainter {
     c.drawRect(outer, _strokePaint(color, 2.5, bleed));
     c.drawRect(inner, _strokePaint(color, 1.0, bleed));
     StampTypographyPainter.drawSublabel(
-        c, 'APPROVED', color, 5.0 * stamp.scale, o - Offset(0, h * 0.3));
+      c,
+      'APPROVED',
+      color,
+      5.0 * stamp.scale,
+      o - Offset(0, h * 0.3),
+    );
     _maybePlaneDecoration(c, color, r * 0.65, o);
     _stampLabels(c, color, r * 0.65, o);
   }
 
   void _drawTransit(Canvas c, Color color, double r, Offset o, double bleed) {
     _singleCircle(c, color, r, o, bleed, strokeWidth: 1.5);
-    final hasIcon =
-        _drawCountryIcon(c, color, r * 0.42, o - Offset(0, r * 0.20));
+    final hasIcon = _drawCountryIcon(
+      c,
+      color,
+      r * 0.42,
+      o - Offset(0, r * 0.20),
+    );
     final innerR = r * (hasIcon ? 0.55 : 0.72);
     StampTypographyPainter.drawHeroText(
-        c,
-        stamp.countryName.isNotEmpty
-            ? stamp.countryName.toUpperCase()
-            : stamp.countryCode,
-        color,
-        innerR * 0.55,
-        o + Offset(0, hasIcon ? r * 0.30 : -r * 0.10),
-        stamp.seed,
-        maxWidth: r * 1.72);
+      c,
+      stamp.countryName.isNotEmpty
+          ? stamp.countryName.toUpperCase()
+          : stamp.countryCode,
+      color,
+      innerR * 0.55,
+      o + Offset(0, hasIcon ? r * 0.30 : -r * 0.10),
+      stamp.seed,
+      maxWidth: r * 1.72,
+    );
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, stamp.dateColor, 5.0 * stamp.scale,
-          o + Offset(0, r * 0.60));
+        c,
+        stamp.dateLabel!,
+        stamp.dateColor,
+        5.0 * stamp.scale,
+        o + Offset(0, r * 0.60),
+      );
     }
     StampTypographyPainter.drawCondensedLabel(
-        c, stamp.entryLabel, color, 5.5 * stamp.scale,
-        o + Offset(0, hasIcon ? r * 0.74 : r * 0.52), stamp.seed ^ 0xFF,
-        weight: FontWeight.bold);
+      c,
+      stamp.entryLabel,
+      color,
+      5.5 * stamp.scale,
+      o + Offset(0, hasIcon ? r * 0.74 : r * 0.52),
+      stamp.seed ^ 0xFF,
+      weight: FontWeight.bold,
+    );
   }
 
   void _drawVintage(Canvas c, Color color, double r, Offset o, double bleed) {
     c.drawCircle(o, r, _strokePaint(color, 4.0, bleed));
     // Cross-hatch ring: 12 radial segments
-    final segPaint = Paint()
-      ..color = color.withValues(alpha: color.a * 0.6)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
+    final segPaint =
+        Paint()
+          ..color = color.withValues(alpha: color.a * 0.6)
+          ..strokeWidth = 0.8
+          ..style = PaintingStyle.stroke;
     for (var i = 0; i < 12; i++) {
       final angle = 2 * math.pi * i / 12;
       c.drawLine(
@@ -215,12 +292,24 @@ class StampPainter extends CustomPainter {
     }
     // Airport code arced at top inside the ring
     StampTypographyPainter.drawArcText(
-        c, stamp.airportCode, color, 5.5 * stamp.scale, o, r * 0.58,
-        -math.pi / 2);
+      c,
+      stamp.airportCode,
+      color,
+      5.5 * stamp.scale,
+      o,
+      r * 0.58,
+      -math.pi / 2,
+    );
     _stampLabels(c, color, r * 0.60, o, sublabel: 'VISA');
   }
 
-  void _drawModernSans(Canvas c, Color color, double r, Offset o, double bleed) {
+  void _drawModernSans(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed,
+  ) {
     final w = r * 2.4;
     final h = r * 1.5;
     final rect = Rect.fromCenter(center: o, width: w, height: h);
@@ -231,48 +320,71 @@ class StampPainter extends CustomPainter {
   }
 
   void _drawTriangle(Canvas c, Color color, double r, Offset o, double bleed) {
-    final path = StampShapeDistorter.distortedPolygon([
-      Offset(o.dx, o.dy - r * 1.05),
-      Offset(o.dx + r * 1.2, o.dy + r * 0.65),
-      Offset(o.dx - r * 1.2, o.dy + r * 0.65),
-    ], stamp.seed, r * 0.022);
+    final path = StampShapeDistorter.distortedPolygon(
+      [
+        Offset(o.dx, o.dy - r * 1.05),
+        Offset(o.dx + r * 1.2, o.dy + r * 0.65),
+        Offset(o.dx - r * 1.2, o.dy + r * 0.65),
+      ],
+      stamp.seed,
+      r * 0.022,
+    );
     c.drawPath(path, _strokePaint(color, 2.0, bleed));
     StampTypographyPainter.drawHeroText(
-        c,
-        stamp.countryName.isNotEmpty
-            ? stamp.countryName.toUpperCase()
-            : stamp.countryCode,
-        color,
-        r * 0.38,
-        o + Offset(0, r * 0.18),
-        stamp.seed,
-        maxWidth: r * 2.0);
+      c,
+      stamp.countryName.isNotEmpty
+          ? stamp.countryName.toUpperCase()
+          : stamp.countryCode,
+      color,
+      r * 0.38,
+      o + Offset(0, r * 0.18),
+      stamp.seed,
+      maxWidth: r * 2.0,
+    );
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, stamp.dateColor, 5.0 * stamp.scale,
-          o - Offset(0, r * 0.24));
+        c,
+        stamp.dateLabel!,
+        stamp.dateColor,
+        5.0 * stamp.scale,
+        o - Offset(0, r * 0.24),
+      );
     }
     StampTypographyPainter.drawCondensedLabel(
-        c, stamp.entryLabel, color, 5.5 * stamp.scale,
-        o + Offset(0, r * 0.52), stamp.seed ^ 0xFF,
-        weight: FontWeight.bold);
+      c,
+      stamp.entryLabel,
+      color,
+      5.5 * stamp.scale,
+      o + Offset(0, r * 0.52),
+      stamp.seed ^ 0xFF,
+      weight: FontWeight.bold,
+    );
   }
 
   void _drawHexBadge(Canvas c, Color color, double r, Offset o, double bleed) {
     final vertices = [
       for (var i = 0; i < 6; i++)
-        Offset(o.dx + r * math.cos(math.pi / 6 + i * math.pi / 3),
-            o.dy + r * math.sin(math.pi / 6 + i * math.pi / 3)),
+        Offset(
+          o.dx + r * math.cos(math.pi / 6 + i * math.pi / 3),
+          o.dy + r * math.sin(math.pi / 6 + i * math.pi / 3),
+        ),
     ];
-    c.drawPath(StampShapeDistorter.distortedPolygon(vertices, stamp.seed, r * 0.020),
-        _strokePaint(color, 2.0, bleed));
+    c.drawPath(
+      StampShapeDistorter.distortedPolygon(vertices, stamp.seed, r * 0.020),
+      _strokePaint(color, 2.0, bleed),
+    );
     _stampLabels(c, color, r * 0.60, o);
   }
 
-  void _drawDottedCircle(Canvas c, Color color, double r, Offset o, double bleed) {
+  void _drawDottedCircle(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed,
+  ) {
     const arcCount = 36;
-    final paint = _strokePaint(color, 2.0, bleed)
-      ..strokeCap = StrokeCap.round;
+    final paint = _strokePaint(color, 2.0, bleed)..strokeCap = StrokeCap.round;
     const gapFraction = 0.35;
     for (var i = 0; i < arcCount; i++) {
       final startAngle = 2 * math.pi * i / arcCount;
@@ -287,13 +399,14 @@ class StampPainter extends CustomPainter {
     }
     // Serial number arced at bottom
     StampTypographyPainter.drawArcText(
-        c,
-        stamp.serialCode,
-        color.withValues(alpha: color.a * 0.55),
-        3.5 * stamp.scale,
-        o,
-        r * 0.88,
-        math.pi / 2);
+      c,
+      stamp.serialCode,
+      color.withValues(alpha: color.a * 0.55),
+      3.5 * stamp.scale,
+      o,
+      r * 0.88,
+      math.pi / 2,
+    );
     _stampLabels(c, color, r * 0.72, o);
   }
 
@@ -303,8 +416,14 @@ class StampPainter extends CustomPainter {
     c.drawCircle(o, r * 0.72, _strokePaint(color, 1.2, bleed));
     // Airport code arced at top between outer and middle rings
     StampTypographyPainter.drawArcText(
-        c, stamp.airportCode, color, 5.0 * stamp.scale, o, r * 0.90,
-        -math.pi / 2);
+      c,
+      stamp.airportCode,
+      color,
+      5.0 * stamp.scale,
+      o,
+      r * 0.90,
+      -math.pi / 2,
+    );
     _stampLabels(c, color, r * 0.48, o);
   }
 
@@ -317,33 +436,47 @@ class StampPainter extends CustomPainter {
     );
     _maybePlaneDecoration(c, color, r * 0.60, o);
     StampTypographyPainter.drawHeroText(
-        c,
-        stamp.countryName.isNotEmpty
-            ? stamp.countryName.toUpperCase()
-            : stamp.countryCode,
-        color,
-        h * 0.42,
-        o - Offset(0, h * 0.12),
-        stamp.seed,
-        maxWidth: w * 0.90);
+      c,
+      stamp.countryName.isNotEmpty
+          ? stamp.countryName.toUpperCase()
+          : stamp.countryCode,
+      color,
+      h * 0.42,
+      o - Offset(0, h * 0.12),
+      stamp.seed,
+      maxWidth: w * 0.90,
+    );
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, stamp.dateColor, 4.5 * stamp.scale,
-          o + Offset(0, h * 0.20));
+        c,
+        stamp.dateLabel!,
+        stamp.dateColor,
+        4.5 * stamp.scale,
+        o + Offset(0, h * 0.20),
+      );
     }
     StampTypographyPainter.drawCondensedLabel(
-        c, stamp.entryLabel, color, 5.5 * stamp.scale,
-        o + Offset(0, h * 0.38), stamp.seed ^ 0xFF,
-        weight: FontWeight.bold);
+      c,
+      stamp.entryLabel,
+      color,
+      5.5 * stamp.scale,
+      o + Offset(0, h * 0.38),
+      stamp.seed ^ 0xFF,
+      weight: FontWeight.bold,
+    );
   }
 
   void _drawOval(Canvas c, Color color, double r, Offset o, double bleed) {
     final rx = r * 1.15;
     final ry = r * 0.82;
-    c.drawPath(_ovalPath(o, rx, ry, stamp.seed), _strokePaint(color, 2.0, bleed));
     c.drawPath(
-        _ovalPath(o, rx - 5, ry - 5, stamp.seed ^ 0x33),
-        _strokePaint(color, 1.0, bleed));
+      _ovalPath(o, rx, ry, stamp.seed),
+      _strokePaint(color, 2.0, bleed),
+    );
+    c.drawPath(
+      _ovalPath(o, rx - 5, ry - 5, stamp.seed ^ 0x33),
+      _strokePaint(color, 1.0, bleed),
+    );
     _maybePlaneDecoration(c, color, ry * 0.85, o);
     _stampLabels(c, color, ry * 0.85, o);
   }
@@ -368,19 +501,27 @@ class StampPainter extends CustomPainter {
   }
 
   void _drawDiamond(Canvas c, Color color, double r, Offset o, double bleed) {
-    final outer = StampShapeDistorter.distortedPolygon([
-      Offset(o.dx, o.dy - r * 1.2),
-      Offset(o.dx + r * 0.85, o.dy),
-      Offset(o.dx, o.dy + r * 1.2),
-      Offset(o.dx - r * 0.85, o.dy),
-    ], stamp.seed, r * 0.022);
+    final outer = StampShapeDistorter.distortedPolygon(
+      [
+        Offset(o.dx, o.dy - r * 1.2),
+        Offset(o.dx + r * 0.85, o.dy),
+        Offset(o.dx, o.dy + r * 1.2),
+        Offset(o.dx - r * 0.85, o.dy),
+      ],
+      stamp.seed,
+      r * 0.022,
+    );
     c.drawPath(outer, _strokePaint(color, 2.0, bleed));
-    final inner = StampShapeDistorter.distortedPolygon([
-      Offset(o.dx, o.dy - r * 0.90),
-      Offset(o.dx + r * 0.63, o.dy),
-      Offset(o.dx, o.dy + r * 0.90),
-      Offset(o.dx - r * 0.63, o.dy),
-    ], stamp.seed ^ 0x22, r * 0.018);
+    final inner = StampShapeDistorter.distortedPolygon(
+      [
+        Offset(o.dx, o.dy - r * 0.90),
+        Offset(o.dx + r * 0.63, o.dy),
+        Offset(o.dx, o.dy + r * 0.90),
+        Offset(o.dx - r * 0.63, o.dy),
+      ],
+      stamp.seed ^ 0x22,
+      r * 0.018,
+    );
     c.drawPath(inner, _strokePaint(color, 1.0, bleed));
     _stampLabels(c, color, r * 0.58, o);
   }
@@ -388,11 +529,15 @@ class StampPainter extends CustomPainter {
   void _drawOctagon(Canvas c, Color color, double r, Offset o, double bleed) {
     final vertices = [
       for (var i = 0; i < 8; i++)
-        Offset(o.dx + r * math.cos(math.pi / 8 + i * math.pi / 4),
-            o.dy + r * math.sin(math.pi / 8 + i * math.pi / 4)),
+        Offset(
+          o.dx + r * math.cos(math.pi / 8 + i * math.pi / 4),
+          o.dy + r * math.sin(math.pi / 8 + i * math.pi / 4),
+        ),
     ];
-    c.drawPath(StampShapeDistorter.distortedPolygon(vertices, stamp.seed, r * 0.020),
-        _strokePaint(color, 2.0, bleed));
+    c.drawPath(
+      StampShapeDistorter.distortedPolygon(vertices, stamp.seed, r * 0.020),
+      _strokePaint(color, 2.0, bleed),
+    );
     _stampLabels(c, color, r * 0.60, o);
   }
 
@@ -403,8 +548,14 @@ class StampPainter extends CustomPainter {
     c.drawCircle(o, r * 0.75, _strokePaint(color, 1.0, bleed));
   }
 
-  void _singleCircle(Canvas c, Color color, double r, Offset o, double bleed,
-      {double strokeWidth = 2.0}) {
+  void _singleCircle(
+    Canvas c,
+    Color color,
+    double r,
+    Offset o,
+    double bleed, {
+    double strokeWidth = 2.0,
+  }) {
     c.drawCircle(o, r, _strokePaint(color, strokeWidth, bleed));
   }
 
@@ -413,11 +564,17 @@ class StampPainter extends CustomPainter {
   /// Nose points in the direction of [angle] (0 = up, positive = clockwise).
   /// [opacity] is applied on top of [color]'s existing alpha.
   void _drawAirplane(
-      Canvas c, Color color, double size, Offset center, double angle,
-      {double opacity = 0.48}) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: color.a * opacity)
-      ..style = PaintingStyle.fill;
+    Canvas c,
+    Color color,
+    double size,
+    Offset center,
+    double angle, {
+    double opacity = 0.48,
+  }) {
+    final paint =
+        Paint()
+          ..color = color.withValues(alpha: color.a * opacity)
+          ..style = PaintingStyle.fill;
 
     c.save();
     c.translate(center.dx, center.dy);
@@ -425,30 +582,36 @@ class StampPainter extends CustomPainter {
 
     // Fuselage
     c.drawOval(
-        Rect.fromCenter(
-            center: Offset.zero, width: size * 0.20, height: size * 0.90),
-        paint);
+      Rect.fromCenter(
+        center: Offset.zero,
+        width: size * 0.20,
+        height: size * 0.90,
+      ),
+      paint,
+    );
 
     // Main wings (swept back)
     c.drawPath(
-        Path()
-          ..moveTo(0, -size * 0.05)
-          ..lineTo(-size * 0.78, size * 0.28)
-          ..lineTo(-size * 0.56, size * 0.40)
-          ..lineTo(0, size * 0.20)
-          ..lineTo(size * 0.56, size * 0.40)
-          ..lineTo(size * 0.78, size * 0.28)
-          ..close(),
-        paint);
+      Path()
+        ..moveTo(0, -size * 0.05)
+        ..lineTo(-size * 0.78, size * 0.28)
+        ..lineTo(-size * 0.56, size * 0.40)
+        ..lineTo(0, size * 0.20)
+        ..lineTo(size * 0.56, size * 0.40)
+        ..lineTo(size * 0.78, size * 0.28)
+        ..close(),
+      paint,
+    );
 
     // Tail fins
     c.drawPath(
-        Path()
-          ..moveTo(0, size * 0.40)
-          ..lineTo(-size * 0.30, size * 0.55)
-          ..lineTo(size * 0.30, size * 0.55)
-          ..close(),
-        paint);
+      Path()
+        ..moveTo(0, size * 0.40)
+        ..lineTo(-size * 0.30, size * 0.55)
+        ..lineTo(size * 0.30, size * 0.55)
+        ..close(),
+      paint,
+    );
 
     c.restore();
   }
@@ -459,9 +622,14 @@ class StampPainter extends CustomPainter {
   void _maybePlaneDecoration(Canvas c, Color color, double r, Offset o) {
     if (stamp.seed % 4 != 0) return;
     final angle = stamp.isEntry ? -math.pi / 5 : math.pi / 5;
-    _drawAirplane(c, color, r * 0.22,
-        o - Offset(r * 0.52, r * 0.52), angle,
-        opacity: 0.30);
+    _drawAirplane(
+      c,
+      color,
+      r * 0.22,
+      o - Offset(r * 0.52, r * 0.52),
+      angle,
+      opacity: 0.30,
+    );
   }
 
   void _stampLabels(
@@ -477,7 +645,12 @@ class StampPainter extends CustomPainter {
 
     if (sublabel != null) {
       StampTypographyPainter.drawSublabel(
-          c, sublabel, color, 4.5 * stamp.scale, o - Offset(0, r * 0.68));
+        c,
+        sublabel,
+        color,
+        4.5 * stamp.scale,
+        o - Offset(0, r * 0.68),
+      );
     }
 
     // Start hero text large and let drawHeroText auto-shrink for long names.
@@ -485,25 +658,35 @@ class StampPainter extends CustomPainter {
     // for rectangular stamps where the usable width exceeds the inner radius.
     final maxWidth = textMaxWidth ?? r * 1.80;
     StampTypographyPainter.drawHeroText(
-        c,
-        stamp.countryName.isNotEmpty
-            ? stamp.countryName.toUpperCase()
-            : stamp.countryCode,
-        color,
-        r * 0.55,
-        o - Offset(0, r * 0.26),
-        stamp.seed,
-        maxWidth: maxWidth);
+      c,
+      stamp.countryName.isNotEmpty
+          ? stamp.countryName.toUpperCase()
+          : stamp.countryCode,
+      color,
+      r * 0.55,
+      o - Offset(0, r * 0.26),
+      stamp.seed,
+      maxWidth: maxWidth,
+    );
 
     if (stamp.dateLabel != null) {
       StampTypographyPainter.drawMonoDate(
-          c, stamp.dateLabel!, stamp.dateColor, 5.0 * stamp.scale,
-          o + Offset(0, r * 0.14));
+        c,
+        stamp.dateLabel!,
+        stamp.dateColor,
+        5.0 * stamp.scale,
+        o + Offset(0, r * 0.14),
+      );
     }
     StampTypographyPainter.drawCondensedLabel(
-        c, stamp.entryLabel, color, 6.0 * stamp.scale,
-        o + Offset(0, r * 0.40), stamp.seed ^ 0xFF,
-        weight: FontWeight.bold);
+      c,
+      stamp.entryLabel,
+      color,
+      6.0 * stamp.scale,
+      o + Offset(0, r * 0.40),
+      stamp.seed ^ 0xFF,
+      weight: FontWeight.bold,
+    );
   }
 
   // ── Country icon helpers ─────────────────────────────────────────────────────
@@ -513,9 +696,10 @@ class StampPainter extends CustomPainter {
   /// Returns true if an icon was drawn. Icons are filled at 28% opacity so
   /// they read as watermarks beneath the stamp text.
   bool _drawCountryIcon(Canvas c, Color color, double iconSize, Offset center) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: color.a * 0.28)
-      ..style = PaintingStyle.fill;
+    final paint =
+        Paint()
+          ..color = color.withValues(alpha: color.a * 0.28)
+          ..style = PaintingStyle.fill;
 
     switch (stamp.countryCode) {
       case 'JP':
@@ -553,13 +737,13 @@ class StampPainter extends CustomPainter {
         // Equal-armed cross
         final arm = iconSize * 0.32;
         c.drawRect(
-            Rect.fromCenter(
-                center: center, width: arm, height: iconSize * 1.8),
-            paint);
+          Rect.fromCenter(center: center, width: arm, height: iconSize * 1.8),
+          paint,
+        );
         c.drawRect(
-            Rect.fromCenter(
-                center: center, width: iconSize * 1.8, height: arm),
-            paint);
+          Rect.fromCenter(center: center, width: iconSize * 1.8, height: arm),
+          paint,
+        );
         return true;
       case 'GB':
         c.drawPath(_crownPath(center, iconSize * 0.75), paint);
@@ -606,23 +790,34 @@ class StampPainter extends CustomPainter {
       ..lineTo(o.dx + s * 0.38, o.dy + s * 0.28)
       ..close()
       // Body (narrow oval)
-      ..addOval(Rect.fromCenter(
-          center: o + Offset(0, s * 0.22), width: s * 0.28, height: s * 0.56));
+      ..addOval(
+        Rect.fromCenter(
+          center: o + Offset(0, s * 0.22),
+          width: s * 0.28,
+          height: s * 0.56,
+        ),
+      );
   }
 
   /// Simplified Osborne-style bull: body + head + horns.
   Path _bullPath(Offset o, double s) {
     return Path()
       // Body
-      ..addOval(Rect.fromCenter(
+      ..addOval(
+        Rect.fromCenter(
           center: o + Offset(-s * 0.10, s * 0.15),
           width: s * 1.30,
-          height: s * 0.60))
+          height: s * 0.60,
+        ),
+      )
       // Head
-      ..addOval(Rect.fromCenter(
+      ..addOval(
+        Rect.fromCenter(
           center: o + Offset(s * 0.58, -s * 0.06),
           width: s * 0.40,
-          height: s * 0.35))
+          height: s * 0.35,
+        ),
+      )
       // Left horn
       ..moveTo(o.dx + s * 0.42, o.dy - s * 0.18)
       ..lineTo(o.dx + s * 0.30, o.dy - s * 0.52)
@@ -654,16 +849,30 @@ class StampPainter extends CustomPainter {
   Path _mapleLeafPath(Offset o, double s) {
     const pts = <List<double>>[
       [0.0, -0.95],
-      [0.10, -0.60], [0.22, -0.75], [0.15, -0.45],
-      [0.55, -0.52], [0.32, -0.12],
-      [0.68, 0.07], [0.38, 0.06],
-      [0.25, 0.35], [0.15, 0.14],
-      [0.10, 0.58], [0.05, 0.58], [0.05, 0.95],
-      [-0.05, 0.95], [-0.05, 0.58], [-0.10, 0.58],
-      [-0.15, 0.14], [-0.25, 0.35],
-      [-0.38, 0.06], [-0.68, 0.07],
-      [-0.32, -0.12], [-0.55, -0.52],
-      [-0.15, -0.45], [-0.22, -0.75], [-0.10, -0.60],
+      [0.10, -0.60],
+      [0.22, -0.75],
+      [0.15, -0.45],
+      [0.55, -0.52],
+      [0.32, -0.12],
+      [0.68, 0.07],
+      [0.38, 0.06],
+      [0.25, 0.35],
+      [0.15, 0.14],
+      [0.10, 0.58],
+      [0.05, 0.58],
+      [0.05, 0.95],
+      [-0.05, 0.95],
+      [-0.05, 0.58],
+      [-0.10, 0.58],
+      [-0.15, 0.14],
+      [-0.25, 0.35],
+      [-0.38, 0.06],
+      [-0.68, 0.07],
+      [-0.32, -0.12],
+      [-0.55, -0.52],
+      [-0.15, -0.45],
+      [-0.22, -0.75],
+      [-0.10, -0.60],
     ];
     final path = Path();
     for (var i = 0; i < pts.length; i++) {
@@ -681,18 +890,46 @@ class StampPainter extends CustomPainter {
 
   /// Fleur-de-lis: 3 oval lobes + horizontal band + stem.
   void _drawFleurDeLis(Canvas c, Paint p, Offset o, double s) {
-    c.drawOval(Rect.fromCenter(
-        center: o - Offset(0, s * 0.25), width: s * 0.44, height: s * 0.70), p);
-    c.drawOval(Rect.fromCenter(
-        center: o - Offset(s * 0.38, s * 0.08), width: s * 0.36, height: s * 0.58), p);
-    c.drawOval(Rect.fromCenter(
-        center: o + Offset(s * 0.38, -s * 0.08), width: s * 0.36, height: s * 0.58), p);
+    c.drawOval(
+      Rect.fromCenter(
+        center: o - Offset(0, s * 0.25),
+        width: s * 0.44,
+        height: s * 0.70,
+      ),
+      p,
+    );
+    c.drawOval(
+      Rect.fromCenter(
+        center: o - Offset(s * 0.38, s * 0.08),
+        width: s * 0.36,
+        height: s * 0.58,
+      ),
+      p,
+    );
+    c.drawOval(
+      Rect.fromCenter(
+        center: o + Offset(s * 0.38, -s * 0.08),
+        width: s * 0.36,
+        height: s * 0.58,
+      ),
+      p,
+    );
     c.drawRect(
-        Rect.fromCenter(
-            center: o + Offset(0, s * 0.22), width: s * 1.05, height: s * 0.14),
-        p);
-    c.drawOval(Rect.fromCenter(
-        center: o + Offset(0, s * 0.62), width: s * 0.20, height: s * 0.42), p);
+      Rect.fromCenter(
+        center: o + Offset(0, s * 0.22),
+        width: s * 1.05,
+        height: s * 0.14,
+      ),
+      p,
+    );
+    c.drawOval(
+      Rect.fromCenter(
+        center: o + Offset(0, s * 0.62),
+        width: s * 0.20,
+        height: s * 0.42,
+      ),
+      p,
+    );
   }
 
   /// 8-petal lotus flower.
@@ -703,9 +940,13 @@ class StampPainter extends CustomPainter {
       c.translate(o.dx, o.dy);
       c.rotate(angle);
       c.drawOval(
-          Rect.fromCenter(
-              center: Offset(0, -s * 0.42), width: s * 0.26, height: s * 0.52),
-          p);
+        Rect.fromCenter(
+          center: Offset(0, -s * 0.42),
+          width: s * 0.26,
+          height: s * 0.52,
+        ),
+        p,
+      );
       c.restore();
     }
     c.drawCircle(o, s * 0.15, p);
@@ -728,25 +969,54 @@ class StampPainter extends CustomPainter {
 
   /// Tulip: 3 petals + stem + leaf.
   void _drawTulip(Canvas c, Paint p, Offset o, double s) {
-    c.drawOval(Rect.fromCenter(
-        center: o - Offset(s * 0.22, s * 0.15), width: s * 0.32, height: s * 0.62), p);
-    c.drawOval(Rect.fromCenter(
-        center: o - Offset(0, s * 0.20), width: s * 0.32, height: s * 0.68), p);
-    c.drawOval(Rect.fromCenter(
-        center: o + Offset(s * 0.22, -s * 0.15), width: s * 0.32, height: s * 0.62), p);
+    c.drawOval(
+      Rect.fromCenter(
+        center: o - Offset(s * 0.22, s * 0.15),
+        width: s * 0.32,
+        height: s * 0.62,
+      ),
+      p,
+    );
+    c.drawOval(
+      Rect.fromCenter(
+        center: o - Offset(0, s * 0.20),
+        width: s * 0.32,
+        height: s * 0.68,
+      ),
+      p,
+    );
+    c.drawOval(
+      Rect.fromCenter(
+        center: o + Offset(s * 0.22, -s * 0.15),
+        width: s * 0.32,
+        height: s * 0.62,
+      ),
+      p,
+    );
     c.drawRect(
-        Rect.fromCenter(
-            center: o + Offset(0, s * 0.55), width: s * 0.10, height: s * 0.40),
-        p);
-    c.drawOval(Rect.fromCenter(
-        center: o + Offset(s * 0.18, s * 0.50), width: s * 0.28, height: s * 0.16), p);
+      Rect.fromCenter(
+        center: o + Offset(0, s * 0.55),
+        width: s * 0.10,
+        height: s * 0.40,
+      ),
+      p,
+    );
+    c.drawOval(
+      Rect.fromCenter(
+        center: o + Offset(s * 0.18, s * 0.50),
+        width: s * 0.28,
+        height: s * 0.16,
+      ),
+      p,
+    );
   }
 
   Paint _strokePaint(Color color, double width, double bleedSigma) {
-    final p = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width;
+    final p =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width;
     if (bleedSigma > 0) {
       p.maskFilter = MaskFilter.blur(BlurStyle.normal, bleedSigma * 0.4);
     }

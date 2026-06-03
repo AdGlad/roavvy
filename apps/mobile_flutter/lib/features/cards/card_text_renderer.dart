@@ -61,10 +61,7 @@ abstract final class CardTextRenderer {
 
     tp.paint(
       canvas,
-      Offset(
-        (size.width - tp.width) / 2,
-        (titleZoneH - tp.height) / 2,
-      ),
+      Offset((size.width - tp.width) / 2, (titleZoneH - tp.height) / 2),
     );
   }
 
@@ -121,9 +118,10 @@ abstract final class CardTextRenderer {
       return;
     }
 
-    final countText = (customLabel != null && customLabel.isNotEmpty)
-        ? customLabel
-        : '$countryCount ${countryCount == 1 ? 'country' : 'countries'}';
+    final countText =
+        (customLabel != null && customLabel.isNotEmpty)
+            ? customLabel
+            : '$countryCount ${countryCount == 1 ? 'country' : 'countries'}';
 
     final tpRoavvy = TextPainter(
       text: TextSpan(

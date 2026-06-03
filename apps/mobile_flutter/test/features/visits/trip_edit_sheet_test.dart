@@ -41,40 +41,37 @@ void main() {
 
   group('TripEditSheet — add mode', () {
     testWidgets('shows Add trip title', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const TripEditSheet(countryCode: 'GB')),
-      );
+      await tester.pumpWidget(_wrap(const TripEditSheet(countryCode: 'GB')));
       expect(find.text('Add trip'), findsOneWidget);
     });
 
-    testWidgets('shows Tap to select placeholders for unset dates',
-        (tester) async {
-      await tester.pumpWidget(
-        _wrap(const TripEditSheet(countryCode: 'GB')),
-      );
+    testWidgets('shows Tap to select placeholders for unset dates', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(const TripEditSheet(countryCode: 'GB')));
       expect(find.text('Tap to select'), findsNWidgets(2));
     });
 
     testWidgets('shows Start date and End date labels', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const TripEditSheet(countryCode: 'GB')),
-      );
+      await tester.pumpWidget(_wrap(const TripEditSheet(countryCode: 'GB')));
       expect(find.text('Start date'), findsOneWidget);
       expect(find.text('End date'), findsOneWidget);
     });
 
     testWidgets('Cancel pops without saving', (tester) async {
       final repo = TripRepository(_makeDb());
-      await tester.pumpWidget(_wrap(const TripEditSheet(countryCode: 'GB'), tripRepo: repo));
+      await tester.pumpWidget(
+        _wrap(const TripEditSheet(countryCode: 'GB'), tripRepo: repo),
+      );
       await tester.tap(find.text('Cancel'));
       await tester.pump();
       expect(await repo.loadAll(), isEmpty);
     });
 
-    testWidgets('Save without start date shows validation error', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const TripEditSheet(countryCode: 'GB')),
-      );
+    testWidgets('Save without start date shows validation error', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(const TripEditSheet(countryCode: 'GB')));
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Please select a start date'), findsOneWidget);
@@ -82,10 +79,7 @@ void main() {
 
     testWidgets('Save without end date shows validation error', (tester) async {
       await tester.pumpWidget(
-        _wrap(TripEditSheet(
-          countryCode: 'GB',
-          initialStartDate: _t0,
-        )),
+        _wrap(TripEditSheet(countryCode: 'GB', initialStartDate: _t0)),
       );
       await tester.tap(find.text('Save'));
       await tester.pump();
@@ -99,7 +93,7 @@ void main() {
           TripEditSheet(
             countryCode: 'GB',
             initialStartDate: _t1, // later
-            initialEndDate: _t0,   // earlier → invalid
+            initialEndDate: _t0, // earlier → invalid
           ),
           tripRepo: repo,
         ),
@@ -128,10 +122,15 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(find.text('Please select a start date'), findsNothing);
-      expect(find.text('End date must be on or after start date'), findsNothing);
+      expect(
+        find.text('End date must be on or after start date'),
+        findsNothing,
+      );
     });
 
-    testWidgets('same start and end date is valid (1-day trip)', (tester) async {
+    testWidgets('same start and end date is valid (1-day trip)', (
+      tester,
+    ) async {
       final repo = TripRepository(_makeDb());
       await tester.pumpWidget(
         _wrap(
@@ -148,7 +147,9 @@ void main() {
       expect(await repo.loadAll(), hasLength(1));
     });
 
-    testWidgets('valid save writes isManual=true to repository', (tester) async {
+    testWidgets('valid save writes isManual=true to repository', (
+      tester,
+    ) async {
       final repo = TripRepository(_makeDb());
       await tester.pumpWidget(
         _wrap(

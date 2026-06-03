@@ -30,8 +30,11 @@ void main() {
     test('all GIDs are unique (no duplicate variant IDs)', () {
       final values = tshirtGids.values.toList();
       final unique = values.toSet();
-      expect(unique.length, equals(values.length),
-          reason: 'Duplicate Shopify GIDs found in tshirtGids');
+      expect(
+        unique.length,
+        equals(values.length),
+        reason: 'Duplicate Shopify GIDs found in tshirtGids',
+      );
     });
 
     test('has correct total count: 5 colours × 5 sizes = 25', () {
@@ -65,8 +68,11 @@ void main() {
     test('all GIDs are unique', () {
       final values = posterGids.values.toList();
       final unique = values.toSet();
-      expect(unique.length, equals(values.length),
-          reason: 'Duplicate Shopify GIDs found in posterGids');
+      expect(
+        unique.length,
+        equals(values.length),
+        reason: 'Duplicate Shopify GIDs found in posterGids',
+      );
     });
 
     test('has correct total count: 3 papers × 5 sizes = 15', () {
@@ -101,8 +107,11 @@ void main() {
             colour: colour,
             size: size,
           );
-          expect(gid, equals(tshirtGids[(colour, size)]),
-              reason: 'Unexpected fallback for ($colour, $size)');
+          expect(
+            gid,
+            equals(tshirtGids[(colour, size)]),
+            reason: 'Unexpected fallback for ($colour, $size)',
+          );
         }
       }
     });
@@ -138,8 +147,11 @@ void main() {
             size: size,
             paper: paper,
           );
-          expect(gid, equals(posterGids[(paper, size)]),
-              reason: 'Unexpected fallback for ($paper, $size)');
+          expect(
+            gid,
+            equals(posterGids[(paper, size)]),
+            reason: 'Unexpected fallback for ($paper, $size)',
+          );
         }
       }
     });

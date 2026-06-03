@@ -104,7 +104,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                   regionCount: regionCount,
                   tripCount: tripCount,
                   visits: visits,
-                  regionCountStr: regionCountAsync.valueOrNull?.toString() ?? '—',
+                  regionCountStr:
+                      regionCountAsync.valueOrNull?.toString() ?? '—',
                 ),
               ),
             ),
@@ -171,13 +172,14 @@ class _StatsGrid extends StatelessWidget {
           value: countryCount == 0 ? '—' : '$countryCount',
           label: 'Countries',
           suffix: '/ 195',
-          onTap: (visits != null && visits!.isNotEmpty)
-              ? () => Navigator.of(context).push(
+          onTap:
+              (visits != null && visits!.isNotEmpty)
+                  ? () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => CountriesListScreen(visits: visits!),
                     ),
                   )
-              : null,
+                  : null,
         ),
         _StatCard(
           value: continentCount == 0 ? '—' : '$continentCount',
@@ -187,12 +189,10 @@ class _StatsGrid extends StatelessWidget {
         _StatCard(
           value: regionCount == 0 ? '—' : '$regionCount',
           label: 'Regions',
-          onTap: regionCount > 0 ? () => RegionBreakdownSheet.show(context) : null,
+          onTap:
+              regionCount > 0 ? () => RegionBreakdownSheet.show(context) : null,
         ),
-        _StatCard(
-          value: tripCount == 0 ? '—' : '$tripCount',
-          label: 'Trips',
-        ),
+        _StatCard(value: tripCount == 0 ? '—' : '$tripCount', label: 'Trips'),
       ],
     );
   }
@@ -255,7 +255,11 @@ class _StatCard extends StatelessWidget {
               ),
               if (onTap != null) ...[
                 const SizedBox(width: 2),
-                Icon(Icons.chevron_right, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ],
           ),
@@ -309,8 +313,10 @@ class _AchievementsScreenBodyState
   Widget build(BuildContext context) {
     final continentCount = ref.watch(continentCountProvider).valueOrNull ?? 0;
     final tripCount = ref.watch(tripCountProvider).valueOrNull ?? 0;
-    final thisYearCount = ref.watch(thisYearCountryCountProvider).valueOrNull ?? 0;
-    final countryCount = ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
+    final thisYearCount =
+        ref.watch(thisYearCountryCountProvider).valueOrNull ?? 0;
+    final countryCount =
+        ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
     final heritageCount =
         ref.watch(visitedHeritageProvider).valueOrNull?.length ?? 0;
 

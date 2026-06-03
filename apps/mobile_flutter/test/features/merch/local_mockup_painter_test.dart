@@ -36,18 +36,21 @@ void main() {
       expect(spec.printAreaNorm.bottom, closeTo(0.95, 0.001));
     });
 
-    test('two specs with same fields are identical (const canonicalisation)', () {
-      const spec1 = ProductMockupSpec(
-        assetPath: 'assets/mockups/shirt-mockup-front.jpg',
-        printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
-      );
-      const spec2 = ProductMockupSpec(
-        assetPath: 'assets/mockups/shirt-mockup-front.jpg',
-        printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
-      );
-      // Const identical instances are equal via identical().
-      expect(identical(spec1, spec2), isTrue);
-    });
+    test(
+      'two specs with same fields are identical (const canonicalisation)',
+      () {
+        const spec1 = ProductMockupSpec(
+          assetPath: 'assets/mockups/shirt-mockup-front.jpg',
+          printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
+        );
+        const spec2 = ProductMockupSpec(
+          assetPath: 'assets/mockups/shirt-mockup-front.jpg',
+          printAreaNorm: Rect.fromLTWH(0.30, 0.32, 0.40, 0.45),
+        );
+        // Const identical instances are equal via identical().
+        expect(identical(spec1, spec2), isTrue);
+      },
+    );
   });
 
   group('M55-B — ProductMockupSpecs poster spec', () {

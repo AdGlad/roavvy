@@ -24,9 +24,7 @@ class TravelCardWidget extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 3 / 2,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1B4332),
-        ),
+        decoration: const BoxDecoration(color: Color(0xFF1B4332)),
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,10 +52,7 @@ class TravelCardWidget extends StatelessWidget {
             ),
             const Text(
               'countries visited',
-              style: TextStyle(
-                color: Color(0xFF95D5B2),
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Color(0xFF95D5B2), fontSize: 14),
             ),
             const SizedBox(height: 16),
             // Year range + achievement count
@@ -65,18 +60,12 @@ class TravelCardWidget extends StatelessWidget {
               children: [
                 Text(
                   _yearRange,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
                 const Spacer(),
                 Text(
                   '🏆 ${summary.achievementCount}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),

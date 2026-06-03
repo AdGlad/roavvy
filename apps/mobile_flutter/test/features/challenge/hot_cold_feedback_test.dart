@@ -39,11 +39,20 @@ void main() {
     test('0 → north', () => expect(cardinalDirection(0), 'north'));
     test('45 → north-east', () => expect(cardinalDirection(45), 'north-east'));
     test('90 → east', () => expect(cardinalDirection(90), 'east'));
-    test('135 → south-east', () => expect(cardinalDirection(135), 'south-east'));
+    test(
+      '135 → south-east',
+      () => expect(cardinalDirection(135), 'south-east'),
+    );
     test('180 → south', () => expect(cardinalDirection(180), 'south'));
-    test('225 → south-west', () => expect(cardinalDirection(225), 'south-west'));
+    test(
+      '225 → south-west',
+      () => expect(cardinalDirection(225), 'south-west'),
+    );
     test('270 → west', () => expect(cardinalDirection(270), 'west'));
-    test('315 → north-west', () => expect(cardinalDirection(315), 'north-west'));
+    test(
+      '315 → north-west',
+      () => expect(cardinalDirection(315), 'north-west'),
+    );
     test('359 → north', () => expect(cardinalDirection(359), 'north'));
   });
 

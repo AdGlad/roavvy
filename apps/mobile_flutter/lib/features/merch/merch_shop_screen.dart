@@ -38,12 +38,7 @@ class MerchShopScreen extends ConsumerWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _CartTabBody(),
-            const MerchOrdersBody(),
-          ],
-        ),
+        body: TabBarView(children: [_CartTabBody(), const MerchOrdersBody()]),
       ),
     );
   }
@@ -89,10 +84,8 @@ class _CartTabBody extends ConsumerWidget {
         return ListView.separated(
           itemCount: items.length,
           separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, i) => _ShopCartItemTile(
-            item: items[i],
-            uid: uid,
-          ),
+          itemBuilder:
+              (context, i) => _ShopCartItemTile(item: items[i], uid: uid),
         );
       },
     );
@@ -130,14 +123,15 @@ class _ShopCartItemTile extends ConsumerWidget {
         tooltip: 'Remove',
         onPressed: () => _confirmDelete(context, ref),
       ),
-      onTap: item.status == MerchCartItemStatus.mockupReady ||
-              item.status == MerchCartItemStatus.checkoutStarted
-          ? () => Navigator.of(context).push(
+      onTap:
+          item.status == MerchCartItemStatus.mockupReady ||
+                  item.status == MerchCartItemStatus.checkoutStarted
+              ? () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => CartItemCheckoutScreen(item: item),
                 ),
               )
-          : null,
+              : null,
     );
   }
 
@@ -154,23 +148,24 @@ class _ShopCartItemTile extends ConsumerWidget {
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove design?'),
-        content: const Text(
-          'This will remove the saved design from your cart. '
-          'You can always create a new one from the Shop.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Remove design?'),
+            content: const Text(
+              'This will remove the saved design from your cart. '
+              'You can always create a new one from the Shop.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
     );
     if (confirmed != true) return;
     await MerchCartRepository(FirebaseFirestore.instance).delete(uid, item.id);
@@ -204,18 +199,18 @@ class _Thumbnail extends StatelessWidget {
   }
 
   Widget _placeholder(ThemeData theme, double size) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(
-          Icons.dry_cleaning_outlined,
-          color: theme.colorScheme.onSurfaceVariant,
-          size: 24,
-        ),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Icon(
+      Icons.dry_cleaning_outlined,
+      color: theme.colorScheme.onSurfaceVariant,
+      size: 24,
+    ),
+  );
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -245,14 +240,16 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 
-  static (String, Color) _resolve(MerchCartItemStatus status) =>
-      switch (status) {
-        MerchCartItemStatus.mockupGenerating => ('Generating…', Colors.orange),
-        MerchCartItemStatus.mockupReady =>
-          ('Ready to checkout', const Color(0xFF2E7D32)),
-        MerchCartItemStatus.checkoutStarted =>
-          ('Checkout started', Colors.blue),
-        MerchCartItemStatus.purchased => ('Purchased', Colors.green),
-        MerchCartItemStatus.failed => ('Failed', Colors.red),
-      };
+  static (String, Color) _resolve(
+    MerchCartItemStatus status,
+  ) => switch (status) {
+    MerchCartItemStatus.mockupGenerating => ('Generating…', Colors.orange),
+    MerchCartItemStatus.mockupReady => (
+      'Ready to checkout',
+      const Color(0xFF2E7D32),
+    ),
+    MerchCartItemStatus.checkoutStarted => ('Checkout started', Colors.blue),
+    MerchCartItemStatus.purchased => ('Purchased', Colors.green),
+    MerchCartItemStatus.failed => ('Failed', Colors.red),
+  };
 }

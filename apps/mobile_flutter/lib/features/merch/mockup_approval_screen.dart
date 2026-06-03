@@ -105,7 +105,9 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong — please try again')),
+        const SnackBar(
+          content: Text('Something went wrong — please try again'),
+        ),
       );
       setState(() => _approving = false);
     }
@@ -131,23 +133,22 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
                     borderRadius: BorderRadius.circular(8),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 200),
-                      child: bytes != null && bytes.isNotEmpty
-                          ? Image.memory(
-                              bytes,
-                              fit: BoxFit.contain,
-                            )
-                          : Container(
-                              height: 120,
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              child: Center(
-                                child: Text(
-                                  'Preview unavailable',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                      child:
+                          bytes != null && bytes.isNotEmpty
+                              ? Image.memory(bytes, fit: BoxFit.contain)
+                              : Container(
+                                height: 120,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                child: Center(
+                                  child: Text(
+                                    'Preview unavailable',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -161,8 +162,8 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
                   // Design checkbox
                   CheckboxListTile(
                     value: _designChecked,
-                    onChanged: (v) =>
-                        setState(() => _designChecked = v ?? false),
+                    onChanged:
+                        (v) => setState(() => _designChecked = v ?? false),
                     title: const Text('My card design looks exactly right'),
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
@@ -171,10 +172,11 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
                   // Colour checkbox
                   CheckboxListTile(
                     value: _colourChecked,
-                    onChanged: (v) =>
-                        setState(() => _colourChecked = v ?? false),
-                    title:
-                        const Text('The colour and style I\'ve chosen is correct'),
+                    onChanged:
+                        (v) => setState(() => _colourChecked = v ?? false),
+                    title: const Text(
+                      'The colour and style I\'ve chosen is correct',
+                    ),
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -183,8 +185,8 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
                   if (_showPlacement)
                     CheckboxListTile(
                       value: _placementChecked,
-                      onChanged: (v) =>
-                          setState(() => _placementChecked = v ?? false),
+                      onChanged:
+                          (v) => setState(() => _placementChecked = v ?? false),
                       title: const Text('The placement looks right'),
                       controlAffinity: ListTileControlAffinity.leading,
                       contentPadding: EdgeInsets.zero,
@@ -198,16 +200,17 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: FilledButton(
                 onPressed: _allChecked && !_approving ? _onApprove : null,
-                child: _approving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Approve and buy'),
+                child:
+                    _approving
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Text('Approve and buy'),
               ),
             ),
           ],

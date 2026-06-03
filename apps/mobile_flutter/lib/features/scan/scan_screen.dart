@@ -45,21 +45,17 @@ import 'scan_summary_screen.dart';
 ///
 /// Public so widget tests can inject predetermined results via [ScanScreen.batchResolver].
 class CountryAccum {
-  const CountryAccum({
-    required this.photoCount,
-    this.firstSeen,
-    this.lastSeen,
-  });
+  const CountryAccum({required this.photoCount, this.firstSeen, this.lastSeen});
 
   final int photoCount;
   final DateTime? firstSeen;
   final DateTime? lastSeen;
 
   CountryAccum merge(CountryAccum other) => CountryAccum(
-        photoCount: photoCount + other.photoCount,
-        firstSeen: _earlier(firstSeen, other.firstSeen),
-        lastSeen: _later(lastSeen, other.lastSeen),
-      );
+    photoCount: photoCount + other.photoCount,
+    firstSeen: _earlier(firstSeen, other.firstSeen),
+    lastSeen: _later(lastSeen, other.lastSeen),
+  );
 }
 
 DateTime? _earlier(DateTime? a, DateTime? b) {
@@ -130,9 +126,10 @@ class BatchResult {
 /// The resulting [PhotoDateRecord.regionCode] is null when [regionResolver] is
 /// omitted or when it returns null for that bucket.
 BatchResult resolveBatch(
-    List<PhotoRecord> photos,
-    String? Function(double lat, double lng) countryResolver, [
-    String? Function(double lat, double lng)? regionResolver]) {
+  List<PhotoRecord> photos,
+  String? Function(double lat, double lng) countryResolver, [
+  String? Function(double lat, double lng)? regionResolver,
+]) {
   final accum = <String, CountryAccum>{};
   final photoDates = <PhotoDateRecord>[];
   final photoGps = <PhotoGpsRecord>[];
@@ -150,30 +147,44 @@ BatchResult resolveBatch(
     final bucketLng = (photo.lng * 10).roundToDouble() / 10;
     final key = (bucketLat, bucketLng);
     final code = countryBucketCache.putIfAbsent(
-        key, () => countryResolver(bucketLat, bucketLng));
+      key,
+      () => countryResolver(bucketLat, bucketLng),
+    );
     if (code == null) continue;
 
-    final a =
-        CountryAccum(photoCount: 1, firstSeen: photo.capturedAt, lastSeen: photo.capturedAt);
+    final a = CountryAccum(
+      photoCount: 1,
+      firstSeen: photo.capturedAt,
+      lastSeen: photo.capturedAt,
+    );
     final existing = accum[code];
     accum[code] = existing == null ? a : existing.merge(a);
 
     if (photo.capturedAt != null) {
-      final regionCode = regionResolver != null
-          ? regionBucketCache.putIfAbsent(
-              key, () => regionResolver(bucketLat, bucketLng))
-          : null;
-      photoDates.add(PhotoDateRecord(
+      final regionCode =
+          regionResolver != null
+              ? regionBucketCache.putIfAbsent(
+                key,
+                () => regionResolver(bucketLat, bucketLng),
+              )
+              : null;
+      photoDates.add(
+        PhotoDateRecord(
           countryCode: code,
           capturedAt: photo.capturedAt!,
           regionCode: regionCode,
-          assetId: photo.assetId));
+          assetId: photo.assetId,
+        ),
+      );
       // Track raw GPS for trip endpoint extraction (ADR-157).
-      photoGps.add(PhotoGpsRecord(
+      photoGps.add(
+        PhotoGpsRecord(
           countryCode: code,
           capturedAt: photo.capturedAt!,
           lat: photo.lat,
-          lng: photo.lng));
+          lng: photo.lng,
+        ),
+      );
     }
   }
 
@@ -185,12 +196,14 @@ BatchResult resolveBatch(
 /// Initialises [country_lookup] and [region_lookup] in the background isolate
 /// (each isolate has independent global state) then delegates to [resolveBatch].
 BatchResult _resolvePhotos(
-    Uint8List countryBytes, Uint8List regionBytes, List<PhotoRecord> photos) {
+  Uint8List countryBytes,
+  Uint8List regionBytes,
+  List<PhotoRecord> photos,
+) {
   initCountryLookup(countryBytes);
   initRegionLookup(regionBytes);
   return resolveBatch(photos, resolveCountry, resolveRegion);
 }
-
 
 // ── Trip GPS enrichment (M109, ADR-157) ────────────────────────────────────────
 
@@ -209,13 +222,19 @@ List<TripRecord> _applyTripGps(
   if (trips.isEmpty || photoGps.isEmpty) return trips;
 
   // Sort GPS records once ascending by capturedAt.
-  final sorted = [...photoGps]..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+  final sorted = [...photoGps]
+    ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
 
   return trips.map((trip) {
-    final inWindow = sorted.where((g) =>
-        g.countryCode == trip.countryCode &&
-        !g.capturedAt.isBefore(trip.startedOn) &&
-        !g.capturedAt.isAfter(trip.endedOn)).toList();
+    final inWindow =
+        sorted
+            .where(
+              (g) =>
+                  g.countryCode == trip.countryCode &&
+                  !g.capturedAt.isBefore(trip.startedOn) &&
+                  !g.capturedAt.isAfter(trip.endedOn),
+            )
+            .toList();
 
     if (inWindow.isEmpty) return trip;
 
@@ -447,11 +466,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     // T1/T2 (ADR-130, M121): capture existing entries for globe + feed pre-population.
     // Unmodifiable copy so mid-scan user edits don't mutate the snapshot.
     final existingEntriesSnapshot = List<_DiscoveryEntry>.unmodifiable(
-      _effectiveVisits.map((v) => _DiscoveryEntry(
-        isoCode: v.countryCode,
-        photoCount: v.photoCount,
-        firstSeenYear: v.firstSeen?.year,
-      )).toList(),
+      _effectiveVisits
+          .map(
+            (v) => _DiscoveryEntry(
+              isoCode: v.countryCode,
+              photoCount: v.photoCount,
+              firstSeenYear: v.firstSeen?.year,
+            ),
+          )
+          .toList(),
     );
 
     setState(() {
@@ -467,9 +490,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // so we only toast achievements that are NEW during this scan (T1, M125).
       _achievementsToastedThisScan
         ..clear()
-        ..addAll(_kAchievementThresholds
-            .where((t) => existingEntriesSnapshot.length >= t)
-            .map((t) => 'countries_$t'));
+        ..addAll(
+          _kAchievementThresholds
+              .where((t) => existingEntriesSnapshot.length >= t)
+              .map((t) => 'countries_$t'),
+        );
       // T1/T2: expose snapshot to build() immediately (T4: pill shown now).
       _existingEntriesAtScanStart = existingEntriesSnapshot;
     });
@@ -489,23 +514,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     // This lets the animation run on the main-screen globe without a navigator
     // transition. The overlay is dismissed when the scan replay drains, then
     // the summary screen is pushed from ScanScreen's own navigator context.
-    ref.read(globeOverlayProvider.notifier).showScan(
-      liveSource,
-      initialCollectedCodes:
-          _forceFullScan ? const [] : _existingEntriesAtScanStart.map((e) => e.isoCode).toList(),
-      onScanComplete: () {
-        ref.read(globeOverlayProvider.notifier).hide();
-        final factory = buildSummary;
-        if (factory != null && mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) nav.push(MaterialPageRoute<void>(builder: (_) => factory()));
-          });
-        } else if (mounted) {
-          // Nothing new found: pop ScanScreen back to map.
-          nav.pop();
-        }
-      },
-    );
+    ref
+        .read(globeOverlayProvider.notifier)
+        .showScan(
+          liveSource,
+          initialCollectedCodes:
+              _forceFullScan
+                  ? const []
+                  : _existingEntriesAtScanStart.map((e) => e.isoCode).toList(),
+          onScanComplete: () {
+            ref.read(globeOverlayProvider.notifier).hide();
+            final factory = buildSummary;
+            if (factory != null && mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted)
+                  nav.push(MaterialPageRoute<void>(builder: (_) => factory()));
+              });
+            } else if (mounted) {
+              // Nothing new found: pop ScanScreen back to map.
+              nav.pop();
+            }
+          },
+        );
 
     // M132: live-replay trip tracking state.
     // Trips are emitted as completed (stable) legs in chronological order so
@@ -551,17 +581,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final preScanHeritageSiteIds =
           (await _heritageRepo.loadAll()).map((s) => s.siteId).toSet();
 
-      final scanStream = widget.scanStarter != null
-          ? widget.scanStarter!(limit: 100000)
-          : startPhotoScan(limit: 100000, sinceDate: sinceDate);
+      final scanStream =
+          widget.scanStarter != null
+              ? widget.scanStarter!(limit: 100000)
+              : startPhotoScan(limit: 100000, sinceDate: sinceDate);
       await for (final event in scanStream) {
         if (event is ScanBatchEvent) {
           // T3 (ADR-129): filter out photos already recorded by assetId.
           // Photos with null assetId always pass through (no data loss).
-          final filteredPhotos = event.photos
-              .where((p) =>
-                  p.assetId == null || !knownAssetIds.contains(p.assetId))
-              .toList();
+          final filteredPhotos =
+              event.photos
+                  .where(
+                    (p) =>
+                        p.assetId == null || !knownAssetIds.contains(p.assetId),
+                  )
+                  .toList();
           final batchResult = await _resolveBatch(filteredPhotos);
           for (final entry in batchResult.accum.entries) {
             final existing = accum[entry.key];
@@ -573,16 +607,18 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           // previously-known ones filtered by T3) so that trip endpoints use
           // actual photo coordinates rather than country centroids. The T3
           // filter guards accum and photoDates only — GPS collection is exempt.
-          final gpsSource = filteredPhotos.length < event.photos.length
-              ? await _resolveBatch(event.photos)
-              : batchResult;
+          final gpsSource =
+              filteredPhotos.length < event.photos.length
+                  ? await _resolveBatch(event.photos)
+                  : batchResult;
           allPhotoGps.addAll(gpsSource.photoGps);
 
           // M119: WHS lookup — fast in-memory, no isolate needed (ADR-163).
           if (gpsSource.photoGps.isNotEmpty) {
-            final gpsRecords = gpsSource.photoGps
-                .map((r) => (r.lat, r.lng, r.countryCode))
-                .toList();
+            final gpsRecords =
+                gpsSource.photoGps
+                    .map((r) => (r.lat, r.lng, r.countryCode))
+                    .toList();
             final whsMatches = WorldHeritageLookupService.findBatch(gpsRecords);
             for (int i = 0; i < whsMatches.length; i++) {
               final match = whsMatches[i];
@@ -607,19 +643,24 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 );
               } else {
                 whsAccum[siteId] = existing.copyWith(
-                  firstSeen: gps.capturedAt.isBefore(existing.firstSeen)
-                      ? gps.capturedAt
-                      : existing.firstSeen,
-                  lastSeen: gps.capturedAt.isAfter(existing.lastSeen)
-                      ? gps.capturedAt
-                      : existing.lastSeen,
+                  firstSeen:
+                      gps.capturedAt.isBefore(existing.firstSeen)
+                          ? gps.capturedAt
+                          : existing.firstSeen,
+                  lastSeen:
+                      gps.capturedAt.isAfter(existing.lastSeen)
+                          ? gps.capturedAt
+                          : existing.lastSeen,
                   photoCount: existing.photoCount + 1,
-                  confidence: (existing.confidence == 'strong' ||
-                          match.confidence == 'strong')
-                      ? 'strong'
-                      : 'nearby',
-                  nearestDistanceKm:
-                      math.min(existing.nearestDistanceKm, match.distanceKm),
+                  confidence:
+                      (existing.confidence == 'strong' ||
+                              match.confidence == 'strong')
+                          ? 'strong'
+                          : 'nearby',
+                  nearestDistanceKm: math.min(
+                    existing.nearestDistanceKm,
+                    match.distanceKm,
+                  ),
                 );
               }
             }
@@ -636,16 +677,20 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               _liveNewEntries.map((e) => e.isoCode).toSet();
           for (final entry in batchResult.accum.entries) {
             final code = entry.key;
-            if (!preScanCodes.contains(code) && !existingEntryCodes.contains(code)) {
-              _liveNewEntries.add(_DiscoveryEntry(
-                isoCode: code,
-                photoCount: entry.value.photoCount,
-                firstSeenYear: entry.value.firstSeen?.year,
-                heritageSiteNames: whsAccum.values
-                    .where((s) => s.countryCode == code)
-                    .map((s) => s.name)
-                    .toList(),
-              ));
+            if (!preScanCodes.contains(code) &&
+                !existingEntryCodes.contains(code)) {
+              _liveNewEntries.add(
+                _DiscoveryEntry(
+                  isoCode: code,
+                  photoCount: entry.value.photoCount,
+                  firstSeenYear: entry.value.firstSeen?.year,
+                  heritageSiteNames:
+                      whsAccum.values
+                          .where((s) => s.countryCode == code)
+                          .map((s) => s.name)
+                          .toList(),
+                ),
+              );
             }
           }
 
@@ -700,38 +745,45 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
             // Leg: previous country → this country (skip self-loops).
             if (from != toCode) {
-              final fromGps = allPhotoGps
-                  .where((g) => g.countryCode == from)
-                  .toList()
-                ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-              final toGps = allPhotoGps
-                  .where((g) =>
-                      g.countryCode == toCode &&
-                      !g.capturedAt.isBefore(trip.startedOn))
-                  .toList()
-                ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-              liveSource.addEvent(CountryDiscoveredEvent(
-                fromCode: from,
-                toCode: toCode,
-                date: trip.startedOn,
-                fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
-                fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
-                toLat: toGps.isNotEmpty ? toGps.first.lat : null,
-                toLng: toGps.isNotEmpty ? toGps.first.lng : null,
-                isFirstVisit: liveFirstVisitCodes.add(toCode),
-              ));
+              final fromGps =
+                  allPhotoGps.where((g) => g.countryCode == from).toList()
+                    ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+              final toGps =
+                  allPhotoGps
+                      .where(
+                        (g) =>
+                            g.countryCode == toCode &&
+                            !g.capturedAt.isBefore(trip.startedOn),
+                      )
+                      .toList()
+                    ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+              liveSource.addEvent(
+                CountryDiscoveredEvent(
+                  fromCode: from,
+                  toCode: toCode,
+                  date: trip.startedOn,
+                  fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
+                  fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
+                  toLat: toGps.isNotEmpty ? toGps.first.lat : null,
+                  toLng: toGps.isNotEmpty ? toGps.first.lng : null,
+                  isFirstVisit: liveFirstVisitCodes.add(toCode),
+                ),
+              );
             }
             liveLastCountry = toCode;
 
             // Heritage overlays — deduplicated across batches.
-            for (final entry in whsAccum.entries
-                .where((e) => e.value.countryCode == toCode)) {
+            for (final entry in whsAccum.entries.where(
+              (e) => e.value.countryCode == toCode,
+            )) {
               if (liveEmittedHeritageSiteIds.add(entry.key)) {
-                liveSource.addEvent(HeritageSiteDiscoveredEvent(
-                  countryCode: toCode,
-                  siteName: entry.value.name,
-                  siteType: entry.value.category,
-                ));
+                liveSource.addEvent(
+                  HeritageSiteDiscoveredEvent(
+                    countryCode: toCode,
+                    siteName: entry.value.name,
+                    siteType: entry.value.category,
+                  ),
+                );
               }
             }
 
@@ -740,43 +792,55 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             liveSeenCountryCodes.add(toCode);
             final nowUnlocked = AchievementEngine.evaluate(
               liveSeenCountryCodes
-                  .map((c) => EffectiveVisitedCountry(
-                      countryCode: c, hasPhotoEvidence: true))
+                  .map(
+                    (c) => EffectiveVisitedCountry(
+                      countryCode: c,
+                      hasPhotoEvidence: true,
+                    ),
+                  )
                   .toList(),
               tripCount: i + 1,
             );
-            final newlyUnlocked = nowUnlocked.difference(liveSeenAchievementIds);
+            final newlyUnlocked = nowUnlocked.difference(
+              liveSeenAchievementIds,
+            );
             liveSeenAchievementIds = nowUnlocked;
             for (final id in newlyUnlocked) {
               final achievement =
                   kAchievements.where((a) => a.id == id).firstOrNull;
               if (achievement != null) {
-                liveSource.addEvent(AchievementUnlockedEvent(
-                  achievementId: id,
-                  title: achievement.title,
-                  subtitle: achievement.description,
-                  countryCode: toCode,
-                ));
+                liveSource.addEvent(
+                  AchievementUnlockedEvent(
+                    achievementId: id,
+                    title: achievement.title,
+                    subtitle: achievement.description,
+                    countryCode: toCode,
+                  ),
+                );
               }
             }
           }
           liveStableTripCount = newStableCount;
 
           // Progress update for "Scanning live…" chip.
-          liveSource
-              .addEvent(ScanProgressUpdatedEvent(processedCount: totalProcessed));
+          liveSource.addEvent(
+            ScanProgressUpdatedEvent(processedCount: totalProcessed),
+          );
         }
       }
 
-      final inferred = accum.entries
-          .map((e) => InferredCountryVisit(
-                countryCode: e.key,
-                inferredAt: preScanTimestamp,
-                photoCount: e.value.photoCount,
-                firstSeen: e.value.firstSeen,
-                lastSeen: e.value.lastSeen,
-              ))
-          .toList();
+      final inferred =
+          accum.entries
+              .map(
+                (e) => InferredCountryVisit(
+                  countryCode: e.key,
+                  inferredAt: preScanTimestamp,
+                  photoCount: e.value.photoCount,
+                  firstSeen: e.value.firstSeen,
+                  lastSeen: e.value.lastSeen,
+                ),
+              )
+              .toList();
 
       // Full scan merges with fresh photo counts; incremental upsert-merges
       // accumulate counts. Neither path deletes countries not found in this run
@@ -803,45 +867,46 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final rawTrips = inferTrips(allDates);
       // M109: enrich inferred trips with GPS endpoints from scan (ADR-157).
       final withGps = _applyTripGps(rawTrips, allPhotoGps);
-      final inferredTrips = withGps.map((t) {
-        // If this scan batch already provided GPS, use it.
-        if (t.firstLat != null || t.lastLat != null) return t;
-        // Otherwise preserve previously-stored GPS from the database.
-        final prev = existingGps[t.id];
-        if (prev == null) return t;
-        return TripRecord(
-          id: t.id,
-          countryCode: t.countryCode,
-          startedOn: t.startedOn,
-          endedOn: t.endedOn,
-          photoCount: t.photoCount,
-          isManual: t.isManual,
-          firstLat: prev.firstLat,
-          firstLng: prev.firstLng,
-          lastLat: prev.lastLat,
-          lastLng: prev.lastLng,
-        );
-      }).toList();
+      final inferredTrips =
+          withGps.map((t) {
+            // If this scan batch already provided GPS, use it.
+            if (t.firstLat != null || t.lastLat != null) return t;
+            // Otherwise preserve previously-stored GPS from the database.
+            final prev = existingGps[t.id];
+            if (prev == null) return t;
+            return TripRecord(
+              id: t.id,
+              countryCode: t.countryCode,
+              startedOn: t.startedOn,
+              endedOn: t.endedOn,
+              photoCount: t.photoCount,
+              isManual: t.isManual,
+              firstLat: prev.firstLat,
+              firstLng: prev.firstLng,
+              lastLat: prev.lastLat,
+              lastLng: prev.lastLng,
+            );
+          }).toList();
       await _tripRepo.upsertAll(inferredTrips);
       await _regionRepo.upsertAll(inferRegionVisits(allDates, inferredTrips));
 
       // M89: Fire hero image analysis in the background after trips are saved.
       // Fire-and-forget — does not block the scan result screen.
-      unawaited(HeroAnalysisService(
-        repository: HeroImageRepository(ref.read(roavvyDatabaseProvider)),
-        channel: HeroAnalysisChannel(),
-      ).runForTrips(
-        trips: inferredTrips,
-        photoDateRecords: allDates,
-      ));
+      unawaited(
+        HeroAnalysisService(
+          repository: HeroImageRepository(ref.read(roavvyDatabaseProvider)),
+          channel: HeroAnalysisChannel(),
+        ).runForTrips(trips: inferredTrips, photoDateRecords: allDates),
+      );
 
       final effective = await _repo.loadEffective();
 
       // M119: persist WHS visits and compute newly discovered sites.
       await _heritageRepo.upsertAll(whsAccum.values.toList());
-      final newlyDiscoveredHeritageSites = whsAccum.values
-          .where((s) => !preScanHeritageSiteIds.contains(s.siteId))
-          .toList();
+      final newlyDiscoveredHeritageSites =
+          whsAccum.values
+              .where((s) => !preScanHeritageSiteIds.contains(s.siteId))
+              .toList();
       // Invalidate heritage provider so map layer refreshes.
       if (mounted) ref.invalidate(visitedHeritageProvider);
 
@@ -849,10 +914,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final priorIds = (await _achievementRepo.loadAll()).toSet();
       final tripCount = (await _tripRepo.loadAll()).length;
       final thisYear = DateTime.now().year;
-      final thisYearCount = effective.where((v) => v.firstSeen?.year == thisYear).length;
+      final thisYearCount =
+          effective.where((v) => v.firstSeen?.year == thisYear).length;
       // M119: pass heritage counts for WHS achievements (ADR-166).
       final heritageCount = await _heritageRepo.loadVisitedCount();
-      final heritageByCategory = await _heritageRepo.loadVisitedCountByCategory();
+      final heritageByCategory =
+          await _heritageRepo.loadVisitedCountByCategory();
       final unlockedIds = AchievementEngine.evaluate(
         effective,
         tripCount: tripCount,
@@ -868,14 +935,23 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // Flush dirty records to Firestore fire-and-forget (ADR-030).
       final uid = ref.read(currentUidProvider);
       if (uid != null) {
-        unawaited(_syncService.flushDirty(uid, _repo, achievementRepo: _achievementRepo, tripRepo: _tripRepo));
+        unawaited(
+          _syncService.flushDirty(
+            uid,
+            _repo,
+            achievementRepo: _achievementRepo,
+            tripRepo: _tripRepo,
+          ),
+        );
       }
       // Compute result summary when geotagged photos were found (ADR-024).
       _ScanResult? scanResult;
       if (effective.isNotEmpty) {
         final postScanCodes = effective.map((v) => v.countryCode).toSet();
-        final newCodes = (postScanCodes.difference(preScanCodes)).toList()..sort();
-        scanResult = newCodes.isEmpty ? _NothingNew() : _NewCountriesFound(newCodes);
+        final newCodes =
+            (postScanCodes.difference(preScanCodes)).toList()..sort();
+        scanResult =
+            newCodes.isEmpty ? _NothingNew() : _NewCountriesFound(newCodes);
       }
 
       if (mounted) {
@@ -885,27 +961,35 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _lastScanAt = preScanTimestamp;
         });
         ref.invalidate(effectiveVisitsProvider);
-        ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
-        ref.invalidate(regionCountProvider);    // refresh Stats regions count
+        ref.invalidate(tripListProvider); // ADR-081: refresh Journal tab
+        ref.invalidate(regionCountProvider); // refresh Stats regions count
         ref.invalidate(countryTripCountsProvider);
         ref.invalidate(earliestVisitYearProvider);
 
         // Award XP: scan completion + any new countries (fire-and-forget).
         final xpNotifier = ref.read(xpNotifierProvider.notifier);
-        unawaited(xpNotifier.award(XpEvent(
-          id: '${preScanTimestamp.microsecondsSinceEpoch}-scan',
-          reason: XpReason.scanCompleted,
-          amount: 25,
-          awardedAt: preScanTimestamp,
-        )));
+        unawaited(
+          xpNotifier.award(
+            XpEvent(
+              id: '${preScanTimestamp.microsecondsSinceEpoch}-scan',
+              reason: XpReason.scanCompleted,
+              amount: 25,
+              awardedAt: preScanTimestamp,
+            ),
+          ),
+        );
         if (scanResult is _NewCountriesFound) {
           for (var i = 0; i < scanResult.newCodes.length; i++) {
-            unawaited(xpNotifier.award(XpEvent(
-              id: '${preScanTimestamp.microsecondsSinceEpoch}-country-$i',
-              reason: XpReason.newCountry,
-              amount: 50,
-              awardedAt: preScanTimestamp,
-            )));
+            unawaited(
+              xpNotifier.award(
+                XpEvent(
+                  id: '${preScanTimestamp.microsecondsSinceEpoch}-country-$i',
+                  reason: XpReason.newCountry,
+                  amount: 50,
+                  awardedAt: preScanTimestamp,
+                ),
+              ),
+            );
           }
         }
 
@@ -915,18 +999,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         if (scanResult is _NewCountriesFound) {
           final newCodesList = scanResult.newCodes;
           final newCodesSet = newCodesList.toSet();
-          final newCountries = effective
-              .where((v) => newCodesSet.contains(v.countryCode))
-              .toList();
-          final newTripIds = inferredTrips
-              .where((t) => newCodesSet.contains(t.countryCode))
-              .map((t) => t.id)
-              .toList();
+          final newCountries =
+              effective
+                  .where((v) => newCodesSet.contains(v.countryCode))
+                  .toList();
+          final newTripIds =
+              inferredTrips
+                  .where((t) => newCodesSet.contains(t.countryCode))
+                  .map((t) => t.id)
+                  .toList();
           final heritageNames =
               newlyDiscoveredHeritageSites.map((s) => s.name).toList();
           final achievementIds = newlyUnlockedIds.toList();
           final tripCount = inferredTrips.length;
-          buildSummary = () => ScanSummaryScreen(
+          buildSummary =
+              () => ScanSummaryScreen(
                 newCountries: newCountries,
                 newAchievementIds: achievementIds,
                 newCodes: newCodesList,
@@ -941,7 +1028,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         } else if (scanResult is _NothingNew) {
           final achievementIds = newlyUnlockedIds.toList();
           final tripCount = inferredTrips.length;
-          buildSummary = () => ScanSummaryScreen(
+          buildSummary =
+              () => ScanSummaryScreen(
                 newCountries: const [],
                 newAchievementIds: achievementIds,
                 newCodes: const [],
@@ -969,45 +1057,56 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         }
 
         if (from != toCode) {
-          final fromGps = allPhotoGps
-              .where((g) => g.countryCode == from)
-              .toList()
-            ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-          final toGps = allPhotoGps
-              .where((g) =>
-                  g.countryCode == toCode &&
-                  !g.capturedAt.isBefore(trip.startedOn))
-              .toList()
-            ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-          liveSource.addEvent(CountryDiscoveredEvent(
-            fromCode: from,
-            toCode: toCode,
-            date: trip.startedOn,
-            fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
-            fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
-            toLat: toGps.isNotEmpty ? toGps.first.lat : null,
-            toLng: toGps.isNotEmpty ? toGps.first.lng : null,
-            isFirstVisit: liveFirstVisitCodes.add(toCode),
-          ));
+          final fromGps =
+              allPhotoGps.where((g) => g.countryCode == from).toList()
+                ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+          final toGps =
+              allPhotoGps
+                  .where(
+                    (g) =>
+                        g.countryCode == toCode &&
+                        !g.capturedAt.isBefore(trip.startedOn),
+                  )
+                  .toList()
+                ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+          liveSource.addEvent(
+            CountryDiscoveredEvent(
+              fromCode: from,
+              toCode: toCode,
+              date: trip.startedOn,
+              fromLat: fromGps.isNotEmpty ? fromGps.first.lat : null,
+              fromLng: fromGps.isNotEmpty ? fromGps.first.lng : null,
+              toLat: toGps.isNotEmpty ? toGps.first.lat : null,
+              toLng: toGps.isNotEmpty ? toGps.first.lng : null,
+              isFirstVisit: liveFirstVisitCodes.add(toCode),
+            ),
+          );
         }
         liveLastCountry = toCode;
 
-        for (final entry in whsAccum.entries
-            .where((e) => e.value.countryCode == toCode)) {
+        for (final entry in whsAccum.entries.where(
+          (e) => e.value.countryCode == toCode,
+        )) {
           if (liveEmittedHeritageSiteIds.add(entry.key)) {
-            liveSource.addEvent(HeritageSiteDiscoveredEvent(
-              countryCode: toCode,
-              siteName: entry.value.name,
-              siteType: entry.value.category,
-            ));
+            liveSource.addEvent(
+              HeritageSiteDiscoveredEvent(
+                countryCode: toCode,
+                siteName: entry.value.name,
+                siteType: entry.value.category,
+              ),
+            );
           }
         }
 
         liveSeenCountryCodes.add(toCode);
         final nowUnlocked = AchievementEngine.evaluate(
           liveSeenCountryCodes
-              .map((c) => EffectiveVisitedCountry(
-                  countryCode: c, hasPhotoEvidence: true))
+              .map(
+                (c) => EffectiveVisitedCountry(
+                  countryCode: c,
+                  hasPhotoEvidence: true,
+                ),
+              )
               .toList(),
           tripCount: i + 1,
         );
@@ -1017,12 +1116,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           final achievement =
               kAchievements.where((a) => a.id == id).firstOrNull;
           if (achievement != null) {
-            liveSource.addEvent(AchievementUnlockedEvent(
-              achievementId: id,
-              title: achievement.title,
-              subtitle: achievement.description,
-              countryCode: toCode,
-            ));
+            liveSource.addEvent(
+              AchievementUnlockedEvent(
+                achievementId: id,
+                title: achievement.title,
+                subtitle: achievement.description,
+                countryCode: toCode,
+              ),
+            );
           }
         }
       }
@@ -1051,12 +1152,36 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// Country-count thresholds that unlock achievements (T1, M125).
   /// Must stay in sync with [kAchievements] in shared_models.
   static const _kAchievementThresholds = [
-    1, 3, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 125, 150, 195,
+    1,
+    3,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    40,
+    50,
+    75,
+    100,
+    125,
+    150,
+    195,
   ];
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _fmtDate(DateTime dt) {
@@ -1067,15 +1192,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   Future<void> _openReview() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ReviewScreen(
-          initialVisits: _effectiveVisits,
-          repository: _repo,
-          syncService: _syncService,
-          uid: ref.read(currentUidProvider),
-          achievementRepo: _achievementRepo,
-          tripRepo: _tripRepo,
-          xpNotifier: ref.read(xpNotifierProvider.notifier),
-        ),
+        builder:
+            (_) => ReviewScreen(
+              initialVisits: _effectiveVisits,
+              repository: _repo,
+              syncService: _syncService,
+              uid: ref.read(currentUidProvider),
+              achievementRepo: _achievementRepo,
+              tripRepo: _tripRepo,
+              xpNotifier: ref.read(xpNotifierProvider.notifier),
+            ),
       ),
     );
     // Reload after review — ReviewScreen writes its delta on Save.
@@ -1102,101 +1228,126 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: kIsWeb
-                  ? _WebFallbackView(effectiveVisits: _effectiveVisits)
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _PermissionPanel(
-                          status: _permission,
-                          onRequestPermission: _requestPermission,
-                          onOpenSettings: _openSettings,
-                        ),
-                        const SizedBox(height: 12),
-                        // Scan mode selector — only visible after the first scan (M122: compact).
-                        if (_hasCompletedFirstScan) ...[
-                          SegmentedButton<bool>(
-                            style: SegmentedButton.styleFrom(
-                              minimumSize: const Size(0, 32),
-                              textStyle: Theme.of(context).textTheme.labelMedium,
+      body:
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                padding: const EdgeInsets.all(16),
+                child:
+                    kIsWeb
+                        ? _WebFallbackView(effectiveVisits: _effectiveVisits)
+                        : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _PermissionPanel(
+                              status: _permission,
+                              onRequestPermission: _requestPermission,
+                              onOpenSettings: _openSettings,
                             ),
-                            segments: const [
-                              ButtonSegment(
-                                value: false,
-                                label: Text('New'),
-                                icon: Icon(Icons.update),
-                              ),
-                              ButtonSegment(
-                                value: true,
-                                label: Text('All'),
-                                icon: Icon(Icons.refresh),
-                              ),
-                            ],
-                            selected: {_forceFullScan},
-                            onSelectionChanged: _scanning
-                                ? null
-                                : (s) => setState(() => _forceFullScan = s.first),
-                          ),
-                          if (_lastScanAt != null && !_forceFullScan)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 3),
-                              child: Text(
-                                'Last scanned: ${_fmtDate(_lastScanAt!)}',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            const SizedBox(height: 12),
+                            // Scan mode selector — only visible after the first scan (M122: compact).
+                            if (_hasCompletedFirstScan) ...[
+                              SegmentedButton<bool>(
+                                style: SegmentedButton.styleFrom(
+                                  minimumSize: const Size(0, 32),
+                                  textStyle:
+                                      Theme.of(context).textTheme.labelMedium,
                                 ),
+                                segments: const [
+                                  ButtonSegment(
+                                    value: false,
+                                    label: Text('New'),
+                                    icon: Icon(Icons.update),
+                                  ),
+                                  ButtonSegment(
+                                    value: true,
+                                    label: Text('All'),
+                                    icon: Icon(Icons.refresh),
+                                  ),
+                                ],
+                                selected: {_forceFullScan},
+                                onSelectionChanged:
+                                    _scanning
+                                        ? null
+                                        : (s) => setState(
+                                          () => _forceFullScan = s.first,
+                                        ),
                               ),
+                              if (_lastScanAt != null && !_forceFullScan)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Text(
+                                    'Last scanned: ${_fmtDate(_lastScanAt!)}',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.labelSmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 8),
+                            ],
+                            FilledButton.tonal(
+                              onPressed:
+                                  (_permission?.canScan == true && !_scanning)
+                                      ? _scan
+                                      : null,
+                              child: const Text('Scan my photo library'),
                             ),
-                          const SizedBox(height: 8),
-                        ],
-                        FilledButton.tonal(
-                          onPressed: (_permission?.canScan == true && !_scanning) ? _scan : null,
-                          child: const Text('Scan my photo library'),
+                            const SizedBox(height: 12),
+                            if (_error != null) _ErrorView(message: _error!),
+                            // Scanning pill: shown immediately when scan starts before first batch arrives.
+                            if (_scanning &&
+                                (_scanProgress?.processed ?? 0) == 0 &&
+                                _existingEntriesAtScanStart.isNotEmpty)
+                              const _ScanningPill(),
+                            // M78: Unified persistent view — globe + country list + stamps always visible
+                            // when the user has data. _ScanningView controls its own progress indicator
+                            // via isScanning; existingCodes drives pre-population at rest.
+                            if (_effectiveVisits.isNotEmpty || _scanning)
+                              Expanded(
+                                child: _ScanningView(
+                                  progress: _scanProgress,
+                                  liveNewEntries: List.unmodifiable(
+                                    _liveNewEntries,
+                                  ),
+                                  existingEntries:
+                                      _scanning
+                                          ? _existingEntriesAtScanStart
+                                          : _effectiveVisits
+                                              .map(
+                                                (v) => _DiscoveryEntry(
+                                                  isoCode: v.countryCode,
+                                                  photoCount: v.photoCount,
+                                                  firstSeenYear:
+                                                      v.firstSeen?.year,
+                                                ),
+                                              )
+                                              .toList(),
+                                  isScanning: _scanning,
+                                  liveHeritageCount: _liveHeritageCount,
+                                  achievementsUnlocked: List.unmodifiable(
+                                    _achievementsUnlockedInOrder,
+                                  ),
+                                  liveTripCount: _liveTripCount,
+                                  liveHeritageSites: _liveHeritageSites,
+                                ),
+                              )
+                            // No data yet paths:
+                            else if (_hasCompletedFirstScan) ...[
+                              const SizedBox(height: 16),
+                              const _EmptyResultsHint(),
+                            ] else ...[
+                              const SizedBox(height: 16),
+                              const _NoScanYetHint(),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        if (_error != null) _ErrorView(message: _error!),
-                        // Scanning pill: shown immediately when scan starts before first batch arrives.
-                        if (_scanning && (_scanProgress?.processed ?? 0) == 0 && _existingEntriesAtScanStart.isNotEmpty)
-                          const _ScanningPill(),
-                        // M78: Unified persistent view — globe + country list + stamps always visible
-                        // when the user has data. _ScanningView controls its own progress indicator
-                        // via isScanning; existingCodes drives pre-population at rest.
-                        if (_effectiveVisits.isNotEmpty || _scanning)
-                          Expanded(
-                            child: _ScanningView(
-                              progress: _scanProgress,
-                              liveNewEntries: List.unmodifiable(_liveNewEntries),
-                              existingEntries: _scanning
-                                  ? _existingEntriesAtScanStart
-                                  : _effectiveVisits.map((v) => _DiscoveryEntry(
-                                        isoCode: v.countryCode,
-                                        photoCount: v.photoCount,
-                                        firstSeenYear: v.firstSeen?.year,
-                                      )).toList(),
-                              isScanning: _scanning,
-                              liveHeritageCount: _liveHeritageCount,
-                              achievementsUnlocked: List.unmodifiable(
-                                  _achievementsUnlockedInOrder),
-                              liveTripCount: _liveTripCount,
-                              liveHeritageSites: _liveHeritageSites,
-                            ),
-                          )
-                        // No data yet paths:
-                        else if (_hasCompletedFirstScan) ...[
-                          const SizedBox(height: 16),
-                          const _EmptyResultsHint(),
-                        ] else ...[
-                          const SizedBox(height: 16),
-                          const _NoScanYetHint(),
-                        ],
-                      ],
-                    ),
-            ),
+              ),
     );
   }
 }
@@ -1302,12 +1453,14 @@ class _PermissionPanel extends StatelessWidget {
       return _NotDeterminedPanel(onGrant: onRequestPermission);
     }
     return switch (status!) {
-      PhotoPermissionStatus.notDetermined =>
-        _NotDeterminedPanel(onGrant: onRequestPermission),
+      PhotoPermissionStatus.notDetermined => _NotDeterminedPanel(
+        onGrant: onRequestPermission,
+      ),
       PhotoPermissionStatus.authorized => const SizedBox.shrink(),
       PhotoPermissionStatus.limited => const _LimitedAccessPanel(),
-      PhotoPermissionStatus.denied =>
-        _DeniedPanel(onOpenSettings: onOpenSettings),
+      PhotoPermissionStatus.denied => _DeniedPanel(
+        onOpenSettings: onOpenSettings,
+      ),
       PhotoPermissionStatus.restricted => const _RestrictedPanel(),
     };
   }
@@ -1328,10 +1481,7 @@ class _NotDeterminedPanel extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 12),
-        FilledButton(
-          onPressed: onGrant,
-          child: const Text('Grant Access'),
-        ),
+        FilledButton(onPressed: onGrant, child: const Text('Grant Access')),
       ],
     );
   }
@@ -1473,7 +1623,11 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
   ConfettiController? _microCtrl;
   ConfettiController? _mediumCtrl;
   ConfettiController? _fullCtrl;
-  List<Color> _confettiColors = const [Colors.amber, Colors.orange, Colors.blue];
+  List<Color> _confettiColors = const [
+    Colors.amber,
+    Colors.orange,
+    Colors.blue,
+  ];
 
   // GlobalKey to trigger globe milestone pulse on major milestones.
   final _globeKey = GlobalKey<_ScanGlobeWidgetState>();
@@ -1488,9 +1642,13 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
   @override
   void initState() {
     super.initState();
-    _microCtrl  = ConfettiController(duration: const Duration(milliseconds: 250));
-    _mediumCtrl = ConfettiController(duration: const Duration(milliseconds: 450));
-    _fullCtrl   = ConfettiController(duration: const Duration(milliseconds: 750));
+    _microCtrl = ConfettiController(
+      duration: const Duration(milliseconds: 250),
+    );
+    _mediumCtrl = ConfettiController(
+      duration: const Duration(milliseconds: 450),
+    );
+    _fullCtrl = ConfettiController(duration: const Duration(milliseconds: 750));
     _scanAudio.preload();
   }
 
@@ -1499,8 +1657,9 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
     super.didUpdateWidget(oldWidget);
 
     if (widget.liveNewEntries.length > oldWidget.liveNewEntries.length) {
-      final addedEntries =
-          widget.liveNewEntries.sublist(oldWidget.liveNewEntries.length);
+      final addedEntries = widget.liveNewEntries.sublist(
+        oldWidget.liveNewEntries.length,
+      );
       final totalAfter =
           widget.liveNewEntries.length + widget.existingEntries.length;
 
@@ -1508,7 +1667,8 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
         for (final entry in addedEntries) {
           // Flag colours live.
           flagColours(entry.isoCode).then((colors) {
-            if (mounted && colors != null) setState(() => _confettiColors = colors);
+            if (mounted && colors != null)
+              setState(() => _confettiColors = colors);
           });
 
           // First-country cinematic.
@@ -1596,7 +1756,9 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
 
     final subtitleParts = <String>[];
     if (countriesFound > 0) {
-      subtitleParts.add('$countriesFound ${countriesFound == 1 ? 'country' : 'countries'} found');
+      subtitleParts.add(
+        '$countriesFound ${countriesFound == 1 ? 'country' : 'countries'} found',
+      );
     }
 
     return Column(
@@ -1770,11 +1932,12 @@ class _ScanStatsBar extends StatelessWidget {
     final theme = Theme.of(context);
     final allEntries = [...existingEntries, ...liveNewEntries];
     final countriesCount = allEntries.length;
-    final continentsCount = allEntries
-        .map((e) => kCountryContinent[e.isoCode])
-        .whereType<String>()
-        .toSet()
-        .length;
+    final continentsCount =
+        allEntries
+            .map((e) => kCountryContinent[e.isoCode])
+            .whereType<String>()
+            .toSet()
+            .length;
     final totalHeritage = WorldHeritageLookupService.totalSiteCount;
 
     final parts = <String>[
@@ -1782,7 +1945,8 @@ class _ScanStatsBar extends StatelessWidget {
       '$continentsCount/$_totalContinents continents',
       if (liveHeritageCount > 0 && totalHeritage > 0)
         '$liveHeritageCount/${_fmtN(totalHeritage)} heritage',
-      if (liveTripCount > 0) '$liveTripCount ${liveTripCount == 1 ? 'trip' : 'trips'}',
+      if (liveTripCount > 0)
+        '$liveTripCount ${liveTripCount == 1 ? 'trip' : 'trips'}',
     ];
 
     final showProgress = liveHeritageCount > 0 && totalHeritage > 0;
@@ -1812,14 +1976,16 @@ class _ScanStatsBar extends StatelessWidget {
                   tween: Tween(begin: 0.0, end: heritageProgress),
                   duration: const Duration(milliseconds: 400),
                   curve: Curves.easeOut,
-                  builder: (context, value, _) => LinearProgressIndicator(
-                    value: value,
-                    minHeight: 3,
-                    backgroundColor:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.12),
-                    color: Colors.amber[400],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  builder:
+                      (context, value, _) => LinearProgressIndicator(
+                        value: value,
+                        minHeight: 3,
+                        backgroundColor: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.12,
+                        ),
+                        color: Colors.amber[400],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                 ),
               ),
             ],
@@ -1858,8 +2024,7 @@ class _ScanningPill extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(20),
@@ -2138,15 +2303,17 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
     return AnimatedBuilder(
       animation: Listenable.merge([_spinCtrl, _pulseCtrl, _heritagePulseCtrl]),
       builder: (context, _) {
-        final isIdle = (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
+        final isIdle =
+            (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
             (_zoomOutCtrl == null || !_zoomOutCtrl!.isAnimating);
-        final displayProjection = (isIdle && !reduceMotion)
-            ? GlobeProjection(
-                rotLat: _projection.rotLat,
-                rotLng: _projection.rotLng + _spinCtrl.value * 0.3,
-                scale: _projection.scale,
-              )
-            : _projection;
+        final displayProjection =
+            (isIdle && !reduceMotion)
+                ? GlobeProjection(
+                  rotLat: _projection.rotLat,
+                  rotLng: _projection.rotLng + _spinCtrl.value * 0.3,
+                  scale: _projection.scale,
+                )
+                : _projection;
         final pulseValue = reduceMotion ? 0.0 : _pulseCtrl.value;
         final heritagePulseValue =
             reduceMotion ? 0.0 : _heritagePulseCtrl.value;
@@ -2154,8 +2321,9 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
         return Stack(
           children: [
             GestureDetector(
-              onTapUp: (details) =>
-                  _handleGlobeTap(details.localPosition, displayProjection),
+              onTapUp:
+                  (details) =>
+                      _handleGlobeTap(details.localPosition, displayProjection),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CustomPaint(
@@ -2229,7 +2397,11 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
       _tooltipCategory = nearest.category;
     });
     _tooltipTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) setState(() { _tooltipName = null; _tooltipCategory = null; });
+      if (mounted)
+        setState(() {
+          _tooltipName = null;
+          _tooltipCategory = null;
+        });
     });
   }
 }
@@ -2247,9 +2419,10 @@ class _HeritageTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final categoryLabel = category == 'natural'
-        ? 'Natural'
-        : category == 'mixed'
+    final categoryLabel =
+        category == 'natural'
+            ? 'Natural'
+            : category == 'mixed'
             ? 'Mixed'
             : 'Cultural';
     final categoryColor =
@@ -2325,7 +2498,8 @@ class _DiscoveryFeedState extends State<_DiscoveryFeed> {
     // Scroll to top to show newest chip when a new entry arrives.
     if (widget.liveNewEntries.length > oldWidget.liveNewEntries.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollCtrl.hasClients && _scrollCtrl.position.minScrollExtent == 0) {
+        if (_scrollCtrl.hasClients &&
+            _scrollCtrl.position.minScrollExtent == 0) {
           _scrollCtrl.animateTo(
             0,
             duration: const Duration(milliseconds: 250),
@@ -2359,9 +2533,10 @@ class _DiscoveryFeedState extends State<_DiscoveryFeed> {
       );
     }
 
-    final newestCode = widget.liveNewEntries.isNotEmpty
-        ? widget.liveNewEntries.last.isoCode
-        : null;
+    final newestCode =
+        widget.liveNewEntries.isNotEmpty
+            ? widget.liveNewEntries.last.isoCode
+            : null;
     final newCodes = widget.liveNewEntries.map((e) => e.isoCode).toSet();
 
     return ListView.builder(
@@ -2415,9 +2590,10 @@ class _DiscoveryChipState extends State<_DiscoveryChip>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: widget.reduceMotion || !widget.isNew
-          ? Duration.zero
-          : const Duration(milliseconds: 200),
+      duration:
+          widget.reduceMotion || !widget.isNew
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
     );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     // Slide in from above (newest-first list, new items prepend at top).
@@ -2440,9 +2616,10 @@ class _DiscoveryChipState extends State<_DiscoveryChip>
     final entry = widget.entry;
     final flag = _flagEmoji(entry.isoCode);
     final name = kCountryNames[entry.isoCode] ?? entry.isoCode;
-    final textColor = widget.isNew
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurface.withValues(alpha: 0.4);
+    final textColor =
+        widget.isNew
+            ? theme.colorScheme.onSurface
+            : theme.colorScheme.onSurface.withValues(alpha: 0.4);
 
     final chip = Row(
       children: [
@@ -2611,7 +2788,6 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-
 class _NoScanYetHint extends StatelessWidget {
   const _NoScanYetHint();
 
@@ -2641,7 +2817,9 @@ class _NoScanYetHint extends StatelessWidget {
             Text(
               'Photos never leave your device.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade400),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey.shade400,
+              ),
             ),
           ],
         ),
@@ -2682,4 +2860,3 @@ class _EmptyResultsHint extends StatelessWidget {
     );
   }
 }
-

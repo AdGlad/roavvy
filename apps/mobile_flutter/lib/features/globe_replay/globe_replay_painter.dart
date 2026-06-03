@@ -34,7 +34,7 @@ class GlobeReplayPainter extends CustomPainter {
   // ── Colour constants ──────────────────────────────────────────────────────
 
   static const _kTrailColor = Color(0x40FFFFFF);
-  static const _kArcColor = Color(0xFFFFD700);   // gold, matches visited border
+  static const _kArcColor = Color(0xFFFFD700); // gold, matches visited border
   static const _kMarkerColor = Colors.white;
   static const _kPulseColor = Color(0xFFFFD700);
 
@@ -42,31 +42,43 @@ class GlobeReplayPainter extends CustomPainter {
   static const _kTrailStrokeWidth = 1.2;
   static const _kMarkerRadius = 5.0;
   static const _kDepartureRadius = 3.5;
-  static const _kArcPoints = 64;    // segments per great-circle arc
-  static const _kMaxElevationFraction = 0.06; // arc lift as fraction of globe radius
+  static const _kArcPoints = 64; // segments per great-circle arc
+  static const _kMaxElevationFraction =
+      0.06; // arc lift as fraction of globe radius
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
     // 1. Completed trail (previous legs, faded dashes).
     for (var i = 0; i < currentLegIndex && i < script.legs.length; i++) {
-      _drawArc(canvas, size, script.legs[i], 1.0, _kTrailStrokeWidth,
-          _kTrailColor, elevation: false);
+      _drawArc(
+        canvas,
+        size,
+        script.legs[i],
+        1.0,
+        _kTrailStrokeWidth,
+        _kTrailColor,
+        elevation: false,
+      );
     }
 
     if (currentLegIndex >= script.legs.length) return;
     final leg = script.legs[currentLegIndex];
 
     // 2. Active arc (drawn to arcProgress).
-    _drawArc(canvas, size, leg, arcProgress, _kArcStrokeWidth, _kArcColor,
-        elevation: true);
+    _drawArc(
+      canvas,
+      size,
+      leg,
+      arcProgress,
+      _kArcStrokeWidth,
+      _kArcColor,
+      elevation: true,
+    );
 
     // 3. Departure dot.
     final depPt = _resolveProject(leg.fromLat, leg.fromLng, leg.fromCode, size);
     if (depPt != null) {
-      canvas.drawCircle(
-          depPt,
-          _kDepartureRadius,
-          Paint()..color = _kArcColor);
+      canvas.drawCircle(depPt, _kDepartureRadius, Paint()..color = _kArcColor);
     }
 
     // 4. Moving marker at arcProgress along the arc.
@@ -75,11 +87,15 @@ class GlobeReplayPainter extends CustomPainter {
       if (markerPt != null) {
         // Drop shadow.
         canvas.drawCircle(
-            markerPt + const Offset(1, 1),
-            _kMarkerRadius,
-            Paint()..color = Colors.black38);
-        canvas.drawCircle(markerPt, _kMarkerRadius,
-            Paint()..color = _kMarkerColor);
+          markerPt + const Offset(1, 1),
+          _kMarkerRadius,
+          Paint()..color = Colors.black38,
+        );
+        canvas.drawCircle(
+          markerPt,
+          _kMarkerRadius,
+          Paint()..color = _kMarkerColor,
+        );
       }
     }
 
@@ -90,12 +106,13 @@ class GlobeReplayPainter extends CustomPainter {
         final r = projection.radius(size);
         final ringRadius = r * 0.05 + r * 0.12 * pulseValue;
         canvas.drawCircle(
-            arrPt,
-            ringRadius,
-            Paint()
-              ..color = _kPulseColor.withValues(alpha: (1.0 - pulseValue) * 0.8)
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.0);
+          arrPt,
+          ringRadius,
+          Paint()
+            ..color = _kPulseColor.withValues(alpha: (1.0 - pulseValue) * 0.8)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0,
+        );
       }
     }
   }
@@ -140,13 +157,14 @@ class GlobeReplayPainter extends CustomPainter {
     }
 
     canvas.drawPath(
-        path,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round);
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
   }
 
   /// Projects a point along the great-circle arc at parameter [t] (0–1),
@@ -192,7 +210,11 @@ class GlobeReplayPainter extends CustomPainter {
     final sinTheta = math.sin(theta);
     final wa = math.sin((1 - t) * theta) / sinTheta;
     final wb = math.sin(t * theta) / sinTheta;
-    return (a.$1 * wa + b.$1 * wb, a.$2 * wa + b.$2 * wb, a.$3 * wa + b.$3 * wb);
+    return (
+      a.$1 * wa + b.$1 * wb,
+      a.$2 * wa + b.$2 * wb,
+      a.$3 * wa + b.$3 * wb,
+    );
   }
 
   static (double, double, double) _perp((double, double, double) v) {
@@ -226,7 +248,10 @@ class GlobeReplayPainter extends CustomPainter {
   /// Prefers [lat]/[lng] when both are non-null; falls back to
   /// [kCountryCentroids[code]] otherwise.
   static (double, double, double)? _resolveUnit(
-      double? lat, double? lng, String code) {
+    double? lat,
+    double? lng,
+    String code,
+  ) {
     if (lat != null && lng != null) return _latLngToUnit(lat, lng);
     final c = kCountryCentroids[code];
     if (c == null) return null;
@@ -234,8 +259,7 @@ class GlobeReplayPainter extends CustomPainter {
   }
 
   /// Projects a screen position from explicit GPS or centroid fallback.
-  Offset? _resolveProject(
-      double? lat, double? lng, String code, ui.Size size) {
+  Offset? _resolveProject(double? lat, double? lng, String code, ui.Size size) {
     if (lat != null && lng != null) {
       return projection.project(lat, lng, size);
     }

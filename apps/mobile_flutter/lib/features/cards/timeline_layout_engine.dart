@@ -64,21 +64,24 @@ class TimelineLayoutEngine {
       return const TimelineLayoutResult(entries: [], truncatedCount: 0);
     }
 
-    final sorted = List<TripRecord>.from(trips)
-      ..sort((a, b) => newestFirst
-          ? b.startedOn.compareTo(a.startedOn)
-          : a.startedOn.compareTo(b.startedOn));
+    final sorted = List<TripRecord>.from(trips)..sort(
+      (a, b) =>
+          newestFirst
+              ? b.startedOn.compareTo(a.startedOn)
+              : a.startedOn.compareTo(b.startedOn),
+    );
 
-    final allEntries = sorted.map((trip) {
-      final duration = trip.endedOn.difference(trip.startedOn).inDays;
-      return TimelineEntry(
-        countryCode: trip.countryCode,
-        countryName: kCountryNames[trip.countryCode] ?? trip.countryCode,
-        entryDate: trip.startedOn,
-        exitDate: trip.endedOn,
-        durationDays: duration > 0 ? duration : null,
-      );
-    }).toList();
+    final allEntries =
+        sorted.map((trip) {
+          final duration = trip.endedOn.difference(trip.startedOn).inDays;
+          return TimelineEntry(
+            countryCode: trip.countryCode,
+            countryName: kCountryNames[trip.countryCode] ?? trip.countryCode,
+            entryDate: trip.startedOn,
+            exitDate: trip.endedOn,
+            durationDays: duration > 0 ? duration : null,
+          );
+        }).toList();
 
     final visible = allEntries.take(kMaxEntries).toList();
     return TimelineLayoutResult(
@@ -110,8 +113,18 @@ String formatTimelineDate(DateTime entry, DateTime exit) {
 String _monthYear(DateTime dt) => '${_monthAbbr(dt.month)} ${dt.year}';
 
 const _kMonths = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _monthAbbr(int month) => _kMonths[month - 1];

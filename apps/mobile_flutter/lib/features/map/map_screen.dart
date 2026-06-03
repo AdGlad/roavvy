@@ -86,30 +86,31 @@ class MapScreen extends ConsumerWidget {
   Future<void> _onDeleteHistory(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete all travel history?'),
-        content: const Text(
-          'This will remove all scanned and manually added countries.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Delete all travel history?'),
+            content: const Text(
+              'This will remove all scanned and manually added countries.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
     if (confirmed != true) return;
     await ref.read(visitRepositoryProvider).clearAll();
     await ref.read(roavvyDatabaseProvider).resetOnboarding();
     ref.invalidate(effectiveVisitsProvider);
     ref.invalidate(travelSummaryProvider);
-    ref.invalidate(tripListProvider);        // ADR-081: refresh Journal tab
-    ref.invalidate(regionCountProvider);    // ADR-082: refresh Stats regions count
+    ref.invalidate(tripListProvider); // ADR-081: refresh Journal tab
+    ref.invalidate(regionCountProvider); // ADR-082: refresh Stats regions count
     ref.invalidate(countryTripCountsProvider);
     ref.invalidate(earliestVisitYearProvider);
     ref.invalidate(onboardingCompleteProvider);
@@ -172,18 +173,22 @@ class MapScreen extends ConsumerWidget {
     final visit = visitedByCode[code];
     showModalBottomSheet<bool>(
       context: context,
-      builder: (_) => CountryDetailSheet(
-        isoCode: code,
-        visit: visit,
-        onAdd: visit == null
-            ? () => ref.read(visitRepositoryProvider).saveAdded(
-                  UserAddedCountry(
-                    countryCode: code,
-                    addedAt: DateTime.now().toUtc(),
-                  ),
-                )
-            : null,
-      ),
+      builder:
+          (_) => CountryDetailSheet(
+            isoCode: code,
+            visit: visit,
+            onAdd:
+                visit == null
+                    ? () => ref
+                        .read(visitRepositoryProvider)
+                        .saveAdded(
+                          UserAddedCountry(
+                            countryCode: code,
+                            addedAt: DateTime.now().toUtc(),
+                          ),
+                        )
+                    : null,
+          ),
     ).then((added) {
       if (added == true) {
         ref.invalidate(effectiveVisitsProvider);
@@ -199,8 +204,7 @@ class MapScreen extends ConsumerWidget {
     final yearFilter = ref.watch(yearFilterProvider);
 
     // Derive earliestVisitYear for the "Filter by year" menu item.
-    final earliestYear =
-        ref.watch(earliestVisitYearProvider).valueOrNull;
+    final earliestYear = ref.watch(earliestVisitYearProvider).valueOrNull;
     final showFilterByYear =
         (earliestYear != null && earliestYear < DateTime.now().year) ||
         yearFilter != null;
@@ -216,33 +220,34 @@ class MapScreen extends ConsumerWidget {
     // 30-day scan nudge banner (ADR-085).
     final lastScanAt = ref.watch(lastScanAtProvider).valueOrNull;
     final nudgeDismissed = ref.watch(scanNudgeDismissedProvider);
-    final showNudge = hasVisits &&
+    final showNudge =
+        hasVisits &&
         !nudgeDismissed &&
         lastScanAt != null &&
         DateTime.now().difference(lastScanAt) >= const Duration(days: 30);
 
     // Show loading indicator until effective visits first resolve.
     if (visitsAsync.isLoading && visitedByCode.isEmpty) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Fire region-1-away Rovy nudge whenever a region transitions to exactly
     // 1 country remaining and the user has at least one visit in that region.
-    ref.listen<List<RegionProgressData>>(regionProgressProvider,
-        (previous, next) {
-      final prevOneAway = (previous ?? const <RegionProgressData>[])
-          .where((r) => r.remaining == 1 && r.visitedCount > 0)
-          .map((r) => r.region)
-          .toSet();
+    ref.listen<List<RegionProgressData>>(regionProgressProvider, (
+      previous,
+      next,
+    ) {
+      final prevOneAway =
+          (previous ?? const <RegionProgressData>[])
+              .where((r) => r.remaining == 1 && r.visitedCount > 0)
+              .map((r) => r.region)
+              .toSet();
       for (final data in next) {
         if (data.remaining == 1 &&
             data.visitedCount > 0 &&
             !prevOneAway.contains(data.region)) {
           ref.read(rovyMessageProvider.notifier).state = RovyMessage(
-            text:
-                'Just 1 more country to complete ${data.region.displayName}!',
+            text: 'Just 1 more country to complete ${data.region.displayName}!',
             trigger: RovyTrigger.regionOneAway,
             emoji: '🎯',
           );
@@ -254,7 +259,7 @@ class MapScreen extends ConsumerWidget {
     final globeMode = ref.watch(globeModeProvider);
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
-            const <EffectiveVisitedCountry>[];
+        const <EffectiveVisitedCountry>[];
     // M134: hide map UI controls while replay/scan overlay is active so only
     // the globe and the replay HUD are visible.
     final overlayActive = ref.watch(globeOverlayProvider).isActive;
@@ -265,8 +270,8 @@ class MapScreen extends ConsumerWidget {
         children: [
           if (globeMode)
             GlobeMapWidget(
-              onCountryTap: (code) =>
-                  _onGlobeTap(context, ref, code, visitedByCode),
+              onCountryTap:
+                  (code) => _onGlobeTap(context, ref, code, visitedByCode),
             )
           else
             FlutterMap(
@@ -274,8 +279,9 @@ class MapScreen extends ConsumerWidget {
                 initialCenter: const LatLng(20, 0),
                 initialZoom: 2,
                 backgroundColor: const Color(0xFF0D2137),
-                onTap: (pos, latlng) =>
-                    _onMapTap(context, ref, visitedByCode, pos, latlng),
+                onTap:
+                    (pos, latlng) =>
+                        _onMapTap(context, ref, visitedByCode, pos, latlng),
               ),
               children: const [
                 CountryPolygonLayer(),
@@ -286,212 +292,237 @@ class MapScreen extends ConsumerWidget {
             ),
           // All map UI is hidden while replay/scan overlay is active (M134).
           if (!overlayActive) ...[
-          const Align(
-            alignment: Alignment.topCenter,
-            child: XpLevelBar(),
-          ),
-          const Align(
-            alignment: Alignment.topCenter,
-            child: _MemoryPulseSection(),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showNudge)
-                  _ScanNudgeBanner(
-                    onScan: onNavigateToScan,
-                    onDismiss: () =>
-                        ref.read(scanNudgeDismissedProvider.notifier).state =
-                            true,
-                  ),
-                const _YearInReviewBanner(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Center(
-                    child: _GlobeActionBar(
-                      onFullScan: onNavigateToScanFull,
-                      onNewPhotos: onNavigateToScanPartial,
-                      onReplay: globeMode
-                          ? () => showReplayEntrySheet(context)
-                          : null,
-                    ),
-                  ),
-                ),
-                if (globeMode && visitedByCode.isNotEmpty)
-                  _VisitedCountryFlagStrip(visits: filteredVisits),
-                const TimelineScrubberBar(),
-                const StatsStrip(),
-              ],
+            const Align(alignment: Alignment.topCenter, child: XpLevelBar()),
+            const Align(
+              alignment: Alignment.topCenter,
+              child: _MemoryPulseSection(),
             ),
-          ),
-          // Daily Challenge chip — top center, below the XP progress bar.
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 48,
-            left: 0,
-            right: 0,
-            child: const Center(child: _DailyChallengeChip()),
-          ),
-          if (!hasVisits)
-            _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 80),
-              child: RovyBubble(),
-            ),
-          ),
-          // Globe rotation pause/play — bottom-right, above flag strip.
-          if (globeMode)
-            const Positioned(
-              bottom: 148,
-              right: 12,
-              child: _GlobeRotationToggle(),
-            ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 8,
-            child: Material(
-              color: Colors.black45,
-              borderRadius: BorderRadius.circular(20),
-              child: PopupMenuButton<_MapMenuAction>(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (action) {
-                  if (action == _MapMenuAction.signInWithApple) {
-                    _onSignInWithApple(context, ref);
-                  } else if (action == _MapMenuAction.deleteHistory) {
-                    _onDeleteHistory(context, ref);
-                  } else if (action == _MapMenuAction.shareMyMap) {
-                    final s = ref.read(travelSummaryProvider).valueOrNull ??
-                        TravelSummary.fromVisits(visitedByCode.values.toList());
-                    captureAndShare(context, s, 'My Roavvy travel map');
-                    ref.read(rovyMessageProvider.notifier).state =
-                        const RovyMessage(
-                      text: 'Love it! Thanks for sharing your adventures!',
-                      trigger: RovyTrigger.postShare,
-                      emoji: '🙌',
-                    );
-                    final now = DateTime.now().toUtc();
-                    unawaited(ref.read(xpNotifierProvider.notifier).award(XpEvent(
-                      id: '${now.microsecondsSinceEpoch}-share',
-                      reason: XpReason.share,
-                      amount: 30,
-                      awardedAt: now,
-                    )));
-                  } else if (action == _MapMenuAction.createCard) {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const CardTypePickerScreen(),
-                    ));
-                  } else if (action == _MapMenuAction.privacyAccount) {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const PrivacyAccountScreen(),
-                    ));
-                  } else if (action == _MapMenuAction.signOut) {
-                    FirebaseAuth.instance.signOut();
-                  } else if (action == _MapMenuAction.filterByYear) {
-                    ref.read(yearFilterProvider.notifier).state =
-                        yearFilter != null ? null : DateTime.now().year;
-                  } else if (action == _MapMenuAction.debugMemoryPulse) {
-                    final notifier = ref.read(
-                        memoryPulseDebugOverrideProvider.notifier);
-                    final turningOn = !notifier.state;
-                    notifier.state = turningOn;
-                    if (turningOn) {
-                      // Clear session-dismissed set so previously-seen cards reappear.
-                      ref.read(memoriesDismissedProvider.notifier).state = {};
-                      // Clear the "shown today" pref so the post-scan tray
-                      // can also re-trigger on demand.
-                      unawaited(ref.read(memoryPulseServiceProvider).clearShownState());
-                    }
-                    ref.invalidate(todaysMemoriesProvider);
-                  }
-                },
-                itemBuilder: (_) => [
-                  if (isAnonymous)
-                    const PopupMenuItem(
-                      value: _MapMenuAction.signInWithApple,
-                      child: ListTile(
-                        leading: Icon(Icons.person_add_outlined),
-                        title: Text('Sign in with Apple'),
-                      ),
-                    )
-                  else
-                    const PopupMenuItem(
-                      enabled: false,
-                      value: _MapMenuAction.signInWithApple,
-                      child: ListTile(
-                        leading: Icon(Icons.check_circle_outline),
-                        title: Text('Signed in with Apple'),
-                      ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showNudge)
+                    _ScanNudgeBanner(
+                      onScan: onNavigateToScan,
+                      onDismiss:
+                          () =>
+                              ref
+                                  .read(scanNudgeDismissedProvider.notifier)
+                                  .state = true,
                     ),
-                  if (hasVisits)
-                    const PopupMenuItem(
-                      value: _MapMenuAction.shareMyMap,
-                      child: ListTile(
-                        leading: Icon(Icons.share),
-                        title: Text('Share travel card'),
-                      ),
-                    ),
-                  if (hasVisits)
-                    const PopupMenuItem(
-                      value: _MapMenuAction.createCard,
-                      child: ListTile(
-                        leading: Icon(Icons.style_outlined),
-                        title: Text('Create card'),
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: _MapMenuAction.deleteHistory,
-                    child: ListTile(
-                      leading: Icon(Icons.delete_outline, color: Colors.red.shade600),
-                      title: Text(
-                        'Clear travel history',
-                        style: TextStyle(color: Colors.red.shade600),
+                  const _YearInReviewBanner(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Center(
+                      child: _GlobeActionBar(
+                        onFullScan: onNavigateToScanFull,
+                        onNewPhotos: onNavigateToScanPartial,
+                        onReplay:
+                            globeMode
+                                ? () => showReplayEntrySheet(context)
+                                : null,
                       ),
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: _MapMenuAction.privacyAccount,
-                    child: ListTile(
-                      leading: Icon(Icons.security),
-                      title: Text('Privacy & account'),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: _MapMenuAction.signOut,
-                    child: ListTile(
-                      leading: Icon(Icons.logout),
-                      title: Text('Sign out'),
-                    ),
-                  ),
-                  if (showFilterByYear)
-                    PopupMenuItem(
-                      value: _MapMenuAction.filterByYear,
-                      child: ListTile(
-                        leading: const Icon(Icons.timeline),
-                        title: Text(yearFilter != null
-                            ? 'Clear year filter'
-                            : 'Filter by year'),
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: _MapMenuAction.debugMemoryPulse,
-                    child: ListTile(
-                      leading: const Icon(Icons.history_toggle_off),
-                      title: Text(
-                        ref.watch(memoryPulseDebugOverrideProvider)
-                            ? 'Hide memory pulse'
-                            : 'Show memory pulse',
-                      ),
-                    ),
-                  ),
+                  if (globeMode && visitedByCode.isNotEmpty)
+                    _VisitedCountryFlagStrip(visits: filteredVisits),
+                  const TimelineScrubberBar(),
+                  const StatsStrip(),
                 ],
               ),
             ),
-          ),
-          // App-open scan prompt gate (Task 150 — M43)
-          _ScanPromptGate(onNavigateToScan: onNavigateToScan),
+            // Daily Challenge chip — top center, below the XP progress bar.
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 48,
+              left: 0,
+              right: 0,
+              child: const Center(child: _DailyChallengeChip()),
+            ),
+            if (!hasVisits)
+              _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 80),
+                child: RovyBubble(),
+              ),
+            ),
+            // Globe rotation pause/play — bottom-right, above flag strip.
+            if (globeMode)
+              const Positioned(
+                bottom: 148,
+                right: 12,
+                child: _GlobeRotationToggle(),
+              ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 8,
+              child: Material(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(20),
+                child: PopupMenuButton<_MapMenuAction>(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onSelected: (action) {
+                    if (action == _MapMenuAction.signInWithApple) {
+                      _onSignInWithApple(context, ref);
+                    } else if (action == _MapMenuAction.deleteHistory) {
+                      _onDeleteHistory(context, ref);
+                    } else if (action == _MapMenuAction.shareMyMap) {
+                      final s =
+                          ref.read(travelSummaryProvider).valueOrNull ??
+                          TravelSummary.fromVisits(
+                            visitedByCode.values.toList(),
+                          );
+                      captureAndShare(context, s, 'My Roavvy travel map');
+                      ref
+                          .read(rovyMessageProvider.notifier)
+                          .state = const RovyMessage(
+                        text: 'Love it! Thanks for sharing your adventures!',
+                        trigger: RovyTrigger.postShare,
+                        emoji: '🙌',
+                      );
+                      final now = DateTime.now().toUtc();
+                      unawaited(
+                        ref
+                            .read(xpNotifierProvider.notifier)
+                            .award(
+                              XpEvent(
+                                id: '${now.microsecondsSinceEpoch}-share',
+                                reason: XpReason.share,
+                                amount: 30,
+                                awardedAt: now,
+                              ),
+                            ),
+                      );
+                    } else if (action == _MapMenuAction.createCard) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const CardTypePickerScreen(),
+                        ),
+                      );
+                    } else if (action == _MapMenuAction.privacyAccount) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const PrivacyAccountScreen(),
+                        ),
+                      );
+                    } else if (action == _MapMenuAction.signOut) {
+                      FirebaseAuth.instance.signOut();
+                    } else if (action == _MapMenuAction.filterByYear) {
+                      ref.read(yearFilterProvider.notifier).state =
+                          yearFilter != null ? null : DateTime.now().year;
+                    } else if (action == _MapMenuAction.debugMemoryPulse) {
+                      final notifier = ref.read(
+                        memoryPulseDebugOverrideProvider.notifier,
+                      );
+                      final turningOn = !notifier.state;
+                      notifier.state = turningOn;
+                      if (turningOn) {
+                        // Clear session-dismissed set so previously-seen cards reappear.
+                        ref.read(memoriesDismissedProvider.notifier).state = {};
+                        // Clear the "shown today" pref so the post-scan tray
+                        // can also re-trigger on demand.
+                        unawaited(
+                          ref
+                              .read(memoryPulseServiceProvider)
+                              .clearShownState(),
+                        );
+                      }
+                      ref.invalidate(todaysMemoriesProvider);
+                    }
+                  },
+                  itemBuilder:
+                      (_) => [
+                        if (isAnonymous)
+                          const PopupMenuItem(
+                            value: _MapMenuAction.signInWithApple,
+                            child: ListTile(
+                              leading: Icon(Icons.person_add_outlined),
+                              title: Text('Sign in with Apple'),
+                            ),
+                          )
+                        else
+                          const PopupMenuItem(
+                            enabled: false,
+                            value: _MapMenuAction.signInWithApple,
+                            child: ListTile(
+                              leading: Icon(Icons.check_circle_outline),
+                              title: Text('Signed in with Apple'),
+                            ),
+                          ),
+                        if (hasVisits)
+                          const PopupMenuItem(
+                            value: _MapMenuAction.shareMyMap,
+                            child: ListTile(
+                              leading: Icon(Icons.share),
+                              title: Text('Share travel card'),
+                            ),
+                          ),
+                        if (hasVisits)
+                          const PopupMenuItem(
+                            value: _MapMenuAction.createCard,
+                            child: ListTile(
+                              leading: Icon(Icons.style_outlined),
+                              title: Text('Create card'),
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: _MapMenuAction.deleteHistory,
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.delete_outline,
+                              color: Colors.red.shade600,
+                            ),
+                            title: Text(
+                              'Clear travel history',
+                              style: TextStyle(color: Colors.red.shade600),
+                            ),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: _MapMenuAction.privacyAccount,
+                          child: ListTile(
+                            leading: Icon(Icons.security),
+                            title: Text('Privacy & account'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: _MapMenuAction.signOut,
+                          child: ListTile(
+                            leading: Icon(Icons.logout),
+                            title: Text('Sign out'),
+                          ),
+                        ),
+                        if (showFilterByYear)
+                          PopupMenuItem(
+                            value: _MapMenuAction.filterByYear,
+                            child: ListTile(
+                              leading: const Icon(Icons.timeline),
+                              title: Text(
+                                yearFilter != null
+                                    ? 'Clear year filter'
+                                    : 'Filter by year',
+                              ),
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: _MapMenuAction.debugMemoryPulse,
+                          child: ListTile(
+                            leading: const Icon(Icons.history_toggle_off),
+                            title: Text(
+                              ref.watch(memoryPulseDebugOverrideProvider)
+                                  ? 'Hide memory pulse'
+                                  : 'Show memory pulse',
+                            ),
+                          ),
+                        ),
+                      ],
+                ),
+              ),
+            ),
+            // App-open scan prompt gate (Task 150 — M43)
+            _ScanPromptGate(onNavigateToScan: onNavigateToScan),
           ], // end !overlayActive
         ],
       ),
@@ -585,13 +616,13 @@ class _VisitedCountryFlagStrip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Sort by firstSeen ascending; null dates (manually added) go to the end.
     final sorted = [...visits]..sort((a, b) {
-        final fa = a.firstSeen;
-        final fb = b.firstSeen;
-        if (fa == null && fb == null) return 0;
-        if (fa == null) return 1;
-        if (fb == null) return -1;
-        return fa.compareTo(fb);
-      });
+      final fa = a.firstSeen;
+      final fb = b.firstSeen;
+      if (fa == null && fb == null) return 0;
+      if (fa == null) return 1;
+      if (fb == null) return -1;
+      return fa.compareTo(fb);
+    });
 
     return SizedBox(
       height: 44,
@@ -606,16 +637,17 @@ class _VisitedCountryFlagStrip extends ConsumerWidget {
             message: code,
             child: InkWell(
               borderRadius: BorderRadius.circular(6),
-              onTap: centroid == null
-                  ? null
-                  : () => ref.read(globeTargetProvider.notifier).state =
-                      (centroid.$1, centroid.$2),
+              onTap:
+                  centroid == null
+                      ? null
+                      : () =>
+                          ref.read(globeTargetProvider.notifier).state = (
+                            centroid.$1,
+                            centroid.$2,
+                          ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: Text(
-                  _flag(code),
-                  style: const TextStyle(fontSize: 22),
-                ),
+                child: Text(_flag(code), style: const TextStyle(fontSize: 22)),
               ),
             ),
           );
@@ -685,22 +717,23 @@ class _ScanPromptGateState extends ConsumerState<_ScanPromptGate> {
   Future<void> _maybeShow() async {
     if (!mounted) return;
 
-    final onboardingDone =
-        await ref.read(onboardingCompleteProvider.future).catchError((_) => false);
+    final onboardingDone = await ref
+        .read(onboardingCompleteProvider.future)
+        .catchError((_) => false);
     if (!onboardingDone || !mounted) return;
 
-    final lastScan = await ref.read(lastScanAtProvider.future).catchError((_) => null);
+    final lastScan = await ref
+        .read(lastScanAtProvider.future)
+        .catchError((_) => null);
     final now = DateTime.now();
-    final needsScan = lastScan == null ||
-        now.difference(lastScan).inDays > 7;
+    final needsScan = lastScan == null || now.difference(lastScan).inDays > 7;
     if (!needsScan || !mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
     final dismissedAt = prefs.getString(_prefKey);
     if (dismissedAt != null) {
       final dismissed = DateTime.tryParse(dismissedAt);
-      if (dismissed != null &&
-          DateUtils.isSameDay(dismissed, now)) {
+      if (dismissed != null && DateUtils.isSameDay(dismissed, now)) {
         return;
       }
     }
@@ -709,13 +742,14 @@ class _ScanPromptGateState extends ConsumerState<_ScanPromptGate> {
     await showModalBottomSheet<void>(
       context: context,
       isDismissible: true,
-      builder: (_) => DiscoverNewCountriesSheet(
-        onScanNow: () {
-          Navigator.of(context).pop();
-          widget.onNavigateToScan?.call();
-        },
-        onLater: () => Navigator.of(context).pop(),
-      ),
+      builder:
+          (_) => DiscoverNewCountriesSheet(
+            onScanNow: () {
+              Navigator.of(context).pop();
+              widget.onNavigateToScan?.call();
+            },
+            onLater: () => Navigator.of(context).pop(),
+          ),
     );
 
     // Record dismiss date regardless of which button was tapped.
@@ -754,8 +788,9 @@ class DiscoverNewCountriesSheet extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'New countries may be waiting',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -767,14 +802,8 @@ class DiscoverNewCountriesSheet extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            FilledButton(
-              onPressed: onScanNow,
-              child: const Text('Scan now'),
-            ),
-            TextButton(
-              onPressed: onLater,
-              child: const Text('Later'),
-            ),
+            FilledButton(onPressed: onScanNow, child: const Text('Scan now')),
+            TextButton(onPressed: onLater, child: const Text('Later')),
           ],
         ),
       ),
@@ -836,7 +865,8 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
   Future<void> _loadPref() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    final dismissed = prefs.getBool('$_prefDismissedPrefix$_reviewYear') ?? false;
+    final dismissed =
+        prefs.getBool('$_prefDismissedPrefix$_reviewYear') ?? false;
     setState(() {
       _dismissed = dismissed;
       _prefLoaded = true;
@@ -846,7 +876,9 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
     final alreadyScheduled =
         prefs.getBool('$_prefScheduledPrefix$nextYear') ?? false;
     if (!alreadyScheduled) {
-      await NotificationService.instance.scheduleYearInReview(forYear: nextYear);
+      await NotificationService.instance.scheduleYearInReview(
+        forYear: nextYear,
+      );
       await prefs.setBool('$_prefScheduledPrefix$nextYear', true);
     }
   }
@@ -859,9 +891,9 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
 
   void _openScreen(int year) {
     if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => YearInReviewScreen(year: year),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => YearInReviewScreen(year: year)),
+    );
   }
 
   @override
@@ -889,7 +921,9 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
-        border: Border.all(color: const Color(0xFFD4A017).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(0xFFD4A017).withValues(alpha: 0.5),
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -957,9 +991,10 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
       begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-    _fade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _fade = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
   @override
@@ -975,7 +1010,8 @@ class _MemoryPulseSectionState extends ConsumerState<_MemoryPulseSection>
     final service = ref.read(memoryPulseServiceProvider);
 
     final memories = memoriesAsync.valueOrNull ?? const [];
-    final visible = memories.where((m) => !dismissed.contains(m.assetId)).toList();
+    final visible =
+        memories.where((m) => !dismissed.contains(m.assetId)).toList();
 
     if (visible.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1063,11 +1099,7 @@ class _GlobeActionBar extends StatelessWidget {
 }
 
 class _ActionBtn extends StatelessWidget {
-  const _ActionBtn({
-    required this.icon,
-    required this.label,
-    this.onPressed,
-  });
+  const _ActionBtn({required this.icon, required this.label, this.onPressed});
 
   final IconData icon;
   final String label;
@@ -1117,8 +1149,9 @@ class _GlobeRotationToggle extends ConsumerWidget {
         color: Colors.white,
         iconSize: 22,
         tooltip: paused ? 'Resume rotation' : 'Pause rotation',
-        onPressed: () =>
-            ref.read(globeRotationPausedProvider.notifier).state = !paused,
+        onPressed:
+            () =>
+                ref.read(globeRotationPausedProvider.notifier).state = !paused,
       ),
     );
   }
@@ -1136,19 +1169,22 @@ class _DailyChallengeChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progressAsync = ref.watch(dailyChallengeProgressProvider);
     final solved = progressAsync.valueOrNull?.solved ?? false;
-    final streak = ref.watch(challengeAggregateProvider).valueOrNull?.currentStreak ?? 0;
+    final streak =
+        ref.watch(challengeAggregateProvider).valueOrNull?.currentStreak ?? 0;
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const DailyChallengeScreen(),
-        ),
-      ),
-      onLongPress: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const ChallengeStatsScreen(),
-        ),
-      ),
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const DailyChallengeScreen(),
+            ),
+          ),
+      onLongPress:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const ChallengeStatsScreen(),
+            ),
+          ),
       child: Material(
         color: Colors.black45,
         borderRadius: BorderRadius.circular(20),
@@ -1157,7 +1193,11 @@ class _DailyChallengeChip extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.emoji_events_outlined, color: Colors.white, size: 16),
+              const Icon(
+                Icons.emoji_events_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
               const SizedBox(width: 6),
               const Text(
                 'Daily Challenge',
@@ -1165,10 +1205,7 @@ class _DailyChallengeChip extends ConsumerWidget {
               ),
               if (streak >= 2) ...[
                 const SizedBox(width: 6),
-                Text(
-                  '🔥$streak',
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text('🔥$streak', style: const TextStyle(fontSize: 12)),
               ] else if (!solved) ...[
                 const SizedBox(width: 6),
                 Container(

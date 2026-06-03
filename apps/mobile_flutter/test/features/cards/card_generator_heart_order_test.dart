@@ -30,68 +30,78 @@ Widget _wrap(Widget child, ProviderContainer container) {
   );
 }
 
-List<EffectiveVisitedCountry> _makeVisits(List<String> codes) => codes
-    .map((c) => EffectiveVisitedCountry(
-          countryCode: c,
-          hasPhotoEvidence: true,
-          firstSeen: DateTime(2020),
-          lastSeen: DateTime(2023),
-        ))
-    .toList();
+List<EffectiveVisitedCountry> _makeVisits(List<String> codes) =>
+    codes
+        .map(
+          (c) => EffectiveVisitedCountry(
+            countryCode: c,
+            hasPhotoEvidence: true,
+            firstSeen: DateTime(2020),
+            lastSeen: DateTime(2023),
+          ),
+        )
+        .toList();
 
 void main() {
-  group('CardEditorScreen sort-order picker (migrated from CardGeneratorScreen)',
-      () {
-    testWidgets('sort picker is visible when grid template selected',
-        (tester) async {
-      final container =
-          _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(
-        const CardEditorScreen(templateType: CardTemplateType.grid),
-        container,
-      ));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+  group(
+    'CardEditorScreen sort-order picker (migrated from CardGeneratorScreen)',
+    () {
+      testWidgets('sort picker is visible when grid template selected', (
+        tester,
+      ) async {
+        final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
+        await tester.pumpWidget(
+          _wrap(
+            const CardEditorScreen(templateType: CardTemplateType.grid),
+            container,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
 
-      // Grid editor — sort picker is shown (unlike old CardGeneratorScreen default).
-      expect(find.text('Shuffle'), findsOneWidget);
-      expect(find.text('By Date'), findsOneWidget);
-    });
+        // Grid editor — sort picker is shown (unlike old CardGeneratorScreen default).
+        expect(find.text('Shuffle'), findsOneWidget);
+        expect(find.text('By Date'), findsOneWidget);
+      });
 
-    testWidgets('sort picker is visible when heart template selected',
-        (tester) async {
-      final container =
-          _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(
-        const CardEditorScreen(templateType: CardTemplateType.heart),
-        container,
-      ));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      testWidgets('sort picker is visible when heart template selected', (
+        tester,
+      ) async {
+        final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
+        await tester.pumpWidget(
+          _wrap(
+            const CardEditorScreen(templateType: CardTemplateType.heart),
+            container,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Shuffle'), findsOneWidget);
-      expect(find.text('By Date'), findsOneWidget);
-      expect(find.text('A \u2192 Z'), findsOneWidget);
-      expect(find.text('By Region'), findsOneWidget);
-    });
+        expect(find.text('Shuffle'), findsOneWidget);
+        expect(find.text('By Date'), findsOneWidget);
+        expect(find.text('A \u2192 Z'), findsOneWidget);
+        expect(find.text('By Region'), findsOneWidget);
+      });
 
-    testWidgets('sort picker is absent for passport template',
-        (tester) async {
-      final container =
-          _buildContainer(visits: _makeVisits(['GB', 'US']));
-      await tester.pumpWidget(_wrap(
-        const CardEditorScreen(
-            templateType: CardTemplateType.passport),
-        container,
-      ));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      testWidgets('sort picker is absent for passport template', (
+        tester,
+      ) async {
+        final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
+        await tester.pumpWidget(
+          _wrap(
+            const CardEditorScreen(templateType: CardTemplateType.passport),
+            container,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
 
-      // Passport uses a full-screen overlay layout. The _SortOrderPicker chip
-      // row (By Date, A→Z, By Region) is absent. The overlay has its own
-      // stamp-shuffle Shuffle button, so 'By Date' is the correct absence check.
-      expect(find.text('By Date'), findsNothing);
-      expect(find.text('A \u2192 Z'), findsNothing);
-    });
-  });
+        // Passport uses a full-screen overlay layout. The _SortOrderPicker chip
+        // row (By Date, A→Z, By Region) is absent. The overlay has its own
+        // stamp-shuffle Shuffle button, so 'By Date' is the correct absence check.
+        expect(find.text('By Date'), findsNothing);
+        expect(find.text('A \u2192 Z'), findsNothing);
+      });
+    },
+  );
 }

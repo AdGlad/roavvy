@@ -28,10 +28,7 @@ class HeroCandidateSelector {
   ///    are at least 15 minutes apart from the previously selected candidate,
   ///    ensuring good coverage of the trip timespan.
   /// 6. Cap at [maxCandidates] (default 25).
-  List<String> select(
-    List<PhotoDateRecord> photos, {
-    int maxCandidates = 25,
-  }) {
+  List<String> select(List<PhotoDateRecord> photos, {int maxCandidates = 25}) {
     if (photos.isEmpty) return const [];
 
     // Keep only photos that have an assetId.
@@ -50,10 +47,7 @@ class HeroCandidateSelector {
     // apply temporal spacing on the full deduped set.
     if (deduped.isEmpty) {
       // Fallback: take first maxCandidates from withAssetId.
-      return withAssetId
-          .take(maxCandidates)
-          .map((p) => p.assetId!)
-          .toList();
+      return withAssetId.take(maxCandidates).map((p) => p.assetId!).toList();
     }
 
     // Temporal spacing: at least 15 minutes between selected candidates.

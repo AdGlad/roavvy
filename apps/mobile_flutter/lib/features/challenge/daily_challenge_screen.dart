@@ -32,8 +32,10 @@ class DailyChallengeScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Daily Challenge',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+            const Text(
+              'Daily Challenge',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
             Text(
               DateFormat('d MMMM yyyy').format(DateTime.now()),
               style: TextStyle(
@@ -47,14 +49,17 @@ class DailyChallengeScreen extends ConsumerWidget {
           icon: const Icon(Icons.close),
           onPressed: () {
             // If the game is over, fly to the site when the screen closes.
-            final state =
-                ref.read(dailyChallengeNotifierProvider).valueOrNull;
+            final state = ref.read(dailyChallengeNotifierProvider).valueOrNull;
             if (state != null &&
                 (state.progress.solved || state.progress.failed)) {
-              ref.read(globeTargetProvider.notifier).state =
-                  (state.site.latitude, state.site.longitude);
-              ref.read(challengeSiteHighlightProvider.notifier).state =
-                  (state.site.latitude, state.site.longitude);
+              ref.read(globeTargetProvider.notifier).state = (
+                state.site.latitude,
+                state.site.longitude,
+              );
+              ref.read(challengeSiteHighlightProvider.notifier).state = (
+                state.site.latitude,
+                state.site.longitude,
+              );
             }
             Navigator.of(context).pop();
           },
@@ -68,22 +73,28 @@ class DailyChallengeScreen extends ConsumerWidget {
         ],
       ),
       body: stateAsync.when(
-        loading: () => const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Loading today\'s challenge…',
-                  style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-        ),
-        error: (e, _) => _ErrorState(onRetry: () {
-          // Kick off background generation then re-fetch.
-          const DailyChallengeService().prefetch();
-          ref.invalidate(dailyChallengeProvider);
-        }),
+        loading:
+            () => const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading today\'s challenge…',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+        error:
+            (e, _) => _ErrorState(
+              onRetry: () {
+                // Kick off background generation then re-fetch.
+                const DailyChallengeService().prefetch();
+                ref.invalidate(dailyChallengeProvider);
+              },
+            ),
         data: (state) => _ChallengeBody(state: state),
       ),
     );
@@ -100,7 +111,9 @@ class DailyChallengeScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Could not refresh — check your connection.')),
+          const SnackBar(
+            content: Text('Could not refresh — check your connection.'),
+          ),
         );
       }
     }
@@ -122,8 +135,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.hourglass_top_outlined,
-                size: 48, color: Theme.of(context).colorScheme.outline),
+            Icon(
+              Icons.hourglass_top_outlined,
+              size: 48,
+              color: Theme.of(context).colorScheme.outline,
+            ),
             const SizedBox(height: 16),
             Text(
               "Today's challenge is being generated.",
@@ -135,8 +151,8 @@ class _ErrorState extends StatelessWidget {
               'Tap Retry in a few seconds.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
@@ -172,9 +188,10 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
-    );
+    _shakeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
     _audio.preload().ignore();
     // Record initial clue count so we can detect new reveals.
     _lastCluesRevealed = widget.state.progress.cluesRevealed;
@@ -194,7 +211,12 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     if (!correct && mounted) {
       // If the game just ended (5th wrong guess), play the full fail fanfare.
       final nowOver =
-          ref.read(dailyChallengeNotifierProvider).valueOrNull?.progress.failed ?? false;
+          ref
+              .read(dailyChallengeNotifierProvider)
+              .valueOrNull
+              ?.progress
+              .failed ??
+          false;
       if (nowOver) {
         _audio.playFail();
       } else {
@@ -202,7 +224,9 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
         await _shakeCtrl.forward(from: 0);
         // Auto-reveal next clue after each wrong guess.
         if (mounted) {
-          await ref.read(dailyChallengeNotifierProvider.notifier).revealNextClue();
+          await ref
+              .read(dailyChallengeNotifierProvider.notifier)
+              .revealNextClue();
         }
       }
     }
@@ -221,18 +245,21 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     final clues = state.challenge.clues;
     final lastResult = state.lastGuessResult;
     final sites = ref.watch(allWhsSitesProvider).valueOrNull ?? const [];
-    final guessesLeft = DailyChallengeState.maxGuesses - progress.guesses.length;
+    final guessesLeft =
+        DailyChallengeState.maxGuesses - progress.guesses.length;
     final gameOver = progress.solved || progress.failed;
 
     // Play clue-reveal chime whenever a new clue becomes visible.
-    ref.listen<AsyncValue<DailyChallengeState>>(dailyChallengeNotifierProvider,
-        (_, next) {
-      final revealed = next.valueOrNull?.progress.cluesRevealed ?? 0;
-      if (revealed > _lastCluesRevealed) {
-        _audio.playClue(revealed);
-        _lastCluesRevealed = revealed;
-      }
-    });
+    ref.listen<AsyncValue<DailyChallengeState>>(
+      dailyChallengeNotifierProvider,
+      (_, next) {
+        final revealed = next.valueOrNull?.progress.cluesRevealed ?? 0;
+        if (revealed > _lastCluesRevealed) {
+          _audio.playClue(revealed);
+          _lastCluesRevealed = revealed;
+        }
+      },
+    );
 
     return Stack(
       children: [
@@ -242,11 +269,12 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 itemCount: progress.cluesRevealed.clamp(0, clues.length),
-                itemBuilder: (context, index) => _ClueCard(
-                  number: index + 1,
-                  clue: clues[index],
-                  imageUrl: index == 4 ? state.site.imageUrl : null,
-                ),
+                itemBuilder:
+                    (context, index) => _ClueCard(
+                      number: index + 1,
+                      clue: clues[index],
+                      imageUrl: index == 4 ? state.site.imageUrl : null,
+                    ),
               ),
             ),
             if (progress.guesses.isNotEmpty)
@@ -255,32 +283,45 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
               // Hot/cold chip — animated in after first wrong guess.
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.3),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                ),
-                child: lastResult != null
-                    ? _HotColdChip(key: ValueKey(lastResult.guess), result: lastResult)
-                    : const SizedBox.shrink(),
+                transitionBuilder:
+                    (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.3),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                child:
+                    lastResult != null
+                        ? _HotColdChip(
+                          key: ValueKey(lastResult.guess),
+                          result: lastResult,
+                        )
+                        : const SizedBox.shrink(),
               ),
               // Remaining guess counter — only shown after the first wrong guess.
               if (progress.guesses.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 2,
+                  ),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      guessesLeft == 1 ? '1 guess left' : '$guessesLeft guesses left',
+                      guessesLeft == 1
+                          ? '1 guess left'
+                          : '$guessesLeft guesses left',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: guessesLeft <= 1
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        color:
+                            guessesLeft <= 1
+                                ? Theme.of(context).colorScheme.error
+                                : Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -294,9 +335,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
               if (progress.cluesRevealed < 5)
                 _RevealClueButton(
                   nextClueNumber: progress.cluesRevealed + 1,
-                  onPressed: () => ref
-                      .read(dailyChallengeNotifierProvider.notifier)
-                      .revealNextClue(),
+                  onPressed:
+                      () =>
+                          ref
+                              .read(dailyChallengeNotifierProvider.notifier)
+                              .revealNextClue(),
                 )
               else
                 _RevealAnswerButton(onPressed: _revealAnswer),
@@ -320,16 +363,30 @@ class _ClueCard extends StatelessWidget {
   final ChallengeClue clue;
   final String? imageUrl;
 
-  static ({IconData icon, Color color}) _typeStyle(String type) => switch (type) {
-        'geography'   => (icon: Icons.public, color: const Color(0xFF1976D2)),
-        'historical'  => (icon: Icons.history_edu_outlined, color: const Color(0xFFF9A825)),
-        'location'    => (icon: Icons.place_outlined, color: const Color(0xFFFF6F00)),
-        'natural'     => (icon: Icons.park_outlined, color: const Color(0xFF388E3C)),
-        'direct'      => (icon: Icons.lightbulb_outlined, color: const Color(0xFF26C6DA)),
-        'atmosphere'  => (icon: Icons.wb_sunny_outlined, color: const Color(0xFFFF8F00)),
-        'pop_culture' => (icon: Icons.movie_outlined, color: const Color(0xFF7B1FA2)),
-        _             => (icon: Icons.help_outline, color: Colors.white38),
-      };
+  static ({IconData icon, Color color}) _typeStyle(
+    String type,
+  ) => switch (type) {
+    'geography' => (icon: Icons.public, color: const Color(0xFF1976D2)),
+    'historical' => (
+      icon: Icons.history_edu_outlined,
+      color: const Color(0xFFF9A825),
+    ),
+    'location' => (icon: Icons.place_outlined, color: const Color(0xFFFF6F00)),
+    'natural' => (icon: Icons.park_outlined, color: const Color(0xFF388E3C)),
+    'direct' => (
+      icon: Icons.lightbulb_outlined,
+      color: const Color(0xFF26C6DA),
+    ),
+    'atmosphere' => (
+      icon: Icons.wb_sunny_outlined,
+      color: const Color(0xFFFF8F00),
+    ),
+    'pop_culture' => (
+      icon: Icons.movie_outlined,
+      color: const Color(0xFF7B1FA2),
+    ),
+    _ => (icon: Icons.help_outline, color: Colors.white38),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +414,9 @@ class _ClueCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: style.color.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
-                      border: Border.all(color: style.color.withValues(alpha: 0.5)),
+                      border: Border.all(
+                        color: style.color.withValues(alpha: 0.5),
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Icon(style.icon, size: 13, color: style.color),
@@ -384,7 +443,9 @@ class _ClueCard extends StatelessWidget {
             ),
             if (hasImage)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(12),
+                ),
                 child: Image.network(
                   imageUrl!,
                   height: 180,
@@ -419,7 +480,9 @@ class _RevealClueButton extends StatelessWidget {
         onPressed: onPressed,
         style: FilledButton.styleFrom(
           minimumSize: const Size(double.infinity, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: Text('Reveal Clue $nextClueNumber'),
       ),
@@ -444,9 +507,13 @@ class _RevealAnswerButton extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(double.infinity, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           foregroundColor: Theme.of(context).colorScheme.error,
-          side: BorderSide(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5)),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5),
+          ),
         ),
         child: const Text('Reveal Answer'),
       ),
@@ -520,9 +587,10 @@ class _HeritageSiteSearchInputState extends State<_HeritageSiteSearchInput> {
     setState(() => _key = UniqueKey());
   }
 
-  List<WorldHeritageSite> get _filteredSites => _regionFilter == null
-      ? widget.sites
-      : widget.sites.where((s) => s.region == _regionFilter).toList();
+  List<WorldHeritageSite> get _filteredSites =>
+      _regionFilter == null
+          ? widget.sites
+          : widget.sites.where((s) => s.region == _regionFilter).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -543,18 +611,23 @@ class _HeritageSiteSearchInputState extends State<_HeritageSiteSearchInput> {
                     value: _regionFilter,
                     isDense: true,
                     isExpanded: true,
-                    hint: const Text('All regions',
-                        style: TextStyle(fontSize: 13)),
+                    hint: const Text(
+                      'All regions',
+                      style: TextStyle(fontSize: 13),
+                    ),
                     style: theme.textTheme.bodySmall,
-                    items: _kAllRegions
-                        .map((r) => DropdownMenuItem<String?>(
-                              value: r,
-                              child: Text(
-                                r ?? 'All regions',
-                                style: const TextStyle(fontSize: 13),
+                    items:
+                        _kAllRegions
+                            .map(
+                              (r) => DropdownMenuItem<String?>(
+                                value: r,
+                                child: Text(
+                                  r ?? 'All regions',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               ),
-                            ))
-                        .toList(),
+                            )
+                            .toList(),
                     onChanged: (r) {
                       setState(() {
                         _regionFilter = r;
@@ -573,7 +646,10 @@ class _HeritageSiteSearchInputState extends State<_HeritageSiteSearchInput> {
             builder: (context, child) {
               final offset =
                   math.sin(widget.shakeAnimation.value * math.pi * 6) * 8;
-              return Transform.translate(offset: Offset(offset, 0), child: child);
+              return Transform.translate(
+                offset: Offset(offset, 0),
+                child: child,
+              );
             },
             child: Autocomplete<WorldHeritageSite>(
               key: _key,
@@ -621,8 +697,9 @@ class _HeritageSiteSearchInputState extends State<_HeritageSiteSearchInput> {
                           ),
                           title: Text(
                             _shortSiteName(site.name),
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w500),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -697,20 +774,23 @@ class _GuessHistory extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        children: guesses
-            .map((g) => Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Chip(
-                    label: Text(g, style: const TextStyle(fontSize: 12)),
-                    backgroundColor:
-                        Theme.of(context).colorScheme.errorContainer,
-                    labelStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.onErrorContainer,
+        children:
+            guesses
+                .map(
+                  (g) => Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Chip(
+                      label: Text(g, style: const TextStyle(fontSize: 12)),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.errorContainer,
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                      padding: EdgeInsets.zero,
                     ),
-                    padding: EdgeInsets.zero,
                   ),
-                ))
-            .toList(),
+                )
+                .toList(),
       ),
     );
   }
@@ -719,10 +799,7 @@ class _GuessHistory extends StatelessWidget {
 // ── Result overlay ────────────────────────────────────────────────────────────
 
 class _ChallengeResultOverlay extends ConsumerStatefulWidget {
-  const _ChallengeResultOverlay({
-    required this.state,
-    required this.solved,
-  });
+  const _ChallengeResultOverlay({required this.state, required this.solved});
 
   final DailyChallengeState state;
   final bool solved;
@@ -732,7 +809,8 @@ class _ChallengeResultOverlay extends ConsumerStatefulWidget {
       _ChallengeResultOverlayState();
 }
 
-class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay>
+class _ChallengeResultOverlayState
+    extends ConsumerState<_ChallengeResultOverlay>
     with WidgetsBindingObserver {
   late final ConfettiController _confetti;
   late final DraggableScrollableController _sheetCtrl;
@@ -789,10 +867,14 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
 
   void _goToSite() {
     final site = widget.state.site;
-    ref.read(globeTargetProvider.notifier).state =
-        (site.latitude, site.longitude);
-    ref.read(challengeSiteHighlightProvider.notifier).state =
-        (site.latitude, site.longitude);
+    ref.read(globeTargetProvider.notifier).state = (
+      site.latitude,
+      site.longitude,
+    );
+    ref.read(challengeSiteHighlightProvider.notifier).state = (
+      site.latitude,
+      site.longitude,
+    );
     Navigator.of(context).pop();
   }
 
@@ -800,11 +882,8 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
     final p = widget.state.progress;
     final clueCount = p.solvedAtClue ?? p.cluesRevealed;
     final date = DateFormat('d MMMM yyyy').format(DateTime.now());
-    final challengeNumber = DateTime.now()
-            .toUtc()
-            .difference(DateTime.utc(2026, 5, 31))
-            .inDays +
-        1;
+    final challengeNumber =
+        DateTime.now().toUtc().difference(DateTime.utc(2026, 5, 31)).inDays + 1;
     final grid = List.generate(5, (i) => i < clueCount ? '⬛' : '⬜').join();
     final text = 'Roavvy Daily #$challengeNumber — $date\n$grid';
 
@@ -814,7 +893,8 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
     // We use the overlay widget's own bounds — position is irrelevant on iPhone
     // (it shows a bottom sheet regardless of the rect).
     final box = context.findRenderObject() as RenderBox?;
-    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    final origin =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : null;
 
     try {
       await Share.share(text, sharePositionOrigin: origin);
@@ -888,159 +968,171 @@ class _ChallengeResultOverlayState extends ConsumerState<_ChallengeResultOverlay
             initialChildSize: 0.82,
             minChildSize: 0.5,
             maxChildSize: 0.95,
-            builder: (ctx, scrollCtrl) => Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: ListView(
-                controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                children: [
-                  // Drag handle — always shown at top so scrollability is clear.
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+            builder:
+                (ctx, scrollCtrl) => Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
                     ),
                   ),
-                  // ── Hero image ────────────────────────────────────────────
-                  if (site.imageUrl != null && site.imageUrl!.isNotEmpty) ...[
-                    _RevealHeroImage(imageUrl: site.imageUrl!),
-                    const SizedBox(height: 16),
-                  ],
-                  // Solve / fail header
-                  Text(
-                    widget.solved ? '✅ Solved!' : '❌ Better luck tomorrow',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: widget.solved
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Site name
-                  Text(
-                    site.name,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  // Country
-                  Text(
-                    '$flag $country',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Metadata chips
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 6,
+                  child: ListView(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                     children: [
-                      _MetaChip(label: site.inscriptionYear.toString()),
-                      _MetaChip(label: _capitalise(site.category)),
-                      _MetaChip(label: site.region),
-                      if (site.criteria.isNotEmpty)
-                        _MetaChip(
-                          label: site.criteria.map((c) => 'Criterion $c').join(' · '),
+                      // Drag handle — always shown at top so scrollability is clear.
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                    ],
-                  ),
-                  if (site.shortDescription != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      site.shortDescription!,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  // Score summary
-                  if (widget.solved) ...[
-                    Text(
-                      'Solved in $clueCount clue${clueCount == 1 ? '' : 's'}',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    if (guessCount > 0)
+                      ),
+                      // ── Hero image ────────────────────────────────────────────
+                      if (site.imageUrl != null &&
+                          site.imageUrl!.isNotEmpty) ...[
+                        _RevealHeroImage(imageUrl: site.imageUrl!),
+                        const SizedBox(height: 16),
+                      ],
+                      // Solve / fail header
                       Text(
-                        '$guessCount wrong guess${guessCount == 1 ? '' : 'es'}',
+                        widget.solved ? '✅ Solved!' : '❌ Better luck tomorrow',
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color:
+                              widget.solved
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.error,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Site name
+                      Text(
+                        site.name,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Country
+                      Text(
+                        '$flag $country',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                  ],
-                  const SizedBox(height: 12),
-                  // Clue grid
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (i) {
-                      final revealed = i < clueCount;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3),
-                        child: Icon(
-                          revealed
-                              ? Icons.square_rounded
-                              : Icons.square_outlined,
-                          size: 24,
-                          color: revealed
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outline,
+                      const SizedBox(height: 16),
+                      // Metadata chips
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _MetaChip(label: site.inscriptionYear.toString()),
+                          _MetaChip(label: _capitalise(site.category)),
+                          _MetaChip(label: site.region),
+                          if (site.criteria.isNotEmpty)
+                            _MetaChip(
+                              label: site.criteria
+                                  .map((c) => 'Criterion $c')
+                                  .join(' · '),
+                            ),
+                        ],
+                      ),
+                      if (site.shortDescription != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          site.shortDescription!,
+                          style: theme.textTheme.bodyMedium,
                         ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 24),
-                  // Go to site
-                  FilledButton.icon(
-                    onPressed: _goToSite,
-                    icon: const Icon(Icons.public),
-                    label: const Text('Go to site on globe'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _share,
-                    icon: const Icon(Icons.share),
-                    label: const Text('Share result'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  // View stats
-                  Center(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ChallengeStatsScreen(),
+                      ],
+                      const SizedBox(height: 20),
+                      // Score summary
+                      if (widget.solved) ...[
+                        Text(
+                          'Solved in $clueCount clue${clueCount == 1 ? '' : 's'}',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (guessCount > 0)
+                          Text(
+                            '$guessCount wrong guess${guessCount == 1 ? '' : 'es'}',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                      const SizedBox(height: 12),
+                      // Clue grid
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (i) {
+                          final revealed = i < clueCount;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Icon(
+                              revealed
+                                  ? Icons.square_rounded
+                                  : Icons.square_outlined,
+                              size: 24,
+                              color:
+                                  revealed
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                            ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 24),
+                      // Go to site
+                      FilledButton.icon(
+                        onPressed: _goToSite,
+                        icon: const Icon(Icons.public),
+                        label: const Text('Go to site on globe'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                      child: const Text('View Stats'),
-                    ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _share,
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share result'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      // View stats
+                      Center(
+                        child: TextButton(
+                          onPressed:
+                              () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ChallengeStatsScreen(),
+                                ),
+                              ),
+                          child: const Text('View Stats'),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
           ),
         ),
       ],
@@ -1072,11 +1164,16 @@ class _RevealHeroImage extends StatelessWidget {
                 Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    child: Icon(Icons.landscape_outlined,
-                        color: Theme.of(context).colorScheme.outline, size: 40),
-                  ),
+                  errorBuilder:
+                      (_, __, ___) => Container(
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerHigh,
+                        child: Icon(
+                          Icons.landscape_outlined,
+                          color: Theme.of(context).colorScheme.outline,
+                          size: 40,
+                        ),
+                      ),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(

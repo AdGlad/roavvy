@@ -32,7 +32,8 @@ class MemoryPulseCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dismissed = ref.watch(memoriesDismissedProvider);
-    final visible = memories.where((m) => !dismissed.contains(m.assetId)).toList();
+    final visible =
+        memories.where((m) => !dismissed.contains(m.assetId)).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
     if (visible.length == 1) {
@@ -74,7 +75,9 @@ class _SingleCard extends ConsumerWidget {
   }
 
   Future<void> _dismiss(WidgetRef ref) async {
-    ref.read(memoriesDismissedProvider.notifier).update((s) => {...s, hero.assetId});
+    ref
+        .read(memoriesDismissedProvider.notifier)
+        .update((s) => {...s, hero.assetId});
     await service.dismiss(hero.assetId, DateTime.now());
   }
 }
@@ -112,16 +115,20 @@ class _PagedCardsState extends State<_PagedCards> {
             itemBuilder: (_, i) {
               final hero = widget.memories[i];
               return Consumer(
-                builder: (_, ref, __) => _CardBody(
-                  hero: hero,
-                  onDismiss: () async {
-                    ref
-                        .read(memoriesDismissedProvider.notifier)
-                        .update((s) => {...s, hero.assetId});
-                    await widget.service.dismiss(hero.assetId, DateTime.now());
-                  },
-                  service: widget.service,
-                ),
+                builder:
+                    (_, ref, __) => _CardBody(
+                      hero: hero,
+                      onDismiss: () async {
+                        ref
+                            .read(memoriesDismissedProvider.notifier)
+                            .update((s) => {...s, hero.assetId});
+                        await widget.service.dismiss(
+                          hero.assetId,
+                          DateTime.now(),
+                        );
+                      },
+                      service: widget.service,
+                    ),
               );
             },
           ),
@@ -149,9 +156,10 @@ class _DotsIndicator extends StatelessWidget {
           height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: i == current
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.4),
+            color:
+                i == current
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -227,12 +235,13 @@ class _CardBody extends StatelessWidget {
                 Row(
                   children: [
                     FilledButton(
-                      onPressed: () => MemoryRevealSheet.show(
-                        context,
-                        hero: hero,
-                        yearsAgo: yearsAgo,
-                        service: service,
-                      ),
+                      onPressed:
+                          () => MemoryRevealSheet.show(
+                            context,
+                            hero: hero,
+                            yearsAgo: yearsAgo,
+                            service: service,
+                          ),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black87,

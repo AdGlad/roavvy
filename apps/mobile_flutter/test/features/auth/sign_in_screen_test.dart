@@ -10,9 +10,7 @@ import 'package:mobile_flutter/features/auth/sign_in_screen.dart';
 Widget _pumpSignInScreen() {
   final db = RoavvyDatabase(NativeDatabase.memory());
   return ProviderScope(
-    overrides: [
-      visitRepositoryProvider.overrideWithValue(VisitRepository(db)),
-    ],
+    overrides: [visitRepositoryProvider.overrideWithValue(VisitRepository(db))],
     child: const MaterialApp(home: SignInScreen()),
   );
 }

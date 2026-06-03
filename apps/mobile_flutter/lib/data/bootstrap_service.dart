@@ -37,17 +37,20 @@ Future<void> bootstrapExistingUser(
   if (inferred.isEmpty) return;
 
   final now = DateTime.now().toUtc();
-  final bootstrapTrips = inferred
-      .where((v) => v.firstSeen != null)
-      .map((v) => TripRecord(
-            id: '${v.countryCode}_${v.firstSeen!.toUtc().toIso8601String()}',
-            countryCode: v.countryCode,
-            startedOn: v.firstSeen!.toUtc(),
-            endedOn: (v.lastSeen ?? v.firstSeen!).toUtc(),
-            photoCount: v.photoCount,
-            isManual: false,
-          ))
-      .toList();
+  final bootstrapTrips =
+      inferred
+          .where((v) => v.firstSeen != null)
+          .map(
+            (v) => TripRecord(
+              id: '${v.countryCode}_${v.firstSeen!.toUtc().toIso8601String()}',
+              countryCode: v.countryCode,
+              startedOn: v.firstSeen!.toUtc(),
+              endedOn: (v.lastSeen ?? v.firstSeen!).toUtc(),
+              photoCount: v.photoCount,
+              isManual: false,
+            ),
+          )
+          .toList();
 
   await tripRepo.upsertAll(bootstrapTrips);
 

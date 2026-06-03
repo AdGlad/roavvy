@@ -29,17 +29,20 @@ Future<void> _pumpSheet(WidgetTester tester) async {
         imagePlaygroundAvailableProvider.overrideWith((_) async => false),
       ],
       child: MaterialApp(
-        home: Builder(builder: (context) {
-          return Scaffold(
-            body: ElevatedButton(
-              onPressed: () => showMerchCustomisationSheet(
-                context,
-                config: _defaultConfig,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: ElevatedButton(
+                onPressed:
+                    () => showMerchCustomisationSheet(
+                      context,
+                      config: _defaultConfig,
+                    ),
+                child: const Text('Open sheet'),
               ),
-              child: const Text('Open sheet'),
-            ),
-          );
-        }),
+            );
+          },
+        ),
       ),
     ),
   );
@@ -71,7 +74,9 @@ void main() {
       expect(find.text('Apply'), findsOneWidget);
     });
 
-    testWidgets('shows Layout section with Passport and Grid options', (tester) async {
+    testWidgets('shows Layout section with Passport and Grid options', (
+      tester,
+    ) async {
       await _pumpSheet(tester);
 
       expect(find.text('Layout'), findsOneWidget);
@@ -117,7 +122,9 @@ void main() {
       expect(find.text('Customise Design'), findsNothing);
     });
 
-    testWidgets('tapping Layout option Passport changes selection', (tester) async {
+    testWidgets('tapping Layout option Passport changes selection', (
+      tester,
+    ) async {
       await _pumpSheet(tester);
 
       // Grid is currently selected (default config). Tap Passport.

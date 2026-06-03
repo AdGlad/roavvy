@@ -29,10 +29,7 @@ class ChallengeStatsScreen extends ConsumerWidget {
       body: aggregateAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const Center(child: Text('Could not load stats.')),
-        data: (agg) => _StatsBody(
-          aggregate: agg,
-          last30Async: last30Async,
-        ),
+        data: (agg) => _StatsBody(aggregate: agg, last30Async: last30Async),
       ),
     );
   }
@@ -42,7 +39,8 @@ class _StatsBody extends StatelessWidget {
   const _StatsBody({required this.aggregate, required this.last30Async});
 
   final ChallengeAggregate aggregate;
-  final AsyncValue<List<({String date, bool solved, int guessesUsed})>> last30Async;
+  final AsyncValue<List<({String date, bool solved, int guessesUsed})>>
+  last30Async;
 
   @override
   Widget build(BuildContext context) {
@@ -55,13 +53,13 @@ class _StatsBody extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.emoji_events_outlined,
-                  size: 56, color: theme.colorScheme.outline),
-              const SizedBox(height: 16),
-              Text(
-                'No challenges yet',
-                style: theme.textTheme.titleMedium,
+              Icon(
+                Icons.emoji_events_outlined,
+                size: 56,
+                color: theme.colorScheme.outline,
               ),
+              const SizedBox(height: 16),
+              Text('No challenges yet', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 'Complete your first challenge to see your stats here.',
@@ -76,9 +74,10 @@ class _StatsBody extends StatelessWidget {
       );
     }
 
-    final solvePercent = aggregate.totalPlayed > 0
-        ? (aggregate.totalSolved / aggregate.totalPlayed * 100).round()
-        : 0;
+    final solvePercent =
+        aggregate.totalPlayed > 0
+            ? (aggregate.totalSolved / aggregate.totalPlayed * 100).round()
+            : 0;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
@@ -177,7 +176,11 @@ class _StatsBody extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         last30Async.when(
-          loading: () => const SizedBox(height: 56, child: Center(child: CircularProgressIndicator())),
+          loading:
+              () => const SizedBox(
+                height: 56,
+                child: Center(child: CircularProgressIndicator()),
+              ),
           error: (_, __) => const SizedBox.shrink(),
           data: (rows) => _SolveGrid(rows: rows),
         ),
@@ -276,38 +279,39 @@ class _SolveGrid extends StatelessWidget {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: dates.map((date) {
-        final entry = byDate[date];
-        final Color color;
-        if (entry == null) {
-          color = theme.colorScheme.surfaceContainerHighest;
-        } else if (entry.solved) {
-          color = const Color(0xFF388E3C);
-        } else {
-          color = const Color(0xFFD32F2F);
-        }
-        return Tooltip(
-          message: _label(date, entry),
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-        );
-      }).toList(),
+      children:
+          dates.map((date) {
+            final entry = byDate[date];
+            final Color color;
+            if (entry == null) {
+              color = theme.colorScheme.surfaceContainerHighest;
+            } else if (entry.solved) {
+              color = const Color(0xFF388E3C);
+            } else {
+              color = const Color(0xFFD32F2F);
+            }
+            return Tooltip(
+              message: _label(date, entry),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            );
+          }).toList(),
     );
   }
 
   String _label(
-      String date, ({String date, bool solved, int guessesUsed})? entry) {
+    String date,
+    ({String date, bool solved, int guessesUsed})? entry,
+  ) {
     final d = DateTime.parse(date);
     final formatted = DateFormat('d MMM').format(d);
     if (entry == null) return '$formatted — not played';
-    return entry.solved
-        ? '$formatted — solved'
-        : '$formatted — not solved';
+    return entry.solved ? '$formatted — solved' : '$formatted — not solved';
   }
 }

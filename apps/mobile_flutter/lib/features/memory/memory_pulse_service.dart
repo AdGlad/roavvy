@@ -47,9 +47,9 @@ class MemoryPulseService {
     required HeroImageRepository heroRepo,
     required NotificationService notifications,
     required RoavvyDatabase db,
-  })  : _heroRepo = heroRepo,
-        _notifications = notifications,
-        _db = db;
+  }) : _heroRepo = heroRepo,
+       _notifications = notifications,
+       _db = db;
 
   final HeroImageRepository _heroRepo;
   final NotificationService _notifications;
@@ -63,12 +63,16 @@ class MemoryPulseService {
   /// Requests photo library permission (read-only). Returns empty list if
   /// permission is denied or no matching photos exist.
   Future<List<MemoryAnniversaryPhoto>> checkTodayFromPhotoLibrary(
-      DateTime today) async {
+    DateTime today,
+  ) async {
     final permission = await PhotoManager.requestPermissionExtend();
     if (!permission.hasAccess) return const [];
 
     final cutoff = today.subtract(const Duration(days: 365));
-    final assets = await _fetchRecentAssets(_kPhotoCheckPageSize, maxDate: cutoff);
+    final assets = await _fetchRecentAssets(
+      _kPhotoCheckPageSize,
+      maxDate: cutoff,
+    );
     if (assets.isEmpty) return const [];
 
     final matching = _filterByMonthDay(assets, today);
@@ -92,12 +96,14 @@ class MemoryPulseService {
       if (best == null) continue;
       if (prefs.containsKey('$_kDismissedPrefix${best.id}:$todayKey')) continue;
 
-      results.add(MemoryAnniversaryPhoto(
-        assetId: best.id,
-        capturedAt: best.createDateTime,
-        countryCode: countryByAssetId[best.id],
-        tripId: tripByAssetId[best.id],
-      ));
+      results.add(
+        MemoryAnniversaryPhoto(
+          assetId: best.id,
+          capturedAt: best.createDateTime,
+          countryCode: countryByAssetId[best.id],
+          tripId: tripByAssetId[best.id],
+        ),
+      );
     }
     return results;
   }
@@ -115,9 +121,13 @@ class MemoryPulseService {
     final prefs = await SharedPreferences.getInstance();
     final todayKey = _dateKey(today);
 
-    final undismissed = heroes
-        .where((h) => !prefs.containsKey('$_kDismissedPrefix${h.tripId}:$todayKey'))
-        .toList();
+    final undismissed =
+        heroes
+            .where(
+              (h) =>
+                  !prefs.containsKey('$_kDismissedPrefix${h.tripId}:$todayKey'),
+            )
+            .toList();
 
     return undismissed.take(3).toList();
   }
@@ -130,10 +140,7 @@ class MemoryPulseService {
   /// For legacy hero cards, [id] is the trip ID.
   Future<void> dismiss(String id, DateTime today) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      '$_kDismissedPrefix$id:${_dateKey(today)}',
-      true,
-    );
+    await prefs.setBool('$_kDismissedPrefix$id:${_dateKey(today)}', true);
   }
 
   /// Marks a memory as revealed (written on first expand of MemoryRevealSheet).
@@ -196,14 +203,17 @@ class MemoryPulseService {
     if (mmddToAssets.isEmpty) return;
 
     // Look up country codes for all candidate assets.
-    final allIds = mmddToAssets.values.expand((l) => l).map((a) => a.id).toList();
+    final allIds =
+        mmddToAssets.values.expand((l) => l).map((a) => a.id).toList();
     final countryByAssetId = await _lookupCountryCodes(allIds);
 
     final hour = await AppOpenTracker.preferredHour();
 
     // Find the next 30 upcoming anniversary dates and build notification entries.
     final anniversaries =
-        <({DateTime deliverAt, String countryCode, String title, String body})>[];
+        <
+          ({DateTime deliverAt, String countryCode, String title, String body})
+        >[];
 
     for (var offset = 1; offset <= 366 && anniversaries.length < 30; offset++) {
       final candidate = utcNow.add(Duration(days: offset));
@@ -271,14 +281,16 @@ class MemoryPulseService {
 
   /// Builds question-style notification copy for a [MemoryAnniversaryPhoto] (M95, M114).
   MemoryPulseCopy buildCopy(MemoryAnniversaryPhoto photo, int yearsAgo) {
-    final country = photo.countryCode != null
-        ? (kCountryNames[photo.countryCode] ?? photo.countryCode!)
-        : null;
+    final country =
+        photo.countryCode != null
+            ? (kCountryNames[photo.countryCode] ?? photo.countryCode!)
+            : null;
     final yearsWord = yearsAgo == 1 ? 'year' : 'years';
     final title = '${buildQuestion(photo, yearsAgo)} 👀';
-    final body = country != null
-        ? '$yearsAgo $yearsWord ago in $country'
-        : '$yearsAgo $yearsWord ago today';
+    final body =
+        country != null
+            ? '$yearsAgo $yearsWord ago in $country'
+            : '$yearsAgo $yearsWord ago today';
     return MemoryPulseCopy(title: title, body: body);
   }
 
@@ -290,9 +302,10 @@ class MemoryPulseService {
   /// 3. country known → "Where were you X years ago in Y?"
   /// 4. default → "Where were you X years ago today?"
   String buildQuestion(MemoryAnniversaryPhoto photo, int yearsAgo) {
-    final country = photo.countryCode != null
-        ? (kCountryNames[photo.countryCode] ?? photo.countryCode!)
-        : null;
+    final country =
+        photo.countryCode != null
+            ? (kCountryNames[photo.countryCode] ?? photo.countryCode!)
+            : null;
 
     if (yearsAgo == 1) {
       return 'Do you remember where you were exactly one year ago?';
@@ -326,22 +339,23 @@ class MemoryPulseService {
   /// newest-first. When [maxDate] is provided, only assets created on or
   /// before that date are returned — used to restrict anniversary queries to
   /// photos taken at least 365 days ago so recent photos do not crowd them out.
-  Future<List<AssetEntity>> _fetchRecentAssets(int pageSize, {DateTime? maxDate}) async {
-    final filterOption = maxDate != null
-        ? FilterOptionGroup(
-            createTimeCond: DateTimeCond(
-              min: DateTime(2000),
-              max: maxDate,
-            ),
-            orders: [
-              const OrderOption(type: OrderOptionType.createDate, asc: false),
-            ],
-          )
-        : FilterOptionGroup(
-            orders: [
-              const OrderOption(type: OrderOptionType.createDate, asc: false),
-            ],
-          );
+  Future<List<AssetEntity>> _fetchRecentAssets(
+    int pageSize, {
+    DateTime? maxDate,
+  }) async {
+    final filterOption =
+        maxDate != null
+            ? FilterOptionGroup(
+              createTimeCond: DateTimeCond(min: DateTime(2000), max: maxDate),
+              orders: [
+                const OrderOption(type: OrderOptionType.createDate, asc: false),
+              ],
+            )
+            : FilterOptionGroup(
+              orders: [
+                const OrderOption(type: OrderOptionType.createDate, asc: false),
+              ],
+            );
     final albums = await PhotoManager.getAssetPathList(
       type: RequestType.image,
       filterOption: filterOption,
@@ -349,10 +363,7 @@ class MemoryPulseService {
     if (albums.isEmpty) return const [];
 
     // Prefer the "All Photos" album.
-    final album = albums.firstWhere(
-      (a) => a.isAll,
-      orElse: () => albums.first,
-    );
+    final album = albums.firstWhere((a) => a.isAll, orElse: () => albums.first);
 
     final total = await album.assetCountAsync;
     if (total == 0) return const [];
@@ -363,14 +374,19 @@ class MemoryPulseService {
 
   /// Filters [assets] to those whose create date matches [today]'s month+day
   /// and were taken at least 365 days before [today].
-  List<AssetEntity> _filterByMonthDay(List<AssetEntity> assets, DateTime today) {
+  List<AssetEntity> _filterByMonthDay(
+    List<AssetEntity> assets,
+    DateTime today,
+  ) {
     final todayMmdd = _mmdd(today);
     final oneYearAgoMs =
-        today.toUtc().subtract(const Duration(days: 365)).millisecondsSinceEpoch;
+        today
+            .toUtc()
+            .subtract(const Duration(days: 365))
+            .millisecondsSinceEpoch;
     return assets.where((a) {
       final dt = a.createDateTime;
-      return _mmdd(dt) == todayMmdd &&
-          dt.millisecondsSinceEpoch < oneYearAgoMs;
+      return _mmdd(dt) == todayMmdd && dt.millisecondsSinceEpoch < oneYearAgoMs;
     }).toList();
   }
 
@@ -398,32 +414,34 @@ class MemoryPulseService {
         yearAssets.where((a) => countryByAssetId.containsKey(a.id)).toList();
 
     if (withCountry.isNotEmpty) {
-      final favWithCountry =
-          withCountry.where((a) => a.isFavorite).toList();
+      final favWithCountry = withCountry.where((a) => a.isFavorite).toList();
       if (favWithCountry.isNotEmpty) return favWithCountry.first;
-      return withCountry
-          .reduce((a, b) => (a.width * a.height) >= (b.width * b.height) ? a : b);
+      return withCountry.reduce(
+        (a, b) => (a.width * a.height) >= (b.width * b.height) ? a : b,
+      );
     }
 
     // No country match: prefer favourites, then largest.
     final favs = yearAssets.where((a) => a.isFavorite).toList();
     if (favs.isNotEmpty) return favs.first;
-    return yearAssets
-        .reduce((a, b) => (a.width * a.height) >= (b.width * b.height) ? a : b);
+    return yearAssets.reduce(
+      (a, b) => (a.width * a.height) >= (b.width * b.height) ? a : b,
+    );
   }
 
   /// Queries [photo_date_records] for matching assetIds, returning assetId → countryCode.
   Future<Map<String, String>> _lookupCountryCodes(List<String> assetIds) async {
     if (assetIds.isEmpty) return const {};
     final placeholders = List.filled(assetIds.length, '?').join(', ');
-    final rows = await _db
-        .customSelect(
-          'SELECT asset_id, country_code FROM photo_date_records '
-          'WHERE asset_id IN ($placeholders)',
-          variables: assetIds.map(Variable.withString).toList(),
-          readsFrom: {_db.photoDateRecords},
-        )
-        .get();
+    final rows =
+        await _db
+            .customSelect(
+              'SELECT asset_id, country_code FROM photo_date_records '
+              'WHERE asset_id IN ($placeholders)',
+              variables: assetIds.map(Variable.withString).toList(),
+              readsFrom: {_db.photoDateRecords},
+            )
+            .get();
     return {
       for (final r in rows)
         r.read<String>('asset_id'): r.read<String>('country_code'),
@@ -434,14 +452,15 @@ class MemoryPulseService {
   Future<Map<String, String>> _lookupTripIds(List<String> assetIds) async {
     if (assetIds.isEmpty) return const {};
     final placeholders = List.filled(assetIds.length, '?').join(', ');
-    final rows = await _db
-        .customSelect(
-          'SELECT asset_id, trip_id FROM hero_images '
-          'WHERE asset_id IN ($placeholders) AND rank = 1',
-          variables: assetIds.map(Variable.withString).toList(),
-          readsFrom: {_db.heroImages},
-        )
-        .get();
+    final rows =
+        await _db
+            .customSelect(
+              'SELECT asset_id, trip_id FROM hero_images '
+              'WHERE asset_id IN ($placeholders) AND rank = 1',
+              variables: assetIds.map(Variable.withString).toList(),
+              readsFrom: {_db.heroImages},
+            )
+            .get();
     return {
       for (final r in rows)
         r.read<String>('asset_id'): r.read<String>('trip_id'),

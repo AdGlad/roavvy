@@ -37,12 +37,15 @@ void main() {
       expect(pt!.dy, closeTo(centre.dy - radius, 0.5));
     });
 
-    test('returns null for back-face point (0°, 180°) with identity rotation', () {
-      const proj = GlobeProjection(rotLat: 0, rotLng: 0, scale: 1.0);
-      // (0°, 180°) is directly behind the globe (z < 0).
-      final pt = proj.project(0, 180, size);
-      expect(pt, isNull);
-    });
+    test(
+      'returns null for back-face point (0°, 180°) with identity rotation',
+      () {
+        const proj = GlobeProjection(rotLat: 0, rotLng: 0, scale: 1.0);
+        // (0°, 180°) is directly behind the globe (z < 0).
+        final pt = proj.project(0, 180, size);
+        expect(pt, isNull);
+      },
+    );
 
     test('scale=2 doubles the projected distance from centre', () {
       const proj1 = GlobeProjection(rotLat: 0, rotLng: 0, scale: 1.0);
@@ -73,13 +76,16 @@ void main() {
   });
 
   group('GlobeProjection — inverseProject', () {
-    test('canvas centre inverse-projects to approximately (0°,0°) with identity', () {
-      const proj = GlobeProjection(rotLat: 0, rotLng: 0, scale: 1.0);
-      final result = proj.inverseProject(centre, size);
-      expect(result, isNotNull);
-      expect(result!.$1, closeTo(0, 1.0)); // lat
-      expect(result.$2, closeTo(0, 1.0)); // lng
-    });
+    test(
+      'canvas centre inverse-projects to approximately (0°,0°) with identity',
+      () {
+        const proj = GlobeProjection(rotLat: 0, rotLng: 0, scale: 1.0);
+        final result = proj.inverseProject(centre, size);
+        expect(result, isNotNull);
+        expect(result!.$1, closeTo(0, 1.0)); // lat
+        expect(result.$2, closeTo(0, 1.0)); // lng
+      },
+    );
 
     test('point outside globe circle returns null', () {
       const proj = GlobeProjection(rotLat: 0, rotLng: 0, scale: 1.0);
@@ -123,23 +129,26 @@ void main() {
       expect(result.every((r) => r.isNotEmpty), isTrue);
     });
 
-    test('sub-rings from split have interpolated boundary vertices at ±180°', () {
-      final ring = [
-        (0.0, 170.0),
-        (0.0, -170.0), // crosses antimeridian
-        (10.0, -170.0),
-        (10.0, 170.0),
-      ];
-      final result = proj.splitAtAntimeridian(ring);
-      expect(result.length, 2);
-      // Each sub-ring should contain a vertex at ±180° longitude.
-      final allLngs = result.expand((r) => r).map((v) => v.$2).toList();
-      expect(
-        allLngs.any((lng) => (lng.abs() - 180).abs() < 0.001),
-        isTrue,
-        reason: 'Expected interpolated antimeridian vertex at ±180°',
-      );
-    });
+    test(
+      'sub-rings from split have interpolated boundary vertices at ±180°',
+      () {
+        final ring = [
+          (0.0, 170.0),
+          (0.0, -170.0), // crosses antimeridian
+          (10.0, -170.0),
+          (10.0, 170.0),
+        ];
+        final result = proj.splitAtAntimeridian(ring);
+        expect(result.length, 2);
+        // Each sub-ring should contain a vertex at ±180° longitude.
+        final allLngs = result.expand((r) => r).map((v) => v.$2).toList();
+        expect(
+          allLngs.any((lng) => (lng.abs() - 180).abs() < 0.001),
+          isTrue,
+          reason: 'Expected interpolated antimeridian vertex at ±180°',
+        );
+      },
+    );
   });
 
   group('GlobeProjection — copyWith', () {

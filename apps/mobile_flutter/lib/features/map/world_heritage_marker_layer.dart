@@ -30,17 +30,18 @@ class WorldHeritageMarkerLayer extends ConsumerWidget {
   Widget _buildLayer(BuildContext context, List<VisitedHeritageSite> sites) {
     if (sites.isEmpty) return const SizedBox.shrink();
 
-    final markers = sites.map((site) {
-      return Marker(
-        point: LatLng(site.latitude, site.longitude),
-        width: 28,
-        height: 28,
-        child: GestureDetector(
-          onTap: () => showHeritageDetailSheet(context, site),
-          child: _WhsMarkerIcon(category: site.category),
-        ),
-      );
-    }).toList();
+    final markers =
+        sites.map((site) {
+          return Marker(
+            point: LatLng(site.latitude, site.longitude),
+            width: 28,
+            height: 28,
+            child: GestureDetector(
+              onTap: () => showHeritageDetailSheet(context, site),
+              child: _WhsMarkerIcon(category: site.category),
+            ),
+          );
+        }).toList();
 
     return MarkerLayer(markers: markers);
   }

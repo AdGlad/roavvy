@@ -15,11 +15,11 @@ class PrintfulPlacementMapper {
   // ── Front placement ────────────────────────────────────────────────────────
 
   static const _kFrontMap = <String, String>{
-    'center':      'front',
-    'left_chest':  'front_left',
+    'center': 'front',
+    'left_chest': 'front_left',
     'right_chest': 'front_right',
     // 'none' → blank shirt: use 'front' placement but send no artwork file.
-    'none':        'front',
+    'none': 'front',
   };
 
   // ── Back placement ─────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ class PrintfulPlacementMapper {
   static const _kBackMap = <String, String>{
     'center': 'back',
     // 'none' → blank back: use 'back' placement but send no artwork file.
-    'none':   'back',
+    'none': 'back',
   };
 
   /// Maps an app front-placement string to the Printful API value.

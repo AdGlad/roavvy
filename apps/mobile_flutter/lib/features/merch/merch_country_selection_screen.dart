@@ -41,8 +41,7 @@ class _MerchCountrySelectionScreenState
     return String.fromCharCode(a) + String.fromCharCode(b);
   }
 
-  List<EffectiveVisitedCountry> _sorted(
-      List<EffectiveVisitedCountry> visits) {
+  List<EffectiveVisitedCountry> _sorted(List<EffectiveVisitedCountry> visits) {
     final copy = [...visits];
     copy.sort((a, b) {
       final nameA = kCountryNames[a.countryCode] ?? a.countryCode;
@@ -57,19 +56,22 @@ class _MerchCountrySelectionScreenState
     final visitsAsync = ref.watch(effectiveVisitsProvider);
 
     return visitsAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
-        appBar: AppBar(title: const Text('Shop')),
-        body: Center(child: Text('Error: $e')),
-      ),
+      loading:
+          () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error:
+          (e, _) => Scaffold(
+            appBar: AppBar(title: const Text('Shop')),
+            body: Center(child: Text('Error: $e')),
+          ),
       data: (visits) => _buildScreen(context, visits),
     );
   }
 
   Widget _buildScreen(
-      BuildContext context, List<EffectiveVisitedCountry> visits) {
+    BuildContext context,
+    List<EffectiveVisitedCountry> visits,
+  ) {
     if (visits.isEmpty) {
       return _EmptyState();
     }
@@ -82,9 +84,11 @@ class _MerchCountrySelectionScreenState
       final preSelected = widget.preSelectedCodes!.toSet();
       _deselected
         ..clear()
-        ..addAll(sorted
-            .map((v) => v.countryCode)
-            .where((c) => !preSelected.contains(c)));
+        ..addAll(
+          sorted
+              .map((v) => v.countryCode)
+              .where((c) => !preSelected.contains(c)),
+        );
       _initialized = true;
     } else if (!_initialized) {
       _initialized = true;
@@ -100,11 +104,12 @@ class _MerchCountrySelectionScreenState
             child: const Text('Select all'),
           ),
           TextButton(
-            onPressed: () => setState(() {
-              _deselected
-                ..clear()
-                ..addAll(sorted.map((v) => v.countryCode));
-            }),
+            onPressed:
+                () => setState(() {
+                  _deselected
+                    ..clear()
+                    ..addAll(sorted.map((v) => v.countryCode));
+                }),
             child: const Text('Clear all'),
           ),
         ],
@@ -120,13 +125,14 @@ class _MerchCountrySelectionScreenState
 
           return CheckboxListTile(
             value: selected,
-            onChanged: (_) => setState(() {
-              if (selected) {
-                _deselected.add(code);
-              } else {
-                _deselected.remove(code);
-              }
-            }),
+            onChanged:
+                (_) => setState(() {
+                  if (selected) {
+                    _deselected.add(code);
+                  } else {
+                    _deselected.remove(code);
+                  }
+                }),
             title: Text('$flag  $name'),
             controlAffinity: ListTileControlAffinity.trailing,
           );
@@ -136,20 +142,24 @@ class _MerchCountrySelectionScreenState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: FilledButton(
-            onPressed: selectedCount == 0
-                ? null
-                : () {
-                    final selected = sorted
-                        .map((v) => v.countryCode)
-                        .where((c) => !_deselected.contains(c))
-                        .toList();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            MerchProductBrowserScreen(selectedCodes: selected),
-                      ),
-                    );
-                  },
+            onPressed:
+                selectedCount == 0
+                    ? null
+                    : () {
+                      final selected =
+                          sorted
+                              .map((v) => v.countryCode)
+                              .where((c) => !_deselected.contains(c))
+                              .toList();
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (_) => MerchProductBrowserScreen(
+                                selectedCodes: selected,
+                              ),
+                        ),
+                      );
+                    },
             child: const Text('Choose a design →'),
           ),
         ),

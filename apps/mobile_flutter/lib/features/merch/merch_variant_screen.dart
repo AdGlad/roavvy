@@ -97,14 +97,18 @@ class MerchVariantScreen extends StatefulWidget {
 
   final MerchProduct product;
   final List<String> selectedCodes;
+
   /// Optional TravelCard ID — included in the `createMerchCart` payload so the
   /// resulting order is traceable back to the card (ADR-093).
   final String? cardId;
+
   /// Card template to pre-select when the screen opens.
   final CardTemplateType initialTemplate;
+
   /// Optional ArtworkConfirmation ID — included in the `createMerchCart`
   /// payload to link the order to the user-approved artwork (ADR-103 / M51).
   final String? artworkConfirmationId;
+
   /// Rendered card artwork PNG from [ArtworkConfirmResult] — shown in
   /// [MockupApprovalScreen] for the user to confirm (ADR-105 / M53).
   final Uint8List? artworkImageBytes;
@@ -144,23 +148,23 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   bool get _isTshirt => widget.product == MerchProduct.tshirt;
 
   static String _templateLabel(CardTemplateType t) => switch (t) {
-        CardTemplateType.grid => 'Grid',
-        CardTemplateType.heart => 'Heart',
-        CardTemplateType.passport => 'Passport',
-        CardTemplateType.timeline => 'Timeline',
-        CardTemplateType.frontRibbon => 'Front Ribbon',
-        CardTemplateType.typography => 'Typography',
-        CardTemplateType.badge => 'Explorer Badge',
-        CardTemplateType.wordCloud => 'Word Cloud',
-        CardTemplateType.landmark => 'Landmark',
-      };
+    CardTemplateType.grid => 'Grid',
+    CardTemplateType.heart => 'Heart',
+    CardTemplateType.passport => 'Passport',
+    CardTemplateType.timeline => 'Timeline',
+    CardTemplateType.frontRibbon => 'Front Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
+  };
 
   static CardTemplateType _templateFromLabel(String label) => switch (label) {
-        'Heart' => CardTemplateType.heart,
-        'Passport' => CardTemplateType.passport,
-        'Timeline' => CardTemplateType.timeline,
-        _ => CardTemplateType.grid,
-      };
+    'Heart' => CardTemplateType.heart,
+    'Passport' => CardTemplateType.passport,
+    'Timeline' => CardTemplateType.timeline,
+    _ => CardTemplateType.grid,
+  };
 
   String get _resolvedVariantGid {
     if (_isTshirt) {
@@ -172,9 +176,10 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     }
   }
 
-  String get _variantSummary => _isTshirt
-      ? '$_tshirtColor · $_tshirtSize'
-      : '$_posterPaper · $_posterSize';
+  String get _variantSummary =>
+      _isTshirt
+          ? '$_tshirtColor · $_tshirtSize'
+          : '$_posterPaper · $_posterSize';
 
   @override
   void initState() {
@@ -226,9 +231,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         .doc(configId);
 
     for (int attempt = 0; attempt < _pollMaxAttempts; attempt++) {
-      await Future<void>.delayed(
-        const Duration(seconds: _pollIntervalSeconds),
-      );
+      await Future<void>.delayed(const Duration(seconds: _pollIntervalSeconds));
       if (!mounted) return;
 
       try {
@@ -238,10 +241,11 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           if (!mounted) return;
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => MerchPostPurchaseScreen(
-                product: widget.product,
-                countryCount: widget.selectedCodes.length,
-              ),
+              builder:
+                  (_) => MerchPostPurchaseScreen(
+                    product: widget.product,
+                    countryCount: widget.selectedCodes.length,
+                  ),
             ),
           );
           return;
@@ -262,22 +266,23 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text("We're processing your order"),
-        content: const Text(
-          "If you completed payment, you'll receive a confirmation email "
-          'shortly. Your order will appear in your order history once confirmed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            child: const Text('Back to map'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text("We're processing your order"),
+            content: const Text(
+              "If you completed payment, you'll receive a confirmation email "
+              'shortly. Your order will appear in your order history once confirmed.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: const Text('Back to map'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -298,13 +303,14 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   Future<void> _navigateToApproval() async {
     final result = await Navigator.of(context).push<MockupApprovalResult>(
       MaterialPageRoute(
-        builder: (_) => MockupApprovalScreen(
-          artworkImageBytes: widget.artworkImageBytes,
-          artworkConfirmationId: widget.artworkConfirmationId,
-          templateType: _selectedTemplate,
-          variantId: _resolvedVariantGid,
-          placementType: _isTshirt ? _placement : null,
-        ),
+        builder:
+            (_) => MockupApprovalScreen(
+              artworkImageBytes: widget.artworkImageBytes,
+              artworkConfirmationId: widget.artworkConfirmationId,
+              templateType: _selectedTemplate,
+              variantId: _resolvedVariantGid,
+              placementType: _isTshirt ? _placement : null,
+            ),
       ),
     );
     if (result == null || !mounted) return;
@@ -341,8 +347,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
         }
       }
 
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('createMerchCart');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'createMerchCart',
+      );
       final result = await callable.call<Map<String, dynamic>>({
         'variantId': _resolvedVariantGid,
         'selectedCountryCodes': widget.selectedCodes,
@@ -376,9 +383,10 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
       if (!mounted) return;
       setState(() {
         _previewState = _PreviewState.initial;
-        _error = e.code == 'unavailable'
-            ? 'An internet connection is required to generate a preview.'
-            : e.message ?? 'An error occurred.';
+        _error =
+            e.code == 'unavailable'
+                ? 'An internet connection is required to generate a preview.'
+                : e.message ?? 'An error occurred.';
       });
     } on SocketException {
       if (!mounted) return;
@@ -421,9 +429,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           ),
           child: Center(
             child: Icon(
-              _isTshirt
-                  ? Icons.checkroom_outlined
-                  : Icons.image_outlined,
+              _isTshirt ? Icons.checkroom_outlined : Icons.image_outlined,
               size: 80,
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -451,9 +457,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
             ),
             child: Center(
               child: Icon(
-                _isTshirt
-                    ? Icons.checkroom_outlined
-                    : Icons.image_outlined,
+                _isTshirt ? Icons.checkroom_outlined : Icons.image_outlined,
                 size: 80,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -475,17 +479,18 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
                 child: const Center(child: CircularProgressIndicator()),
               );
             },
-            errorBuilder: (context, error, stack) => Container(
-              height: 200,
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Center(
-                child: Icon(
-                  Icons.broken_image_outlined,
-                  size: 60,
-                  color: theme.colorScheme.onSurfaceVariant,
+            errorBuilder:
+                (context, error, stack) => Container(
+                  height: 200,
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 60,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-              ),
-            ),
           ),
         );
     }
@@ -546,10 +551,11 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           _SegmentedPicker(
             options: const ['Grid', 'Heart', 'Passport', 'Timeline'],
             selected: _templateLabel(_selectedTemplate),
-            onChanged: (v) => setState(() {
-              _selectedTemplate = _templateFromLabel(v);
-              _resetPreview();
-            }),
+            onChanged:
+                (v) => setState(() {
+                  _selectedTemplate = _templateFromLabel(v);
+                  _resetPreview();
+                }),
           ),
 
           // Placement picker — t-shirt only (ADR-099)
@@ -559,10 +565,11 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
             _SegmentedPicker(
               options: const ['Front', 'Back'],
               selected: _placement == 'front' ? 'Front' : 'Back',
-              onChanged: (v) => setState(() {
-                _placement = v.toLowerCase();
-                _resetPreview();
-              }),
+              onChanged:
+                  (v) => setState(() {
+                    _placement = v.toLowerCase();
+                    _resetPreview();
+                  }),
             ),
           ],
           const SizedBox(height: 8),
@@ -573,40 +580,44 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
             _SegmentedPicker(
               options: _tshirtColors,
               selected: _tshirtColor,
-              onChanged: (v) => setState(() {
-                _tshirtColor = v;
-                _resetPreview();
-              }),
+              onChanged:
+                  (v) => setState(() {
+                    _tshirtColor = v;
+                    _resetPreview();
+                  }),
             ),
             const SizedBox(height: 16),
             _SectionLabel('Size'),
             _SegmentedPicker(
               options: _tshirtSizes,
               selected: _tshirtSize,
-              onChanged: (v) => setState(() {
-                _tshirtSize = v;
-                _resetPreview();
-              }),
+              onChanged:
+                  (v) => setState(() {
+                    _tshirtSize = v;
+                    _resetPreview();
+                  }),
             ),
           ] else ...[
             _SectionLabel('Paper'),
             _SegmentedPicker(
               options: _posterPapers,
               selected: _posterPaper,
-              onChanged: (v) => setState(() {
-                _posterPaper = v;
-                _resetPreview();
-              }),
+              onChanged:
+                  (v) => setState(() {
+                    _posterPaper = v;
+                    _resetPreview();
+                  }),
             ),
             const SizedBox(height: 16),
             _SectionLabel('Size'),
             _SegmentedPicker(
               options: _posterSizes,
               selected: _posterSize,
-              onChanged: (v) => setState(() {
-                _posterSize = v;
-                _resetPreview();
-              }),
+              onChanged:
+                  (v) => setState(() {
+                    _posterSize = v;
+                    _resetPreview();
+                  }),
             ),
           ],
 
@@ -629,9 +640,12 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(widget.product.name,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  widget.product.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 Text(_variantSummary, style: theme.textTheme.bodyMedium),
                 Text(
                   '${widget.selectedCodes.length} countries',
@@ -640,8 +654,9 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
                 const SizedBox(height: 4),
                 Text(
                   'From ${widget.product.fromPrice}',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -653,18 +668,16 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           if (_error != null) ...[
             Text(
               _error!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
             const SizedBox(height: 8),
           ],
         ],
       ),
       bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: _buildCTA(),
-        ),
+        child: Padding(padding: const EdgeInsets.all(16), child: _buildCTA()),
       ),
     );
   }
@@ -678,10 +691,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelLarge,
-      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelLarge),
     );
   }
 }
@@ -703,15 +713,16 @@ class _SegmentedPicker extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: options.map((opt) {
-        final isSelected = opt == selected;
-        return ChoiceChip(
-          label: Text(opt),
-          selected: isSelected,
-          onSelected: (_) => onChanged(opt),
-          selectedColor: theme.colorScheme.primaryContainer,
-        );
-      }).toList(),
+      children:
+          options.map((opt) {
+            final isSelected = opt == selected;
+            return ChoiceChip(
+              label: Text(opt),
+              selected: isSelected,
+              onSelected: (_) => onChanged(opt),
+              selectedColor: theme.colorScheme.primaryContainer,
+            );
+          }).toList(),
     );
   }
 }
