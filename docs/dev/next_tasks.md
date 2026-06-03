@@ -1,58 +1,49 @@
-# T1 — Test Framework Establishment — COMPLETE
+# T4 — Widget Tests: Task List
 
-## Tasks
+## Already covered (no work needed)
+- T4.4 — merch_variant_screen_test.dart (13 tests)
+- T4.6 — scan_summary_screen_test.dart (25 tests)
+- T4.9 — onboarding_flow_test.dart (10 tests; covers all 4 T4.9 scenarios)
+- T4.10 — sign_in_screen_test.dart (3 tests; Apple + anonymous + fields)
+- T4.11 — main_shell_test.dart (6 tests; nav bar + tab switching)
+- T4.12 — map_screen_test.dart (30 tests)
 
-- [x] T1.1 — Add mocktail + integration_test to pubspec.yaml dev_dependencies
-- [x] T1.2 — Run full test suite; classify and fix all failures
-- [x] T1.3 — Create Makefile with check/test/coverage targets; add coverage/ to .gitignore
-- [x] T1.4 — Record coverage baseline in docs/testing/coverage_baseline.md
-- [x] T1.5 — Create test/fixtures/ directory with 7 JSON fixture files
-- [x] T1.6 — flutter analyze clean pass; document any pre-existing warnings
+## Tasks to build
 
----
+### T4.1 — NEW: test/features/merch/merch_cart_screen_test.dart
+- Unsigned user sees "Sign in" message
+- Loading state shows CircularProgressIndicator
+- Empty cart shows empty state message
+- Non-empty cart shows item tiles
+- Item tile shows title
+- Item tile shows delete button
 
-# Previous (M136 — Daily Challenge: Typed Clues, Hero Image Reveal & Stats Screen — COMPLETE)
+### T4.2 — NEW: test/features/merch/merch_customisation_sheet_test.dart
+- Sheet renders colour picker chips
+- Tapping a chip updates the selection
+- Sheet renders layout toggle
+- Apply/confirm CTA is visible and tappable
 
-## Tasks
+### T4.3 — NEW: test/features/merch/merch_country_selection_screen_test.dart
+- List renders country names from fixture
+- Tapping a country toggles its selection
+- "Continue" is disabled when no countries selected
+- "Continue" enabled after selecting one country
+- Deselecting all disables "Continue"
 
-### T1 — Cloud Function typed clues (COMPLETE)
+### T4.5 — NEW: test/features/scan/scan_screen_test.dart
+- Scan button is present before scan starts
+- Progress area is absent before scan starts
+- (Platform channel is stubbed so scan doesn't fire)
 
-## Tasks
+### T4.7 — NEW: test/features/challenge/daily_challenge_screen_test.dart
+- Loading state shows CircularProgressIndicator
+- First clue is visible when state is data
+- "Reveal next clue" button present when clues remain
+- Guess input field accepts text
+- Solved state shows success message
 
-### T1 — Cloud Function typed clues
-Update `apps/functions/src/dailyChallenge.ts`:
-- Change clues type to `{type:string,text:string}[]`
-- buildClues() returns typed objects with: geography, historical, location, historical/natural, direct
-- Deploy function
-
-### T2 — Flutter typed clue icons
-Edit `daily_challenge_screen.dart` `_ClueCard`:
-- Render type icon + tint based on clue.type
-- geography→Icons.public/blue, historical→Icons.history_edu/amber, location→Icons.place/orange, direct→Icons.lightbulb/green, fallback→Icons.help_outline/white38
-
-### T3 — Hero image in result overlay
-Edit `_ChallengeResultOverlay` in `daily_challenge_screen.dart`:
-- 220px hero image above solve header when site.imageUrl non-empty
-- Image.network + errorBuilder + bottom gradient (same pattern as _HeroImage in heritage_detail_sheet)
-- Attribution "© Wikipedia / CC BY-SA" below image (white38, size 10)
-
-### T4 — ChallengeStatsService.last30Days()
-Edit `daily_challenge_stats.dart`:
-- Add last30Days() → List<({String date, bool solved, int guessesUsed})>
-- ORDER BY date DESC LIMIT 30
-
-### T5 — ChallengeStatsScreen
-New `challenge_stats_screen.dart`:
-- ConsumerWidget modal
-- Streak + best streak row, totals (played/solved/%), avg guesses, avg clues
-- 30-day grid: 28×28 dots, green=solved, red=failed, grey=no entry
-
-### T6 — Provider + entry points
-- Add challengeLast30Provider in providers.dart
-- "View Stats" TextButton in _ChallengeResultOverlay
-- _DailyChallengeChip: streak badge (🔥N when streak≥2), long-press → stats screen
-
-### T7 — Tests
-New `challenge_stats_service_test.dart`: last30Days rows, ordering, streak logic
-
-Status: In progress
+### T4.8 — NEW: test/features/stats/achievements_screen_test.dart
+- Screen renders 'Achievements' app bar
+- With zero unlocked achievements, no unlock dates shown
+- Unlocked achievements show badge/name
