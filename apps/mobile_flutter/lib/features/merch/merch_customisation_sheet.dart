@@ -160,22 +160,22 @@ class _MerchCustomisationSheetState
                     const SizedBox(height: 20),
 
                     // ── Jitter ────────────────────────────────────────────
-                    _SectionLabel('Scatter', theme),
+                    _SectionLabel('Arrangement', theme),
                     const SizedBox(height: 8),
                     _OptionRow(
-                      options: const ['Low', 'Medium', 'High'],
+                      options: const ['Structured', 'Spread', 'Scattered'],
                       selected:
                           _config.jitter < 0.35
-                              ? 'Low'
+                              ? 'Structured'
                               : _config.jitter < 0.65
-                              ? 'Medium'
-                              : 'High',
+                              ? 'Spread'
+                              : 'Scattered',
                       onChanged:
                           (v) => setState(() {
                             _config = _config.copyWithOverrides(
                               jitter: switch (v) {
-                                'Low' => 0.2,
-                                'High' => 0.8,
+                                'Structured' => 0.2,
+                                'Scattered' => 0.8,
                                 _ => 0.5,
                               },
                             );
@@ -184,21 +184,21 @@ class _MerchCustomisationSheetState
                     const SizedBox(height: 20),
 
                     // ── Density ───────────────────────────────────────────
-                    _SectionLabel('Density', theme),
+                    _SectionLabel('Fill style', theme),
                     const SizedBox(height: 8),
                     _OptionRow(
-                      options: const ['Sparse', 'Balanced', 'Dense'],
+                      options: const ['Airy', 'Balanced', 'Packed'],
                       selected: switch (_config.density) {
-                        MerchDensity.sparse => 'Sparse',
+                        MerchDensity.sparse => 'Airy',
                         MerchDensity.balanced => 'Balanced',
-                        MerchDensity.dense => 'Dense',
+                        MerchDensity.dense => 'Packed',
                       },
                       onChanged:
                           (v) => setState(() {
                             _config = _config.copyWithOverrides(
                               density: switch (v) {
-                                'Sparse' => MerchDensity.sparse,
-                                'Dense' => MerchDensity.dense,
+                                'Airy' => MerchDensity.sparse,
+                                'Packed' => MerchDensity.dense,
                                 _ => MerchDensity.balanced,
                               },
                             );
@@ -207,19 +207,19 @@ class _MerchCustomisationSheetState
                     const SizedBox(height: 20),
 
                     // ── Stamp mode ────────────────────────────────────────
-                    _SectionLabel('Stamps', theme),
+                    _SectionLabel('Stamps per country', theme),
                     const SizedBox(height: 8),
                     _OptionRow(
-                      options: const ['Entry only', 'Entry + Exit'],
+                      options: const ['One per country', 'Entry and exit'],
                       selected:
                           _config.stampMode == MerchStampMode.entryOnly
-                              ? 'Entry only'
-                              : 'Entry + Exit',
+                              ? 'One per country'
+                              : 'Entry and exit',
                       onChanged:
                           (v) => setState(() {
                             _config = _config.copyWithOverrides(
                               stampMode:
-                                  v == 'Entry only'
+                                  v == 'One per country'
                                       ? MerchStampMode.entryOnly
                                       : MerchStampMode.entryExit,
                             );

@@ -64,8 +64,8 @@ class MerchCartScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Text(
-                  'Your cart is empty.\n\nVisit the Shop to design your first '
-                  'personalised t-shirt.',
+                  'No designs saved yet.\n\nCreate your first shirt from an achievement '
+                  'or a Memory Pulse — it takes less than a minute.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -393,17 +393,16 @@ class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const MerchCustomProductWarning(),
-                  const SizedBox(height: 16),
                   CheckboxListTile(
                     value: _confirmed,
                     onChanged: (v) => setState(() => _confirmed = v ?? false),
                     controlAffinity: ListTileControlAffinity.leading,
                     title: const Text(
-                      'I confirm the size, colour, design, and print positions '
-                      'shown above are correct.',
+                      "I'm happy with my design and ready to order.",
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  const MerchCustomProductWarning(),
                 ],
               ),
             ),

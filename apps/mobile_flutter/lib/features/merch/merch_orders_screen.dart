@@ -102,7 +102,7 @@ class MerchOrdersScreen extends ConsumerWidget {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My orders')),
+        appBar: AppBar(title: const Text('My Collection')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(32),
@@ -116,7 +116,7 @@ class MerchOrdersScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My orders')),
+      appBar: AppBar(title: const Text('My Collection')),
       body: const MerchOrdersBody(),
     );
   }
@@ -154,8 +154,8 @@ class MerchOrdersBody extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(32),
               child: Text(
-                'No orders yet. Head to the Shop to order your first '
-                'personalised item.',
+                'Your travel collection is empty.\n\nEvery shirt you order appears '
+                'here as a permanent record of your adventures.',
                 textAlign: TextAlign.center,
               ),
             ),
