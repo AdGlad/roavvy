@@ -768,6 +768,8 @@ class _LocalMockupPreviewScreenState
                   (_) => MerchPostPurchaseScreen(
                     product: _product,
                     countryCount: widget.selectedCodes.length,
+                    frontMockupUrl: _mockupUrl,
+                    designTitle: _titleOverride,
                   ),
             ),
           );

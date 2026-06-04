@@ -15,10 +15,20 @@ class MerchPostPurchaseScreen extends StatefulWidget {
     super.key,
     required this.product,
     required this.countryCount,
+    this.frontMockupUrl,
+    this.designTitle,
   });
 
   final MerchProduct product;
   final int countryCount;
+
+  /// Printful photorealistic front mockup URL. When non-null, shown above the
+  /// celebration content so the user sees their design immediately.
+  final String? frontMockupUrl;
+
+  /// MerchStory-generated design title (e.g. "The Grand Tour"). Shown below
+  /// the mockup image when non-null.
+  final String? designTitle;
 
   @override
   State<MerchPostPurchaseScreen> createState() =>
@@ -94,12 +104,47 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
             ),
 
             // Main content
-            Center(
+            SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    if (widget.frontMockupUrl != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          widget.frontMockupUrl!,
+                          width: 280,
+                          height: 280,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return const SizedBox(
+                              width: 280,
+                              height: 280,
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.dry_cleaning_outlined,
+                            size: 80,
+                            color: Colors.white30,
+                          ),
+                        ),
+                      ),
+                      if (widget.designTitle != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          widget.designTitle!,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
                     const Text('🎉', style: TextStyle(fontSize: 72)),
                     const SizedBox(height: 24),
                     Text(
