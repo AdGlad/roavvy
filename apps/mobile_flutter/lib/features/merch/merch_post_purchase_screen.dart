@@ -65,11 +65,15 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
         box != null
             ? box.localToGlobal(Offset.zero) & box.size
             : Rect.fromLTWH(0, 0, 1, 1);
-    Share.share(
-      'Just ordered a ${widget.product.name} with all ${widget.countryCount} '
-      "countries I've visited — made with Roavvy 🌍",
-      sharePositionOrigin: origin,
-    );
+    final title = widget.designTitle;
+    final shareText = title != null
+        ? 'Just had my "$title" shirt made — '
+          "${widget.countryCount} countries I've visited, "
+          'designed with Roavvy 🌍'
+        : 'Just ordered a ${widget.product.name} with all '
+          "${widget.countryCount} countries I've visited — "
+          'made with Roavvy 🌍';
+    Share.share(shareText, sharePositionOrigin: origin);
   }
 
   @override
@@ -182,7 +186,7 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                         builder:
                             (btnCtx) => OutlinedButton(
                               onPressed: () => _shareOrder(btnCtx),
-                              child: const Text('Share my order'),
+                              child: const Text('Share my design'),
                             ),
                       ),
                     ),

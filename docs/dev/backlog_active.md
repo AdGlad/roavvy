@@ -23,7 +23,7 @@
 **Depends on:** M137
 **Scope in:** `merch_shop_screen.dart`; `merch_cart_screen.dart`; `merch_orders_screen.dart`; `merch_post_purchase_screen.dart`; `merch_customisation_sheet.dart`.
 **Full plan:** `docs/dev/milestones/m138-merch-copy-reframe.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 

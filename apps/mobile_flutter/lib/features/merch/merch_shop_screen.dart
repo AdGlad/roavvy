@@ -32,8 +32,8 @@ class MerchShopScreen extends ConsumerWidget {
                 text: 'Cart',
               ),
               const Tab(
-                icon: Icon(Icons.shopping_bag_outlined),
-                text: 'Orders',
+                icon: Icon(Icons.collections_bookmark_outlined),
+                text: 'My Collection',
               ),
             ],
           ),
@@ -74,8 +74,8 @@ class _CartTabBody extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(32),
               child: Text(
-                'Your cart is empty.\n\nHead to the map, pick your countries, '
-                'and design your first personalised t-shirt.',
+                'No designs saved yet.\n\nCreate your first shirt from an achievement '
+                'or a Memory Pulse — it takes less than a minute.',
                 textAlign: TextAlign.center,
               ),
             ),
