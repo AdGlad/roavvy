@@ -53,7 +53,7 @@
 **Depends on:** M140
 **Scope in:** `merch_shop_screen.dart`; `merch_cart_screen.dart`; `merch_orders_screen.dart`; new `merch_cart_item_card.dart`.
 **Full plan:** `docs/dev/milestones/m141-merch-cart-gallery-order-thumbnails.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
