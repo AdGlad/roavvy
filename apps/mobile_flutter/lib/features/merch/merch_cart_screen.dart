@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers.dart';
 import 'merch_cart_item.dart';
+import 'merch_cart_item_card.dart';
 import 'merch_cart_repository.dart';
 import 'merch_order_confirmation_screen.dart';
 
@@ -71,202 +72,32 @@ class MerchCartScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView.separated(
+          return ListView.builder(
+            padding: const EdgeInsets.only(bottom: 16),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder:
-                (context, i) => _CartItemTile(
+                (context, i) => MerchCartItemCard(
                   item: items[i],
                   uid: uid,
-                  onDeleted: () => ref.invalidate(merchCartProvider),
+                  onCheckout:
+                      items[i].status == MerchCartItemStatus.mockupReady ||
+                              items[i].status ==
+                                  MerchCartItemStatus.checkoutStarted
+                          ? () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder:
+                                  (_) => CartItemCheckoutScreen(
+                                    item: items[i],
+                                  ),
+                            ),
+                          )
+                          : null,
                 ),
           );
         },
       ),
     );
   }
-}
-
-// ── Tile ──────────────────────────────────────────────────────────────────────
-
-class _CartItemTile extends StatelessWidget {
-  const _CartItemTile({
-    required this.item,
-    required this.uid,
-    required this.onDeleted,
-  });
-
-  final MerchCartItem item;
-  final String uid;
-  final VoidCallback onDeleted;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: _Thumbnail(url: item.frontMockupUrl),
-      title: Text(
-        item.title ?? _defaultTitle(item),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(_optionsLabel(item)),
-          const SizedBox(height: 4),
-          _StatusBadge(status: item.status),
-        ],
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete_outline),
-        tooltip: 'Remove',
-        onPressed: () => _confirmDelete(context),
-      ),
-      onTap:
-          item.status == MerchCartItemStatus.mockupReady ||
-                  item.status == MerchCartItemStatus.checkoutStarted
-              ? () => _openCheckout(context)
-              : null,
-    );
-  }
-
-  String _defaultTitle(MerchCartItem item) {
-    final n = item.selectedCountryCodes.length;
-    return '${item.isTshirt ? 'T-shirt' : 'Poster'} · $n ${n == 1 ? 'country' : 'countries'}';
-  }
-
-  String _optionsLabel(MerchCartItem item) {
-    if (item.isTshirt) {
-      return '${item.colour} · ${item.size}';
-    }
-    return item.size;
-  }
-
-  void _openCheckout(BuildContext context) {
-    final url = item.checkoutUrl;
-    if (url == null) return;
-    // Navigate to the confirmation screen for this cart item.
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CartItemCheckoutScreen(item: item),
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Remove design?'),
-            content: const Text(
-              'This will remove the saved design from your cart. '
-              'You can always create a new one from the Shop.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Remove'),
-              ),
-            ],
-          ),
-    );
-    if (confirmed != true) return;
-    await MerchCartRepository(FirebaseFirestore.instance).delete(uid, item.id);
-    onDeleted();
-  }
-}
-
-// ── Thumbnail ─────────────────────────────────────────────────────────────────
-
-class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 56.0;
-    final theme = Theme.of(context);
-    final u = url;
-
-    if (u != null && u.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Image.network(
-          u,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholder(theme, size),
-        ),
-      );
-    }
-    return _placeholder(theme, size);
-  }
-
-  Widget _placeholder(ThemeData theme, double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Icon(
-        Icons.dry_cleaning_outlined,
-        color: theme.colorScheme.onSurfaceVariant,
-        size: 24,
-      ),
-    );
-  }
-}
-
-// ── Status badge ──────────────────────────────────────────────────────────────
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final MerchCartItemStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = _resolve(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  static (String, Color) _resolve(
-    MerchCartItemStatus status,
-  ) => switch (status) {
-    MerchCartItemStatus.mockupGenerating => ('Generating…', Colors.orange),
-    MerchCartItemStatus.mockupReady => (
-      'Ready to checkout',
-      const Color(0xFF2E7D32),
-    ),
-    MerchCartItemStatus.checkoutStarted => ('Checkout started', Colors.blue),
-    MerchCartItemStatus.purchased => ('Purchased', Colors.green),
-    MerchCartItemStatus.failed => ('Failed', Colors.red),
-  };
 }
 
 // ── Cart item checkout screen ─────────────────────────────────────────────────
