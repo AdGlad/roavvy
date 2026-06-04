@@ -7,6 +7,106 @@
 
 ## Next up (mobile-first order)
 
+### M137 — Merch Trust: Fix Product Names, Price Transparency & Post-Purchase Design
+**Goal:** Three targeted fixes bundled together: (1) replace "Roavvy Test Tee" in order history with the stored design title; (2) show "from £X" price on option cards before the user commits; (3) display the shirt mockup image on the post-purchase screen.
+**Phase:** 27 — Merch UX
+**Depends on:** M120 ✅
+**Scope in:** `merch_orders_screen.dart` product name fallback; `merch_cart_repository.dart` title write; `merch_option_list_widgets.dart` price label; `merch_post_purchase_screen.dart` mockup + title display; `local_mockup_preview_screen.dart` passes new params.
+**Full plan:** `docs/dev/milestones/m137-merch-trust-price-post-purchase.md`
+**Status:** Not started
+
+---
+
+### M138 — Merch Copy Reframe: Language, Labels & Empty States
+**Goal:** Reframe the emotional language throughout the merch flow without changing any backend logic: rename "Orders" to "My Collection"; rewrite empty states to be aspirational; reframe the checkout checkbox; rename "Share my order" to "Share my design"; replace engineering labels in the customisation sheet with outcome language.
+**Phase:** 27 — Merch UX
+**Depends on:** M137
+**Scope in:** `merch_shop_screen.dart`; `merch_cart_screen.dart`; `merch_orders_screen.dart`; `merch_post_purchase_screen.dart`; `merch_customisation_sheet.dart`.
+**Full plan:** `docs/dev/milestones/m138-merch-copy-reframe.md`
+**Status:** Not started
+
+---
+
+### M139 — Merch Option Screen: Lead with One Design
+**Goal:** Restructure `PulseMerchOptionScreen` and `AchievementMerchOptionScreen` to lead with the single best-match featured design and a horizontal strip of 4 alternatives, collapsing the full list behind "See all styles" to eliminate choice paralysis.
+**Phase:** 27 — Merch UX
+**Depends on:** M138
+**Scope in:** `merch_option_list_widgets.dart` new `MerchOptionAlternativesStrip`; `pulse_merch_option_screen.dart` restructured layout; `achievement_merch_option_screen.dart` restructured layout.
+**Full plan:** `docs/dev/milestones/m139-merch-single-featured-design.md`
+**Status:** Not started
+
+---
+
+### M140 — Merch Shop Entry Point: Design a Shirt from the Shop Tab
+**Goal:** Add an intent-driven "Design a shirt" entry point directly in the Shop tab so users who arrive with purchase intent have somewhere to go without needing a Memory Pulse or Achievement trigger.
+**Phase:** 27 — Merch UX
+**Depends on:** M139
+**Scope in:** `merch_shop_screen.dart` `_DesignEntryBanner`; new `merch_design_entry_screen.dart` with chip-filtered country selection.
+**Full plan:** `docs/dev/milestones/m140-merch-shop-entry-point.md`
+**Status:** Not started
+
+---
+
+### M141 — Merch Cart Gallery View & Order History Thumbnails
+**Goal:** Replace ListTile-based rendering in cart and order history with visual card galleries. Cart items show large mockup images; order history shows thumbnail + design title. Shared `MerchCartItemCard` widget.
+**Phase:** 27 — Merch UX
+**Depends on:** M140
+**Scope in:** `merch_shop_screen.dart`; `merch_cart_screen.dart`; `merch_orders_screen.dart`; new `merch_cart_item_card.dart`.
+**Full plan:** `docs/dev/milestones/m141-merch-cart-gallery-order-thumbnails.md`
+**Status:** Not started
+
+---
+
+### M142 — Merch Pre-Purchase Design Sharing
+**Goal:** Enable sharing a design concept from the option selection screen before configuring size/colour. Share icon on `MerchOptionFeaturedCard` and `MerchOptionCard` uses `MerchShareExporter` with local artwork bytes.
+**Phase:** 27 — Merch UX
+**Depends on:** M139
+**Scope in:** `merch_option_list_widgets.dart` share icon; `merch_share_exporter.dart` local bytes support.
+**Full plan:** `docs/dev/milestones/m142-merch-pre-purchase-sharing.md`
+**Status:** Not started
+
+---
+
+### M143 — Achievement Merch CTA Upgrade & Merch Moments Reframe
+**Goal:** Add a one-tap "Design your achievement shirt" CTA directly on achievement detail views and the unlock celebration. Upgrade `MerchMomentsSection` with emotional language and full-width CTA buttons (up to 5 achievements).
+**Phase:** 27 — Merch UX
+**Depends on:** M139
+**Scope in:** achievement detail + unlock overlay (files to identify); `merch_moments_section.dart`.
+**Full plan:** `docs/dev/milestones/m143-merch-achievement-cta-upgrade.md`
+**Status:** Not started
+
+---
+
+### M144 — Merch Locked & Unlocked Exclusive Designs
+**Goal:** Define 4 milestone-gated exclusive designs (`kMerchExclusiveDesigns`); show near-miss locked designs with progress indicators in option screens; notify users when an exclusive design unlocks after a scan.
+**Phase:** 27 — Merch UX
+**Depends on:** M139
+**Scope in:** new `merch_exclusive_design.dart`; `merch_option_list_widgets.dart` `MerchLockedDesignCard`; `pulse_merch_option_screen.dart`; `achievement_merch_option_screen.dart`; notification service.
+**Full plan:** `docs/dev/milestones/m144-merch-locked-exclusive-designs.md`
+**Status:** Not started
+
+---
+
+### M145 — Merch Shop Tab Redesign: Personal Discovery Surface
+**Goal:** Replace the Tab-based Cart/Orders structure with a single-scroll discovery surface containing: identity header, 2–3 personalised design recommendations, dynamic collections (by year/continent/achievement), saved designs, and recent orders.
+**Phase:** 27 — Merch UX
+**Depends on:** M141, M142, M143, M144
+**Scope in:** `merch_shop_screen.dart` full restructure; new `merch_identity_header.dart`, `merch_ready_to_design_section.dart`, `merch_collections_section.dart`.
+**Full plan:** `docs/dev/milestones/m145-merch-shop-tab-redesign.md`
+**Status:** Not started
+
+---
+
+### M146 — Annual Travel Story with Merch CTA
+**Goal:** Full-screen Wrapped-style animated story experience (6 pages: year, countries, continents, achievement, identity, shirt CTA) triggered from Year in Review, Scan Summary, and high-milestone achievements. Produces a shareable summary card.
+**Phase:** 27 — Merch UX
+**Depends on:** M145
+**Scope in:** new `travel_story_data.dart`, `travel_story_screen.dart`, `travel_story_summary_card.dart`; entry points in year-in-review and scan summary screens.
+**Full plan:** `docs/dev/milestones/m146-merch-annual-travel-story.md`
+**Status:** Not started
+
+---
+
 ### M136 — Daily Challenge: Typed Clues, Hero Image Reveal & Stats Screen
 **Goal:** Three focused enhancements to the existing Daily Heritage Challenge: (1) typed clues (`{type, text}`) from Cloud Function with per-type icons in Flutter; (2) hero image at the top of the result overlay using the enriched `imageUrl` from the WHS dataset; (3) dedicated `ChallengeStatsScreen` with streak, solve-rate, and 30-day grid.
 **Phase:** 26 — Daily Challenge Polish
