@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
 import 'merch_cart_screen.dart';
+import 'merch_design_entry_screen.dart';
 import 'merch_orders_screen.dart';
 
 /// Shop screen combining Cart and Orders in two tabs.
@@ -66,28 +67,134 @@ class _CartTabBody extends ConsumerWidget {
     final cartAsync = ref.watch(merchCartProvider);
 
     return cartAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Could not load cart: $e')),
+      loading: () => Column(
+        children: [
+          const _DesignEntryBanner(),
+          const Expanded(child: Center(child: CircularProgressIndicator())),
+        ],
+      ),
+      error: (e, _) => Column(
+        children: [
+          const _DesignEntryBanner(),
+          Expanded(child: Center(child: Text('Could not load cart: $e'))),
+        ],
+      ),
       data: (items) {
         if (items.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: Text(
-                'No designs saved yet.\n\nCreate your first shirt from an achievement '
-                'or a Memory Pulse — it takes less than a minute.',
-                textAlign: TextAlign.center,
+          // Banner replaces empty-state text entirely.
+          return const SingleChildScrollView(child: _DesignEntryBanner());
+        }
+        return Column(
+          children: [
+            const _DesignEntryBanner(),
+            Expanded(
+              child: ListView.separated(
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder:
+                    (context, i) =>
+                        _ShopCartItemTile(item: items[i], uid: uid),
               ),
             ),
-          );
-        }
-        return ListView.separated(
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder:
-              (context, i) => _ShopCartItemTile(item: items[i], uid: uid),
+          ],
         );
       },
+    );
+  }
+}
+
+// ── Design entry banner ───────────────────────────────────────────────────────
+
+/// Persistent "Design a shirt" CTA shown at the top of the Cart tab (M140).
+///
+/// Reads [effectiveVisitsProvider] and [continentCountProvider] to show live
+/// stats. Tapping opens [MerchDesignEntryScreen].
+class _DesignEntryBanner extends ConsumerWidget {
+  const _DesignEntryBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countryCount =
+        ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
+    final continentCount =
+        ref.watch(continentCountProvider).valueOrNull ?? 0;
+    final isLoading = ref.watch(effectiveVisitsProvider).isLoading;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF6B6B), Color(0xFFF2C94C)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MerchDesignEntryScreen(),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isLoading)
+                          Container(
+                            width: 120,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          )
+                        else
+                          Text(
+                            '$countryCount '
+                            '${countryCount == 1 ? "country" : "countries"}'
+                            '${continentCount > 0 ? " · $continentCount ${continentCount == 1 ? "continent" : "continents"}" : ""}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Ready to design your next shirt?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Text(
+                    'Design a shirt →',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
