@@ -17,10 +17,19 @@ import 'travel_identity.dart';
 ///
 /// Converges on [LocalMockupPreviewScreen] → [MerchOrderConfirmationScreen]
 /// → Shopify checkout — the same downstream pipeline as [PulseMerchOptionScreen].
-class AchievementMerchOptionScreen extends ConsumerWidget {
+class AchievementMerchOptionScreen extends ConsumerStatefulWidget {
   const AchievementMerchOptionScreen({super.key, required this.achievement});
 
   final Achievement achievement;
+
+  @override
+  ConsumerState<AchievementMerchOptionScreen> createState() =>
+      _AchievementMerchOptionScreenState();
+}
+
+class _AchievementMerchOptionScreenState
+    extends ConsumerState<AchievementMerchOptionScreen> {
+  bool _showAll = false;
 
   static String _subtitle(Achievement achievement) {
     // Continent-explorer achievements.
@@ -57,7 +66,7 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
     final tripsAsync = ref.watch(tripListProvider);
 
@@ -118,15 +127,22 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
     final allTrips = tripsAsync.value ?? const [];
 
     final merchCtx = MerchContext.fromAchievement(
-      achievement: achievement,
+      achievement: widget.achievement,
       allVisits: allVisits,
       allTrips: allTrips,
     );
-    final items = merchCtx.buildItems();
+    final allItems = merchCtx.buildItems();
     final allCodes = merchCtx.allCodes;
-    final subtitle = _subtitle(achievement);
-
+    final subtitle = _subtitle(widget.achievement);
     final identity = merchCtx.identity;
+
+    final featured =
+        allItems.whereType<MerchOptionFeaturedEntry>().firstOrNull;
+    final alternatives = allItems
+        .whereType<MerchOptionEntry>()
+        .take(4)
+        .map((e) => e.option)
+        .toList();
 
     return Scaffold(
       backgroundColor: RoavvyColours.backgroundDark,
@@ -136,47 +152,113 @@ class AchievementMerchOptionScreen extends ConsumerWidget {
         title: const Text('Your travel shirt ideas'),
         elevation: 0,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (identity != null)
-            _CelebrationHeader(identity: identity, subtitle: subtitle)
-          else
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Text(
-                subtitle,
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
+      body: CustomScrollView(
+        slivers: [
+          // Header (identity or subtitle)
+          SliverToBoxAdapter(
+            child:
+                identity != null
+                    ? _CelebrationHeader(identity: identity, subtitle: subtitle)
+                    : Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+          ),
+
+          // Featured card
+          if (featured != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: MerchOptionFeaturedCard(
+                  option: featured.option,
+                  allCodes: allCodes,
+                ),
               ),
             ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) {
-                final item = items[i];
-                return switch (item) {
-                  MerchOptionHeaderItem() => MerchOptionSectionHeader(
-                    item.label,
+
+          // Alternatives strip
+          if (alternatives.isNotEmpty) ...[
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 6),
+                child: const Text(
+                  'OTHER STYLES',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
                   ),
-                  MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
-                    option: item.option,
-                    allCodes: allCodes,
-                  ),
-                  MerchOptionEntry() => MerchOptionCard(
-                    option: item.option,
-                    allCodes: allCodes,
-                    index: i,
-                  ),
-                  MerchOptionCustomiseEntry() => MerchOptionCustomCard(
-                    template: item.template,
-                    label: item.label,
-                  ),
-                };
-              },
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: MerchOptionAlternativesStrip(
+                options: alternatives,
+                allCodes: allCodes,
+              ),
+            ),
+          ],
+
+          // "See all styles" toggle
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: TextButton(
+                onPressed:
+                    _showAll ? null : () => setState(() => _showAll = true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white54,
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.centerLeft,
+                ),
+                child: Text(
+                  _showAll ? 'All styles' : 'See all styles ›',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
             ),
           ),
+
+          // Full list (shown when _showAll)
+          if (_showAll)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+              sliver: SliverList.separated(
+                itemCount: allItems.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final item = allItems[i];
+                  return switch (item) {
+                    MerchOptionHeaderItem() =>
+                      MerchOptionSectionHeader(item.label),
+                    MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
+                      option: item.option,
+                      allCodes: allCodes,
+                    ),
+                    MerchOptionEntry() => MerchOptionCard(
+                      option: item.option,
+                      allCodes: allCodes,
+                      index: i,
+                    ),
+                    MerchOptionCustomiseEntry() => MerchOptionCustomCard(
+                      template: item.template,
+                      label: item.label,
+                    ),
+                  };
+                },
+              ),
+            )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );

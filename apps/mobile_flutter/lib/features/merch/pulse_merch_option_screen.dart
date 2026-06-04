@@ -21,7 +21,7 @@ import 'pulse_merch_option.dart';
 ///
 /// Rendering widgets are shared with [AchievementMerchOptionScreen] via
 /// [merch_option_list_widgets.dart] (ADR-149).
-class PulseMerchOptionScreen extends ConsumerWidget {
+class PulseMerchOptionScreen extends ConsumerStatefulWidget {
   const PulseMerchOptionScreen({
     super.key,
     required this.hero,
@@ -32,6 +32,15 @@ class PulseMerchOptionScreen extends ConsumerWidget {
   final MemoryAnniversaryPhoto hero;
   final List<TripRecord> allTrips;
   final List<EffectiveVisitedCountry> allVisits;
+
+  @override
+  ConsumerState<PulseMerchOptionScreen> createState() =>
+      _PulseMerchOptionScreenState();
+}
+
+class _PulseMerchOptionScreenState
+    extends ConsumerState<PulseMerchOptionScreen> {
+  bool _showAll = false;
 
   // ── Option builder ────────────────────────────────────────────────────────────
 
@@ -59,7 +68,7 @@ class PulseMerchOptionScreen extends ConsumerWidget {
 
     // 1. This trip
     final tripList = heroTrip != null ? [heroTrip] : const <TripRecord>[];
-    final heroCountryCode = hero.countryCode ?? '';
+    final heroCountryCode = widget.hero.countryCode ?? '';
     final t1 = tune(tripList, [heroCountryCode]);
     options.add(
       PulseMerchOption(
@@ -121,7 +130,7 @@ class PulseMerchOptionScreen extends ConsumerWidget {
 
     // 4. All-time collection (only when more than one country exists)
     if (allCodes.length > 1) {
-      final t4 = tune(allTrips, allCodes);
+      final t4 = tune(widget.allTrips, allCodes);
       options.add(
         PulseMerchOption(
           id: '${template.name}_alltime',
@@ -130,7 +139,7 @@ class PulseMerchOptionScreen extends ConsumerWidget {
           scope: PulseMerchScope.allTime,
           template: template,
           codes: allCodes,
-          trips: allTrips,
+          trips: widget.allTrips,
           jitter: t4.jitter,
           stampSizeMultiplier: t4.size,
           artworkSubtitle: MerchTitleWordbank.buildSubtitleLine(
@@ -144,23 +153,23 @@ class PulseMerchOptionScreen extends ConsumerWidget {
   }
 
   List<MerchOptionListItem> _buildItems({required bool landmarkAvailable}) {
-    final year = hero.capturedAt.year;
-    final heroCountryCode = hero.countryCode ?? '';
+    final year = widget.hero.capturedAt.year;
+    final heroCountryCode = widget.hero.countryCode ?? '';
     final countryName =
         heroCountryCode.isNotEmpty
             ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
             : 'Your travels';
     final heroTrip =
-        hero.tripId != null
-            ? allTrips.where((t) => t.id == hero.tripId).firstOrNull
+        widget.hero.tripId != null
+            ? widget.allTrips.where((t) => t.id == widget.hero.tripId).firstOrNull
             : null;
-    final yearTrips = allTrips.where((t) => t.startedOn.year == year).toList();
+    final yearTrips = widget.allTrips.where((t) => t.startedOn.year == year).toList();
     final yearCodes = yearTrips.map((t) => t.countryCode).toSet().toList();
     final countryTrips =
         heroCountryCode.isNotEmpty
-            ? allTrips.where((t) => t.countryCode == heroCountryCode).toList()
+            ? widget.allTrips.where((t) => t.countryCode == heroCountryCode).toList()
             : const <TripRecord>[];
-    final allCodes = allVisits.map((v) => v.countryCode).toList();
+    final allCodes = widget.allVisits.map((v) => v.countryCode).toList();
 
     final groups = [
       (label: 'Passport', template: CardTemplateType.passport),
@@ -196,18 +205,30 @@ class PulseMerchOptionScreen extends ConsumerWidget {
     return items;
   }
 
+  ({List<PulseMerchOption> flatOptions, List<MerchOptionListItem> allItems})
+  _buildData({required bool landmarkAvailable}) {
+    final allItems = _buildItems(landmarkAvailable: landmarkAvailable);
+    final flatOptions =
+        allItems.whereType<MerchOptionEntry>().map((e) => e.option).toList();
+    return (flatOptions: flatOptions, allItems: allItems);
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final landmarkAvailable =
         ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
-    final items = _buildItems(landmarkAvailable: landmarkAvailable);
-    final allCodes = allVisits.map((v) => v.countryCode).toList();
-    final year = hero.capturedAt.year;
-    final heroCountryCode = hero.countryCode ?? '';
+    final (:flatOptions, :allItems) =
+        _buildData(landmarkAvailable: landmarkAvailable);
+    final allCodes = widget.allVisits.map((v) => v.countryCode).toList();
+    final year = widget.hero.capturedAt.year;
+    final heroCountryCode = widget.hero.countryCode ?? '';
     final countryName =
         heroCountryCode.isNotEmpty
             ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
             : 'Your travels';
+
+    final featured = flatOptions.isNotEmpty ? flatOptions.first : null;
+    final alternatives = flatOptions.skip(1).take(4).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
@@ -217,44 +238,107 @@ class PulseMerchOptionScreen extends ConsumerWidget {
         title: const Text('Your travel shirt ideas'),
         elevation: 0,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Text(
-              'Inspired by $countryName · $year',
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+      body: CustomScrollView(
+        slivers: [
+          // Subtitle
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                'Inspired by $countryName · $year',
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             ),
           ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (ctx, i) {
-                final item = items[i];
-                return switch (item) {
-                  MerchOptionHeaderItem() => MerchOptionSectionHeader(
-                    item.label,
+
+          // Featured card
+          if (featured != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: MerchOptionFeaturedCard(
+                  option: featured,
+                  allCodes: allCodes,
+                ),
+              ),
+            ),
+
+          // Alternatives strip
+          if (alternatives.isNotEmpty) ...[
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 6),
+                child: const Text(
+                  'OTHER STYLES',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
                   ),
-                  MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
-                    option: item.option,
-                    allCodes: allCodes,
-                  ),
-                  MerchOptionEntry() => MerchOptionCard(
-                    option: item.option,
-                    allCodes: allCodes,
-                    index: i,
-                  ),
-                  MerchOptionCustomiseEntry() => MerchOptionCustomCard(
-                    template: item.template,
-                    label: item.label,
-                  ),
-                };
-              },
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: MerchOptionAlternativesStrip(
+                options: alternatives,
+                allCodes: allCodes,
+              ),
+            ),
+          ],
+
+          // "See all styles" toggle
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: TextButton(
+                onPressed:
+                    _showAll ? null : () => setState(() => _showAll = true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white54,
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.centerLeft,
+                ),
+                child: Text(
+                  _showAll ? 'All styles' : 'See all styles ›',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
             ),
           ),
+
+          // Full list (shown when _showAll)
+          if (_showAll)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+              sliver: SliverList.separated(
+                itemCount: allItems.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final item = allItems[i];
+                  return switch (item) {
+                    MerchOptionHeaderItem() =>
+                      MerchOptionSectionHeader(item.label),
+                    MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
+                      option: item.option,
+                      allCodes: allCodes,
+                    ),
+                    MerchOptionEntry() => MerchOptionCard(
+                      option: item.option,
+                      allCodes: allCodes,
+                      index: i,
+                    ),
+                    MerchOptionCustomiseEntry() => MerchOptionCustomCard(
+                      template: item.template,
+                      label: item.label,
+                    ),
+                  };
+                },
+              ),
+            )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );

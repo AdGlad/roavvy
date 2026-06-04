@@ -985,3 +985,213 @@ class MerchOptionCustomCard extends StatelessWidget {
     );
   }
 }
+
+// ── Alternatives strip ─────────────────────────────────────────────────────────
+
+/// Horizontally scrollable row of compact shirt thumbnails shown below the
+/// featured card — one per alternative [PulseMerchOption] (M139).
+///
+/// Each thumb renders the back-shirt mockup only (80×100 px) with the template
+/// label below. Tapping navigates to [LocalMockupPreviewScreen].
+class MerchOptionAlternativesStrip extends StatelessWidget {
+  const MerchOptionAlternativesStrip({
+    super.key,
+    required this.options,
+    required this.allCodes,
+  });
+
+  final List<PulseMerchOption> options;
+  final List<String> allCodes;
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 124,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: options.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder:
+            (ctx, i) =>
+                _AlternativeThumb(option: options[i], allCodes: allCodes),
+      ),
+    );
+  }
+}
+
+class _AlternativeThumb extends StatefulWidget {
+  const _AlternativeThumb({required this.option, required this.allCodes});
+
+  final PulseMerchOption option;
+  final List<String> allCodes;
+
+  @override
+  State<_AlternativeThumb> createState() => _AlternativeThumbState();
+}
+
+class _AlternativeThumbState extends State<_AlternativeThumb> {
+  _MerchGenState _state = _MerchGenState.loading;
+  Uint8List? _artworkBytes;
+  ui.Image? _backArtImage;
+  ui.Image? _backShirtImage;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+  }
+
+  @override
+  void dispose() {
+    _backArtImage?.dispose();
+    _backShirtImage?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    if (!mounted) return;
+    final opt = widget.option;
+    try {
+      final aspectRatio = merchBackCardAspectRatio(opt.template);
+      final artResult = await CardImageRenderer.render(
+        context,
+        opt.template,
+        codes: opt.codes,
+        trips: opt.trips,
+        transparentBackground: true,
+        entryOnly: opt.entryOnly,
+        stampJitterFactor: opt.jitter,
+        stampSizeMultiplier: opt.stampSizeMultiplier,
+        pixelRatio: 1.5,
+        cardAspectRatio: aspectRatio,
+        titleOverride: opt.title,
+        subtitleOverride: opt.artworkSubtitle,
+      );
+      if (!mounted) return;
+
+      final backSpec = ProductMockupSpecs.specsFor(
+        MerchProduct.tshirt,
+        colour: 'Black',
+        placement: 'back',
+      );
+      final backData = await rootBundle.load(backSpec.assetPath);
+      if (!mounted) return;
+
+      Future<ui.Image> decode(Uint8List bytes) async {
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        return frame.image;
+      }
+
+      final backArt = await decode(artResult.bytes);
+      final backShirt = await decode(backData.buffer.asUint8List());
+
+      if (!mounted) {
+        backArt.dispose();
+        backShirt.dispose();
+        return;
+      }
+
+      setState(() {
+        _artworkBytes = artResult.bytes;
+        _backArtImage?.dispose();
+        _backArtImage = backArt;
+        _backShirtImage?.dispose();
+        _backShirtImage = backShirt;
+        _state = _MerchGenState.ready;
+      });
+    } catch (e) {
+      debugPrint('[alt_thumb] ${opt.id} failed: $e');
+      if (!mounted) return;
+      setState(() => _state = _MerchGenState.error);
+    }
+  }
+
+  void _navigate() {
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: widget.option.codes,
+              allCodes: widget.allCodes,
+              trips: widget.option.trips,
+              artworkImageBytes: bytes,
+              initialTemplate: widget.option.template,
+              confirmedAspectRatio: merchBackCardAspectRatio(
+                widget.option.template,
+              ),
+              confirmedEntryOnly: widget.option.entryOnly,
+              transparentBackground: true,
+              stampJitterFactor: widget.option.jitter,
+              stampSizeMultiplier: widget.option.stampSizeMultiplier,
+              initialColour: widget.option.suggestedShirtColor,
+              titleOverride: widget.option.title,
+              subtitleOverride: widget.option.artworkSubtitle,
+            ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const w = 80.0;
+    const h = 100.0;
+    return GestureDetector(
+      onTap: _state == _MerchGenState.ready ? _navigate : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: w,
+              height: h,
+              child: switch (_state) {
+                _MerchGenState.loading => const ColoredBox(
+                  color: Color(0xFF1A3550),
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: Colors.white24,
+                      ),
+                    ),
+                  ),
+                ),
+                _MerchGenState.error => const ColoredBox(
+                  color: Color(0xFF1A3550),
+                  child: Icon(Icons.error_outline, color: Colors.white24, size: 20),
+                ),
+                _MerchGenState.ready => CustomPaint(
+                  painter: LocalMockupPainter(
+                    artworkImage: _backArtImage,
+                    productImage: _backShirtImage,
+                    spec: ProductMockupSpecs.specsFor(
+                      MerchProduct.tshirt,
+                      colour: 'Black',
+                      placement: 'back',
+                    ),
+                    artworkBlendMode: ui.BlendMode.srcOver,
+                  ),
+                ),
+              },
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            merchTemplateLabel(widget.option.template),
+            style: const TextStyle(color: Colors.white38, fontSize: 10),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
