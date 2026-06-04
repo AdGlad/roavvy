@@ -31,13 +31,30 @@ jobs:
 
       - name: Write GoogleService-Info.plist
         run: |
-          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" | base64 --decode             > apps/mobile_flutter/ios/Runner/GoogleService-Info.plist
+          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" | base64 --decode \
+            > apps/mobile_flutter/ios/Runner/GoogleService-Info.plist
 
-      - name: Build iOS app (no codesign)
+      - name: Install signing certificate
         run: |
-          flutter build ios \
-            --release \
-            --no-codesign
+          echo "${{ secrets.DISTRIBUTION_CERTIFICATE_P12 }}" | base64 --decode > cert.p12
+          security create-keychain -p "" build.keychain
+          security import cert.p12 -k build.keychain \
+            -P "${{ secrets.DISTRIBUTION_CERTIFICATE_PASSWORD }}" \
+            -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          rm cert.p12
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.DISTRIBUTION_PROVISIONING_PROFILE }}" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/roavvy-distribution.mobileprovision
+
+      - name: Build iOS app
+        run: flutter build ios --release
         working-directory: apps/mobile_flutter
 
       - name: Build XCTest runner via xcodebuild
@@ -46,18 +63,16 @@ jobs:
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -destination "generic/platform=iOS" \
-            -derivedDataPath build/xctest \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            -derivedDataPath build/xctest
         working-directory: apps/mobile_flutter
         continue-on-error: true
 
       - name: Package as XCTest zip
         run: |
-          cd apps/mobile_flutter/build/xctest/Build/Products
-          # Zip the Release-iphoneos folder which contains Runner.app and Runner_iphoneos_Runner.xctestrun
-          zip -r ../../../../../integration_test_bundle.zip Release-iphoneos/
+          PRODUCTS="apps/mobile_flutter/build/xctest/Build/Products"
+          RELEASE_DIR=$(find "$PRODUCTS" -maxdepth 1 -name "*iphoneos*" -type d | head -1)
+          cd "$RELEASE_DIR"
+          zip -r "$GITHUB_WORKSPACE/apps/mobile_flutter/integration_test_bundle.zip" .
         continue-on-error: true
 
       - uses: actions/upload-artifact@v4
