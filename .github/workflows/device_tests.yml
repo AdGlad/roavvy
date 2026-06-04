@@ -53,17 +53,22 @@ jobs:
           echo "${{ secrets.DISTRIBUTION_PROVISIONING_PROFILE }}" | base64 --decode \
             > ~/Library/MobileDevice/Provisioning\ Profiles/roavvy-distribution.mobileprovision
 
-      - name: Build iOS app
-        run: flutter build ios --release
+      - name: Build iOS app (compile only)
+        run: flutter build ios --release --no-codesign
         working-directory: apps/mobile_flutter
 
       - name: Build XCTest runner via xcodebuild
         run: |
+          # Extract UUID from installed provisioning profile
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID"             /dev/stdin <<< $(security cms -D -i             ~/Library/MobileDevice/Provisioning\ Profiles/roavvy-distribution.mobileprovision))
           xcodebuild build-for-testing \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -destination "generic/platform=iOS" \
-            -derivedDataPath build/xctest
+            -derivedDataPath build/xctest \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE="$PROFILE_UUID"
         working-directory: apps/mobile_flutter
         continue-on-error: true
 
