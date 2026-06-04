@@ -18,6 +18,7 @@ class MerchOrderSummary {
     required this.createdAt,
     required this.status,
     this.selectedCountryCodes = const [],
+    this.thumbnailUrl,
   });
 
   final String configId;
@@ -28,8 +29,11 @@ class MerchOrderSummary {
   /// Raw status string from Firestore (e.g. 'cart_created', 'ordered').
   final String status;
 
-  /// Country codes from the original order — used for "Buy Again" (M120).
+  /// Country codes from the original order — used for "Design again" (M120).
   final List<String> selectedCountryCodes;
+
+  /// Front mockup URL — shown as thumbnail in the collection card (M141).
+  final String? thumbnailUrl;
 
   factory MerchOrderSummary.fromDoc(String id, Map<String, dynamic> data) {
     // Use stored design title if available; fall back to product type name.
@@ -57,6 +61,7 @@ class MerchOrderSummary {
       createdAt: createdAt,
       status: data['status'] as String? ?? 'pending',
       selectedCountryCodes: codes,
+      thumbnailUrl: data['frontMockupUrl'] as String?,
     );
   }
 }
@@ -161,43 +166,90 @@ class MerchOrdersBody extends ConsumerWidget {
             ),
           );
         }
-        return ListView.separated(
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 16),
           itemCount: orders.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, i) => _OrderTile(order: orders[i]),
+          itemBuilder: (context, i) => _OrderCard(order: orders[i]),
         );
       },
     );
   }
 }
 
-class _OrderTile extends ConsumerWidget {
-  const _OrderTile({required this.order});
+class _OrderCard extends ConsumerWidget {
+  const _OrderCard({required this.order});
 
   final MerchOrderSummary order;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final date = _formatDate(order.createdAt);
     final n = order.countryCount;
     final noun = n == 1 ? 'country' : 'countries';
-    final canBuyAgain = order.selectedCountryCodes.isNotEmpty;
+    final canDesignAgain = order.selectedCountryCodes.isNotEmpty;
 
-    return ListTile(
-      title: Text(order.productName),
-      subtitle: Text('$n $noun · $date'),
-      trailing: _StatusBadge(status: order.status),
-      onTap: canBuyAgain ? () => _buyAgain(context, ref) : null,
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: canDesignAgain ? () => _designAgain(context, ref) : null,
+        child: Row(
+          children: [
+            _OrderThumbnail(url: order.thumbnailUrl),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.productName,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$n $noun · $date',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _StatusBadge(status: order.status),
+                        if (canDesignAgain) ...[
+                          const Spacer(),
+                          Text(
+                            'Design again →',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   /// Navigates to [LocalMockupPreviewScreen] using the saved country codes
   /// from this order, loading current visits/trips from providers (M120).
-  Future<void> _buyAgain(BuildContext context, WidgetRef ref) async {
+  Future<void> _designAgain(BuildContext context, WidgetRef ref) async {
     final selectedCodes = order.selectedCountryCodes;
     if (selectedCodes.isEmpty) return;
 
-    // Load current context data required by LocalMockupPreviewScreen.
     final visits = await ref.read(effectiveVisitsProvider.future);
     final trips = await ref.read(tripListProvider.future);
 
@@ -235,6 +287,44 @@ class _OrderTile extends ConsumerWidget {
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
+}
+
+class _OrderThumbnail extends StatelessWidget {
+  const _OrderThumbnail({this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 80.0;
+    final theme = Theme.of(context);
+    final u = url;
+    if (u != null && u.isNotEmpty) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          u,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(theme, size),
+        ),
+      );
+    }
+    return _placeholder(theme, size);
+  }
+
+  Widget _placeholder(ThemeData theme, double size) => Container(
+    width: size,
+    height: size,
+    color: theme.colorScheme.surfaceContainerHighest,
+    child: Icon(
+      Icons.dry_cleaning_outlined,
+      color: theme.colorScheme.onSurfaceVariant,
+      size: 28,
+    ),
+  );
 }
 
 class _StatusBadge extends StatelessWidget {
