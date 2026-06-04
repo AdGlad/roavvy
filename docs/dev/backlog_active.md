@@ -13,7 +13,7 @@
 **Depends on:** M120 ✅
 **Scope in:** `merch_orders_screen.dart` product name fallback; `merch_cart_repository.dart` title write; `merch_option_list_widgets.dart` price label; `merch_post_purchase_screen.dart` mockup + title display; `local_mockup_preview_screen.dart` passes new params.
 **Full plan:** `docs/dev/milestones/m137-merch-trust-price-post-purchase.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 

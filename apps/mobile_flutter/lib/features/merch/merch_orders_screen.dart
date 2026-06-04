@@ -32,10 +32,11 @@ class MerchOrderSummary {
   final List<String> selectedCountryCodes;
 
   factory MerchOrderSummary.fromDoc(String id, Map<String, dynamic> data) {
-    // templateId is 'flag_grid_v1'; derive product name from variantId prefix.
+    // Use stored design title if available; fall back to product type name.
     final variantId = data['variantId'] as String? ?? '';
-    final productName =
-        variantId.contains('Poster') ? 'Travel Poster' : 'Roavvy Test Tee';
+    final productName = data['title'] as String? ??
+        data['designTitle'] as String? ??
+        (variantId.contains('Poster') ? 'Travel Poster' : 'Travel T-shirt');
 
     final codesRaw = data['selectedCountryCodes'];
     final codes = codesRaw is List ? codesRaw.cast<String>() : <String>[];

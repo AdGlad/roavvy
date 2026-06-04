@@ -590,6 +590,11 @@ class _MerchOptionCardState extends State<MerchOptionCard>
             style: const TextStyle(color: Colors.white54, fontSize: 10),
           ),
         ),
+        const SizedBox(height: 4),
+        Text(
+          'from ${MerchProduct.tshirt.fromPrice}',
+          style: const TextStyle(color: Colors.white38, fontSize: 10),
+        ),
       ],
     );
   }
@@ -805,6 +810,14 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'from ${MerchProduct.tshirt.fromPrice}',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Row(

@@ -159,3 +159,4 @@ apps/mobile_flutter/lib/features/merch/
 
 **Phase:** 27 — Merch UX
 **Depends on:** M120 ✅
+**Status:** ✅ Complete (2026-06-05)
