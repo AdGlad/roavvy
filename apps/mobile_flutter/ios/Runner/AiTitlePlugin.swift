@@ -1,5 +1,7 @@
 import Flutter
 import UIKit
+
+#if canImport(FoundationModels)
 import FoundationModels
 
 @available(iOS 26.0, *)
@@ -130,3 +132,28 @@ public class AiTitlePlugin: NSObject {
         }
     }
 }
+
+#else
+
+// Stub for Xcode versions that predate the FoundationModels SDK (pre-Xcode 26).
+// AiTitlePlugin is registered conditionally in AppDelegate via #available(iOS 26.0, *)
+// so this stub is only needed to satisfy the compiler on CI runners with Xcode 16.
+@available(iOS 26.0, *)
+public class AiTitlePlugin: NSObject {
+    public static func register(with messenger: FlutterBinaryMessenger) -> AiTitlePlugin {
+        let channel = FlutterMethodChannel(name: "roavvy/ai_title", binaryMessenger: messenger)
+        let instance = AiTitlePlugin()
+        channel.setMethodCallHandler(instance.handle)
+        return instance
+    }
+
+    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        result(FlutterError(
+            code: "AI_UNAVAILABLE",
+            message: "FoundationModels SDK not available in this build environment",
+            details: nil
+        ))
+    }
+}
+
+#endif
