@@ -33,7 +33,7 @@
 **Depends on:** M138
 **Scope in:** `merch_option_list_widgets.dart` new `MerchOptionAlternativesStrip`; `pulse_merch_option_screen.dart` restructured layout; `achievement_merch_option_screen.dart` restructured layout.
 **Full plan:** `docs/dev/milestones/m139-merch-single-featured-design.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
@@ -43,7 +43,7 @@
 **Depends on:** M139
 **Scope in:** `merch_shop_screen.dart` `_DesignEntryBanner`; new `merch_design_entry_screen.dart` with chip-filtered country selection.
 **Full plan:** `docs/dev/milestones/m140-merch-shop-entry-point.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
