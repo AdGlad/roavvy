@@ -93,7 +93,7 @@
 **Depends on:** M141, M142, M143, M144
 **Scope in:** `merch_shop_screen.dart` full restructure; new `merch_identity_header.dart`, `merch_ready_to_design_section.dart`, `merch_collections_section.dart`.
 **Full plan:** `docs/dev/milestones/m145-merch-shop-tab-redesign.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
