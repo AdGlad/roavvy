@@ -22,7 +22,7 @@ class MerchMomentsSection extends StatelessWidget {
 
     if (eligible.isEmpty) return const SizedBox.shrink();
 
-    final display = eligible.take(3).toList();
+    final display = eligible.take(5).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,7 +30,7 @@ class MerchMomentsSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
-            'Merch Moments',
+            'Design from your achievements',
             style: Theme.of(
               context,
             ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
@@ -62,59 +62,53 @@ class _MerchMomentTile extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.emoji_events_outlined, color: Colors.amber[700], size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'You unlocked ${achievement.title}',
+          Row(
+            children: [
+              Icon(
+                Icons.emoji_events_outlined,
+                color: Colors.amber[700],
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  achievement.title,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Create a ${_productLabel(achievement.merch!)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          FilledButton.tonal(
-            onPressed:
-                () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder:
-                        (_) => AchievementMerchOptionScreen(
-                          achievement: achievement,
-                        ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed:
+                  () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder:
+                          (_) => AchievementMerchOptionScreen(
+                            achievement: achievement,
+                          ),
+                    ),
                   ),
-                ),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: theme.textTheme.labelSmall,
+              child: Text(_ctaLabel(achievement.merch!)),
             ),
-            child: const Text('Create'),
           ),
         ],
       ),
     );
   }
 
-  String _productLabel(MerchTriggerType type) => switch (type) {
-    MerchTriggerType.flagGrid => 'Flag Grid Tee',
-    MerchTriggerType.passportStamp => 'Passport Stamp Tee',
-    MerchTriggerType.timeline => 'Travel Timeline Tee',
-    MerchTriggerType.country => 'Country Tee',
-    MerchTriggerType.milestone => 'Milestone Tee',
+  String _ctaLabel(MerchTriggerType type) => switch (type) {
+    MerchTriggerType.flagGrid => 'Turn your flags into a tee',
+    MerchTriggerType.passportStamp => 'Print your passport stamps',
+    MerchTriggerType.timeline => 'Wear your travel timeline',
+    MerchTriggerType.country => 'Design a country tee',
+    MerchTriggerType.milestone => 'Celebrate this milestone',
   };
 }
