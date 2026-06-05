@@ -63,7 +63,7 @@
 **Depends on:** M139
 **Scope in:** `merch_option_list_widgets.dart` share icon; `merch_share_exporter.dart` local bytes support.
 **Full plan:** `docs/dev/milestones/m142-merch-pre-purchase-sharing.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
