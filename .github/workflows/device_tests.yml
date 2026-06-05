@@ -120,7 +120,7 @@ jobs:
           gcloud firebase test ios run \
             --type xctest \
             --test test-artifacts/integration_test_bundle.zip \
-            --device "model=iphone16pro,version=18,locale=en_GB,orientation=portrait" \
+            --device "model=iphone16pro,version=18.3,locale=en_GB,orientation=portrait" \
             --filter "T8.2" \
             --timeout 5m \
             --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
@@ -131,7 +131,7 @@ jobs:
           gcloud firebase test ios run \
             --type xctest \
             --test test-artifacts/integration_test_bundle.zip \
-            --device "model=iphone16pro,version=18,locale=en_GB,orientation=portrait" \
+            --device "model=iphone16pro,version=18.3,locale=en_GB,orientation=portrait" \
             --filter "T8.3" \
             --timeout 10m \
             --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
@@ -142,7 +142,7 @@ jobs:
           gcloud firebase test ios run \
             --type xctest \
             --test test-artifacts/integration_test_bundle.zip \
-            --device "model=iphone16pro,version=18,locale=en_GB,orientation=portrait" \
+            --device "model=iphone16pro,version=18.3,locale=en_GB,orientation=portrait" \
             --filter "T8.4" \
             --timeout 10m \
             --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
@@ -153,7 +153,7 @@ jobs:
           gcloud firebase test ios run \
             --type xctest \
             --test test-artifacts/integration_test_bundle.zip \
-            --device "model=iphone16pro,version=18,locale=en_GB,orientation=portrait" \
+            --device "model=iphone16pro,version=18.3,locale=en_GB,orientation=portrait" \
             --filter "T8.5" \
             --timeout 5m \
             --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
@@ -164,7 +164,7 @@ jobs:
           gcloud firebase test ios run \
             --type xctest \
             --test test-artifacts/integration_test_bundle.zip \
-            --device "model=iphone16pro,version=18,locale=en_GB,orientation=portrait" \
+            --device "model=iphone16pro,version=18.3,locale=en_GB,orientation=portrait" \
             --filter "T8.6" \
             --timeout 5m \
             --project ${{ vars.FIREBASE_PROJECT_ID || 'roavvy-dev' }}
