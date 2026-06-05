@@ -8,7 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/providers.dart';
 import '../../core/country_names.dart';
+import '../merch/travel_story_data.dart';
+import '../merch/travel_story_screen.dart';
 import '../shared/hero_image_view.dart';
 import 'year_in_review_card.dart';
 import 'year_in_review_providers.dart';
@@ -33,6 +36,28 @@ class _YearInReviewScreenState extends ConsumerState<YearInReviewScreen> {
   final _shareKey = GlobalKey();
   bool _thumbsReady = false;
   bool _sharing = false;
+
+  Future<void> _openStory(YearInReviewData data) async {
+    final allVisits =
+        ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+    final allTrips = ref.read(tripListProvider).valueOrNull ?? const [];
+    final rows =
+        await ref.read(achievementRepositoryProvider).loadAllRows();
+    final unlocked = {for (final r in rows) r.achievementId: r.unlockedAt};
+    if (!mounted) return;
+    final storyData = TravelStoryData.build(
+      year: widget.year,
+      allVisits: allVisits,
+      allTrips: allTrips,
+      unlockedAchievements: unlocked,
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => TravelStoryScreen(data: storyData),
+      ),
+    );
+  }
 
   Future<void> _share(YearInReviewData data) async {
     if (_sharing) return;
@@ -114,6 +139,7 @@ class _YearInReviewScreenState extends ConsumerState<YearInReviewScreen> {
                 thumbsReady: _thumbsReady,
                 sharing: _sharing,
                 onShare: () => _share(data),
+                onStory: () => _openStory(data),
               ),
               Positioned(
                 left: -10000,
@@ -141,12 +167,14 @@ class _YearInReviewBody extends StatelessWidget {
     required this.thumbsReady,
     required this.sharing,
     required this.onShare,
+    required this.onStory,
   });
 
   final YearInReviewData data;
   final bool thumbsReady;
   final bool sharing;
   final VoidCallback onShare;
+  final VoidCallback onStory;
 
   @override
   Widget build(BuildContext context) {
@@ -214,6 +242,19 @@ class _YearInReviewBody extends StatelessWidget {
                         ),
                       )
                       : const Text('Share Card'),
+            ),
+          ),
+        ),
+
+        // Travel story entry point
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextButton.icon(
+              onPressed: onStory,
+              icon: const Icon(Icons.auto_stories_outlined, size: 18),
+              label: const Text('See your travel story'),
+              style: TextButton.styleFrom(foregroundColor: _kGold),
             ),
           ),
         ),

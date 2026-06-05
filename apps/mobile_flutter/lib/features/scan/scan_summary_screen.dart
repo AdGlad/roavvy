@@ -14,6 +14,8 @@ import '../map/country_celebration_carousel.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
 import '../merch/merch_country_selection_screen.dart';
+import '../merch/travel_story_data.dart';
+import '../merch/travel_story_screen.dart';
 import '../cards/card_type_picker_screen.dart';
 import '../shared/hero_image_view.dart';
 import 'achievement_unlock_sheet.dart';
@@ -391,6 +393,29 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
     }
   }
 
+  Future<void> _openTravelStory() async {
+    final allVisits =
+        ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+    final allTrips = ref.read(tripListProvider).valueOrNull ?? const [];
+    final rows =
+        await ref.read(achievementRepositoryProvider).loadAllRows();
+    final unlocked = {for (final r in rows) r.achievementId: r.unlockedAt};
+    if (!mounted) return;
+    final storyData = TravelStoryData.build(
+      year: DateTime.now().year,
+      allVisits: allVisits,
+      allTrips: allTrips,
+      unlockedAchievements: unlocked,
+      yearFilter: false, // all-time scope for scan-summary entry
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => TravelStoryScreen(data: storyData),
+      ),
+    );
+  }
+
   Future<void> _scheduleNotifications() async {
     final service = NotificationService.instance;
 
@@ -543,6 +568,26 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                   const SizedBox(height: 80),
                 ],
               ),
+            ),
+            // Travel story entry — shown at milestone totals (M146)
+            Builder(
+              builder: (ctx) {
+                final allCount =
+                    ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
+                const milestones = [10, 25, 50];
+                final atMilestone = milestones.contains(allCount);
+                if (!atMilestone || widget.newCodes.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: TextButton.icon(
+                    onPressed: _openTravelStory,
+                    icon: const Icon(Icons.auto_stories_outlined, size: 18),
+                    label: Text('See your $allCount-country travel story →'),
+                  ),
+                );
+              },
             ),
             // Card creation nudge — scan commerce trigger (M40)
             Padding(
