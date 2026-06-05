@@ -103,7 +103,7 @@
 **Depends on:** M145
 **Scope in:** new `travel_story_data.dart`, `travel_story_screen.dart`, `travel_story_summary_card.dart`; entry points in year-in-review and scan summary screens.
 **Full plan:** `docs/dev/milestones/m146-merch-annual-travel-story.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
