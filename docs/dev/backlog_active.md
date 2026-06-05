@@ -73,7 +73,7 @@
 **Depends on:** M139
 **Scope in:** achievement detail + unlock overlay (files to identify); `merch_moments_section.dart`.
 **Full plan:** `docs/dev/milestones/m143-merch-achievement-cta-upgrade.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
