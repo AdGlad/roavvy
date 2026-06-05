@@ -5,6 +5,8 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../memory/memory_anniversary_photo.dart';
+import 'local_mockup_preview_screen.dart';
+import 'merch_exclusive_design.dart';
 import 'merch_option_list_widgets.dart';
 import 'merch_title_wordbank.dart';
 import 'pulse_merch_option.dart';
@@ -309,9 +311,9 @@ class _PulseMerchOptionScreenState
           ),
 
           // Full list (shown when _showAll)
-          if (_showAll)
+          if (_showAll) ...[
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               sliver: SliverList.separated(
                 itemCount: allItems.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -336,9 +338,96 @@ class _PulseMerchOptionScreenState
                   };
                 },
               ),
-            )
-          else
+            ),
+            SliverToBoxAdapter(
+              child: _ExclusiveDesignsSection(
+                allVisits: widget.allVisits,
+                allTrips: widget.allTrips,
+              ),
+            ),
+          ] else
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Exclusive designs section ─────────────────────────────────────────────────
+
+/// Shows near-miss locked designs and any already-unlocked exclusive designs
+/// at the bottom of the expanded style list (M144).
+class _ExclusiveDesignsSection extends StatelessWidget {
+  const _ExclusiveDesignsSection({
+    required this.allVisits,
+    required this.allTrips,
+  });
+
+  final List<EffectiveVisitedCountry> allVisits;
+  final List<TripRecord> allTrips;
+
+  MerchUnlockContext _buildCtx() {
+    final countryCount = allVisits.length;
+    final continentCount = allVisits
+        .map((v) => kCountryContinent[v.countryCode])
+        .whereType<String>()
+        .toSet()
+        .length;
+    return MerchUnlockContext(
+      countryCount: countryCount,
+      continentCount: continentCount,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctx = _buildCtx();
+    const nearMissThreshold = 15;
+
+    final toShow = kMerchExclusiveDesigns.where((d) {
+      if (d.isUnlocked(ctx)) return true;
+      final rem = d.remaining(ctx);
+      return rem > 0 && rem <= nearMissThreshold;
+    }).toList();
+
+    if (toShow.isEmpty) return const SizedBox(height: 40);
+
+    final allCodes = allVisits.map((v) => v.countryCode).toList();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1, color: Colors.white12),
+          const SizedBox(height: 12),
+          Text(
+            'EXCLUSIVE DESIGNS',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white38,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...toShow.map(
+            (d) => MerchLockedDesignCard(
+              design: d,
+              ctx: ctx,
+              onUnlockedTap: d.isUnlocked(ctx)
+                  ? () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (_) => LocalMockupPreviewScreen(
+                                selectedCodes: allCodes,
+                                allCodes: allCodes,
+                                trips: allTrips,
+                                initialTemplate: d.template,
+                              ),
+                        ),
+                      )
+                  : null,
+            ),
+          ),
         ],
       ),
     );

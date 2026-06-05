@@ -12,6 +12,8 @@ const int _kNudgeNotificationId = 0;
 const int _kAchievementNotificationId = 1;
 const int _kMemoryPulseNotificationId = 2;
 const int _kYearInReviewNotificationId = 3;
+const int _kExclusiveDesignNotificationId = 4;
+const int _kShopTab = 3;
 
 /// Base ID for the memory pulse batch (IDs 200–229, max 30 slots).
 const int _kMemoryPulseBatchBase = 200;
@@ -181,6 +183,24 @@ class NotificationService {
       body,
       const NotificationDetails(iOS: DarwinNotificationDetails()),
       payload: 'tab:$_kStatsTab',
+    );
+  }
+
+  /// Fires an immediate notification when an exclusive merch design unlocks
+  /// after a scan (M144). Tapping switches to the Shop tab (index 3).
+  ///
+  /// Uses a single notification slot — only the most recent exclusive unlock
+  /// is kept if multiple designs unlock in the same scan.
+  Future<void> notifyExclusiveDesignUnlocked({
+    required String designLabel,
+  }) async {
+    if (!_initialized) return;
+    await _plugin.show(
+      _kExclusiveDesignNotificationId,
+      'New exclusive design unlocked!',
+      'Design your "$designLabel" shirt now.',
+      const NotificationDetails(iOS: DarwinNotificationDetails()),
+      payload: 'tab:$_kShopTab',
     );
   }
 

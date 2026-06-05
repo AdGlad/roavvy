@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'merch_exclusive_design.dart';
+
 import '../cards/card_editor_screen.dart';
 import '../cards/card_image_renderer.dart';
 import '../cards/landmark_image_service.dart';
@@ -1259,6 +1261,160 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── MerchLockedDesignCard ─────────────────────────────────────────────────────
+
+/// Displays an exclusive design that is locked or unlocked for the current user.
+///
+/// Locked: dimmed silhouette, lock icon, progress bar, "N more to unlock" label.
+/// Unlocked: gold border, "✦ Unlocked for you" badge, tappable to design.
+///
+/// The caller must supply [onUnlockedTap] so this widget does not need provider
+/// access (navigation context lives in the option screen).
+class MerchLockedDesignCard extends StatelessWidget {
+  const MerchLockedDesignCard({
+    super.key,
+    required this.design,
+    required this.ctx,
+    this.onUnlockedTap,
+  });
+
+  final MerchExclusiveDesign design;
+  final MerchUnlockContext ctx;
+
+  /// Called when the user taps an unlocked design. Null for locked designs
+  /// (tapping a locked design shows a SnackBar instead).
+  final VoidCallback? onUnlockedTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final unlocked = design.isUnlocked(ctx);
+    final theme = Theme.of(context);
+    final remaining = design.remaining(ctx);
+
+    return GestureDetector(
+      onTap: () {
+        if (unlocked) {
+          onUnlockedTap?.call();
+        } else {
+          final unit = design.unlockCondition is ContinentCountCondition
+              ? (remaining == 1 ? 'continent' : 'continents')
+              : (remaining == 1 ? 'country' : 'countries');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Visit $remaining more $unit to unlock "${design.label}"',
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: unlocked
+              ? Border.all(color: const Color(0xFFFFD700), width: 1.5)
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row: icon/lock + label + unlocked badge
+              Row(
+                children: [
+                  Text(design.emoji, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      design.label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: unlocked ? null : Colors.white54,
+                      ),
+                    ),
+                  ),
+                  if (unlocked)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFFFD700),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Text(
+                        '✦ Unlocked for you',
+                        style: TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(Icons.lock_outline, size: 16, color: Colors.white38),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Description
+              Text(
+                design.description,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (!unlocked) ...[
+                const SizedBox(height: 10),
+                // Progress bar
+                Builder(
+                  builder: (context) {
+                    final condition = design.unlockCondition;
+                    final target = condition is CountryCountCondition
+                        ? condition.target
+                        : (condition as ContinentCountCondition).target;
+                    final current = target - remaining;
+                    final progress = (current / target).clamp(0.0, 1.0);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.white12,
+                          valueColor: const AlwaysStoppedAnimation(
+                            Color(0xFFFFD700),
+                          ),
+                          minHeight: 4,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$current/$target — $remaining more to unlock',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white38,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

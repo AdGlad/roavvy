@@ -20,12 +20,16 @@ import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
 import '../map/globe_projection.dart';
 import '../xp/xp_event.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/notification_service.dart';
 import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
 import '../../data/heritage_repository.dart';
 import '../../data/region_repository.dart';
 import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
+import '../merch/merch_exclusive_design.dart';
 import '../heritage/world_heritage_lookup_service.dart';
 import '../../photo_scan_channel.dart';
 import '../visits/review_screen.dart';
@@ -932,6 +936,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         await _achievementRepo.upsertAll(newlyUnlockedIds, preScanTimestamp);
       }
 
+      // Check for newly-unlocked exclusive merch designs (M144, ADR-176).
+      unawaited(_checkExclusiveDesignUnlocks(effective));
+
       // Flush dirty records to Firestore fire-and-forget (ADR-030).
       final uid = ref.read(currentUidProvider);
       if (uid != null) {
@@ -1146,6 +1153,42 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _achievementsToastedThisScan.clear();
         });
       }
+    }
+  }
+
+  /// Checks whether any exclusive merch designs just unlocked for the first
+  /// time after this scan and fires a local notification (M144, ADR-176).
+  ///
+  /// Uses [SharedPreferences] key `'exclusive_design_notified_ids'` to ensure
+  /// each design notifies the user at most once.
+  Future<void> _checkExclusiveDesignUnlocks(
+    List<EffectiveVisitedCountry> effective,
+  ) async {
+    final countryCount = effective.length;
+    final continentCount = effective
+        .map((v) => kCountryContinent[v.countryCode])
+        .whereType<String>()
+        .toSet()
+        .length;
+    final ctx = MerchUnlockContext(
+      countryCount: countryCount,
+      continentCount: continentCount,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    final notifiedIds =
+        prefs.getStringList('exclusive_design_notified_ids') ?? [];
+
+    for (final design in kMerchExclusiveDesigns) {
+      if (!design.isUnlocked(ctx)) continue;
+      if (notifiedIds.contains(design.id)) continue;
+      // Newly unlocked — notify once.
+      notifiedIds.add(design.id);
+      await prefs.setStringList('exclusive_design_notified_ids', notifiedIds);
+      await NotificationService.instance.notifyExclusiveDesignUnlocked(
+        designLabel: design.label,
+      );
+      break; // One notification per scan to avoid spam
     }
   }
 
