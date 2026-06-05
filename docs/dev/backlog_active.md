@@ -83,7 +83,7 @@
 **Depends on:** M139
 **Scope in:** new `merch_exclusive_design.dart`; `merch_option_list_widgets.dart` `MerchLockedDesignCard`; `pulse_merch_option_screen.dart`; `achievement_merch_option_screen.dart`; notification service.
 **Full plan:** `docs/dev/milestones/m144-merch-locked-exclusive-designs.md`
-**Status:** Not started
+**Status:** ✅ Complete (2026-06-05)
 
 ---
 
