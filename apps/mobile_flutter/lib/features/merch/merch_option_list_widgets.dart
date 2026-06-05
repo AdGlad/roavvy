@@ -9,6 +9,7 @@ import '../cards/card_image_renderer.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
 import 'local_mockup_preview_screen.dart';
+import 'merch_share_exporter.dart';
 import 'merch_template_ranker.dart';
 import 'merch_variant_lookup.dart';
 import 'product_mockup_specs.dart';
@@ -355,6 +356,20 @@ class _MerchOptionCardState extends State<MerchOptionCard>
     );
   }
 
+  Future<void> _shareDesign() async {
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    final n = widget.option.codes.length;
+    final shareText =
+        '${widget.option.title} — $n '
+        '${n == 1 ? "country" : "countries"} I\'ve visited, designed with Roavvy 🌍';
+    await MerchShareExporter.share(
+      bytes,
+      title: widget.option.title,
+      shareText: shareText,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
@@ -579,16 +594,30 @@ class _MerchOptionCardState extends State<MerchOptionCard>
           ),
         ],
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            widget.option.templateLabel,
-            style: const TextStyle(color: Colors.white54, fontSize: 10),
-          ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                widget.option.templateLabel,
+                style: const TextStyle(color: Colors.white54, fontSize: 10),
+              ),
+            ),
+            const Spacer(),
+            if (_state == _MerchGenState.ready)
+              GestureDetector(
+                onTap: _shareDesign,
+                child: const Icon(
+                  Icons.ios_share_rounded,
+                  color: Colors.white38,
+                  size: 16,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -738,6 +767,20 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
               subtitleOverride: widget.option.artworkSubtitle,
             ),
       ),
+    );
+  }
+
+  Future<void> _shareDesign() async {
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    final n = widget.option.codes.length;
+    final shareText =
+        '${widget.option.title} — $n '
+        '${n == 1 ? "country" : "countries"} I\'ve visited, designed with Roavvy 🌍';
+    await MerchShareExporter.share(
+      bytes,
+      title: widget.option.title,
+      shareText: shareText,
     );
   }
 
@@ -892,13 +935,38 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     );
     return SizedBox(
       height: h,
-      child: CustomPaint(
-        painter: LocalMockupPainter(
-          artworkImage: _backArtImage,
-          productImage: _backShirtImage,
-          spec: backSpec,
-          artworkBlendMode: ui.BlendMode.srcOver,
-        ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(
+            painter: LocalMockupPainter(
+              artworkImage: _backArtImage,
+              productImage: _backShirtImage,
+              spec: backSpec,
+              artworkBlendMode: ui.BlendMode.srcOver,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: _shareDesign,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.ios_share_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
