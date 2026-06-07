@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
 import 'widgets/achievement_gallery.dart';
+import 'widgets/achievement_timeline.dart';
 import 'widgets/daily_challenge_card.dart';
 import 'widgets/merch_moments_section.dart';
 import 'widgets/next_achievements_carousel.dart';
 import 'widgets/stats_grid.dart';
 import 'widgets/travel_progress_hero.dart';
+import 'widgets/year_in_review_card.dart';
 
 /// Gamified travel stats and achievement dashboard (M97 + M147).
 ///
@@ -26,13 +28,65 @@ class StatsScreen extends ConsumerStatefulWidget {
   ConsumerState<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends ConsumerState<StatsScreen> {
+class _StatsScreenState extends ConsumerState<StatsScreen>
+    with SingleTickerProviderStateMixin {
   late final Future<List<UnlockedAchievementRow>> _achievementsFuture;
+  late final AnimationController _staggerCtrl;
+
+  // One interval per section — staggered entry over 1.4s total.
+  static const _dur = Duration(milliseconds: 1400);
+
+  late final Animation<double> _heroAnim;
+  late final Animation<double> _gridAnim;
+  late final Animation<double> _challengeAnim;
+  late final Animation<double> _yearAnim;
+  late final Animation<double> _carouselAnim;
+  late final Animation<double> _timelineAnim;
+  late final Animation<double> _galleryAnim;
+  late final Animation<double> _merchAnim;
 
   @override
   void initState() {
     super.initState();
     _achievementsFuture = ref.read(achievementRepositoryProvider).loadAllRows();
+    _staggerCtrl = AnimationController(vsync: this, duration: _dur);
+
+    Animation<double> interval(double start, double end) =>
+        CurvedAnimation(
+          parent: _staggerCtrl,
+          curve: Interval(start, end, curve: Curves.easeOut),
+        );
+
+    _heroAnim = interval(0.00, 0.30);
+    _gridAnim = interval(0.10, 0.40);
+    _challengeAnim = interval(0.20, 0.50);
+    _yearAnim = interval(0.25, 0.55);
+    _carouselAnim = interval(0.30, 0.60);
+    _timelineAnim = interval(0.40, 0.70);
+    _galleryAnim = interval(0.50, 0.80);
+    _merchAnim = interval(0.60, 1.00);
+
+    _staggerCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _staggerCtrl.dispose();
+    super.dispose();
+  }
+
+  Widget _stagger(Animation<double> anim, Widget child) {
+    return FadeTransition(
+      opacity: anim,
+      child: AnimatedBuilder(
+        animation: anim,
+        builder: (_, c) => Transform.translate(
+          offset: Offset(0, 20 * (1 - anim.value)),
+          child: c,
+        ),
+        child: child,
+      ),
+    );
   }
 
   @override
@@ -71,28 +125,34 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
 
             // ── Travel Progress Hero ──────────────────────────────────────
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                child: TravelProgressHero(
-                  countryCount: countryCount,
-                  unlockedIds: unlockedIds,
-                  continentCount: continentCount,
-                  tripCount: tripCount,
-                  heritageCount: heritageCount,
+              child: _stagger(
+                _heroAnim,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                  child: TravelProgressHero(
+                    countryCount: countryCount,
+                    unlockedIds: unlockedIds,
+                    continentCount: continentCount,
+                    tripCount: tripCount,
+                    heritageCount: heritageCount,
+                  ),
                 ),
               ),
             ),
 
             // ── Coloured animated stats grid ──────────────────────────────
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: StatsGrid(
-                  countryCount: countryCount,
-                  continentCount: continentCount,
-                  tripCount: tripCount,
-                  heritageCount: heritageCount,
-                  visits: visits,
+              child: _stagger(
+                _gridAnim,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: StatsGrid(
+                    countryCount: countryCount,
+                    continentCount: continentCount,
+                    tripCount: tripCount,
+                    heritageCount: heritageCount,
+                    visits: visits,
+                  ),
                 ),
               ),
             ),
@@ -100,46 +160,85 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             // ── Daily Challenge card ──────────────────────────────────────
             if (challengeAggregate != null)
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: DailyChallengeCard(aggregate: challengeAggregate),
+                child: _stagger(
+                  _challengeAnim,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: DailyChallengeCard(aggregate: challengeAggregate),
+                  ),
+                ),
+              ),
+
+            // ── Year in Review ────────────────────────────────────────────
+            if (thisYearCount > 0)
+              SliverToBoxAdapter(
+                child: _stagger(
+                  _yearAnim,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: YearInReviewCard(thisYearCount: thisYearCount),
+                  ),
                 ),
               ),
 
             // ── Next Achievements Carousel ────────────────────────────────
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: NextAchievementsCarousel(
-                  countryCount: countryCount,
-                  continentCount: continentCount,
-                  tripCount: tripCount,
-                  thisYearCount: thisYearCount,
-                  unlockedIds: unlockedIds,
+              child: _stagger(
+                _carouselAnim,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: NextAchievementsCarousel(
+                    countryCount: countryCount,
+                    continentCount: continentCount,
+                    tripCount: tripCount,
+                    thisYearCount: thisYearCount,
+                    heritageCount: heritageCount,
+                    unlockedIds: unlockedIds,
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Achievement Timeline ──────────────────────────────────────
+            SliverToBoxAdapter(
+              child: _stagger(
+                _timelineAnim,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: AchievementTimeline(
+                    countryCount: countryCount,
+                    unlockedIds: unlockedIds,
+                  ),
                 ),
               ),
             ),
 
             // ── Achievement Gallery ───────────────────────────────────────
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: AchievementGallery(
-                  unlockedById: unlockedById,
-                  countryCount: countryCount,
-                  continentCount: continentCount,
-                  tripCount: tripCount,
-                  thisYearCount: thisYearCount,
-                  heritageCount: heritageCount,
+              child: _stagger(
+                _galleryAnim,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: AchievementGallery(
+                    unlockedById: unlockedById,
+                    countryCount: countryCount,
+                    continentCount: continentCount,
+                    tripCount: tripCount,
+                    thisYearCount: thisYearCount,
+                    heritageCount: heritageCount,
+                  ),
                 ),
               ),
             ),
 
             // ── Merch Moments ─────────────────────────────────────────────
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: MerchMomentsSection(unlockedById: unlockedById),
+              child: _stagger(
+                _merchAnim,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: MerchMomentsSection(unlockedById: unlockedById),
+                ),
               ),
             ),
           ],
