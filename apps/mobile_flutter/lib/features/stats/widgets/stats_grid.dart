@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
@@ -172,6 +173,12 @@ class _AnimatedStatCard extends StatelessWidget {
     );
 
     if (onTap == null) return card;
-    return GestureDetector(onTap: onTap, child: card);
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap!();
+      },
+      child: card,
+    );
   }
 }

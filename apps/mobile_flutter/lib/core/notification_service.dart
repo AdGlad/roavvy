@@ -13,6 +13,7 @@ const int _kAchievementNotificationId = 1;
 const int _kMemoryPulseNotificationId = 2;
 const int _kYearInReviewNotificationId = 3;
 const int _kExclusiveDesignNotificationId = 4;
+const int _kStreakReminderNotificationId = 5;
 const int _kShopTab = 3;
 
 /// Base ID for the memory pulse batch (IDs 200–229, max 30 slots).
@@ -286,6 +287,36 @@ class NotificationService {
       tz.TZDateTime.from(deliverAt, tz.local),
       const NotificationDetails(iOS: DarwinNotificationDetails()),
       payload: 'yearInReview:$reviewYear',
+      androidScheduleMode: AndroidScheduleMode.inexact,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  /// Schedules a streak-at-risk reminder for 8pm today if none is already
+  /// pending. Pass [currentStreak] so the message is personalised.
+  ///
+  /// This is a same-day notification — it is automatically cancelled when the
+  /// user opens the Stats tab again tomorrow (re-calling replaces it).
+  /// No-op if [currentStreak] is 0 or the 8pm window has already passed today.
+  Future<void> scheduleStreakReminder({required int currentStreak}) async {
+    if (!_initialized) return;
+    if (currentStreak <= 0) return;
+    await _plugin.cancel(_kStreakReminderNotificationId);
+    final now = DateTime.now();
+    final target = DateTime(now.year, now.month, now.day, 20, 0);
+    if (!target.isAfter(now)) return; // window already passed
+    await _plugin.zonedSchedule(
+      _kStreakReminderNotificationId,
+      'Keep your $currentStreak-day streak alive!',
+      'Play today\'s Daily Challenge before midnight.',
+      tz.TZDateTime.from(target, tz.local),
+      const NotificationDetails(
+        iOS: DarwinNotificationDetails(
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+      ),
+      payload: 'tab:$_kStatsTab',
       androidScheduleMode: AndroidScheduleMode.inexact,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,

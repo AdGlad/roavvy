@@ -1,6 +1,10 @@
+import 'dart:developer' as developer;
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notification_service.dart';
 import '../../core/providers.dart';
 import '../../data/db/roavvy_database.dart';
 import 'widgets/achievement_gallery.dart';
@@ -32,6 +36,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     with SingleTickerProviderStateMixin {
   late final Future<List<UnlockedAchievementRow>> _achievementsFuture;
   late final AnimationController _staggerCtrl;
+  final _celebrationPlayer = AudioPlayer();
 
   // One interval per section — staggered entry over 1.4s total.
   static const _dur = Duration(milliseconds: 1400);
@@ -50,6 +55,14 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     super.initState();
     _achievementsFuture = ref.read(achievementRepositoryProvider).loadAllRows();
     _staggerCtrl = AnimationController(vsync: this, duration: _dur);
+
+    // Play celebration sound when achievements load (fire-and-forget).
+    _achievementsFuture.then((rows) {
+      if (!mounted || rows.isEmpty) return;
+      _celebrationPlayer
+          .play(AssetSource('audio/celebration.mp3'))
+          .catchError((e) => developer.log('Stats: celebration sound failed: $e'));
+    });
 
     Animation<double> interval(double start, double end) =>
         CurvedAnimation(
@@ -72,6 +85,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   @override
   void dispose() {
     _staggerCtrl.dispose();
+    _celebrationPlayer.dispose();
     super.dispose();
   }
 
@@ -105,6 +119,13 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     final continentCount = continentCountAsync.valueOrNull ?? 0;
     final thisYearCount = thisYearCountAsync.valueOrNull ?? 0;
     final visits = visitsAsync.valueOrNull;
+
+    // Schedule a streak-at-risk reminder at 8pm today (no-op if already past).
+    if (challengeAggregate != null && challengeAggregate.currentStreak > 0) {
+      NotificationService.instance.scheduleStreakReminder(
+        currentStreak: challengeAggregate.currentStreak,
+      );
+    }
 
     return FutureBuilder<List<UnlockedAchievementRow>>(
       future: _achievementsFuture,

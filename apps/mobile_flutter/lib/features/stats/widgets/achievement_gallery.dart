@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -421,7 +422,12 @@ class _AchievementRow extends StatelessWidget {
     return Opacity(
       opacity: isUnlocked ? 1.0 : 0.6,
       child: InkWell(
-        onTap: onTap,
+        onTap: onTap == null
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                onTap!();
+              },
         borderRadius: BorderRadius.circular(10),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
