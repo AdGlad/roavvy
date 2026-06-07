@@ -14,8 +14,7 @@ import '../../core/theme/roavvy_colours.dart';
 const _kOcean = Color(0xFF0D2137);
 const _kUnvisited = Color(0xFF1E3A5F);
 const _kUnvisitedBorder = Color(0xFF2A4F7A);
-const _kContinentGlow = Color(0xFF0A7EA4); // sky-blue continent highlight
-const _kContinentBorder = Color(0xFF29ABE2);
+const _kContinentGlow = Color(0xFF0A7EA4); // fallback if continent not in map
 const _kCountryGold = Color(0xFFD4A017);
 const _kCountryBorder = Color(0xFFFFD700);
 
@@ -247,12 +246,14 @@ class _ContinentPolygonLayerState extends State<_ContinentPolygonLayer>
         final continent = kCountryContinent[p.isoCode];
         if (continent != null &&
             widget.visitedContinents.contains(continent)) {
-          // Country in a visited continent — teal glow
+          // Country in a visited continent — use that continent's colour
+          final continentColor =
+              _continentColors[continent] ?? _kContinentGlow;
           continentPolygons.add(
             Polygon(
               points: points,
-              color: _kContinentGlow.withValues(alpha: 0.45),
-              borderColor: _kContinentBorder.withValues(alpha: 0.35),
+              color: continentColor.withValues(alpha: 0.42),
+              borderColor: continentColor.withValues(alpha: 0.30),
               borderStrokeWidth: 0.5,
             ),
           );
@@ -312,7 +313,27 @@ class _Legend extends StatelessWidget {
         children: [
           _LegendItem(color: _kCountryGold, label: 'Visited'),
           const SizedBox(height: 5),
-          _LegendItem(color: _kContinentGlow, label: 'Continent unlocked'),
+          // Multi-colour dot row for continents
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: _continentColors.values.map((c) => Padding(
+                  padding: const EdgeInsets.only(right: 2),
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Continent',
+                style: TextStyle(color: Colors.white, fontSize: 11),
+              ),
+            ],
+          ),
           const SizedBox(height: 5),
           _LegendItem(color: _kUnvisited, label: 'Not yet'),
         ],
