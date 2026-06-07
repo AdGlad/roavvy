@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
+import '../continent_explorer_screen.dart';
 import '../countries_list_screen.dart';
 
 /// Animated, colour-coded 2×2 stats grid (M147).
@@ -66,6 +67,13 @@ class StatsGrid extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            onTap: continentCount > 0
+                ? () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ContinentExplorerScreen(),
+                      ),
+                    )
+                : null,
           ),
           _AnimatedStatCard(
             value: tripCount,
