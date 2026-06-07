@@ -321,6 +321,33 @@ class _AchievementList extends StatelessWidget {
   }
 }
 
+// ── Rarity ────────────────────────────────────────────────────────────────────
+
+enum _Rarity { common, rare, epic, legendary }
+
+_Rarity _rarityFor(Achievement a) {
+  if (a.progressTarget >= 150) return _Rarity.legendary;
+  if (a.progressTarget >= 50) return _Rarity.epic;
+  if (a.progressTarget >= 15) return _Rarity.rare;
+  return _Rarity.common;
+}
+
+Color _rarityColor(_Rarity r) => switch (r) {
+  _Rarity.legendary => const Color(0xFFF2C94C),
+  _Rarity.epic => const Color(0xFF9B51E0),
+  _Rarity.rare => const Color(0xFF2F80ED),
+  _Rarity.common => const Color(0xFF6B7280),
+};
+
+String _rarityLabel(_Rarity r) => switch (r) {
+  _Rarity.legendary => 'Legendary',
+  _Rarity.epic => 'Epic',
+  _Rarity.rare => 'Rare',
+  _Rarity.common => 'Common',
+};
+
+// ── Achievement row ───────────────────────────────────────────────────────────
+
 class _AchievementRow extends StatelessWidget {
   const _AchievementRow({
     required this.achievement,
@@ -339,56 +366,80 @@ class _AchievementRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final rarity = _rarityFor(achievement);
+    final rarityColor = _rarityColor(rarity);
+    final isLegendary = rarity == _Rarity.legendary;
+    final remaining = achievement.progressTarget - current;
+
+    final BoxDecoration decoration;
+    if (isUnlocked) {
+      decoration = isLegendary
+          ? BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  RoavvyColours.roavvyGold.withValues(alpha: 0.25),
+                  RoavvyColours.roavvyGold.withValues(alpha: 0.07),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: RoavvyColours.roavvyGold.withValues(alpha: 0.55),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: RoavvyColours.roavvyGold.withValues(alpha: 0.28),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ],
+            )
+          : BoxDecoration(
+              color: RoavvyColours.roavvyGold.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+              border: const Border(
+                left: BorderSide(
+                  color: RoavvyColours.roavvyGold,
+                  width: 3,
+                ),
+              ),
+            );
+    } else {
+      decoration = BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+        border: isLegendary
+            ? Border.all(
+                color: rarityColor.withValues(alpha: 0.25),
+                width: 1.5,
+              )
+            : null,
+      );
+    }
 
     return Opacity(
-      opacity: isUnlocked ? 1.0 : 0.55,
+      opacity: isUnlocked ? 1.0 : 0.6,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color:
-                isUnlocked
-                    ? RoavvyColours.roavvyGold.withOpacity(0.12)
-                    : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
-            border:
-                isUnlocked
-                    ? const Border(
-                      left: BorderSide(
-                        color: RoavvyColours.roavvyGold,
-                        width: 3,
-                      ),
-                    )
-                    : null,
-            boxShadow:
-                isUnlocked
-                    ? [
-                      BoxShadow(
-                        color: RoavvyColours.roavvyGold.withOpacity(0.35),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                    : null,
-          ),
+          decoration: decoration,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Header ────────────────────────────────────────────────
                 Row(
                   children: [
                     Icon(
-                      isUnlocked
-                          ? Icons.emoji_events_outlined
-                          : Icons.lock_outline,
+                      isUnlocked ? Icons.emoji_events : Icons.lock_outline,
                       size: 20,
-                      color:
-                          isUnlocked
-                              ? RoavvyColours.roavvyGold
-                              : theme.colorScheme.onSurfaceVariant,
+                      color: isUnlocked
+                          ? RoavvyColours.roavvyGold
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -396,15 +447,17 @@ class _AchievementRow extends StatelessWidget {
                         achievement.title,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color:
-                              isUnlocked
-                                  ? null
-                                  : theme.colorScheme.onSurfaceVariant,
+                          color: isUnlocked
+                              ? null
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    if (isUnlocked && achievement.merch != null)
+                    _RarityBadge(rarity: rarity),
+                    if (isUnlocked && achievement.merch != null) ...[
+                      const SizedBox(width: 6),
                       _MerchChip(achievement: achievement),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -414,6 +467,7 @@ class _AchievementRow extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+                // ── Unlock date / progress ────────────────────────────────
                 if (isUnlocked)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -440,25 +494,34 @@ class _AchievementRow extends StatelessWidget {
                 else ...[
                   const SizedBox(height: 6),
                   LinearProgressIndicator(
-                    value: (current / achievement.progressTarget).clamp(
-                      0.0,
-                      1.0,
-                    ),
+                    value:
+                        (current / achievement.progressTarget).clamp(0.0, 1.0),
                     minHeight: 4,
                     borderRadius: BorderRadius.circular(2),
-                    backgroundColor: theme.colorScheme.outline.withValues(
-                      alpha: 0.2,
-                    ),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.primary,
-                    ),
+                    backgroundColor:
+                        theme.colorScheme.outline.withValues(alpha: 0.2),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(rarityColor),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$current / ${achievement.progressTarget}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Text(
+                        '$current / ${achievement.progressTarget}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (remaining > 0)
+                        Text(
+                          '$remaining more to go',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: rarityColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ],
@@ -471,20 +534,41 @@ class _AchievementRow extends StatelessWidget {
 
   String _fmtDate(DateTime dt) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return 'Unlocked ${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+}
+
+// ── Rarity badge ──────────────────────────────────────────────────────────────
+
+class _RarityBadge extends StatelessWidget {
+  const _RarityBadge({required this.rarity});
+
+  final _Rarity rarity;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rarity == _Rarity.common) return const SizedBox.shrink();
+    final color = _rarityColor(rarity);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        _rarityLabel(rarity),
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: color,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
   }
 }
 
