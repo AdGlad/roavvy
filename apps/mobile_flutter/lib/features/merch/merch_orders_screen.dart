@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import 'local_mockup_preview_screen.dart';
+import 'merch_preset.dart';
+import 'merch_template_ranker.dart';
 
 // ── Data model ─────────────────────────────────────────────────────────────────
 
@@ -107,7 +109,7 @@ class MerchOrdersScreen extends ConsumerWidget {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My Collection')),
+        appBar: AppBar(title: const Text('Order History')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(32),
@@ -121,7 +123,7 @@ class MerchOrdersScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Collection')),
+      appBar: AppBar(title: const Text('Order History')),
       body: const MerchOrdersBody(),
     );
   }
@@ -257,6 +259,11 @@ class _OrderCard extends ConsumerWidget {
 
     if (!context.mounted) return;
 
+    final ranks = MerchTemplateRanker.rankFor(codeCount: selectedCodes.length);
+    final template = ranks
+        .firstWhere((r) => !r.exclude, orElse: () => ranks.first)
+        .template;
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -264,6 +271,18 @@ class _OrderCard extends ConsumerWidget {
               selectedCodes: selectedCodes,
               allCodes: allCodes,
               trips: trips,
+              initialTemplate: template,
+              initialPreset: MerchPreset(
+                id: 'design_again',
+                label: 'My Design',
+                config: MerchPresetConfig(
+                  layout: template,
+                  source: MerchCountrySource.allTime,
+                  jitter: 0.4,
+                  density: MerchDensity.balanced,
+                  stampMode: MerchStampMode.entryExit,
+                ),
+              ),
             ),
       ),
     );

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/country_names.dart';
 import '../../core/notification_service.dart';
 import '../../data/db/roavvy_database.dart';
+import '../scan/hero_analysis_channel.dart';
 import '../scan/hero_image_repository.dart';
 import 'app_open_tracker.dart';
 import 'memory_anniversary_photo.dart';
@@ -32,6 +33,11 @@ const int _kPhotoCheckPageSize = 2000;
 /// Maximum number of assets fetched for notification scheduling.
 const int _kNotificationPageSize = 5000;
 
+/// Maximum photos submitted for Vision analysis per anniversary year.
+/// Caps processing time while still evaluating far more photos than the
+/// 25-candidate scan pipeline uses per trip.
+const int _kMaxPulseAnalysisPerYear = 50;
+
 /// On-device travel anniversary service (M91, M114, ADR-136).
 ///
 /// - [checkTodayFromPhotoLibrary] queries photo_manager for anniversary photos,
@@ -43,17 +49,21 @@ const int _kNotificationPageSize = 5000;
 /// The legacy [checkToday] method (HeroImage-based) is kept for compatibility
 /// but is no longer called by providers (M114).
 class MemoryPulseService {
-  const MemoryPulseService({
+  MemoryPulseService({
     required HeroImageRepository heroRepo,
     required NotificationService notifications,
     required RoavvyDatabase db,
+    HeroAnalysisChannel? analysisChannel,
   }) : _heroRepo = heroRepo,
        _notifications = notifications,
-       _db = db;
+       _db = db,
+       _analysisChannel = analysisChannel ?? HeroAnalysisChannel();
 
   final HeroImageRepository _heroRepo;
   final NotificationService _notifications;
   final RoavvyDatabase _db;
+  final HeroAnalysisChannel _analysisChannel;
+  final _scoringEngine = const HeroScoringEngine();
 
   // ── M114 photo-library-based anniversary check ────────────────────────────
 
@@ -81,6 +91,7 @@ class MemoryPulseService {
     final byYear = _groupByYear(matching);
     final years = byYear.keys.toList()..sort((a, b) => b.compareTo(a));
 
+    // Country + trip lookups apply across all years — do once up-front.
     final allIds = matching.map((a) => a.id).toList();
     final countryByAssetId = await _lookupCountryCodes(allIds);
     final tripByAssetId = await _lookupTripIds(allIds);
@@ -91,8 +102,19 @@ class MemoryPulseService {
     final results = <MemoryAnniversaryPhoto>[];
     for (final year in years) {
       if (results.length >= 3) break;
-      final yearAssets = byYear[year]!;
-      final best = _pickBestPhoto(yearAssets, countryByAssetId);
+
+      // Build the anniversary date string for this year, e.g. "2024-06-07".
+      final anniversaryDate =
+          '${year.toString().padLeft(4, '0')}-'
+          '${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+
+      // Run Vision on unscored photos for this year and pick the best.
+      final best = await _analyseAndPickBest(
+        byYear[year]!,
+        countryByAssetId: countryByAssetId,
+        anniversaryDate: anniversaryDate,
+      );
       if (best == null) continue;
       if (prefs.containsKey('$_kDismissedPrefix${best.id}:$todayKey')) continue;
 
@@ -106,6 +128,84 @@ class MemoryPulseService {
       );
     }
     return results;
+  }
+
+  /// Runs Vision analysis on [yearAssets] that have not been scored yet,
+  /// persists the results in [hero_images] under a synthetic trip ID, then
+  /// returns the best photo using the full [HeroScoringEngine] quality score.
+  ///
+  /// Uses a synthetic [tripId] of the form `pulse_YYYY-MM-DD` so results are
+  /// stored alongside regular hero images and reused on subsequent checks
+  /// within the same day without re-running Vision.
+  ///
+  /// Returns null when no photo clears the minimum quality threshold, which
+  /// causes the caller to skip this anniversary year and try an earlier one.
+  Future<AssetEntity?> _analyseAndPickBest(
+    List<AssetEntity> yearAssets, {
+    required Map<String, String> countryByAssetId,
+    required String anniversaryDate,
+  }) async {
+    if (yearAssets.isEmpty) return null;
+
+    final assetIds = yearAssets.map((a) => a.id).toList();
+
+    // Fetch any existing hero scores for these photos (from prior scans or
+    // a previous pulse check today).
+    final heroScoreByAssetId = await _lookupHeroScores(assetIds);
+
+    // Identify photos that have not yet been through Vision analysis.
+    final unscored =
+        yearAssets
+            .where((a) => !heroScoreByAssetId.containsKey(a.id))
+            .take(_kMaxPulseAnalysisPerYear)
+            .map((a) => a.id)
+            .toList();
+
+    if (unscored.isNotEmpty) {
+      final syntheticTripId = 'pulse_$anniversaryDate';
+      final countryCode = _dominantCountry(unscored, countryByAssetId);
+
+      final results = await _analysisChannel.analyseHeroCandidates(
+        tripId: syntheticTripId,
+        assetIds: unscored,
+      );
+
+      if (results.isNotEmpty) {
+        final heroes = _scoringEngine.rank(
+          tripId: syntheticTripId,
+          countryCode: countryCode,
+          candidates: results,
+        );
+        await _heroRepo.upsertHeroesForTrip(syntheticTripId, heroes);
+
+        // Merge freshly-computed scores so _pickBestPhoto can use them.
+        for (final h in heroes) {
+          heroScoreByAssetId[h.assetId] = h.heroScore;
+        }
+      }
+    }
+
+    return _pickBestPhoto(
+      yearAssets,
+      countryByAssetId,
+      heroScoreByAssetId: heroScoreByAssetId,
+    );
+  }
+
+  /// Returns the most common country code among [assetIds], or empty string
+  /// when none are country-tagged. Used to set the countryCode field on
+  /// hero_images rows created for the synthetic pulse trip.
+  String _dominantCountry(
+    List<String> assetIds,
+    Map<String, String> countryByAssetId,
+  ) {
+    final counts = <String, int>{};
+    for (final id in assetIds) {
+      final code = countryByAssetId[id];
+      if (code != null) counts[code] = (counts[code] ?? 0) + 1;
+    }
+    if (counts.isEmpty) return '';
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
   // ── Legacy hero-image check (deprecated, not deleted per M114 spec) ───────
@@ -202,10 +302,11 @@ class MemoryPulseService {
     }
     if (mmddToAssets.isEmpty) return;
 
-    // Look up country codes for all candidate assets.
+    // Look up country codes and hero scores for all candidate assets.
     final allIds =
         mmddToAssets.values.expand((l) => l).map((a) => a.id).toList();
     final countryByAssetId = await _lookupCountryCodes(allIds);
+    final heroScoreByAssetId = await _lookupHeroScores(allIds);
 
     final hour = await AppOpenTracker.preferredHour();
 
@@ -221,7 +322,11 @@ class MemoryPulseService {
       final dayAssets = mmddToAssets[key];
       if (dayAssets == null) continue;
 
-      final best = _pickBestPhoto(dayAssets, countryByAssetId);
+      final best = _pickBestPhoto(
+        dayAssets,
+        countryByAssetId,
+        heroScoreByAssetId: heroScoreByAssetId,
+      );
       if (best == null) continue;
 
       final countryCode = countryByAssetId[best.id];
@@ -398,35 +503,91 @@ class MemoryPulseService {
     return result;
   }
 
-  /// Selects the best photo from [yearAssets] using the priority criteria:
-  /// 1. Country known + isFavorite
-  /// 2. Country known + highest pixel area
-  /// 3. Country known + any
-  /// 4. isFavorite (no country match)
-  /// 5. Highest pixel area (no country match)
+  /// Selects the best photo from [yearAssets] using a quality score that
+  /// combines Vision-based hero scores (when available) with photo metadata.
+  ///
+  /// Returns null when no photo clears the minimum quality threshold — this
+  /// signals the caller to skip this anniversary year and try an earlier one
+  /// (the "fallback year" behaviour requested for Memory Pulse).
   AssetEntity? _pickBestPhoto(
     List<AssetEntity> yearAssets,
-    Map<String, String> countryByAssetId,
-  ) {
+    Map<String, String> countryByAssetId, {
+    Map<String, double> heroScoreByAssetId = const {},
+  }) {
     if (yearAssets.isEmpty) return null;
 
-    final withCountry =
-        yearAssets.where((a) => countryByAssetId.containsKey(a.id)).toList();
+    AssetEntity? best;
+    double bestScore = -1;
 
-    if (withCountry.isNotEmpty) {
-      final favWithCountry = withCountry.where((a) => a.isFavorite).toList();
-      if (favWithCountry.isNotEmpty) return favWithCountry.first;
-      return withCountry.reduce(
-        (a, b) => (a.width * a.height) >= (b.width * b.height) ? a : b,
+    for (final asset in yearAssets) {
+      final s = _scorePulsePhoto(
+        asset,
+        countryByAssetId: countryByAssetId,
+        heroScoreByAssetId: heroScoreByAssetId,
       );
+      if (s == null) continue;
+      if (s > bestScore) {
+        bestScore = s;
+        best = asset;
+      }
     }
 
-    // No country match: prefer favourites, then largest.
-    final favs = yearAssets.where((a) => a.isFavorite).toList();
-    if (favs.isNotEmpty) return favs.first;
-    return yearAssets.reduce(
-      (a, b) => (a.width * a.height) >= (b.width * b.height) ? a : b,
-    );
+    // Minimum quality gate: score < 15 means no country-tagged photo with
+    // adequate resolution was found — skip this year so the caller falls back
+    // to an earlier anniversary year automatically.
+    if (best == null || bestScore < 15) return null;
+    return best;
+  }
+
+  /// Computes a quality score for [asset] for use in Memory Pulse selection.
+  ///
+  /// Returns null if the photo fails a hard quality gate (too small to be a
+  /// meaningful travel memory). Higher scores indicate a better pulse photo.
+  ///
+  /// Scoring factors (in priority order):
+  /// - Hero score from Vision pipeline (0–100 → 0–60 bonus): strongest signal
+  /// - Pixel area: proxy for photo intentionality (large = more deliberate)
+  /// - Country tag: confirmed travel photo
+  /// - Landscape orientation: scenic photos are typically wider than tall
+  /// - User favourite
+  double? _scorePulsePhoto(
+    AssetEntity asset, {
+    required Map<String, String> countryByAssetId,
+    required Map<String, double> heroScoreByAssetId,
+  }) {
+    // Hard gate: very small photos (stickers, thumbnails, corrupted assets).
+    final minDim = asset.width < asset.height ? asset.width : asset.height;
+    if (minDim < 300 && !asset.isFavorite) return null;
+
+    double score = 0;
+
+    // Hero score from the Vision pipeline — strongest available signal.
+    // Maps the 0–100 HeroScoringEngine score to a 0–60 bonus here.
+    final heroScore = heroScoreByAssetId[asset.id];
+    if (heroScore != null) {
+      score += heroScore * 0.6;
+    }
+
+    // Pixel area: larger photos are more likely to be intentional shots.
+    final pixels = asset.width * asset.height;
+    if (pixels >= 8000000) {
+      score += 20;
+    } else if (pixels >= 3000000) {
+      score += 15;
+    } else if (pixels >= 1000000) {
+      score += 8;
+    }
+
+    // Country tag: confirmed this photo is from a travel location.
+    if (countryByAssetId.containsKey(asset.id)) score += 15;
+
+    // Landscape orientation: scenic travel photos are usually wider than tall.
+    if (asset.width > asset.height) score += 10;
+
+    // User explicitly marked as favourite.
+    if (asset.isFavorite) score += 10;
+
+    return score;
   }
 
   /// Queries [photo_date_records] for matching assetIds, returning assetId → countryCode.
@@ -464,6 +625,26 @@ class MemoryPulseService {
     return {
       for (final r in rows)
         r.read<String>('asset_id'): r.read<String>('trip_id'),
+    };
+  }
+
+  /// Queries [hero_images] for matching assetIds, returning assetId → heroScore.
+  /// Only photos that have been through the scan pipeline will have an entry.
+  Future<Map<String, double>> _lookupHeroScores(List<String> assetIds) async {
+    if (assetIds.isEmpty) return const {};
+    final placeholders = List.filled(assetIds.length, '?').join(', ');
+    final rows =
+        await _db
+            .customSelect(
+              'SELECT asset_id, hero_score FROM hero_images '
+              'WHERE asset_id IN ($placeholders)',
+              variables: assetIds.map(Variable.withString).toList(),
+              readsFrom: {_db.heroImages},
+            )
+            .get();
+    return {
+      for (final r in rows)
+        r.read<String>('asset_id'): r.read<double>('hero_score'),
     };
   }
 

@@ -181,6 +181,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
   final _audio = ChallengeAudioService();
   int _lastCluesRevealed = 0;
 
+  /// True when the game was already over (solved or failed) when this session
+  /// started — i.e. the user is returning to view results, not just finishing.
+  /// Used to suppress audio and confetti on the result overlay for return visits.
+  late bool _gameWasAlreadyOver;
+
   @override
   void initState() {
     super.initState();
@@ -195,6 +200,9 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
     _audio.preload().ignore();
     // Record initial clue count so we can detect new reveals.
     _lastCluesRevealed = widget.state.progress.cluesRevealed;
+    // If already solved/failed when screen opened, this is a return visit.
+    _gameWasAlreadyOver =
+        widget.state.progress.solved || widget.state.progress.failed;
   }
 
   @override
@@ -348,7 +356,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
           ],
         ),
         if (gameOver)
-          _ChallengeResultOverlay(state: state, solved: progress.solved),
+          _ChallengeResultOverlay(
+            state: state,
+            solved: progress.solved,
+            isRestored: _gameWasAlreadyOver,
+          ),
       ],
     );
   }
@@ -799,10 +811,18 @@ class _GuessHistory extends StatelessWidget {
 // ── Result overlay ────────────────────────────────────────────────────────────
 
 class _ChallengeResultOverlay extends ConsumerStatefulWidget {
-  const _ChallengeResultOverlay({required this.state, required this.solved});
+  const _ChallengeResultOverlay({
+    required this.state,
+    required this.solved,
+    required this.isRestored,
+  });
 
   final DailyChallengeState state;
   final bool solved;
+
+  /// True when the game was already finished before this screen session started
+  /// (user is returning to view results). Suppresses audio and confetti.
+  final bool isRestored;
 
   @override
   ConsumerState<_ChallengeResultOverlay> createState() =>
@@ -822,18 +842,22 @@ class _ChallengeResultOverlayState
     _sheetCtrl = DraggableScrollableController();
     _confetti = ConfettiController(duration: const Duration(seconds: 3));
     WidgetsBinding.instance.addObserver(this);
-    _audio.preload().then((_) {
-      if (!mounted) return;
-      if (widget.solved) {
-        _audio.playSolve();
-      } else {
-        _audio.playFail();
-      }
-    });
-    if (widget.solved) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _confetti.play();
+    // Only play audio and confetti when the game was JUST finished this session.
+    // On return visits the overlay appears silently so the user can review results.
+    if (!widget.isRestored) {
+      _audio.preload().then((_) {
+        if (!mounted) return;
+        if (widget.solved) {
+          _audio.playSolve();
+        } else {
+          _audio.playFail();
+        }
       });
+      if (widget.solved) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _confetti.play();
+        });
+      }
     }
   }
 

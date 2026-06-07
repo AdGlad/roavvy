@@ -19,6 +19,7 @@ import '../data/visit_repository.dart';
 import '../data/xp_repository.dart';
 import '../features/memory/memory_anniversary_photo.dart';
 import '../features/memory/memory_pulse_service.dart';
+import '../features/scan/hero_analysis_channel.dart';
 import '../features/scan/hero_image_repository.dart';
 import '../features/xp/xp_event.dart';
 import '../features/xp/xp_notifier.dart';
@@ -268,6 +269,7 @@ final memoryPulseServiceProvider = Provider<MemoryPulseService>((ref) {
     heroRepo: HeroImageRepository(db),
     notifications: NotificationService.instance,
     db: db,
+    analysisChannel: HeroAnalysisChannel(),
   );
 });
 

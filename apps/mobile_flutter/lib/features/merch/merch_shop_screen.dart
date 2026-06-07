@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
-import 'merch_cart_item.dart';
-import 'merch_cart_item_card.dart';
 import 'merch_cart_screen.dart';
 import 'merch_design_entry_screen.dart';
 import 'merch_orders_screen.dart';
@@ -21,135 +19,43 @@ class MerchShopScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uid = ref.watch(currentUidProvider);
-    final cartAsync = ref.watch(merchCartProvider);
-    final ordersAsync = ref.watch(merchOrdersProvider);
-
-    final cartItems = cartAsync.valueOrNull ?? const [];
-    final recentOrders = (ordersAsync.valueOrNull ?? const []).take(5).toList();
+    final cartCount = ref.watch(merchCartCountProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop')),
-      body: CustomScrollView(
-        slivers: [
-          // ── Identity header ──────────────────────────────────────────────
-          const SliverToBoxAdapter(child: MerchIdentityHeader()),
-
-          // ── Design entry banner (M140) ───────────────────────────────────
-          const SliverToBoxAdapter(child: _DesignEntryBanner()),
-
-          // ── Personalised recommendations ─────────────────────────────────
-          const SliverToBoxAdapter(child: MerchReadyToDesignSection()),
-
-          // ── Dynamic collections ───────────────────────────────────────────
-          const SliverToBoxAdapter(child: MerchCollectionsSection()),
-
-          // ── Saved designs (cart items) ────────────────────────────────────
-          if (uid != null && cartItems.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: _SectionHeader(
-                title: 'Saved Designs',
-                icon: Icons.shopping_cart_outlined,
+      appBar: AppBar(
+        title: const Text('Shop'),
+        actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              child: const Icon(Icons.shopping_bag_outlined),
+            ),
+            tooltip: 'Cart',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MerchCartScreen(),
               ),
-            ),
-            SliverList.builder(
-              itemCount: cartItems.length,
-              itemBuilder:
-                  (context, i) => MerchCartItemCard(
-                    item: cartItems[i],
-                    uid: uid,
-                    onCheckout:
-                        cartItems[i].status ==
-                                    MerchCartItemStatus.mockupReady ||
-                                cartItems[i].status ==
-                                    MerchCartItemStatus.checkoutStarted
-                            ? () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder:
-                                    (_) => CartItemCheckoutScreen(
-                                      item: cartItems[i],
-                                    ),
-                              ),
-                            )
-                            : null,
-                  ),
-            ),
-          ],
-
-          // ── Recent orders ─────────────────────────────────────────────────
-          if (uid != null && recentOrders.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: _SectionHeader(
-                title: 'My Collection',
-                icon: Icons.collections_bookmark_outlined,
-                action: recentOrders.length == 5
-                    ? TextButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const MerchOrdersScreen(),
-                          ),
-                        ),
-                        child: const Text('See all'),
-                      )
-                    : null,
-              ),
-            ),
-            SliverList.builder(
-              itemCount: recentOrders.length,
-              itemBuilder: (context, i) => _OrderCard(order: recentOrders[i]),
-            ),
-          ],
-
-          // ── Empty state when nothing in cart/orders ───────────────────────
-          if (uid == null ||
-              (cartItems.isEmpty && recentOrders.isEmpty))
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-                child: Text(
-                  uid == null
-                      ? 'Sign in to save designs and view your collection.'
-                      : 'Start a design above — your saved designs and orders appear here.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Section header ────────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.icon, this.action});
-
-  final String title;
-  final IconData icon;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 8, 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.white54),
-          const SizedBox(width: 6),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
             ),
           ),
-          const Spacer(),
-          if (action != null) action!,
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'Order History',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MerchOrdersScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: const CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: MerchIdentityHeader()),
+          SliverToBoxAdapter(child: _DesignEntryBanner()),
+          SliverToBoxAdapter(child: MerchReadyToDesignSection()),
+          SliverToBoxAdapter(child: MerchCollectionsSection()),
+          SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
@@ -247,47 +153,6 @@ class _DesignEntryBanner extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ── Recent order card (compact) ───────────────────────────────────────────────
-
-class _OrderCard extends ConsumerWidget {
-  const _OrderCard({required this.order});
-
-  final MerchOrderSummary order;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        leading: order.thumbnailUrl != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  order.thumbnailUrl!,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined),
-                ),
-              )
-            : const Icon(Icons.checkroom_outlined),
-        title: Text(
-          order.productName,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          '${order.countryCount} countries',
-          style: const TextStyle(fontSize: 12),
-        ),
-        trailing: const Icon(Icons.chevron_right, size: 18),
       ),
     );
   }
