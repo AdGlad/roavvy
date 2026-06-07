@@ -1,4 +1,5 @@
-import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -18,6 +19,7 @@ class TravelProgressHero extends StatefulWidget {
     this.continentCount = 0,
     this.tripCount = 0,
     this.heritageCount = 0,
+    this.visits,
   });
 
   final int countryCount;
@@ -25,6 +27,7 @@ class TravelProgressHero extends StatefulWidget {
   final int continentCount;
   final int tripCount;
   final int heritageCount;
+  final List<EffectiveVisitedCountry>? visits;
 
   @override
   State<TravelProgressHero> createState() => _TravelProgressHeroState();
@@ -117,6 +120,27 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
     return '$noun to unlock "${nearest.title}"';
   }
 
+  // ── Per-continent country counts ─────────────────────────────────────────
+
+  /// Order and metadata for the six concentric rings (outer → inner).
+  static const List<(String, Color, int)> _rings = [
+    ('Africa',        Color(0xFFFF8C42), 54),
+    ('Asia',          Color(0xFFE74C3C), 48),
+    ('Europe',        Color(0xFF3498DB), 44),
+    ('North America', Color(0xFF27AE60), 23),
+    ('Oceania',       Color(0xFF16A085), 14),
+    ('South America', Color(0xFF8E44AD), 12),
+  ];
+
+  Map<String, int> _continentCounts() {
+    final counts = <String, int>{};
+    for (final v in widget.visits ?? const <EffectiveVisitedCountry>[]) {
+      final continent = kCountryContinent[v.countryCode];
+      if (continent != null) counts[continent] = (counts[continent] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   int _progressFor(Achievement a) => switch (a.category) {
     AchievementCategory.countries => widget.countryCount,
     AchievementCategory.continents => widget.continentCount,
@@ -185,49 +209,33 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           child: Column(
             children: [
-              // ── Animated donut ring ──────────────────────────────────────
-              SizedBox(
-                height: 190,
-                child: AnimatedBuilder(
-                  animation: _ringAnim,
-                  builder: (_, __) {
-                    final animated = count * _ringAnim.value;
-                    final animRemaining =
-                        (_totalCountries - animated).clamp(
-                          0.0,
-                          _totalCountries.toDouble(),
-                        );
-                    return Stack(
+              // ── Concentric continent rings ────────────────────────────────
+              AnimatedBuilder(
+                animation: _ringAnim,
+                builder: (_, __) {
+                  final continentCounts = _continentCounts();
+                  final fractions = _rings.map((r) {
+                    final (name, _, total) = r;
+                    final visited = continentCounts[name] ?? 0;
+                    return (visited / total * _ringAnim.value).clamp(0.0, 1.0);
+                  }).toList();
+
+                  return SizedBox(
+                    width: 220,
+                    height: 220,
+                    child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        PieChart(
-                          PieChartData(
-                            startDegreeOffset: -90,
-                            sectionsSpace: 0,
-                            centerSpaceRadius: 70,
-                            sections: [
-                              PieChartSectionData(
-                                value: animated.clamp(
-                                  0.5,
-                                  _totalCountries.toDouble(),
-                                ),
-                                color: gold,
-                                radius: 22,
-                                showTitle: false,
-                              ),
-                              PieChartSectionData(
-                                value: animRemaining.clamp(
-                                  0.5,
-                                  _totalCountries.toDouble(),
-                                ),
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                radius: 16,
-                                showTitle: false,
-                              ),
+                        CustomPaint(
+                          size: const Size(220, 220),
+                          painter: _ContinentRingsPainter(
+                            rings: [
+                              for (int i = 0; i < _rings.length; i++)
+                                (fractions[i], _rings[i].$2),
                             ],
                           ),
                         ),
+                        // Center: total country count
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -237,23 +245,45 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                               curve: Curves.easeOut,
                               builder: (_, v, __) => Text(
                                 '${v.round()}',
-                                style: theme.textTheme.displaySmall?.copyWith(
+                                style: theme.textTheme.headlineLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
+                                  height: 1.0,
                                 ),
                               ),
                             ),
                             Text(
                               count == 1 ? 'country' : 'countries',
-                              style: theme.textTheme.bodySmall?.copyWith(
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
                       ],
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
+              ),
+
+              // ── Continent ring legend ─────────────────────────────────────
+              const SizedBox(height: 10),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 6,
+                children: [
+                  for (final (name, color, total) in _rings)
+                    Builder(builder: (context) {
+                      final visited =
+                          _continentCounts()[name] ?? 0;
+                      return _RingLegendItem(
+                        label: _shortContinent(name),
+                        value: '$visited/$total',
+                        color: color,
+                        complete: visited >= total,
+                      );
+                    }),
+                ],
               ),
 
               // ── Persona chip + tier badge ────────────────────────────────
@@ -349,6 +379,109 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
           ),
         ),
       ),
+    );
+  }
+}
+
+String _shortContinent(String name) => switch (name) {
+  'North America' => 'N. America',
+  'South America' => 'S. America',
+  _ => name,
+};
+
+// ── Concentric rings painter ──────────────────────────────────────────────────
+
+class _ContinentRingsPainter extends CustomPainter {
+  const _ContinentRingsPainter({required this.rings});
+
+  /// List of (animatedFraction 0–1, color) from outer to inner.
+  final List<(double, Color)> rings;
+
+  static const double _strokeWidth = 14;
+  static const double _gap = 5;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    // Leave a small outer margin so strokes aren't clipped.
+    final maxRadius = size.width / 2 - _strokeWidth / 2 - 2;
+
+    for (int i = 0; i < rings.length; i++) {
+      final (fraction, color) = rings[i];
+      final radius = maxRadius - i * (_strokeWidth + _gap);
+      if (radius < _strokeWidth / 2) break;
+
+      // Track
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = color.withValues(alpha: 0.14)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _strokeWidth,
+      );
+
+      // Progress arc
+      if (fraction > 0.005) {
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius),
+          -math.pi / 2,
+          math.pi * 2 * fraction.clamp(0.0, 1.0),
+          false,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = _strokeWidth
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ContinentRingsPainter old) => old.rings != rings;
+}
+
+// ── Ring legend item ──────────────────────────────────────────────────────────
+
+class _RingLegendItem extends StatelessWidget {
+  const _RingLegendItem({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.complete,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$label  ',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: complete ? color : null,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

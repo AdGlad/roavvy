@@ -156,6 +156,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
                     continentCount: continentCount,
                     tripCount: tripCount,
                     heritageCount: heritageCount,
+                    visits: visits,
                   ),
                 ),
               ),

@@ -3,12 +3,23 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
 
-/// Horizontal carousel showing the 3 nearest unmet achievements (M97, ADR-148).
+/// Category filter options for [NextAchievementsCarousel].
+enum _AchievementFilter {
+  all,
+  countries,
+  continents,
+  trips,
+  thisYear,
+  heritage,
+}
+
+/// Horizontally scrollable carousel of ALL unmet achievements (M97, ADR-148).
 ///
-/// Each card uses a category-matched gradient (Countries=Blue, Continents=Green,
-/// Trips=Purple, thisYear=Teal, UNESCO=Gold). Cards ≤ 2 away show a "SO CLOSE!"
-/// badge. Progress bar animates on first render.
-class NextAchievementsCarousel extends StatelessWidget {
+/// Category filter tabs (All / Countries / Continents / Trips / This Year /
+/// UNESCO) let the user browse every locked achievement and see exactly what
+/// is required. Sorted by ascending remaining so closest appear first.
+/// Cards ≤ 2 away show "SO CLOSE!" badge. Progress bars animate on render.
+class NextAchievementsCarousel extends StatefulWidget {
   const NextAchievementsCarousel({
     super.key,
     required this.countryCount,
@@ -26,32 +37,54 @@ class NextAchievementsCarousel extends StatelessWidget {
   final int heritageCount;
   final Set<String> unlockedIds;
 
+  @override
+  State<NextAchievementsCarousel> createState() =>
+      _NextAchievementsCarouselState();
+}
+
+class _NextAchievementsCarouselState extends State<NextAchievementsCarousel> {
+  _AchievementFilter _filter = _AchievementFilter.all;
+
   int _currentProgress(Achievement a) => switch (a.category) {
-    AchievementCategory.countries => countryCount,
-    AchievementCategory.continents => continentCount,
-    AchievementCategory.trips => tripCount,
-    AchievementCategory.thisYear => thisYearCount,
-    AchievementCategory.heritageSites => heritageCount,
+    AchievementCategory.countries => widget.countryCount,
+    AchievementCategory.continents => widget.continentCount,
+    AchievementCategory.trips => widget.tripCount,
+    AchievementCategory.thisYear => widget.thisYearCount,
+    AchievementCategory.heritageSites => widget.heritageCount,
+  };
+
+  bool _matchesFilter(Achievement a) => switch (_filter) {
+    _AchievementFilter.all => true,
+    _AchievementFilter.countries =>
+      a.category == AchievementCategory.countries,
+    _AchievementFilter.continents =>
+      a.category == AchievementCategory.continents,
+    _AchievementFilter.trips => a.category == AchievementCategory.trips,
+    _AchievementFilter.thisYear => a.category == AchievementCategory.thisYear,
+    _AchievementFilter.heritage =>
+      a.category == AchievementCategory.heritageSites,
   };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final unmet =
-        kAchievements
-            .where((a) => !unlockedIds.contains(a.id))
-            .map((a) => (a, a.progressTarget - _currentProgress(a)))
-            .where((t) => t.$2 > 0)
-            .toList()
-          ..sort((a, b) => a.$2.compareTo(b.$2));
 
-    final cards = unmet.take(3).toList();
+    final allUnmet = kAchievements
+        .where((a) => !widget.unlockedIds.contains(a.id))
+        .map((a) => (a, a.progressTarget - _currentProgress(a)))
+        .where((t) => t.$2 > 0)
+        .toList()
+      ..sort((a, b) => a.$2.compareTo(b.$2));
 
-    if (cards.isEmpty) return const SizedBox.shrink();
+    if (allUnmet.isEmpty) return const SizedBox.shrink();
+
+    final filtered =
+        allUnmet.where((t) => _matchesFilter(t.$1)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Header ─────────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: Row(
@@ -63,32 +96,172 @@ class NextAchievementsCarousel extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                'Next Achievements',
+                'To Unlock',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${filtered.length}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
         ),
+
+        // ── Category filter chips ───────────────────────────────────────
         SizedBox(
-          height: 168,
-          child: ListView.separated(
+          height: 32,
+          child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
-            itemCount: cards.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final (achievement, remaining) = cards[index];
-              return _NextAchievementCard(
-                achievement: achievement,
-                current: _currentProgress(achievement),
-                remaining: remaining,
-              );
-            },
+            children: [
+              _FilterChip(
+                label: 'All',
+                selected: _filter == _AchievementFilter.all,
+                color: theme.colorScheme.primary,
+                onTap: () => setState(
+                  () => _filter = _AchievementFilter.all,
+                ),
+              ),
+              const SizedBox(width: 6),
+              _FilterChip(
+                label: 'Countries',
+                selected: _filter == _AchievementFilter.countries,
+                color: const Color(0xFF2F80ED),
+                onTap: () => setState(
+                  () => _filter = _AchievementFilter.countries,
+                ),
+              ),
+              const SizedBox(width: 6),
+              _FilterChip(
+                label: 'Continents',
+                selected: _filter == _AchievementFilter.continents,
+                color: const Color(0xFF27AE60),
+                onTap: () => setState(
+                  () => _filter = _AchievementFilter.continents,
+                ),
+              ),
+              const SizedBox(width: 6),
+              _FilterChip(
+                label: 'Trips',
+                selected: _filter == _AchievementFilter.trips,
+                color: const Color(0xFF9B51E0),
+                onTap: () => setState(
+                  () => _filter = _AchievementFilter.trips,
+                ),
+              ),
+              const SizedBox(width: 6),
+              _FilterChip(
+                label: 'This Year',
+                selected: _filter == _AchievementFilter.thisYear,
+                color: const Color(0xFF00ACC1),
+                onTap: () => setState(
+                  () => _filter = _AchievementFilter.thisYear,
+                ),
+              ),
+              const SizedBox(width: 6),
+              _FilterChip(
+                label: 'UNESCO',
+                selected: _filter == _AchievementFilter.heritage,
+                color: RoavvyColours.roavvyGold,
+                onTap: () => setState(
+                  () => _filter = _AchievementFilter.heritage,
+                ),
+              ),
+            ],
           ),
         ),
+
+        const SizedBox(height: 10),
+
+        // ── Scrollable cards ────────────────────────────────────────────
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              'All achievements in this category unlocked!',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 168,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: filtered.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final (achievement, remaining) = filtered[index];
+                return _NextAchievementCard(
+                  achievement: achievement,
+                  current: _currentProgress(achievement),
+                  remaining: remaining,
+                );
+              },
+            ),
+          ),
       ],
+    );
+  }
+}
+
+// ── Filter chip ───────────────────────────────────────────────────────────────
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? color : color.withValues(alpha: 0.30),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : color,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -66,11 +66,11 @@ class AchievementGallery extends ConsumerWidget {
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(text: 'Countries'),
-              Tab(text: 'Continents'),
-              Tab(text: 'Trips'),
-              Tab(text: 'UNESCO'),
-              Tab(text: 'All'),
+              Tab(text: '🌍 Countries'),
+              Tab(text: '🗺️ Continents'),
+              Tab(text: '✈️ Trips'),
+              Tab(text: '🏛️ UNESCO'),
+              Tab(text: '📋 All'),
             ],
           ),
           SizedBox(
@@ -341,10 +341,94 @@ Color _rarityColor(_Rarity r) => switch (r) {
 };
 
 String _rarityLabel(_Rarity r) => switch (r) {
-  _Rarity.legendary => 'Legendary',
-  _Rarity.epic => 'Epic',
-  _Rarity.rare => 'Rare',
+  _Rarity.legendary => '👑 Legendary',
+  _Rarity.epic => '💜 Epic',
+  _Rarity.rare => '💙 Rare',
   _Rarity.common => 'Common',
+};
+
+// ── Category helpers ──────────────────────────────────────────────────────────
+
+Color _catColor(AchievementCategory cat) => switch (cat) {
+  AchievementCategory.countries => const Color(0xFF2F80ED),
+  AchievementCategory.continents => const Color(0xFF27AE60),
+  AchievementCategory.trips => const Color(0xFF9B51E0),
+  AchievementCategory.thisYear => const Color(0xFF00ACC1),
+  AchievementCategory.heritageSites => RoavvyColours.roavvyGold,
+};
+
+String _catEmoji(AchievementCategory cat) => switch (cat) {
+  AchievementCategory.countries => '🌍',
+  AchievementCategory.continents => '🗺️',
+  AchievementCategory.trips => '✈️',
+  AchievementCategory.thisYear => '📅',
+  AchievementCategory.heritageSites => '🏛️',
+};
+
+/// Returns a unique emoji that reflects the spirit of each achievement.
+/// Falls back to the category emoji if the id is unrecognised.
+String _achievementEmoji(String id) => switch (id) {
+  // ── Country milestones ──────────────────────────────────────────────────
+  'countries_1'   => '🎫',  // First Stamp
+  'countries_3'   => '📌',  // Triple Stamp
+  'countries_5'   => '🛫',  // Frequent Flyer
+  'countries_10'  => '🧳',  // Seasoned Traveller
+  'countries_15'  => '🌍',  // Well Travelled
+  'countries_20'  => '📗',  // Passport Regular
+  'countries_25'  => '🌐',  // Globetrotter
+  'countries_30'  => '🚀',  // Borderless
+  'countries_40'  => '🌅',  // Horizon Chaser
+  'countries_50'  => '🌎',  // World Explorer
+  'countries_75'  => '🧭',  // Pathfinder
+  'countries_100' => '💯',  // Century Club
+  'countries_125' => '🎩',  // Grand Tourist
+  'countries_150' => '🏃',  // Marathon Traveller
+  'countries_195' => '🌟',  // World Complete
+  // ── Continent milestones ────────────────────────────────────────────────
+  'continents_2'  => '⚖️',  // Two Worlds
+  'continents_3'  => '🪨',  // Continental Drift
+  'continents_4'  => '🔷',  // Four Corners
+  'continents_5'  => '🖐️',  // Five Continent Traveller
+  'continents_all'=> '🌍',  // All Six
+  // ── Continent deep-dives ────────────────────────────────────────────────
+  'continent_europe_3'        => '🏰',  // Europe Initiate
+  'continent_europe_5'        => '⛪',  // Europe Explorer
+  'continent_europe_10'       => '🎭',  // European Adventurer
+  'continent_asia_3'          => '🏯',  // Asia Initiate
+  'continent_asia_5'          => '🐉',  // Asia Explorer
+  'continent_africa_3'        => '🦁',  // Africa Explorer
+  'continent_north_america_3' => '🦅',  // North America Explorer
+  'continent_south_america_3' => '🦜',  // South America Explorer
+  'continent_oceania_3'       => '🦘',  // Oceania Explorer
+  // ── Regions ─────────────────────────────────────────────────────────────
+  'region_mediterranean'  => '⛵',  // Mediterranean Explorer
+  'region_southeast_asia' => '🛕',  // Southeast Asia Explorer
+  // ── Trip milestones ─────────────────────────────────────────────────────
+  'trips_1'  => '✈️',  // First Trip
+  'trips_3'  => '🎒',  // Regular Traveller
+  'trips_5'  => '🛩️',  // Jet Setter
+  'trips_10' => '🛫',  // Miles Ahead
+  'trips_25' => '🌀',  // Frequent Departure
+  'trips_50' => '💫',  // Always Moving
+  // ── Passport stamps ─────────────────────────────────────────────────────
+  'passport_10' => '📮',  // 10 Stamps
+  'passport_25' => '📬',  // 25 Stamps
+  'passport_50' => '🗃️',  // Stamp Collector
+  // ── UNESCO / Heritage ────────────────────────────────────────────────────
+  'whs_1'        => '🏛️',  // First Heritage Site
+  'whs_5'        => '🔍',  // Heritage Explorer
+  'whs_10'       => '🎯',  // Heritage Hunter
+  'whs_25'       => '📚',  // Heritage Enthusiast
+  'whs_50'       => '🎓',  // Heritage Scholar
+  'whs_100'      => '👑',  // World Heritage Legend
+  'whs_natural_1'  => '🌿',  // Natural Wonder
+  'whs_cultural_1' => '🎨',  // Cultural Explorer
+  'whs_mixed_1'    => '⚗️',  // Mixed Heritage
+  // ── This year ───────────────────────────────────────────────────────────
+  'year_countries_3'  => '🗓️',  // Year Tripper
+  'year_countries_5'  => '📅',  // Year Explorer
+  'year_countries_10' => '🎆',  // Big Year
+  _ => '🌍',
 };
 
 // ── Achievement row ───────────────────────────────────────────────────────────
@@ -368,59 +452,14 @@ class _AchievementRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final rarity = _rarityFor(achievement);
-    final rarityColor = _rarityColor(rarity);
-    final isLegendary = rarity == _Rarity.legendary;
+    final catColor = _catColor(achievement.category);
+    final catEmoji = _catEmoji(achievement.category);
     final remaining = achievement.progressTarget - current;
-
-    final BoxDecoration decoration;
-    if (isUnlocked) {
-      decoration = isLegendary
-          ? BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  RoavvyColours.roavvyGold.withValues(alpha: 0.25),
-                  RoavvyColours.roavvyGold.withValues(alpha: 0.07),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: RoavvyColours.roavvyGold.withValues(alpha: 0.55),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: RoavvyColours.roavvyGold.withValues(alpha: 0.28),
-                  blurRadius: 18,
-                  spreadRadius: 1,
-                ),
-              ],
-            )
-          : BoxDecoration(
-              color: RoavvyColours.roavvyGold.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
-              border: const Border(
-                left: BorderSide(
-                  color: RoavvyColours.roavvyGold,
-                  width: 3,
-                ),
-              ),
-            );
-    } else {
-      decoration = BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(10),
-        border: isLegendary
-            ? Border.all(
-                color: rarityColor.withValues(alpha: 0.25),
-                width: 1.5,
-              )
-            : null,
-      );
-    }
+    final progress = (current / achievement.progressTarget).clamp(0.0, 1.0);
+    final isSoClose = !isUnlocked && remaining <= 3;
 
     return Opacity(
-      opacity: isUnlocked ? 1.0 : 0.6,
+      opacity: isUnlocked ? 1.0 : 0.78,
       child: InkWell(
         onTap: onTap == null
             ? null
@@ -428,110 +467,230 @@ class _AchievementRow extends StatelessWidget {
                 HapticFeedback.lightImpact();
                 onTap!();
               },
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: decoration,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Header ────────────────────────────────────────────────
-                Row(
-                  children: [
-                    Icon(
-                      isUnlocked ? Icons.emoji_events : Icons.lock_outline,
-                      size: 20,
-                      color: isUnlocked
-                          ? RoavvyColours.roavvyGold
-                          : theme.colorScheme.onSurfaceVariant,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          decoration: BoxDecoration(
+            color: isUnlocked
+                ? catColor.withValues(alpha: 0.10)
+                : catColor.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border(
+              left: BorderSide(
+                color: isUnlocked
+                    ? catColor
+                    : catColor.withValues(alpha: 0.35),
+                width: 4,
+              ),
+            ),
+            boxShadow: isUnlocked && rarity == _Rarity.legendary
+                ? [
+                    BoxShadow(
+                      color: catColor.withValues(alpha: 0.22),
+                      blurRadius: 14,
+                      spreadRadius: 0,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        achievement.title,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isUnlocked
-                              ? null
-                              : theme.colorScheme.onSurfaceVariant,
+                  ]
+                : null,
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Achievement badge circle ───────────────────────────────
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isUnlocked
+                          ? catColor.withValues(alpha: 0.18)
+                          : catColor.withValues(alpha: 0.07),
+                      shape: BoxShape.circle,
+                      border: isUnlocked
+                          ? Border.all(color: catColor, width: 2)
+                          : Border.all(
+                              color: catColor.withValues(alpha: 0.25),
+                              width: 1.5,
+                            ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      isUnlocked
+                          ? _achievementEmoji(achievement.id)
+                          : catEmoji,
+                      style: TextStyle(
+                        fontSize: isUnlocked ? 24 : 20,
+                      ),
+                    ),
+                  ),
+                  // Checkmark badge for unlocked achievements
+                  if (isUnlocked)
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: catColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.check,
+                          size: 11,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                    _RarityBadge(rarity: rarity),
-                    if (isUnlocked && achievement.merch != null) ...[
-                      const SizedBox(width: 6),
-                      _MerchChip(achievement: achievement),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  achievement.description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                // ── Unlock date / progress ────────────────────────────────
-                if (isUnlocked)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
+                ],
+              ),
+              const SizedBox(width: 12),
+              // ── Content ───────────────────────────────────────────────
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title + rarity + merch
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _fmtDate(unlockDate!),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        if (onTap != null) ...[
-                          const Spacer(),
-                          Text(
-                            'See sites →',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.primary,
+                        Expanded(
+                          child: Text(
+                            achievement.title,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isUnlocked
+                                  ? null
+                                  : theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
+                        ),
+                        const SizedBox(width: 6),
+                        _RarityBadge(rarity: rarity),
+                        if (isUnlocked && achievement.merch != null) ...[
+                          const SizedBox(width: 6),
+                          _MerchChip(achievement: achievement),
                         ],
                       ],
                     ),
-                  )
-                else ...[
-                  const SizedBox(height: 6),
-                  LinearProgressIndicator(
-                    value:
-                        (current / achievement.progressTarget).clamp(0.0, 1.0),
-                    minHeight: 4,
-                    borderRadius: BorderRadius.circular(2),
-                    backgroundColor:
-                        theme.colorScheme.outline.withValues(alpha: 0.2),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(rarityColor),
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Text(
-                        '$current / ${achievement.progressTarget}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      achievement.description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      const Spacer(),
-                      if (remaining > 0)
-                        Text(
-                          '$remaining more to go',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: rarityColor,
-                            fontWeight: FontWeight.w600,
+                    ),
+                    const SizedBox(height: 7),
+                    // ── Unlocked state ─────────────────────────────────
+                    if (isUnlocked) ...[
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: catColor,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check, size: 11, color: Colors.white),
+                                SizedBox(width: 3),
+                                Text(
+                                  'UNLOCKED',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _fmtDate(unlockDate!),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if (onTap != null) ...[
+                            const Spacer(),
+                            Text(
+                              'See sites →',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: catColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ] else ...[
+                      // ── Locked progress ──────────────────────────────
+                      LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(3),
+                        backgroundColor: catColor.withValues(alpha: 0.12),
+                        valueColor: AlwaysStoppedAnimation<Color>(catColor),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '$current / ${achievement.progressTarget}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (isSoClose)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: catColor,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '🔥 $remaining to go!',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          else
+                            Text(
+                              '$remaining more to go',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: catColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
-              ],
-            ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -543,7 +702,7 @@ class _AchievementRow extends StatelessWidget {
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    return 'Unlocked ${dt.day} ${months[dt.month - 1]} ${dt.year}';
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }
 
@@ -559,19 +718,19 @@ class _RarityBadge extends StatelessWidget {
     if (rarity == _Rarity.common) return const SizedBox.shrink();
     final color = _rarityColor(rarity);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Text(
         _rarityLabel(rarity),
         style: TextStyle(
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
           color: color,
-          letterSpacing: 0.3,
+          letterSpacing: 0.2,
         ),
       ),
     );
