@@ -10,7 +10,7 @@ import 'package:mobile_flutter/data/heritage_repository.dart';
 import 'package:mobile_flutter/data/region_repository.dart';
 import 'package:mobile_flutter/data/trip_repository.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
-import 'package:mobile_flutter/features/stats/countries_list_screen.dart';
+import 'package:mobile_flutter/features/stats/flag_mosaic_screen.dart';
 import 'package:mobile_flutter/features/stats/stats_screen.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -124,7 +124,7 @@ void main() {
   });
 
   group('StatsScreen — countries navigation', () {
-    testWidgets('tapping Countries tile pushes CountriesListScreen', (
+    testWidgets('tapping Countries tile pushes FlagMosaicScreen', (
       tester,
     ) async {
       final db = _makeDb();
@@ -145,9 +145,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.byType(CountriesListScreen), findsOneWidget);
-      expect(find.text('1 country visited'), findsOneWidget);
-      expect(find.text('Japan'), findsOneWidget);
+      expect(find.byType(FlagMosaicScreen), findsOneWidget);
     });
   });
 

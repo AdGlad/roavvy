@@ -1,6 +1,13 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart' show Share, XFile;
 import 'package:shared_models/shared_models.dart';
+import 'dart:io';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
@@ -19,6 +26,8 @@ class FlagMosaicScreen extends ConsumerStatefulWidget {
 
 class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
   String? _continentFilter; // null = All
+  final GlobalKey _repaintKey = GlobalKey();
+  bool _sharing = false;
 
   static const _continents = [
     'Africa',
@@ -59,6 +68,29 @@ class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
         .toList();
   }
 
+  Future<void> _shareGrid(List<EffectiveVisitedCountry> visits) async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final boundary = _repaintKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? bytes =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) return;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/roavvy_flag_wall.png');
+      await file.writeAsBytes(bytes.buffer.asUint8List());
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'I\'ve visited ${visits.length} countries! 🌍 #Roavvy',
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   void _showDetail(
     BuildContext context,
     String code,
@@ -84,12 +116,28 @@ class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
     final visibleVisited = codes.where(visitedCodes.contains).length;
 
     return Scaffold(
-      body: CustomScrollView(
+      body: RepaintBoundary(
+        key: _repaintKey,
+        child: CustomScrollView(
         slivers: [
           SliverAppBar(
             title: Text('Flag Wall  ·  $visibleVisited / ${codes.length}'),
             floating: true,
             snap: true,
+            actions: [
+              if (visits.isNotEmpty)
+                IconButton(
+                  icon: _sharing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.share_outlined),
+                  tooltip: 'Share my flag wall',
+                  onPressed: _sharing ? null : () => _shareGrid(visits),
+                ),
+            ],
           ),
 
           // ── Continent filter chips ──────────────────────────────────────
@@ -183,6 +231,7 @@ class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
