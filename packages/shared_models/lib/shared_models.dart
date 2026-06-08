@@ -27,3 +27,4 @@ export 'src/hero_image.dart';
 export 'src/hero_scoring_engine.dart';
 export 'src/world_heritage_site.dart';
 export 'src/daily_challenge.dart';
+export 'src/country_rarity.dart';
