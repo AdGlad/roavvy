@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/providers.dart';
+import 'core/theme/roavvy_theme.dart';
+import 'core/theme/theme_mode_provider.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/legal/terms_screen.dart';
 import 'features/onboarding/onboarding_flow.dart';
@@ -85,14 +87,14 @@ class RoavvyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'Roavvy',
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF001F3F),
-      ),
+      theme: roavvyLightTheme,
+      darkTheme: roavvyDarkTheme,
+      themeMode: themeMode,
     );
   }
 }

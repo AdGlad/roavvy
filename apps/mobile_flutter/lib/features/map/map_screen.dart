@@ -14,6 +14,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../../core/theme/theme_mode_provider.dart';
 import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
 import '../auth/apple_sign_in.dart' as apple;
@@ -200,6 +201,7 @@ class MapScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).valueOrNull;
     final isAnonymous = user == null || user.isAnonymous;
+    final isDarkMode = ref.watch(themeModeProvider) == ThemeMode.dark;
 
     final yearFilter = ref.watch(yearFilterProvider);
 
@@ -412,6 +414,8 @@ class MapScreen extends ConsumerWidget {
                     } else if (action == _MapMenuAction.filterByYear) {
                       ref.read(yearFilterProvider.notifier).state =
                           yearFilter != null ? null : DateTime.now().year;
+                    } else if (action == _MapMenuAction.toggleDarkMode) {
+                      ref.read(themeModeProvider.notifier).toggle();
                     } else if (action == _MapMenuAction.debugMemoryPulse) {
                       final notifier = ref.read(
                         memoryPulseDebugOverrideProvider.notifier,
@@ -485,6 +489,19 @@ class MapScreen extends ConsumerWidget {
                           child: ListTile(
                             leading: Icon(Icons.security),
                             title: Text('Privacy & account'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: _MapMenuAction.toggleDarkMode,
+                          child: ListTile(
+                            leading: Icon(
+                              isDarkMode
+                                  ? Icons.light_mode_outlined
+                                  : Icons.dark_mode_outlined,
+                            ),
+                            title: Text(
+                              isDarkMode ? 'Light mode' : 'Dark mode',
+                            ),
                           ),
                         ),
                         const PopupMenuItem(
@@ -589,6 +606,7 @@ enum _MapMenuAction {
   privacyAccount,
   signOut,
   filterByYear,
+  toggleDarkMode,
   debugMemoryPulse,
 }
 
