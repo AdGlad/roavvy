@@ -239,6 +239,14 @@ class _LocalMockupPreviewScreenState
   String? _merchConfigId;
   bool _checkoutLaunched = false;
 
+  /// Guards against starting a second Firestore poll while one is already
+  /// running. Spurious [AppLifecycleState.resumed] events (e.g. PayPal OTP SMS
+  /// arrival, brief app-switch during PayPal authentication) can fire before
+  /// the user has completed payment. Without this guard each event would start
+  /// a duplicate 30-second poll and eventually pop the user back to the map
+  /// before they finish checkout.
+  bool _pollingInProgress = false;
+
   // ── Mockup realtime listener (post-approve) ────────────────────────────────
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
@@ -810,7 +818,13 @@ class _LocalMockupPreviewScreenState
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _checkoutLaunched) {
-      _checkoutLaunched = false;
+      // Do NOT clear _checkoutLaunched here. PayPal (and other payment methods
+      // that use SMS OTP or native-app redirects) can fire spurious `resumed`
+      // events before the user has finished paying. Clearing the flag on the
+      // first resume would prevent us from re-polling when the user actually
+      // completes the flow and the browser genuinely closes.
+      if (_pollingInProgress) return; // a poll is already running — ignore
+      _pollingInProgress = true;
       if (!mounted) return;
       _pollForOrderConfirmation();
     }
@@ -820,6 +834,7 @@ class _LocalMockupPreviewScreenState
     final configId = _merchConfigId;
     final uid = ref.read(currentUidProvider);
     if (configId == null || uid == null) {
+      _pollingInProgress = false;
       if (!mounted) return;
       _showOrderProcessingFallback();
       return;
@@ -837,6 +852,9 @@ class _LocalMockupPreviewScreenState
       try {
         final snap = await docRef.get();
         if (snap.data()?['status'] == 'ordered') {
+          // Payment confirmed — clear both flags and navigate.
+          _checkoutLaunched = false;
+          _pollingInProgress = false;
           if (!mounted) return;
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
@@ -856,8 +874,23 @@ class _LocalMockupPreviewScreenState
       }
     }
 
+    // Poll timed out — payment not confirmed yet. This can happen legitimately
+    // when a spurious `resumed` event fires during a PayPal OTP / SMS flow
+    // before the user has finished paying. Keep _checkoutLaunched = true so
+    // the next genuine resume (browser actually closed) can start a fresh poll.
+    _pollingInProgress = false;
+
     if (!mounted) return;
-    _showOrderProcessingFallback();
+    // Use a non-destructive SnackBar rather than a dialog that pops all routes.
+    // The user may still be mid-payment in the browser or PayPal app.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Payment not confirmed yet. Complete checkout to finish your order.',
+        ),
+        duration: Duration(seconds: 6),
+      ),
+    );
   }
 
   // ── Mockup realtime listener (post-approve) ───────────────────────────────
