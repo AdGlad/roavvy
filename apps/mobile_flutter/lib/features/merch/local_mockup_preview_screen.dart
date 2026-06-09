@@ -196,6 +196,13 @@ class _LocalMockupPreviewScreenState
   /// warning and re-enables the checkout button.
   bool _mockupFailed = false;
 
+  /// True once createMerchCart returns and we are waiting for the Printful
+  /// background mockup URL (second phase of the approving overlay).
+  bool _mockupApiComplete = false;
+
+  /// Epoch ms when [_startMockupListener] was called — used for timing logs.
+  int _mockupListenerStartMs = 0;
+
   String? _artworkConfirmationId;
   String? _mockupApprovalId;
 
@@ -366,6 +373,18 @@ class _LocalMockupPreviewScreenState
     'White' => Colors.black,
     'Grey' => Colors.black,
     _ => Colors.white, // Black, Blue, Red → white
+  };
+
+  static String _templateDisplayLabel(CardTemplateType t) => switch (t) {
+    CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.heart => 'Heart Flags',
+    CardTemplateType.passport => 'Passport Stamps',
+    CardTemplateType.timeline => 'Travel Log',
+    CardTemplateType.frontRibbon => 'Front Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
   };
 
   Set<PassportColorMode> _disabledStampColors(String shirtColour) =>
@@ -856,15 +875,32 @@ class _LocalMockupPreviewScreenState
         .collection('merch_configs')
         .doc(configId);
 
+    _mockupListenerStartMs = DateTime.now().millisecondsSinceEpoch;
+
     // Hard timeout — cancel and surface the amber fallback if Firestore never
     // delivers a terminal status within the window.
     _mockupListenerTimer = Timer(_kMockupListenerTimeout, () {
       _mockupSubscription?.cancel();
       _mockupSubscription = null;
+      final elapsedMs =
+          DateTime.now().millisecondsSinceEpoch - _mockupListenerStartMs;
       debugPrint(
         '[mockup] listener: timed out after ${_kMockupListenerTimeout.inSeconds}s',
       );
-      if (mounted) setState(() => _mockupFailed = true);
+      debugPrint(
+        '[MERCH] MockupPollingCompleted cartItemId=$_cartItemId status=timeout elapsedMs=$elapsedMs',
+      );
+      if (mounted) {
+        final wasApproving = _state == _MockupState.approving;
+        setState(() {
+          _mockupFailed = true;
+          _mockupApiComplete = false;
+          if (wasApproving) _state = _MockupState.ready;
+        });
+        // Navigate to review screen even on timeout — confirmation screen
+        // handles a null frontMockupUrl gracefully.
+        if (wasApproving) _openConfirmationScreen();
+      }
     });
 
     _mockupSubscription = docRef.snapshots().listen(
@@ -873,9 +909,14 @@ class _LocalMockupPreviewScreenState
         final status = data?['mockupStatus'] as String?;
         final frontUrl = data?['frontMockupUrl'] as String?;
         final backUrl = data?['backMockupUrl'] as String?;
+        final elapsedMs =
+            DateTime.now().millisecondsSinceEpoch - _mockupListenerStartMs;
 
         debugPrint(
           '[mockup] listener update: status=$status front=${frontUrl != null ? "✓" : "null"} back=${backUrl != null ? "✓" : "null"}',
+        );
+        debugPrint(
+          '[MERCH] MockupPollingCheck cartItemId=$_cartItemId status=$status frontUrl=${frontUrl != null ? "present" : "null"} elapsedMs=$elapsedMs',
         );
 
         // Terminal when server has written a definitive status, or (backwards
@@ -893,16 +934,23 @@ class _LocalMockupPreviewScreenState
         _mockupSubscription?.cancel();
         _mockupSubscription = null;
 
+        debugPrint(
+          '[MERCH] MockupPollingCompleted cartItemId=$_cartItemId status=$status elapsedMs=$elapsedMs frontUrl=${frontUrl != null ? "present" : "null"}',
+        );
+
         if (!mounted) return;
+        final wasApproving = _state == _MockupState.approving;
         setState(() {
           _mockupUrl = frontUrl;
           _backMockupUrl = backUrl;
+          _mockupApiComplete = false;
           // Show amber fallback when server explicitly timed out or failed and
           // we have no URLs to display.
           if ((status == 'timeout' || status == 'failed') &&
               (frontUrl == null || frontUrl.isEmpty)) {
             _mockupFailed = true;
           }
+          if (wasApproving) _state = _MockupState.ready;
         });
         // ── Update cart item with async mockup URLs (M120) ──────────────────
         final cid = _cartItemId;
@@ -914,16 +962,39 @@ class _LocalMockupPreviewScreenState
                 frontMockupUrl: frontUrl,
                 backMockupUrl: backUrl,
               )
+              .then(
+                (_) => debugPrint(
+                  '[MERCH] CartItemUpdatedWithMockup cartItemId=$cid frontMockupUrl=${frontUrl != null ? "present" : "null"} backMockupUrl=${backUrl != null ? "present" : "null"}',
+                ),
+              )
               .catchError(
                 (e) => debugPrint('[mockup] cart updateMockupUrls failed: $e'),
               );
         }
+        // Auto-navigate to Review & Approve if we were holding in approving.
+        if (wasApproving) {
+          debugPrint(
+            '[MERCH] NavigatingToReviewAndApprove cartItemId=$_cartItemId elapsedMs=$elapsedMs status=$status',
+          );
+          _openConfirmationScreen();
+        }
       },
       onError: (Object e) {
         debugPrint('[mockup] listener error: $e');
+        debugPrint(
+          '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=listenerError:$e ts=${DateTime.now().toIso8601String()}',
+        );
         _mockupListenerTimer?.cancel();
         _mockupListenerTimer = null;
-        if (mounted) setState(() => _mockupFailed = true);
+        if (mounted) {
+          final wasApproving = _state == _MockupState.approving;
+          setState(() {
+            _mockupFailed = true;
+            _mockupApiComplete = false;
+            if (wasApproving) _state = _MockupState.ready;
+          });
+          if (wasApproving) _openConfirmationScreen();
+        }
       },
     );
   }
@@ -1286,9 +1357,17 @@ class _LocalMockupPreviewScreenState
       '[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}',
     );
 
+    debugPrint(
+      '[MERCH] ApproveAndReviewPressed uid=$uid product=${_product.name} colour=$_colour size=${_isTshirt ? _tshirtSize : _posterSize} template=${_template.name} frontPosition=$_frontPosition backPosition=$_backPosition ts=${DateTime.now().toIso8601String()}',
+    );
+    debugPrint(
+      '[MERCH] NavigatingToCreatingMockup ts=${DateTime.now().toIso8601String()}',
+    );
+
     setState(() {
       _state = _MockupState.approving;
       _retryMessage = null;
+      _mockupApiComplete = false;
     });
 
     // ── Cart item creation (M120 / ADR-167) ──────────────────────────────────
@@ -1319,6 +1398,9 @@ class _LocalMockupPreviewScreenState
         await cartRepo.create(uid, cartItem);
         if (mounted) setState(() => _cartItemId = newId);
         debugPrint('[mockup]   cartItemId=$newId ✓ (created)');
+        debugPrint(
+          '[MERCH] CartItemCreated id=$newId status=mockupGenerating variantId=$_resolvedVariantGid ts=${DateTime.now().toIso8601String()}',
+        );
       } catch (e) {
         debugPrint('[mockup]   cart item creation failed (non-fatal): $e');
       }
@@ -1446,6 +1528,12 @@ class _LocalMockupPreviewScreenState
       debugPrint(
         '[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId',
       );
+      debugPrint(
+        '[MERCH] PrintfulMockupRequestStarted cartItemId=$_cartItemId variantId=$_resolvedVariantGid frontPosition=$_frontPosition backPosition=$_backPosition ts=${DateTime.now().toIso8601String()}',
+      );
+      debugPrint(
+        '[MERCH] PrintfulPayloadSummary variantId=$_resolvedVariantGid frontImageRef=${frontImageBase64 != null ? "${frontImageBase64.length}chars" : "none"} backImageRef=${backImageBase64 != null ? "${backImageBase64.length}chars" : "none"} countryCodes=${widget.selectedCodes.length}',
+      );
 
       Object? lastCallError;
       bool callSucceeded = false;
@@ -1455,12 +1543,14 @@ class _LocalMockupPreviewScreenState
           debugPrint(
             '[mockup]   retry attempt $attempt/$_kMaxRetries after error: $lastCallError',
           );
-          if (!mounted) return;
-          setState(
-            () =>
-                _retryMessage =
-                    'Having trouble generating your mockup. Retrying\u2026',
+          debugPrint(
+            '[MERCH] MockupGenerationRetry cartItemId=$_cartItemId retryCount=$attempt ts=${DateTime.now().toIso8601String()}',
           );
+          if (!mounted) return;
+          setState(() {
+            _retryMessage = 'Having trouble generating your mockup. Retrying\u2026';
+            _mockupApiComplete = false;
+          });
           await Future.delayed(const Duration(seconds: 2));
           if (!mounted) return;
         }
@@ -1523,20 +1613,21 @@ class _LocalMockupPreviewScreenState
             continue;
           }
 
-          // mockupUrl may be null — the server generates it in the background.
-          // We poll Firestore for it after transitioning to ready state.
           debugPrint(
-            '[mockup] ✓ ready — checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (will poll)"}',
+            '[mockup] ✓ checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (Printful generating in background)"}',
           );
-          if (!mounted) return;
-          setState(() {
-            _state = _MockupState.ready;
-            _retryMessage = null;
-            _mockupUrl = mockupUrl;
-            _backMockupUrl = backMockupUrl;
-            _checkoutUrl = checkoutUrl;
-            _merchConfigId = merchConfigId;
-          });
+          debugPrint(
+            '[MERCH] PrintfulMockupResponseReceived cartItemId=$_cartItemId durationMs=${sw.elapsedMilliseconds} checkoutUrl=present frontMockupUrl=${mockupUrl != null ? "present" : "pending"} ts=${DateTime.now().toIso8601String()}',
+          );
+
+          // Store checkout data — do NOT transition to ready yet. Keep the
+          // "Creating Your Mockup" overlay visible while Printful generates
+          // the photorealistic preview in the background.
+          _checkoutUrl = checkoutUrl;
+          _merchConfigId = merchConfigId;
+          _mockupUrl = mockupUrl;
+          _backMockupUrl = backMockupUrl;
+
           // ── Update cart item → mockupReady (M120) ──────────────────────────
           final cid = _cartItemId;
           if (cid != null) {
@@ -1553,10 +1644,42 @@ class _LocalMockupPreviewScreenState
                   (e) => debugPrint('[mockup] cart markMockupReady failed: $e'),
                 );
           }
-          if ((mockupUrl == null || mockupUrl.isEmpty) &&
-              merchConfigId != null) {
+
+          if (!mounted) return;
+
+          if (mockupUrl != null && mockupUrl.isNotEmpty) {
+            // Mockup available immediately — navigate directly to review.
+            debugPrint(
+              '[MERCH] NavigatingToReviewAndApprove cartItemId=$_cartItemId durationMs=${sw.elapsedMilliseconds} immediate=true',
+            );
+            setState(() {
+              _state = _MockupState.ready;
+              _retryMessage = null;
+            });
+            _openConfirmationScreen();
+          } else if (merchConfigId != null) {
+            // Printful generating in background — stay in approving state.
+            // [_startMockupListener] will auto-navigate when the URL arrives.
+            debugPrint(
+              '[MERCH] MockupPollingStarted cartItemId=$_cartItemId configId=$merchConfigId ts=${DateTime.now().toIso8601String()}',
+            );
+            setState(() {
+              _mockupApiComplete = true;
+              _retryMessage = null;
+            });
             _startMockupListener(merchConfigId, uid);
+          } else {
+            // No configId — no mockup will come; navigate with what we have.
+            debugPrint(
+              '[MERCH] NavigatingToReviewAndApprove cartItemId=$_cartItemId durationMs=${sw.elapsedMilliseconds} noConfigId=true',
+            );
+            setState(() {
+              _state = _MockupState.ready;
+              _retryMessage = null;
+            });
+            _openConfirmationScreen();
           }
+
           callSucceeded = true;
           break;
         } on TimeoutException catch (e) {
@@ -1599,6 +1722,9 @@ class _LocalMockupPreviewScreenState
       debugPrint('[mockup]   code=${e.code}');
       debugPrint('[mockup]   message=${e.message}');
       debugPrint('[mockup]   details=${e.details}');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=FirebaseFunctionsException:${e.code} message=${e.message} ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(
         uid,
         'FirebaseFunctionsException: ${e.code} ${e.message}',
@@ -1616,9 +1742,13 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     } on SocketException catch (e) {
       debugPrint('[mockup] ❌ SocketException (final): $e');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=SocketException ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(uid, 'SocketException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1629,9 +1759,13 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     } on TimeoutException catch (e) {
       debugPrint('[mockup] ❌ TimeoutException (final): $e');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=TimeoutException ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(uid, 'TimeoutException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1644,10 +1778,14 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     } catch (e, stack) {
       debugPrint('[mockup] ❌ unexpected error: $e');
       debugPrint('[mockup]   $stack');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=$e stack=$stack ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(uid, 'Unexpected: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1660,6 +1798,7 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     }
   }
@@ -2303,6 +2442,10 @@ class _LocalMockupPreviewScreenState
         shirt: _buildLocalMockupArea(theme),
         retryMessage: _retryMessage,
         isTshirt: _isTshirt,
+        colour: _isTshirt ? _colour : null,
+        size: _isTshirt ? _tshirtSize : _posterSize,
+        design: _templateDisplayLabel(_template),
+        apiComplete: _mockupApiComplete,
       );
     }
 
@@ -2805,11 +2948,9 @@ class _LocalMockupPreviewScreenState
     final theme = Theme.of(context);
 
     if (_state == _MockupState.ready) {
-      // Checkout is only allowed when Printful returned an actual mockup URL.
-      // If the mockup timed out or failed, the user can only save to cart and
-      // return later — we do not want them purchasing without seeing the preview.
-      final mockupLoaded = _mockupUrl != null;
-      final mockupStillLoading = !mockupLoaded && !_mockupFailed;
+      // In the new flow the user reaches this state only after auto-navigation
+      // from the mockup listener (mockup ready or timed out) or by returning
+      // from the confirmation screen. Always allow proceeding to checkout.
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -2837,8 +2978,8 @@ class _LocalMockupPreviewScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Your preview couldn\u2019t be generated right now. '
-                      'Save to cart and come back later to checkout.',
+                      'Your photorealistic preview couldn\u2019t be generated. '
+                      'You can still proceed — your design is saved.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.amber.shade800,
                       ),
@@ -2850,18 +2991,16 @@ class _LocalMockupPreviewScreenState
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: mockupLoaded ? _openConfirmationScreen : null,
+              onPressed: _openConfirmationScreen,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                mockupStillLoading
-                    ? 'Loading Preview\u2026'
-                    : 'Review & Checkout',
-                style: const TextStyle(
+              child: const Text(
+                'Review & Checkout',
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3114,7 +3253,9 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
 
 // ── Approving overlay ─────────────────────────────────────────────────────────
 
-/// Full-area overlay shown while the Firebase Function processes the order.
+/// Full-area overlay shown while the Firebase Function processes the order
+/// and while Printful generates the photorealistic mockup in the background.
+///
 /// Keeps the local shirt visible at low opacity so the user retains context of
 /// what they approved, while a pulsing animation + copy reassures them.
 class _ApprovingView extends StatefulWidget {
@@ -3122,12 +3263,25 @@ class _ApprovingView extends StatefulWidget {
     required this.shirt,
     required this.isTshirt,
     this.retryMessage,
+    this.colour,
+    this.size,
+    this.design,
+    this.apiComplete = false,
   });
   final Widget shirt;
   final bool isTshirt;
 
   /// Non-null when a retry is in progress; overrides the subtitle copy.
   final String? retryMessage;
+
+  /// Order details shown as summary chips below the progress bar.
+  final String? colour;
+  final String? size;
+  final String? design;
+
+  /// True once createMerchCart has returned and we are waiting for the
+  /// Printful background mockup URL (updates the status message).
+  final bool apiComplete;
 
   @override
   State<_ApprovingView> createState() => _ApprovingViewState();
@@ -3242,7 +3396,9 @@ class _ApprovingViewState extends State<_ApprovingView>
                 )
               else ...[
                 Text(
-                  'This usually takes about 20 seconds.',
+                  widget.apiComplete
+                      ? 'We\'re generating your photorealistic preview.\nThis can take a little while.'
+                      : 'This usually takes about 20 seconds.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -3259,10 +3415,56 @@ class _ApprovingViewState extends State<_ApprovingView>
                   ),
                 ),
               ],
+              // ── Order detail chips ─────────────────────────────────────────
+              if (widget.colour != null ||
+                  widget.size != null ||
+                  widget.design != null) ...[
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (widget.colour != null)
+                      _OrderDetailChip(label: widget.colour!),
+                    if (widget.size != null)
+                      _OrderDetailChip(label: 'Size: ${widget.size}'),
+                    if (widget.design != null)
+                      _OrderDetailChip(label: widget.design!),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Small pill chip showing an order attribute inside the approving overlay.
+class _OrderDetailChip extends StatelessWidget {
+  const _OrderDetailChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
