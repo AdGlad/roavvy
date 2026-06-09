@@ -50,9 +50,9 @@ class LevelUpSheet extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xE6FFFFFF),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withValues(alpha: 0.90),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: SafeArea(
             child: SingleChildScrollView(
@@ -65,7 +65,7 @@ class LevelUpSheet extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: RoavvyColours.roavvyGold.withOpacity(0.4),
+                          color: RoavvyColours.roavvyGold.withValues(alpha: 0.4),
                           blurRadius: 20,
                           spreadRadius: 4,
                         ),

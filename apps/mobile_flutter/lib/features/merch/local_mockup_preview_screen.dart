@@ -277,6 +277,12 @@ class _LocalMockupPreviewScreenState
   late TextEditingController _titleController;
   Timer? _titleDebounce;
 
+  // ── Passport stamp size + scatter controls ────────────────────────────────
+  // Adjusted live via sliders; fed into every _generateFromPreset call.
+  double _stampSizeMultiplier = 1.0;
+  double _stampJitterFactor = 0.4;
+  Timer? _stampControlDebounce;
+
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
 
@@ -404,6 +410,12 @@ class _LocalMockupPreviewScreenState
     _titleOverride = widget.titleOverride;
     _titleController = TextEditingController(text: _titleOverride ?? '');
 
+    // Stamp size/scatter: prefer preset config values, fall back to widget params.
+    _stampSizeMultiplier =
+        _presetConfig?.stampSizeMultiplier ?? widget.stampSizeMultiplier;
+    _stampJitterFactor =
+        _presetConfig?.stampJitterFactor ?? widget.stampJitterFactor;
+
     _passportColorMode = _suggestStampColor(_colour);
     _timelineTextColor = _suggestTimelineTextColor(_colour);
     _gridTextColor = _suggestGridTextColor(_colour);
@@ -454,6 +466,7 @@ class _LocalMockupPreviewScreenState
     _giftSubjectCtrl.dispose();
     _giftMessageCtrl.dispose();
     _titleDebounce?.cancel();
+    _stampControlDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
     _mockupSubscription?.cancel();
@@ -611,24 +624,32 @@ class _LocalMockupPreviewScreenState
               ? (List<String>.from(widget.selectedCodes)
                 ..shuffle(math.Random(_shuffleSeed)))
               : widget.selectedCodes;
+      // Only pass trips for the countries being designed — prevents stamps from
+      // unrelated countries appearing when widget.trips is the full history.
+      final codeSet = Set<String>.from(codes);
+      final scopedTrips =
+          widget.trips.where((t) => codeSet.contains(t.countryCode)).toList();
       final result = await CardImageRenderer.render(
         context,
         config.layout,
         codes: codes,
-        trips: widget.trips,
+        trips: scopedTrips,
         forPrint: false,
         entryOnly: config.entryOnly,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         transparentBackground: _isTshirt,
-        stampJitterFactor: config.stampJitterFactor,
-        stampSizeMultiplier: config.stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
+        stampSizeMultiplier: _stampSizeMultiplier,
         gridLayoutMode: _gridLayoutMode,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
       _artworkVariants[0] = result.bytes;
+      // Invalidate colour variants — they were rendered with the previous seed.
+      _artworkVariants[1] = null;
+      _artworkVariants[2] = null;
       await _decodeArtwork(result.bytes);
       if (!mounted) return;
       setState(() {
@@ -727,6 +748,42 @@ class _LocalMockupPreviewScreenState
       _artworkLocked = false;
     });
     await _generateFromPreset(config);
+  }
+
+  // ── Passport stamp size / scatter ─────────────────────────────────────────
+
+  /// Called when the stamp-size or scatter slider changes.
+  ///
+  /// Updates state immediately (slider moves smoothly) then debounces the
+  /// expensive re-render so it only fires once the user pauses.
+  void _onStampSizeChanged(double value) {
+    setState(() => _stampSizeMultiplier = value);
+    _scheduleStampRerender();
+  }
+
+  void _onStampJitterChanged(double value) {
+    setState(() => _stampJitterFactor = value);
+    _scheduleStampRerender();
+  }
+
+  void _scheduleStampRerender() {
+    _stampControlDebounce?.cancel();
+    _stampControlDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      final config =
+          _presetConfig ??
+          MerchPresetConfig(
+            layout: _template,
+            source: MerchCountrySource.allTime,
+            jitter: _stampJitterFactor,
+            density: MerchDensity.balanced,
+            stampMode:
+                widget.confirmedEntryOnly
+                    ? MerchStampMode.entryOnly
+                    : MerchStampMode.entryExit,
+          );
+      unawaited(_generateFromPreset(config));
+    });
   }
 
   // ── App lifecycle (post-checkout poll) ────────────────────────────────────
@@ -928,11 +985,15 @@ class _LocalMockupPreviewScreenState
           _isTshirt || widget.transparentBackground,
         ), // multicolor/default
       };
+      // Filter trips to the selected countries — same scope as the original render.
+      final selectedSet = Set<String>.from(widget.selectedCodes);
+      final scopedTrips =
+          widget.trips.where((t) => selectedSet.contains(t.countryCode)).toList();
       final result = await CardImageRenderer.render(
         context,
         _template,
         codes: widget.selectedCodes,
-        trips: widget.trips,
+        trips: scopedTrips,
         // Passport uses forPrint=false so re-renders for stamp colour changes
         // use the same screen-layout (margins, sizeMultiplier, jitter) as the
         // card the user designed. forPrint=true would change margins and ignore
@@ -949,10 +1010,10 @@ class _LocalMockupPreviewScreenState
         dateColor: widget.dateColor,
         textColor: stampTextColor,
         transparentBackground: transparentBg,
-        // Preserve the exact layout the user designed (ADR-133).
-        stampSeed: widget.stampLayoutSeed,
-        stampSizeMultiplier: widget.stampSizeMultiplier,
-        stampJitterFactor: widget.stampJitterFactor,
+        // Use the current shuffle seed if set, otherwise the original layout seed (ADR-133).
+        stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
+        stampSizeMultiplier: _stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1918,6 +1979,46 @@ class _LocalMockupPreviewScreenState
             ),
           ],
         ),
+        // ── Passport stamp controls (size + scatter) ─────────────────────
+        if (_isTshirt && _template == CardTemplateType.passport) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _StampSlider(
+                  label: 'Stamp size',
+                  value: _stampSizeMultiplier,
+                  min: 0.5,
+                  max: 1.5,
+                  valueLabel:
+                      '${(_stampSizeMultiplier * 100).round()}%',
+                  onChanged:
+                      _state == _MockupState.rerendering ||
+                              _state == _MockupState.approving
+                          ? null
+                          : _onStampSizeChanged,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _StampSlider(
+                  label: 'Scatter',
+                  value: _stampJitterFactor,
+                  min: 0.0,
+                  max: 1.0,
+                  valueLabel:
+                      '${(_stampJitterFactor * 100).round()}%',
+                  onChanged:
+                      _state == _MockupState.rerendering ||
+                              _state == _MockupState.approving
+                          ? null
+                          : _onStampJitterChanged,
+                ),
+              ),
+            ],
+          ),
+        ],
+
         const SizedBox(height: 12),
 
         // ── Colour + Size (one row) ──────────────────────────────────────
@@ -3804,6 +3905,87 @@ class _GiftMessageSection extends StatelessWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+// ── _StampSlider ───────────────────────────────────────────────────────────────
+
+/// Compact labelled slider used for passport stamp Size and Scatter controls.
+class _StampSlider extends StatelessWidget {
+  const _StampSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.valueLabel,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final String valueLabel;
+  final ValueChanged<double>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final disabled = onChanged == null;
+    final labelColor = disabled
+        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)
+        : theme.colorScheme.onSurfaceVariant;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: labelColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                letterSpacing: 0.4,
+              ),
+            ),
+            Text(
+              valueLabel,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: disabled
+                    ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                    : theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor:
+                theme.colorScheme.outline.withValues(alpha: 0.25),
+            thumbColor: theme.colorScheme.primary,
+            disabledThumbColor:
+                theme.colorScheme.primary.withValues(alpha: 0.3),
+            disabledActiveTrackColor:
+                theme.colorScheme.primary.withValues(alpha: 0.3),
+          ),
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
       ],
     );
   }

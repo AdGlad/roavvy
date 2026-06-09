@@ -114,7 +114,7 @@ class _RovyBubbleState extends ConsumerState<RovyBubble> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(16),
                             topRight: Radius.circular(16),
@@ -132,9 +132,9 @@ class _RovyBubbleState extends ConsumerState<RovyBubble> {
                           message.emoji != null
                               ? '${message.emoji} ${message.text}'
                               : message.text,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),

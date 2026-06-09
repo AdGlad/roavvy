@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import '../../core/theme/roavvy_colours.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_context.dart';
+import 'merch_preset.dart';
 import 'merch_exclusive_design.dart';
 import 'merch_option_list_widgets.dart';
 import 'travel_identity.dart';
@@ -74,25 +75,19 @@ class _AchievementMerchOptionScreenState
 
     if (visitsAsync.isLoading || tripsAsync.isLoading) {
       return Scaffold(
-        backgroundColor: RoavvyColours.backgroundDark,
         appBar: AppBar(
-          backgroundColor: RoavvyColours.backgroundDark,
-          foregroundColor: Colors.white,
           title: const Text('Your travel shirt ideas'),
           elevation: 0,
         ),
         body: const Center(
-          child: CircularProgressIndicator(color: Colors.white38),
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
     if (visitsAsync.hasError || tripsAsync.hasError) {
       return Scaffold(
-        backgroundColor: RoavvyColours.backgroundDark,
         appBar: AppBar(
-          backgroundColor: RoavvyColours.backgroundDark,
-          foregroundColor: Colors.white,
           title: const Text('Your travel shirt ideas'),
           elevation: 0,
         ),
@@ -100,10 +95,7 @@ class _AchievementMerchOptionScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Could not load travel data',
-                style: TextStyle(color: Colors.white54),
-              ),
+              const Text('Could not load travel data'),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () {
@@ -146,11 +138,9 @@ class _AchievementMerchOptionScreenState
         .map((e) => e.option)
         .toList();
 
+    final amoCs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: RoavvyColours.backgroundDark,
       appBar: AppBar(
-        backgroundColor: RoavvyColours.backgroundDark,
-        foregroundColor: Colors.white,
         title: const Text('Your travel shirt ideas'),
         elevation: 0,
       ),
@@ -165,8 +155,8 @@ class _AchievementMerchOptionScreenState
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Text(
                         subtitle,
-                        style: const TextStyle(
-                          color: Colors.white54,
+                        style: TextStyle(
+                          color: amoCs.onSurface.withValues(alpha: 0.54),
                           fontSize: 13,
                         ),
                       ),
@@ -191,10 +181,10 @@ class _AchievementMerchOptionScreenState
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(left: 16, bottom: 6),
-                child: const Text(
+                child: Text(
                   'OTHER STYLES',
                   style: TextStyle(
-                    color: Colors.white38,
+                    color: amoCs.onSurface.withValues(alpha: 0.38),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -218,7 +208,6 @@ class _AchievementMerchOptionScreenState
                 onPressed:
                     _showAll ? null : () => setState(() => _showAll = true),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.white54,
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,
                 ),
@@ -318,12 +307,15 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Divider(height: 1, color: Colors.white12),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
           const SizedBox(height: 12),
           Text(
             'EXCLUSIVE DESIGNS',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Colors.white38,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
               letterSpacing: 1.2,
             ),
           ),
@@ -341,6 +333,17 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
                                 allCodes: allCodes,
                                 trips: allTrips,
                                 initialTemplate: d.template,
+                                initialPreset: MerchPreset(
+                                  id: 'exclusive_design',
+                                  label: d.label,
+                                  config: MerchPresetConfig(
+                                    layout: d.template,
+                                    source: MerchCountrySource.allTime,
+                                    jitter: 0.4,
+                                    density: MerchDensity.balanced,
+                                    stampMode: MerchStampMode.entryExit,
+                                  ),
+                                ),
                               ),
                         ),
                       )
@@ -395,15 +398,18 @@ class _CelebrationHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    fontSize: 12,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   identity.tagline,
-                  style: const TextStyle(
-                    color: Colors.white38,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
                   ),

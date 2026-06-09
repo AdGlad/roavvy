@@ -426,11 +426,18 @@ class MerchCustomProductWarning extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.amber.shade50,
-        border: Border.all(color: Colors.amber.shade600),
+        color: isDark
+            ? Colors.amber.shade900.withValues(alpha: 0.20)
+            : Colors.amber.shade50,
+        border: Border.all(
+          color: isDark
+              ? Colors.amber.shade700.withValues(alpha: 0.60)
+              : Colors.amber.shade600,
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -440,7 +447,7 @@ class MerchCustomProductWarning extends StatelessWidget {
             children: [
               Icon(
                 Icons.warning_amber_rounded,
-                color: Colors.amber.shade800,
+                color: isDark ? Colors.amber.shade300 : Colors.amber.shade800,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -448,7 +455,7 @@ class MerchCustomProductWarning extends StatelessWidget {
                 'Custom-Made Product',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.amber.shade900,
+                  color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
                 ),
               ),
             ],

@@ -265,9 +265,12 @@ class MapScreen extends ConsumerWidget {
     // M134: hide map UI controls while replay/scan overlay is active so only
     // the globe and the replay HUD are visible.
     final overlayActive = ref.watch(globeOverlayProvider).isActive;
+    final mapTheme = Theme.of(context);
+    final mapIsDark = mapTheme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D2137), // dark navy ocean (ADR-080)
+      backgroundColor:
+          mapIsDark ? const Color(0xFF0D2137) : mapTheme.colorScheme.surface,
       body: Stack(
         children: [
           if (globeMode)
@@ -280,7 +283,10 @@ class MapScreen extends ConsumerWidget {
               options: MapOptions(
                 initialCenter: const LatLng(20, 0),
                 initialZoom: 2,
-                backgroundColor: const Color(0xFF0D2137),
+                backgroundColor:
+                    mapIsDark
+                        ? const Color(0xFF0D2137)
+                        : mapTheme.colorScheme.surface,
                 onTap:
                     (pos, latlng) =>
                         _onMapTap(context, ref, visitedByCode, pos, latlng),
@@ -935,10 +941,12 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
       return const SizedBox.shrink();
     }
 
+    final yirTheme = Theme.of(context);
+    final yirOnSurface = yirTheme.colorScheme.onSurface;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: yirTheme.colorScheme.surfaceContainer,
         border: Border.all(
           color: const Color(0xFFD4A017).withValues(alpha: 0.5),
         ),
@@ -952,8 +960,8 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
           Expanded(
             child: Text(
               '$_reviewYear in Review — see your year in travel',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: yirOnSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -967,7 +975,7 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+            icon: Icon(Icons.close, color: yirOnSurface.withValues(alpha: 0.54), size: 18),
             onPressed: _dismiss,
             tooltip: 'Dismiss',
           ),
