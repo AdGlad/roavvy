@@ -307,8 +307,8 @@ class _LocalMockupPreviewScreenState
 
   // ── Post-checkout order poll parameters ────────────────────────────────────
 
-  static const int _pollIntervalSeconds = 3;
-  static const int _pollMaxAttempts = 10;
+  static const int _pollIntervalSeconds = 5;
+  static const int _pollMaxAttempts = 20;
 
   // ── Mockup generation parameters ───────────────────────────────────────────
 
@@ -874,23 +874,17 @@ class _LocalMockupPreviewScreenState
       }
     }
 
-    // Poll timed out — payment not confirmed yet. This can happen legitimately
-    // when a spurious `resumed` event fires during a PayPal OTP / SMS flow
-    // before the user has finished paying. Keep _checkoutLaunched = true so
-    // the next genuine resume (browser actually closed) can start a fresh poll.
+    // Poll exhausted (100 s) without Firestore confirmation. At this point the
+    // user has been waiting long enough that either:
+    //   a) Payment was completed but the webhook/Cloud Function was very slow.
+    //   b) Payment was not completed (user abandoned checkout).
+    // In both cases, clear the checkout flags and show the processing dialog
+    // which tells them to expect a confirmation email if payment went through.
+    _checkoutLaunched = false;
     _pollingInProgress = false;
 
     if (!mounted) return;
-    // Use a non-destructive SnackBar rather than a dialog that pops all routes.
-    // The user may still be mid-payment in the browser or PayPal app.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Payment not confirmed yet. Complete checkout to finish your order.',
-        ),
-        duration: Duration(seconds: 6),
-      ),
-    );
+    _showOrderProcessingFallback();
   }
 
   // ── Mockup realtime listener (post-approve) ───────────────────────────────

@@ -87,7 +87,7 @@ class _MerchOrderConfirmationScreenState
 
   Future<void> _launchCheckout() async {
     final uri = Uri.parse(widget.checkoutUrl);
-    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
