@@ -110,20 +110,24 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
       widget.trip.endedOn,
     );
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final scaffoldBg =
+        isDark ? _kOceanBackground : theme.colorScheme.surface;
+
     return Scaffold(
-      backgroundColor: _kOceanBackground,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: _kOceanBackground,
-        foregroundColor: Colors.white,
+        backgroundColor: scaffoldBg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('$flag  $countryName'),
             Text(
               dateRange,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.70),
+              ),
             ),
           ],
         ),
@@ -133,7 +137,7 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: CircularProgressIndicator(),
             );
           }
 
@@ -165,7 +169,7 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
           return FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              backgroundColor: _kOceanBackground,
+              backgroundColor: scaffoldBg,
               onMapReady: _fitBounds,
             ),
             children: [

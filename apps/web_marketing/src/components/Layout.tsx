@@ -1,5 +1,5 @@
-import { Outlet, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
 import Nav from './Nav'
 import Footer from './Footer'
 

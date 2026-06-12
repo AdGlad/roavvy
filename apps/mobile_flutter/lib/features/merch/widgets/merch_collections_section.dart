@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../../core/providers.dart';
 import '../../../data/db/roavvy_database.dart';
 import '../local_mockup_preview_screen.dart';
+import '../merch_preset.dart';
 import '../merch_template_ranker.dart';
 
 /// Dynamic collections section shown in the Shop tab (M145, ADR-177).
@@ -244,6 +245,17 @@ class _CollectionRow extends StatelessWidget {
                 allCodes: collection.allCodes,
                 trips: collection.trips,
                 initialTemplate: collection.template,
+                initialPreset: MerchPreset(
+                  id: 'collection',
+                  label: collection.label,
+                  config: MerchPresetConfig(
+                    layout: collection.template,
+                    source: MerchCountrySource.allTime,
+                    jitter: 0.4,
+                    density: MerchDensity.balanced,
+                    stampMode: MerchStampMode.entryExit,
+                  ),
+                ),
               ),
         ),
       ),
@@ -274,7 +286,11 @@ class _CollectionRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white38, size: 20),
+            Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+              size: 20,
+            ),
           ],
         ),
       ),
