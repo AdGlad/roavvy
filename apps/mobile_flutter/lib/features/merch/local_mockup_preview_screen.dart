@@ -196,6 +196,13 @@ class _LocalMockupPreviewScreenState
   /// warning and re-enables the checkout button.
   bool _mockupFailed = false;
 
+  /// True once createMerchCart returns and we are waiting for the Printful
+  /// background mockup URL (second phase of the approving overlay).
+  bool _mockupApiComplete = false;
+
+  /// Epoch ms when [_startMockupListener] was called — used for timing logs.
+  int _mockupListenerStartMs = 0;
+
   String? _artworkConfirmationId;
   String? _mockupApprovalId;
 
@@ -231,6 +238,14 @@ class _LocalMockupPreviewScreenState
   String? _backMockupUrl;
   String? _merchConfigId;
   bool _checkoutLaunched = false;
+
+  /// Guards against starting a second Firestore poll while one is already
+  /// running. Spurious [AppLifecycleState.resumed] events (e.g. PayPal OTP SMS
+  /// arrival, brief app-switch during PayPal authentication) can fire before
+  /// the user has completed payment. Without this guard each event would start
+  /// a duplicate 30-second poll and eventually pop the user back to the map
+  /// before they finish checkout.
+  bool _pollingInProgress = false;
 
   // ── Mockup realtime listener (post-approve) ────────────────────────────────
 
@@ -277,6 +292,12 @@ class _LocalMockupPreviewScreenState
   late TextEditingController _titleController;
   Timer? _titleDebounce;
 
+  // ── Passport stamp size + scatter controls ────────────────────────────────
+  // Adjusted live via sliders; fed into every _generateFromPreset call.
+  double _stampSizeMultiplier = 1.0;
+  double _stampJitterFactor = 0.4;
+  Timer? _stampControlDebounce;
+
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
 
@@ -286,8 +307,8 @@ class _LocalMockupPreviewScreenState
 
   // ── Post-checkout order poll parameters ────────────────────────────────────
 
-  static const int _pollIntervalSeconds = 3;
-  static const int _pollMaxAttempts = 10;
+  static const int _pollIntervalSeconds = 5;
+  static const int _pollMaxAttempts = 20;
 
   // ── Mockup generation parameters ───────────────────────────────────────────
 
@@ -362,6 +383,18 @@ class _LocalMockupPreviewScreenState
     _ => Colors.white, // Black, Blue, Red → white
   };
 
+  static String _templateDisplayLabel(CardTemplateType t) => switch (t) {
+    CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.heart => 'Heart Flags',
+    CardTemplateType.passport => 'Passport Stamps',
+    CardTemplateType.timeline => 'Travel Log',
+    CardTemplateType.frontRibbon => 'Front Ribbon',
+    CardTemplateType.typography => 'Typography',
+    CardTemplateType.badge => 'Explorer Badge',
+    CardTemplateType.wordCloud => 'Word Cloud',
+    CardTemplateType.landmark => 'Landmark',
+  };
+
   Set<PassportColorMode> _disabledStampColors(String shirtColour) =>
       switch (shirtColour) {
         'Black' => {PassportColorMode.black, PassportColorMode.multicolor},
@@ -403,6 +436,12 @@ class _LocalMockupPreviewScreenState
 
     _titleOverride = widget.titleOverride;
     _titleController = TextEditingController(text: _titleOverride ?? '');
+
+    // Stamp size/scatter: prefer preset config values, fall back to widget params.
+    _stampSizeMultiplier =
+        _presetConfig?.stampSizeMultiplier ?? widget.stampSizeMultiplier;
+    _stampJitterFactor =
+        _presetConfig?.stampJitterFactor ?? widget.stampJitterFactor;
 
     _passportColorMode = _suggestStampColor(_colour);
     _timelineTextColor = _suggestTimelineTextColor(_colour);
@@ -454,6 +493,7 @@ class _LocalMockupPreviewScreenState
     _giftSubjectCtrl.dispose();
     _giftMessageCtrl.dispose();
     _titleDebounce?.cancel();
+    _stampControlDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
     _mockupSubscription?.cancel();
@@ -611,24 +651,32 @@ class _LocalMockupPreviewScreenState
               ? (List<String>.from(widget.selectedCodes)
                 ..shuffle(math.Random(_shuffleSeed)))
               : widget.selectedCodes;
+      // Only pass trips for the countries being designed — prevents stamps from
+      // unrelated countries appearing when widget.trips is the full history.
+      final codeSet = Set<String>.from(codes);
+      final scopedTrips =
+          widget.trips.where((t) => codeSet.contains(t.countryCode)).toList();
       final result = await CardImageRenderer.render(
         context,
         config.layout,
         codes: codes,
-        trips: widget.trips,
+        trips: scopedTrips,
         forPrint: false,
         entryOnly: config.entryOnly,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 7.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
         transparentBackground: _isTshirt,
-        stampJitterFactor: config.stampJitterFactor,
-        stampSizeMultiplier: config.stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
+        stampSizeMultiplier: _stampSizeMultiplier,
         gridLayoutMode: _gridLayoutMode,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
       _artworkVariants[0] = result.bytes;
+      // Invalidate colour variants — they were rendered with the previous seed.
+      _artworkVariants[1] = null;
+      _artworkVariants[2] = null;
       await _decodeArtwork(result.bytes);
       if (!mounted) return;
       setState(() {
@@ -729,12 +777,54 @@ class _LocalMockupPreviewScreenState
     await _generateFromPreset(config);
   }
 
+  // ── Passport stamp size / scatter ─────────────────────────────────────────
+
+  /// Called when the stamp-size or scatter slider changes.
+  ///
+  /// Updates state immediately (slider moves smoothly) then debounces the
+  /// expensive re-render so it only fires once the user pauses.
+  void _onStampSizeChanged(double value) {
+    setState(() => _stampSizeMultiplier = value);
+    _scheduleStampRerender();
+  }
+
+  void _onStampJitterChanged(double value) {
+    setState(() => _stampJitterFactor = value);
+    _scheduleStampRerender();
+  }
+
+  void _scheduleStampRerender() {
+    _stampControlDebounce?.cancel();
+    _stampControlDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      final config =
+          _presetConfig ??
+          MerchPresetConfig(
+            layout: _template,
+            source: MerchCountrySource.allTime,
+            jitter: _stampJitterFactor,
+            density: MerchDensity.balanced,
+            stampMode:
+                widget.confirmedEntryOnly
+                    ? MerchStampMode.entryOnly
+                    : MerchStampMode.entryExit,
+          );
+      unawaited(_generateFromPreset(config));
+    });
+  }
+
   // ── App lifecycle (post-checkout poll) ────────────────────────────────────
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _checkoutLaunched) {
-      _checkoutLaunched = false;
+      // Do NOT clear _checkoutLaunched here. PayPal (and other payment methods
+      // that use SMS OTP or native-app redirects) can fire spurious `resumed`
+      // events before the user has finished paying. Clearing the flag on the
+      // first resume would prevent us from re-polling when the user actually
+      // completes the flow and the browser genuinely closes.
+      if (_pollingInProgress) return; // a poll is already running — ignore
+      _pollingInProgress = true;
       if (!mounted) return;
       _pollForOrderConfirmation();
     }
@@ -744,6 +834,7 @@ class _LocalMockupPreviewScreenState
     final configId = _merchConfigId;
     final uid = ref.read(currentUidProvider);
     if (configId == null || uid == null) {
+      _pollingInProgress = false;
       if (!mounted) return;
       _showOrderProcessingFallback();
       return;
@@ -761,6 +852,9 @@ class _LocalMockupPreviewScreenState
       try {
         final snap = await docRef.get();
         if (snap.data()?['status'] == 'ordered') {
+          // Payment confirmed — clear both flags and navigate.
+          _checkoutLaunched = false;
+          _pollingInProgress = false;
           if (!mounted) return;
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
@@ -779,6 +873,15 @@ class _LocalMockupPreviewScreenState
         // Network error mid-poll — continue.
       }
     }
+
+    // Poll exhausted (100 s) without Firestore confirmation. At this point the
+    // user has been waiting long enough that either:
+    //   a) Payment was completed but the webhook/Cloud Function was very slow.
+    //   b) Payment was not completed (user abandoned checkout).
+    // In both cases, clear the checkout flags and show the processing dialog
+    // which tells them to expect a confirmation email if payment went through.
+    _checkoutLaunched = false;
+    _pollingInProgress = false;
 
     if (!mounted) return;
     _showOrderProcessingFallback();
@@ -799,15 +902,32 @@ class _LocalMockupPreviewScreenState
         .collection('merch_configs')
         .doc(configId);
 
+    _mockupListenerStartMs = DateTime.now().millisecondsSinceEpoch;
+
     // Hard timeout — cancel and surface the amber fallback if Firestore never
     // delivers a terminal status within the window.
     _mockupListenerTimer = Timer(_kMockupListenerTimeout, () {
       _mockupSubscription?.cancel();
       _mockupSubscription = null;
+      final elapsedMs =
+          DateTime.now().millisecondsSinceEpoch - _mockupListenerStartMs;
       debugPrint(
         '[mockup] listener: timed out after ${_kMockupListenerTimeout.inSeconds}s',
       );
-      if (mounted) setState(() => _mockupFailed = true);
+      debugPrint(
+        '[MERCH] MockupPollingCompleted cartItemId=$_cartItemId status=timeout elapsedMs=$elapsedMs',
+      );
+      if (mounted) {
+        final wasApproving = _state == _MockupState.approving;
+        setState(() {
+          _mockupFailed = true;
+          _mockupApiComplete = false;
+          if (wasApproving) _state = _MockupState.ready;
+        });
+        // Navigate to review screen even on timeout — confirmation screen
+        // handles a null frontMockupUrl gracefully.
+        if (wasApproving) _openConfirmationScreen();
+      }
     });
 
     _mockupSubscription = docRef.snapshots().listen(
@@ -816,9 +936,14 @@ class _LocalMockupPreviewScreenState
         final status = data?['mockupStatus'] as String?;
         final frontUrl = data?['frontMockupUrl'] as String?;
         final backUrl = data?['backMockupUrl'] as String?;
+        final elapsedMs =
+            DateTime.now().millisecondsSinceEpoch - _mockupListenerStartMs;
 
         debugPrint(
           '[mockup] listener update: status=$status front=${frontUrl != null ? "✓" : "null"} back=${backUrl != null ? "✓" : "null"}',
+        );
+        debugPrint(
+          '[MERCH] MockupPollingCheck cartItemId=$_cartItemId status=$status frontUrl=${frontUrl != null ? "present" : "null"} elapsedMs=$elapsedMs',
         );
 
         // Terminal when server has written a definitive status, or (backwards
@@ -836,16 +961,23 @@ class _LocalMockupPreviewScreenState
         _mockupSubscription?.cancel();
         _mockupSubscription = null;
 
+        debugPrint(
+          '[MERCH] MockupPollingCompleted cartItemId=$_cartItemId status=$status elapsedMs=$elapsedMs frontUrl=${frontUrl != null ? "present" : "null"}',
+        );
+
         if (!mounted) return;
+        final wasApproving = _state == _MockupState.approving;
         setState(() {
           _mockupUrl = frontUrl;
           _backMockupUrl = backUrl;
+          _mockupApiComplete = false;
           // Show amber fallback when server explicitly timed out or failed and
           // we have no URLs to display.
           if ((status == 'timeout' || status == 'failed') &&
               (frontUrl == null || frontUrl.isEmpty)) {
             _mockupFailed = true;
           }
+          if (wasApproving) _state = _MockupState.ready;
         });
         // ── Update cart item with async mockup URLs (M120) ──────────────────
         final cid = _cartItemId;
@@ -857,16 +989,39 @@ class _LocalMockupPreviewScreenState
                 frontMockupUrl: frontUrl,
                 backMockupUrl: backUrl,
               )
+              .then(
+                (_) => debugPrint(
+                  '[MERCH] CartItemUpdatedWithMockup cartItemId=$cid frontMockupUrl=${frontUrl != null ? "present" : "null"} backMockupUrl=${backUrl != null ? "present" : "null"}',
+                ),
+              )
               .catchError(
                 (e) => debugPrint('[mockup] cart updateMockupUrls failed: $e'),
               );
         }
+        // Auto-navigate to Review & Approve if we were holding in approving.
+        if (wasApproving) {
+          debugPrint(
+            '[MERCH] NavigatingToReviewAndApprove cartItemId=$_cartItemId elapsedMs=$elapsedMs status=$status',
+          );
+          _openConfirmationScreen();
+        }
       },
       onError: (Object e) {
         debugPrint('[mockup] listener error: $e');
+        debugPrint(
+          '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=listenerError:$e ts=${DateTime.now().toIso8601String()}',
+        );
         _mockupListenerTimer?.cancel();
         _mockupListenerTimer = null;
-        if (mounted) setState(() => _mockupFailed = true);
+        if (mounted) {
+          final wasApproving = _state == _MockupState.approving;
+          setState(() {
+            _mockupFailed = true;
+            _mockupApiComplete = false;
+            if (wasApproving) _state = _MockupState.ready;
+          });
+          if (wasApproving) _openConfirmationScreen();
+        }
       },
     );
   }
@@ -928,11 +1083,15 @@ class _LocalMockupPreviewScreenState
           _isTshirt || widget.transparentBackground,
         ), // multicolor/default
       };
+      // Filter trips to the selected countries — same scope as the original render.
+      final selectedSet = Set<String>.from(widget.selectedCodes);
+      final scopedTrips =
+          widget.trips.where((t) => selectedSet.contains(t.countryCode)).toList();
       final result = await CardImageRenderer.render(
         context,
         _template,
         codes: widget.selectedCodes,
-        trips: widget.trips,
+        trips: scopedTrips,
         // Passport uses forPrint=false so re-renders for stamp colour changes
         // use the same screen-layout (margins, sizeMultiplier, jitter) as the
         // card the user designed. forPrint=true would change margins and ignore
@@ -949,10 +1108,10 @@ class _LocalMockupPreviewScreenState
         dateColor: widget.dateColor,
         textColor: stampTextColor,
         transparentBackground: transparentBg,
-        // Preserve the exact layout the user designed (ADR-133).
-        stampSeed: widget.stampLayoutSeed,
-        stampSizeMultiplier: widget.stampSizeMultiplier,
-        stampJitterFactor: widget.stampJitterFactor,
+        // Use the current shuffle seed if set, otherwise the original layout seed (ADR-133).
+        stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
+        stampSizeMultiplier: _stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1225,9 +1384,17 @@ class _LocalMockupPreviewScreenState
       '[mockup]   countries=${widget.selectedCodes.length}: ${widget.selectedCodes.take(5).join(",")}${widget.selectedCodes.length > 5 ? "…" : ""}',
     );
 
+    debugPrint(
+      '[MERCH] ApproveAndReviewPressed uid=$uid product=${_product.name} colour=$_colour size=${_isTshirt ? _tshirtSize : _posterSize} template=${_template.name} frontPosition=$_frontPosition backPosition=$_backPosition ts=${DateTime.now().toIso8601String()}',
+    );
+    debugPrint(
+      '[MERCH] NavigatingToCreatingMockup ts=${DateTime.now().toIso8601String()}',
+    );
+
     setState(() {
       _state = _MockupState.approving;
       _retryMessage = null;
+      _mockupApiComplete = false;
     });
 
     // ── Cart item creation (M120 / ADR-167) ──────────────────────────────────
@@ -1258,6 +1425,9 @@ class _LocalMockupPreviewScreenState
         await cartRepo.create(uid, cartItem);
         if (mounted) setState(() => _cartItemId = newId);
         debugPrint('[mockup]   cartItemId=$newId ✓ (created)');
+        debugPrint(
+          '[MERCH] CartItemCreated id=$newId status=mockupGenerating variantId=$_resolvedVariantGid ts=${DateTime.now().toIso8601String()}',
+        );
       } catch (e) {
         debugPrint('[mockup]   cart item creation failed (non-fatal): $e');
       }
@@ -1385,6 +1555,12 @@ class _LocalMockupPreviewScreenState
       debugPrint(
         '[mockup]   cardId=${widget.cardId}  artworkConfirmationId=$confirmationId  mockupApprovalId=$approvalId',
       );
+      debugPrint(
+        '[MERCH] PrintfulMockupRequestStarted cartItemId=$_cartItemId variantId=$_resolvedVariantGid frontPosition=$_frontPosition backPosition=$_backPosition ts=${DateTime.now().toIso8601String()}',
+      );
+      debugPrint(
+        '[MERCH] PrintfulPayloadSummary variantId=$_resolvedVariantGid frontImageRef=${frontImageBase64 != null ? "${frontImageBase64.length}chars" : "none"} backImageRef=${backImageBase64 != null ? "${backImageBase64.length}chars" : "none"} countryCodes=${widget.selectedCodes.length}',
+      );
 
       Object? lastCallError;
       bool callSucceeded = false;
@@ -1394,12 +1570,14 @@ class _LocalMockupPreviewScreenState
           debugPrint(
             '[mockup]   retry attempt $attempt/$_kMaxRetries after error: $lastCallError',
           );
-          if (!mounted) return;
-          setState(
-            () =>
-                _retryMessage =
-                    'Having trouble generating your mockup. Retrying\u2026',
+          debugPrint(
+            '[MERCH] MockupGenerationRetry cartItemId=$_cartItemId retryCount=$attempt ts=${DateTime.now().toIso8601String()}',
           );
+          if (!mounted) return;
+          setState(() {
+            _retryMessage = 'Having trouble generating your mockup. Retrying\u2026';
+            _mockupApiComplete = false;
+          });
           await Future.delayed(const Duration(seconds: 2));
           if (!mounted) return;
         }
@@ -1462,20 +1640,21 @@ class _LocalMockupPreviewScreenState
             continue;
           }
 
-          // mockupUrl may be null — the server generates it in the background.
-          // We poll Firestore for it after transitioning to ready state.
           debugPrint(
-            '[mockup] ✓ ready — checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (will poll)"}',
+            '[mockup] ✓ checkoutUrl present${mockupUrl != null ? ", mockupUrl present" : ", mockupUrl pending (Printful generating in background)"}',
           );
-          if (!mounted) return;
-          setState(() {
-            _state = _MockupState.ready;
-            _retryMessage = null;
-            _mockupUrl = mockupUrl;
-            _backMockupUrl = backMockupUrl;
-            _checkoutUrl = checkoutUrl;
-            _merchConfigId = merchConfigId;
-          });
+          debugPrint(
+            '[MERCH] PrintfulMockupResponseReceived cartItemId=$_cartItemId durationMs=${sw.elapsedMilliseconds} checkoutUrl=present frontMockupUrl=${mockupUrl != null ? "present" : "pending"} ts=${DateTime.now().toIso8601String()}',
+          );
+
+          // Store checkout data — do NOT transition to ready yet. Keep the
+          // "Creating Your Mockup" overlay visible while Printful generates
+          // the photorealistic preview in the background.
+          _checkoutUrl = checkoutUrl;
+          _merchConfigId = merchConfigId;
+          _mockupUrl = mockupUrl;
+          _backMockupUrl = backMockupUrl;
+
           // ── Update cart item → mockupReady (M120) ──────────────────────────
           final cid = _cartItemId;
           if (cid != null) {
@@ -1492,10 +1671,42 @@ class _LocalMockupPreviewScreenState
                   (e) => debugPrint('[mockup] cart markMockupReady failed: $e'),
                 );
           }
-          if ((mockupUrl == null || mockupUrl.isEmpty) &&
-              merchConfigId != null) {
+
+          if (!mounted) return;
+
+          if (mockupUrl != null && mockupUrl.isNotEmpty) {
+            // Mockup available immediately — navigate directly to review.
+            debugPrint(
+              '[MERCH] NavigatingToReviewAndApprove cartItemId=$_cartItemId durationMs=${sw.elapsedMilliseconds} immediate=true',
+            );
+            setState(() {
+              _state = _MockupState.ready;
+              _retryMessage = null;
+            });
+            _openConfirmationScreen();
+          } else if (merchConfigId != null) {
+            // Printful generating in background — stay in approving state.
+            // [_startMockupListener] will auto-navigate when the URL arrives.
+            debugPrint(
+              '[MERCH] MockupPollingStarted cartItemId=$_cartItemId configId=$merchConfigId ts=${DateTime.now().toIso8601String()}',
+            );
+            setState(() {
+              _mockupApiComplete = true;
+              _retryMessage = null;
+            });
             _startMockupListener(merchConfigId, uid);
+          } else {
+            // No configId — no mockup will come; navigate with what we have.
+            debugPrint(
+              '[MERCH] NavigatingToReviewAndApprove cartItemId=$_cartItemId durationMs=${sw.elapsedMilliseconds} noConfigId=true',
+            );
+            setState(() {
+              _state = _MockupState.ready;
+              _retryMessage = null;
+            });
+            _openConfirmationScreen();
           }
+
           callSucceeded = true;
           break;
         } on TimeoutException catch (e) {
@@ -1538,6 +1749,9 @@ class _LocalMockupPreviewScreenState
       debugPrint('[mockup]   code=${e.code}');
       debugPrint('[mockup]   message=${e.message}');
       debugPrint('[mockup]   details=${e.details}');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=FirebaseFunctionsException:${e.code} message=${e.message} ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(
         uid,
         'FirebaseFunctionsException: ${e.code} ${e.message}',
@@ -1555,9 +1769,13 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     } on SocketException catch (e) {
       debugPrint('[mockup] ❌ SocketException (final): $e');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=SocketException ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(uid, 'SocketException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1568,9 +1786,13 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     } on TimeoutException catch (e) {
       debugPrint('[mockup] ❌ TimeoutException (final): $e');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=TimeoutException ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(uid, 'TimeoutException: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1583,10 +1805,14 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     } catch (e, stack) {
       debugPrint('[mockup] ❌ unexpected error: $e');
       debugPrint('[mockup]   $stack');
+      debugPrint(
+        '[MERCH] MockupGenerationFailed cartItemId=$_cartItemId error=$e stack=$stack ts=${DateTime.now().toIso8601String()}',
+      );
       _markCartItemFailed(uid, 'Unexpected: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1599,6 +1825,7 @@ class _LocalMockupPreviewScreenState
       setState(() {
         _state = _MockupState.configuring;
         _retryMessage = null;
+        _mockupApiComplete = false;
       });
     }
   }
@@ -1918,6 +2145,46 @@ class _LocalMockupPreviewScreenState
             ),
           ],
         ),
+        // ── Passport stamp controls (size + scatter) ─────────────────────
+        if (_isTshirt && _template == CardTemplateType.passport) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _StampSlider(
+                  label: 'Stamp size',
+                  value: _stampSizeMultiplier,
+                  min: 0.5,
+                  max: 1.5,
+                  valueLabel:
+                      '${(_stampSizeMultiplier * 100).round()}%',
+                  onChanged:
+                      _state == _MockupState.rerendering ||
+                              _state == _MockupState.approving
+                          ? null
+                          : _onStampSizeChanged,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _StampSlider(
+                  label: 'Scatter',
+                  value: _stampJitterFactor,
+                  min: 0.0,
+                  max: 1.0,
+                  valueLabel:
+                      '${(_stampJitterFactor * 100).round()}%',
+                  onChanged:
+                      _state == _MockupState.rerendering ||
+                              _state == _MockupState.approving
+                          ? null
+                          : _onStampJitterChanged,
+                ),
+              ),
+            ],
+          ),
+        ],
+
         const SizedBox(height: 12),
 
         // ── Colour + Size (one row) ──────────────────────────────────────
@@ -2202,6 +2469,10 @@ class _LocalMockupPreviewScreenState
         shirt: _buildLocalMockupArea(theme),
         retryMessage: _retryMessage,
         isTshirt: _isTshirt,
+        colour: _isTshirt ? _colour : null,
+        size: _isTshirt ? _tshirtSize : _posterSize,
+        design: _templateDisplayLabel(_template),
+        apiComplete: _mockupApiComplete,
       );
     }
 
@@ -2704,11 +2975,9 @@ class _LocalMockupPreviewScreenState
     final theme = Theme.of(context);
 
     if (_state == _MockupState.ready) {
-      // Checkout is only allowed when Printful returned an actual mockup URL.
-      // If the mockup timed out or failed, the user can only save to cart and
-      // return later — we do not want them purchasing without seeing the preview.
-      final mockupLoaded = _mockupUrl != null;
-      final mockupStillLoading = !mockupLoaded && !_mockupFailed;
+      // In the new flow the user reaches this state only after auto-navigation
+      // from the mockup listener (mockup ready or timed out) or by returning
+      // from the confirmation screen. Always allow proceeding to checkout.
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -2736,8 +3005,8 @@ class _LocalMockupPreviewScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Your preview couldn\u2019t be generated right now. '
-                      'Save to cart and come back later to checkout.',
+                      'Your photorealistic preview couldn\u2019t be generated. '
+                      'You can still proceed — your design is saved.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.amber.shade800,
                       ),
@@ -2749,18 +3018,16 @@ class _LocalMockupPreviewScreenState
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: mockupLoaded ? _openConfirmationScreen : null,
+              onPressed: _openConfirmationScreen,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                mockupStillLoading
-                    ? 'Loading Preview\u2026'
-                    : 'Review & Checkout',
-                style: const TextStyle(
+              child: const Text(
+                'Review & Checkout',
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3013,7 +3280,9 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
 
 // ── Approving overlay ─────────────────────────────────────────────────────────
 
-/// Full-area overlay shown while the Firebase Function processes the order.
+/// Full-area overlay shown while the Firebase Function processes the order
+/// and while Printful generates the photorealistic mockup in the background.
+///
 /// Keeps the local shirt visible at low opacity so the user retains context of
 /// what they approved, while a pulsing animation + copy reassures them.
 class _ApprovingView extends StatefulWidget {
@@ -3021,12 +3290,25 @@ class _ApprovingView extends StatefulWidget {
     required this.shirt,
     required this.isTshirt,
     this.retryMessage,
+    this.colour,
+    this.size,
+    this.design,
+    this.apiComplete = false,
   });
   final Widget shirt;
   final bool isTshirt;
 
   /// Non-null when a retry is in progress; overrides the subtitle copy.
   final String? retryMessage;
+
+  /// Order details shown as summary chips below the progress bar.
+  final String? colour;
+  final String? size;
+  final String? design;
+
+  /// True once createMerchCart has returned and we are waiting for the
+  /// Printful background mockup URL (updates the status message).
+  final bool apiComplete;
 
   @override
   State<_ApprovingView> createState() => _ApprovingViewState();
@@ -3141,7 +3423,9 @@ class _ApprovingViewState extends State<_ApprovingView>
                 )
               else ...[
                 Text(
-                  'This usually takes about 20 seconds.',
+                  widget.apiComplete
+                      ? 'We\'re generating your photorealistic preview.\nThis can take a little while.'
+                      : 'This usually takes about 20 seconds.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -3158,10 +3442,56 @@ class _ApprovingViewState extends State<_ApprovingView>
                   ),
                 ),
               ],
+              // ── Order detail chips ─────────────────────────────────────────
+              if (widget.colour != null ||
+                  widget.size != null ||
+                  widget.design != null) ...[
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (widget.colour != null)
+                      _OrderDetailChip(label: widget.colour!),
+                    if (widget.size != null)
+                      _OrderDetailChip(label: 'Size: ${widget.size}'),
+                    if (widget.design != null)
+                      _OrderDetailChip(label: widget.design!),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Small pill chip showing an order attribute inside the approving overlay.
+class _OrderDetailChip extends StatelessWidget {
+  const _OrderDetailChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
@@ -3804,6 +4134,87 @@ class _GiftMessageSection extends StatelessWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+// ── _StampSlider ───────────────────────────────────────────────────────────────
+
+/// Compact labelled slider used for passport stamp Size and Scatter controls.
+class _StampSlider extends StatelessWidget {
+  const _StampSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.valueLabel,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final String valueLabel;
+  final ValueChanged<double>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final disabled = onChanged == null;
+    final labelColor = disabled
+        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)
+        : theme.colorScheme.onSurfaceVariant;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: labelColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                letterSpacing: 0.4,
+              ),
+            ),
+            Text(
+              valueLabel,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: disabled
+                    ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                    : theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor:
+                theme.colorScheme.outline.withValues(alpha: 0.25),
+            thumbColor: theme.colorScheme.primary,
+            disabledThumbColor:
+                theme.colorScheme.primary.withValues(alpha: 0.3),
+            disabledActiveTrackColor:
+                theme.colorScheme.primary.withValues(alpha: 0.3),
+          ),
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
       ],
     );
   }

@@ -114,8 +114,14 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
   Widget build(BuildContext context) {
     final count = widget.trips.length;
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final scaffoldBg =
+        isDark ? const Color(0xFF0A0E1A) : theme.colorScheme.surface;
+    final fgColor = theme.colorScheme.onSurface;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
+      backgroundColor: scaffoldBg,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
@@ -125,14 +131,17 @@ class _JournalCarouselState extends ConsumerState<_JournalCarousel> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        foregroundColor: Colors.white,
+        foregroundColor: fgColor,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
                 '${_currentIndex + 1} / $count',
-                style: const TextStyle(color: Colors.white38, fontSize: 13),
+                style: TextStyle(
+                  color: fgColor.withValues(alpha: 0.38),
+                  fontSize: 13,
+                ),
               ),
             ),
           ),

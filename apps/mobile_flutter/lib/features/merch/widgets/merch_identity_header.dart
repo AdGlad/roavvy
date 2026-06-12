@@ -41,9 +41,11 @@ class MerchIdentityHeader extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF0E1A2B),
+          color: theme.colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white12),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
         ),
         child: isLoading
             ? const _ShimmerRow()
@@ -72,7 +74,7 @@ class MerchIdentityHeader extends ConsumerWidget {
                           since: earliestYear,
                         ),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
                         ),
                       ),
                     ],
@@ -109,7 +111,7 @@ class _ShimmerRow extends StatelessWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: Colors.white12,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -121,7 +123,7 @@ class _ShimmerRow extends StatelessWidget {
               width: 100,
               height: 12,
               decoration: BoxDecoration(
-                color: Colors.white12,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -130,7 +132,7 @@ class _ShimmerRow extends StatelessWidget {
               width: 160,
               height: 10,
               decoration: BoxDecoration(
-                color: Colors.white12,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),

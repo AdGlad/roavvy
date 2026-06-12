@@ -130,10 +130,10 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                               child: Center(child: CircularProgressIndicator()),
                             );
                           },
-                          errorBuilder: (_, __, ___) => const Icon(
+                          errorBuilder: (ctx, __, ___) => Icon(
                             Icons.dry_cleaning_outlined,
                             size: 80,
-                            color: Colors.white30,
+                            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.30),
                           ),
                         ),
                       ),

@@ -44,7 +44,7 @@ class MemoryRevealSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: RoavvyColours.backgroundDark,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -118,7 +118,7 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -128,8 +128,8 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
                   Text(
                     widget.question,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       height: 1.35,
@@ -138,9 +138,9 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
 
                   if (!_revealed) ...[
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Tap to reveal your memory',
-                      style: TextStyle(color: Colors.white38, fontSize: 14),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
                     ),
                     const SizedBox(height: 32),
                     FilledButton(
@@ -361,10 +361,7 @@ class _PrintMerchButton extends ConsumerWidget {
       },
       icon: const Icon(Icons.checkroom_outlined),
       label: const Text('Print on a t-shirt'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white70,
-        side: const BorderSide(color: Colors.white24),
-      ),
+      style: OutlinedButton.styleFrom(),
     );
   }
 }
@@ -395,7 +392,7 @@ class _ViewTripButton extends ConsumerWidget {
                   ),
                 );
               },
-      child: const Text('View trip', style: TextStyle(color: Colors.white54)),
+      child: const Text('View trip'),
     );
   }
 }

@@ -28,8 +28,13 @@ class StatsStrip extends ConsumerWidget {
         final latest = summary.latestVisit?.year.toString() ?? '—';
 
         final bottomInset = MediaQuery.paddingOf(context).bottom;
+        final stripTheme = Theme.of(context);
+        final stripIsDark = stripTheme.brightness == Brightness.dark;
         return Container(
-          color: const Color(0xFF0D2137).withValues(alpha: 0.88), // ADR-080
+          color:
+              stripIsDark
+                  ? const Color(0xFF0D2137).withValues(alpha: 0.88)
+                  : stripTheme.colorScheme.surface.withValues(alpha: 0.96),
           padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + bottomInset),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -67,20 +72,21 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: cs.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
-          style: const TextStyle(color: Colors.white70, fontSize: 11),
+          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.70), fontSize: 11),
         ),
       ],
     );
@@ -91,7 +97,7 @@ class _Stat extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: Colors.white.withValues(alpha: 0.08),
+          color: cs.onSurface.withValues(alpha: 0.08),
         ),
         child: content,
       ),

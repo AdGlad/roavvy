@@ -207,7 +207,6 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
                           ),
                         )
                         : const Text('Approve and buy'),
