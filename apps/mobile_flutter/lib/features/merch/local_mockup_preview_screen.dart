@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -27,6 +26,8 @@ import 'merch_post_purchase_screen.dart';
 import 'merch_share_exporter.dart';
 import 'merch_preset.dart';
 import 'merch_stamp_color.dart';
+import 'merch_image_processor.dart';
+import 'merch_storage_uploader.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
 import 'printful_placement_mapper.dart';
@@ -209,6 +210,10 @@ class _LocalMockupPreviewScreenState
   /// Cart item ID created at "Approve & Preview" time (M120 / ADR-167).
   /// Cached so retries reuse the same cart item rather than creating duplicates.
   String? _cartItemId;
+
+  /// Client-generated config ID (M157) — used as the Firestore doc ID so the
+  /// phone can reference uploads before the function returns.
+  String? _clientConfigId;
 
   // ── Decoded images ─────────────────────────────────────────────────────────
 
@@ -932,6 +937,17 @@ class _LocalMockupPreviewScreenState
 
     _mockupSubscription = docRef.snapshots().listen(
       (snap) {
+        // Skip stale local-cache snapshots. When _clientConfigId is reused
+        // across approve attempts, the Firestore SDK may fire immediately with
+        // the previous run's cached document (which could have a terminal
+        // mockupStatus/frontMockupUrl from the last design). We must wait for
+        // the server-confirmed snapshot after createMerchCart has reset the
+        // document on the server.
+        if (snap.metadata.isFromCache) {
+          debugPrint('[mockup] listener: skipping cached snapshot');
+          return;
+        }
+
         final data = snap.data();
         final status = data?['mockupStatus'] as String?;
         final frontUrl = data?['frontMockupUrl'] as String?;
@@ -1306,30 +1322,17 @@ class _LocalMockupPreviewScreenState
 
   // ── Upload helpers ─────────────────────────────────────────────────────────
 
-  /// Downscales [pngBytes] to [maxWidth] pixels wide before upload.
-  ///
-  /// Max upload width for front/chest artwork (small print area, 600 px is enough).
-  static const int _kUploadMaxWidth = 600;
-
-  /// Max upload width for back artwork. At 12 in × 150 DPI the print requires
-  /// 1800 px; rendering at 7× logical (340 px) gives 2380 px (~198 DPI).
-  /// Cap at 2400 so the full render is sent with no downscaling.
-  static const int _kBackUploadMaxWidth = 2400;
-
-  Future<Uint8List> _resizeForUpload(
-    Uint8List pngBytes, {
-    int maxWidth = _kUploadMaxWidth,
-  }) async {
-    final codec = await ui.instantiateImageCodec(
-      pngBytes,
-      targetWidth: maxWidth,
-    );
-    final frame = await codec.getNextFrame();
-    final byteData = await frame.image.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    frame.image.dispose();
-    return byteData!.buffer.asUint8List();
+  /// Generates a UUID v4 string for use as a Firestore document ID.
+  static String _generateConfigId() {
+    final rand = math.Random.secure();
+    final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex =
+        bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20)}';
   }
 
   void _onFlipped(bool showFront) {
@@ -1511,43 +1514,88 @@ class _LocalMockupPreviewScreenState
 
       if (!mounted) return;
 
-      // ── Step 3: call createMerchCart (with retry) ──────────────────────────
+      // ── Step 3: process images on device, upload to GCS, call createMerchCart ─
       final sendFrontImage =
           _isTshirt &&
           PrintfulPlacementMapper.sendsArtwork(_frontPosition) &&
           _frontRibbonBytes != null;
       final sendBackImage = PrintfulPlacementMapper.sendsArtwork(_backPosition);
-      // Resize images for upload — the server upscales to print dimensions anyway.
-      // Reduces the back-artwork payload from ~1.7 MB to ~400 KB (transparent PNG preserved).
-      final encSw = Stopwatch()..start();
-      final uploadBackBytes =
-          sendBackImage
-              ? await _resizeForUpload(
-                artworkBytes,
-                maxWidth: _kBackUploadMaxWidth,
+
+      // Client-generated config ID so the server uses a known Firestore doc ID.
+      final clientConfigId = _clientConfigId ?? _generateConfigId();
+      _clientConfigId = clientConfigId;
+
+      String? frontPrintStoragePath;
+      String? backPrintStoragePath;
+      String? mockupStoragePath;
+
+      final printDims = resolvePrintDimensions(
+        product: _product,
+        size: _isTshirt ? _tshirtSize : _posterSize,
+      );
+
+      if (printDims != null) {
+        final processSw = Stopwatch()..start();
+        final frontResult = sendFrontImage
+            ? await MerchImageProcessor.processFront(
+                sourceBytes: _frontRibbonBytes!,
+                frontPosition: PrintfulPlacementMapper.mapFront(_frontPosition),
+                widthPx: printDims.widthPx,
+                heightPx: printDims.heightPx,
+                dpi: printDims.dpi,
+                transparentBackground: printDims.transparent,
               )
-              : null;
-      final uploadFrontBytes =
-          sendFrontImage ? await _resizeForUpload(_frontRibbonBytes!) : null;
-      final backImageBase64 =
-          uploadBackBytes != null ? base64Encode(uploadBackBytes) : null;
-      final frontImageBase64 =
-          uploadFrontBytes != null ? base64Encode(uploadFrontBytes) : null;
-      encSw.stop();
+            : null;
+        final backPrintBytes = sendBackImage
+            ? await MerchImageProcessor.processBack(
+                sourceBytes: artworkBytes,
+                widthPx: printDims.widthPx,
+                heightPx: printDims.heightPx,
+                transparentBackground: printDims.transparent,
+              )
+            : null;
+        processSw.stop();
+        debugPrint(
+          '[mockup] step 3: on-device processing ${processSw.elapsedMilliseconds}ms  front=${frontResult != null}  back=${backPrintBytes != null}',
+        );
+
+        final uploader = MerchStorageUploader();
+        final uploadSw = Stopwatch()..start();
+        await Future.wait([
+          if (frontResult != null) ...[
+            uploader
+                .upload(
+                  frontResult.printBytes,
+                  'front_print_files/$clientConfigId.png',
+                )
+                .then((p) => frontPrintStoragePath = p),
+            uploader
+                .upload(
+                  frontResult.mockupBytes,
+                  'mockup_files/$clientConfigId.png',
+                )
+                .then((p) => mockupStoragePath = p),
+          ],
+          if (backPrintBytes != null)
+            uploader
+                .upload(
+                  backPrintBytes,
+                  'back_print_files/$clientConfigId.png',
+                )
+                .then((p) => backPrintStoragePath = p),
+        ]);
+        uploadSw.stop();
+        debugPrint(
+          '[mockup]   GCS upload ${uploadSw.elapsedMilliseconds}ms  front=$frontPrintStoragePath  back=$backPrintStoragePath  mockup=$mockupStoragePath',
+        );
+      } else {
+        debugPrint(
+          '[mockup] ⚠️ unknown print dims for variant=$_resolvedVariantGid',
+        );
+      }
+
       debugPrint(
         '[mockup] step 3: calling createMerchCart (max retries: $_kMaxRetries)',
-      );
-      debugPrint(
-        '[mockup]   resize+encode took ${encSw.elapsedMilliseconds}ms',
-      );
-      debugPrint(
-        '[mockup]   sendFrontImage=$sendFrontImage raw=${_frontRibbonBytes?.length ?? 0}B → upload=${uploadFrontBytes?.length ?? 0}B b64=${frontImageBase64?.length ?? 0}B',
-      );
-      debugPrint(
-        '[mockup]   sendBackImage=$sendBackImage raw=${artworkBytes.length}B → upload=${uploadBackBytes?.length ?? 0}B b64=${backImageBase64?.length ?? 0}B',
-      );
-      debugPrint(
-        '[mockup]   total payload ~${((frontImageBase64?.length ?? 0) + (backImageBase64?.length ?? 0)) ~/ 1024}KB',
       );
       debugPrint(
         '[mockup]   frontPosition=$_frontPosition  backPosition=$_backPosition',
@@ -1559,7 +1607,7 @@ class _LocalMockupPreviewScreenState
         '[MERCH] PrintfulMockupRequestStarted cartItemId=$_cartItemId variantId=$_resolvedVariantGid frontPosition=$_frontPosition backPosition=$_backPosition ts=${DateTime.now().toIso8601String()}',
       );
       debugPrint(
-        '[MERCH] PrintfulPayloadSummary variantId=$_resolvedVariantGid frontImageRef=${frontImageBase64 != null ? "${frontImageBase64.length}chars" : "none"} backImageRef=${backImageBase64 != null ? "${backImageBase64.length}chars" : "none"} countryCodes=${widget.selectedCodes.length}',
+        '[MERCH] PrintfulPayloadSummary variantId=$_resolvedVariantGid frontPath=${frontPrintStoragePath ?? "none"} backPath=${backPrintStoragePath ?? "none"} countryCodes=${widget.selectedCodes.length}',
       );
 
       Object? lastCallError;
@@ -1595,9 +1643,13 @@ class _LocalMockupPreviewScreenState
                 if (widget.cardId != null) 'cardId': widget.cardId,
                 'artworkConfirmationId': confirmationId,
                 'mockupApprovalId': approvalId,
-                if (backImageBase64 != null) 'backImageBase64': backImageBase64,
-                if (frontImageBase64 != null)
-                  'frontImageBase64': frontImageBase64,
+                if (frontPrintStoragePath != null)
+                  'frontPrintStoragePath': frontPrintStoragePath,
+                if (backPrintStoragePath != null)
+                  'backPrintStoragePath': backPrintStoragePath,
+                if (mockupStoragePath != null)
+                  'mockupStoragePath': mockupStoragePath,
+                'clientConfigId': clientConfigId,
                 if (_isTshirt)
                   'frontPosition': PrintfulPlacementMapper.mapFront(
                     _frontPosition,
