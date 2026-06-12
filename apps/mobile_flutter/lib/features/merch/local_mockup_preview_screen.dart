@@ -213,7 +213,6 @@ class _LocalMockupPreviewScreenState
 
   /// Client-generated config ID (M157) — used as the Firestore doc ID so the
   /// phone can reference uploads before the function returns.
-  String? _clientConfigId;
 
   // ── Decoded images ─────────────────────────────────────────────────────────
 
@@ -937,12 +936,10 @@ class _LocalMockupPreviewScreenState
 
     _mockupSubscription = docRef.snapshots().listen(
       (snap) {
-        // Skip stale local-cache snapshots. When _clientConfigId is reused
-        // across approve attempts, the Firestore SDK may fire immediately with
-        // the previous run's cached document (which could have a terminal
-        // mockupStatus/frontMockupUrl from the last design). We must wait for
-        // the server-confirmed snapshot after createMerchCart has reset the
-        // document on the server.
+        // Skip stale local-cache snapshots. The Firestore SDK may fire
+        // immediately with a locally-cached document. Since each Approve
+        // generates a fresh configId the doc won't exist yet server-side,
+        // so any cache hit is always stale and should be ignored.
         if (snap.metadata.isFromCache) {
           debugPrint('[mockup] listener: skipping cached snapshot');
           return;
@@ -1521,9 +1518,10 @@ class _LocalMockupPreviewScreenState
           _frontRibbonBytes != null;
       final sendBackImage = PrintfulPlacementMapper.sendsArtwork(_backPosition);
 
-      // Client-generated config ID so the server uses a known Firestore doc ID.
-      final clientConfigId = _clientConfigId ?? _generateConfigId();
-      _clientConfigId = clientConfigId;
+      // Always generate a fresh config ID for each Approve attempt so the
+      // Firestore listener never attaches to a completed document from a
+      // previous run (which would show stale mockup data immediately).
+      final clientConfigId = _generateConfigId();
 
       String? frontPrintStoragePath;
       String? backPrintStoragePath;
