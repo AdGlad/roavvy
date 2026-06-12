@@ -1,14 +1,15 @@
-# M146 — Annual Travel Story with Merch CTA
+# M148 — Flag Mosaic Wall
 
 ## Goal
-Full-screen Wrapped-style animated story (PageView, user-paced, ADR-178) triggered
-from Year in Review and Scan Summary. 6 pages ending in a personalised shirt CTA.
-Produces a shareable summary card PNG.
+Scrollable full-screen grid of every country's flag. Visited = full colour. Unvisited = greyscale + dimmed.
+Launched from the Countries stat card. Tapping a visited flag shows a bottom sheet with visit dates and trip count.
+Continent filter chips narrow the grid. Share button exports visited flags as PNG.
 
 ## Tasks
 
-- [ ] T1 — `travel_story_data.dart` — TravelStoryData + build() factory
-- [ ] T2 — `travel_story_screen.dart` — 6-page animated PageView story screen
-- [ ] T3 — `travel_story_summary_card.dart` — shareable PNG card widget
-- [ ] T4 — Entry points: YearInReviewScreen + ScanSummaryScreen
-- [ ] T5 — Tests: 2 unit + 3 widget
+- [ ] T1 — `flag_mosaic_screen.dart` — full-screen scaffold, header, continent filter chips, flag GridView
+- [ ] T2 — Flag tile widget — full-colour visited / greyscale unvisited with ColorFiltered shader
+- [ ] T3 — Visit detail bottom sheet — country name, first/last seen, trip count
+- [ ] T4 — Share CTA — RepaintBoundary → PNG → Share.shareXFiles (visited flags only)
+- [ ] T5 — Wire entry point — tap Countries card in StatsGrid navigates to FlagMosaicScreen
+- [ ] T6 — Widget test: given 3 visited countries, 3 coloured tiles and 192 dimmed tiles render

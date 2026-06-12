@@ -4,7 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
 import '../continent_explorer_screen.dart';
-import '../countries_list_screen.dart';
+import '../flag_mosaic_screen.dart';
 
 /// Animated, colour-coded 2×2 stats grid (M147).
 ///
@@ -52,7 +52,7 @@ class StatsGrid extends StatelessWidget {
             onTap: (visits != null && visits!.isNotEmpty)
                 ? () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => CountriesListScreen(visits: visits!),
+                        builder: (_) => const FlagMosaicScreen(),
                       ),
                     )
                 : null,
