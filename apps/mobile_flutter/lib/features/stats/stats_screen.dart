@@ -12,6 +12,7 @@ import 'widgets/achievement_timeline.dart';
 import 'widgets/daily_challenge_card.dart';
 import 'widgets/merch_moments_section.dart';
 import 'widgets/next_achievements_carousel.dart';
+import 'widgets/rarest_visits_card.dart';
 import 'widgets/stats_grid.dart';
 import 'widgets/travel_heatmap_card.dart';
 import 'widgets/travel_progress_hero.dart';
@@ -48,6 +49,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   late final Animation<double> _challengeAnim;
   late final Animation<double> _yearAnim;
   late final Animation<double> _carouselAnim;
+  late final Animation<double> _rarestAnim;
   late final Animation<double> _timelineAnim;
   late final Animation<double> _galleryAnim;
   late final Animation<double> _merchAnim;
@@ -78,6 +80,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     _challengeAnim = interval(0.20, 0.50);
     _yearAnim = interval(0.25, 0.55);
     _carouselAnim = interval(0.30, 0.60);
+    _rarestAnim = interval(0.35, 0.65);
     _timelineAnim = interval(0.40, 0.70);
     _galleryAnim = interval(0.50, 0.80);
     _merchAnim = interval(0.60, 1.00);
@@ -232,6 +235,17 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
                     heritageCount: heritageCount,
                     unlockedIds: unlockedIds,
                   ),
+                ),
+              ),
+            ),
+
+            // ── Rarest Visits Badge ───────────────────────────────────────
+            SliverToBoxAdapter(
+              child: _stagger(
+                _rarestAnim,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: RarestVisitsCard(visits: visits),
                 ),
               ),
             ),
