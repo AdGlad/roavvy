@@ -132,7 +132,6 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   String _placement = 'front'; // 'front' | 'back'; t-shirt only
 
   _PreviewState _previewState = _PreviewState.initial;
-  String? _previewUrl;
   String? _mockupUrl;
   String? _checkoutUrl;
   String? _merchConfigId;
@@ -290,7 +289,6 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
   void _resetPreview() {
     if (_previewState != _PreviewState.initial) {
       _previewState = _PreviewState.initial;
-      _previewUrl = null;
       _mockupUrl = null;
       _checkoutUrl = null;
       _merchConfigId = null;
@@ -363,7 +361,6 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
       });
 
       final checkoutUrl = result.data['checkoutUrl'] as String?;
-      final previewUrl = result.data['previewUrl'] as String?;
       final mockupUrl = result.data['mockupUrl'] as String?;
       final merchConfigId = result.data['merchConfigId'] as String?;
 
@@ -374,7 +371,6 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
       if (!mounted) return;
       setState(() {
         _previewState = _PreviewState.ready;
-        _previewUrl = previewUrl;
         _mockupUrl = mockupUrl;
         _checkoutUrl = checkoutUrl;
         _merchConfigId = merchConfigId;
@@ -445,9 +441,8 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
           child: const Center(child: CircularProgressIndicator()),
         );
       case _PreviewState.ready:
-        // Prefer the photorealistic mockup (full t-shirt); fall back to the
-        // flag grid preview if mockup generation timed out or is unavailable.
-        final url = _mockupUrl ?? _previewUrl;
+        // Show photorealistic mockup when available; fallback to placeholder.
+        final url = _mockupUrl;
         if (url == null) {
           return Container(
             height: 200,

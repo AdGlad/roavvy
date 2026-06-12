@@ -92,6 +92,48 @@ const Map<(String, String), String> posterGids = {
   ('Fine Art', 'A4'): 'gid://shopify/ProductVariant/47577104777403',
 };
 
+/// Print canvas dimensions used for on-device image processing (mirrors
+/// `apps/functions/src/printDimensions.ts`).
+class MerchPrintDimensions {
+  final int widthPx;
+  final int heightPx;
+  final int dpi;
+  final bool transparent;
+
+  const MerchPrintDimensions({
+    required this.widthPx,
+    required this.heightPx,
+    required this.dpi,
+    required this.transparent,
+  });
+}
+
+const _tshirtDims = MerchPrintDimensions(
+  widthPx: 4500,
+  heightPx: 5400,
+  dpi: 150,
+  transparent: true,
+);
+
+const _posterDimsBySize = <String, MerchPrintDimensions>{
+  '12x18in': MerchPrintDimensions(widthPx: 3600, heightPx: 5400, dpi: 300, transparent: false),
+  '18x24in': MerchPrintDimensions(widthPx: 5400, heightPx: 7200, dpi: 300, transparent: false),
+  '24x36in': MerchPrintDimensions(widthPx: 7200, heightPx: 10800, dpi: 300, transparent: false),
+  'A3': MerchPrintDimensions(widthPx: 3508, heightPx: 4961, dpi: 300, transparent: false),
+  'A4': MerchPrintDimensions(widthPx: 2480, heightPx: 3508, dpi: 300, transparent: false),
+};
+
+/// Returns the print dimensions for the given product + size combination.
+///
+/// Returns null for unknown combinations (should not occur in production).
+MerchPrintDimensions? resolvePrintDimensions({
+  required MerchProduct product,
+  String size = '',
+}) {
+  if (product == MerchProduct.tshirt) return _tshirtDims;
+  return _posterDimsBySize[size];
+}
+
 /// Resolves the Shopify ProductVariant GID for the given product configuration.
 ///
 /// Returns the first GID as a fallback if the combination is not found (should

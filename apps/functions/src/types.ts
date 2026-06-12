@@ -109,6 +109,12 @@ export interface MerchConfig {
    * Null when not a gift order. Max 200 chars enforced by shopifyOrderCreated.
    */
   giftMessage: string | null;
+  /**
+   * Printful v2 mockup task ID returned by POST /v2/mockup-tasks (M157).
+   * Stored so printfulMockupWebhook can look up the config by task ID.
+   * Null for poster products or pre-M157 configs.
+   */
+  printfulMockupTaskId: number | null;
 }
 
 /** Request payload for createMerchCart onCall function */
@@ -163,6 +169,24 @@ export interface CreateMerchCartRequest {
    * Gift message body (M81). Max 200 chars.
    */
   giftMessage?: string;
+  /**
+   * GCS storage path of the front print PNG uploaded directly by the phone (M157).
+   * When present, createMerchCart skips Sharp processing and signs this path instead.
+   */
+  frontPrintStoragePath?: string;
+  /**
+   * GCS storage path of the back print PNG uploaded directly by the phone (M157).
+   */
+  backPrintStoragePath?: string;
+  /**
+   * GCS storage path of the mockup PNG uploaded by the phone for Printful v2 (M157).
+   */
+  mockupStoragePath?: string;
+  /**
+   * Client-generated config ID used as the Firestore doc ID (M157).
+   * Allows the client to attach a Firestore listener before the function returns.
+   */
+  clientConfigId?: string;
 }
 
 /** Response payload from createMerchCart */
@@ -170,8 +194,6 @@ export interface CreateMerchCartResponse {
   checkoutUrl: string;
   cartId: string;
   merchConfigId: string;
-  /** Public URL of the generated preview image (Firebase Storage) */
-  previewUrl: string;
   /**
    * Photorealistic front t-shirt mockup URL from Printful Mockup API (ADR-120).
    * Null for poster products or if mockup generation timed out / errored.
