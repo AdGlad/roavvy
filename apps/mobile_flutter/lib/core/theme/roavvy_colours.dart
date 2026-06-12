@@ -21,4 +21,24 @@ abstract final class RoavvyColours {
   // Overlay / glass
   static const Color glassLight = Color(0x80FFFFFF);
   static const Color glassDark = Color(0x99000000);
+
+  // Continent colours — shared across stats screens
+  static const Map<String, Color> continentColors = {
+    'Africa': Color(0xFFFF8C42),
+    'Asia': Color(0xFFE74C3C),
+    'Europe': Color(0xFF3498DB),
+    'North America': Color(0xFF27AE60),
+    'South America': Color(0xFF8E44AD),
+    'Oceania': Color(0xFF16A085),
+  };
+
+  // Continent emoji — shared across stats screens
+  static const Map<String, String> continentEmoji = {
+    'Africa': '🌍',
+    'Asia': '🌏',
+    'Europe': '🏰',
+    'North America': '🌲',
+    'South America': '🌿',
+    'Oceania': '🌊',
+  };
 }
