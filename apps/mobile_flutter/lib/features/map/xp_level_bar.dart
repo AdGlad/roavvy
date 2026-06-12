@@ -63,12 +63,18 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
   Widget build(BuildContext context) {
     final xp = ref.watch(xpNotifierProvider);
 
+    final xpTheme = Theme.of(context);
+    final xpIsDark = xpTheme.brightness == Brightness.dark;
+    final xpCs = xpTheme.colorScheme;
     return SafeArea(
       bottom: false,
       child: SizedBox(
         height: 44,
         child: Material(
-          color: const Color(0xFF0D2137).withValues(alpha: 0.88), // ADR-080
+          color:
+              xpIsDark
+                  ? const Color(0xFF0D2137).withValues(alpha: 0.88)
+                  : xpCs.surface.withValues(alpha: 0.96),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -99,8 +105,8 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                       const SizedBox(width: 8),
                       Text(
                         xp.levelLabel,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: xpCs.onSurface,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -115,7 +121,10 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: xp.progressFraction,
-                      backgroundColor: const Color(0xFF1E3A5F),
+                      backgroundColor:
+                          xpIsDark
+                              ? const Color(0xFF1E3A5F)
+                              : xpCs.surfaceContainerHighest,
                       valueColor: const AlwaysStoppedAnimation<Color>(
                         Color(0xFFFFD700),
                       ),
@@ -142,8 +151,8 @@ class _XpLevelBarState extends ConsumerState<XpLevelBar> {
                           ? Text(
                             'L${xp.level + 1}',
                             key: const ValueKey('next'),
-                            style: const TextStyle(
-                              color: Colors.white54,
+                            style: TextStyle(
+                              color: xpCs.onSurface.withValues(alpha: 0.54),
                               fontSize: 11,
                             ),
                           )
@@ -180,10 +189,11 @@ class _XpProgressionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0D2137),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
@@ -199,7 +209,7 @@ class _XpProgressionSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: cs.onSurface.withValues(alpha: 0.24),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -208,7 +218,6 @@ class _XpProgressionSheet extends StatelessWidget {
               Text(
                 'Traveller Levels',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -260,6 +269,7 @@ class _LevelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final highlight = isCurrent;
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -268,7 +278,7 @@ class _LevelRow extends StatelessWidget {
         color:
             highlight
                 ? const Color(0xFFFFD700).withValues(alpha: 0.15)
-                : Colors.white.withValues(alpha: 0.04),
+                : cs.onSurface.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(10),
         border:
             highlight
@@ -285,14 +295,17 @@ class _LevelRow extends StatelessWidget {
               color:
                   isUnlocked || isCurrent
                       ? const Color(0xFFFFD700)
-                      : Colors.white12,
+                      : cs.onSurface.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Text(
               '$level',
               style: TextStyle(
-                color: isUnlocked || isCurrent ? Colors.white : Colors.white38,
+                color:
+                    isUnlocked || isCurrent
+                        ? Colors.white
+                        : cs.onSurface.withValues(alpha: 0.38),
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -309,8 +322,8 @@ class _LevelRow extends StatelessWidget {
                     isCurrent
                         ? const Color(0xFFFFD700)
                         : isUnlocked
-                        ? Colors.white
-                        : Colors.white38,
+                        ? cs.onSurface
+                        : cs.onSurface.withValues(alpha: 0.38),
                 fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                 fontSize: 14,
               ),
@@ -319,7 +332,10 @@ class _LevelRow extends StatelessWidget {
           Text(
             xpRequired == 0 ? 'Start' : '$xpRequired XP',
             style: TextStyle(
-              color: isUnlocked || isCurrent ? Colors.white54 : Colors.white24,
+              color:
+                  isUnlocked || isCurrent
+                      ? cs.onSurface.withValues(alpha: 0.54)
+                      : cs.onSurface.withValues(alpha: 0.24),
               fontSize: 11,
             ),
           ),

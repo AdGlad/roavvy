@@ -9,24 +9,33 @@ import 'globe_projection.dart';
 
 // ── Colour constants (mirror country_polygon_layer.dart — ADR-116) ─────────────
 
-const _kOcean = Color(0xFF1B3A5C); // lighter navy ocean (M86)
-const _kAtmosphere = Color(0xFF3A6A9A); // lighter atmosphere rim (M86)
-
-const _kUnvisitedFill = Color(
-  0xFF2D5280,
-); // mid-navy — visible against ocean (M86)
+// Dark palette (default — deep navy globe).
+const _kOcean = Color(0xFF1B3A5C);
+const _kAtmosphere = Color(0xFF3A6A9A);
+const _kUnvisitedFill = Color(0xFF2D5280);
 const _kUnvisitedBorder = Color(0xFF3D6490);
-
 const _kVisitedBorder = Color(0xFFFFD700);
 const _kReviewedFill = Color(0xFFC8860A);
-
 const _kNewFill = Color(0xFFFFD700);
 const _kNewBorder = Color(0xFFFFFFFF);
-
 const _kDepth1Fill = Color(0xFFD4A017);
 const _kDepth2Fill = Color(0xFFC8860A);
 const _kDepth3Fill = Color(0xFFB86A00);
 const _kDepth4Fill = Color(0xFF8B4500);
+
+// Light palette — bright azure ocean, darker slate land for UNESCO dot contrast.
+const _kOceanLight = Color(0xFF7DCEF8);
+const _kAtmosphereLight = Color(0xFFAEDCFA);
+const _kUnvisitedFillLight = Color(0xFF6B8FA3);
+const _kUnvisitedBorderLight = Color(0xFF4E7287);
+const _kVisitedBorderLight = Color(0xFFC8930A);
+const _kReviewedFillLight = Color(0xFFD4920A);
+const _kNewFillLight = Color(0xFFFFD700);
+const _kNewBorderLight = Color(0xFF002244);
+const _kDepth1FillLight = Color(0xFFE8A800);
+const _kDepth2FillLight = Color(0xFFD49200);
+const _kDepth3FillLight = Color(0xFFBF7500);
+const _kDepth4FillLight = Color(0xFF8B5000);
 
 Color _depthFillColor(int tripCount) {
   if (tripCount <= 0) return _kDepth1Fill;
@@ -34,6 +43,14 @@ Color _depthFillColor(int tripCount) {
   if (tripCount <= 3) return _kDepth2Fill;
   if (tripCount <= 5) return _kDepth3Fill;
   return _kDepth4Fill;
+}
+
+Color _depthFillColorLight(int tripCount) {
+  if (tripCount <= 0) return _kDepth1FillLight;
+  if (tripCount == 1) return _kDepth1FillLight;
+  if (tripCount <= 3) return _kDepth2FillLight;
+  if (tripCount <= 5) return _kDepth3FillLight;
+  return _kDepth4FillLight;
 }
 
 // ── GlobePainter ──────────────────────────────────────────────────────────────
@@ -52,6 +69,7 @@ class GlobePainter extends CustomPainter {
     required this.visualStates,
     required this.tripCounts,
     required this.projection,
+    this.isDark = true,
     this.highlightedCode,
     this.pulseValue = 0.0,
     this.culturalSiteCoords = const [],
@@ -67,6 +85,7 @@ class GlobePainter extends CustomPainter {
   final Map<String, CountryVisualState> visualStates;
   final Map<String, int> tripCounts;
   final GlobeProjection projection;
+  final bool isDark;
 
   /// ISO code of country to render a celebration halo on, or null for none.
   final String? highlightedCode;
@@ -104,7 +123,7 @@ class GlobePainter extends CustomPainter {
     final c = projection.centre(size);
 
     // 1. Ocean circle.
-    canvas.drawCircle(c, r, Paint()..color = _kOcean);
+    canvas.drawCircle(c, r, Paint()..color = isDark ? _kOcean : _kOceanLight);
 
     // 2. Country polygons — back-face culled.
     for (final poly in polygons) {
@@ -134,7 +153,7 @@ class GlobePainter extends CustomPainter {
       c,
       r,
       Paint()
-        ..color = _kAtmosphere
+        ..color = isDark ? _kAtmosphere : _kAtmosphereLight
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
@@ -184,14 +203,14 @@ class GlobePainter extends CustomPainter {
 
     // Unvisited sites — dim amber static dots (no pulse), drawn first (M129).
     if (unvisitedHeritageSiteCoords.isNotEmpty) {
+      final dotColor =
+          isDark
+              ? Colors.amber[200]!.withValues(alpha: 0.40)
+              : Colors.amber[700]!.withValues(alpha: 0.60);
       for (final coord in unvisitedHeritageSiteCoords) {
         final pt = projection.project(coord.$1, coord.$2, size);
         if (pt == null) continue;
-        canvas.drawCircle(
-          pt,
-          r * 0.002,
-          Paint()..color = Colors.amber[200]!.withValues(alpha: 0.40),
-        );
+        canvas.drawCircle(pt, r * 0.002, Paint()..color = dotColor);
       }
     }
     if (culturalSiteCoords.isNotEmpty) {
@@ -277,23 +296,33 @@ class GlobePainter extends CustomPainter {
   }
 
   Color _fillColor(String isoCode, CountryVisualState state) => switch (state) {
-    CountryVisualState.newlyDiscovered => _kNewFill,
-    CountryVisualState.reviewed => _kReviewedFill,
+    CountryVisualState.newlyDiscovered =>
+      isDark ? _kNewFill : _kNewFillLight,
+    CountryVisualState.reviewed =>
+      isDark ? _kReviewedFill : _kReviewedFillLight,
     CountryVisualState.visited ||
-    CountryVisualState.target => _depthFillColor(tripCounts[isoCode] ?? 0),
-    CountryVisualState.unvisited => _kUnvisitedFill,
+    CountryVisualState.target =>
+      isDark
+          ? _depthFillColor(tripCounts[isoCode] ?? 0)
+          : _depthFillColorLight(tripCounts[isoCode] ?? 0),
+    CountryVisualState.unvisited =>
+      isDark ? _kUnvisitedFill : _kUnvisitedFillLight,
   };
 
   Color _borderColor(CountryVisualState state) => switch (state) {
-    CountryVisualState.newlyDiscovered => _kNewBorder,
+    CountryVisualState.newlyDiscovered =>
+      isDark ? _kNewBorder : _kNewBorderLight,
     CountryVisualState.reviewed ||
     CountryVisualState.visited ||
-    CountryVisualState.target => _kVisitedBorder,
-    CountryVisualState.unvisited => _kUnvisitedBorder,
+    CountryVisualState.target =>
+      isDark ? _kVisitedBorder : _kVisitedBorderLight,
+    CountryVisualState.unvisited =>
+      isDark ? _kUnvisitedBorder : _kUnvisitedBorderLight,
   };
 
   @override
   bool shouldRepaint(GlobePainter old) =>
+      isDark != old.isDark ||
       !identical(projection, old.projection) ||
       !identical(visualStates, old.visualStates) ||
       !identical(tripCounts, old.tripCounts) ||

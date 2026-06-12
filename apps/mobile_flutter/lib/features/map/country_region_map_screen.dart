@@ -163,11 +163,15 @@ class _CountryRegionMapScreenState
     final countryName = kCountryNames[widget.countryCode] ?? widget.countryCode;
     final regionWord = _visitedCount == 1 ? 'region' : 'regions';
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final scaffoldBg =
+        isDark ? _kOceanBackground : theme.colorScheme.surface;
+
     return Scaffold(
-      backgroundColor: _kOceanBackground,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: _kOceanBackground,
-        foregroundColor: Colors.white,
+        backgroundColor: scaffoldBg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -175,9 +179,9 @@ class _CountryRegionMapScreenState
             if (_visitedCount > 0)
               Text(
                 '$_visitedCount $regionWord visited',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.70),
+                ),
               ),
           ],
         ),
@@ -187,7 +191,7 @@ class _CountryRegionMapScreenState
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: CircularProgressIndicator(),
             );
           }
 
@@ -231,7 +235,7 @@ class _CountryRegionMapScreenState
           return FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              backgroundColor: _kOceanBackground,
+              backgroundColor: scaffoldBg,
               onMapReady: _fitBounds,
             ),
             children: [

@@ -218,7 +218,7 @@
 				BB87C090B3FC0785219D3F40 /* [CP] Copy Pods Resources */,
 				D3F1AD89A3E3487623EBE20A /* [CP] Embed Pods Frameworks */,
 				6FC8B43D6C76A1265142684B /* Re-sign Embedded Frameworks */,
-				94CE0DD150D6ABDF72F38E5F /* Generate sqlite3 dSYM */,
+				0BFE2C9A6118DDA9550DE0A8 /* Generate sqlite3 dSYM */,
 			);
 			buildRules = (
 			);
@@ -291,6 +291,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		0BFE2C9A6118DDA9550DE0A8 /* Generate sqlite3 dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate sqlite3 dSYM";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Generate sqlite3.framework.dSYM for App Store Connect symbol upload.\n# Flutter Native Assets embeds sqlite3 inside the app bundle; this script\n# locates it and produces the dSYM the upload tool requires.\nOUT=\"${DWARF_DSYM_FOLDER_PATH}/sqlite3.framework.dSYM\"\n[ -d \"${OUT}\" ] && exit 0          # already present\n[ -z \"${DWARF_DSYM_FOLDER_PATH}\" ] && exit 0  # not archiving\n\n# 1. Copy a pre-built dSYM if the build system already produced one\nfor DIR in   \"${BUILT_PRODUCTS_DIR}\"   \"${BUILD_DIR}/${CONFIGURATION}-iphoneos\"   \"${OBJROOT}/UninstalledProducts/iphoneos\"; do\n  SRC=\"${DIR}/sqlite3.framework.dSYM\"\n  if [ -d \"${SRC}\" ]; then\n    cp -R \"${SRC}\" \"${OUT}\" && exit 0\n  fi\ndone\n\n# 2. Extract from the embedded binary (dwarf format – symbols still inside)\nfor FW in   \"${CODESIGNING_FOLDER_PATH}/Frameworks/sqlite3.framework/sqlite3\"   \"${BUILT_PRODUCTS_DIR}/sqlite3.framework/sqlite3\"; do\n  if [ -f \"${FW}\" ]; then\n    xcrun dsymutil \"${FW}\" -o \"${OUT}\" 2>/dev/null && exit 0\n  fi\ndone\n\necho \"warning: sqlite3.framework dSYM could not be generated; App Store symbol upload may warn\"\n";
+		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -346,24 +364,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Re-sign frameworks embedded by Flutter Native Assets (e.g. sqlite3.framework).\n# Fixes error 0xe8008014 (\"invalid signature\") on real-device installs.\nFRAMEWORKS=\"${CODESIGNING_FOLDER_PATH}/Frameworks\"\nif [ -d \"${FRAMEWORKS}\" ] && [ \"${CODE_SIGNING_REQUIRED}\" = \"YES\" ]; then\n  find \"${FRAMEWORKS}\" -maxdepth 1 -name \"*.framework\" | while read FW; do\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\"       --preserve-metadata=identifier,entitlements \"${FW}\" || true\n  done\nfi\n";
-		};
-		94CE0DD150D6ABDF72F38E5F /* Generate sqlite3 dSYM */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Generate sqlite3 dSYM";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Generate sqlite3.framework.dSYM for App Store Connect symbol upload.\n# Flutter Native Assets embeds sqlite3 inside the app bundle; this script\n# locates it and produces the dSYM the upload tool requires.\nOUT=\"${DWARF_DSYM_FOLDER_PATH}/sqlite3.framework.dSYM\"\n[ -d \"${OUT}\" ] && exit 0          # already present\n[ -z \"${DWARF_DSYM_FOLDER_PATH}\" ] && exit 0  # not archiving\n\n# 1. Copy a pre-built dSYM if the build system already produced one\nfor DIR in   \"${BUILT_PRODUCTS_DIR}\"   \"${BUILD_DIR}/${CONFIGURATION}-iphoneos\"   \"${OBJROOT}/UninstalledProducts/iphoneos\"; do\n  SRC=\"${DIR}/sqlite3.framework.dSYM\"\n  if [ -d \"${SRC}\" ]; then\n    cp -R \"${SRC}\" \"${OUT}\" && exit 0\n  fi\ndone\n\n# 2. Extract from the embedded binary (dwarf format – symbols still inside)\nfor FW in   \"${CODESIGNING_FOLDER_PATH}/Frameworks/sqlite3.framework/sqlite3\"   \"${BUILT_PRODUCTS_DIR}/sqlite3.framework/sqlite3\"; do\n  if [ -f \"${FW}\" ]; then\n    xcrun dsymutil \"${FW}\" -o \"${OUT}\" 2>/dev/null && exit 0\n  fi\ndone\n\necho \"warning: sqlite3.framework dSYM could not be generated; App Store symbol upload may warn\"\n";
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;
