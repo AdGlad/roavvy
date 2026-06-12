@@ -116,15 +116,16 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
     final hasImage = imageUrl.isNotEmpty;
     final hasDescription = description.isNotEmpty;
 
+    final hCs = Theme.of(context).colorScheme;
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
       minChildSize: 0.4,
       maxChildSize: 0.92,
       builder:
           (_, controller) => Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF0D2137),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: hCs.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             clipBehavior: Clip.hardEdge,
             child: CustomScrollView(
@@ -166,8 +167,8 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                                 children: [
                                   Text(
                                     countryName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: hCs.onSurface,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -176,8 +177,8 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                                     const SizedBox(height: 2),
                                     Text(
                                       region,
-                                      style: const TextStyle(
-                                        color: Colors.white54,
+                                      style: TextStyle(
+                                        color: hCs.onSurface.withValues(alpha: 0.54),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -191,21 +192,21 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                         ),
 
                         const SizedBox(height: 20),
-                        const Divider(color: Colors.white12, height: 1),
+                        Divider(color: hCs.onSurface.withValues(alpha: 0.12), height: 1),
                         const SizedBox(height: 20),
 
                         // Description
                         if (hasDescription) ...[
                           Text(
                             description,
-                            style: const TextStyle(
-                              color: Colors.white70,
+                            style: TextStyle(
+                              color: hCs.onSurface.withValues(alpha: 0.70),
                               fontSize: 14,
                               height: 1.55,
                             ),
                           ),
                           const SizedBox(height: 20),
-                          const Divider(color: Colors.white12, height: 1),
+                          Divider(color: hCs.onSurface.withValues(alpha: 0.12), height: 1),
                           const SizedBox(height: 20),
                         ],
 
@@ -224,13 +225,11 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                             icon: const Icon(Icons.open_in_new, size: 16),
                             label: const Text('Learn more on Wikipedia'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white70,
-                              side: const BorderSide(color: Colors.white24),
                               textStyle: const TextStyle(fontSize: 13),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          const Divider(color: Colors.white12, height: 1),
+                          Divider(color: hCs.onSurface.withValues(alpha: 0.12), height: 1),
                           const SizedBox(height: 20),
                         ],
 
@@ -362,11 +361,11 @@ class _HeroImage extends StatelessWidget {
             url,
             fit: BoxFit.cover,
             errorBuilder:
-                (_, __, ___) => Container(
-                  color: const Color(0xFF1B3A5C),
-                  child: const Icon(
+                (ctx, __, ___) => Container(
+                  color: Theme.of(ctx).colorScheme.surfaceContainer,
+                  child: Icon(
                     Icons.landscape_outlined,
-                    color: Colors.white24,
+                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.24),
                     size: 48,
                   ),
                 ),
@@ -449,9 +448,10 @@ class _HeaderNoImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-      color: const Color(0xFF1B3A5C),
+      color: cs.surfaceContainer,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -460,7 +460,7 @@ class _HeaderNoImage extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: cs.onSurface.withValues(alpha: 0.24),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -468,15 +468,15 @@ class _HeaderNoImage extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.account_balance_outlined,
-                color: Colors.white38,
+                color: cs.onSurface.withValues(alpha: 0.38),
                 size: 16,
               ),
               const SizedBox(width: 6),
-              const Text(
+              Text(
                 'UNESCO World Heritage',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.54), fontSize: 12),
               ),
               const SizedBox(width: 8),
               _CategoryBadge(label: categoryLabel, color: categoryColor),
@@ -485,8 +485,8 @@ class _HeaderNoImage extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             siteName,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: cs.onSurface,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               height: 1.2,
@@ -512,7 +512,7 @@ class _DistanceChip extends StatelessWidget {
 
     if (distanceKm == null) {
       label = '…';
-      color = Colors.white24;
+      color = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24);
     } else if (distanceKm! < 0) {
       return const SizedBox.shrink();
     } else {
@@ -591,8 +591,8 @@ class _StatCell extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
-            color: Colors.white38,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
             fontSize: 10,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.8,
@@ -601,8 +601,8 @@ class _StatCell extends StatelessWidget {
         const SizedBox(height: 3),
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),

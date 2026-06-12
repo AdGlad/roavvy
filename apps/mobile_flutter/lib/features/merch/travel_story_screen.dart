@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'local_mockup_preview_screen.dart';
+import 'merch_preset.dart';
 import 'travel_story_data.dart';
 import 'travel_story_summary_card.dart';
 
@@ -122,6 +123,17 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
           allCodes: d.countryCodes,
           trips: d.merchOption.trips,
           initialTemplate: d.merchOption.template,
+          initialPreset: MerchPreset(
+            id: 'travel_story',
+            label: 'Travel Story',
+            config: MerchPresetConfig(
+              layout: d.merchOption.template,
+              source: MerchCountrySource.allTime,
+              jitter: 0.4,
+              density: MerchDensity.balanced,
+              stampMode: MerchStampMode.entryExit,
+            ),
+          ),
         ),
       ),
     );

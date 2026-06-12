@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../../core/providers.dart';
 import '../../../data/db/roavvy_database.dart';
 import '../local_mockup_preview_screen.dart';
+import '../merch_preset.dart';
 import '../merch_template_ranker.dart';
 
 /// Horizontally scrollable row of 2–3 personalised design recommendations
@@ -69,10 +70,10 @@ class MerchReadyToDesignSection extends ConsumerWidget {
               itemCount: 3,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder:
-                  (_, __) => Container(
+                  (ctx, __) => Container(
                     width: 160,
                     decoration: BoxDecoration(
-                      color: Colors.white12,
+                      color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -272,6 +273,19 @@ class _InspiredDesignCard extends StatelessWidget {
                 allCodes: rec.allCodes,
                 trips: rec.allTrips,
                 initialTemplate: rec.template,
+                // Supply a preset so artwork is generated on mount and the
+                // local mockup is shown before the user taps Approve (ADR-147).
+                initialPreset: MerchPreset(
+                  id: 'inspired_design',
+                  label: rec.title,
+                  config: MerchPresetConfig(
+                    layout: rec.template,
+                    source: MerchCountrySource.allTime,
+                    jitter: 0.4,
+                    density: MerchDensity.balanced,
+                    stampMode: MerchStampMode.entryExit,
+                  ),
+                ),
               ),
         ),
       ),

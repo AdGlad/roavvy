@@ -14,6 +14,7 @@ import 'widgets/merch_moments_section.dart';
 import 'widgets/next_achievements_carousel.dart';
 import 'widgets/rarest_visits_card.dart';
 import 'widgets/stats_grid.dart';
+import 'widgets/travel_heatmap_card.dart';
 import 'widgets/travel_progress_hero.dart';
 import 'widgets/year_in_review_card.dart';
 
@@ -44,6 +45,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
 
   late final Animation<double> _heroAnim;
   late final Animation<double> _gridAnim;
+  late final Animation<double> _heatmapAnim;
   late final Animation<double> _challengeAnim;
   late final Animation<double> _yearAnim;
   late final Animation<double> _carouselAnim;
@@ -74,6 +76,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
 
     _heroAnim = interval(0.00, 0.30);
     _gridAnim = interval(0.10, 0.40);
+    _heatmapAnim = interval(0.15, 0.45);
     _challengeAnim = interval(0.20, 0.50);
     _yearAnim = interval(0.25, 0.55);
     _carouselAnim = interval(0.30, 0.60);
@@ -181,6 +184,18 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
                 ),
               ),
             ),
+
+            // ── Travel History Heatmap ────────────────────────────────────
+            if (visits != null && visits.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _stagger(
+                  _heatmapAnim,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    child: TravelHeatmapCard(visits: visits),
+                  ),
+                ),
+              ),
 
             // ── Daily Challenge card ──────────────────────────────────────
             if (challengeAggregate != null)

@@ -148,11 +148,14 @@ class _CountryRegionGlobeScreenState
     // World country polygons for background context (same provider as main globe).
     final countryPolygons = ref.watch(polygonsProvider);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final scaffoldBg = isDark ? kOcean : theme.colorScheme.surface;
+
     return Scaffold(
-      backgroundColor: kOcean,
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: kOcean,
-        foregroundColor: Colors.white,
+        backgroundColor: scaffoldBg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -160,9 +163,9 @@ class _CountryRegionGlobeScreenState
             if (widget.subtitle != null)
               Text(
                 widget.subtitle!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.70),
+                ),
               ),
           ],
         ),
@@ -172,7 +175,7 @@ class _CountryRegionGlobeScreenState
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: CircularProgressIndicator(),
             );
           }
           final visitedCodes = snapshot.data!;

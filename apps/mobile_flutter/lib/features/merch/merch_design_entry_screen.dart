@@ -126,23 +126,17 @@ class _MerchDesignEntryScreenState
     final visitsAsync = ref.watch(effectiveVisitsProvider);
     final tripsAsync = ref.watch(tripListProvider);
 
+    final deTheme = Theme.of(context);
+    final deCs = deTheme.colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D1B2A),
-        foregroundColor: Colors.white,
         title: const Text('Design a shirt'),
         elevation: 0,
       ),
       body: visitsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Colors.white38),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text(
-            'Could not load visits: $e',
-            style: const TextStyle(color: Colors.white54),
-          ),
+          child: Text('Could not load visits: $e'),
         ),
         data: (visits) {
           // Initialise selection on first data load.
@@ -175,7 +169,7 @@ class _MerchDesignEntryScreenState
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: Text(
                   '${visits.length} ${visits.length == 1 ? "country" : "countries"} in your collection',
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  style: TextStyle(color: deCs.onSurface.withValues(alpha: 0.54), fontSize: 13),
                 ),
               ),
 
@@ -202,17 +196,14 @@ class _MerchDesignEntryScreenState
                               color:
                                   _chip == chip
                                       ? const Color(0xFFF2C94C)
-                                      : Colors.white54,
+                                      : deCs.onSurface.withValues(alpha: 0.54),
                               fontSize: 12,
                             ),
-                            backgroundColor: const Color(0xFF1A3550),
                             side: BorderSide(
                               color:
                                   _chip == chip
-                                      ? const Color(0xFFF2C94C).withValues(
-                                        alpha: 0.6,
-                                      )
-                                      : Colors.white12,
+                                      ? const Color(0xFFF2C94C).withValues(alpha: 0.6)
+                                      : deCs.onSurface.withValues(alpha: 0.12),
                             ),
                           ),
                         ),
@@ -232,13 +223,7 @@ class _MerchDesignEntryScreenState
                     final name = kCountryNames[code] ?? code;
                     final isSelected = _selectedCodes.contains(code);
                     return CheckboxListTile(
-                      title: Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
+                      title: Text(name, style: const TextStyle(fontSize: 14)),
                       value: isSelected,
                       activeColor: const Color(0xFFF2C94C),
                       checkColor: Colors.black,

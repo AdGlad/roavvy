@@ -156,10 +156,9 @@ class _DotsIndicator extends StatelessWidget {
           height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color:
-                i == current
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.4),
+            color: i == current
+                ? Theme.of(context).colorScheme.onSurface
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.40),
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -194,9 +193,11 @@ class _CardBody extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A3550),
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,7 +226,7 @@ class _CardBody extends StatelessWidget {
                 Text(
                   question,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
+                    color: theme.colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 2,
@@ -260,10 +261,10 @@ class _CardBody extends StatelessWidget {
                     const Spacer(),
                     GestureDetector(
                       onTap: onDismiss,
-                      child: const Icon(
+                      child: Icon(
                         Icons.close,
                         size: 16,
-                        color: Colors.white54,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
                       ),
                     ),
                   ],

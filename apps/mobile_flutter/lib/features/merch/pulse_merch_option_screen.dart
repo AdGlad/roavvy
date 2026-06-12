@@ -7,6 +7,7 @@ import '../../core/providers.dart';
 import '../memory/memory_anniversary_photo.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_exclusive_design.dart';
+import 'merch_preset.dart';
 import 'merch_option_list_widgets.dart';
 import 'merch_title_wordbank.dart';
 import 'pulse_merch_option.dart';
@@ -232,11 +233,9 @@ class _PulseMerchOptionScreenState
     final featured = flatOptions.isNotEmpty ? flatOptions.first : null;
     final alternatives = flatOptions.skip(1).take(4).toList();
 
+    final pmoCs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D1B2A),
-        foregroundColor: Colors.white,
         title: const Text('Your travel shirt ideas'),
         elevation: 0,
       ),
@@ -248,7 +247,7 @@ class _PulseMerchOptionScreenState
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 'Inspired by $countryName · $year',
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
+                style: TextStyle(color: pmoCs.onSurface.withValues(alpha: 0.54), fontSize: 13),
               ),
             ),
           ),
@@ -271,10 +270,10 @@ class _PulseMerchOptionScreenState
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(left: 16, bottom: 6),
-                child: const Text(
+                child: Text(
                   'OTHER STYLES',
                   style: TextStyle(
-                    color: Colors.white38,
+                    color: pmoCs.onSurface.withValues(alpha: 0.38),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -298,7 +297,6 @@ class _PulseMerchOptionScreenState
                 onPressed:
                     _showAll ? null : () => setState(() => _showAll = true),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.white54,
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,
                 ),
@@ -399,12 +397,15 @@ class _ExclusiveDesignsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Divider(height: 1, color: Colors.white12),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
           const SizedBox(height: 12),
           Text(
             'EXCLUSIVE DESIGNS',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Colors.white38,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
               letterSpacing: 1.2,
             ),
           ),
@@ -422,6 +423,17 @@ class _ExclusiveDesignsSection extends StatelessWidget {
                                 allCodes: allCodes,
                                 trips: allTrips,
                                 initialTemplate: d.template,
+                                initialPreset: MerchPreset(
+                                  id: 'exclusive_design',
+                                  label: d.label,
+                                  config: MerchPresetConfig(
+                                    layout: d.template,
+                                    source: MerchCountrySource.allTime,
+                                    jitter: 0.4,
+                                    density: MerchDensity.balanced,
+                                    stampMode: MerchStampMode.entryExit,
+                                  ),
+                                ),
                               ),
                         ),
                       )

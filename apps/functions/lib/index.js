@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.shopifyOrderCreated = exports.createMerchCart = exports.getDailyChallenge = exports.scheduleDailyChallenge = void 0;
+exports.shopifyOrderCreated = exports.createMerchCart = exports.getMerchPrices = exports.getDailyChallenge = exports.scheduleDailyChallenge = void 0;
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const app_1 = require("firebase-admin/app");
@@ -205,6 +205,55 @@ const CART_CREATE_MUTATION = `
     }
   }
 `;
+// ── getMerchPrices ────────────────────────────────────────────────────────────
+const MERCH_PRICES_QUERY = `
+  query GetMerchPrices($country: CountryCode) @inContext(country: $country) {
+    tshirt: product(id: "gid://shopify/Product/8357194694843") {
+      priceRange { minVariantPrice { amount currencyCode } }
+    }
+    poster: product(id: "gid://shopify/Product/8357218353339") {
+      priceRange { minVariantPrice { amount currencyCode } }
+    }
+  }
+`;
+/**
+ * Returns live product prices from Shopify Storefront API in the buyer's
+ * presentment currency, determined by the supplied ISO 3166-1 alpha-2
+ * country code (e.g. "AU" → AUD, "US" → USD).
+ *
+ * Falls back to GBP if the country code is invalid or omitted.
+ */
+exports.getMerchPrices = (0, https_1.onCall)(async (request) => {
+    const storefrontToken = process.env['SHOPIFY_STOREFRONT_TOKEN'];
+    const storeDomain = process.env['SHOPIFY_STORE_DOMAIN'];
+    if (!storefrontToken || !storeDomain) {
+        throw new https_1.HttpsError('internal', 'Storefront configuration missing.');
+    }
+    // Validate and normalise the country code (must be 2-letter uppercase alpha).
+    const rawCountry = (request.data.countryCode ?? '').toUpperCase();
+    const country = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : 'GB';
+    const shopifyRes = await fetch(`https://${storeDomain}/api/2025-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Storefront-Access-Token': storefrontToken,
+        },
+        body: JSON.stringify({ query: MERCH_PRICES_QUERY, variables: { country } }),
+    });
+    if (!shopifyRes.ok) {
+        throw new https_1.HttpsError('internal', `Shopify request failed: ${shopifyRes.status}`);
+    }
+    const shopifyData = (await shopifyRes.json());
+    if (shopifyData.errors && shopifyData.errors.length > 0) {
+        throw new https_1.HttpsError('internal', shopifyData.errors[0].message);
+    }
+    const tshirt = shopifyData.data?.tshirt?.priceRange?.minVariantPrice;
+    const poster = shopifyData.data?.poster?.priceRange?.minVariantPrice;
+    if (!tshirt || !poster) {
+        throw new https_1.HttpsError('internal', 'Shopify returned incomplete price data.');
+    }
+    return { tshirtPrice: tshirt, posterPrice: poster };
+});
 /**
  * Creates a Shopify Storefront cart for the user's selected merchandise.
  *

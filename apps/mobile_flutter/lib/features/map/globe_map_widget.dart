@@ -476,6 +476,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       builder: (context, constraints) {
         _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
         final globe = GestureDetector(
           // Disable interaction while replay/scan is running.
           onScaleStart: frame != null ? null : _onScaleStart,
@@ -486,6 +488,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
             size: _canvasSize,
             painter: GlobePainter(
               polygons: polygons,
+              isDark: isDark,
               visualStates: frame?.visualStates ?? visualStates,
               tripCounts: frame != null ? const {} : tripCounts,
               projection: frame?.projection ?? _projection,
