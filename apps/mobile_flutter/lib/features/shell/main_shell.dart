@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../../core/remote_config_service.dart';
 import '../challenge/daily_challenge_service.dart';
 import '../globe_replay/globe_replay_widget.dart';
 import '../memory/app_open_tracker.dart';
@@ -133,6 +134,10 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
     // Always reschedule — the timer may have been paused while backgrounded.
     _scheduleMidnightRefresh();
+    // Re-fetch Remote Config so the purchase killswitch propagates within ~60 s.
+    unawaited(RemoteConfigService.refresh().then((_) {
+      if (mounted) ref.invalidate(purchasingEnabledProvider);
+    }));
   }
 
   /// Invalidates daily challenge providers so they re-fetch with today's date.

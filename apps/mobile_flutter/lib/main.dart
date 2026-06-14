@@ -15,6 +15,7 @@ import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
 import 'core/notification_service.dart';
+import 'core/remote_config_service.dart';
 import 'core/providers.dart';
 import 'features/heritage/world_heritage_lookup_service.dart';
 import 'data/achievement_repository.dart';
@@ -39,6 +40,7 @@ Future<void> main() async {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
+        await RemoteConfigService.initialise();
 
         // On web we only serve the public landing page — SQLite is not available
         // without a WASM worker, and the landing page needs neither the DB nor

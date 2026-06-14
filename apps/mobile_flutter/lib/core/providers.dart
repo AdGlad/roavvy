@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -422,4 +423,14 @@ final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
     latestVisit: base.latestVisit,
     achievementCount: achievementIds.length,
   );
+});
+
+// ── Remote Config ─────────────────────────────────────────────────────────────
+
+/// Whether in-app purchasing is enabled via Firebase Remote Config.
+///
+/// Defaults to [true] (fail-open). Toggle in the Firebase Console under
+/// Remote Config → purchasing_enabled.
+final purchasingEnabledProvider = Provider<bool>((ref) {
+  return FirebaseRemoteConfig.instance.getBool('purchasing_enabled');
 });
