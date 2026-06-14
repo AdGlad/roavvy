@@ -1028,7 +1028,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 newHeritageSiteNames: heritageNames,
                 totalTripCount: tripCount,
                 onDone: () {
-                  nav.pop();
+                  nav.pop(); // pop ScanSummaryScreen
+                  nav.pop(); // pop ScanScreen (opaque:false — stays on stack otherwise, blocks all touches)
                   widget.onScanComplete?.call();
                 },
               );
@@ -1043,7 +1044,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 lastScanAt: preScanTimestamp,
                 totalTripCount: tripCount,
                 onDone: () {
-                  nav.pop();
+                  nav.pop(); // pop ScanSummaryScreen
+                  nav.pop(); // pop ScanScreen (opaque:false — stays on stack otherwise, blocks all touches)
                   widget.onScanComplete?.call();
                 },
               );
