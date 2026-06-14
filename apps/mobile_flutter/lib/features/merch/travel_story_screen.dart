@@ -117,8 +117,9 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
   }
 
   void _openPreview() {
-    final enabled =
-        ProviderScope.containerOf(context).read(purchasingEnabledProvider);
+    final enabled = ProviderScope.containerOf(context).read(
+      purchasingEnabledForTemplateProvider(widget.data.merchOption.template),
+    );
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

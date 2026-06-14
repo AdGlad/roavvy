@@ -17,7 +17,19 @@ class RemoteConfigService {
       minimumFetchInterval:
           kDebugMode ? Duration.zero : const Duration(hours: 1),
     ));
-    await rc.setDefaults(const {'purchasing_enabled': true});
+    await rc.setDefaults(const {
+      'purchasing_enabled': true,
+      // Per-template flags — all fail-open.
+      'purchasing_enabled_passport': true,
+      'purchasing_enabled_flags': true,
+      'purchasing_enabled_tour_dates': true,
+      'purchasing_enabled_heart_flags': true,
+      'purchasing_enabled_ribbon': true,
+      'purchasing_enabled_typography': true,
+      'purchasing_enabled_badge': true,
+      'purchasing_enabled_word_cloud': true,
+      'purchasing_enabled_landmark': true,
+    });
     // Best-effort fetch — failure is silent; the default keeps the store open.
     try {
       await rc.fetchAndActivate();

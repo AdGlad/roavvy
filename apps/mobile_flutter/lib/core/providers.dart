@@ -427,10 +427,35 @@ final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
 
 // ── Remote Config ─────────────────────────────────────────────────────────────
 
-/// Whether in-app purchasing is enabled via Firebase Remote Config.
+/// Maps a [CardTemplateType] to its Remote Config key.
+String remoteConfigKeyForTemplate(CardTemplateType t) => switch (t) {
+      CardTemplateType.passport => 'purchasing_enabled_passport',
+      CardTemplateType.grid => 'purchasing_enabled_flags',
+      CardTemplateType.timeline => 'purchasing_enabled_tour_dates',
+      CardTemplateType.heart => 'purchasing_enabled_heart_flags',
+      CardTemplateType.frontRibbon => 'purchasing_enabled_ribbon',
+      CardTemplateType.typography => 'purchasing_enabled_typography',
+      CardTemplateType.badge => 'purchasing_enabled_badge',
+      CardTemplateType.wordCloud => 'purchasing_enabled_word_cloud',
+      CardTemplateType.landmark => 'purchasing_enabled_landmark',
+    };
+
+/// Whether in-app purchasing is enabled globally via Firebase Remote Config.
 ///
 /// Defaults to [true] (fail-open). Toggle in the Firebase Console under
 /// Remote Config → purchasing_enabled.
 final purchasingEnabledProvider = Provider<bool>((ref) {
   return FirebaseRemoteConfig.instance.getBool('purchasing_enabled');
+});
+
+/// Whether a specific shirt template type is available for purchase.
+///
+/// Respects the global [purchasingEnabledProvider] first, then checks the
+/// per-template flag (e.g. `purchasing_enabled_passport`). All flags default
+/// to [true] (fail-open).
+final purchasingEnabledForTemplateProvider =
+    Provider.family<bool, CardTemplateType>((ref, template) {
+  if (!ref.watch(purchasingEnabledProvider)) return false;
+  final key = remoteConfigKeyForTemplate(template);
+  return FirebaseRemoteConfig.instance.getBool(key);
 });

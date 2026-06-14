@@ -335,8 +335,8 @@ class _MerchOptionCardState extends State<MerchOptionCard>
   }
 
   void _navigate() {
-    final enabled =
-        ProviderScope.containerOf(context).read(purchasingEnabledProvider);
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -772,8 +772,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
   }
 
   void _navigate() {
-    final enabled =
-        ProviderScope.containerOf(context).read(purchasingEnabledProvider);
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1221,8 +1221,8 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
   }
 
   void _navigate() {
-    final enabled =
-        ProviderScope.containerOf(context).read(purchasingEnabledProvider);
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

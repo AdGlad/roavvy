@@ -136,7 +136,10 @@ class _MainShellState extends ConsumerState<MainShell> {
     _scheduleMidnightRefresh();
     // Re-fetch Remote Config so the purchase killswitch propagates within ~60 s.
     unawaited(RemoteConfigService.refresh().then((_) {
-      if (mounted) ref.invalidate(purchasingEnabledProvider);
+      if (mounted) {
+        ref.invalidate(purchasingEnabledProvider);
+        ref.invalidate(purchasingEnabledForTemplateProvider);
+      }
     }));
   }
 
