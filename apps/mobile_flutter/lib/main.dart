@@ -6,6 +6,7 @@ import 'package:region_lookup/region_lookup.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +33,7 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       tz.initializeTimeZones();
 
       try {
@@ -40,6 +42,11 @@ Future<void> main() async {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
+
+        // Route Flutter framework errors to Crashlytics.
+        FlutterError.onError =
+            FirebaseCrashlytics.instance.recordFlutterFatalError;
+
         await RemoteConfigService.initialise();
 
         // On web we only serve the public landing page — SQLite is not available
@@ -173,7 +180,7 @@ Future<void> main() async {
       }
     },
     (error, stack) {
-      debugPrint('Uncaught error: $error\n$stack');
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     },
   );
 }
