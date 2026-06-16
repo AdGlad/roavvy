@@ -750,8 +750,21 @@ class _ScanPromptGateState extends ConsumerState<_ScanPromptGate> {
         .read(lastScanAtProvider.future)
         .catchError((_) => null);
     final now = DateTime.now();
-    final needsScan = lastScan == null || now.difference(lastScan).inDays > 7;
-    if (!needsScan || !mounted) return;
+
+    // On reinstall: data is restored from Firestore (lastScanAt = null because
+    // scan history is not stored in Firestore) but the user already has their
+    // map populated. Don't prompt them to scan — they haven't lost anything.
+    // Only show the prompt when lastScan is null AND there are no visits yet
+    // (genuine new user), or when the last scan was more than 7 days ago.
+    if (lastScan == null) {
+      final visits = await ref
+          .read(effectiveVisitsProvider.future)
+          .catchError((_) => <EffectiveVisitedCountry>[]);
+      if (visits.isNotEmpty || !mounted) return;
+    } else if (now.difference(lastScan).inDays <= 7) {
+      return;
+    }
+    if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
     final dismissedAt = prefs.getString(_prefKey);

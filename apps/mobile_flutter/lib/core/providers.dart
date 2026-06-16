@@ -165,7 +165,11 @@ final effectiveVisitsProvider = FutureProvider<List<EffectiveVisitedCountry>>(
 ///
 /// True when [hasSeenOnboardingAt] is set in the DB, OR when the user already
 /// has visits (returning user / reinstall with Firestore data). ADR-053.
+///
+/// Waits for [startupCompleteProvider] before reading visits so that Firestore
+/// restore data is present in the DB before the onboarding check runs (ADR-160).
 final onboardingCompleteProvider = FutureProvider<bool>((ref) async {
+  await ref.watch(startupCompleteProvider.future);
   final db = ref.watch(roavvyDatabaseProvider);
   if (await db.hasSeenOnboarding()) return true;
   final visits = await ref.watch(effectiveVisitsProvider.future);
