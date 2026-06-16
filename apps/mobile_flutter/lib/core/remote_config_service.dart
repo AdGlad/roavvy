@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 
@@ -7,6 +9,10 @@ import 'package:flutter/foundation.dart';
 /// start before first fetch), purchasing stays enabled.
 class RemoteConfigService {
   RemoteConfigService._();
+
+  /// Called when real-time RC updates are activated. Callers (e.g. MainShell)
+  /// should invalidate purchasing providers when this fires.
+  static final onUpdate = StreamController<void>.broadcast();
 
   static Future<void> initialise() async {
     final rc = FirebaseRemoteConfig.instance;
@@ -34,6 +40,16 @@ class RemoteConfigService {
     try {
       await rc.fetchAndActivate();
     } catch (_) {}
+
+    // Real-time listener: Firebase pushes changes instantly, bypassing the
+    // 1-hour minimum fetch interval. When a new value arrives, activate it
+    // and notify listeners so Riverpod providers can be invalidated.
+    rc.onConfigUpdated.listen((_) async {
+      try {
+        await rc.activate();
+        onUpdate.add(null);
+      } catch (_) {}
+    });
   }
 
   /// Re-fetches and activates config. Called on foreground resume.

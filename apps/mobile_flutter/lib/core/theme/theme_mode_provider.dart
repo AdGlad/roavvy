@@ -13,7 +13,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
   ThemeMode build() {
     // Load persisted value asynchronously; UI will rebuild when it arrives.
     _loadPersisted();
-    return ThemeMode.system;
+    return ThemeMode.dark;
   }
 
   Future<void> _loadPersisted() async {
@@ -22,7 +22,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     if (raw == null) return;
     final mode = ThemeMode.values.firstWhere(
       (m) => m.name == raw,
-      orElse: () => ThemeMode.system,
+      orElse: () => ThemeMode.dark,
     );
     state = mode;
   }

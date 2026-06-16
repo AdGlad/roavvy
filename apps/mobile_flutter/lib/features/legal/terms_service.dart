@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Bump this (e.g. '1.1', '2.0') whenever the T&C content changes.
 /// Existing users will be re-prompted to accept on next app launch.
-const kCurrentTermsVersion = '1.0';
+const kCurrentTermsVersion = '1.1';
 
 const _kPrefsKey = 'terms_accepted_version';
 

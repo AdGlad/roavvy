@@ -101,6 +101,19 @@ class ScanSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Request notification permission after every scan (not just when new
+    // countries are found) so users who have already scanned all their
+    // countries still get the iOS permission dialog.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final service = NotificationService.instance;
+      final alreadyRequested = await service.hasRequestedPermission();
+      if (!alreadyRequested && mounted) await service.requestPermission();
+    });
+  }
+
   /// Posts a [RovyMessage] via [rovyMessageProvider] if the ref is still live.
   void _postRovyMessage(RovyMessage msg) {
     if (!mounted) return;
@@ -417,10 +430,6 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
 
   Future<void> _scheduleNotifications() async {
     final service = NotificationService.instance;
-
-    // Request permission once, on the first scan that finds new countries.
-    final alreadyRequested = await service.hasRequestedPermission();
-    if (!alreadyRequested) await service.requestPermission();
 
     // Fire an immediate notification for each newly unlocked achievement.
     final achievementById = {for (final a in kAchievements) a.id: a};

@@ -73,6 +73,7 @@ dependencies:
   geolocator: ^13.0.0
   image: ^4.2.0
   firebase_storage: ^12.3.0
+  firebase_crashlytics: ^4.1.0
 
 dev_dependencies:
   flutter_test:

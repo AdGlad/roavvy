@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../data/achievement_repository.dart';
+import '../data/bootstrap_service.dart';
+import '../data/firestore_restore_service.dart';
+import '../data/firestore_sync_service.dart';
 import '../data/heritage_repository.dart';
 import '../data/level_up_repository.dart';
 import '../data/milestone_repository.dart';
@@ -42,6 +46,46 @@ final imagePlaygroundAvailableProvider = FutureProvider<bool>(
 final termsAcceptedProvider = FutureProvider<bool>(
   (_) => TermsService.hasAcceptedCurrent(),
 );
+
+/// Runs once per app session when the user reaches the authenticated shell:
+///  1. Restores Firestore data if the local DB is empty (fresh install / reinstall).
+///  2. Synthesises trips for pre-v6 users who have no photo_date_records.
+///  3. Flushes any remaining dirty rows to Firestore.
+///
+/// Moving these operations post-[runApp] allows the UI to show a
+/// "Restoring your map…" progress indicator if the restore takes > 2 s (T4,
+/// ADR-160).
+final startupCompleteProvider = FutureProvider<void>((ref) async {
+  final db = ref.watch(roavvyDatabaseProvider);
+  final visitRepo = ref.watch(visitRepositoryProvider);
+  final tripRepo = ref.watch(tripRepositoryProvider);
+  final regionRepo = ref.watch(regionRepositoryProvider);
+  final achievementRepo = ref.watch(achievementRepositoryProvider);
+
+  // FirebaseAuth.instance.currentUser is populated synchronously after
+  // Firebase.initializeApp() in main.dart; safe to read here.
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  // 1. Restore Firestore data if this is a fresh install (ADR-160).
+  if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
+    await FirestoreRestoreService(db: db).restore(uid);
+  }
+
+  // 2. Synthesise one trip per country for pre-v6 users (ADR-048).
+  await bootstrapExistingUser(visitRepo, tripRepo, regionRepo: regionRepo);
+
+  // 3. Flush dirty rows to Firestore (fire-and-forget).
+  if (uid != null) {
+    unawaited(
+      FirestoreSyncService().flushDirty(
+        uid,
+        visitRepo,
+        achievementRepo: achievementRepo,
+        tripRepo: tripRepo,
+      ),
+    );
+  }
+});
 
 final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),

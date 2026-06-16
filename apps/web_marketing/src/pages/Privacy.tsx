@@ -7,7 +7,7 @@ export default function Privacy() {
     <LegalPage title="Privacy Policy" lastUpdated={LAST_UPDATED}>
       <Section title="1. Introduction">
         <p>Roavvy ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use the Roavvy app ("App") and website at www.roavvy.com.</p>
-        <p>We are committed to handling your personal data in accordance with applicable data protection laws, including the UK GDPR and, where applicable, the EU General Data Protection Regulation.</p>
+        <p>We are committed to handling your personal data in accordance with applicable data protection laws, including the Australian Privacy Act 1988 (Cth).</p>
       </Section>
 
       <Section title="2. On-Device Photo Scanning">

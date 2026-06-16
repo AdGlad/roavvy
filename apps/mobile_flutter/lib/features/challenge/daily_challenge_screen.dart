@@ -180,6 +180,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
   late Animation<double> _shakeAnim;
   final _audio = ChallengeAudioService();
   int _lastCluesRevealed = 0;
+  final _scrollCtrl = ScrollController();
 
   /// True when the game was already over (solved or failed) when this session
   /// started — i.e. the user is returning to view results, not just finishing.
@@ -208,6 +209,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
   @override
   void dispose() {
     _shakeCtrl.dispose();
+    _scrollCtrl.dispose();
     _audio.dispose();
     super.dispose();
   }
@@ -230,11 +232,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
       } else {
         _audio.playWrong();
         await _shakeCtrl.forward(from: 0);
-        // Auto-reveal next clue after each wrong guess.
+        // Auto-reveal next clue after each wrong guess (does not cost a slot).
         if (mounted) {
           await ref
               .read(dailyChallengeNotifierProvider.notifier)
-              .revealNextClue();
+              .revealNextClue(costGuess: false);
         }
       }
     }
@@ -257,7 +259,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
         DailyChallengeState.maxGuesses - progress.guesses.length;
     final gameOver = progress.solved || progress.failed;
 
-    // Play clue-reveal chime whenever a new clue becomes visible.
+    // Play clue-reveal chime and scroll to new clue whenever one becomes visible.
     ref.listen<AsyncValue<DailyChallengeState>>(
       dailyChallengeNotifierProvider,
       (_, next) {
@@ -265,6 +267,16 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
         if (revealed > _lastCluesRevealed) {
           _audio.playClue(revealed);
           _lastCluesRevealed = revealed;
+          // Scroll to bottom after the new clue card is laid out.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollCtrl.hasClients) {
+              _scrollCtrl.animateTo(
+                _scrollCtrl.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOut,
+              );
+            }
+          });
         }
       },
     );
@@ -275,6 +287,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
           children: [
             Expanded(
               child: ListView.builder(
+                controller: _scrollCtrl,
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 itemCount: progress.cluesRevealed.clamp(0, clues.length),
                 itemBuilder:
@@ -285,8 +298,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                     ),
               ),
             ),
-            if (progress.guesses.isNotEmpty)
-              _GuessHistory(guesses: progress.guesses),
+            if (progress.guesses.where((g) => g.isNotEmpty).isNotEmpty)
+              _GuessHistory(
+                guesses:
+                    progress.guesses.where((g) => g.isNotEmpty).toList(),
+              ),
             if (!gameOver) ...[
               // Hot/cold chip — animated in after first wrong guess.
               AnimatedSwitcher(
@@ -310,9 +326,8 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                         )
                         : const SizedBox.shrink(),
               ),
-              // Remaining guess counter — only shown after the first wrong guess.
-              if (progress.guesses.isNotEmpty)
-                Padding(
+              // Remaining guess counter.
+              Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 2,
@@ -340,7 +355,9 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                 onSelected: _submit,
                 defaultRegion: state.site.region,
               ),
-              if (progress.cluesRevealed < 5)
+              if (progress.cluesRevealed >= 5)
+                _RevealAnswerButton(onPressed: _revealAnswer)
+              else if (guessesLeft > 1)
                 _RevealClueButton(
                   nextClueNumber: progress.cluesRevealed + 1,
                   onPressed:
@@ -348,9 +365,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
                           ref
                               .read(dailyChallengeNotifierProvider.notifier)
                               .revealNextClue(),
-                )
-              else
-                _RevealAnswerButton(onPressed: _revealAnswer),
+                ),
               const SizedBox(height: 16),
             ],
           ],
@@ -446,7 +461,7 @@ class _ClueCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(clue.text, style: theme.textTheme.bodySmall),
+                        Text(clue.text, style: theme.textTheme.bodyMedium),
                       ],
                     ),
                   ),

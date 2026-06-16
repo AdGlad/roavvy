@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -152,6 +154,24 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
   bool _openScanOnLoad = false;
   bool _termsShowing = false;
 
+  // T4 — show "Restoring your map…" only if startup takes > 2 s (ADR-160).
+  bool _showRestoreIndicator = false;
+  Timer? _restoreTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _showRestoreIndicator = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _restoreTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _completeOnboarding({bool goToScan = false}) async {
     if (mounted) setState(() => _openScanOnLoad = goToScan);
     ref.invalidate(onboardingCompleteProvider);
@@ -173,12 +193,32 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
 
   @override
   Widget build(BuildContext context) {
+    final startupAsync = ref.watch(startupCompleteProvider);
     final termsAsync = ref.watch(termsAcceptedProvider);
     final onboardingAsync = ref.watch(onboardingCompleteProvider);
 
-    // Show loading until both are resolved.
-    if (termsAsync.isLoading || onboardingAsync.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    // Cancel the restore indicator timer once startup finishes.
+    if (!startupAsync.isLoading) _restoreTimer?.cancel();
+
+    // Show loading until startup and initial checks are resolved.
+    if (startupAsync.isLoading || termsAsync.isLoading || onboardingAsync.isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              if (_showRestoreIndicator && startupAsync.isLoading) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Restoring your map\u2026',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
     }
 
     final termsAccepted = termsAsync.valueOrNull ?? false;
