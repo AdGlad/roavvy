@@ -25,6 +25,7 @@ import '../memory/memory_pulse_card.dart';
 import '../year_in_review/year_in_review_providers.dart';
 import '../year_in_review/year_in_review_screen.dart';
 import 'country_detail_sheet.dart';
+import 'country_profile_screen.dart';
 import 'country_polygon_layer.dart';
 import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
@@ -172,29 +173,33 @@ class MapScreen extends ConsumerWidget {
     Map<String, EffectiveVisitedCountry> visitedByCode,
   ) {
     final visit = visitedByCode[code];
-    showModalBottomSheet<bool>(
-      context: context,
-      builder:
-          (_) => CountryDetailSheet(
-            isoCode: code,
-            visit: visit,
-            onAdd:
-                visit == null
-                    ? () => ref
-                        .read(visitRepositoryProvider)
-                        .saveAdded(
-                          UserAddedCountry(
-                            countryCode: code,
-                            addedAt: DateTime.now().toUtc(),
-                          ),
-                        )
-                    : null,
-          ),
-    ).then((added) {
-      if (added == true) {
-        ref.invalidate(effectiveVisitsProvider);
-      }
-    });
+
+    if (visit != null) {
+      // Visited country → full-screen profile (ADR-009 revised).
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              CountryProfileScreen(isoCode: code, visit: visit),
+        ),
+      );
+    } else {
+      // Unvisited country → lightweight add sheet.
+      showModalBottomSheet<bool>(
+        context: context,
+        builder: (_) => CountryDetailSheet(
+          isoCode: code,
+          visit: null,
+          onAdd: () => ref.read(visitRepositoryProvider).saveAdded(
+                UserAddedCountry(
+                  countryCode: code,
+                  addedAt: DateTime.now().toUtc(),
+                ),
+              ),
+        ),
+      ).then((added) {
+        if (added == true) ref.invalidate(effectiveVisitsProvider);
+      });
+    }
   }
 
   @override

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:country_lookup/country_lookup.dart';
+import 'package:region_lookup/region_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +31,9 @@ import '../features/xp/xp_event.dart';
 import '../features/xp/xp_notifier.dart';
 import 'notification_service.dart';
 import '../features/cards/landmark_image_service.dart';
+import '../features/heritage/world_heritage_lookup_service.dart';
 import '../features/legal/terms_service.dart';
+import '../features/map/country_stats.dart';
 import '../data/daily_challenge_repository.dart';
 import '../features/challenge/daily_challenge_service.dart';
 import '../features/challenge/daily_challenge_notifier.dart';
@@ -490,6 +493,84 @@ String remoteConfigKeyForTemplate(CardTemplateType t) => switch (t) {
 /// Remote Config → purchasing_enabled.
 final purchasingEnabledProvider = Provider<bool>((ref) {
   return FirebaseRemoteConfig.instance.getBool('purchasing_enabled');
+});
+
+// ── M162 Country Profile ──────────────────────────────────────────────────────
+
+/// Aggregated data loaded for [CountryProfileScreen].
+///
+/// All three Drift queries run in parallel. [unvisitedSites] is derived
+/// in-memory from the bundled WHS dataset minus [visitedSites].
+class CountryDetailState {
+  const CountryDetailState({
+    required this.trips,
+    required this.visitedRegionCodes,
+    required this.visitedSites,
+    required this.unvisitedSites,
+    required this.allSitesInCountry,
+    required this.photoAssetIds,
+    required this.stats,
+    required this.totalRegions,
+  });
+
+  final List<TripRecord> trips;
+  final Set<String> visitedRegionCodes;
+  final List<VisitedHeritageSite> visitedSites;
+  final List<WorldHeritageSite> unvisitedSites;
+  final List<WorldHeritageSite> allSitesInCountry;
+  final List<String> photoAssetIds;
+  final CountryStats stats;
+  final int totalRegions;
+}
+
+/// Loads all country profile data in parallel for [isoCode].
+///
+/// Keyed on isoCode so each country caches independently.
+/// Invalidated by [CountryProfileScreen] after trip edits/deletes.
+final countryDetailProvider =
+    FutureProvider.family<CountryDetailState, String>((ref, isoCode) async {
+  final tripRepo = ref.read(tripRepositoryProvider);
+  final regionRepo = ref.read(regionRepositoryProvider);
+  final heritageRepo = ref.read(heritageRepositoryProvider);
+  final visitRepo = ref.read(visitRepositoryProvider);
+
+  final (trips, regionVisits, visitedSites, assetIds) = await (
+    tripRepo.loadByCountry(isoCode),
+    regionRepo.loadByCountry(isoCode),
+    heritageRepo.loadByCountry(isoCode),
+    visitRepo.loadAssetIds(isoCode),
+  ).wait;
+
+  final visitedRegionCodes =
+      regionVisits.map((r) => r.regionCode).toSet();
+
+  final allSites = WorldHeritageLookupService.sitesForCountry(isoCode);
+  final visitedSiteIds = visitedSites.map((s) => s.siteId).toSet();
+  final unvisitedSites =
+      allSites.where((s) => !visitedSiteIds.contains(s.siteId)).toList();
+
+  // Total region count from bundled binary (synchronous).
+  final totalRegions = regionPolygonsForCountry(isoCode).length;
+
+  final stats = CountryStats.compute(
+    trips: trips,
+    visitedRegionCodes: visitedRegionCodes,
+    totalRegions: totalRegions,
+    visitedHeritageSites: visitedSites.length,
+    totalHeritageSites: allSites.length,
+    visit: null, // visit passed separately from caller
+  );
+
+  return CountryDetailState(
+    trips: trips,
+    visitedRegionCodes: visitedRegionCodes,
+    visitedSites: visitedSites,
+    unvisitedSites: unvisitedSites,
+    allSitesInCountry: allSites,
+    photoAssetIds: assetIds,
+    stats: stats,
+    totalRegions: totalRegions,
+  );
 });
 
 /// Whether a specific shirt template type is available for purchase.
