@@ -3,13 +3,17 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:photo_manager/photo_manager.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:photo_manager/photo_manager.dart' hide LatLng;
+import 'package:region_lookup/region_lookup.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import '../../core/region_names.dart';
 import '../heritage/heritage_detail_sheet.dart';
 import '../scan/hero_providers.dart';
 import '../shared/hero_image_view.dart';
@@ -17,6 +21,26 @@ import '../visits/trip_edit_sheet.dart';
 import 'country_region_map_screen.dart';
 import 'country_stats.dart';
 import 'photo_gallery_screen.dart';
+
+// ── Region map constants (matches CountryRegionMapScreen) ─────────────────────
+
+const _kOceanBackground = Color(0xFF0D2137);
+const _kUnvisitedFill = Color(0xFF1E3A5F);
+
+const List<Color> _kRegionPastelPalette = [
+  Color(0xFFFFD1DC),
+  Color(0xFFA8D8EA),
+  Color(0xFFB7E5B4),
+  Color(0xFFFFE5A0),
+  Color(0xFFCFB8E8),
+  Color(0xFFFFBD9B),
+  Color(0xFFB5EAD7),
+  Color(0xFFDCEFF9),
+  Color(0xFFFFD9A0),
+  Color(0xFFD4E9C8),
+  Color(0xFFF7C6C7),
+  Color(0xFFE8D5B7),
+];
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
@@ -255,13 +279,13 @@ class _Body extends StatelessWidget {
         // Stats strip
         _StatsStrip(stats: detail.stats, accentColor: accentColor),
         const SizedBox(height: 16),
-        // Region map card
+        // Region map with interactive visited-region polygons
         if (detail.totalRegions > 0)
-          _RegionMapCard(
+          _InlineRegionMap(
             isoCode: isoCode,
+            visitedRegionCodes: detail.visitedRegionCodes,
             visitedRegions: detail.stats.visitedRegions,
             totalRegions: detail.totalRegions,
-            accentColor: accentColor,
           ),
         // UNESCO heritage section
         if (detail.allSitesInCountry.isNotEmpty)
@@ -391,7 +415,6 @@ class _NarrativeCard extends StatelessWidget {
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     height: 1.5,
-                    fontStyle: FontStyle.italic,
                   ),
             ),
           ),
@@ -473,21 +496,27 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayNum = isDash
-        ? const Text('—', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800))
-        : TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: value.toDouble()),
-            duration: const Duration(milliseconds: 800) + delay,
-            curve: Curves.easeOut,
-            builder: (_, v, __) => Text(
-              v.round().toString(),
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: accentColor,
+    final displayNum = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: isDash
+          ? const Text(
+              '—',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+            )
+          : TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: value.toDouble()),
+              duration: const Duration(milliseconds: 800) + delay,
+              curve: Curves.easeOut,
+              builder: (_, v, __) => Text(
+                v.round().toString(),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: accentColor,
+                ),
               ),
             ),
-          );
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -509,158 +538,186 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// ── _RegionMapCard ────────────────────────────────────────────────────────────
+// ── _InlineRegionMap ──────────────────────────────────────────────────────────
 
-class _RegionMapCard extends StatelessWidget {
-  const _RegionMapCard({
+/// Embedded interactive region map card. Visited regions are shown in pastel
+/// colours; tapping a visited region shows a floating label popup. The footer
+/// row shows the visit count and a "Full map →" link to CountryRegionMapScreen.
+class _InlineRegionMap extends StatefulWidget {
+  const _InlineRegionMap({
     required this.isoCode,
+    required this.visitedRegionCodes,
     required this.visitedRegions,
     required this.totalRegions,
-    required this.accentColor,
   });
 
   final String isoCode;
+  final Set<String> visitedRegionCodes;
   final int visitedRegions;
   final int totalRegions;
-  final Color accentColor;
 
   @override
-  Widget build(BuildContext context) {
-    final fraction =
-        totalRegions > 0 ? visitedRegions / totalRegions : 0.0;
+  State<_InlineRegionMap> createState() => _InlineRegionMapState();
+}
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Material(
-        borderRadius: BorderRadius.circular(14),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => CountryRegionMapScreen(countryCode: isoCode),
-            ),
-          ),
-          child: Container(
-            height: 90,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accentColor.withValues(alpha: 0.15),
-                  accentColor.withValues(alpha: 0.05),
-                ],
-              ),
-              border: Border.all(
-                color: accentColor.withValues(alpha: 0.25),
-              ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                // Decorative arc progress indicator
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: CustomPaint(
-                      painter: _ArcPainter(
-                        fraction: fraction,
-                        color: accentColor,
-                      ),
-                      child: Center(
-                        child: Text(
-                          visitedRegions.toString(),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: accentColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$visitedRegions of $totalRegions regions visited',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Explore the regional map',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: accentColor,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 14),
-                  child: Icon(
-                    Icons.chevron_right,
-                    color: accentColor.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
+class _InlineRegionMapState extends State<_InlineRegionMap> {
+  final _mapController = MapController();
+  final LayerHitNotifier<String> _hitNotifier = ValueNotifier(null);
+  late final List<RegionPolygon> _allPolygons;
+  String? _selectedCode;
+  LatLng? _selectedLatLng;
+
+  @override
+  void initState() {
+    super.initState();
+    _allPolygons = regionPolygonsForCountry(widget.isoCode);
+  }
+
+  @override
+  void dispose() {
+    _hitNotifier.dispose();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _fitBounds() {
+    if (_allPolygons.isEmpty) return;
+    final allPoints = [
+      for (final p in _allPolygons)
+        for (final v in p.vertices) LatLng(v.$1, v.$2),
+    ];
+    final bounds = LatLngBounds.fromPoints(allPoints);
+    _mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(16)),
+    );
+  }
+
+  Marker _buildLabel(String code, LatLng position) {
+    final name = kRegionNames[code] ?? code;
+    return Marker(
+      point: position,
+      width: 200,
+      height: 48,
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(
+            name,
+            style: Theme.of(context).textTheme.bodyMedium,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
     );
   }
-}
-
-class _ArcPainter extends CustomPainter {
-  const _ArcPainter({required this.fraction, required this.color});
-
-  final double fraction;
-  final Color color;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - 4;
-    const strokeWidth = 5.0;
+  Widget build(BuildContext context) {
+    // Build polygon layers — same logic as CountryRegionMapScreen.
+    final sorted = [..._allPolygons]
+      ..sort((a, b) => a.regionCode.compareTo(b.regionCode));
+    final sortedIndex = {
+      for (var i = 0; i < sorted.length; i++) sorted[i].regionCode: i,
+    };
 
-    // Background track
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = color.withValues(alpha: 0.15)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth,
-    );
+    final visitedPolygons = <Polygon<String>>[];
+    final unvisitedPolygons = <Polygon>[];
 
-    if (fraction <= 0) return;
+    for (final p in _allPolygons) {
+      final points = p.vertices.map((v) => LatLng(v.$1, v.$2)).toList();
+      if (widget.visitedRegionCodes.contains(p.regionCode)) {
+        final idx = sortedIndex[p.regionCode] ?? 0;
+        final fill = _kRegionPastelPalette[idx % _kRegionPastelPalette.length];
+        visitedPolygons.add(Polygon<String>(
+          points: points,
+          color: fill.withValues(alpha: 0.85),
+          borderStrokeWidth: 0,
+          hitValue: p.regionCode,
+        ));
+      } else {
+        unvisitedPolygons.add(Polygon(
+          points: points,
+          color: _kUnvisitedFill.withValues(alpha: 0.9),
+          borderStrokeWidth: 0,
+        ));
+      }
+    }
 
-    // Progress arc
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      2 * math.pi * fraction.clamp(0, 1),
-      false,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Interactive map
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(
+              height: 200,
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  backgroundColor: _kOceanBackground,
+                  onMapReady: _fitBounds,
+                ),
+                children: [
+                  PolygonLayer(
+                    polygonCulling: true,
+                    polygons: unvisitedPolygons,
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      final hit = _hitNotifier.value;
+                      setState(() {
+                        _selectedCode = hit?.hitValues.first;
+                        _selectedLatLng = hit?.coordinate;
+                      });
+                    },
+                    child: PolygonLayer<String>(
+                      hitNotifier: _hitNotifier,
+                      polygonCulling: true,
+                      polygons: visitedPolygons,
+                    ),
+                  ),
+                  if (_selectedCode != null && _selectedLatLng != null)
+                    MarkerLayer(
+                      markers: [
+                        _buildLabel(_selectedCode!, _selectedLatLng!),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Footer: count + full-map link
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+            child: Row(
+              children: [
+                Text(
+                  '${widget.visitedRegions} of ${widget.totalRegions} regions visited',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          CountryRegionMapScreen(countryCode: widget.isoCode),
+                    ),
+                  ),
+                  child: const Text('Full map →'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
-
-  @override
-  bool shouldRepaint(_ArcPainter old) =>
-      old.fraction != fraction || old.color != color;
 }
 
 // ── _WorldGridPainterWidget ───────────────────────────────────────────────────
