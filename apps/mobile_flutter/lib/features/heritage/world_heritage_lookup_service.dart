@@ -127,5 +127,10 @@ class WorldHeritageLookupService {
     return r * c;
   }
 
+  /// Returns all WHS sites registered under [countryCode], or an empty list
+  /// if the service is not initialised or the country has no sites.
+  static List<WorldHeritageSite> sitesForCountry(String countryCode) =>
+      List.unmodifiable(_index[countryCode] ?? const []);
+
   static double _toRad(double deg) => deg * pi / 180;
 }

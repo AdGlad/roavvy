@@ -1,4 +1,4 @@
-# Roavvy — Current State (updated M146, 2026-06-05)
+# Roavvy — Current State (updated M162, 2026-06-16)
 
 ## What is built
 
@@ -6,7 +6,7 @@
 |---|---|---|
 | Photo scan | ✅ | PhotoKit bridge; GPS → country (offline, `country_lookup`); unified scan UX (M78): always-visible globe + country list + passport stamps pre-populated at rest, live-animated during scan; all scan outcomes navigate through ScanSummaryScreen; assetId-based dedup (M77) |
 | World map | ✅ | `flutter_map`; globe (auto-rotating east→west, snap-to-country via flag strip, M86); dark navy/gold; depth colouring; timeline scrubber; gamified visual states (5 states); tappable stats strip → Countries/Achievements screens (M86); tappable XP level → progression sheet (M86) |
-| Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet |
+| Country/region detection | ✅ | ISO 3166-2 admin1 via `region_lookup`; region progress chips + detail sheet; `CountryProfileScreen` full-screen push route for visited countries (M162): SliverAppBar parallax hero, narrative glass card (`CountryStats`), animated stats strip, region map card, UNESCO heritage horizontal scroll (gold/dimmed cards, progress dots), photo strip, trip timeline with FIRST VISIT/MOST RECENT chips, share action |
 | Trips / Journal | ✅ | `TripInference`; trip region map; journal screen; photo gallery per country/trip |
 | Achievements + XP | ✅ | 8 XP levels; milestone cards at [5,10,25,50,100]; `LevelUpSheet`; gamified achievement dashboard with fl_chart PieChart donut, next-achievements carousel, tabbed gallery, merch CTAs (M97); 29 achievements across country/continent/trip/thisYear categories; `continentCountProvider`, `tripCountProvider`, `thisYearCountryCountProvider` (M97) |
 | Celebrations | ✅ | `DiscoveryOverlay` with animated globe, per-country confetti; celebration carousel (M72) |

@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../../core/region_names.dart';
+import '../heritage/world_heritage_lookup_service.dart';
 import '../scan/hero_providers.dart';
 import '../shared/hero_image_view.dart';
 import '../shared/hero_override_picker.dart';
@@ -265,6 +266,35 @@ class _CountryDetailSheetState extends ConsumerState<CountryDetailSheet> {
                               // ── Unvisited country section ───────────────
                             ] else if (widget.onAdd != null) ...[
                               const SizedBox(height: 4),
+                              // UNESCO hint for unvisited countries.
+                              Builder(builder: (context) {
+                                final siteCount = WorldHeritageLookupService
+                                    .sitesForCountry(widget.isoCode)
+                                    .length;
+                                if (siteCount == 0) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    children: [
+                                      const Text('🏛', style: TextStyle(fontSize: 16)),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Home to $siteCount UNESCO World Heritage '
+                                        '${siteCount == 1 ? 'Site' : 'Sites'}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.6),
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
                               SizedBox(
                                 width: double.infinity,
                                 child: FilledButton(

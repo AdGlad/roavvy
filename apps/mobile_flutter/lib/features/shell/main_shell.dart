@@ -13,7 +13,7 @@ import '../globe_replay/globe_replay_widget.dart';
 import '../memory/app_open_tracker.dart';
 import '../journal/journal_screen.dart';
 import '../journal/trip_detail_screen.dart';
-import '../map/country_detail_sheet.dart';
+import '../map/country_profile_screen.dart';
 import '../map/map_screen.dart';
 import '../merch/merch_cart_screen.dart';
 import '../merch/merch_shop_screen.dart';
@@ -214,13 +214,15 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
   }
 
-  /// Navigates to the country detail screen for [isoCode]. Switches to the
-  /// Map tab first so the sheet sits above the correct context.
+  /// Navigates to the country profile screen for [isoCode]. Switches to the
+  /// Map tab first so the screen sits above the correct context.
   void _navigateToCountry(String isoCode) {
     setState(() => _selectedIndex = 0); // switch to Map
+    final visits = ref.read(effectiveVisitsProvider).valueOrNull ?? [];
+    final visit = visits.where((v) => v.countryCode == isoCode).firstOrNull;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CountryDetailSheet(isoCode: isoCode),
+        builder: (_) => CountryProfileScreen(isoCode: isoCode, visit: visit),
       ),
     );
   }

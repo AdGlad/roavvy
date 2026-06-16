@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
-import '../map/country_detail_sheet.dart';
+import '../map/country_profile_screen.dart';
 
 /// Full-screen list of all visited countries.
 ///
@@ -42,16 +42,14 @@ class CountriesListScreen extends StatelessWidget {
             leading: Text(flag, style: const TextStyle(fontSize: 28)),
             title: Text(name),
             subtitle: Text(subtitle),
-            onTap:
-                () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder:
-                      (_) => CountryDetailSheet(
-                        isoCode: visit.countryCode,
-                        visit: visit,
-                      ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => CountryProfileScreen(
+                  isoCode: visit.countryCode,
+                  visit: visit,
                 ),
+              ),
+            ),
           );
         },
       ),
