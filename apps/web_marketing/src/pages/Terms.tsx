@@ -34,7 +34,7 @@ export default function Terms() {
 
       <Section title="5. Privacy and Data Handling">
         <p>Your use of the App is also governed by our Privacy Policy, which is incorporated into these Terms by reference. Please review our Privacy Policy at www.roavvy.com/privacy.</p>
-        <p>We are committed to handling your personal data in accordance with applicable data protection laws, including the General Data Protection Regulation (GDPR) where applicable.</p>
+        <p>We are committed to handling your personal data in accordance with applicable data protection laws, including the Australian Privacy Act 1988 (Cth).</p>
       </Section>
 
       <Section title="6. User-Generated Content">
@@ -81,7 +81,7 @@ export default function Terms() {
       </Section>
 
       <Section title="13. Governing Law">
-        <p>These Terms are governed by and construed in accordance with the laws of England and Wales. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>
+        <p>These Terms are governed by and construed in accordance with the laws of New South Wales, Australia. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts of New South Wales, Australia.</p>
       </Section>
 
       <Section title="14. Contact">
@@ -131,7 +131,9 @@ export function ContactBlock() {
   return (
     <div className="bg-navy-800 rounded-xl border border-slate-800 p-5 mt-4">
       <p className="text-slate-300 text-sm">
-        <strong className="text-white">Roavvy</strong><br />
+        <strong className="text-white">Christopher Adam Gladstone trading as Roavvy</strong><br />
+        ABN: 76 540 390 025<br />
+        North Curl Curl, NSW, Australia<br />
         Email: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sky-400 hover:text-sky-300 transition-colors">{SUPPORT_EMAIL}</a><br />
         Website: <a href="https://www.roavvy.com" className="text-sky-400 hover:text-sky-300 transition-colors">www.roavvy.com</a>
       </p>

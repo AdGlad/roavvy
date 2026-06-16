@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -5,10 +6,14 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:country_lookup/country_lookup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../data/achievement_repository.dart';
+import '../data/bootstrap_service.dart';
+import '../data/firestore_restore_service.dart';
+import '../data/firestore_sync_service.dart';
 import '../data/heritage_repository.dart';
 import '../data/level_up_repository.dart';
 import '../data/milestone_repository.dart';
@@ -41,6 +46,46 @@ final imagePlaygroundAvailableProvider = FutureProvider<bool>(
 final termsAcceptedProvider = FutureProvider<bool>(
   (_) => TermsService.hasAcceptedCurrent(),
 );
+
+/// Runs once per app session when the user reaches the authenticated shell:
+///  1. Restores Firestore data if the local DB is empty (fresh install / reinstall).
+///  2. Synthesises trips for pre-v6 users who have no photo_date_records.
+///  3. Flushes any remaining dirty rows to Firestore.
+///
+/// Moving these operations post-[runApp] allows the UI to show a
+/// "Restoring your map…" progress indicator if the restore takes > 2 s (T4,
+/// ADR-160).
+final startupCompleteProvider = FutureProvider<void>((ref) async {
+  final db = ref.watch(roavvyDatabaseProvider);
+  final visitRepo = ref.watch(visitRepositoryProvider);
+  final tripRepo = ref.watch(tripRepositoryProvider);
+  final regionRepo = ref.watch(regionRepositoryProvider);
+  final achievementRepo = ref.watch(achievementRepositoryProvider);
+
+  // FirebaseAuth.instance.currentUser is populated synchronously after
+  // Firebase.initializeApp() in main.dart; safe to read here.
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  // 1. Restore Firestore data if this is a fresh install (ADR-160).
+  if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
+    await FirestoreRestoreService(db: db).restore(uid);
+  }
+
+  // 2. Synthesise one trip per country for pre-v6 users (ADR-048).
+  await bootstrapExistingUser(visitRepo, tripRepo, regionRepo: regionRepo);
+
+  // 3. Flush dirty rows to Firestore (fire-and-forget).
+  if (uid != null) {
+    unawaited(
+      FirestoreSyncService().flushDirty(
+        uid,
+        visitRepo,
+        achievementRepo: achievementRepo,
+        tripRepo: tripRepo,
+      ),
+    );
+  }
+});
 
 final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),
@@ -422,4 +467,39 @@ final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
     latestVisit: base.latestVisit,
     achievementCount: achievementIds.length,
   );
+});
+
+// ── Remote Config ─────────────────────────────────────────────────────────────
+
+/// Maps a [CardTemplateType] to its Remote Config key.
+String remoteConfigKeyForTemplate(CardTemplateType t) => switch (t) {
+      CardTemplateType.passport => 'purchasing_enabled_passport',
+      CardTemplateType.grid => 'purchasing_enabled_flags',
+      CardTemplateType.timeline => 'purchasing_enabled_tour_dates',
+      CardTemplateType.heart => 'purchasing_enabled_heart_flags',
+      CardTemplateType.frontRibbon => 'purchasing_enabled_ribbon',
+      CardTemplateType.typography => 'purchasing_enabled_typography',
+      CardTemplateType.badge => 'purchasing_enabled_badge',
+      CardTemplateType.wordCloud => 'purchasing_enabled_word_cloud',
+      CardTemplateType.landmark => 'purchasing_enabled_landmark',
+    };
+
+/// Whether in-app purchasing is enabled globally via Firebase Remote Config.
+///
+/// Defaults to [true] (fail-open). Toggle in the Firebase Console under
+/// Remote Config → purchasing_enabled.
+final purchasingEnabledProvider = Provider<bool>((ref) {
+  return FirebaseRemoteConfig.instance.getBool('purchasing_enabled');
+});
+
+/// Whether a specific shirt template type is available for purchase.
+///
+/// Respects the global [purchasingEnabledProvider] first, then checks the
+/// per-template flag (e.g. `purchasing_enabled_passport`). All flags default
+/// to [true] (fail-open).
+final purchasingEnabledForTemplateProvider =
+    Provider.family<bool, CardTemplateType>((ref, template) {
+  if (!ref.watch(purchasingEnabledProvider)) return false;
+  final key = remoteConfigKeyForTemplate(template);
+  return FirebaseRemoteConfig.instance.getBool(key);
 });

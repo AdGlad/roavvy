@@ -4,8 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
 import 'package:drift_flutter/drift_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,15 +15,10 @@ import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
 import 'core/notification_service.dart';
+import 'core/remote_config_service.dart';
 import 'core/providers.dart';
 import 'features/heritage/world_heritage_lookup_service.dart';
-import 'data/achievement_repository.dart';
-import 'data/bootstrap_service.dart';
 import 'data/db/roavvy_database.dart';
-import 'data/firestore_sync_service.dart';
-import 'data/region_repository.dart';
-import 'data/trip_repository.dart';
-import 'data/visit_repository.dart';
 
 import 'firebase_options.dart';
 
@@ -31,6 +26,7 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       tz.initializeTimeZones();
 
       try {
@@ -39,6 +35,12 @@ Future<void> main() async {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
+
+        // Route Flutter framework errors to Crashlytics.
+        FlutterError.onError =
+            FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+        await RemoteConfigService.initialise();
 
         // On web we only serve the public landing page — SQLite is not available
         // without a WASM worker, and the landing page needs neither the DB nor
@@ -93,29 +95,6 @@ Future<void> main() async {
         WorldHeritageLookupService.init(whsJson);
 
         final db = RoavvyDatabase(driftDatabase(name: 'roavvy'));
-        final visitRepo = VisitRepository(db);
-        final tripRepo = TripRepository(db);
-        final regionRepo = RegionRepository(db);
-
-        // Synthesise one trip per country for users upgrading from pre-v6 schema
-        // who have no photo_date_records yet (ADR-048).
-        await bootstrapExistingUser(
-          visitRepo,
-          tripRepo,
-          regionRepo: regionRepo,
-        );
-
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid != null) {
-          unawaited(
-            FirestoreSyncService().flushDirty(
-              uid,
-              visitRepo,
-              achievementRepo: AchievementRepository(db),
-              tripRepo: tripRepo,
-            ),
-          );
-        }
 
         runApp(
           ProviderScope(
@@ -171,7 +150,7 @@ Future<void> main() async {
       }
     },
     (error, stack) {
-      debugPrint('Uncaught error: $error\n$stack');
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     },
   );
 }

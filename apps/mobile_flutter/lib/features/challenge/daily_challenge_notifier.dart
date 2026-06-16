@@ -132,18 +132,39 @@ class DailyChallengeNotifier
   }
 
   /// Reveals the next clue. No-op if already at clue 5 or solved/failed.
-  Future<void> revealNextClue() async {
+  ///
+  /// [costGuess] — when true (default), the reveal consumes one guess slot by
+  /// appending an empty sentinel to [guesses]. Pass false when the reveal is
+  /// triggered automatically after a wrong guess (that guess already cost a slot).
+  Future<void> revealNextClue({bool costGuess = true}) async {
     final current = state.valueOrNull;
     if (current == null || current.progress.solved || current.progress.failed) {
       return;
     }
     if (current.progress.cluesRevealed >= 5) return;
 
+    final newGuesses =
+        costGuess ? [...current.progress.guesses, ''] : current.progress.guesses;
     final updated = current.progress.copyWith(
       cluesRevealed: current.progress.cluesRevealed + 1,
+      guesses: newGuesses,
     );
-    state = AsyncValue.data(current.copyWith(progress: updated));
-    await _repo.save(updated);
+    // If spending the last guess slot on a reveal, fail the game.
+    final slotsExhausted =
+        costGuess && newGuesses.length >= DailyChallengeState.maxGuesses;
+    final finalProgress =
+        slotsExhausted ? updated.copyWith(failed: true) : updated;
+    if (slotsExhausted) {
+      await _stats.record(
+        date: finalProgress.date,
+        siteId: finalProgress.siteId,
+        solved: false,
+        guessesUsed: finalProgress.guesses.length,
+        cluesUsed: finalProgress.cluesRevealed,
+      );
+    }
+    state = AsyncValue.data(current.copyWith(progress: finalProgress));
+    await _repo.save(finalProgress);
   }
 
   /// Submits [input] (an official site name from autocomplete) as a guess.

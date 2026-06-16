@@ -1,30 +1,18 @@
-# M157 — Merch Pipeline Efficiency: Task List
+# M160 — Firestore Restore on Reinstall
 
-## Phase 1 — Backend: Printful Webhook + Storage Cleanup
+## Tasks
 
-- [x] T1: Add `printfulMockupTaskId: number | null` to `MerchConfig` in `types.ts`
-- [x] T2: Replace polling loop with `submitPrintfulMockupTask` (submit only, return taskId)
-- [x] T3: Store taskId + set `mockupStatus=generating` in Firestore after submission
-- [x] T4: Implement `printfulMockupWebhook` onRequest function
-- [x] T5: Delete print files in `shopifyOrderCreated` after `print_file_submitted`
-- [x] T6: Register `mockup_task_finished` webhook with Printful (dev) — URL: https://us-central1-roavvy-dev.cloudfunctions.net/printfulMockupWebhook
+- [x] T0 — Read existing repo/service patterns (visit_repository, trip_repository, achievement_repository, firestore_sync_service)
+- [ ] T1 — Create `FirestoreRestoreService` (lib/data/firestore_restore_service.dart)
+- [ ] T2 — Update main.dart: call restore before bootstrapExistingUser
+- [ ] T3 — 5-second timeout built into restore() via Future.any (part of T1)
+- [ ] T5 — Restored rows marked isDirty=0 (part of T1)
+- [ ] T6 — flutter analyze passes
 
-## Phase 2 — Drop Preview Upload
+## Key decisions
 
-- [x] T7: Remove preview generation + upload from `createMerchCart`; remove `previewUrl` from types
-- [x] T8: Remove `previewUrl` fallback in `merch_variant_screen.dart`, use local bytes
-
-## Phase 3 — Image Processing on Phone
-
-- [x] T9: Add `image: ^4.2.0` and `firebase_storage: ^12.3.0` to pubspec
-- [x] T10: Implement `MerchImageProcessor` (on-device Sharp equivalent)
-- [x] T11: Implement `MerchStorageUploader` (direct GCS upload)
-- [x] T12: Add storage path fields to `CreateMerchCartRequest` in `types.ts`
-- [x] T13: Update `createMerchCart` to accept paths, skip Sharp, use `clientConfigId`
-- [x] T14: Update `local_mockup_preview_screen.dart` to process on device, upload, pass paths
-
-## Notes
-
-- Printful webhook secret stored in `apps/functions/.env` as `PRINTFUL_WEBHOOK_SECRET`
-- Webhook `public_key`: `ApIEyWketnyY` (for display/identification)
-- Prod deployment: repeat T6 curl against prod Printful store + prod function URL
+- Service takes `RoavvyDatabase db` directly to write with isDirty=0 cleanly
+- `shouldRestore` checks both inferred_visits AND photo_date_records are empty
+- 5-second timeout via Future.any([_doRestore(), Future.delayed(5s)])
+- Restore runs BEFORE bootstrapExistingUser so bootstrap can synthesise trips from restored data
+- T4 (loading indicator) deferred — pre-runApp Flutter UI not possible without native splash integration

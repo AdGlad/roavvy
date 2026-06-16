@@ -129,10 +129,10 @@ class _TermsContent extends StatelessWidget {
           'By creating an account or using the Platform you agree to be bound by these Terms.',
         ),
         _p(
-          'Roavvy is operated by [Roavvy Pty Ltd] (ABN [XX XXX XXX XXX]), '
-          'a company incorporated in New South Wales, Australia '
+          'Roavvy is operated by Christopher Adam Gladstone trading as Roavvy '
+          '(ABN 76 540 390 025), North Curl Curl, NSW, Australia '
           '("Roavvy", "we", "us", or "our"). '
-          'Questions: [support@roavvy.app].',
+          'Questions: support@roavvy.com.',
         ),
 
         // 1. Eligibility
@@ -336,8 +336,8 @@ class _TermsContent extends StatelessWidget {
         // Contact
         _h2('Contact'),
         _p(
-          'For legal enquiries: [legal@roavvy.app]\n'
-          'For support: [support@roavvy.app]',
+          'For legal enquiries: support@roavvy.com\n'
+          'For support: support@roavvy.com',
         ),
 
         _version(),
@@ -349,7 +349,7 @@ class _TermsContent extends StatelessWidget {
   Widget _version() => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(
-      'Version $kCurrentTermsVersion — Last updated [DATE]',
+      'Version $kCurrentTermsVersion — Last updated 15 June 2026',
       style: const TextStyle(fontSize: 11, color: Colors.grey),
     ),
   );

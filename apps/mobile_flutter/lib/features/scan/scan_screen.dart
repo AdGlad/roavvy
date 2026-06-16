@@ -331,6 +331,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   PhotoPermissionStatus? _permission;
   bool _loading = true;
   bool _scanning = false;
+  bool _cancelled = false;
   List<EffectiveVisitedCountry> _effectiveVisits = [];
   String? _error;
   _ScanProgress? _scanProgress;
@@ -374,6 +375,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   List<VisitedHeritageSite> _liveHeritageSites = const [];
 
   @override
+  void dispose() {
+    _cancelled = true;
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _repo = ref.read(visitRepositoryProvider);
@@ -396,21 +403,32 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         _lastScanAt = lastScanAt;
         _loading = false;
       });
+      // In autoStart mode, request permission before starting the scan.
+      // On a fresh install _permission is null/notDetermined; calling
+      // requestPhotoPermission() first ensures a single iOS dialog appears
+      // and the native scan channel gets access immediately — avoiding the
+      // race condition where two concurrent permission calls freeze the scan.
+      if (widget.autoStart) {
+        try {
+          final permission = await requestPhotoPermission();
+          if (!mounted) return;
+          setState(() => _permission = permission);
+        } catch (_) {
+          // Permission check failed — leave _permission as-is.
+        }
+      }
+
       // Auto-start scan when triggered from the main-screen action bar.
-      // Allow null / notDetermined so the platform channel can show the system
-      // permission dialog on first use. Only skip if denied or restricted.
+      // Only skip if the user explicitly denied or restricted access.
       if (widget.autoStart &&
           _permission != PhotoPermissionStatus.denied &&
           _permission != PhotoPermissionStatus.restricted) {
         unawaited(_scan());
       }
 
-      // Check permission status silently so the scan button reflects current
-      // access without showing a dialog (M78: auto-scan removed — user must
-      // explicitly choose Incremental or Full and tap the button).
-      // Also check when autoStart is true so _permission is known before
-      // the auto-scan decision below.
-      if (lastScanAt != null || widget.autoStart) {
+      // For non-autoStart screens with a prior scan: check permission silently
+      // so the scan button reflects current access without showing a dialog.
+      if (!widget.autoStart && lastScanAt != null) {
         try {
           final permission = await requestPhotoPermission();
           if (!mounted) return;
@@ -590,6 +608,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               ? widget.scanStarter!(limit: 100000)
               : startPhotoScan(limit: 100000, sinceDate: sinceDate);
       await for (final event in scanStream) {
+        if (_cancelled) break;
         if (event is ScanBatchEvent) {
           // T3 (ADR-129): filter out photos already recorded by assetId.
           // Photos with null assetId always pass through (no data loss).
@@ -1028,7 +1047,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 newHeritageSiteNames: heritageNames,
                 totalTripCount: tripCount,
                 onDone: () {
-                  nav.pop();
+                  nav.pop(); // pop ScanSummaryScreen
+                  nav.pop(); // pop ScanScreen (opaque:false — stays on stack otherwise, blocks all touches)
                   widget.onScanComplete?.call();
                 },
               );
@@ -1043,7 +1063,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 lastScanAt: preScanTimestamp,
                 totalTripCount: tripCount,
                 onDone: () {
-                  nav.pop();
+                  nav.pop(); // pop ScanSummaryScreen
+                  nav.pop(); // pop ScanScreen (opaque:false — stays on stack otherwise, blocks all touches)
                   widget.onScanComplete?.call();
                 },
               );

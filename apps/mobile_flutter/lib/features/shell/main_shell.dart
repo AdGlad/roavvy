@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../../core/remote_config_service.dart';
 import '../challenge/daily_challenge_service.dart';
 import '../globe_replay/globe_replay_widget.dart';
 import '../memory/app_open_tracker.dart';
@@ -59,6 +60,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   late String _lastKnownDate;
   late AppLifecycleListener _lifecycleListener;
   Timer? _midnightTimer;
+  StreamSubscription<void>? _rcUpdateSub;
 
   @override
   void initState() {
@@ -67,6 +69,12 @@ class _MainShellState extends ConsumerState<MainShell> {
     _lastKnownDate = _todayLocal();
     _lifecycleListener = AppLifecycleListener(onResume: _onAppResume);
     _scheduleMidnightRefresh();
+    _rcUpdateSub = RemoteConfigService.onUpdate.stream.listen((_) {
+      if (mounted) {
+        ref.invalidate(purchasingEnabledProvider);
+        ref.invalidate(purchasingEnabledForTemplateProvider);
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.openScanOnLoad)
         _goToScan(autoStart: true, forceFullScan: true);
@@ -98,6 +106,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void dispose() {
     _midnightTimer?.cancel();
+    _rcUpdateSub?.cancel();
     _lifecycleListener.dispose();
     NotificationService.instance.pendingTabIndex.removeListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.removeListener(
@@ -133,6 +142,13 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
     // Always reschedule — the timer may have been paused while backgrounded.
     _scheduleMidnightRefresh();
+    // Re-fetch Remote Config so the purchase killswitch propagates within ~60 s.
+    unawaited(RemoteConfigService.refresh().then((_) {
+      if (mounted) {
+        ref.invalidate(purchasingEnabledProvider);
+        ref.invalidate(purchasingEnabledForTemplateProvider);
+      }
+    }));
   }
 
   /// Invalidates daily challenge providers so they re-fetch with today's date.
@@ -284,7 +300,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                 // reachable regardless of whether the entry sheet is disposed.
                 onScanComplete:
                     overlay.isReplayMode
-                        ? () => ref.read(globeOverlayProvider.notifier).hide()
+                        ? () =>
+                            ref.read(globeOverlayProvider.notifier).hide()
                         : overlay.onScanComplete,
                 // Always call hide() on cancel so the overlay is never stuck.
                 // For scan mode, also invoke onScanComplete to clean up the
@@ -293,6 +310,31 @@ class _MainShellState extends ConsumerState<MainShell> {
                   if (overlay.isScanMode) overlay.onScanComplete?.call();
                   ref.read(globeOverlayProvider.notifier).hide();
                 },
+              ),
+            ),
+          // Cancel button — only shown during active scan, not replay.
+          // Placed in the outer Stack so it is always on top of GlobeReplayWidget.
+          if (overlay.isActive && overlay.isScanMode)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 12,
+              right: 16,
+              child: FilledButton.tonal(
+                onPressed: () {
+                  overlay.onScanComplete?.call();
+                  ref.read(globeOverlayProvider.notifier).hide();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+                child: const Text(
+                  'Cancel scan',
+                  style: TextStyle(fontSize: 13),
+                ),
               ),
             ),
         ],

@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/providers.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_preset.dart';
 import 'travel_story_data.dart';
@@ -115,6 +117,19 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
   }
 
   void _openPreview() {
+    final enabled = ProviderScope.containerOf(context).read(
+      purchasingEnabledForTemplateProvider(widget.data.merchOption.template),
+    );
+    if (!enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The store is temporarily unavailable. Check back soon.',
+          ),
+        ),
+      );
+      return;
+    }
     final d = widget.data;
     Navigator.of(context).push(
       MaterialPageRoute<void>(

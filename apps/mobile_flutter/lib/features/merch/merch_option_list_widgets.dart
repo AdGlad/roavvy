@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/providers.dart';
 import 'merch_exclusive_design.dart';
 import 'shopify_pricing_repository.dart';
 
@@ -334,6 +335,18 @@ class _MerchOptionCardState extends State<MerchOptionCard>
   }
 
   void _navigate() {
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    if (!enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The store is temporarily unavailable. Check back soon.',
+          ),
+        ),
+      );
+      return;
+    }
     final bytes = _artworkBytes;
     if (bytes == null) return;
     Navigator.of(context).push(
@@ -759,6 +772,18 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
   }
 
   void _navigate() {
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    if (!enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The store is temporarily unavailable. Check back soon.',
+          ),
+        ),
+      );
+      return;
+    }
     final bytes = _artworkBytes;
     if (bytes == null) return;
     Navigator.of(context).push(
@@ -1196,6 +1221,18 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
   }
 
   void _navigate() {
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    if (!enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The store is temporarily unavailable. Check back soon.',
+          ),
+        ),
+      );
+      return;
+    }
     final bytes = _artworkBytes;
     if (bytes == null) return;
     Navigator.of(context).push(
