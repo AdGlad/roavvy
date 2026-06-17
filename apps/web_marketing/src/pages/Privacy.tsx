@@ -1,6 +1,6 @@
 import { LegalPage, Section, ContactBlock } from './Terms'
 
-const LAST_UPDATED = '1 June 2026'
+const LAST_UPDATED = '15 June 2026'
 
 export default function Privacy() {
   return (

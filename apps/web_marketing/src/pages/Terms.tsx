@@ -1,12 +1,12 @@
 const SUPPORT_EMAIL = 'support@roavvy.com'
-const LAST_UPDATED = '1 June 2026'
+const LAST_UPDATED = '15 June 2026'
 
 export default function Terms() {
   return (
     <LegalPage title="Terms and Conditions" lastUpdated={LAST_UPDATED}>
       <Section title="1. Acceptance of Terms">
         <p>By downloading, installing, or using the Roavvy application ("App") or accessing the Roavvy website at www.roavvy.com ("Website"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, do not use the App or Website.</p>
-        <p>These Terms constitute a legally binding agreement between you and Roavvy ("we", "our", or "us"). We reserve the right to update these Terms at any time. Continued use of the App after changes are posted constitutes acceptance of the revised Terms.</p>
+        <p>These Terms constitute a legally binding agreement between you and Christopher Adam Gladstone trading as Roavvy (ABN 76 540 390 025), North Curl Curl, NSW, Australia ("Roavvy", "we", "our", or "us"). We reserve the right to update these Terms at any time. Continued use of the App after changes are posted constitutes acceptance of the revised Terms.</p>
       </Section>
 
       <Section title="2. App Usage">
@@ -72,7 +72,7 @@ export default function Terms() {
 
       <Section title="11. Limitation of Liability">
         <p>To the maximum extent permitted by applicable law, Roavvy and its affiliates, officers, employees, and partners shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App or Website.</p>
-        <p>Our total liability for any claim arising out of these Terms shall not exceed the amount you paid to us in the twelve months preceding the claim, or £50 (whichever is greater).</p>
+        <p>Our total liability for any claim arising out of these Terms shall not exceed the amount you paid to us in the twelve months preceding the claim, or AUD$100 (whichever is greater).</p>
         <p>Nothing in these Terms limits liability for death or personal injury caused by negligence, fraud, or any other liability that cannot be excluded by law.</p>
       </Section>
 
