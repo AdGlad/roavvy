@@ -57,6 +57,31 @@ def read_shapefile(path: str) -> list[tuple[str, list[list[tuple[float, float]]]
         "FX": "FR",   # Metropolitan France — deprecated code used by older NE releases
     }
 
+    # Natural Earth bundles French (and some other) overseas territories as rings
+    # within the parent-country feature, giving them all the same ISO_A2 code.
+    # Each tuple is (parent_code, lat_min, lat_max, lng_min, lng_max, correct_code).
+    # The ring centroid is used for matching.
+    _RING_OVERRIDES: list[tuple[str, float, float, float, float, str]] = [
+        # French overseas departments / collectivities
+        ("FR",   2.0,   6.5,  -55.0, -51.0, "GF"),  # French Guiana
+        ("FR", -22.5, -20.7,   55.0,  56.0, "RE"),  # Réunion
+        ("FR",  14.3,  15.0,  -61.3, -60.7, "MQ"),  # Martinique
+        ("FR",  15.8,  16.6,  -61.9, -61.0, "GP"),  # Guadeloupe (all parts)
+        ("FR", -13.1, -12.6,   44.9,  45.4, "YT"),  # Mayotte
+        ("FR",  46.7,  47.2,  -56.5, -55.8, "PM"),  # Saint Pierre & Miquelon
+        # Add further overrides here as needed for other countries.
+    ]
+
+    def _ring_override(iso: str, ring_points: list) -> str:
+        """Returns the correct ISO code for a ring, overriding when its centroid
+        falls within a known overseas-territory bounding box."""
+        clat = sum(p[1] for p in ring_points) / len(ring_points)
+        clng = sum(p[0] for p in ring_points) / len(ring_points)
+        for parent, lat_min, lat_max, lng_min, lng_max, override in _RING_OVERRIDES:
+            if iso == parent and lat_min <= clat <= lat_max and lng_min <= clng <= lng_max:
+                return override
+        return iso
+
     results = []
     for sr in sf.shapeRecords():
         iso = sr.record[iso_field_index]
@@ -70,16 +95,17 @@ def read_shapefile(path: str) -> list[tuple[str, list[list[tuple[float, float]]]
         if shape.shapeType not in (5, 15, 25):  # Polygon types
             continue
 
-        # Split parts into rings. Each part boundary marks a new ring.
+        # Split parts into rings. Each ring may be recoded independently
+        # (overseas territories bundled in a parent-country feature get their
+        # own ISO code via _ring_override). Each result entry wraps one ring in
+        # a list so the main() flatten loop still works correctly.
         parts = list(shape.parts) + [len(shape.points)]
-        rings = []
         for i in range(len(parts) - 1):
             ring_points = shape.points[parts[i]: parts[i + 1]]
+            ring_iso = _ring_override(iso, ring_points)
             # Natural Earth stores (lng, lat); we need (lat, lng).
-            rings.append([(pt[1], pt[0]) for pt in ring_points])
-
-        if rings:
-            results.append((iso.upper(), rings))
+            latlon_ring = [(pt[1], pt[0]) for pt in ring_points]
+            results.append((ring_iso.upper(), [latlon_ring]))
 
     return results
 
