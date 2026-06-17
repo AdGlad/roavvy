@@ -156,6 +156,12 @@ BatchResult resolveBatch(
     );
     if (code == null) continue;
 
+    // Only count photos that have both a GPS fix AND a capture date.
+    // Photos with GPS but no capturedAt cannot contribute to trip inference
+    // or the photo gallery, so including them in accum would create ghost
+    // country records (visited with 0 trips / 0 photos in the profile).
+    if (photo.capturedAt == null) continue;
+
     final a = CountryAccum(
       photoCount: 1,
       firstSeen: photo.capturedAt,
@@ -164,32 +170,30 @@ BatchResult resolveBatch(
     final existing = accum[code];
     accum[code] = existing == null ? a : existing.merge(a);
 
-    if (photo.capturedAt != null) {
-      final regionCode =
-          regionResolver != null
-              ? regionBucketCache.putIfAbsent(
-                key,
-                () => regionResolver(bucketLat, bucketLng),
-              )
-              : null;
-      photoDates.add(
-        PhotoDateRecord(
-          countryCode: code,
-          capturedAt: photo.capturedAt!,
-          regionCode: regionCode,
-          assetId: photo.assetId,
-        ),
-      );
-      // Track raw GPS for trip endpoint extraction (ADR-157).
-      photoGps.add(
-        PhotoGpsRecord(
-          countryCode: code,
-          capturedAt: photo.capturedAt!,
-          lat: photo.lat,
-          lng: photo.lng,
-        ),
-      );
-    }
+    final regionCode =
+        regionResolver != null
+            ? regionBucketCache.putIfAbsent(
+              key,
+              () => regionResolver(bucketLat, bucketLng),
+            )
+            : null;
+    photoDates.add(
+      PhotoDateRecord(
+        countryCode: code,
+        capturedAt: photo.capturedAt!,
+        regionCode: regionCode,
+        assetId: photo.assetId,
+      ),
+    );
+    // Track raw GPS for trip endpoint extraction (ADR-157).
+    photoGps.add(
+      PhotoGpsRecord(
+        countryCode: code,
+        capturedAt: photo.capturedAt!,
+        lat: photo.lat,
+        lng: photo.lng,
+      ),
+    );
   }
 
   return BatchResult(accum: accum, photoDates: photoDates, photoGps: photoGps);
