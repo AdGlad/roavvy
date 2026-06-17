@@ -9,7 +9,10 @@ Usage:
     pip install pyshp
     python3 build_geodata.py \\
         --input  source/ne_10m_admin_1_states_provinces.shp \\
-        --output ../assets/geodata/ne_admin1.bin
+        --output ../../../apps/mobile_flutter/assets/geodata/ne_admin1.bin
+
+NOTE: always output to apps/mobile_flutter/assets/geodata/ne_admin1.bin —
+that is the file the mobile app actually loads at runtime.
 
 See GEODATA.md for full documentation and instructions to refresh the source data.
 """
