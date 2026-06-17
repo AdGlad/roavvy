@@ -1,22 +1,25 @@
-# M162 — Country Profile: Rich Destination Screen
+# M163 — UNESCO Nearby Explorer — Task List
+
+## Status: In Progress
 
 ## Tasks
 
-- [ ] T1: Add `sitesForCountry()` to `WorldHeritageLookupService`
-- [ ] T2: `CountryStats` value class + `narrativeText()` generator
-- [ ] T3: `countryDetailProvider` FutureProvider.family in providers.dart
-- [ ] T4: `CountryProfileScreen` — SliverAppBar hero + all section widgets
-- [ ] T5: Routing — map tap / countries list / notification push to CountryProfileScreen
-- [ ] T6: Unvisited bottom sheet WHS hint
-- [ ] T7: Tests — CountryStats + countryDetailProvider
+- [x] T0: Branch created (milestone/m163-unesco-nearby-explorer)
+- [ ] T1: DistanceUtils — haversine, bearing, travel time pure functions + unit tests
+- [ ] T2: NativeMapsLauncher — url_launcher Apple/Google Maps deep link
+- [ ] T3: UnescoNearbyService — NearbySiteResult + sitesWithin() filter/sort/dedup
+- [ ] T4: UnescoNearbyNotifier — Riverpod AsyncNotifier (location + radius + sites)
+- [ ] T5: UnescoNearbySiteCard — list item widget (image, category, distance, times, badge)
+- [ ] T6: UnescoSiteDetailSheet — bottom sheet (metadata, travel times, Get Directions)
+- [ ] T7: UnescoNearbyExplorerScreen — main screen (slider, list, permission states)
+- [ ] T8: Entry point — UNESCO Nearby chip on map screen
+- [ ] T9: Service + distance utils unit tests
 
-## Key decisions
-
-- FutureProvider.family<CountryDetailState, String> keyed on isoCode
-- Visited country → push CountryProfileScreen; unvisited → keep bottom sheet
-- 3 call sites to update: map_screen.dart, countries_list_screen.dart, main_shell.dart
-- Photo strip reuses _platformFetch pattern from photo_gallery_screen.dart
-- Region thumbnail: decorative CustomPaint arc + continent colour (not polygon render)
-- Count-up: TweenAnimationBuilder<double> per stat tile
-- Heritage sites: visited cards gold border; unvisited dimmed; same horizontal scroll
-- Stagger: AnimatedOpacity per section, 80ms offset each
+## Key facts
+- geolocator ^13.0.0 already in pubspec; permission wired in heritage_detail_sheet.dart
+- url_launcher already in pubspec; launchUrl pattern exists in heritage_detail_sheet.dart
+- WorldHeritageLookupService.allSites — flat iterable, ~1200 sites, in-memory
+- HeritageRepository.loadAll() — returns all visited VisitedHeritageSite
+- haversine already private in world_heritage_lookup_service.dart — extract to DistanceUtils
+- Map screen: _DailyChallengeChip pattern for the new chip
+- No new packages needed

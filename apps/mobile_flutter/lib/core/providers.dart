@@ -32,6 +32,7 @@ import '../features/xp/xp_notifier.dart';
 import 'notification_service.dart';
 import '../features/cards/landmark_image_service.dart';
 import '../features/heritage/world_heritage_lookup_service.dart';
+import '../features/heritage/unesco_nearby_notifier.dart';
 import '../features/legal/terms_service.dart';
 import '../features/map/country_stats.dart';
 import '../data/daily_challenge_repository.dart';
@@ -588,3 +589,9 @@ final purchasingEnabledForTemplateProvider =
   final key = remoteConfigKeyForTemplate(template);
   return FirebaseRemoteConfig.instance.getBool(key);
 });
+
+/// UNESCO Nearby Explorer — provides location-based site discovery.
+final unescoNearbyProvider =
+    AsyncNotifierProvider<UnescoNearbyNotifier, UnescoNearbyState>(
+  UnescoNearbyNotifier.new,
+);

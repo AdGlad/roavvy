@@ -32,6 +32,7 @@ import 'country_centroids.dart';
 import 'globe_map_widget.dart';
 import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
+import '../heritage/unesco_nearby_explorer_screen.dart';
 import 'region_chips_marker_layer.dart';
 import 'world_heritage_marker_layer.dart';
 import 'region_progress_notifier.dart';
@@ -345,12 +346,21 @@ class MapScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            // Daily Challenge chip — top center, below the XP progress bar.
+            // Action chips — top center, below the XP progress bar.
             Positioned(
               top: MediaQuery.of(context).padding.top + 48,
               left: 0,
               right: 0,
-              child: const Center(child: _DailyChallengeChip()),
+              child: const Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DailyChallengeChip(),
+                    SizedBox(width: 8),
+                    _UnescoNearbyChip(),
+                  ],
+                ),
+              ),
             ),
             if (!hasVisits)
               _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
@@ -1261,6 +1271,42 @@ class _DailyChallengeChip extends ConsumerWidget {
                   ),
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── UNESCO Nearby chip ────────────────────────────────────────────────────────
+
+class _UnescoNearbyChip extends StatelessWidget {
+  const _UnescoNearbyChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const UnescoNearbyExplorerScreen(),
+        ),
+      ),
+      child: Material(
+        color: Colors.black45,
+        borderRadius: BorderRadius.circular(20),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.account_balance_outlined,
+                  color: Colors.white, size: 16),
+              SizedBox(width: 6),
+              Text(
+                'UNESCO Nearby',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
             ],
           ),
         ),
