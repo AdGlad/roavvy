@@ -28,6 +28,26 @@ GRID_ROWS = 180      # latitude:   −90 to  89
 # Natural Earth field name for ISO 3166-2 codes.
 _ISO_3166_2_FIELDS = ("iso_3166_2", "ISO_3166_2")
 
+# Regions whose Natural Earth code belongs to a parent country but should be
+# associated with a different ISO 3166-1 alpha-2 country prefix.
+# Key: original iso_3166_2 value (uppercase); Value: replacement code to store.
+# polygonsForCountry(X) finds all codes starting with "X-", so the replacement
+# must start with the correct 2-letter country prefix followed by "-".
+_REGION_RECODE: dict[str, str] = {
+    # France: overseas departments/collectivities stored as FR-* in Natural Earth
+    "FR-GF": "GF-GF",   # French Guiana
+    "FR-GP": "GP-GP",   # Guadeloupe
+    "FR-MQ": "MQ-MQ",   # Martinique
+    "FR-RE": "RE-RE",   # Réunion
+    "FR-YT": "YT-YT",   # Mayotte
+    # Netherlands: Caribbean special municipalities stored as NL-BQ* in NE
+    "NL-BQ1": "BQ-BQ1", # Bonaire
+    "NL-BQ2": "BQ-BQ2", # Saba
+    "NL-BQ3": "BQ-BQ3", # Sint Eustatius
+    # Norway: Svalbard stored as NO-21 in Natural Earth
+    "NO-21": "SJ-SJ",   # Svalbard and Jan Mayen
+}
+
 
 def read_shapefile(path: str) -> list[tuple[str, list[list[tuple[float, float]]]]]:
     """
@@ -72,6 +92,9 @@ def read_shapefile(path: str) -> list[tuple[str, list[list[tuple[float, float]]]
             continue
         # Normalise to uppercase.
         code = code.upper()
+
+        # Recode regions that belong geographically to a different country.
+        code = _REGION_RECODE.get(code, code)
 
         shape = sr.shape
         if shape.shapeType not in (5, 15, 25):  # Polygon types
