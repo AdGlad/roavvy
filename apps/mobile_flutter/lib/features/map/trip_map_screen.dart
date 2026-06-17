@@ -90,8 +90,11 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
   /// Fits the camera to the bounding box of all region polygons.
   void _fitBounds() {
     if (_allPolygons.isEmpty) return;
+    final mainPolygons =
+        _allPolygons.where((p) => !p.regionCode.endsWith('~')).toList();
+    final toFit = mainPolygons.isNotEmpty ? mainPolygons : _allPolygons;
     final allPoints = [
-      for (final p in _allPolygons)
+      for (final p in toFit)
         for (final v in p.vertices) LatLng(v.$1, v.$2),
     ];
     final bounds = LatLngBounds.fromPoints(allPoints);

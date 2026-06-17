@@ -48,9 +48,15 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       scale: 1.0,
     );
 
-    // Auto-scale to fit the country.
+    // Auto-scale to fit the country, excluding remote outlier territories
+    // (~ regions such as SC-X02~ Aldabra) so the globe frames the main body.
+    final mainPolygons =
+        _allRegionPolygons.where((p) => !p.regionCode.endsWith('~')).toList();
     _projection = centered.copyWith(
-      scale: _autoScale(_allRegionPolygons, centered),
+      scale: _autoScale(
+        mainPolygons.isNotEmpty ? mainPolygons : _allRegionPolygons,
+        centered,
+      ),
     );
 
     // Load regions visited specifically during THIS trip.

@@ -96,8 +96,13 @@ class _CountryRegionGlobeScreenState
       rotLng: -lng * math.pi / 180.0,
       scale: 1.0,
     );
+    final mainPolygons =
+        _allRegionPolygons.where((p) => !p.regionCode.endsWith('~')).toList();
     _projection = centered.copyWith(
-      scale: _autoScale(_allRegionPolygons, centered),
+      scale: _autoScale(
+        mainPolygons.isNotEmpty ? mainPolygons : _allRegionPolygons,
+        centered,
+      ),
     );
 
     // Load visited region codes.

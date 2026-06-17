@@ -582,8 +582,16 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
 
   void _fitBounds() {
     if (_allPolygons.isEmpty) return;
+    // Exclude ~-coded regions (remote outlier territories, e.g. SC-X02~ for
+    // Aldabra Atoll, NO-X01~ for Bouvet Island) from the bounds calculation so
+    // the map frames the main country body. Fallback to all polygons for
+    // countries where every region carries a ~ code (e.g. Kosovo XK-X??~,
+    // Hong Kong HK-X??~) so they still get a correct initial view.
+    final mainPolygons =
+        _allPolygons.where((p) => !p.regionCode.endsWith('~')).toList();
+    final toFit = mainPolygons.isNotEmpty ? mainPolygons : _allPolygons;
     final allPoints = [
-      for (final p in _allPolygons)
+      for (final p in toFit)
         for (final v in p.vertices) LatLng(v.$1, v.$2),
     ];
     final bounds = LatLngBounds.fromPoints(allPoints);
