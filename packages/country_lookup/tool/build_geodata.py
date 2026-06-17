@@ -69,7 +69,16 @@ def read_shapefile(path: str) -> list[tuple[str, list[list[tuple[float, float]]]
         ("FR",  15.8,  16.6,  -61.9, -61.0, "GP"),  # Guadeloupe (all parts)
         ("FR", -13.1, -12.6,   44.9,  45.4, "YT"),  # Mayotte
         ("FR",  46.7,  47.2,  -56.5, -55.8, "PM"),  # Saint Pierre & Miquelon
-        # Add further overrides here as needed for other countries.
+        # Netherlands Caribbean special municipalities (BQ = Bonaire, Sint Eustatius, Saba)
+        ("NL",  11.9,  12.5,  -68.6, -68.1, "BQ"),  # Bonaire
+        ("NL",  17.4,  17.6,  -63.1, -62.8, "BQ"),  # Sint Eustatius
+        ("NL",  17.6,  17.7,  -63.3, -63.1, "BQ"),  # Saba
+        # Norway arctic territories (SJ = Svalbard and Jan Mayen)
+        ("NO",  70.8,  71.2,   -9.1,  -7.9, "SJ"),  # Jan Mayen
+        ("NO",  74.0,  81.5,   10.0,  33.0, "SJ"),  # Svalbard archipelago
+        # Australia Indian Ocean Territories (separate NE feature coded as AU)
+        ("AU", -10.7, -10.3,  105.5, 106.0, "CX"),  # Christmas Island
+        ("AU", -12.3, -11.8,   96.7,  97.1, "CC"),  # Cocos (Keeling) Islands
     ]
 
     def _ring_override(iso: str, ring_points: list) -> str:
