@@ -80,6 +80,35 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
+    // World Leap daily config (M161).
+    // Written by admin/manual tooling only. All authenticated users may read
+    // any date's start-country document.
+    match /world_leap_daily/{date} {
+      allow read: if request.auth != null;
+    }
+
+    // World Leap run documents (M161).
+    // Each document id is "{userId}_{date}". Users may only read/write their
+    // own run (checked via the userId field embedded in the document).
+    match /world_leap_runs/{runId} {
+      allow read: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid;
+    }
+
+    // World Leap leaderboard (M161).
+    // Any authenticated user may read entries (shared leaderboard).
+    // A user may only create/update their own entry.
+    match /world_leap_leaderboard/{entryId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+    }
+
     // Public travel share cards (ADR-041, ADR-043).
     // Anyone may read a share card; only the owning user may create, update,
     // or delete it. Delete uses resource.data.uid (the existing document)
