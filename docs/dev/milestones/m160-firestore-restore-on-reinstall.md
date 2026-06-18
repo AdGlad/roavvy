@@ -1,5 +1,7 @@
 # M160 — Firestore Restore on Reinstall
 
+**Status: Complete**
+
 ## Goal
 
 When a user deletes and reinstalls the app, restore their previously scanned travel
