@@ -11,11 +11,15 @@ import '../../world_leap_config.dart';
 /// Not a singleton — instantiate in the game screen and call [dispose] when
 /// the screen is removed from the tree.
 class WorldLeapAudioService {
-  WorldLeapAudioService({AudioPlayer? player, SharedPreferences? prefs})
+  WorldLeapAudioService({AudioPlayer? player, AudioPlayer? windPlayer, SharedPreferences? prefs})
       : _player = player ?? AudioPlayer(),
+        _windPlayer = windPlayer ?? AudioPlayer(),
         _prefs = prefs;
 
   final AudioPlayer _player;
+
+  /// Separate player for the wind/whoosh sound so it can overlap the launch snap.
+  final AudioPlayer _windPlayer;
   SharedPreferences? _prefs;
 
   bool _muted = false;
@@ -41,26 +45,47 @@ class WorldLeapAudioService {
 
   // ── Play methods ───────────────────────────────────────────────────────────
 
-  Future<void> playTension() => _play(WorldLeapConfig.soundTension);
-  Future<void> playLaunch() => _play(WorldLeapConfig.soundLaunch);
-  Future<void> playWind() => _play(WorldLeapConfig.soundWind);
-  Future<void> playLand() => _play(WorldLeapConfig.soundLand);
-  Future<void> playSplash() => _play(WorldLeapConfig.soundSplash);
-  Future<void> playCelebrate() => _play(WorldLeapConfig.soundCelebrate);
-  Future<void> playGameOver() => _play(WorldLeapConfig.soundGameOver);
+  /// Plays the slingshot stretch creak.
+  /// [power] is normalised 0.0–1.0; sound is debounced below 0.15.
+  Future<void> playStretch(double power) {
+    if (power <= 0.15) return Future.value();
+    return _play(WorldLeapConfig.soundStretch);
+  }
+
+  Future<void> playLaunch() async {
+    // Play the rubber-band snap on the main player, wind whoosh simultaneously.
+    await Future.wait([
+      _play(WorldLeapConfig.soundLaunch),
+      _playWind(WorldLeapConfig.soundWindFlight),
+    ]);
+  }
+
+  Future<void> playWindFlight() => _playWind(WorldLeapConfig.soundWindFlight);
+  Future<void> playImpact() => _play(WorldLeapConfig.soundImpact);
+  Future<void> playMiss() => _play(WorldLeapConfig.soundMiss);
   Future<void> playTick() => _play(WorldLeapConfig.soundTick);
+  Future<void> playTimeout() => _play(WorldLeapConfig.soundTimeout);
+  Future<void> playFanfare() => _play(WorldLeapConfig.soundFanfare);
+  Future<void> playGameOver() => _play(WorldLeapConfig.soundGameOver);
 
-  Future<void> stop() => _player.stop();
+  Future<void> stop() => Future.wait([_player.stop(), _windPlayer.stop()]);
 
-  Future<void> dispose() => _player.dispose();
+  Future<void> dispose() => Future.wait([_player.dispose(), _windPlayer.dispose()]);
 
   Future<void> _play(String asset) async {
     if (_muted) return;
     try {
       await _player.play(AssetSource(asset));
     } catch (_) {
-      // Asset may not exist yet (placeholder). Ignore.
+      // Unsupported format or missing asset — ignore.
     }
+  }
+
+  Future<void> _playWind(String asset) async {
+    if (_muted) return;
+    try {
+      await _windPlayer.play(AssetSource(asset));
+    } catch (_) {}
   }
 
   // ── Controller listener helper ─────────────────────────────────────────────
@@ -69,9 +94,9 @@ class WorldLeapAudioService {
   /// Call this from a WorldLeapController listener.
   Future<void> playForState(WorldLeapState state) => switch (state) {
         WorldLeapStateLaunching() => playLaunch(),
-        WorldLeapStateLanded() => playLand(),
-        WorldLeapStateFailed() => playSplash(),
-        WorldLeapStateComplete() => playCelebrate(),
+        WorldLeapStateLanded() => playImpact(),
+        WorldLeapStateFailed() => playMiss(),
+        WorldLeapStateComplete() => playFanfare(),
         _ => Future.value(),
       };
 }

@@ -168,10 +168,32 @@ class WorldLeapController extends ChangeNotifier {
 
   WorldLeapState _state = WorldLeapStateIdle();
 
+  // ── Difficulty (1 = easiest, 5 = exact country hit) ──────────────────────
+
+  int _difficulty = 1;
+
+  /// Current difficulty grade (1–5).
+  int get difficulty => _difficulty;
+
+  /// Update difficulty for the current session.
+  void setDifficulty(int level) {
+    assert(level >= 1 && level <= 5);
+    _difficulty = level.clamp(1, 5);
+    notifyListeners();
+  }
+
   // ── Countdown timer state ────────────────────────────────────────────────
 
   Timer? _countdownTimer;
   int _timeRemaining = 0;
+
+  // ── Combo streak state ───────────────────────────────────────────────────
+
+  /// Consecutive successful target hits in this run (resets on miss/timeout).
+  int _comboStreak = 0;
+
+  /// Current combo streak (read by HUD / score panel via provider).
+  int get comboStreak => _comboStreak;
 
   /// Seconds remaining in the current countdown. Updated every second.
   int get timeRemaining => _timeRemaining;
@@ -300,6 +322,7 @@ class WorldLeapController extends ChangeNotifier {
   Future<void> _handleTimeout() async {
     final current = _state;
     if (current is! WorldLeapStateAiming) return;
+    _comboStreak = 0;
     final run = current.run;
     final failed = run.copyWith(
       isComplete: true,
@@ -310,6 +333,22 @@ class WorldLeapController extends ChangeNotifier {
       await _repository.saveRun(failed);
     } catch (_) {}
     _emit(WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout));
+  }
+
+  /// Returns true if [landing] is within the tolerance for the current
+  /// difficulty grade compared to [targetCode]'s centroid.
+  /// Grade 5 always returns false (exact polygon required).
+  bool _isWithinDifficultyTolerance(
+      ({double lat, double lon}) landing, String targetCode) {
+    final toleranceKm = WorldLeapConfig.difficultyToleranceKm[_difficulty - 1];
+    if (toleranceKm <= 0) return false; // grade 5 — exact only
+    final centroid = _countryData[targetCode];
+    if (centroid == null) return false;
+    final dist = _geo.greatCircleDistanceKm(
+      lat1: landing.lat, lon1: landing.lon,
+      lat2: centroid.lat, lon2: centroid.lon,
+    );
+    return dist <= toleranceKm;
   }
 
   /// Looks up a country using injected [_countryLookup] (for tests) or the
@@ -456,6 +495,7 @@ class WorldLeapController extends ChangeNotifier {
     // ── Failure cases ───────────────────────────────────────────────────────
 
     Future<void> failWith(WorldLeapFailureReason reason) async {
+      _comboStreak = 0;
       final failed = run.copyWith(
         isComplete: true,
         failureReason: reason,
@@ -484,9 +524,13 @@ class WorldLeapController extends ChangeNotifier {
     // ── Check target hit ─────────────────────────────────────────────────────
 
     final targetCode = run.targetCountryCode;
-    if (targetCode != null && destCountry.code != targetCode) {
-      await failWith(WorldLeapFailureReason.wrongCountry);
-      return;
+    if (targetCode != null) {
+      final bool isHit = destCountry.code == targetCode ||
+          _isWithinDifficultyTolerance(dest, targetCode);
+      if (!isHit) {
+        await failWith(WorldLeapFailureReason.wrongCountry);
+        return;
+      }
     }
 
     // ── Success ─────────────────────────────────────────────────────────────
@@ -495,12 +539,14 @@ class WorldLeapController extends ChangeNotifier {
     final isNewContinent =
         destContinent != null && !run.visitedContinents.contains(destContinent);
 
+    _comboStreak++;
     final scoreBreakdown = _scoring.computeScore(
       distanceKm: distanceKm,
       landingLat: dest.lat,
       landingLon: dest.lon,
       isNewContinent: isNewContinent,
       timeRemaining: _timeRemaining,
+      comboStreak: _comboStreak,
     );
 
     final newLaunch = WorldLeapLaunch(
@@ -560,6 +606,7 @@ class WorldLeapController extends ChangeNotifier {
   /// Deletes from both local cache and Firestore, then re-initializes.
   Future<void> resetRun() async {
     _cancelCountdown();
+    _comboStreak = 0;
     try {
       await _repository.deleteRun(_userId, _date);
     } catch (_) {
@@ -596,5 +643,14 @@ class WorldLeapController extends ChangeNotifier {
 
     await _repository.saveRun(completed);
     _emit(WorldLeapStateComplete(run: completed));
+  }
+
+  /// Returns true if [lat]/[lon] falls within the current source country.
+  /// Used by the map widget to hit-test whether a touch starts on the country.
+  bool isInCurrentCountry(double lat, double lon) {
+    final s = _state;
+    if (s is! WorldLeapStateAiming) return false;
+    final result = _lookupCountry(lat, lon);
+    return result?.code == s.run.currentCountryCode;
   }
 }

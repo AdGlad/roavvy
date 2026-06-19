@@ -1,5 +1,7 @@
 // lib/features/world_leap/presentation/widgets/world_leap_map_widget.dart
 
+import 'dart:math' as math;
+
 import 'package:country_lookup/country_lookup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,6 +9,8 @@ import 'package:latlong2/latlong.dart';
 
 import '../../application/world_leap_controller.dart';
 import '../../application/world_leap_state.dart';
+import '../../domain/models/world_leap_camera_mode.dart';
+import '../../domain/models/world_leap_failure_reason.dart';
 import '../../domain/models/world_leap_run.dart';
 import '../../domain/services/world_leap_geo_service.dart';
 import '../../world_leap_config.dart';
@@ -59,10 +63,19 @@ class WorldLeapMapWidget extends StatefulWidget {
     super.key,
     required this.controller,
     required this.geo,
+    this.slingshotActive,
+    this.cameraMode = WorldLeapCameraMode.stationary,
   });
 
   final WorldLeapController controller;
   final WorldLeapGeoService geo;
+
+  /// When true, the map's drag interaction is suppressed so the slingshot
+  /// can own the pan gesture without the map also panning.
+  final ValueNotifier<bool>? slingshotActive;
+
+  /// Camera behaviour during the slingshot flight arc.
+  final WorldLeapCameraMode cameraMode;
 
   @override
   State<WorldLeapMapWidget> createState() => WorldLeapMapWidgetState();
@@ -81,6 +94,13 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
 
   // ── Target pulse animation ──────────────────────────────────────────────────
   late final AnimationController _pulseController;
+
+  // ── Landing splash animation ─────────────────────────────────────────────
+  late final AnimationController _splashController;
+  LatLng? _splashPoint;
+
+  // ── Miss line ────────────────────────────────────────────────────────────
+  List<LatLng> _missLine = [];
 
   // ── Zoom ────────────────────────────────────────────────────────────────────
 
@@ -104,7 +124,19 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       duration:
           const Duration(milliseconds: WorldLeapConfig.launchAnimationMs),
     )..addListener(() {
-        setState(() => _flightProgress = _flightController.value);
+        final t = _flightController.value;
+        setState(() => _flightProgress = t);
+        // Move camera to track the projectile during flight.
+        if (widget.cameraMode.isTracking && _trajectoryPoints.isNotEmpty) {
+          final count = _trajectoryPoints.length;
+          final upTo = (t * count).clamp(0.0, count.toDouble()).round();
+          if (upTo > 0) {
+            _mapController.move(
+              _trajectoryPoints[upTo - 1],
+              widget.cameraMode.zoomAt(t),
+            );
+          }
+        }
       });
 
     _pulseController = AnimationController(
@@ -114,6 +146,18 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       ..repeat(reverse: true)
       ..addListener(() => setState(() {}));
 
+    _splashController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )
+      ..addListener(() => setState(() {}))
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          setState(() => _splashPoint = null);
+        }
+      });
+
+    widget.slingshotActive?.addListener(_onSlingshotActiveChanged);
     widget.controller.addListener(_onStateChanged);
 
     // The controller may already be in Aiming state (initialize() completed
@@ -124,11 +168,24 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     });
   }
 
+  void _onSlingshotActiveChanged() => setState(() {});
+
+  /// Returns true if [screenPos] (in local widget coordinates) maps to the
+  /// current source country — used by the slingshot as a hit test.
+  bool isInCurrentCountry(Offset screenPos) {
+    final latLng = _mapController.camera.pointToLatLng(
+      math.Point<double>(screenPos.dx, screenPos.dy),
+    );
+    return widget.controller.isInCurrentCountry(latLng.latitude, latLng.longitude);
+  }
+
   @override
   void dispose() {
+    widget.slingshotActive?.removeListener(_onSlingshotActiveChanged);
     widget.controller.removeListener(_onStateChanged);
     _flightController.dispose();
     _pulseController.dispose();
+    _splashController.dispose();
     _mapController.dispose();
     super.dispose();
   }
@@ -146,18 +203,44 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       }
       _stopFlight();
       _updateTrajectory(state);
+      setState(() => _missLine = []);
     } else if (state is WorldLeapStateLaunching) {
       _updateTrajectoryFromLaunching(state);
       _startFlight();
+      setState(() => _missLine = []);
     } else if (state is WorldLeapStateLanded) {
       _stopFlight();
       _clearTrajectory();
       // Reset flag so the next Aiming state re-centres on both countries.
       _hasFlownToOrigin = false;
-      _flyTo(state.lastLaunch.landingLat, state.lastLaunch.landingLon, zoom: 3.0);
+      setState(() {
+        _splashPoint = LatLng(state.lastLaunch.landingLat, state.lastLaunch.landingLon);
+        _missLine = [];
+      });
+      _splashController.forward(from: 0);
+      // Skip fly-to when tracking: camera already arrived at the landing spot.
+      if (!widget.cameraMode.isTracking) {
+        _flyTo(state.lastLaunch.landingLat, state.lastLaunch.landingLon, zoom: 3.0);
+      }
+    } else if (state is WorldLeapStateFailed) {
+      _stopFlight();
+      _clearTrajectory();
+      if (state.reason == WorldLeapFailureReason.wrongCountry &&
+          state.run.launches.isNotEmpty &&
+          widget.controller.targetLocation != null) {
+        setState(() {
+          _missLine = [
+            LatLng(state.run.launches.last.landingLat, state.run.launches.last.landingLon),
+            LatLng(widget.controller.targetLocation!.lat, widget.controller.targetLocation!.lon),
+          ];
+        });
+      } else {
+        setState(() => _missLine = []);
+      }
     } else {
       _stopFlight();
       _clearTrajectory();
+      setState(() => _missLine = []);
     }
   }
 
@@ -325,6 +408,30 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
           ),
     ];
 
+    // ── "Drag from here" pulse ring on origin (Aiming only) ──────────────────
+    final originPulse = (!_isLaunching && state is WorldLeapStateAiming)
+        ? () {
+            final o = widget.controller.currentOrigin;
+            final pulse = _pulseController.value; // 0→1→0
+            return [
+              CircleMarker(
+                point: LatLng(o.lat, o.lon),
+                radius: 18 + pulse * 12,
+                useRadiusInMeter: false,
+                color: Colors.transparent,
+                borderColor: _kCurrentFill.withValues(alpha: 0.6 - pulse * 0.4),
+                borderStrokeWidth: 2.5,
+              ),
+              CircleMarker(
+                point: LatLng(o.lat, o.lon),
+                radius: 6,
+                useRadiusInMeter: false,
+                color: _kCurrentFill.withValues(alpha: 0.85),
+              ),
+            ];
+          }()
+        : <CircleMarker>[];
+
     // ── Aim-preview dots (Aiming only) ─────────────────────────────────────
     final aimMarkers = _isLaunching
         ? <CircleMarker>[]
@@ -367,23 +474,57 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       color: _kOceanColor,
       child: FlutterMap(
         mapController: _mapController,
-        options: const MapOptions(
-          initialCenter: LatLng(20, 0),
+        options: MapOptions(
+          initialCenter: const LatLng(20, 0),
           initialZoom: 1.5,
           minZoom: 1.0,
           maxZoom: 8.0,
           backgroundColor: _kOceanColor,
-          // Drag is disabled — the slingshot owns pan gestures and the map
-          // follows programmatically via flyTo. Keep pinch-zoom only.
+          // Drag is suppressed while the slingshot is actively tracking a
+          // gesture on the source country. Otherwise drag is enabled so the
+          // user can pan by touching anywhere outside the source country.
           interactionOptions: InteractionOptions(
-            flags: InteractiveFlag.pinchZoom,
+            flags: (widget.slingshotActive?.value ?? false)
+                ? InteractiveFlag.pinchZoom
+                : InteractiveFlag.pinchZoom | InteractiveFlag.drag,
           ),
         ),
         children: [
           PolygonLayer(polygonCulling: true, polygons: polygons),
+          if (originPulse.isNotEmpty) CircleLayer(circles: originPulse),
           if (aimMarkers.isNotEmpty) CircleLayer(circles: aimMarkers),
           if (flightTrail.isNotEmpty) PolylineLayer(polylines: flightTrail),
           if (projectile.isNotEmpty) CircleLayer(circles: projectile),
+          if (_splashPoint != null)
+            CircleLayer(circles: [
+              CircleMarker(
+                point: _splashPoint!,
+                radius: _splashController.value * 40 + 8,
+                useRadiusInMeter: false,
+                color: Colors.white.withValues(alpha: (1.0 - _splashController.value) * 0.6),
+                borderColor: Colors.white.withValues(alpha: (1.0 - _splashController.value) * 0.9),
+                borderStrokeWidth: 2,
+              ),
+            ]),
+          if (_missLine.length == 2) ...[
+            PolylineLayer(polylines: [
+              Polyline(
+                points: _missLine,
+                color: Colors.orange.withValues(alpha: 0.7),
+                strokeWidth: 2.0,
+                pattern: StrokePattern.dashed(segments: [8, 6]),
+              ),
+            ]),
+            CircleLayer(circles: [
+              CircleMarker(
+                point: _missLine.last,
+                radius: 8,
+                color: Colors.orange.withValues(alpha: 0.3),
+                borderColor: Colors.orange,
+                borderStrokeWidth: 2,
+              ),
+            ]),
+          ],
         ],
       ),
     );

@@ -133,22 +133,71 @@ class WorldLeapConfig {
   static const String quokkaAsset = 'assets/mobile_png/Quokka-Transparent-200.png';
   static const String unescoAsset = 'assets/geodata/whs_sites.json';
 
-  static const String soundTension = 'audio/replay_travel_short.mp3';
-  static const String soundLaunch = 'audio/replay_travel_long.mp3';
-  static const String soundWind = 'audio/replay_travel_short.mp3';
-  static const String soundLand = 'audio/scan_country_discovery.wav';
-  static const String soundSplash = 'audio/replay_arrival.mp3';
-  static const String soundCelebrate = 'audio/celebration.mp3';
-  static const String soundGameOver = 'audio/replay_end.mp3';
+  // ── Sound Assets ───────────────────────────────────────────────────────────
+  // All wl_* files are CC0 from kenney.nl (gamesounds.xyz mirror).
+  // Alternatives are in assets/audio/ prefixed wl_stretch_*, wl_launch_*, etc.
 
-  /// Short tick sound used for the countdown heartbeat.
-  static const String soundTick = 'audio/scan_country_discovery.wav';
+  /// Rubber band stretch pull — from Timbre cartoon catapult pack.
+  /// Source: Freesound #100027 by Timbre (CC BY 3.0) — pair 2 stretch segment
+  static const String soundStretch = 'audio/wl_stretch.mp3';
+
+  /// Rubber band snap on release — from Timbre cartoon catapult pack.
+  /// Source: Freesound #100027 by Timbre (CC BY 3.0) — pair 1 snap segment
+  static const String soundLaunch = 'audio/wl_launch.mp3';
+
+  /// Ascending whoosh during flight arc.
+  /// Source: Kenney Interface Sounds / maximize_003.ogg (CC0)
+  static const String soundWindFlight = 'audio/wl_wind.mp3';
+
+  /// Wood thud on successful landing.
+  /// Source: Kenney Impact Sounds / impactWood_heavy_000.ogg (CC0)
+  static const String soundImpact = 'audio/wl_impact.mp3';
+
+  /// Error tone for wrong country / water landing.
+  /// Source: Kenney Interface Sounds / error_001.ogg (CC0)
+  static const String soundMiss = 'audio/wl_miss.mp3';
+
+  /// Sharp click for each countdown second.
+  /// Source: Kenney UI Audio / click1.ogg (CC0)
+  static const String soundTick = 'audio/wl_tick.mp3';
+
+  /// Deeper error sting on timeout.
+  /// Source: Kenney Interface Sounds / error_008.ogg (CC0)
+  static const String soundTimeout = 'audio/wl_timeout.mp3';
+
+  /// Saxophone victory jingle on successful target hit.
+  /// Source: Kenney Music Jingles / jingles-saxophone_00.ogg (CC0)
+  static const String soundFanfare = 'audio/wl_fanfare.mp3';
+
+  /// Retro end-of-run sting.
+  /// Source: Kenney Music Jingles / jingles-retro_16.ogg (CC0)
+  static const String soundGameOver = 'audio/wl_game_over.mp3';
+
+  // ── Difficulty Grades ──────────────────────────────────────────────────────
+
+  /// Tolerance radii (km) for difficulty grades 1–5.
+  /// Grade 1 = easiest (large margin); grade 5 = exact country boundary.
+  static const List<double> difficultyToleranceKm = [
+    500.0, // grade 1 — land within 500 km of target centroid
+    250.0, // grade 2 — within 250 km
+    100.0, // grade 3 — within 100 km
+    30.0,  // grade 4 — within 30 km
+    0.0,   // grade 5 — must land in exact country
+  ];
+
+  static const List<String> difficultyLabels = [
+    'Easy',
+    'Normal',
+    'Tricky',
+    'Hard',
+    'Expert',
+  ];
 
   // ── Countdown Timer ────────────────────────────────────────────────────────
 
   /// Starting time limit (seconds) for the first shot.
-  static const int countdownStartSeconds = 15;
+  static const int countdownStartSeconds = 45;
 
   /// Minimum time limit (seconds) — floor after repeated successes.
-  static const int countdownMinSeconds = 5;
+  static const int countdownMinSeconds = 20;
 }

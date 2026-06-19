@@ -41,12 +41,18 @@ List<String> runTrail(WorldLeapRun run) => [
 
 class WorldLeapResultScreen extends StatefulWidget {
   final WorldLeapRun run;
+
+  /// Resets the run and plays again (stays in game).
   final VoidCallback onPlayAgain;
+
+  /// Exits the game back to the lobby.
+  final VoidCallback onDone;
 
   const WorldLeapResultScreen({
     super.key,
     required this.run,
     required this.onPlayAgain,
+    required this.onDone,
   });
 
   @override
@@ -150,7 +156,7 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                   Text(
                     'Your journey',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.8,
@@ -166,7 +172,7 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Icon(
                           Icons.arrow_forward,
-                          color: Colors.white.withOpacity(0.4),
+                          color: Colors.white.withValues(alpha:0.4),
                           size: 14,
                         ),
                       ),
@@ -179,9 +185,9 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                             fontSize: 13,
                           ),
                         ),
-                        backgroundColor: Colors.white.withOpacity(0.12),
+                        backgroundColor: Colors.white.withValues(alpha:0.12),
                         side: BorderSide(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha:0.2),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                       ),
@@ -209,19 +215,27 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                OutlinedButton(
+                FilledButton(
                   onPressed: widget.onPlayAgain,
-                  style: OutlinedButton.styleFrom(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white12,
                     foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white38),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
+                    'Play Again',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: widget.onDone,
+                  child: const Text(
                     'Done',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(color: Colors.white38, fontSize: 15),
                   ),
                 ),
               ],

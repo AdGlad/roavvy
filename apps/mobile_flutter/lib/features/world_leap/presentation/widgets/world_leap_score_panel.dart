@@ -56,6 +56,12 @@ List<ScoreRowData> buildScoreRows(
         value: breakdown.speedBonus,
         isBonus: true,
       ),
+    if (breakdown.hasComboBonus)
+      ScoreRowData(
+        label: 'Combo ×${breakdown.comboMultiplier.toStringAsFixed(1)} 🔥',
+        value: breakdown.comboBonus,
+        isBonus: true,
+      ),
     ScoreRowData(label: 'TOTAL', value: breakdown.total, isTotal: true),
   ];
 }
@@ -137,16 +143,27 @@ class _WorldLeapScorePanelState extends State<WorldLeapScorePanel>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Header
-                Text(
-                  '\u{1F3AF} ${launch.toCountryName}!',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                  textAlign: TextAlign.center,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Spacer(),
+                    Text(
+                      '\u{1F3AF} ${launch.toCountryName}!',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.touch_app, color: Colors.white38, size: 18),
+                  ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
+                // Star rating
+                _StarRating(stars: launch.scoreBreakdown.stars),
+                const SizedBox(height: 10),
                 // Score rows with staggered fade-in
                 ...rows.asMap().entries.map((entry) {
                   final index = entry.key;
@@ -171,6 +188,32 @@ class _WorldLeapScorePanelState extends State<WorldLeapScorePanel>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Star rating ───────────────────────────────────────────────────────────────
+
+class _StarRating extends StatelessWidget {
+  final int stars; // 1–3
+
+  const _StarRating({required this.stars});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(3, (i) {
+        final filled = i < stars;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Icon(
+            filled ? Icons.star_rounded : Icons.star_outline_rounded,
+            color: filled ? Colors.amber : Colors.white24,
+            size: 28,
+          ),
+        );
+      }),
     );
   }
 }

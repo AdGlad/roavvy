@@ -24,6 +24,7 @@ class WorldLeapScoringService {
     required double landingLon,
     bool isNewContinent = false,
     int timeRemaining = 0,
+    int comboStreak = 0,
   }) {
     final base = WorldLeapConfig.baseCountryScore;
 
@@ -46,6 +47,17 @@ class WorldLeapScoringService {
 
     final speedBonus = timeRemaining > 0 ? timeRemaining * pointsPerSecond : 0;
 
+    final double comboMultiplier;
+    if (comboStreak >= 8) {
+      comboMultiplier = 3.0;
+    } else if (comboStreak >= 5) {
+      comboMultiplier = 2.0;
+    } else if (comboStreak >= 3) {
+      comboMultiplier = 1.5;
+    } else {
+      comboMultiplier = 1.0;
+    }
+
     return WorldLeapScoreBreakdown(
       baseCountry: base,
       distanceBonus: distBonus,
@@ -54,6 +66,8 @@ class WorldLeapScoringService {
       heritageSiteName: heritage.siteName,
       continentBonus: continentBonus,
       speedBonus: speedBonus,
+      comboStreak: comboStreak,
+      comboMultiplier: comboMultiplier,
     );
   }
 }

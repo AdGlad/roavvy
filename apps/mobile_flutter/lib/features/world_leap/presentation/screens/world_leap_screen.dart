@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mobile_flutter/features/world_leap/application/world_leap_providers.dart';
 import 'package:mobile_flutter/features/world_leap/application/world_leap_state.dart';
+import 'package:mobile_flutter/features/world_leap/domain/models/world_leap_camera_mode.dart';
+import 'package:mobile_flutter/features/world_leap/world_leap_config.dart';
 import 'package:mobile_flutter/features/world_leap/domain/services/world_leap_geo_service.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_map_widget.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/slingshot_widget.dart';
@@ -41,6 +43,100 @@ class _ZoomButton extends StatelessWidget {
   }
 }
 
+// ── Difficulty button ─────────────────────────────────────────────────────────
+
+class _DifficultyButton extends StatelessWidget {
+  final int difficulty; // 1–5
+  final VoidCallback onTap;
+
+  const _DifficultyButton({required this.difficulty, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = WorldLeapConfig.difficultyLabels[difficulty - 1];
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Tooltip(
+          message: label,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'D',
+                style: TextStyle(color: Colors.white54, fontSize: 9, height: 1.1),
+              ),
+              Text(
+                '$difficulty',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Camera mode toggle button ─────────────────────────────────────────────────
+
+class _CameraToggleButton extends StatelessWidget {
+  final WorldLeapCameraMode mode;
+  final VoidCallback onTap;
+
+  const _CameraToggleButton({required this.mode, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = mode != WorldLeapCameraMode.stationary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isActive
+              ? Colors.white.withValues(alpha: 0.2)
+              : Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? Colors.white.withValues(alpha: 0.7)
+                : Colors.white.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          _iconFor(mode),
+          color: isActive ? Colors.white : Colors.white60,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  IconData _iconFor(WorldLeapCameraMode m) => switch (m) {
+        WorldLeapCameraMode.stationary => Icons.location_on_outlined,
+        WorldLeapCameraMode.birdseye => Icons.satellite_alt_outlined,
+        WorldLeapCameraMode.pov => Icons.flight,
+      };
+}
+
 class WorldLeapScreen extends ConsumerStatefulWidget {
   const WorldLeapScreen({super.key});
 
@@ -48,13 +144,52 @@ class WorldLeapScreen extends ConsumerStatefulWidget {
   ConsumerState<WorldLeapScreen> createState() => _WorldLeapScreenState();
 }
 
-class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen> {
+class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
+    with SingleTickerProviderStateMixin {
   final _geo = WorldLeapGeoService();
   final _mapKey = GlobalKey<WorldLeapMapWidgetState>();
+
+  late final AnimationController _shakeController;
+  late final Animation<Offset> _shakeAnimation;
+  WorldLeapState? _prevState;
+
+  /// Shared flag: true while the slingshot is actively tracking a gesture.
+  /// Passed to the map to suppress its drag recognizer during slingshot use.
+  final _slingshotActive = ValueNotifier<bool>(false);
+
+  /// Camera mode for the flight arc; persists for the session.
+  final _cameraMode = ValueNotifier<WorldLeapCameraMode>(WorldLeapCameraMode.stationary);
+
+  /// Difficulty grade 1–5; persists for the session.
+  final _difficulty = ValueNotifier<int>(1);
 
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _shakeAnimation = TweenSequence<Offset>([
+      TweenSequenceItem(
+          tween: Tween(begin: Offset.zero, end: const Offset(8, 4)), weight: 1),
+      TweenSequenceItem(
+          tween: Tween(
+              begin: const Offset(8, 4), end: const Offset(-8, -3)),
+          weight: 2),
+      TweenSequenceItem(
+          tween: Tween(
+              begin: const Offset(-8, -3), end: const Offset(6, -5)),
+          weight: 2),
+      TweenSequenceItem(
+          tween: Tween(
+              begin: const Offset(6, -5), end: const Offset(-4, 3)),
+          weight: 2),
+      TweenSequenceItem(
+          tween: Tween(begin: const Offset(-4, 3), end: Offset.zero),
+          weight: 3),
+    ]).animate(
+        CurvedAnimation(parent: _shakeController, curve: Curves.easeOut));
     // Allow landscape while in the game — more map real estate.
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -65,6 +200,10 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen> {
 
   @override
   void dispose() {
+    _shakeController.dispose();
+    _slingshotActive.dispose();
+    _cameraMode.dispose();
+    _difficulty.dispose();
     // Restore portrait lock for the rest of the app.
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
@@ -100,6 +239,17 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen> {
             builder: (context, _) {
               final currentState = controller.state;
 
+              // Detect state transitions and trigger shake.
+              final newState = currentState;
+              if (_prevState is! WorldLeapStateLaunching &&
+                  newState is WorldLeapStateLaunching) {
+                _shakeController.forward(from: 0);
+              } else if (_prevState is! WorldLeapStateLanded &&
+                  newState is WorldLeapStateLanded) {
+                _shakeController.forward(from: 0);
+              }
+              _prevState = newState;
+
               // Controller-level error (e.g. missing daily doc, network failure)
               if (currentState is WorldLeapStateError) {
                 return Center(
@@ -125,9 +275,8 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen> {
                         : (currentState as WorldLeapStateLocked).run;
                 return WorldLeapResultScreen(
                   run: run,
-                  onPlayAgain: () {
-                    controller.resetRun();
-                  },
+                  onPlayAgain: () => controller.resetRun(),
+                  onDone: () => Navigator.of(context).pop(),
                 );
               }
 
@@ -142,56 +291,96 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen> {
               // Active game
               final isLandscape = MediaQuery.orientationOf(context) ==
                   Orientation.landscape;
-              return Stack(
-                children: [
-                  // Background map
-                  WorldLeapMapWidget(
-                      key: _mapKey,
+              return AnimatedBuilder(
+                animation: _shakeAnimation,
+                builder: (context, child) => Transform.translate(
+                  offset: _shakeAnimation.value,
+                  child: child,
+                ),
+                child: Stack(
+                  children: [
+                    // Background map
+                    ValueListenableBuilder<WorldLeapCameraMode>(
+                      valueListenable: _cameraMode,
+                      builder: (context, mode, _) => WorldLeapMapWidget(
+                        key: _mapKey,
+                        controller: controller,
+                        geo: _geo,
+                        slingshotActive: _slingshotActive,
+                        cameraMode: mode,
+                      ),
+                    ),
+
+                    // Slingshot gesture layer — only activates when touch
+                    // starts on the source country; all other touches pan map.
+                    SlingshotWidget(
                       controller: controller,
-                      geo: _geo),
-
-                  // Slingshot gesture layer
-                  SlingshotWidget(controller: controller),
-
-                  // Zoom buttons
-                  // Portrait: bottom-right. Landscape: bottom-left (right side is HUD panel).
-                  Positioned(
-                    bottom: isLandscape ? 12 : 170,
-                    right: isLandscape ? null : 16,
-                    left: isLandscape ? 16 : null,
-                    child: Column(
-                      children: [
-                        _ZoomButton(
-                          icon: Icons.add,
-                          onTap: () => _mapKey.currentState?.zoomIn(),
-                        ),
-                        const SizedBox(height: 8),
-                        _ZoomButton(
-                          icon: Icons.remove,
-                          onTap: () => _mapKey.currentState?.zoomOut(),
-                        ),
-                      ],
+                      hitTestFn: (pos) =>
+                          _mapKey.currentState?.isInCurrentCountry(pos) ??
+                          false,
+                      onActiveChanged: (v) => _slingshotActive.value = v,
                     ),
-                  ),
 
-                  // Quokka mascot
-                  // Portrait: bottom-left. Landscape: bottom-left (right of zoom).
-                  Positioned(
-                    bottom: isLandscape ? 8 : 80,
-                    left: isLandscape ? 70 : 16,
-                    child: QuokkaWidget(controller: controller),
-                  ),
-
-                  // HUD — orientation-aware (portrait=top pill, landscape=right panel)
-                  WorldLeapHud(controller: controller),
-
-                  // Score panel (Landed state)
-                  if (currentState is WorldLeapStateLanded)
-                    WorldLeapScorePanel(
-                      launch: currentState.lastLaunch,
-                      onDismiss: controller.dismissScorePanel,
+                    // Zoom buttons + camera mode + difficulty
+                    // Portrait: bottom-right. Landscape: bottom-left (right side is HUD panel).
+                    Positioned(
+                      bottom: isLandscape ? 12 : 170,
+                      right: isLandscape ? null : 16,
+                      left: isLandscape ? 16 : null,
+                      child: ListenableBuilder(
+                        listenable: Listenable.merge([_cameraMode, _difficulty]),
+                        builder: (context, _) => Column(
+                          children: [
+                            _ZoomButton(
+                              icon: Icons.add,
+                              onTap: () => _mapKey.currentState?.zoomIn(),
+                            ),
+                            const SizedBox(height: 8),
+                            _ZoomButton(
+                              icon: Icons.remove,
+                              onTap: () => _mapKey.currentState?.zoomOut(),
+                            ),
+                            const SizedBox(height: 8),
+                            _CameraToggleButton(
+                              mode: _cameraMode.value,
+                              onTap: () => _cameraMode.value = _cameraMode.value.next,
+                            ),
+                            const SizedBox(height: 8),
+                            _DifficultyButton(
+                              difficulty: _difficulty.value,
+                              onTap: () {
+                                final next = (_difficulty.value % 5) + 1;
+                                _difficulty.value = next;
+                                controller.setDifficulty(next);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                ],
+
+                    // Quokka mascot — purely decorative, must never absorb touches.
+                    // Without IgnorePointer the ConfettiWidget's CustomPaint
+                    // silently blocks swipes across a large screen area.
+                    Positioned(
+                      bottom: isLandscape ? 8 : 80,
+                      left: isLandscape ? 70 : 16,
+                      child: IgnorePointer(
+                        child: QuokkaWidget(controller: controller),
+                      ),
+                    ),
+
+                    // HUD — orientation-aware (portrait=top pill, landscape=right panel)
+                    WorldLeapHud(controller: controller),
+
+                    // Score panel (Landed state)
+                    if (currentState is WorldLeapStateLanded)
+                      WorldLeapScorePanel(
+                        launch: currentState.lastLaunch,
+                        onDismiss: controller.dismissScorePanel,
+                      ),
+                  ],
+                ),
               );
             },
           ),

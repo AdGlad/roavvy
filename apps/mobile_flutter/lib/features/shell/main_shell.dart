@@ -19,7 +19,7 @@ import '../merch/merch_cart_screen.dart';
 import '../merch/merch_shop_screen.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
-import '../world_leap/presentation/screens/world_leap_screen.dart';
+import '../world_leap/presentation/screens/world_leap_lobby_screen.dart';
 
 /// Bottom navigation shell with four tabs: Map · Journal · Stats · Shop.
 ///
@@ -289,7 +289,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               ),
               const StatsScreen(),
               const MerchShopScreen(),
-              const WorldLeapScreen(),
+              const WorldLeapLobbyScreen(),
             ],
           ),
           // M134: Globe animation overlay — shown in-place so replay and scan
