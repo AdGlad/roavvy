@@ -120,9 +120,10 @@ class _ScanRevealMiniMapState extends ConsumerState<ScanRevealMiniMap> {
       child: SizedBox(
         height: 220,
         child: FlutterMap(
-          options: MapOptions(
-            initialCenter: const LatLng(20, 0),
+          options: const MapOptions(
+            initialCenter: LatLng(20, 0),
             initialZoom: 1.2,
+            backgroundColor: Colors.white,
             interactionOptions: InteractionOptions(
               flags:
                   InteractiveFlag.all &

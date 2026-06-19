@@ -641,14 +641,16 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
         visitedPolygons.add(Polygon<String>(
           points: points,
           color: fill.withValues(alpha: 0.85),
-          borderStrokeWidth: 0,
+          borderColor: fill,
+          borderStrokeWidth: 0.3,
           hitValue: p.regionCode,
         ));
       } else {
         unvisitedPolygons.add(Polygon(
           points: points,
           color: _kUnvisitedFill.withValues(alpha: 0.9),
-          borderStrokeWidth: 0,
+          borderColor: _kUnvisitedFill,
+          borderStrokeWidth: 0.3,
         ));
       }
     }
