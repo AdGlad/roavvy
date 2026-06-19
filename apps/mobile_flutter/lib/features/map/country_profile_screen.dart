@@ -7,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:photo_manager/photo_manager.dart' hide LatLng;
+import 'package:country_lookup/country_lookup.dart' show CountryPolygon, loadPolygons;
 import 'package:region_lookup/region_lookup.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
@@ -564,6 +565,7 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
   final _mapController = MapController();
   final LayerHitNotifier<String> _hitNotifier = ValueNotifier(null);
   late final List<RegionPolygon> _allPolygons;
+  late final List<CountryPolygon> _coastlinePolygons;
   String? _selectedCode;
   LatLng? _selectedLatLng;
 
@@ -571,6 +573,11 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
   void initState() {
     super.initState();
     _allPolygons = regionPolygonsForCountry(widget.isoCode);
+    // Load accurate 1:10m country outlines to overlay on top of angular region
+    // polygons, giving clean coastlines for island nations (e.g. Seychelles).
+    _coastlinePolygons = loadPolygons()
+        .where((p) => p.isoCode == widget.isoCode)
+        .toList();
   }
 
   @override
@@ -690,6 +697,25 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
                       polygons: visitedPolygons,
                     ),
                   ),
+                  // Accurate 1:10m country outlines on top — clean coastlines
+                  // over angular region polygon edges (especially for island
+                  // nations like Seychelles whose districts have few vertices).
+                  if (_coastlinePolygons.isNotEmpty)
+                    PolygonLayer(
+                      polygonCulling: true,
+                      polygons: [
+                        for (final p in _coastlinePolygons)
+                          Polygon(
+                            points: [
+                              for (final (lat, lng) in p.vertices)
+                                LatLng(lat, lng),
+                            ],
+                            color: Colors.transparent,
+                            borderColor: _kOceanBackground,
+                            borderStrokeWidth: 1.5,
+                          ),
+                      ],
+                    ),
                   if (_selectedCode != null && _selectedLatLng != null)
                     MarkerLayer(
                       markers: [
