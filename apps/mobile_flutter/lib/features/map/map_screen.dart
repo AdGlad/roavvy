@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +26,7 @@ import '../year_in_review/year_in_review_screen.dart';
 import 'country_detail_sheet.dart';
 import 'country_profile_screen.dart';
 import 'country_polygon_layer.dart';
+import 'space_background.dart';
 import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
@@ -276,9 +276,16 @@ class MapScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor:
-          mapIsDark ? const Color(0xFF0D2137) : mapTheme.colorScheme.surface,
+          mapIsDark ? const Color(0xFF030D1A) : mapTheme.colorScheme.surface,
       body: Stack(
         children: [
+          // Deep-space starfield — visible in dark mode only.
+          // For the flat map the FlutterMap background is transparent so stars
+          // show through the ocean gaps between continents.
+          // For globe mode the globe circle covers the centre; stars fill
+          // the corners of the screen outside the disk.
+          if (mapIsDark) const StarfieldBackground(),
+
           if (globeMode)
             GlobeMapWidget(
               onCountryTap:
@@ -289,9 +296,10 @@ class MapScreen extends ConsumerWidget {
               options: MapOptions(
                 initialCenter: const LatLng(20, 0),
                 initialZoom: 2,
+                // Transparent so the starfield shows through ocean areas.
                 backgroundColor:
                     mapIsDark
-                        ? const Color(0xFF0D2137)
+                        ? Colors.transparent
                         : mapTheme.colorScheme.surface,
                 onTap:
                     (pos, latlng) =>
@@ -304,6 +312,11 @@ class MapScreen extends ConsumerWidget {
                 WorldHeritageMarkerLayer(),
               ],
             ),
+
+          // Aurora borealis / australis — slow gradient drift at the poles.
+          // Sits above the map/globe, below all UI controls. Dark mode only.
+          if (mapIsDark) const AuroraOverlay(),
+
           // All map UI is hidden while replay/scan overlay is active (M134).
           if (!overlayActive) ...[
             const Align(alignment: Alignment.topCenter, child: XpLevelBar()),
