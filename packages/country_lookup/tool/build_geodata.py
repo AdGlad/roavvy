@@ -2,13 +2,16 @@
 """
 Roavvy geodata build script.
 
-Converts a Natural Earth 1:50m admin-0 shapefile into the compact binary
+Converts a Natural Earth 1:10m admin-0 shapefile into the compact binary
 format read by packages/country_lookup.
+
+Upgraded from 1:50m to 1:10m in M164 to eliminate polygon seams in the
+World Leap game map. Binary format unchanged; no Dart code changes required.
 
 Usage:
     pip install pyshp
     python3 build_geodata.py \\
-        --input  source/ne_50m_admin_0_countries.shp \\
+        --input  source/ne_10m_admin_0_countries.shp \\
         --output ../../../apps/mobile_flutter/assets/geodata/ne_countries.bin
 
 See GEODATA.md for full documentation.

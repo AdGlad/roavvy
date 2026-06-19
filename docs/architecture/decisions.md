@@ -526,9 +526,9 @@ Implemented in: `packages/shared_models/lib/src/`
 
 ---
 
-## ADR-015 — Country polygon data source: single Natural Earth 1:50m asset
+## ADR-015 — Country polygon data source: single Natural Earth asset
 
-**Status:** Accepted
+**Status:** Accepted (updated M164: 1:50m → 1:10m)
 
 **Context:** Both `packages/country_lookup` (point-in-polygon lookup) and the map rendering widget need country boundary data. Using two different datasets creates a correctness risk: a coordinate near a border could be classified as country A by `country_lookup` but rendered inside country B on the map.
 
@@ -538,8 +538,7 @@ Three format options were evaluated for the bundled asset:
 3. **Custom compact binary** — packed vertices and a pre-built 2D grid spatial index, no external dependencies, parsed in a single pass.
 
 **Decision:**
-- **Single source:** Natural Earth 1:50m admin-0 (`ne_50m_admin_0_countries`), public domain. One asset serves both consumers.
-- **Precision:** 1:50m, not 1:10m. Coordinate bucketing at 0.5° (ADR-005) means ~55 km effective resolution. Sub-kilometre polygon detail from 1:10m is wasted and roughly doubles asset size.
+- **Single source:** Natural Earth admin-0 (`ne_10m_admin_0_countries`), public domain. One asset serves both consumers. (Originally 1:50m; upgraded to 1:10m in M164 — see ADR-017 update.)
 - **Format:** Custom compact binary. A build script (documented in `packages/country_lookup/GEODATA.md`) processes the Natural Earth shapefile into a packed format: a 2D grid cell index mapping `(lat_cell, lng_cell)` → candidate polygon indices, followed by packed `Int32` vertex arrays and a country code string table. No external runtime dependencies.
 - **Asset location:** `apps/mobile_flutter/assets/geodata/ne_countries.bin`. Declared in the app's `pubspec.yaml` assets section. Packages do not declare or load Flutter assets.
 
@@ -547,7 +546,7 @@ Three format options were evaluated for the bundled asset:
 - `packages/country_lookup` exposes `void initCountryLookup(Uint8List geodataBytes)` as a required initialisation call. The app layer calls `rootBundle.load(...)` and passes the bytes before calling `resolveCountry`. This preserves the package's zero-Flutter-dependency constraint.
 - The same bytes are passed to the map rendering layer for polygon extraction. Two separate in-memory representations are built from one asset: a spatial index (for lookup) and a vertex list (for rendering).
 - The build script must be re-run when Natural Earth publishes a new release. The output binary is checked into the repository; the source shapefile is not.
-- Asset size target: < 8 MB compressed (1:50m GeoJSON is ~4 MB; the binary format should be smaller).
+- Asset size: 4.77 MB (1:10m, 4,256 rings). Binary format unchanged.
 - Border changes and newly recognised countries require an app update — accepted, same as ADR-004.
 
 ---
@@ -574,9 +573,11 @@ Three format options were evaluated for the bundled asset:
 
 ## ADR-017 — `country_lookup` exposes polygon geometry via `loadPolygons()`
 
-**Status:** Accepted
+**Status:** Accepted (updated M164: data source upgraded 1:50m → 1:10m for rendering quality)
 
 **Context:** The world map view (Milestone 6) needs country polygon vertices to render country outlines with `flutter_map`. `CountryPolygon` is already defined in `binary_format.dart` and fully populated during `initCountryLookup()`, but the `_polygons` list is package-private and inaccessible to the app layer.
+
+**M164 update:** The World Leap game (M161) colour-codes every country on the map. At 1:50m resolution, adjacent country polygons do not share vertices exactly — sub-pixel seams are visible between borders, especially on a colour-filled map. Upgrading to 1:10m eliminates the seams. The binary format, Dart API, and all downstream consumers are unchanged; only the asset file is replaced. This aligns with the precedent set by `region_lookup` (ADR-049), which already uses 1:10m data.
 
 ADR-015 anticipated this need: *"The same bytes are passed to the map rendering layer for polygon extraction. Two separate in-memory representations are built from one asset."* It left the extraction mechanism unresolved. Two options were considered:
 

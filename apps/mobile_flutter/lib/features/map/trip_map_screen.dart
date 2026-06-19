@@ -155,7 +155,8 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
                 Polygon(
                   points: points,
                   color: _kVisitedFill.withValues(alpha: 0.85),
-                  borderStrokeWidth: 0,
+                  borderColor: _kVisitedFill,
+                  borderStrokeWidth: 0.3,
                 ),
               );
             } else {
@@ -163,7 +164,8 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
                 Polygon(
                   points: points,
                   color: _kUnvisitedFill.withValues(alpha: 0.9),
-                  borderStrokeWidth: 0,
+                  borderColor: _kUnvisitedFill,
+                  borderStrokeWidth: 0.3,
                 ),
               );
             }

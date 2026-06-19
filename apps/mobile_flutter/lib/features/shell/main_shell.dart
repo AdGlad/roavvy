@@ -19,6 +19,7 @@ import '../merch/merch_cart_screen.dart';
 import '../merch/merch_shop_screen.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
+import '../world_leap/presentation/screens/world_leap_screen.dart';
 
 /// Bottom navigation shell with four tabs: Map · Journal · Stats · Shop.
 ///
@@ -27,6 +28,7 @@ import '../stats/stats_screen.dart';
 ///   1 — Journal
 ///   2 — Stats
 ///   3 — Shop (Cart + Orders)
+///   4 — Play (World Leap)
 ///
 /// Scan is no longer a nav tab. It is accessible via the Scan button on the
 /// Map screen (top-right floating button) and from Journal/Map empty states.
@@ -287,6 +289,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               ),
               const StatsScreen(),
               const MerchShopScreen(),
+              const WorldLeapScreen(),
             ],
           ),
           // M134: Globe animation overlay — shown in-place so replay and scan
@@ -372,6 +375,11 @@ class _MainShellState extends ConsumerState<MainShell> {
               cartCount: ref.watch(merchCartCountProvider),
             ),
             label: 'Shop',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.sports_esports_outlined),
+            selectedIcon: Icon(Icons.sports_esports),
+            label: 'Play',
           ),
         ],
       ),

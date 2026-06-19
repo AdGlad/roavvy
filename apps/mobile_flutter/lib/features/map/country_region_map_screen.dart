@@ -223,7 +223,8 @@ class _CountryRegionMapScreenState
                 Polygon<String>(
                   points: points,
                   color: fill.withValues(alpha: 0.85),
-                  borderStrokeWidth: 0,
+                  borderColor: fill,
+                  borderStrokeWidth: 0.3,
                   hitValue: p.regionCode,
                 ),
               );
@@ -232,11 +233,26 @@ class _CountryRegionMapScreenState
                 Polygon(
                   points: points,
                   color: _kUnvisitedFill.withValues(alpha: 0.9),
-                  borderStrokeWidth: 0,
+                  borderColor: _kUnvisitedFill,
+                  borderStrokeWidth: 0.3,
                 ),
               );
             }
           }
+
+          // Accurate 1:10m country outlines — overlay on top of angular region
+          // polygon edges to give clean coastlines for island nations.
+          final coastlinePolygons = ref.read(polygonsProvider)
+              .where((p) => p.isoCode == widget.countryCode)
+              .map((p) => Polygon(
+                    points: [
+                      for (final (lat, lng) in p.vertices) LatLng(lat, lng),
+                    ],
+                    color: Colors.transparent,
+                    borderColor: scaffoldBg,
+                    borderStrokeWidth: 1.5,
+                  ))
+              .toList();
 
           return FlutterMap(
             mapController: _mapController,
@@ -263,6 +279,11 @@ class _CountryRegionMapScreenState
                   polygons: visitedPolygons,
                 ),
               ),
+              if (coastlinePolygons.isNotEmpty)
+                PolygonLayer(
+                  polygonCulling: true,
+                  polygons: coastlinePolygons,
+                ),
               if (_selectedCode != null && _selectedLatLng != null)
                 MarkerLayer(
                   markers: [_buildLabel(_selectedCode!, _selectedLatLng!)],
