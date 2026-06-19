@@ -92,12 +92,14 @@ service cloud.firestore {
     // own run (checked via the userId field embedded in the document).
     match /world_leap_runs/{runId} {
       allow read: if request.auth != null
-          && resource.data.userId == request.auth.uid;
+          && (resource == null || resource.data.userId == request.auth.uid);
       allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid;
       allow update: if request.auth != null
           && resource.data.userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+          && resource.data.userId == request.auth.uid;
     }
 
     // World Leap leaderboard (M161).
