@@ -95,6 +95,45 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
 
   void _reload() => ref.invalidate(countryDetailProvider(widget.isoCode));
 
+  Future<void> _removeCountry(BuildContext context) async {
+    final countryName = kCountryNames[widget.isoCode] ?? widget.isoCode;
+    final nav = Navigator.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: Text('Remove $countryName?'),
+            content: const Text(
+              'This country will be removed from your visited list. '
+              'Future photo scans will not re-add it automatically.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed == true && mounted) {
+      await ref.read(visitRepositoryProvider).saveRemoved(
+        UserRemovedCountry(
+          countryCode: widget.isoCode,
+          removedAt: DateTime.now().toUtc(),
+        ),
+      );
+      if (mounted) {
+        ref.invalidate(effectiveVisitsProvider);
+        nav.pop();
+      }
+    }
+  }
+
   static EffectiveVisitedCountry _emptyVisit(String isoCode) =>
       EffectiveVisitedCountry(
         countryCode: isoCode,
@@ -170,6 +209,28 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
                   icon: const Icon(Icons.ios_share, color: Colors.white),
                   onPressed: () => _share(detailAsync.value!, countryName, flag),
                 ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  if (value == 'remove') _removeCountry(context);
+                },
+                itemBuilder:
+                    (_) => const [
+                      PopupMenuItem(
+                        value: 'remove',
+                        child: Row(
+                          children: [
+                            Icon(Icons.remove_circle_outline, color: Colors.red),
+                            SizedBox(width: 12),
+                            Text(
+                              'Remove country',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+              ),
             ],
           ),
 
