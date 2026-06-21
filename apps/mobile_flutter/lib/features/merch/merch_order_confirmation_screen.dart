@@ -229,12 +229,19 @@ class _MockupSectionState extends State<_MockupSection> {
     );
   }
 
+  Widget _zoomable(Widget child) => InteractiveViewer(
+    panEnabled: false,
+    minScale: 1.0,
+    maxScale: 4.0,
+    child: child,
+  );
+
   List<Widget> _buildPages() {
     final pages = <Widget>[];
 
     if (widget.frontMockupUrl != null) {
       pages.add(
-        Image.network(
+        _zoomable(Image.network(
           widget.frontMockupUrl!,
           fit: BoxFit.contain,
           loadingBuilder:
@@ -243,15 +250,15 @@ class _MockupSectionState extends State<_MockupSection> {
                       ? child
                       : const Center(child: CircularProgressIndicator()),
           errorBuilder: (_, __, ___) => _localFallback(front: true),
-        ),
+        )),
       );
     } else {
-      pages.add(_localFallback(front: true));
+      pages.add(_zoomable(_localFallback(front: true)));
     }
 
     if (widget.backMockupUrl != null) {
       pages.add(
-        Image.network(
+        _zoomable(Image.network(
           widget.backMockupUrl!,
           fit: BoxFit.contain,
           loadingBuilder:
@@ -260,7 +267,7 @@ class _MockupSectionState extends State<_MockupSection> {
                       ? child
                       : const Center(child: CircularProgressIndicator()),
           errorBuilder: (_, __, ___) => _localFallback(front: false),
-        ),
+        )),
       );
     }
 
