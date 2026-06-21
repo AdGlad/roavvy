@@ -151,22 +151,27 @@ class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Mockup preview
+                  // Mockup preview — pinch to zoom up to 4×
                   if (item.frontMockupUrl != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: AspectRatio(
                         aspectRatio: 3 / 4,
-                        child: Image.network(
-                          item.frontMockupUrl!,
-                          fit: BoxFit.contain,
-                          loadingBuilder:
-                              (_, child, p) =>
-                                  p == null
-                                      ? child
-                                      : const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
+                        child: InteractiveViewer(
+                          panEnabled: false,
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          child: Image.network(
+                            item.frontMockupUrl!,
+                            fit: BoxFit.contain,
+                            loadingBuilder:
+                                (_, child, p) =>
+                                    p == null
+                                        ? child
+                                        : const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                          ),
                         ),
                       ),
                     )
