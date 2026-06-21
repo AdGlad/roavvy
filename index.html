@@ -1,383 +1,76 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Roavvy — Your World, Mapped</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/roavvy/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0e1a;
-      color: #fff;
-      min-height: 100vh;
-      overflow-x: hidden;
+    <!-- Primary SEO -->
+    <title>Roavvy — Your Travel Story, Finally Visible</title>
+    <meta name="description" content="Roavvy is a free AI-powered travel app that transforms your photo library into a living world map. Discover where you've been, unlock achievements, and create personalised travel merchandise — all on-device, no uploads." />
+    <meta name="keywords" content="travel map app, countries visited tracker, travel achievements, UNESCO heritage sites, world map app, travel photo scanner, travel identity, free travel app iOS" />
+    <link rel="canonical" href="https://www.roavvy.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.roavvy.com/" />
+    <meta property="og:title" content="Roavvy — Your Travel Story, Finally Visible" />
+    <meta property="og:description" content="Free iOS app that scans your photos on-device to build a living map of everywhere you've been. Achievements, daily UNESCO challenges, and personalised travel merchandise." />
+    <meta property="og:image" content="https://www.roavvy.com/images/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Roavvy" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@roavvy" />
+    <meta name="twitter:title" content="Roavvy — Your Travel Story, Finally Visible" />
+    <meta name="twitter:description" content="Free iOS app that turns your photo library into a living world map. On-device scanning, achievements, UNESCO challenges, and personalised travel merch." />
+    <meta name="twitter:image" content="https://www.roavvy.com/images/og-image.jpg" />
+
+    <!-- App meta -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "MobileApplication",
+      "name": "Roavvy",
+      "description": "AI-powered travel discovery app that transforms your photo library into a living world map. Discover visited countries, unlock achievements, play daily UNESCO challenges, and create personalised travel merchandise — entirely on-device.",
+      "url": "https://www.roavvy.com",
+      "applicationCategory": "TravelApplication",
+      "operatingSystem": "iOS 16.0+",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "GBP"
+      },
+      "featureList": [
+        "On-device AI photo scanning — no uploads",
+        "Interactive world map of visited countries",
+        "Travel achievements and milestone badges",
+        "Daily UNESCO World Heritage challenges",
+        "Personalised travel merchandise",
+        "Privacy-first design"
+      ],
+      "publisher": {
+        "@type": "Organization",
+        "name": "Roavvy",
+        "url": "https://www.roavvy.com",
+        "email": "support@roavvy.com"
+      }
     }
+    </script>
 
-    /* Starfield background */
-    .stars {
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 20% 50%, rgba(30, 60, 120, 0.3) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(60, 20, 100, 0.3) 0%, transparent 50%),
-        #0a0e1a;
-      z-index: 0;
-    }
-
-    .stars::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.8) 0%, transparent 100%),
-        radial-gradient(1px 1px at 25% 35%, rgba(255,255,255,0.6) 0%, transparent 100%),
-        radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,0.9) 0%, transparent 100%),
-        radial-gradient(1px 1px at 55% 25%, rgba(255,255,255,0.5) 0%, transparent 100%),
-        radial-gradient(1px 1px at 70% 5%, rgba(255,255,255,0.7) 0%, transparent 100%),
-        radial-gradient(1px 1px at 85% 40%, rgba(255,255,255,0.8) 0%, transparent 100%),
-        radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.6) 0%, transparent 100%),
-        radial-gradient(1px 1px at 30% 85%, rgba(255,255,255,0.4) 0%, transparent 100%),
-        radial-gradient(1px 1px at 60% 75%, rgba(255,255,255,0.7) 0%, transparent 100%),
-        radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.5) 0%, transparent 100%),
-        radial-gradient(1px 1px at 5% 90%, rgba(255,255,255,0.6) 0%, transparent 100%),
-        radial-gradient(1px 1px at 75% 90%, rgba(255,255,255,0.8) 0%, transparent 100%);
-    }
-
-    /* Nav */
-    nav {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 24px 48px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .logo {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #fff 0%, #a0b4ff 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .nav-badge {
-      font-size: 12px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.5);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 4px 12px;
-      border-radius: 100px;
-    }
-
-    /* Hero */
-    .hero {
-      position: relative;
-      z-index: 10;
-      text-align: center;
-      padding: 100px 24px 80px;
-      max-width: 780px;
-      margin: 0 auto;
-    }
-
-    .eyebrow {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #6b8cff;
-      margin-bottom: 24px;
-    }
-
-    h1 {
-      font-size: clamp(42px, 7vw, 72px);
-      font-weight: 800;
-      letter-spacing: -2px;
-      line-height: 1.05;
-      margin-bottom: 24px;
-      background: linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.7) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .hero p {
-      font-size: 18px;
-      line-height: 1.6;
-      color: rgba(255,255,255,0.55);
-      max-width: 520px;
-      margin: 0 auto 40px;
-    }
-
-    .cta-group {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: linear-gradient(135deg, #4a6cf7 0%, #7a4af7 100%);
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      padding: 14px 28px;
-      border-radius: 12px;
-      text-decoration: none;
-      box-shadow: 0 4px 24px rgba(74, 108, 247, 0.4);
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(74, 108, 247, 0.5);
-    }
-
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.8);
-      font-size: 15px;
-      font-weight: 600;
-      padding: 14px 28px;
-      border-radius: 12px;
-      text-decoration: none;
-      transition: background 0.15s;
-    }
-
-    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
-
-    /* Globe decoration */
-    .globe-wrap {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      justify-content: center;
-      margin: 20px auto 60px;
-    }
-
-    .globe {
-      width: 260px;
-      height: 260px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%,
-        #1a3a6e 0%,
-        #0d2040 40%,
-        #060d1f 100%);
-      box-shadow:
-        0 0 0 1px rgba(100,140,255,0.2),
-        0 0 60px rgba(74, 108, 247, 0.3),
-        inset 0 0 40px rgba(0,0,0,0.5);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .globe::before {
-      content: '';
-      position: absolute;
-      top: 10%;
-      left: 10%;
-      width: 30%;
-      height: 18%;
-      background: rgba(255,255,255,0.07);
-      border-radius: 50%;
-      transform: rotate(-20deg);
-    }
-
-    .globe-grid {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      background:
-        repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(100,160,255,0.05) 29px),
-        repeating-linear-gradient(90deg, transparent, transparent 28px, rgba(100,160,255,0.05) 29px);
-    }
-
-    /* Country dots */
-    .dot {
-      position: absolute;
-      border-radius: 50%;
-      background: #4a6cf7;
-      box-shadow: 0 0 6px #4a6cf7;
-    }
-
-    /* Features */
-    .features {
-      position: relative;
-      z-index: 10;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
-      max-width: 900px;
-      margin: 0 auto 80px;
-      padding: 0 24px;
-    }
-
-    .feature-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 28px;
-      transition: background 0.2s, border-color 0.2s;
-    }
-
-    .feature-card:hover {
-      background: rgba(255,255,255,0.07);
-      border-color: rgba(255,255,255,0.14);
-    }
-
-    .feature-icon {
-      font-size: 28px;
-      margin-bottom: 16px;
-    }
-
-    .feature-card h3 {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #fff;
-    }
-
-    .feature-card p {
-      font-size: 14px;
-      color: rgba(255,255,255,0.45);
-      line-height: 1.6;
-    }
-
-    /* Stats */
-    .stats {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      justify-content: center;
-      gap: 48px;
-      flex-wrap: wrap;
-      padding: 40px 24px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      margin-bottom: 60px;
-    }
-
-    .stat-item { text-align: center; }
-
-    .stat-number {
-      font-size: 36px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      background: linear-gradient(135deg, #4a6cf7, #a04af7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: rgba(255,255,255,0.4);
-      margin-top: 4px;
-    }
-
-    /* Footer */
-    footer {
-      position: relative;
-      z-index: 10;
-      text-align: center;
-      padding: 32px 24px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.25);
-    }
-
-    footer a { color: rgba(255,255,255,0.4); text-decoration: none; }
-  </style>
-</head>
-<body>
-
-<div class="stars"></div>
-
-<nav>
-  <div class="logo">Roavvy</div>
-  <div class="nav-badge">Coming Soon</div>
-</nav>
-
-<section class="hero">
-  <div class="eyebrow">Travel Discovery App</div>
-  <h1>Your World,<br>Mapped.</h1>
-  <p>Roavvy scans your photo library, detects every country you've visited, and turns your travel history into a living world map — with achievements, cinematic replays, and merch.</p>
-  <div class="cta-group">
-    <a href="#" class="btn-primary">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.07c1.37.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.39-1.32 2.76-2.54 4.32zM12.03 7c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
-      Download on iOS
-    </a>
-    <a href="https://github.com/AdGlad/roavvy" class="btn-secondary">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
-      View on GitHub
-    </a>
-  </div>
-</section>
-
-<div class="globe-wrap">
-  <div class="globe">
-    <div class="globe-grid"></div>
-    <div class="dot" style="width:8px;height:8px;top:38%;left:42%"></div>
-    <div class="dot" style="width:6px;height:6px;top:30%;left:65%"></div>
-    <div class="dot" style="width:10px;height:10px;top:55%;left:30%"></div>
-    <div class="dot" style="width:6px;height:6px;top:48%;left:58%"></div>
-    <div class="dot" style="width:8px;height:8px;top:62%;left:50%"></div>
-    <div class="dot" style="width:5px;height:5px;top:25%;left:48%"></div>
-    <div class="dot" style="width:7px;height:7px;top:44%;left:72%"></div>
-  </div>
-</div>
-
-<div class="stats">
-  <div class="stat-item">
-    <div class="stat-number">195</div>
-    <div class="stat-label">Countries to discover</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">1,199</div>
-    <div class="stat-label">UNESCO sites mapped</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">166+</div>
-    <div class="stat-label">Milestones shipped</div>
-  </div>
-</div>
-
-<section class="features">
-  <div class="feature-card">
-    <div class="feature-icon">🗺</div>
-    <h3>Auto-detect Countries</h3>
-    <p>Scan your photo library and watch your world map fill in — no manual entry, ever.</p>
-  </div>
-  <div class="feature-card">
-    <div class="feature-icon">🏆</div>
-    <h3>Achievements</h3>
-    <p>Unlock badges for continents, UNESCO sites, rarest destinations, and more.</p>
-  </div>
-  <div class="feature-card">
-    <div class="feature-icon">🎬</div>
-    <h3>Cinematic Replay</h3>
-    <p>Watch your travels come to life in a globe-sweeping discovery sequence.</p>
-  </div>
-  <div class="feature-card">
-    <div class="feature-icon">👕</div>
-    <h3>Merch from your Map</h3>
-    <p>Turn your travel history into custom t-shirts, prints, and shareable cards.</p>
-  </div>
-</section>
-
-<footer>
-  <p>&copy; 2026 Roavvy &nbsp;·&nbsp; <a href="https://github.com/AdGlad/roavvy">GitHub</a></p>
-</footer>
-
-</body>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script type="module" crossorigin src="/roavvy/assets/index-8JUyhfLl.js"></script>
+    <link rel="stylesheet" crossorigin href="/roavvy/assets/index-DNXKSMIe.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
