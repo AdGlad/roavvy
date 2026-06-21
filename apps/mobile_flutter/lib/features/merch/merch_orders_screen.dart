@@ -183,19 +183,30 @@ class _OrderCard extends ConsumerWidget {
 
   final MerchOrderSummary order;
 
+  static String _fmt(DateTime dt) {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${dt.day} ${months[dt.month]} ${dt.year}';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final date = _formatDate(order.createdAt);
+    final date = _fmt(order.createdAt);
     final n = order.countryCount;
     final noun = n == 1 ? 'country' : 'countries';
-    final canDesignAgain = order.selectedCountryCodes.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: canDesignAgain ? () => _designAgain(context, ref) : null,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => _OrderDetailScreen(order: order),
+          ),
+        ),
         child: Row(
           children: [
             _OrderThumbnail(url: order.thumbnailUrl),
@@ -221,24 +232,14 @@ class _OrderCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _StatusBadge(status: order.status),
-                        if (canDesignAgain) ...[
-                          const Spacer(),
-                          Text(
-                            'Design again →',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    _StatusBadge(status: order.status),
                   ],
                 ),
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Icon(Icons.chevron_right),
             ),
           ],
         ),
@@ -246,15 +247,134 @@ class _OrderCard extends ConsumerWidget {
     );
   }
 
-  /// Navigates to [LocalMockupPreviewScreen] using the saved country codes
-  /// from this order, loading current visits/trips from providers (M120).
+}
+
+// ── Order detail screen ────────────────────────────────────────────────────────
+
+class _OrderDetailScreen extends ConsumerWidget {
+  const _OrderDetailScreen({required this.order});
+
+  final MerchOrderSummary order;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final n = order.countryCount;
+    final noun = n == 1 ? 'country' : 'countries';
+    final canDesignAgain = order.selectedCountryCodes.isNotEmpty;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(order.productName)),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Full-size mockup with pinch-to-zoom
+                  if (order.thumbnailUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 3 / 4,
+                        child: InteractiveViewer(
+                          panEnabled: false,
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          child: Image.network(
+                            order.thumbnailUrl!,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (_, child, p) => p == null
+                                ? child
+                                : const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                            errorBuilder: (_, __, ___) => Container(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.dry_cleaning_outlined,
+                                size: 80,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.dry_cleaning_outlined,
+                        size: 64,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  // Order details
+                  Card.outlined(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Order Details',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          _DetailRow(
+                            label: 'Status',
+                            trailing: _StatusBadge(status: order.status),
+                          ),
+                          const SizedBox(height: 8),
+                          _DetailRow(
+                            label: 'Ordered',
+                            value: _formatDate(order.createdAt),
+                          ),
+                          const SizedBox(height: 8),
+                          _DetailRow(
+                            label: 'Countries',
+                            value: '$n $noun',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (canDesignAgain)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => _designAgain(context, ref),
+                    child: const Text('Design again with these countries'),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _designAgain(BuildContext context, WidgetRef ref) async {
     final selectedCodes = order.selectedCountryCodes;
     if (selectedCodes.isEmpty) return;
 
     final visits = await ref.read(effectiveVisitsProvider.future);
     final trips = await ref.read(tripListProvider.future);
-
     final allCodes = visits.map((v) => v.countryCode).toList();
 
     if (!context.mounted) return;
@@ -264,47 +384,67 @@ class _OrderCard extends ConsumerWidget {
         .firstWhere((r) => !r.exclude, orElse: () => ranks.first)
         .template;
 
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder:
-            (_) => LocalMockupPreviewScreen(
-              selectedCodes: selectedCodes,
-              allCodes: allCodes,
-              trips: trips,
-              initialTemplate: template,
-              initialPreset: MerchPreset(
-                id: 'design_again',
-                label: 'My Design',
-                config: MerchPresetConfig(
-                  layout: template,
-                  source: MerchCountrySource.allTime,
-                  jitter: 0.4,
-                  density: MerchDensity.balanced,
-                  stampMode: MerchStampMode.entryExit,
-                ),
-              ),
+        builder: (_) => LocalMockupPreviewScreen(
+          selectedCodes: selectedCodes,
+          allCodes: allCodes,
+          trips: trips,
+          initialTemplate: template,
+          initialPreset: MerchPreset(
+            id: 'design_again',
+            label: 'My Design',
+            config: MerchPresetConfig(
+              layout: template,
+              source: MerchCountrySource.allTime,
+              jitter: 0.4,
+              density: MerchDensity.balanced,
+              stampMode: MerchStampMode.entryExit,
             ),
+          ),
+        ),
       ),
     );
   }
 
   String _formatDate(DateTime dt) {
     const months = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, this.value, this.trailing});
+
+  final String label;
+  final String? value;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        SizedBox(
+          width: 88,
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        trailing ??
+            Text(
+              value ?? '',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+      ],
+    );
   }
 }
 
