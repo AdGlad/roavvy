@@ -8,6 +8,8 @@ import 'merch_cart_item.dart';
 import 'merch_cart_item_card.dart';
 import 'merch_cart_repository.dart';
 import 'merch_order_confirmation_screen.dart';
+import 'merch_post_purchase_screen.dart';
+import 'merch_variant_lookup.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -105,17 +107,46 @@ class MerchCartScreen extends ConsumerWidget {
 /// Minimal screen that shows the saved cart item and launches checkout.
 ///
 /// Reached by tapping a `mockupReady` cart item.
-class CartItemCheckoutScreen extends StatefulWidget {
+class CartItemCheckoutScreen extends ConsumerStatefulWidget {
   const CartItemCheckoutScreen({super.key, required this.item});
 
   final MerchCartItem item;
 
   @override
-  State<CartItemCheckoutScreen> createState() => _CartItemCheckoutScreenState();
+  ConsumerState<CartItemCheckoutScreen> createState() =>
+      _CartItemCheckoutScreenState();
 }
 
-class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
+class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
+    with WidgetsBindingObserver {
   bool _confirmed = false;
+  bool _checkoutLaunched = false;
+  bool _pollingInProgress = false;
+
+  static const int _pollIntervalSeconds = 5;
+  static const int _pollMaxAttempts = 20; // 100 s total
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _checkoutLaunched &&
+        !_pollingInProgress) {
+      _pollingInProgress = true;
+      _pollForPurchase();
+    }
+  }
 
   Future<void> _launchCheckout() async {
     final url = widget.item.checkoutUrl;
@@ -126,7 +157,82 @@ class _CartItemCheckoutScreenState extends State<CartItemCheckoutScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not open checkout')));
+      return;
     }
+    _checkoutLaunched = true;
+  }
+
+  Future<void> _pollForPurchase() async {
+    final uid = ref.read(currentUidProvider);
+    if (uid == null) {
+      _pollingInProgress = false;
+      if (mounted) _showProcessingFallback();
+      return;
+    }
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cartItems')
+        .doc(widget.item.id);
+
+    for (int attempt = 0; attempt < _pollMaxAttempts; attempt++) {
+      await Future<void>.delayed(
+        const Duration(seconds: _pollIntervalSeconds),
+      );
+      if (!mounted) return;
+      try {
+        final snap = await docRef.get();
+        if (snap.data()?['status'] == 'purchased') {
+          _checkoutLaunched = false;
+          _pollingInProgress = false;
+          if (!mounted) return;
+          final product = widget.item.isTshirt
+              ? MerchProduct.tshirt
+              : MerchProduct.poster;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => MerchPostPurchaseScreen(
+                product: product,
+                countryCount: widget.item.selectedCountryCodes.length,
+                frontMockupUrl: widget.item.frontMockupUrl,
+                designTitle: widget.item.title,
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (_) {
+        // Network error mid-poll — continue.
+      }
+    }
+
+    _checkoutLaunched = false;
+    _pollingInProgress = false;
+    if (mounted) _showProcessingFallback();
+  }
+
+  void _showProcessingFallback() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text("We're processing your order"),
+        content: const Text(
+          "If you completed payment, you'll receive a confirmation email "
+          'shortly. Your order will appear in your order history once confirmed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            child: const Text('Back to map'),
+          ),
+        ],
+      ),
+    );
   }
 
   static String _positionLabel(String position) => switch (position) {
