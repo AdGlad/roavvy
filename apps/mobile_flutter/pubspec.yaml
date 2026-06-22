@@ -146,3 +146,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+dependency_overrides:
+  # turnable_page 1.0.1 uses Pdfrx.getCacheDirectory setter which was removed
+  # in pdfrx 2.2.x+. Pin to last compatible version.
+  pdfrx: "2.1.16"
+  pdfrx_engine: "0.1.17"
