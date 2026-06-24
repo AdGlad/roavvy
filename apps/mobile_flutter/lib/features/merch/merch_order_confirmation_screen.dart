@@ -501,9 +501,15 @@ class MerchCustomProductWarning extends StatelessWidget {
 // ── Checkout processing screen ─────────────────────────────────────────────
 
 /// Non-poppable screen shown immediately after "Proceed to Checkout" is tapped.
-/// Launching checkout from here (rather than from [MerchOrderConfirmationScreen])
-/// means the review page is replaced in the stack — the user cannot navigate
-/// back into the order flow and place a duplicate order.
+///
+/// With [LaunchMode.inAppBrowserView] (SFSafariViewController), [launchUrl]
+/// returns as soon as the in-app browser is presented — not when the user
+/// closes it. Two states are shown:
+///
+/// - [_launching]: brief spinner while the browser is being opened.
+/// - [_returned]: shown when the user closes the in-app browser; provides a
+///   clear "View my orders" forward path so they are not left stranded on a
+///   processing screen with no way to proceed.
 class _CheckoutProcessingScreen extends StatefulWidget {
   const _CheckoutProcessingScreen({required this.checkoutUrl});
   final String checkoutUrl;
@@ -513,7 +519,11 @@ class _CheckoutProcessingScreen extends StatefulWidget {
       _CheckoutProcessingScreenState();
 }
 
+enum _CheckoutState { launching, returned, failed }
+
 class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
+  _CheckoutState _state = _CheckoutState.launching;
+
   @override
   void initState() {
     super.initState();
@@ -523,12 +533,12 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
   Future<void> _openBrowser() async {
     final uri = Uri.parse(widget.checkoutUrl);
     if (!mounted) return;
-    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open checkout')),
-      );
-    }
+    final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    if (!mounted) return;
+    // launchUrl returns once SFSafariViewController is presented. Switch to
+    // _returned so that when the user closes the in-app browser they see a
+    // clear "View my orders" CTA rather than a spinner.
+    setState(() => _state = launched ? _CheckoutState.returned : _CheckoutState.failed);
   }
 
   @override
@@ -541,26 +551,70 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Processing your order',
-                    style: theme.textTheme.titleLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Complete your payment in the checkout,\nthen return here when done.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+              child: switch (_state) {
+                _CheckoutState.launching => Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 28),
+                    Text(
+                      'Opening checkout…',
+                      style: theme.textTheme.titleLarge,
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                _CheckoutState.returned => Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded, size: 56, color: Color(0xFFFFD700)),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Order placed!',
+                      style: theme.textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Your custom t-shirt is being made. '
+                      'We\'ll email you when it ships.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton(
+                      onPressed: () {
+                        // Pop back to root (past the confirmation flow).
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      },
+                      child: const Text('Back to Roavvy'),
+                    ),
+                  ],
+                ),
+                _CheckoutState.failed => Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.error),
+                    const SizedBox(height: 20),
+                    Text('Could not open checkout', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => setState(() {
+                        _state = _CheckoutState.launching;
+                        Future.microtask(_openBrowser);
+                      }),
+                      child: const Text('Try again'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                      child: const Text('Back to Roavvy'),
+                    ),
+                  ],
+                ),
+              },
             ),
           ),
         ),
