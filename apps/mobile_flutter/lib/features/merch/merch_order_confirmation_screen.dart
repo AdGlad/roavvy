@@ -1,8 +1,11 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'merch_variant_lookup.dart';
+import 'shopify_pricing_repository.dart';
 
 // Colour swatches — mirrors _kSwatchColours in local_mockup_preview_screen.dart.
 const _swatchColours = <String, Color>{
@@ -16,12 +19,13 @@ const _swatchColours = <String, Color>{
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 /// Mandatory full-screen order review inserted between [_MockupState.ready] and
-/// Shopify checkout (ADR-131 / M85).
+/// Shopify checkout (ADR-131 / M85, M168).
 ///
 /// All order data is passed as immutable constructor params at push time — the
-/// screen holds no references to the parent's mutable state. A checkbox gates
-/// the "Proceed to Checkout" button; Go Back returns to the mockup view.
-class MerchOrderConfirmationScreen extends StatefulWidget {
+/// screen holds no references to the parent's mutable state. A swipe-to-confirm
+/// gesture gates the "Proceed to Checkout" action (M168). Price is shown above
+/// the swipe widget (M168).
+class MerchOrderConfirmationScreen extends ConsumerStatefulWidget {
   const MerchOrderConfirmationScreen({
     super.key,
     this.frontMockupUrl,
@@ -77,14 +81,12 @@ class MerchOrderConfirmationScreen extends StatefulWidget {
   final VoidCallback? onCheckoutLaunched;
 
   @override
-  State<MerchOrderConfirmationScreen> createState() =>
+  ConsumerState<MerchOrderConfirmationScreen> createState() =>
       _MerchOrderConfirmationScreenState();
 }
 
 class _MerchOrderConfirmationScreenState
-    extends State<MerchOrderConfirmationScreen> {
-  bool _confirmed = false;
-
+    extends ConsumerState<MerchOrderConfirmationScreen> {
   Future<void> _launchCheckout() async {
     if (!mounted) return;
     // Notify parent immediately (starts polling / marks cart started), then
@@ -101,6 +103,10 @@ class _MerchOrderConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final prices = ref.watch(shopifyPricingProvider);
+    final priceStr = prices.whenOrNull(data: (p) => p.tshirtFromPrice) ??
+        MerchProduct.tshirt.fromPrice;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Review Your Order')),
       body: Column(
@@ -128,25 +134,35 @@ class _MerchOrderConfirmationScreenState
                   ),
                   const SizedBox(height: 16),
                   const MerchCustomProductWarning(),
-                  const SizedBox(height: 16),
-                  CheckboxListTile(
-                    value: _confirmed,
-                    onChanged: (v) => setState(() => _confirmed = v ?? false),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text(
-                      'I confirm the size, colour, design, and print positions '
-                      'shown above are correct.',
+                  const SizedBox(height: 24),
+                  // Price display (M168)
+                  Center(
+                    child: Text(
+                      'from $priceStr',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Swipe-to-confirm gesture (M168)
+                  _SwipeToConfirm(
+                    label: 'Swipe to confirm order',
+                    onComplete: _launchCheckout,
                   ),
                   const SizedBox(height: 8),
                 ],
               ),
             ),
           ),
-          _ActionRow(
-            confirmed: _confirmed,
-            onGoBack: () => Navigator.of(context).pop(),
-            onProceed: _launchCheckout,
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Go Back'),
+              ),
+            ),
           ),
         ],
       ),
@@ -507,7 +523,7 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
   Future<void> _openBrowser() async {
     final uri = Uri.parse(widget.checkoutUrl);
     if (!mounted) return;
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open checkout')),
@@ -537,7 +553,7 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Complete your payment in the browser,\nthen return here when done.',
+                    'Complete your payment in the checkout,\nthen return here when done.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -553,37 +569,122 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
   }
 }
 
-// ── Action row ────────────────────────────────────────────────────────────────
+// ── Swipe-to-confirm widget (M168) ────────────────────────────────────────────
 
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.confirmed,
-    required this.onGoBack,
-    required this.onProceed,
-  });
+/// Horizontal swipe gesture that triggers [onComplete] at 85% drag distance.
+/// Provides haptic feedback on completion.
+class _SwipeToConfirm extends StatefulWidget {
+  const _SwipeToConfirm({required this.label, required this.onComplete});
 
-  final bool confirmed;
-  final VoidCallback onGoBack;
-  final VoidCallback onProceed;
+  final String label;
+  final VoidCallback onComplete;
+
+  @override
+  State<_SwipeToConfirm> createState() => _SwipeToConfirmState();
+}
+
+class _SwipeToConfirmState extends State<_SwipeToConfirm> {
+  double _dragFraction = 0.0;
+  bool _completed = false;
+
+  static const _thumbSize = 56.0;
+  static const _trackHeight = 56.0;
+
+  void _onDragUpdate(DragUpdateDetails details, double trackWidth) {
+    if (_completed) return;
+    final maxDrag = trackWidth - _thumbSize;
+    if (maxDrag <= 0) return;
+    final newOffset = (_dragFraction * maxDrag + details.delta.dx)
+        .clamp(0.0, maxDrag);
+    final newFraction = newOffset / maxDrag;
+    setState(() => _dragFraction = newFraction);
+    if (newFraction >= 0.85) _complete();
+  }
+
+  void _onDragEnd(DragEndDetails _) {
+    if (_completed) return;
+    setState(() => _dragFraction = 0.0);
+  }
+
+  void _complete() {
+    if (_completed) return;
+    setState(() {
+      _completed = true;
+      _dragFraction = 1.0;
+    });
+    HapticFeedback.heavyImpact();
+    Future.delayed(const Duration(milliseconds: 300), widget.onComplete);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            TextButton(onPressed: onGoBack, child: const Text('Go Back')),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: confirmed ? onProceed : null,
-                child: const Text('Proceed to Checkout'),
-              ),
+    const kGold = Color(0xFFFFD700);
+    final cs = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final trackWidth = constraints.maxWidth;
+        final thumbOffset = _dragFraction * (trackWidth - _thumbSize);
+
+        return GestureDetector(
+          onHorizontalDragUpdate: (d) => _onDragUpdate(d, trackWidth),
+          onHorizontalDragEnd: _onDragEnd,
+          child: Container(
+            height: _trackHeight,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainer,
+              borderRadius: BorderRadius.circular(_trackHeight / 2),
             ),
-          ],
-        ),
-      ),
+            child: Stack(
+              children: [
+                // Gold fill behind thumb
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 80),
+                  width: thumbOffset + _thumbSize,
+                  decoration: BoxDecoration(
+                    color: kGold.withValues(alpha: (_dragFraction * 0.25).clamp(0, 0.25)),
+                    borderRadius: BorderRadius.circular(_trackHeight / 2),
+                  ),
+                ),
+                // Label — fades out as thumb moves right
+                Center(
+                  child: Opacity(
+                    opacity: (1.0 - _dragFraction * 2.5).clamp(0.0, 1.0),
+                    child: Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.54),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+                // Draggable thumb
+                Positioned(
+                  left: thumbOffset,
+                  top: 0,
+                  bottom: 0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 80),
+                    width: _thumbSize,
+                    decoration: BoxDecoration(
+                      color: _completed ? kGold : kGold.withValues(alpha: 0.85),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _completed
+                          ? Icons.check_rounded
+                          : Icons.arrow_forward_rounded,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

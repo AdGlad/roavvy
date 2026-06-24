@@ -43,8 +43,6 @@ class PulseMerchOptionScreen extends ConsumerStatefulWidget {
 
 class _PulseMerchOptionScreenState
     extends ConsumerState<PulseMerchOptionScreen> {
-  bool _showAll = false;
-
   // ── Option builder ────────────────────────────────────────────────────────────
 
   List<PulseMerchOption> _optionsFor(
@@ -220,7 +218,7 @@ class _PulseMerchOptionScreenState
   Widget build(BuildContext context) {
     final landmarkAvailable =
         ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
-    final (:flatOptions, :allItems) =
+    final (:flatOptions, allItems: _) =
         _buildData(landmarkAvailable: landmarkAvailable);
     final allCodes = widget.allVisits.map((v) => v.countryCode).toList();
     final year = widget.hero.capturedAt.year;
@@ -230,8 +228,8 @@ class _PulseMerchOptionScreenState
             ? (kCountryNames[heroCountryCode] ?? heroCountryCode)
             : 'Your travels';
 
-    final featured = flatOptions.isNotEmpty ? flatOptions.first : null;
-    final alternatives = flatOptions.skip(1).take(4).toList();
+    // Full carousel — all options visible upfront (M168).
+    final carouselOptions = flatOptions;
 
     final pmoCs = Theme.of(context).colorScheme;
     return Scaffold(
@@ -252,99 +250,23 @@ class _PulseMerchOptionScreenState
             ),
           ),
 
-          // Featured card
-          if (featured != null)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: MerchOptionFeaturedCard(
-                  option: featured,
-                  allCodes: allCodes,
-                ),
-              ),
-            ),
-
-          // Alternatives strip
-          if (alternatives.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16, bottom: 6),
-                child: Text(
-                  'OTHER STYLES',
-                  style: TextStyle(
-                    color: pmoCs.onSurface.withValues(alpha: 0.38),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
+          // Full carousel — first option marked as featured (M168)
+          if (carouselOptions.isNotEmpty)
             SliverToBoxAdapter(
               child: MerchOptionAlternativesStrip(
-                options: alternatives,
+                options: carouselOptions,
                 allCodes: allCodes,
+                featuredIndex: 0,
               ),
             ),
-          ],
 
-          // "See all styles" toggle
+          // Exclusive designs
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: TextButton(
-                onPressed:
-                    _showAll ? null : () => setState(() => _showAll = true),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
-                ),
-                child: Text(
-                  _showAll ? 'All styles' : 'See all styles ›',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
+            child: _ExclusiveDesignsSection(
+              allVisits: widget.allVisits,
+              allTrips: widget.allTrips,
             ),
           ),
-
-          // Full list (shown when _showAll)
-          if (_showAll) ...[
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              sliver: SliverList.separated(
-                itemCount: allItems.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final item = allItems[i];
-                  return switch (item) {
-                    MerchOptionHeaderItem() =>
-                      MerchOptionSectionHeader(item.label),
-                    MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                    ),
-                    MerchOptionEntry() => MerchOptionCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                      index: i,
-                    ),
-                    MerchOptionCustomiseEntry() => MerchOptionCustomCard(
-                      template: item.template,
-                      label: item.label,
-                    ),
-                  };
-                },
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _ExclusiveDesignsSection(
-                allVisits: widget.allVisits,
-                allTrips: widget.allTrips,
-              ),
-            ),
-          ] else
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );

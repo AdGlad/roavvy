@@ -32,8 +32,6 @@ class AchievementMerchOptionScreen extends ConsumerStatefulWidget {
 
 class _AchievementMerchOptionScreenState
     extends ConsumerState<AchievementMerchOptionScreen> {
-  bool _showAll = false;
-
   static String _subtitle(Achievement achievement) {
     // Continent-explorer achievements.
     if (achievement.continentScope != null) {
@@ -130,13 +128,18 @@ class _AchievementMerchOptionScreenState
     final subtitle = _subtitle(widget.achievement);
     final identity = merchCtx.identity;
 
-    final featured =
-        allItems.whereType<MerchOptionFeaturedEntry>().firstOrNull;
-    final alternatives = allItems
+    // Flatten all options into an ordered list for the carousel.
+    // Featured entry goes first, followed by all regular entries.
+    final featuredOption =
+        allItems.whereType<MerchOptionFeaturedEntry>().firstOrNull?.option;
+    final regularOptions = allItems
         .whereType<MerchOptionEntry>()
-        .take(4)
         .map((e) => e.option)
         .toList();
+    final carouselOptions = [
+      if (featuredOption != null) featuredOption,
+      ...regularOptions,
+    ];
 
     final amoCs = Theme.of(context).colorScheme;
     return Scaffold(
@@ -163,99 +166,23 @@ class _AchievementMerchOptionScreenState
                     ),
           ),
 
-          // Featured card
-          if (featured != null)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: MerchOptionFeaturedCard(
-                  option: featured.option,
-                  allCodes: allCodes,
-                ),
-              ),
-            ),
-
-          // Alternatives strip
-          if (alternatives.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16, bottom: 6),
-                child: Text(
-                  'OTHER STYLES',
-                  style: TextStyle(
-                    color: amoCs.onSurface.withValues(alpha: 0.38),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
+          // Full carousel — all options visible, no toggle required (M168)
+          if (carouselOptions.isNotEmpty)
             SliverToBoxAdapter(
               child: MerchOptionAlternativesStrip(
-                options: alternatives,
+                options: carouselOptions,
                 allCodes: allCodes,
+                featuredIndex: featuredOption != null ? 0 : -1,
               ),
             ),
-          ],
 
-          // "See all styles" toggle
+          // Exclusive designs
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: TextButton(
-                onPressed:
-                    _showAll ? null : () => setState(() => _showAll = true),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
-                ),
-                child: Text(
-                  _showAll ? 'All styles' : 'See all styles ›',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
+            child: _ExclusiveDesignsSectionAchievement(
+              allVisits: allVisits,
+              allTrips: allTrips,
             ),
           ),
-
-          // Full list (shown when _showAll)
-          if (_showAll) ...[
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              sliver: SliverList.separated(
-                itemCount: allItems.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final item = allItems[i];
-                  return switch (item) {
-                    MerchOptionHeaderItem() =>
-                      MerchOptionSectionHeader(item.label),
-                    MerchOptionFeaturedEntry() => MerchOptionFeaturedCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                    ),
-                    MerchOptionEntry() => MerchOptionCard(
-                      option: item.option,
-                      allCodes: allCodes,
-                      index: i,
-                    ),
-                    MerchOptionCustomiseEntry() => MerchOptionCustomCard(
-                      template: item.template,
-                      label: item.label,
-                    ),
-                  };
-                },
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _ExclusiveDesignsSectionAchievement(
-                allVisits: allVisits,
-                allTrips: allTrips,
-              ),
-            ),
-          ] else
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
