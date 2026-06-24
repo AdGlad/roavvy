@@ -86,15 +86,17 @@ class _MerchOrderConfirmationScreenState
   bool _confirmed = false;
 
   Future<void> _launchCheckout() async {
-    final uri = Uri.parse(widget.checkoutUrl);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open checkout')));
-      return;
-    }
+    if (!mounted) return;
+    // Notify parent immediately (starts polling / marks cart started), then
+    // replace this route with a non-poppable processing screen so the review
+    // page is removed from the stack — the user cannot return here and
+    // accidentally trigger a second checkout.
     widget.onCheckoutLaunched?.call();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => _CheckoutProcessingScreen(checkoutUrl: widget.checkoutUrl),
+      ),
+    );
   }
 
   @override
@@ -475,6 +477,77 @@ class MerchCustomProductWarning extends StatelessWidget {
             'You can still cancel during checkout.',
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Checkout processing screen ─────────────────────────────────────────────
+
+/// Non-poppable screen shown immediately after "Proceed to Checkout" is tapped.
+/// Launching checkout from here (rather than from [MerchOrderConfirmationScreen])
+/// means the review page is replaced in the stack — the user cannot navigate
+/// back into the order flow and place a duplicate order.
+class _CheckoutProcessingScreen extends StatefulWidget {
+  const _CheckoutProcessingScreen({required this.checkoutUrl});
+  final String checkoutUrl;
+
+  @override
+  State<_CheckoutProcessingScreen> createState() =>
+      _CheckoutProcessingScreenState();
+}
+
+class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_openBrowser);
+  }
+
+  Future<void> _openBrowser() async {
+    final uri = Uri.parse(widget.checkoutUrl);
+    if (!mounted) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open checkout')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Processing your order',
+                    style: theme.textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Complete your payment in the browser,\nthen return here when done.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

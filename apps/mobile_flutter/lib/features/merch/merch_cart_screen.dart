@@ -120,6 +120,7 @@ class CartItemCheckoutScreen extends ConsumerStatefulWidget {
 class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
     with WidgetsBindingObserver {
   bool _confirmed = false;
+  bool _checkoutStarted = false; // true once Proceed is tapped — locks the UI
   bool _checkoutLaunched = false;
   bool _pollingInProgress = false;
 
@@ -151,7 +152,11 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
   Future<void> _launchCheckout() async {
     final url = widget.item.checkoutUrl;
     if (url == null) return;
+    // Lock the UI immediately — navigate away from review and block back nav
+    // before opening the browser so the user cannot return and double-order.
+    setState(() => _checkoutStarted = true);
     final uri = Uri.parse(url);
+    if (!mounted) return;
     if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -246,6 +251,41 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
   Widget build(BuildContext context) {
     final item = widget.item;
     final theme = Theme.of(context);
+
+    if (_checkoutStarted) {
+      return PopScope(
+        canPop: false,
+        child: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 28),
+                    Text(
+                      'Processing your order',
+                      style: theme.textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Complete your payment in the browser,\nthen return here when done.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Continue to Checkout')),

@@ -108,9 +108,11 @@ class MerchPrintDimensions {
   });
 }
 
+// Verified via Printful API: GET /mockup-generator/printfiles/12
+// printfile_id 1: 1800×2400 at 150 DPI = 12"×16". Matches server-side printDimensions.ts.
 const _tshirtDims = MerchPrintDimensions(
-  widthPx: 4500,
-  heightPx: 5400,
+  widthPx: 1800,
+  heightPx: 2400,
   dpi: 150,
   transparent: true,
 );

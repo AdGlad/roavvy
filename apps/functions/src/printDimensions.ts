@@ -23,10 +23,13 @@ export interface PrintDimensions {
 
 // ── Print dimensions keyed by Shopify variant GID ────────────────────────────
 
-/** T-shirt GIDs — all share the same DTG front print area */
+/** T-shirt GIDs — all share the same DTG front print area.
+ * Verified via Printful API: GET /mockup-generator/printfiles/12
+ * printfile_id 1: 1800×2400 at 150 DPI = 12"×16"
+ */
 const _tshirtDimensions: PrintDimensions = {
-  widthPx: 4500,
-  heightPx: 5400,
+  widthPx: 1800,
+  heightPx: 2400,
   dpi: 150,
   backgroundColor: 'transparent',
 };

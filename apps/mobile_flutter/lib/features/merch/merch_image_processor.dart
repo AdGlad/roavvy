@@ -40,21 +40,27 @@ class MerchImageProcessor {
         frontPosition == 'front_right';
 
     if (isChest) {
-      // Fit design inside the chest box then composite onto transparent canvas.
-      final maxW = (widthPx * 0.29).round().toDouble();
-      final maxH = (heightPx * 0.30).round().toDouble();
-      final topOffset = (heightPx * 0.07).round().toDouble();
-      final leftFraction =
-          (frontPosition == 'left_chest' || frontPosition == 'front_left')
-              ? 0.58
-              : 0.13;
-      final leftOffset = (widthPx * leftFraction).roundToDouble();
+      // Positioning matches M167 server-side constants (index.ts):
+      //   logo: 3.5" × 3.5" square
+      //   top:  3.0" below top of print area
+      //   left_chest centre: 10.0" from canvas left → left edge at 8.25"
+      //   right_chest centre:  2.0" from canvas left → left edge at 0.25"
+      final sizePx = (3.5 * dpi).round().toDouble(); // 525 px at 150 DPI
+      final maxW = sizePx;
+      final maxH = sizePx;
+      final topOffset = (3.0 * dpi).round().toDouble(); // 450 px at 150 DPI
+      final isLeft =
+          frontPosition == 'left_chest' || frontPosition == 'front_left';
+      final centerIn = isLeft ? 10.0 : 2.0;
+      // Left edge = centre − half logo width (mirrors Math.round(sizePx/2) in TS)
+      final leftOffset =
+          ((centerIn * dpi).round() - (sizePx / 2).round()).toDouble();
 
-      // Fit inside maxW×maxH while preserving aspect ratio.
+      // Fit inside sizePx × sizePx while preserving aspect ratio.
       final scale = min(maxW / srcW, maxH / srcH);
       final rw = srcW * scale;
       final rh = srcH * scale;
-      // Centre-align within the maxW column to match server behaviour.
+      // Centre-align within the sizePx column to match server behaviour.
       final compositeLeft = leftOffset + (maxW - rw) / 2;
 
       printBytes = await _renderToCanvas(

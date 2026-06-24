@@ -1512,10 +1512,17 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
 
       // ── Step 3: process images on device, upload to GCS, call createMerchCart ─
+      // Chest positions use the ribbon design; center uses the main artwork.
+      final isChestPosition =
+          _frontPosition == 'left_chest' || _frontPosition == 'right_chest';
+      // Explicit Uint8List? so the null guard in sendFrontImage is meaningful
+      // (when isChestPosition && _frontRibbonBytes == null, frontSourceBytes is null).
+      final Uint8List? frontSourceBytes =
+          isChestPosition ? _frontRibbonBytes : artworkBytes;
       final sendFrontImage =
           _isTshirt &&
           PrintfulPlacementMapper.sendsArtwork(_frontPosition) &&
-          _frontRibbonBytes != null;
+          frontSourceBytes != null;
       final sendBackImage = PrintfulPlacementMapper.sendsArtwork(_backPosition);
 
       // Always generate a fresh config ID for each Approve attempt so the
@@ -1536,7 +1543,7 @@ class _LocalMockupPreviewScreenState
         final processSw = Stopwatch()..start();
         final frontResult = sendFrontImage
             ? await MerchImageProcessor.processFront(
-                sourceBytes: _frontRibbonBytes!,
+                sourceBytes: frontSourceBytes,
                 frontPosition: PrintfulPlacementMapper.mapFront(_frontPosition),
                 widthPx: printDims.widthPx,
                 heightPx: printDims.heightPx,
