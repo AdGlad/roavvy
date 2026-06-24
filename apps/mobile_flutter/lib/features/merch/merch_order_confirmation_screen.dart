@@ -531,7 +531,13 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
   }
 
   Future<void> _openBrowser() async {
-    final uri = Uri.parse(widget.checkoutUrl);
+    // Append return_to so Shopify's "Return to shopping" button sends the user
+    // back via the roavvy:// scheme, which iOS handles by closing SFSafariViewController
+    // and opening the app (navigating to the map via the app_links listener).
+    final base = Uri.parse(widget.checkoutUrl);
+    final uri = base.replace(
+      queryParameters: {...base.queryParameters, 'return_to': 'roavvy://return'},
+    );
     if (!mounted) return;
     final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
     if (!mounted) return;

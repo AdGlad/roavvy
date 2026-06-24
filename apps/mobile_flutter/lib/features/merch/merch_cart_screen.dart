@@ -155,7 +155,10 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
     // Lock the UI immediately — navigate away from review and block back nav
     // before opening the browser so the user cannot return and double-order.
     setState(() => _checkoutStarted = true);
-    final uri = Uri.parse(url);
+    final base = Uri.parse(url);
+    final uri = base.replace(
+      queryParameters: {...base.queryParameters, 'return_to': 'roavvy://return'},
+    );
     if (!mounted) return;
     final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
     if (!mounted) return;
