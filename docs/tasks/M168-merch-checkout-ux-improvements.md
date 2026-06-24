@@ -1,6 +1,6 @@
 # M168 — Merch Checkout UX Improvements
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-06-24
 
 ---
@@ -93,13 +93,13 @@ before the swipe-to-confirm gesture.
 
 ## Definition of Done
 
-- [ ] Design options shown as horizontal scroll on both
+- [x] Design options shown as horizontal scroll on both
       `AchievementMerchOptionScreen` and `PulseMerchOptionScreen`; no "See all
       styles" toggle needed
-- [ ] Shopify checkout opens via `LaunchMode.inAppBrowserView` across all
+- [x] Shopify checkout opens via `LaunchMode.inAppBrowserView` across all
       launch sites
-- [ ] Swipe-to-confirm replaces checkbox on `MerchOrderConfirmationScreen`
-- [ ] Price shown on confirmation screen; falls back to static price if fetch fails
-- [ ] `flutter analyze` reports no new issues
+- [x] Swipe-to-confirm replaces checkbox on `MerchOrderConfirmationScreen`
+- [x] Price shown on confirmation screen; falls back to static price if fetch fails
+- [x] `flutter analyze` reports no new issues
 - [ ] Manual end-to-end test: achievement unlock -> design selection -> mockup
       -> swipe confirm -> in-app Shopify -> order confirmed
