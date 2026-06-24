@@ -713,6 +713,7 @@ export const shopifyOrderCreated = onRequest(
     // Parse Shopify order payload
     const payload = req.body as {
       id?: number;
+      test?: boolean;
       note_attributes?: Array<{ name: string; value: string }>;
       shipping_address?: {
         name?: string;
@@ -725,6 +726,13 @@ export const shopifyOrderCreated = onRequest(
         phone?: string;
       };
     };
+
+    // Test orders (Shopify Bogus Gateway) must never reach Printful production.
+    if (payload.test === true) {
+      console.log('[shopifyOrderCreated] test order — skipping Printful');
+      res.status(200).send('ok');
+      return;
+    }
 
     const shopifyOrderId = payload.id?.toString() ?? null;
     if (!shopifyOrderId) {

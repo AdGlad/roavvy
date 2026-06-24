@@ -622,6 +622,12 @@ exports.shopifyOrderCreated = (0, https_1.onRequest)({ invoker: 'public' }, asyn
     }
     // Parse Shopify order payload
     const payload = req.body;
+    // Test orders (Shopify Bogus Gateway) must never reach Printful production.
+    if (payload.test === true) {
+        console.log('[shopifyOrderCreated] test order — skipping Printful');
+        res.status(200).send('ok');
+        return;
+    }
     const shopifyOrderId = payload.id?.toString() ?? null;
     if (!shopifyOrderId) {
         res.status(200).send('ok');
