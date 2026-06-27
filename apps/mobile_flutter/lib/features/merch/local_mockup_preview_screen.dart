@@ -166,9 +166,11 @@ class _LocalMockupPreviewScreenState
   // 'left_chest' | 'center' | 'right_chest' | 'none'
   // Default 'center' → Printful placement 'front' (confirmed working for product 12).
   // 'left_chest'/'right_chest' → 'front_left'/'front_right' — validity unconfirmed.
-  String _frontPosition = 'center';
-  // 'center' | 'none' — defaults to 'none' so only the front is printed.
-  String _backPosition = 'none';
+  // 'left_chest' | 'center' | 'right_chest' | 'none'
+  // Default 'left_chest' → ribbon on the left chest front; main artwork on back.
+  String _frontPosition = 'left_chest';
+  // 'center' | 'none'
+  String _backPosition = 'center';
 
   // ── Gift message state (M81) ───────────────────────────────────────────────
 

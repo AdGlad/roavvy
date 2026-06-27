@@ -110,18 +110,28 @@ String merchSuggestShirtColor(
 }
 
 /// Aspect ratio for the back-card artwork based on template type.
-///
-/// Flag-based (grid) and horizontal timeline designs render better in landscape
-/// so they fill the shirt back correctly without excess letterboxing.
-/// Passport designs remain portrait to match stamp page proportions.
 double merchBackCardAspectRatio(CardTemplateType template) =>
     switch (template) {
-      CardTemplateType.grid || CardTemplateType.timeline => 3.0 / 2.0,
+      CardTemplateType.timeline => 3.0 / 2.0,
       CardTemplateType.badge ||
       CardTemplateType.typography ||
       CardTemplateType.wordCloud => 1.0,
-      _ => 2.0 / 3.0, // passport, heart, frontRibbon — portrait
+      _ => 2.0 / 3.0, // passport, grid (flags), heart, frontRibbon — portrait
     };
+
+/// Default stamp colour override for a given template.
+///
+/// Passport stamps render in white so they stand out on a dark shirt.
+/// All other templates return null (use the template's built-in colours).
+Color? merchDefaultStampColor(CardTemplateType template) =>
+    template == CardTemplateType.passport ? const Color(0xFFFFFFFF) : null;
+
+/// Default text colour override for a given template.
+///
+/// Timeline (Tour Dates) defaults to dark ink which is invisible on a black
+/// shirt — override to white. Other templates manage their own colours.
+Color? merchDefaultTextColor(CardTemplateType template) =>
+    template == CardTemplateType.timeline ? const Color(0xFFFFFFFF) : null;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -264,6 +274,8 @@ class _MerchOptionCardState extends State<MerchOptionCard>
         cardAspectRatio: aspectRatio,
         titleOverride: opt.title,
         subtitleOverride: opt.artworkSubtitle,
+        stampColor: merchDefaultStampColor(opt.template),
+        textColor: merchDefaultTextColor(opt.template),
       );
       final ribbonFuture = CardImageRenderer.render(
         context,
@@ -368,6 +380,8 @@ class _MerchOptionCardState extends State<MerchOptionCard>
               initialColour: widget.option.suggestedShirtColor,
               titleOverride: widget.option.title,
               subtitleOverride: widget.option.artworkSubtitle,
+              stampColor: merchDefaultStampColor(widget.option.template),
+              dateColor: merchDefaultTextColor(widget.option.template),
             ),
       ),
     );
@@ -731,6 +745,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         cardAspectRatio: aspectRatio,
         titleOverride: opt.title,
         subtitleOverride: opt.artworkSubtitle,
+        stampColor: merchDefaultStampColor(opt.template),
+        textColor: merchDefaultTextColor(opt.template),
       );
       if (!mounted) return;
 
@@ -805,6 +821,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
               initialColour: widget.option.suggestedShirtColor,
               titleOverride: widget.option.title,
               subtitleOverride: widget.option.artworkSubtitle,
+              stampColor: merchDefaultStampColor(widget.option.template),
+              dateColor: merchDefaultTextColor(widget.option.template),
             ),
       ),
     );
@@ -1190,6 +1208,8 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
         cardAspectRatio: aspectRatio,
         titleOverride: opt.title,
         subtitleOverride: opt.artworkSubtitle,
+        stampColor: merchDefaultStampColor(opt.template),
+        textColor: merchDefaultTextColor(opt.template),
       );
       if (!mounted) return;
 
@@ -1265,6 +1285,8 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
               initialColour: widget.option.suggestedShirtColor,
               titleOverride: widget.option.title,
               subtitleOverride: widget.option.artworkSubtitle,
+              stampColor: merchDefaultStampColor(widget.option.template),
+              dateColor: merchDefaultTextColor(widget.option.template),
             ),
       ),
     );
@@ -1500,6 +1522,8 @@ class _DesignCardState extends State<_DesignCard> {
         cardAspectRatio: aspectRatio,
         titleOverride: opt.title,
         subtitleOverride: opt.artworkSubtitle,
+        stampColor: merchDefaultStampColor(opt.template),
+        textColor: merchDefaultTextColor(opt.template),
       );
       if (!mounted) return;
 
@@ -1575,6 +1599,8 @@ class _DesignCardState extends State<_DesignCard> {
               initialColour: widget.option.suggestedShirtColor,
               titleOverride: widget.option.title,
               subtitleOverride: widget.option.artworkSubtitle,
+              stampColor: merchDefaultStampColor(widget.option.template),
+              dateColor: merchDefaultTextColor(widget.option.template),
             ),
       ),
     );
