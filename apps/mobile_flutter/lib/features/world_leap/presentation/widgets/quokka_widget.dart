@@ -173,6 +173,14 @@ class _QuokkaWidgetState extends State<QuokkaWidget>
             _celebrateController,
             _sadController,
           ]),
+          // Image.asset is built once and cached; only the transforms rebuild.
+          child: Image.asset(
+            WorldLeapConfig.quokkaAsset,
+            width: widget.size,
+            height: widget.size,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
           builder: (context, child) {
             final bounceOffset = _bounceAnim.value;
             final scale = _celebrateScaleAnim.value;
@@ -193,13 +201,7 @@ class _QuokkaWidgetState extends State<QuokkaWidget>
                   opacity: isFailed ? 0.6 : 1.0,
                   child: Transform.scale(
                     scaleX: isLaunching ? -1.0 : 1.0,
-                    child: Image.asset(
-                      WorldLeapConfig.quokkaAsset,
-                      width: widget.size,
-                      height: widget.size,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                    ),
+                    child: child,
                   ),
                 ),
               ),

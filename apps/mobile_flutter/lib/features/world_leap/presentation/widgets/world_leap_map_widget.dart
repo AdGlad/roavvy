@@ -87,6 +87,9 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   List<CountryPolygon> _allPolygons = [];
   List<LatLng> _trajectoryPoints = [];
 
+  // Pre-computed LatLng point lists — vertices never change so allocate once.
+  List<List<LatLng>> _cachedPoints = [];
+
   // ── Flight animation ────────────────────────────────────────────────────────
   late final AnimationController _flightController;
   double _flightProgress = 0.0;
@@ -118,6 +121,11 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   void initState() {
     super.initState();
     _allPolygons = loadPolygons();
+    // Pre-compute LatLng lists once — polygon vertices never change.
+    _cachedPoints = [
+      for (final p in _allPolygons)
+        [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
+    ];
 
     _flightController = AnimationController(
       vsync: this,
@@ -159,6 +167,7 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
 
     widget.slingshotActive?.addListener(_onSlingshotActiveChanged);
     widget.controller.addListener(_onStateChanged);
+    widget.controller.aimNotifier.addListener(_onAimChanged);
 
     // The controller may already be in Aiming state (initialize() completed
     // before this widget was built). Schedule a state-sync so the map flies
@@ -169,6 +178,35 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   }
 
   void _onSlingshotActiveChanged() => setState(() {});
+
+  /// Called by [aimNotifier] at pointer-move frequency (~60Hz) during aiming.
+  /// Only updates the trajectory preview — does not rebuild unrelated widgets.
+  void _onAimChanged() {
+    final aim = widget.controller.aimNotifier.value;
+    if (aim == null) {
+      if (mounted) setState(() => _trajectoryPoints = []);
+      return;
+    }
+    final state = widget.controller.state;
+    if (state is! WorldLeapStateAiming) return;
+    _computeTrajectory(state.run, aim.bearingDeg, aim.power);
+  }
+
+  void _computeTrajectory(WorldLeapRun run, double bearingDeg, double power) {
+    final origin = _originFor(run);
+    final distanceKm = (power * WorldLeapConfig.maxLaunchDistanceKm)
+        .clamp(WorldLeapConfig.minLaunchDistanceKm, WorldLeapConfig.maxLaunchDistanceKm);
+    final pts = widget.geo.trajectoryPoints(
+      fromLat: origin.latitude,
+      fromLon: origin.longitude,
+      bearingDeg: bearingDeg,
+      distanceKm: distanceKm,
+      count: WorldLeapConfig.trajectoryDotCount,
+    );
+    setState(() {
+      _trajectoryPoints = [for (final p in pts) LatLng(p.lat, p.lon)];
+    });
+  }
 
   /// Returns true if [screenPos] (in local widget coordinates) maps to the
   /// current source country — used by the slingshot as a hit test.
@@ -183,6 +221,7 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   void dispose() {
     widget.slingshotActive?.removeListener(_onSlingshotActiveChanged);
     widget.controller.removeListener(_onStateChanged);
+    widget.controller.aimNotifier.removeListener(_onAimChanged);
     _flightController.dispose();
     _pulseController.dispose();
     _splashController.dispose();
@@ -202,8 +241,12 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
         _flyToShowBoth();
       }
       _stopFlight();
-      _updateTrajectory(state);
-      setState(() => _missLine = []);
+      // Trajectory is driven by aimNotifier; clear it here on state entry
+      // (bearing/power are null until the user starts dragging).
+      setState(() {
+        _trajectoryPoints = [];
+        _missLine = [];
+      });
     } else if (state is WorldLeapStateLaunching) {
       _updateTrajectoryFromLaunching(state);
       _startFlight();
@@ -257,30 +300,6 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     setState(() {
       _isLaunching = false;
       _flightProgress = 0.0;
-    });
-  }
-
-  void _updateTrajectory(WorldLeapStateAiming state) {
-    final run = state.run;
-    if (state.bearingDeg == null || state.power == null) {
-      setState(() => _trajectoryPoints = []);
-      return;
-    }
-
-    final origin = _originFor(run);
-    final distanceKm = (state.power! * WorldLeapConfig.maxLaunchDistanceKm)
-        .clamp(WorldLeapConfig.minLaunchDistanceKm, WorldLeapConfig.maxLaunchDistanceKm);
-
-    final pts = widget.geo.trajectoryPoints(
-      fromLat: origin.latitude,
-      fromLon: origin.longitude,
-      bearingDeg: state.bearingDeg!,
-      distanceKm: distanceKm,
-      count: WorldLeapConfig.trajectoryDotCount,
-    );
-
-    setState(() {
-      _trajectoryPoints = [for (final p in pts) LatLng(p.lat, p.lon)];
     });
   }
 
@@ -384,26 +403,26 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     final pulse = _pulseController.value;
 
     final polygons = [
-      for (final p in _allPolygons)
-        if (p.isoCode != 'AQ') // suppress Antarctica
+      for (int i = 0; i < _allPolygons.length; i++)
+        if (_allPolygons[i].isoCode != 'AQ') // suppress Antarctica
           Polygon(
-            points: [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
+            points: _cachedPoints[i], // pre-computed — no per-frame allocation
             color: countryFillColor(
-              isoCode: p.isoCode,
+              isoCode: _allPolygons[i].isoCode,
               currentCode: currentCode,
               visitedCodes: visitedCodes,
               targetCode: targetCode,
               targetPulse: pulse,
             ),
-            borderColor: p.isoCode == currentCode
+            borderColor: _allPolygons[i].isoCode == currentCode
                 ? _kCurrentBorder
-                : p.isoCode == targetCode
+                : _allPolygons[i].isoCode == targetCode
                     ? _kTargetBorder
-                    : visitedCodes.contains(p.isoCode)
+                    : visitedCodes.contains(_allPolygons[i].isoCode)
                         ? _kVisitedBorder
                         : _kUnvisitedBorder,
-            borderStrokeWidth: p.isoCode == currentCode ? 1.5
-                : p.isoCode == targetCode ? 2.0
+            borderStrokeWidth: _allPolygons[i].isoCode == currentCode ? 1.5
+                : _allPolygons[i].isoCode == targetCode ? 2.0
                 : 0.4,
           ),
     ];

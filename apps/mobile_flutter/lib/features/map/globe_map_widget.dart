@@ -100,12 +100,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     _heritagePulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
+    );
+    // Started in _rebuildHeritageLists() only when sites are visible.
 
     _challengeHighlightCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
+    );
+    // Started only when _challengeHighlightCoord is set.
 
     _rotationTicker = createTicker(_onRotationTick)..start();
 
@@ -338,6 +340,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
   void _rebuildHeritageLists(bool enabled, List<VisitedHeritageSite> visited) {
     if (!enabled) {
+      _heritagePulseCtrl.stop();
       setState(() {
         _culturalCoords = const [];
         _naturalCoords = const [];
@@ -366,6 +369,12 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       _visitedSites = visited;
       _allUnvisitedSites = unvisitedSites;
     });
+    // Start pulse only when there are visible heritage dots.
+    if (natural.isNotEmpty || unvisited.isNotEmpty) {
+      if (!_heritagePulseCtrl.isAnimating) _heritagePulseCtrl.repeat(reverse: true);
+    } else {
+      _heritagePulseCtrl.stop();
+    }
   }
 
   /// Returns the nearest visited heritage site within [_kHitRadius] dp of
@@ -453,15 +462,20 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     ref.listen<(double, double)?>(challengeSiteHighlightProvider, (_, coord) {
       if (coord != null) {
         setState(() => _challengeHighlightCoord = coord);
+        if (!_challengeHighlightCtrl.isAnimating) {
+          _challengeHighlightCtrl.repeat(reverse: true);
+        }
         _challengeHighlightClearTimer?.cancel();
         _challengeHighlightClearTimer = Timer(const Duration(seconds: 6), () {
           if (mounted) {
             setState(() => _challengeHighlightCoord = null);
+            _challengeHighlightCtrl.stop();
             ref.read(challengeSiteHighlightProvider.notifier).state = null;
           }
         });
       } else {
         setState(() => _challengeHighlightCoord = null);
+        _challengeHighlightCtrl.stop();
         _challengeHighlightClearTimer?.cancel();
       }
     });
