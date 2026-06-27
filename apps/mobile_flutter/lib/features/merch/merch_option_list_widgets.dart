@@ -1357,6 +1357,317 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
   }
 }
 
+// ── Full-screen design carousel ───────────────────────────────────────────────
+
+/// Full-width paged carousel replacing [MerchOptionAlternativesStrip] (M169).
+///
+/// Each page shows one design option at ~72% screen width with adjacent card
+/// edges visible to signal swipeability. The item at [featuredIndex] gets a
+/// gold border and "✦ Best Match" label. Page indicator dots are shown below.
+class MerchDesignCarousel extends StatefulWidget {
+  const MerchDesignCarousel({
+    super.key,
+    required this.options,
+    required this.allCodes,
+    this.featuredIndex = 0,
+  });
+
+  final List<PulseMerchOption> options;
+  final List<String> allCodes;
+  final int featuredIndex;
+
+  @override
+  State<MerchDesignCarousel> createState() => _MerchDesignCarouselState();
+}
+
+class _MerchDesignCarouselState extends State<MerchDesignCarousel> {
+  late final PageController _ctrl;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = PageController(viewportFraction: 0.72);
+    _ctrl.addListener(() {
+      final p = _ctrl.page?.round() ?? 0;
+      if (p != _page) setState(() => _page = p);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.options.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 360,
+          child: PageView.builder(
+            controller: _ctrl,
+            itemCount: widget.options.length,
+            itemBuilder: (ctx, i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: _DesignCard(
+                option: widget.options[i],
+                allCodes: widget.allCodes,
+                isFeatured: i == widget.featuredIndex,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Page indicator dots
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(widget.options.length, (i) {
+            final active = i == _page;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: active ? 16 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color: active
+                    ? cs.onSurface.withValues(alpha: 0.75)
+                    : cs.onSurface.withValues(alpha: 0.2),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+}
+
+class _DesignCard extends StatefulWidget {
+  const _DesignCard({
+    required this.option,
+    required this.allCodes,
+    this.isFeatured = false,
+  });
+
+  final PulseMerchOption option;
+  final List<String> allCodes;
+  final bool isFeatured;
+
+  @override
+  State<_DesignCard> createState() => _DesignCardState();
+}
+
+class _DesignCardState extends State<_DesignCard> {
+  _MerchGenState _state = _MerchGenState.loading;
+  Uint8List? _artworkBytes;
+  ui.Image? _backArtImage;
+  ui.Image? _backShirtImage;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+  }
+
+  @override
+  void dispose() {
+    _backArtImage?.dispose();
+    _backShirtImage?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    if (!mounted) return;
+    final opt = widget.option;
+    try {
+      final aspectRatio = merchBackCardAspectRatio(opt.template);
+      final artResult = await CardImageRenderer.render(
+        context,
+        opt.template,
+        codes: opt.codes,
+        trips: opt.trips,
+        transparentBackground: true,
+        entryOnly: opt.entryOnly,
+        stampJitterFactor: opt.jitter,
+        stampSizeMultiplier: opt.stampSizeMultiplier,
+        pixelRatio: 2.0,
+        cardAspectRatio: aspectRatio,
+        titleOverride: opt.title,
+        subtitleOverride: opt.artworkSubtitle,
+      );
+      if (!mounted) return;
+
+      final backSpec = ProductMockupSpecs.specsFor(
+        MerchProduct.tshirt,
+        colour: 'Black',
+        placement: 'back',
+      );
+      final backData = await rootBundle.load(backSpec.assetPath);
+      if (!mounted) return;
+
+      Future<ui.Image> decode(Uint8List bytes) async {
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        return frame.image;
+      }
+
+      final backArt = await decode(artResult.bytes);
+      final backShirt = await decode(backData.buffer.asUint8List());
+
+      if (!mounted) {
+        backArt.dispose();
+        backShirt.dispose();
+        return;
+      }
+
+      setState(() {
+        _artworkBytes = artResult.bytes;
+        _backArtImage?.dispose();
+        _backArtImage = backArt;
+        _backShirtImage?.dispose();
+        _backShirtImage = backShirt;
+        _state = _MerchGenState.ready;
+      });
+    } catch (e) {
+      debugPrint('[design_card] ${opt.id} failed: $e');
+      if (!mounted) return;
+      setState(() => _state = _MerchGenState.error);
+    }
+  }
+
+  void _navigate() {
+    final enabled = ProviderScope.containerOf(context)
+        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    if (!enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The store is temporarily unavailable. Check back soon.',
+          ),
+        ),
+      );
+      return;
+    }
+    final bytes = _artworkBytes;
+    if (bytes == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: widget.option.codes,
+              allCodes: widget.allCodes,
+              trips: widget.option.trips,
+              artworkImageBytes: bytes,
+              initialTemplate: widget.option.template,
+              confirmedAspectRatio: merchBackCardAspectRatio(
+                widget.option.template,
+              ),
+              confirmedEntryOnly: widget.option.entryOnly,
+              transparentBackground: true,
+              stampJitterFactor: widget.option.jitter,
+              stampSizeMultiplier: widget.option.stampSizeMultiplier,
+              initialColour: widget.option.suggestedShirtColor,
+              titleOverride: widget.option.title,
+              subtitleOverride: widget.option.artworkSubtitle,
+            ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const kGold = Color(0xFFFFD700);
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: _state == _MerchGenState.ready ? _navigate : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: widget.isFeatured
+                  ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: kGold, width: 2),
+                    )
+                  : null,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  widget.isFeatured ? 12 : 14,
+                ),
+                child: switch (_state) {
+                  _MerchGenState.loading => ColoredBox(
+                    color: cs.surfaceContainerHighest,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  _MerchGenState.error => ColoredBox(
+                    color: cs.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.error_outline,
+                      color: cs.onSurface.withValues(alpha: 0.24),
+                      size: 32,
+                    ),
+                  ),
+                  _MerchGenState.ready => CustomPaint(
+                    painter: LocalMockupPainter(
+                      artworkImage: _backArtImage,
+                      productImage: _backShirtImage,
+                      spec: ProductMockupSpecs.specsFor(
+                        MerchProduct.tshirt,
+                        colour: 'Black',
+                        placement: 'back',
+                      ),
+                      artworkBlendMode: ui.BlendMode.srcOver,
+                    ),
+                  ),
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (widget.isFeatured)
+            const Text(
+              '✦ Best Match',
+              style: TextStyle(
+                color: kGold,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          Text(
+            merchTemplateLabel(widget.option.template),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            widget.option.description,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurface.withValues(alpha: 0.54),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── MerchLockedDesignCard ─────────────────────────────────────────────────────
 
 /// Displays an exclusive design that is locked or unlocked for the current user.

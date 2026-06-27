@@ -6,14 +6,12 @@ import 'merch_cart_screen.dart';
 import 'merch_design_entry_screen.dart';
 import 'merch_orders_screen.dart';
 import 'widgets/merch_collections_section.dart';
-import 'widgets/merch_identity_header.dart';
-import 'widgets/merch_ready_to_design_section.dart';
 
-/// Shop screen — single-scroll personal discovery surface (M145, ADR-177).
+/// Shop screen — collections grid (M169).
 ///
-/// Replaces the former Tab-based Cart/Orders layout with a unified scroll
-/// that puts identity + discovery content first and keeps transactional
-/// content (saved designs, recent orders) accessible below.
+/// Single focused purpose: show the user what they can design, grouped as
+/// a 2-column grid of country-scope cards. The "Design a shirt from scratch"
+/// banner at the top serves users who want to pick countries manually.
 class MerchShopScreen extends ConsumerWidget {
   const MerchShopScreen({super.key});
 
@@ -51,9 +49,7 @@ class MerchShopScreen extends ConsumerWidget {
       ),
       body: const CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: MerchIdentityHeader()),
           SliverToBoxAdapter(child: _DesignEntryBanner()),
-          SliverToBoxAdapter(child: MerchReadyToDesignSection()),
           SliverToBoxAdapter(child: MerchCollectionsSection()),
           SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],

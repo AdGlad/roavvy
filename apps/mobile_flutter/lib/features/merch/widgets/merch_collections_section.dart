@@ -61,7 +61,18 @@ class MerchCollectionsSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          ...collections.map((c) => _CollectionRow(collection: c)),
+          GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: collections.length,
+            itemBuilder: (ctx, i) => _CollectionCard(collection: collections[i]),
+          ),
         ],
       ),
     );
@@ -225,62 +236,61 @@ class _Collection {
   final CardTemplateType template;
 }
 
-// ── Row widget ────────────────────────────────────────────────────────────────
+// ── Grid card widget ──────────────────────────────────────────────────────────
 
-class _CollectionRow extends StatelessWidget {
-  const _CollectionRow({required this.collection});
+class _CollectionCard extends StatelessWidget {
+  const _CollectionCard({required this.collection});
 
   final _Collection collection;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder:
-              (_) => ShopCollectionOptionScreen(
-                label: collection.label,
-                codes: collection.codes,
-                allCodes: collection.allCodes,
-                trips: collection.trips,
-                featuredTemplate: collection.template,
-              ),
+    final cs = theme.colorScheme;
+    return Material(
+      color: cs.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder:
+                (_) => ShopCollectionOptionScreen(
+                  label: collection.label,
+                  codes: collection.codes,
+                  allCodes: collection.allCodes,
+                  trips: collection.trips,
+                  featuredTemplate: collection.template,
+                ),
+          ),
         ),
-      ),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Text(collection.emoji, style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    collection.label,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '${collection.countryCount} '
-                    '${collection.countryCount == 1 ? "country" : "countries"}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(collection.emoji, style: const TextStyle(fontSize: 36)),
+              const SizedBox(height: 8),
+              Text(
+                collection.label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
-              size: 20,
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                '${collection.countryCount} '
+                '${collection.countryCount == 1 ? "country" : "countries"}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
