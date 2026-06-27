@@ -1,6 +1,6 @@
 # M165 — World Leap: Angry Birds Feel
 
-**Status: In Progress**
+**Status: Complete (2026-06-27)**
 
 ## Goal
 
@@ -88,12 +88,12 @@ Resets to 0 on wrong country or timeout.
 
 ## Acceptance Criteria
 
-- [ ] Band colour visibly shifts from white to red during pull
-- [ ] Power meter visible alongside slingshot while dragging
-- [ ] Screen shakes briefly on launch and on landing
-- [ ] Splash ripple appears at landing point, fades after ~1.5 s
-- [ ] Wrong country shows dotted line from landing to target country centre
-- [ ] Score panel shows star rating (1–3) per shot
-- [ ] Score panel shows combo multiplier when streak ≥ 3
-- [ ] `flutter analyze` produces zero new warnings
-- [ ] All new sound constants reference distinct asset paths
+- [x] Band colour visibly shifts from white to red during pull
+- [x] Power meter visible alongside slingshot while dragging
+- [x] Screen shakes briefly on launch and on landing
+- [x] Splash ripple appears at landing point, fades after ~1.5 s
+- [x] Wrong country shows dotted line from landing to target country centre
+- [x] Score panel shows star rating (1–3) per shot
+- [x] Score panel shows combo multiplier when streak ≥ 3
+- [x] `flutter analyze` produces zero new warnings
+- [x] All new sound constants reference distinct asset paths

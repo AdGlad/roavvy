@@ -1,6 +1,6 @@
 # M164 — High-Resolution Country Polygons (1:10m)
 
-**Status: Not Started**
+**Status: Complete** (binary upgraded in `9a5684ee`; 4.9 MB at 1:10m)
 
 ## Problem
 

@@ -1,6 +1,6 @@
 # M166 — World Leap Flight Camera Modes
 
-**Status:** In Progress
+**Status:** Complete (2026-06-27)
 **Branch:** milestone/m166-flight-camera-modes
 
 ## Goal
@@ -36,9 +36,9 @@ landing) so the movement is smooth with no abrupt jumps.
 
 ## Acceptance Criteria
 
-- [ ] Static mode: map does not move during flight (existing behaviour preserved)
-- [ ] Bird's-eye: camera follows projectile, zoom peaks at midpoint, settles on landing zone
-- [ ] POV: same but tighter zoom, more dramatic
-- [ ] Toggle button cycles Static → Bird's-eye → POV → Static with icon + label
-- [ ] Preference persists for the session (in-memory ValueNotifier)
-- [ ] No new flutter analyze warnings
+- [x] Static mode: map does not move during flight (existing behaviour preserved)
+- [x] Bird's-eye: camera follows projectile, zoom peaks at midpoint, settles on landing zone
+- [x] POV: same but tighter zoom, more dramatic
+- [x] Toggle button cycles Static → Bird's-eye → POV → Static with icon + label
+- [x] Preference persists for the session (in-memory ValueNotifier)
+- [x] No new flutter analyze warnings
