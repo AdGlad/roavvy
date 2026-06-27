@@ -4,9 +4,8 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../../core/providers.dart';
 import '../../../data/db/roavvy_database.dart';
-import '../local_mockup_preview_screen.dart';
-import '../merch_preset.dart';
 import '../merch_template_ranker.dart';
+import '../shop_collection_option_screen.dart';
 
 /// Horizontally scrollable row of 2–3 personalised design recommendations
 /// shown in the Shop tab (M145, ADR-177).
@@ -268,24 +267,12 @@ class _InspiredDesignCard extends StatelessWidget {
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
-              (_) => LocalMockupPreviewScreen(
-                selectedCodes: rec.codes,
+              (_) => ShopCollectionOptionScreen(
+                label: rec.title,
+                codes: rec.codes,
                 allCodes: rec.allCodes,
                 trips: rec.allTrips,
-                initialTemplate: rec.template,
-                // Supply a preset so artwork is generated on mount and the
-                // local mockup is shown before the user taps Approve (ADR-147).
-                initialPreset: MerchPreset(
-                  id: 'inspired_design',
-                  label: rec.title,
-                  config: MerchPresetConfig(
-                    layout: rec.template,
-                    source: MerchCountrySource.allTime,
-                    jitter: 0.4,
-                    density: MerchDensity.balanced,
-                    stampMode: MerchStampMode.entryExit,
-                  ),
-                ),
+                featuredTemplate: rec.template,
               ),
         ),
       ),

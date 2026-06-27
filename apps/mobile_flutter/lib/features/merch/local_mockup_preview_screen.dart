@@ -167,8 +167,8 @@ class _LocalMockupPreviewScreenState
   // Default 'center' → Printful placement 'front' (confirmed working for product 12).
   // 'left_chest'/'right_chest' → 'front_left'/'front_right' — validity unconfirmed.
   String _frontPosition = 'center';
-  // 'center' | 'none'
-  String _backPosition = 'center';
+  // 'center' | 'none' — defaults to 'none' so only the front is printed.
+  String _backPosition = 'none';
 
   // ── Gift message state (M81) ───────────────────────────────────────────────
 

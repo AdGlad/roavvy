@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,11 +84,37 @@ class _AuthNotifier extends ChangeNotifier {
   }
 }
 
-class RoavvyApp extends ConsumerWidget {
+class RoavvyApp extends ConsumerStatefulWidget {
   const RoavvyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RoavvyApp> createState() => _RoavvyAppState();
+}
+
+class _RoavvyAppState extends ConsumerState<RoavvyApp> {
+  StreamSubscription<Uri>? _linkSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for incoming roavvy:// links — triggered when the user taps
+    // "Return to shopping" in the Shopify in-app checkout browser, which
+    // closes SFSafariViewController and opens the app via the custom scheme.
+    _linkSub = AppLinks().uriLinkStream.listen((uri) {
+      if (uri.scheme == 'roavvy' && mounted) {
+        ref.read(_routerProvider).go('/app');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(_routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(

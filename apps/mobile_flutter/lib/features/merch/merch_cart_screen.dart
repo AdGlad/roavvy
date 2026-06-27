@@ -155,16 +155,28 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
     // Lock the UI immediately — navigate away from review and block back nav
     // before opening the browser so the user cannot return and double-order.
     setState(() => _checkoutStarted = true);
-    final uri = Uri.parse(url);
+    final base = Uri.parse(url);
+    final uri = base.replace(
+      queryParameters: {...base.queryParameters, 'return_to': 'roavvy://return'},
+    );
     if (!mounted) return;
-    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
-      if (!mounted) return;
+    final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    if (!mounted) return;
+    if (!launched) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not open checkout')));
+      setState(() => _checkoutStarted = false);
       return;
     }
-    _checkoutLaunched = true;
+    // inAppBrowserView returns immediately after presenting — app stays in
+    // foreground so didChangeAppLifecycleState(resumed) never fires.
+    // Start polling directly.
+    setState(() => _checkoutLaunched = true);
+    if (!_pollingInProgress) {
+      _pollingInProgress = true;
+      _pollForPurchase();
+    }
   }
 
   Future<void> _pollForPurchase() async {
@@ -263,21 +275,41 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 28),
-                    Text(
-                      'Processing your order',
-                      style: theme.textTheme.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Complete your payment in the browser,\nthen return here when done.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    if (_pollingInProgress) ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 28),
+                      Text(
+                        'Checking your order…',
+                        style: theme.textTheme.titleLarge,
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "We'll take you to your order confirmation\nas soon as payment is confirmed.",
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 28),
+                      Text(
+                        'Opening checkout…',
+                        style: theme.textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    if (_checkoutLaunched) ...[
+                      const SizedBox(height: 32),
+                      TextButton(
+                        onPressed:
+                            () => Navigator.of(
+                              context,
+                            ).popUntil((route) => route.isFirst),
+                        child: const Text('Back to Roavvy'),
+                      ),
+                    ],
                   ],
                 ),
               ),

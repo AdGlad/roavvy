@@ -727,12 +727,9 @@ export const shopifyOrderCreated = onRequest(
       };
     };
 
-    // Test orders (Shopify Bogus Gateway) must never reach Printful production.
-    if (payload.test === true) {
-      console.log('[shopifyOrderCreated] test order — skipping Printful');
-      res.status(200).send('ok');
-      return;
-    }
+    // Shopify test orders (Bogus Gateway) are sent to Printful as unconfirmed
+    // drafts so print files can be inspected without triggering production.
+    const isTestOrder = payload.test === true;
 
     const shopifyOrderId = payload.id?.toString() ?? null;
     if (!shopifyOrderId) {
@@ -905,7 +902,13 @@ export const shopifyOrderCreated = onRequest(
     }
 
     try {
-      const printfulRes = await fetch('https://api.printful.com/orders', {
+      // Test orders are created as unconfirmed drafts so print files can be
+      // reviewed in the Printful dashboard without triggering production.
+      const printfulOrderUrl = isTestOrder
+        ? 'https://api.printful.com/orders?confirm=false'
+        : 'https://api.printful.com/orders';
+      console.log(`[shopifyOrderCreated] Printful order URL: ${printfulOrderUrl} (isTest=${isTestOrder})`);
+      const printfulRes = await fetch(printfulOrderUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

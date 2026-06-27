@@ -1099,44 +1099,55 @@ class MerchOptionCustomCard extends StatelessWidget {
 
 // ── Alternatives strip ─────────────────────────────────────────────────────────
 
-/// Horizontally scrollable row of compact shirt thumbnails shown below the
-/// featured card — one per alternative [PulseMerchOption] (M139).
+/// Horizontally scrollable row of compact shirt thumbnails (M139, M168).
 ///
-/// Each thumb renders the back-shirt mockup only (80×100 px) with the template
-/// label below. Tapping navigates to [LocalMockupPreviewScreen].
+/// Shows ALL options as a carousel — no "See all styles" toggle needed.
+/// The item at [featuredIndex] (default 0) gets a gold border and
+/// "✦ Best Match" badge to distinguish it from the alternatives.
 class MerchOptionAlternativesStrip extends StatelessWidget {
   const MerchOptionAlternativesStrip({
     super.key,
     required this.options,
     required this.allCodes,
+    this.featuredIndex = 0,
   });
 
   final List<PulseMerchOption> options;
   final List<String> allCodes;
 
+  /// Index of the recommended option. Set to -1 to disable the badge.
+  final int featuredIndex;
+
   @override
   Widget build(BuildContext context) {
     if (options.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 124,
+      height: 132,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: options.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder:
-            (ctx, i) =>
-                _AlternativeThumb(option: options[i], allCodes: allCodes),
+        itemBuilder: (ctx, i) => _AlternativeThumb(
+          option: options[i],
+          allCodes: allCodes,
+          isFeatured: i == featuredIndex,
+        ),
       ),
     );
   }
 }
 
 class _AlternativeThumb extends StatefulWidget {
-  const _AlternativeThumb({required this.option, required this.allCodes});
+  const _AlternativeThumb({
+    required this.option,
+    required this.allCodes,
+    this.isFeatured = false,
+  });
 
   final PulseMerchOption option;
   final List<String> allCodes;
+  final bool isFeatured;
 
   @override
   State<_AlternativeThumb> createState() => _AlternativeThumbState();
@@ -1263,61 +1274,83 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
   Widget build(BuildContext context) {
     const w = 80.0;
     const h = 100.0;
+    const kGold = Color(0xFFFFD700);
     final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: _state == _MerchGenState.ready ? _navigate : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: w,
-              height: h,
-              child: switch (_state) {
-                _MerchGenState.loading => ColoredBox(
-                  color: cs.surfaceContainerHighest,
-                  child: const Center(
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
+          Container(
+            decoration: widget.isFeatured
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: kGold, width: 1.5),
+                  )
+                : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                widget.isFeatured ? 6.5 : 8,
+              ),
+              child: SizedBox(
+                width: w,
+                height: h,
+                child: switch (_state) {
+                  _MerchGenState.loading => ColoredBox(
+                    color: cs.surfaceContainerHighest,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                      ),
                     ),
                   ),
-                ),
-                _MerchGenState.error => ColoredBox(
-                  color: cs.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.error_outline,
-                    color: cs.onSurface.withValues(alpha: 0.24),
-                    size: 20,
-                  ),
-                ),
-                _MerchGenState.ready => CustomPaint(
-                  painter: LocalMockupPainter(
-                    artworkImage: _backArtImage,
-                    productImage: _backShirtImage,
-                    spec: ProductMockupSpecs.specsFor(
-                      MerchProduct.tshirt,
-                      colour: 'Black',
-                      placement: 'back',
+                  _MerchGenState.error => ColoredBox(
+                    color: cs.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.error_outline,
+                      color: cs.onSurface.withValues(alpha: 0.24),
+                      size: 20,
                     ),
-                    artworkBlendMode: ui.BlendMode.srcOver,
                   ),
-                ),
-              },
+                  _MerchGenState.ready => CustomPaint(
+                    painter: LocalMockupPainter(
+                      artworkImage: _backArtImage,
+                      productImage: _backShirtImage,
+                      spec: ProductMockupSpecs.specsFor(
+                        MerchProduct.tshirt,
+                        colour: 'Black',
+                        placement: 'back',
+                      ),
+                      artworkBlendMode: ui.BlendMode.srcOver,
+                    ),
+                  ),
+                },
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            merchTemplateLabel(widget.option.template),
-            style: TextStyle(
-              color: cs.onSurface.withValues(alpha: 0.38),
-              fontSize: 10,
+          if (widget.isFeatured)
+            const Text(
+              '✦ Best',
+              style: TextStyle(
+                color: kGold,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+            )
+          else
+            Text(
+              merchTemplateLabel(widget.option.template),
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.38),
+                fontSize: 10,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
       ),
     );

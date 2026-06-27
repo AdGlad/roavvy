@@ -4,9 +4,8 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../../core/providers.dart';
 import '../../../data/db/roavvy_database.dart';
-import '../local_mockup_preview_screen.dart';
-import '../merch_preset.dart';
 import '../merch_template_ranker.dart';
+import '../shop_collection_option_screen.dart';
 
 /// Dynamic collections section shown in the Shop tab (M145, ADR-177).
 ///
@@ -240,22 +239,12 @@ class _CollectionRow extends StatelessWidget {
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
-              (_) => LocalMockupPreviewScreen(
-                selectedCodes: collection.codes,
+              (_) => ShopCollectionOptionScreen(
+                label: collection.label,
+                codes: collection.codes,
                 allCodes: collection.allCodes,
                 trips: collection.trips,
-                initialTemplate: collection.template,
-                initialPreset: MerchPreset(
-                  id: 'collection',
-                  label: collection.label,
-                  config: MerchPresetConfig(
-                    layout: collection.template,
-                    source: MerchCountrySource.allTime,
-                    jitter: 0.4,
-                    density: MerchDensity.balanced,
-                    stampMode: MerchStampMode.entryExit,
-                  ),
-                ),
+                featuredTemplate: collection.template,
               ),
         ),
       ),
