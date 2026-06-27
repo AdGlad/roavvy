@@ -1,9 +1,9 @@
-# M168 — Merch Checkout UX Improvements
+# M169 — Merch Shop UX Overhaul
 
 ## Status: In Progress
 
 ## Tasks
 
-- [ ] T1: Horizontal scroll carousel — replace "See all styles" toggle in achievement_merch_option_screen.dart and pulse_merch_option_screen.dart
-- [ ] T2: SFSafariViewController — replace launchUrl() with LaunchMode.inAppBrowserView in merch_order_confirmation_screen.dart and merch_cart_screen.dart
-- [ ] T3: Swipe-to-confirm slider — replace Checkbox in merch_order_confirmation_screen.dart; show product price above swipe widget
+- [ ] T1: Fix country-select entry point — merch_design_entry_screen.dart push ShopCollectionOptionScreen instead of LocalMockupPreviewScreen; remove async title gen
+- [ ] T2: Full-screen design carousel — add MerchDesignCarousel (PageView ~70% card width, page dots, featured gold border) replacing MerchOptionAlternativesStrip in shop_collection_option_screen, achievement_merch_option_screen, pulse_merch_option_screen
+- [ ] T3: Shop screen collections grid — remove MerchIdentityHeader + MerchReadyToDesignSection; replace MerchCollectionsSection list with 2-column GridView of collection cards

@@ -157,6 +157,12 @@ class WorldLeapController extends ChangeNotifier {
         _scoring = scoring,
         _countryLookup = countryLookup;
 
+  /// Notifier for aim-only updates (bearing/power) that fire at pointer-move
+  /// frequency (~60Hz). Widgets that only care about game state transitions
+  /// should listen to this controller via [addListener]; widgets that need
+  /// the trajectory preview (WorldLeapMapWidget) listen to [aimNotifier].
+  final aimNotifier = ValueNotifier<({double bearingDeg, double power})?>(null);
+
   final String _userId;
   final String _date;
   final IWorldLeapDailyService _dailyService;
@@ -433,15 +439,22 @@ class WorldLeapController extends ChangeNotifier {
   }
 
   /// Gesture updates bearing (0–360°) and power (0.0–1.0).
+  ///
+  /// Updates internal state and [aimNotifier] WITHOUT calling notifyListeners().
+  /// This prevents 60Hz rebuilds of HUD, Quokka, and the full game Stack.
+  /// Only WorldLeapMapWidget (which listens to [aimNotifier]) rebuilds.
   void updateAim({required double bearingDeg, required double power}) {
     final current = _state;
     if (current is! WorldLeapStateAiming) return;
 
-    _emit(WorldLeapStateAiming(
+    final clampedPower = power.clamp(0.0, 1.0);
+    // Update state silently so launch() reads current bearing/power.
+    _state = WorldLeapStateAiming(
       run: current.run,
       bearingDeg: bearingDeg,
-      power: power.clamp(0.0, 1.0),
-    ));
+      power: clampedPower,
+    );
+    aimNotifier.value = (bearingDeg: bearingDeg, power: clampedPower);
   }
 
   /// Player releases — starts the launch sequence.
@@ -450,6 +463,7 @@ class WorldLeapController extends ChangeNotifier {
     if (current is! WorldLeapStateAiming) return;
 
     _cancelCountdown();
+    aimNotifier.value = null;
 
     final run = current.run;
     final bearingDeg = current.bearingDeg ?? 0.0;
@@ -620,6 +634,7 @@ class WorldLeapController extends ChangeNotifier {
   @override
   void dispose() {
     _cancelCountdown();
+    aimNotifier.dispose();
     super.dispose();
   }
 
@@ -629,6 +644,7 @@ class WorldLeapController extends ChangeNotifier {
     final WorldLeapRun run;
 
     if (current is WorldLeapStateAiming) {
+      aimNotifier.value = null;
       run = current.run;
     } else if (current is WorldLeapStateLanded) {
       run = current.run;

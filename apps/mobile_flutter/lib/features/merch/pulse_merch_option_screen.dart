@@ -253,7 +253,7 @@ class _PulseMerchOptionScreenState
           // Full carousel — first option marked as featured (M168)
           if (carouselOptions.isNotEmpty)
             SliverToBoxAdapter(
-              child: MerchOptionAlternativesStrip(
+              child: MerchDesignCarousel(
                 options: carouselOptions,
                 allCodes: allCodes,
                 featuredIndex: 0,

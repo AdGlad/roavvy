@@ -4,11 +4,8 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
-import '../cards/title_generation/title_generation_models.dart';
-import '../cards/title_generation/title_generation_provider.dart';
-import 'local_mockup_preview_screen.dart';
-import 'merch_preset.dart';
 import 'merch_template_ranker.dart';
+import 'shop_collection_option_screen.dart';
 
 // ── Filter chip enum ──────────────────────────────────────────────────────────
 
@@ -243,7 +240,7 @@ class _MerchDesignEntryScreenState
             onPressed:
                 _selectedCodes.isEmpty
                     ? null
-                    : () async {
+                    : () {
                       final trips = tripsAsync.valueOrNull ?? const [];
                       final allCodes =
                           visitsAsync.valueOrNull
@@ -260,45 +257,15 @@ class _MerchDesignEntryScreenState
                             orElse: () => ranks.first,
                           )
                           .template;
-                      final titleResult = await ref
-                          .read(titleGenerationServiceProvider)
-                          .generate(
-                            TitleGenerationRequest(
-                              countryCodes: codes,
-                              countryNames:
-                                  codes
-                                      .map((c) => kCountryNames[c] ?? c)
-                                      .toList(),
-                              regionNames:
-                                  codes
-                                      .map((c) => kCountryContinent[c])
-                                      .whereType<String>()
-                                      .toSet()
-                                      .toList(),
-                              cardType: template,
-                            ),
-                          );
-                      if (!context.mounted) return;
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder:
-                              (_) => LocalMockupPreviewScreen(
-                                selectedCodes: codes,
+                              (_) => ShopCollectionOptionScreen(
+                                label: 'My Design',
+                                codes: codes,
                                 allCodes: allCodes,
                                 trips: trips,
-                                initialTemplate: template,
-                                titleOverride: titleResult.title,
-                                initialPreset: MerchPreset(
-                                  id: 'custom_selection',
-                                  label: 'My Design',
-                                  config: MerchPresetConfig(
-                                    layout: template,
-                                    source: MerchCountrySource.allTime,
-                                    jitter: 0.4,
-                                    density: MerchDensity.balanced,
-                                    stampMode: MerchStampMode.entryExit,
-                                  ),
-                                ),
+                                featuredTemplate: template,
                               ),
                         ),
                       );

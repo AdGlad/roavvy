@@ -169,7 +169,7 @@ class _AchievementMerchOptionScreenState
           // Full carousel — all options visible, no toggle required (M168)
           if (carouselOptions.isNotEmpty)
             SliverToBoxAdapter(
-              child: MerchOptionAlternativesStrip(
+              child: MerchDesignCarousel(
                 options: carouselOptions,
                 allCodes: allCodes,
                 featuredIndex: featuredOption != null ? 0 : -1,

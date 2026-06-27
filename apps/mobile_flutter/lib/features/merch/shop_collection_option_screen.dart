@@ -80,7 +80,7 @@ class ShopCollectionOptionScreen extends StatelessWidget {
           ),
           if (options.isNotEmpty)
             SliverToBoxAdapter(
-              child: MerchOptionAlternativesStrip(
+              child: MerchDesignCarousel(
                 options: options,
                 allCodes: allCodes,
                 featuredIndex: 0,
