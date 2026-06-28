@@ -376,6 +376,7 @@ class _MerchOptionCardState extends State<MerchOptionCard>
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
               ),
         ),
       );
@@ -836,6 +837,7 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
               ),
         ),
       );
@@ -1319,6 +1321,7 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
               ),
         ),
       );
@@ -1652,6 +1655,7 @@ class _DesignCardState extends State<_DesignCard> {
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
               ),
         ),
       );

@@ -8,6 +8,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import 'card_branding_footer.dart';
 import 'card_text_renderer.dart';
+import 'country_path_service.dart';
 import 'flag_grid_layout_engine.dart';
 import 'flag_tile_renderer.dart';
 import 'grid_math_engine.dart';
@@ -423,6 +424,7 @@ class GridFlagsCard extends StatefulWidget {
     this.layoutMode = FlagGridLayoutMode.packedRow,
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
+    this.clipCode,
   });
 
   final List<String> countryCodes;
@@ -468,6 +470,11 @@ class GridFlagsCard extends StatefulWidget {
   /// Range 1–9; defaults to 1.
   final int flagRepeatCount;
 
+  /// ISO 3166-1 alpha-2 code (for [GridClipShape.countryOutline]) or continent
+  /// key (for [GridClipShape.continentOutline]). Used by [CountryPathService]
+  /// to load the outline path (M171).
+  final String? clipCode;
+
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
 }
@@ -482,12 +489,16 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   // Background image decoded from backgroundImageBytes (M93, ADR-138).
   ui.Image? _backgroundImage;
 
+  // Outline path loaded from CountryPathService for countryOutline/continentOutline (M171).
+  ui.Path? _outlinePath;
+
   @override
   void initState() {
     super.initState();
     if (widget.backgroundImageBytes != null) {
       _decodeBackgroundImage(widget.backgroundImageBytes!);
     }
+    _loadOutlinePath();
   }
 
   @override
@@ -508,6 +519,28 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
         _decodeBackgroundImage(widget.backgroundImageBytes!);
       }
     }
+    if (oldWidget.clipCode != widget.clipCode ||
+        oldWidget.clipShape != widget.clipShape) {
+      _outlinePath = null;
+      _loadOutlinePath();
+    }
+  }
+
+  void _loadOutlinePath() {
+    final code = widget.clipCode;
+    if (code == null ||
+        (widget.clipShape != GridClipShape.countryOutline &&
+            widget.clipShape != GridClipShape.continentOutline)) {
+      return;
+    }
+    // Use a rough card size for the path (will be re-scaled by painter).
+    // The painter receives the exact canvas size and scales accordingly.
+    const approxSize = ui.Size(800, 533);
+    CountryPathService.pathFor(code, approxSize).then((path) {
+      if (mounted && path != null) {
+        setState(() => _outlinePath = path);
+      }
+    });
   }
 
   Future<void> _decodeBackgroundImage(Uint8List bytes) async {
@@ -628,6 +661,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               textColor: widget.textColor,
               clipShape: widget.clipShape,
               flagRepeatCount: widget.flagRepeatCount,
+              outlinePath: _outlinePath,
             ),
           );
         },
@@ -636,21 +670,46 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   }
 }
 
-// ── Clip path helper (M170) ───────────────────────────────────────────────────
+// ── Clip path helper (M170/M171) ─────────────────────────────────────────────
 
 /// Returns the clip [Path] for [shape] on a canvas of [size].
 ///
-/// [countryOutline] and [continentOutline] fall back to circle until M171.
+/// [outlinePath] is a pre-scaled path from [CountryPathService] (M171).
+/// When provided for [countryOutline]/[continentOutline] shapes it is used
+/// directly; when null those shapes fall back to circle.
 /// Never throws — unrecognised shapes produce a full-rect path.
-Path _clipPathFor(Size size, GridClipShape shape) {
+Path _clipPathFor(Size size, GridClipShape shape, {ui.Path? outlinePath}) {
   switch (shape) {
     case GridClipShape.none:
       return Path()..addRect(Offset.zero & size);
     case GridClipShape.heart:
       return MaskCalculator.heartPath(size);
-    case GridClipShape.circle:
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
+      if (outlinePath != null) {
+        // Re-scale the outline path to fit the current canvas size.
+        final bounds = outlinePath.getBounds();
+        if (bounds.width > 0 && bounds.height > 0) {
+          final scaleX = size.width / bounds.width;
+          final scaleY = size.height / bounds.height;
+          final scale = scaleX < scaleY ? scaleX : scaleY;
+          final dx = (size.width - bounds.width * scale) / 2 - bounds.left * scale;
+          final dy = (size.height - bounds.height * scale) / 2 - bounds.top * scale;
+          final matrix = Float64List(16);
+          matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
+          matrix[12] = dx; matrix[13] = dy;
+          return outlinePath.transform(matrix);
+        }
+      }
+      // Fallback to circle when path not yet loaded.
+      return Path()
+        ..addOval(
+          Rect.fromCircle(
+            center: size.center(Offset.zero),
+            radius: math.min(size.width, size.height) * 0.46,
+          ),
+        );
+    case GridClipShape.circle:
       return Path()
         ..addOval(
           Rect.fromCircle(
@@ -676,6 +735,7 @@ class _GridPainter extends CustomPainter {
     this.textColor,
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
+    this.outlinePath,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -710,6 +770,9 @@ class _GridPainter extends CustomPainter {
 
   /// Flag repeat count (M170).
   final int flagRepeatCount;
+
+  /// Pre-loaded country/continent outline path from [CountryPathService] (M171).
+  final ui.Path? outlinePath;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -776,9 +839,9 @@ class _GridPainter extends CustomPainter {
     );
     if (tiles.isEmpty) return;
 
-    // 2a. Apply clip shape (M170). For 'none', no clip is applied.
+    // 2a. Apply clip shape (M170/M171). For 'none', no clip is applied.
     final clipPath = clipShape != GridClipShape.none
-        ? _clipPathFor(size, clipShape)
+        ? _clipPathFor(size, clipShape, outlinePath: outlinePath)
         : null;
     if (clipPath != null) {
       canvas.save();
@@ -820,7 +883,8 @@ class _GridPainter extends CustomPainter {
       old.transparentBackground != transparentBackground ||
       old.textColor != textColor ||
       old.clipShape != clipShape ||
-      old.flagRepeatCount != flagRepeatCount;
+      old.flagRepeatCount != flagRepeatCount ||
+      old.outlinePath != outlinePath;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by

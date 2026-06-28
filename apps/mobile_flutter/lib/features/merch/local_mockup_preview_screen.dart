@@ -92,6 +92,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.gridLayoutMode = FlagGridLayoutMode.packedRow,
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
+    this.clipCode,
   });
 
   final List<String> selectedCodes;
@@ -154,6 +155,9 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
 
   /// Flag repeat count for the flag grid (M170). Defaults to 1.
   final int flagRepeatCount;
+
+  /// ISO 3166-1 alpha-2 code or continent key for outline clips (M171).
+  final String? clipCode;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -680,6 +684,7 @@ class _LocalMockupPreviewScreenState
         gridLayoutMode: _gridLayoutMode,
         clipShape: widget.clipShape,
         flagRepeatCount: widget.flagRepeatCount,
+        clipCode: widget.clipCode,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;

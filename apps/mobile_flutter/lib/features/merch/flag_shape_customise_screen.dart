@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/country_names.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/country_path_service.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import 'local_mockup_painter.dart';
 import 'local_mockup_preview_screen.dart';
@@ -78,14 +80,21 @@ class FlagShapeCustomiseScreen extends StatefulWidget {
 
 // ── Page definition ────────────────────────────────────────────────────────────
 
-const _kPages = [
-  (shape: GridClipShape.none, label: 'Grid'),
-  (shape: GridClipShape.heart, label: 'Heart'),
-  (shape: GridClipShape.circle, label: 'Circle'),
-];
+typedef _PageDef = ({GridClipShape shape, String label, String? clipCode});
+
+/// Continent display names from continent key.
+const _kContinentDisplayNames = {
+  'africa': 'Africa',
+  'asia': 'Asia',
+  'europe': 'Europe',
+  'north_america': 'North America',
+  'oceania': 'Oceania',
+  'south_america': 'South America',
+};
 
 class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   late final PageController _pageCtrl;
+  late final List<_PageDef> _pages;
   int _currentPage = 0;
   double _repeatCount = 1;
   Timer? _debounce;
@@ -93,12 +102,54 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   @override
   void initState() {
     super.initState();
+    _pages = _buildPages();
     _pageCtrl = PageController();
     // Set smart default based on initial shape (none).
     _repeatCount = merchDefaultRepeatCount(
       widget.codes.length,
       GridClipShape.none,
     ).toDouble();
+    // Preload outline paths in background.
+    _preloadOutlinePaths();
+  }
+
+  List<_PageDef> _buildPages() {
+    final pages = <_PageDef>[
+      (shape: GridClipShape.none, label: 'Grid', clipCode: null),
+      (shape: GridClipShape.heart, label: 'Heart', clipCode: null),
+      (shape: GridClipShape.circle, label: 'Circle', clipCode: null),
+    ];
+    // Country outline — only for single-country designs.
+    if (widget.codes.length == 1) {
+      final code = widget.codes.first.toUpperCase();
+      final countryName = kCountryNames[code] ?? code;
+      pages.add((
+        shape: GridClipShape.countryOutline,
+        label: countryName,
+        clipCode: widget.codes.first.toLowerCase(),
+      ));
+    }
+    // Continent outline — only when a continent key is provided.
+    if (widget.continentKey != null) {
+      final key = widget.continentKey!;
+      final displayName = _kContinentDisplayNames[key] ?? key;
+      pages.add((
+        shape: GridClipShape.continentOutline,
+        label: displayName,
+        clipCode: key,
+      ));
+    }
+    return pages;
+  }
+
+  void _preloadOutlinePaths() {
+    const approxSize = ui.Size(800, 533);
+    final codes = <String>[];
+    if (widget.codes.length == 1) codes.add(widget.codes.first.toLowerCase());
+    if (widget.continentKey != null) codes.add(widget.continentKey!);
+    if (codes.isNotEmpty) {
+      CountryPathService.preload(codes, approxSize);
+    }
   }
 
   @override
@@ -110,9 +161,10 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
 
   void _onPageChanged(int page) {
     setState(() {
+      final prevShape = _pages[_currentPage].shape;
       _currentPage = page;
       // Recalculate smart default for new shape.
-      final newShape = _kPages[page].shape;
+      final newShape = _pages[page].shape;
       final defaultRepeat = merchDefaultRepeatCount(
         widget.codes.length,
         newShape,
@@ -121,7 +173,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
       // from the previous page's default.
       final prevDefault = merchDefaultRepeatCount(
         widget.codes.length,
-        _currentPage < _kPages.length ? _kPages[_currentPage].shape : newShape,
+        prevShape,
       ).toDouble();
       if (_repeatCount == prevDefault) {
         _repeatCount = defaultRepeat;
@@ -138,7 +190,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   }
 
   void _navigateToPreview() {
-    final shape = _kPages[_currentPage].shape;
+    final page = _pages[_currentPage];
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -154,8 +206,9 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
               initialColour: widget.initialColour,
               titleOverride: widget.titleOverride,
               subtitleOverride: widget.subtitleOverride,
-              clipShape: shape,
+              clipShape: page.shape,
               flagRepeatCount: _repeatCount.round(),
+              clipCode: page.clipCode,
             ),
       ),
     );
@@ -165,7 +218,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final repeatInt = _repeatCount.round();
-    final currentShape = _kPages[_currentPage].shape;
+    final currentShape = _pages[_currentPage].shape;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Choose your style')),
@@ -176,10 +229,10 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageCtrl,
-                itemCount: _kPages.length,
+                itemCount: _pages.length,
                 onPageChanged: _onPageChanged,
                 itemBuilder: (context, i) {
-                  final page = _kPages[i];
+                  final page = _pages[i];
                   return _ClipVariantCard(
                     key: ValueKey(
                       '${page.shape.name}_${repeatInt}_${widget.codes.hashCode}',
@@ -188,6 +241,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                     trips: widget.trips,
                     clipShape: page.shape,
                     flagRepeatCount: repeatInt,
+                    clipCode: page.clipCode,
                     titleOverride: widget.titleOverride,
                     subtitleOverride: widget.subtitleOverride,
                   );
@@ -200,7 +254,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                for (int i = 0; i < _kPages.length; i++)
+                for (int i = 0; i < _pages.length; i++)
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -222,7 +276,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
             // ── Shape label ─────────────────────────────────────────────────
             const SizedBox(height: 6),
             Text(
-              _kPages[_currentPage].label,
+              _pages[_currentPage].label,
               style: theme.textTheme.labelLarge,
             ),
 
@@ -301,6 +355,7 @@ class _ClipVariantCard extends StatefulWidget {
     required this.trips,
     required this.clipShape,
     required this.flagRepeatCount,
+    this.clipCode,
     this.titleOverride,
     this.subtitleOverride,
   });
@@ -309,6 +364,7 @@ class _ClipVariantCard extends StatefulWidget {
   final List<TripRecord> trips;
   final GridClipShape clipShape;
   final int flagRepeatCount;
+  final String? clipCode;
   final String? titleOverride;
   final String? subtitleOverride;
 
@@ -357,6 +413,7 @@ class _ClipVariantCardState extends State<_ClipVariantCard> {
         cardAspectRatio: merchBackCardAspectRatio(CardTemplateType.grid),
         clipShape: widget.clipShape,
         flagRepeatCount: repeatCount,
+        clipCode: widget.clipCode,
         titleOverride: widget.titleOverride,
         subtitleOverride: widget.subtitleOverride,
       );
