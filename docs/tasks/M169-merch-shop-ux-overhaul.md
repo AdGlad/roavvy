@@ -1,7 +1,8 @@
 # M169 — Merch Shop UX Overhaul
 
-**Status:** `backlog`
+**Status:** `complete`
 **Created:** 2026-06-27
+**Completed:** 2026-06-28
 
 ---
 

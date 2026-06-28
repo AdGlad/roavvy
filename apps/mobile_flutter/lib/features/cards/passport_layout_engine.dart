@@ -194,7 +194,6 @@ class PassportLayoutEngine {
     final marginX = canvasSize.width * marginFraction;
     final marginY = canvasSize.height * marginFraction;
     final usableW = canvasSize.width - marginX * 2;
-    final usableH = canvasSize.height - marginY * 2;
 
     // Dynamic base radius: scales continuously with stamp count — 45 × √(20/n)
     // — clamped to [6, 100]. Coefficient reduced from 56 to 45 (≈ 20% smaller)

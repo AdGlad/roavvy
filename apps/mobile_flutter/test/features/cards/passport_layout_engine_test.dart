@@ -87,7 +87,6 @@ void main() {
         seed: 0,
       );
       final marginX = _size.width * 0.08;
-      final marginY = _size.height * 0.08;
       for (final stamp in result.stamps) {
         final halfW = 38.0 * stamp.scale * 1.4; // baseRadius * 1.4
         expect(

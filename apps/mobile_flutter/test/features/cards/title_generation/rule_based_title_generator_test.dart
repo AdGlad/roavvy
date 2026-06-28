@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/cards/title_generation/rule_based_title_generator.dart';
 import 'package:mobile_flutter/features/cards/title_generation/title_generation_models.dart';

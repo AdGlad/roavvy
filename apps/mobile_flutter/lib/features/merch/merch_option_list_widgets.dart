@@ -232,6 +232,7 @@ class _MerchOptionCardState extends State<MerchOptionCard>
 
   Future<void> _generate() async {
     if (!mounted) return;
+    final ctx = context; // capture before any await
     final opt = widget.option;
 
     // For the Landmark template, always open Image Playground so the user can
@@ -262,7 +263,7 @@ class _MerchOptionCardState extends State<MerchOptionCard>
 
     try {
       final artFuture = CardImageRenderer.render(
-        context,
+        ctx,
         opt.template,
         codes: opt.codes,
         trips: opt.trips,
@@ -278,7 +279,7 @@ class _MerchOptionCardState extends State<MerchOptionCard>
         textColor: merchDefaultTextColor(opt.template),
       );
       final ribbonFuture = CardImageRenderer.render(
-        context,
+        ctx,
         CardTemplateType.frontRibbon,
         codes: opt.codes,
         pixelRatio: 2.0,

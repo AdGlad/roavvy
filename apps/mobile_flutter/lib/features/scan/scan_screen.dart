@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:confetti/confetti.dart';
 import 'package:country_lookup/country_lookup.dart';

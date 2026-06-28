@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:shared_models/shared_models.dart';
 
 import 'flag_tile_renderer.dart';
 import 'heart_layout_engine.dart'; // for HeartTilePosition

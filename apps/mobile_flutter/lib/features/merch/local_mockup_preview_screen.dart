@@ -19,7 +19,6 @@ import 'local_mockup_painter.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
 import 'merch_cart_screen.dart';
-import 'merch_customisation_sheet.dart';
 import 'merch_title_wordbank.dart';
 import 'merch_order_confirmation_screen.dart';
 import 'merch_post_purchase_screen.dart';
@@ -187,10 +186,6 @@ class _LocalMockupPreviewScreenState
 
   // nullable until first generation (ADR-147: preset-driven entry).
   Uint8List? _artworkBytes;
-
-  /// True after the first successful artwork render. Prevents silent
-  /// re-generation on navigation events or unrelated state changes.
-  bool _artworkLocked = false;
 
   /// Current active preset config (may be updated by Layer 2 customisation).
   MerchPresetConfig? _presetConfig;
@@ -424,7 +419,6 @@ class _LocalMockupPreviewScreenState
     if (providedBytes != null) {
       // Existing path: caller supplied pre-rendered artwork bytes (ADR-147).
       _artworkBytes = providedBytes;
-      _artworkLocked = true;
       _artworkVariants[0] = providedBytes;
       // T-shirts always composite artwork transparently onto fabric. If the
       // confirmed artwork was rendered with a background (transparentBackground=false),
@@ -687,7 +681,6 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
       setState(() {
         _artworkBytes = result.bytes;
-        _artworkLocked = true;
         _artworkConfirmationId = null; // reset — new image, no confirmation yet
         _state = _MockupState.configuring;
       });
@@ -711,34 +704,6 @@ class _LocalMockupPreviewScreenState
     }
   }
 
-  /// Opens the Layer 2 customisation sheet and regenerates artwork if the
-  /// user applies changes (ADR-147).
-  Future<void> _openCustomisationSheet() async {
-    final current =
-        _presetConfig ??
-        MerchPresetConfig(
-          layout: _template,
-          source: MerchCountrySource.allTime,
-          jitter: widget.stampJitterFactor,
-          density: MerchDensity.balanced,
-          stampMode:
-              widget.confirmedEntryOnly
-                  ? MerchStampMode.entryOnly
-                  : MerchStampMode.entryExit,
-        );
-
-    final updated = await showMerchCustomisationSheet(context, config: current);
-    if (updated == null || !mounted) return;
-
-    setState(() {
-      _presetConfig = updated;
-      _template = updated.layout;
-      _artworkLocked = false; // allow regeneration
-      // Preserve grid layout mode unless explicitly changed via the sheet.
-    });
-    await _generateFromPreset(updated);
-  }
-
   // ── Shuffle & orientation ──────────────────────────────────────────────────
 
   /// Randomises the stamp layout seed and regenerates artwork.
@@ -757,7 +722,6 @@ class _LocalMockupPreviewScreenState
         );
     setState(() {
       _shuffleSeed = DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
-      _artworkLocked = false;
     });
     await _generateFromPreset(config);
   }
@@ -778,7 +742,6 @@ class _LocalMockupPreviewScreenState
         );
     setState(() {
       _isPortrait = !_isPortrait;
-      _artworkLocked = false;
     });
     await _generateFromPreset(config);
   }
@@ -2897,137 +2860,6 @@ class _LocalMockupPreviewScreenState
     );
   }
 
-  // ── Inline config panel (ADR-127 / M75) ────────────────────────────────────
-
-  /// Always-visible t-shirt configuration panel below the mockup.
-  ///
-  /// Replaces _buildCompactStrip + _showOptionsSheet. All t-shirt options are
-  /// inline — no modals, no hidden navigation, no duplicate controls.
-  Widget _buildInlineConfigPanel(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
-      ),
-      constraints: const BoxConstraints(maxHeight: 380),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── View Front/Back Toggle ────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const _SectionLabel('Product Options'),
-                TextButton.icon(
-                  onPressed:
-                      () => setState(() {
-                        _showingFront = !_showingFront;
-                        _flipViewKey++;
-                      }),
-                  icon: const Icon(Icons.flip, size: 18),
-                  label: Text(_showingFront ? 'See Back' : 'See Front'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // ── Colour ───────────────────────────────────────────────────
-            const _SectionLabel('Colour'),
-            const SizedBox(height: 4),
-            _ColourSwatchRow(
-              selected: _colour,
-              onChanged: (c) => _onVariantOptionChanged(colour: c),
-            ),
-
-            // Passport/Timeline specific colour pickers
-            if (_template == CardTemplateType.passport) ...[
-              const SizedBox(height: 12),
-              const _SectionLabel('Stamp Style'),
-              _buildStampColorPicker(),
-            ],
-            if (_template == CardTemplateType.timeline) ...[
-              const SizedBox(height: 12),
-              const _SectionLabel('Text Colour'),
-              _buildTimelineColorPicker(),
-            ],
-
-            const SizedBox(height: 16),
-
-            // ── Size ──────────────────────────────────────────────────────
-            const _SectionLabel('Size'),
-            const SizedBox(height: 4),
-            _SegmentedPicker(
-              options: tshirtSizes,
-              selected: _tshirtSize,
-              onChanged: (v) => setState(() => _tshirtSize = v),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Front design ──────────────────────────────────────────────
-            const _SectionLabel('Front Placement'),
-            const SizedBox(height: 4),
-            _SegmentedPicker(
-              options: const ['Left', 'Center', 'Right', 'None'],
-              selected: switch (_frontPosition) {
-                'center' => 'Center',
-                'right_chest' => 'Right',
-                'none' => 'None',
-                _ => 'Left',
-              },
-              onChanged:
-                  (v) => _onVariantOptionChanged(
-                    frontPosition: switch (v) {
-                      'Center' => 'center',
-                      'Right' => 'right_chest',
-                      'None' => 'none',
-                      _ => 'left_chest',
-                    },
-                  ),
-            ),
-
-            // ── Ribbon countries (conditional) ────────────────────────────
-            if (widget.allCodes.length != widget.selectedCodes.length) ...[
-              const SizedBox(height: 16),
-              const _SectionLabel('Ribbon Countries'),
-              const SizedBox(height: 4),
-              _SegmentedPicker(
-                options: const ['Selected', 'All'],
-                selected: _frontRibbonMode == 'all' ? 'All' : 'Selected',
-                onChanged: (v) {
-                  setState(
-                    () => _frontRibbonMode = v == 'All' ? 'all' : 'selected',
-                  );
-                  _loadFrontRibbonImage();
-                },
-              ),
-            ],
-
-            const SizedBox(height: 16),
-            // ── Back design ───────────────────────────────────────────────
-            const _SectionLabel('Back Placement'),
-            const SizedBox(height: 4),
-            _SegmentedPicker(
-              options: const ['Center', 'None'],
-              selected: _backPosition == 'none' ? 'None' : 'Center',
-              onChanged:
-                  (v) => _onVariantOptionChanged(
-                    backPosition: v == 'None' ? 'none' : 'center',
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ── Bottom bar ─────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar() {
@@ -3197,8 +3029,6 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
   // true = showing front face; flips at the 90° midpoint.
   late bool _showingFront;
 
-  // Accumulates drag distance to determine gesture direction.
-  double _dragStart = 0;
   double _verticalDragStart = 0;
 
   static const double _kSwipeThreshold = 40.0;
@@ -3233,38 +3063,8 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     }
   }
 
-  // +1 = flipping front→back (swipe left), -1 = flipping back→front (swipe right)
-  int _flipDirection = 1;
-
-  void _flipTo(bool goToFront) {
-    if (_controller.isAnimating) return;
-    _flipDirection = goToFront ? -1 : 1;
-    _controller.forward(from: 0).then((_) {
-      if (!mounted) return;
-      // Do NOT reset _controller.value here. Resetting to 0 would re-trigger
-      // _onAnimationTick at value=0, which snaps _showingFront back to the
-      // pre-flip state. The controller stays at 1.0; the next forward(from: 0)
-      // restarts cleanly from 0 with the new _flipDirection already set.
-      widget.onFlipped(_showingFront);
-    });
-  }
-
-  void _onHorizontalDragStart(DragStartDetails d) {
-    _dragStart = d.localPosition.dx;
-  }
-
-  void _onHorizontalDragEnd(DragEndDetails d) {
-    final delta = d.localPosition.dx - _dragStart;
-    if (delta.abs() < _kSwipeThreshold) return;
-    if (delta < 0) {
-      // Right-to-left swipe: advance to next t-shirt colour.
-      widget.onNextColour?.call();
-    } else {
-      // Left-to-right swipe: flip to show the front.
-      if (_showingFront) return;
-      _flipTo(true);
-    }
-  }
+  // +1 = front→back flip direction (always forward; no swipe gesture)
+  static const int _flipDirection = 1;
 
   void _onVerticalDragStart(DragStartDetails d) {
     _verticalDragStart = d.localPosition.dy;
@@ -3623,21 +3423,6 @@ class _ColourSwatchRow extends StatelessWidget {
   }
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(label, style: Theme.of(context).textTheme.labelLarge),
-    );
-  }
-}
-
 // ── Mini label (compact section header) ──────────────────────────────────────
 
 class _MiniLabel extends StatelessWidget {
@@ -3654,44 +3439,6 @@ class _MiniLabel extends StatelessWidget {
         fontWeight: FontWeight.w600,
         letterSpacing: 0.2,
       ),
-    );
-  }
-}
-
-// ── Segmented picker ──────────────────────────────────────────────────────────
-
-class _SegmentedPicker extends StatelessWidget {
-  const _SegmentedPicker({
-    required this.options,
-    required this.selected,
-    required this.onChanged,
-    this.compact = false,
-  });
-
-  final List<String> options;
-  final String selected;
-  final ValueChanged<String> onChanged;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Wrap(
-      spacing: compact ? 6 : 8,
-      runSpacing: compact ? 6 : 8,
-      children:
-          options.map((opt) {
-            final isSelected = opt == selected;
-            return ChoiceChip(
-              label: Text(opt, style: TextStyle(fontSize: compact ? 12 : 14)),
-              selected: isSelected,
-              onSelected: (_) => onChanged(opt),
-              selectedColor: theme.colorScheme.primaryContainer,
-              padding:
-                  compact ? const EdgeInsets.symmetric(horizontal: 4) : null,
-              visualDensity: compact ? VisualDensity.compact : null,
-            );
-          }).toList(),
     );
   }
 }
@@ -3963,58 +3710,6 @@ class _PlacementTile extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ── Mini ribbon country selector ───────────────────────────────────────────────
-
-/// Shows two tappable mini ribbon card previews for the "Ribbon Countries"
-/// option — one for selected codes, one for all codes.
-///
-/// Each tile renders the [ui.Image] (already-rendered FrontRibbonCard PNG)
-/// cropped to show just the ribbon artwork.
-class _MiniRibbonSelector extends StatelessWidget {
-  const _MiniRibbonSelector({
-    required this.selectedImage,
-    required this.allImage,
-    required this.selectedCount,
-    required this.allCount,
-    required this.mode,
-    required this.onChanged,
-  });
-
-  final ui.Image? selectedImage;
-  final ui.Image? allImage;
-  final int selectedCount;
-  final int allCount;
-  final String mode;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _MiniRibbonTile(
-            image: selectedImage,
-            label: '$selectedCount countries',
-            sublabel: 'Selected',
-            isSelected: mode == 'selected',
-            onTap: () => onChanged('selected'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MiniRibbonTile(
-            image: allImage,
-            label: '$allCount countries',
-            sublabel: 'All',
-            isSelected: mode == 'all',
-            onTap: () => onChanged('all'),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -8,7 +8,6 @@ class LandingPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Scaffold(

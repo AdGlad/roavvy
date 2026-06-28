@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
@@ -238,7 +237,6 @@ class _LandmarkPainter extends CustomPainter {
   /// Single collage image that replaces the individual-icon grid when present.
   final ui.Image? collageImage;
 
-  static final _sharedCache = FlagImageCache();
   static const _topH = CardTextRenderer.titleZoneH;
   static const _botH = CardTextRenderer.brandingZoneH;
 
@@ -1735,39 +1733,6 @@ class _MultiStampPainter extends CustomPainter {
     final textLeft = spec.x * scaleX - targetW / 2 - tp.width / 2;
     final textTop = spec.y * scaleY - targetH / 2 - tp.height / 2;
     tp.paint(canvas, Offset(textLeft, textTop));
-  }
-
-  void _drawWavyCancelLines(Canvas canvas, Size size, int seed) {
-    final rng = math.Random(seed ^ 0xCAB0);
-    final lineCount = 2 + rng.nextInt(2); // 2–3 lines
-
-    for (var i = 0; i < lineCount; i++) {
-      final baseY = size.height * (0.22 + i * 0.28 + rng.nextDouble() * 0.06);
-      final path = Path();
-      path.moveTo(0, baseY);
-
-      const segments = 8;
-      final segW = size.width / segments;
-      var prevY = baseY;
-      for (var s = 0; s < segments; s++) {
-        final x1 = s * segW + segW * 0.33;
-        final x2 = s * segW + segW * 0.67;
-        final x3 = (s + 1) * segW;
-        final amp = size.height * 0.018 * (rng.nextDouble() * 2 - 1);
-        path.cubicTo(x1, prevY + amp, x2, prevY - amp, x3, prevY + amp * 0.4);
-        prevY = prevY + amp * 0.4;
-      }
-
-      final opacity = 0.06 + rng.nextDouble() * 0.06;
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = const Color(0xFF3B2A1A).withValues(alpha: opacity)
-          ..strokeWidth = 0.7 + rng.nextDouble() * 0.5
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round,
-      );
-    }
   }
 
   void _drawVignette(Canvas canvas, Size size) {
