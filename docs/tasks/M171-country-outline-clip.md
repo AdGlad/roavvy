@@ -44,49 +44,43 @@ No other merch product offers either of these. They are the defining "wow" featu
 
 ## UX Design
 
-### Country outline (single-country designs)
+### Integration with M170's swipe carousel
 
-When `selectedCodes.length == 1`, the clip shape picker shows the country outline tile as enabled. Tapping it applies the outline of that country immediately. No picker, no extra step — there is only one possible country.
+M171 appends new pages to the `FlagShapeCustomiseScreen` `PageView` introduced in M170. No new screen or picker is introduced — the user simply swipes further right to reach the outline shapes.
 
-The tile thumbnail in the picker shows a small silhouette of that specific country (rendered from the bundled path asset), not a generic icon.
+**Full page order after M171:**
 
-```
-  Shape
-  ────────────────────────────────────────────────────────
-  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐
-  │ Grid │  │  ♥   │  │  ●   │  │ [🇦🇺] │
-  │ None │  │Heart │  │Circle│  │ Japan │  ← live country silhouette
-  └──────┘  └──────┘  └──────┘  └──────┘
-```
+| Page | Shape | Label | Condition |
+|---|---|---|---|
+| 0 | `none` | Grid | Always |
+| 1 | `heart` | Heart | Always |
+| 2 | `circle` | Circle | Always |
+| 3 | `countryOutline` | e.g. "Japan" | `codes.length == 1` only |
+| 4 | `continentOutline` | e.g. "Europe" | Continent collection only |
 
-### Continent outline (continent-scoped collections)
+Pages 3 and 4 are conditionally included in the page list at build time.
 
-When the design originates from a continent-scoped collection (detected via the collection label passed through from `ShopCollectionOptionScreen`), the clip shape picker shows a continent outline tile instead of the country outline tile.
+### Country outline page
 
-The tile thumbnail shows the silhouette of that continent.
+Only present when `codes.length == 1`. The page label shows the country name. No picker — there is only one country and it is used automatically.
 
-```
-  Shape
-  ────────────────────────────────────────────────────────
-  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐
-  │ Grid │  │  ♥   │  │  ●   │  │  [🇪🇺] │
-  │ None │  │Heart │  │Circle│  │ Europe │  ← continent silhouette
-  └──────┘  └──────┘  └──────┘  └──────┘
-```
+The `_ClipVariantCard` for this page shows a loading spinner until `CountryPathService` delivers the path, then renders the full mockup. The preload is started in `_DesignCard._navigate()` before pushing `FlagShapeCustomiseScreen`, so in practice the path is ready by first paint.
+
+### Continent outline page
+
+Only present when the design originates from a continent-scoped collection (`continentKey != null`). The page label shows the continent name. The continent path is preloaded alongside the country path.
 
 ### Fill guarantee
 
-Flags are tiled across the full bounding rectangle of the card. The clip path is applied on the canvas layer, causing edge tiles to be partially visible. This guarantees zero empty space inside the outline. The layout engine does not need to know about the clip shape — it always generates a full rectangular fill and lets the GPU discard out-of-bounds pixels.
+Flags tile across the full bounding rectangle; the clip path discards out-of-bounds pixels at the GPU layer. No empty space inside the outline at any zoom level.
 
 ### Title placement
 
-Title and branding are rendered after `canvas.restore()` removes the clip, below the shape silhouette. They are never inside the country/continent outline.
+Title and branding are rendered after `canvas.restore()` removes the clip. They appear below the shape silhouette, never inside the outline.
 
-### Loading state
+### Fallback
 
-Country/continent paths are preloaded **before** navigating to `LocalMockupPreviewScreen` — in `_DesignCard._navigate()`. By the time the card builds, the path is already in the `CountryPathService` cache. No spinner or flash; the first paint shows the correct shape.
-
-If preload fails (bundle error), the card silently uses circle and logs to Crashlytics.
+If a path fails to load (timeout or bundle error), the `_ClipVariantCard` renders with circle clip and shows a non-blocking inline message below the mockup: "Shape unavailable — showing circle instead". Logs to Crashlytics.
 
 ---
 
@@ -248,15 +242,25 @@ GridClipShape.continentOutline => _outlinePath ?? _circlePath(size),
 - Store `ui.Path?` in state; `setState` on load to trigger repaint
 - Pass stored path to painter; painter uses it in `_clipPathFor()`
 
-### T5 — Enable country/continent outline tiles in clip shape picker
+### T5 — Conditional carousel pages in `FlagShapeCustomiseScreen`
 
-**Files:** `merch_customisation_sheet.dart`, `local_mockup_preview_screen.dart`
+**Files:** `lib/features/merch/flag_shape_customise_screen.dart`
 
-- `countryOutline` tile: shown only when `selectedCodes.length == 1`; enabled (no "Coming soon")
-- Tile thumbnail: render a small silhouette of the specific country from the loaded path
-- `continentOutline` tile: shown only when `_collectionContinent != null`; enabled
-- Tile thumbnail: render silhouette of the continent
-- Both tiles auto-select when first shown if user had previously selected `countryOutline`/`continentOutline`
+- Build page list dynamically at screen construction:
+  ```dart
+  final pages = [
+    GridClipShape.none,
+    GridClipShape.heart,
+    GridClipShape.circle,
+    if (codes.length == 1) GridClipShape.countryOutline,
+    if (continentKey != null) GridClipShape.continentOutline,
+  ];
+  ```
+- Pass `clipCode` (ISO2 country code or continent key) to `_ClipVariantCard` for outline pages
+- Page label for country outline: `kCountryNames[codes.first]` (e.g. "Japan")
+- Page label for continent outline: continent display name derived from `continentKey`
+- `_ClipVariantCard` for outline pages: shows loading spinner until `CountryPathService` delivers the path, then renders full mockup
+- Preload started in `_DesignCard._navigate()` before pushing `FlagShapeCustomiseScreen` so path is ready by first paint
 
 ### T6 — Pre-navigation preload
 
@@ -294,8 +298,8 @@ GridClipShape.continentOutline => _outlinePath ?? _circlePath(size),
 - [ ] All 6 continent JSON files committed to `assets/continent_paths/`
 - [ ] `_meta.json` committed with source version and build date
 - [ ] `CountryPathService` warm cache < 16 ms; cold load < 100 ms
-- [ ] Country outline tile enabled in picker for single-country designs; shows country silhouette thumbnail
-- [ ] Continent outline tile enabled in picker for continent-scoped collections; shows continent silhouette thumbnail
+- [ ] Country outline carousel page appears only for single-country designs; page label is the country name
+- [ ] Continent outline carousel page appears only for continent-scoped collections; page label is the continent name
 - [ ] Path preloaded before navigation; no flash or spinner on first paint
 - [ ] Flags fully fill interior; title always below shape
 - [ ] Multi-polygon countries render all polys as a single `ui.Path` (not `Path.combine`)

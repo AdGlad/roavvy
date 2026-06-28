@@ -57,51 +57,81 @@ Existing persisted data or deep links referencing `CardTemplateType.heart` are r
 
 ## UX Design
 
-### Where the controls live
+### New screen: `FlagShapeCustomiseScreen`
 
-Both controls slot into the existing customisation sheet in `LocalMockupPreviewScreen`, below the layout mode picker. Casual users skip them; power users scroll down.
+When the user taps "Design This Shirt" on a flag grid option in the main design carousel, they land on a new intermediate screen before `LocalMockupPreviewScreen`. This screen has two jobs: choose a clip shape by swiping, and set the flag count with a slider.
 
-### Repeat count UI
-
-```
-  Flag repeats
-  ─────────────────────────────
-       [−]   ×3   [+]
-   1   2   3   4   5   6   7   8   9
-       ●
-```
-
-- Minus/plus taps increment by 1
-- Dot row gives quick tap targets
-- Live preview re-renders with 400 ms debounce (layout is fast, but Printful mockup generation is not triggered until the user taps "Approve")
-
-### Clip shape UI
+This screen only appears for `CardTemplateType.grid`. All other templates navigate directly to `LocalMockupPreviewScreen` as before.
 
 ```
-  Shape
-  ──────────────────────────────────────────────
-  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐
-  │ Grid │  │  ♥   │  │  ●   │  │  ?   │
-  │ None │  │Heart │  │Circle│  │Country│ (*)
-  └──────┘  └──────┘  └──────┘  └──────┘
-
-  (*) Visible only for single-country designs.
-      Shown as "Coming soon" in M170.
+┌──────────────────────────────────────┐
+│  ←   Choose your style              │
+│                                      │
+│  ┌────────────────────────────────┐  │
+│  │                                │  │
+│  │   [full shirt mockup with      │  │
+│  │    current clip shape applied] │  │
+│  │                                │  │
+│  │                                │  │
+│  │                                │  │
+│  └────────────────────────────────┘  │
+│         ○  ●  ○                      │  ← page dots
+│     ←  swipe for shapes  →          │
+│                                      │
+│  Flag count   ×4                     │
+│  1 ────────●──────────── 9          │  ← slider
+│                                      │
+│  ┌────────────────────────────────┐  │
+│  │      Design This Shirt  →      │  │
+│  └────────────────────────────────┘  │
+└──────────────────────────────────────┘
 ```
 
-- 4 icon tiles; selected gets gold border
-- "Country outline" tile is only visible when `selectedCodes.length == 1`. Hidden otherwise.
-- "Continent outline" is shown only when the design originated from a continent-scoped collection. Hidden otherwise.
-- Tapping a disabled tile shows a bottom sheet: "Coming soon — tap to be notified when ready."
-- Clip shape picker thumbnails are **static pre-rendered assets** (PNG), not live canvas renders. One set of 4 tiles at 2× covers all uses.
+### Clip shape carousel
+
+A `PageView` where each page is a full shirt mockup rendered with one clip shape applied. Swiping to a page IS the selection — no separate picker widget, no tap-to-select.
+
+**Pages in M170 (3 pages):**
+
+| Page | Shape | Label below dots |
+|---|---|---|
+| 0 | `none` | Grid |
+| 1 | `heart` | Heart |
+| 2 | `circle` | Circle |
+
+M171 appends additional pages:
+- Page 3: `countryOutline` — shown only for single-country designs
+- Page 4: `continentOutline` — shown only for continent-scoped collections
+
+Each page is a `_ClipVariantCard` widget (analogous to `_DesignCard` from M169). It renders the artwork with its assigned clip shape and composites it onto a shirt mockup. Rendering is lazy: a page starts rendering when the `PageController` comes within one page of it (using the `pageSnapping` listener). Already-rendered pages are cached by clip shape so slider changes only re-render when `flagRepeatCount` actually changes.
+
+### Flag count slider
+
+Below the carousel, a `Slider` widget:
+
+```
+Flag count   ×4
+1 ─────────●────────── 9
+```
+
+- Integer steps (use `divisions: 8` on Flutter `Slider`)
+- Label shows current value as `×N`
+- On change: update `_flagRepeatCount` state; all carousel pages re-render with 400 ms debounce
+- Smart default on screen open: `merchDefaultRepeatCount(codes.length, currentShape)`
+
+### Interaction model
+
+- Swiping between pages triggers lazy render of the new page if not yet rendered
+- Moving the slider debounces 400 ms then re-renders all cached pages
+- The CTA "Design This Shirt →" is always enabled; it passes the currently visible page's clip shape and the current slider value to `LocalMockupPreviewScreen`
 
 ### Fill behaviour
 
-The layout engine generates tiles across the full bounding rectangle of the card. The clip shape is applied as a canvas clip, causing tiles near the boundary to be partially visible. This naturally produces a fully-filled interior — no empty space inside the shape. The over-draw is intentional: tiles outside the clip are discarded by the GPU, not rendered to the final image.
+The layout engine generates tiles across the full bounding rectangle of the card. The clip is applied as a canvas layer clip, so edge tiles are partially visible. This guarantees zero empty space inside the shape. No gap-filling logic needed in the layout engine.
 
 ### Title placement
 
-The card's title and branding zone are drawn **after** `canvas.restore()` removes the clip. They appear below the shape, not inside it. For heart and circle clips this means the title sits beneath the silhouette; for `none` it sits beneath the rectangular grid as today.
+Titles and branding are rendered after `canvas.restore()` removes the clip. They appear below the silhouette, never inside it. In `FlagShapeCustomiseScreen` the title is not shown at all (it is pre-generated later inside `LocalMockupPreviewScreen` as today).
 
 ---
 
@@ -217,7 +247,7 @@ If `(clipArea / totalTileCount) < 48×36 logical px`, clamp `repeatCount` down a
 
 - Add `GridClipShape` enum (all 5 values)
 - Add `flagRepeatCount: int` param to `FlagGridLayoutEngine.layout()`
-- Implement non-adjacency interleave spread algorithm inside layout engine (pre-expansion step)
+- Implement non-adjacency interleave spread algorithm (pre-expansion step, before layout)
 - Add `flagRepeatCount` and `clipShape` params to `GridFlagsCard` and `CardImageRenderer.render()`
 - All new params backward-compatible (`repeatCount = 1`, `clipShape = GridClipShape.none`)
 
@@ -225,72 +255,129 @@ If `(clipArea / totalTileCount) < 48×36 logical px`, clamp `repeatCount` down a
 
 **Files:** `card_templates.dart`, `heart_layout_engine.dart`
 
-- Implement `_clipPathFor(size, shape)` — no `UnimplementedError`, use circle fallback for M171 shapes
+- Implement `_clipPathFor(size, shape)` — circle fallback for M171 shapes, never throws
 - Apply clip: `canvas.save()` → `clipPath` → draw tiles → `canvas.restore()`
-- Extract feathered edge pass from `HeartFlagsCard` into `heart_layout_engine.dart` as `MaskCalculator.applyFeatheredEdge(canvas, size, path)`
+- Extract feathered edge pass from `HeartFlagsCard` into `MaskCalculator.applyFeatheredEdge(canvas, size, path)` in `heart_layout_engine.dart`
 - Apply feathered edge for heart and circle; skip for none
-- Draw title/branding zone after `restore()` — confirm it is outside clip in all code paths
+- Title/branding drawn after `restore()` — verified outside clip in all code paths
 
 ### T3 — Deprecate `HeartFlagsCard`
 
 **Files:** `card_templates.dart`, `card_image_renderer.dart`, `merch_template_ranker.dart`, `merch_option_list_widgets.dart`, `pulse_merch_option.dart`
 
 - Mark `CardTemplateType.heart` `@Deprecated`
-- `CardImageRenderer`: redirect `heart` to `GridFlagsCard` with `clipShape: heart`
+- `CardImageRenderer`: redirect `heart` case to `GridFlagsCard(clipShape: GridClipShape.heart, ...)`
 - Remove `heart` from `MerchTemplateRanker` ranked list
 - Remove `HeartFlagsCard` from carousel options
 - Retain `templateLabel` mapping for in-flight order compatibility
 
-### T4 — `LocalMockupPreviewScreen` state + customisation controls
+### T4 — `FlagShapeCustomiseScreen`
 
-**Files:** `local_mockup_preview_screen.dart`, `merch_customisation_sheet.dart`
+**Files:** `lib/features/merch/flag_shape_customise_screen.dart` (new)
 
-- Add `_flagRepeatCount` (smart default) and `_clipShape` (default: `none`) state fields
-- Add `_FlagRepeatStepper` widget with min-tile-size guard
-- Add `_ClipShapePicker` widget; show/hide `countryOutline` tile based on `codes.length == 1`; show/hide `continentOutline` based on collection origin
-- Tapping disabled tile → "Coming soon" bottom sheet with notification opt-in
-- Static PNG picker thumbnails: 4 tiles × 2× resolution, prepared as design assets
+This is the new intermediate screen between the design carousel and `LocalMockupPreviewScreen` for the grid template.
 
-### T5 — Carousel & preview integration
+Constructor params:
+```dart
+FlagShapeCustomiseScreen({
+  required List<String> codes,
+  required List<String> allCodes,
+  required List<TripRecord> trips,
+  required String? continentKey,   // non-null for continent collections
+})
+```
+
+Screen layout:
+- `AppBar` title: "Choose your style"
+- Body:
+  - `PageView.builder` (3 pages in M170: none, heart, circle)
+  - Page indicator dots (same `AnimatedContainer` pattern as M169 carousel)
+  - Shape label below dots (e.g. "Heart", "Circle", "Grid")
+  - `Slider` with `divisions: 8`, range 1.0–9.0, integer display `×N`
+  - "Design This Shirt →" `FilledButton` at bottom
+- `SafeArea` wraps bottom controls
+
+On "Design This Shirt →": push `LocalMockupPreviewScreen` with the currently selected clip shape and flag repeat count.
+
+### T5 — `_ClipVariantCard` widget
+
+**Files:** `lib/features/merch/flag_shape_customise_screen.dart`
+
+One page in the `FlagShapeCustomiseScreen` carousel. Analogous to `_DesignCard` from M169.
+
+State:
+- `_MerchGenState _state` (loading / ready / error)
+- `Uint8List? _artworkBytes`
+- `ui.Image? _artImage`, `ui.Image? _shirtImage`
+- `int _renderedRepeatCount` — the count used for the current render (used to decide whether re-render is needed)
+
+`_generate(int repeatCount)`:
+- Calls `CardImageRenderer.render()` with `clipShape`, `flagRepeatCount: repeatCount`
+- Composites onto back shirt mockup (same pattern as `_DesignCard`)
+- On slider change: if `repeatCount != _renderedRepeatCount`, re-render after 400 ms debounce
+
+Lazy trigger: `_ClipVariantCard` starts `_generate()` in `initState`. Pages are built lazily by `PageView.builder` so off-screen pages render only when the user swipes near them (Flutter builds ±1 page by default).
+
+### T6 — Carousel entry point routing
+
+**Files:** `merch_option_list_widgets.dart`
+
+- `_DesignCard._navigate()`: for `CardTemplateType.grid`, push `FlagShapeCustomiseScreen` instead of `LocalMockupPreviewScreen`
+- For all other templates: behaviour unchanged
+- Same routing change applied to `_AlternativeThumb._navigate()` and `MerchOptionFeaturedCard._navigate()`
+
+### T7 — `LocalMockupPreviewScreen` param additions
+
+**Files:** `local_mockup_preview_screen.dart`
+
+- Add `flagRepeatCount: int` constructor param (default 1)
+- Add `clipShape: GridClipShape` constructor param (default `GridClipShape.none`)
+- Pass both into `CardImageRenderer.render()` calls inside the screen
+- No customisation sheet changes needed for these controls — they are pre-configured in `FlagShapeCustomiseScreen`
+
+### T8 — Helpers and smart defaults
 
 **Files:** `merch_option_list_widgets.dart`
 
 - Add `merchDefaultRepeatCount(int codeCount, GridClipShape shape)` helper
-- Apply in `_DesignCard._generate()` and `_AlternativeThumb._generate()`
-- Pass `flagRepeatCount` and `clipShape` through all `_navigate()` → `LocalMockupPreviewScreen` calls
+- Apply in `_DesignCard._generate()` so the carousel previews use sensible defaults
+- Apply in `FlagShapeCustomiseScreen` as the initial slider value
 
-### T6 — Unit tests for layout engine
+### T9 — Unit tests for layout engine
 
 **Files:** `test/features/cards/flag_grid_layout_engine_test.dart`
 
 - `repeatCount: 9` with 1 country → 9 tiles, all within canvas bounds
 - `repeatCount: 3` with 2 countries → 6 tiles, no two identical codes adjacent
-- Minimum tile size guard triggers at correct threshold
+- Minimum tile size guard triggers and clamps correctly
 - Non-adjacency holds across all three `FlagGridLayoutMode` values
 
-### T7 — `flutter analyze` clean + manual test matrix
+### T10 — `flutter analyze` clean + manual test matrix
 
 - Analyze: no new issues
-- Repeat ×1 / ×3 / ×9 at solo, small, medium, large density
-- Clip: none / heart / circle across 1, 6, 30+ country selections
-- Title rendered below shape in all clip modes
-- Feathered edge visible on heart and circle, absent on none
-- `HeartFlagsCard` route redirects cleanly, no visual regression on existing orders
+- Swipe through all 3 pages; each renders the correct clip shape
+- Slider at ×1, ×5, ×9: all pages re-render; min-tile guard clamps at low count + high repeat
+- Title rendered below shape on all pages
+- Feathered edge on heart and circle, absent on none
+- Tapping "Design This Shirt →" carries correct clip shape and repeat count to `LocalMockupPreviewScreen`
+- `HeartFlagsCard` route redirects cleanly, no visual regression
 
 ---
 
 ## Definition of Done
 
-- [ ] Flag repeat stepper (1–9) with live preview and min-tile-size guard
-- [ ] Clip shape picker: none, heart, circle selectable
-- [ ] Country outline tile visible only for single-country designs, shown disabled
-- [ ] Continent outline tile visible only for continent-scoped collections, shown disabled
-- [ ] Heart clip reuses `MaskCalculator.heartPath()`, feathered edge extracted as shared utility
-- [ ] Flags are randomly ordered; same-country flags not adjacent
-- [ ] Title and branding zone always outside/below the clip area
-- [ ] `HeartFlagsCard` removed from carousel; `heart` template type redirects to grid + heart clip
-- [ ] Smart repeat defaults account for clip shape (boosted for heart/circle)
-- [ ] All new params backward-compatible; no crash on `countryOutline` / `continentOutline`
+- [ ] `FlagShapeCustomiseScreen` opens when tapping "Design This Shirt" on a grid template option
+- [ ] Swiping left/right shows none → heart → circle, each as a full rendered shirt mockup
+- [ ] Page indicator dots update correctly during swipe
+- [ ] Slider (×1–×9) re-renders all visible pages with 400 ms debounce
+- [ ] Min-tile-size guard clamps slider and shows toast when tiles would be too small
+- [ ] Smart default repeat count applied on screen open (accounts for clip shape area)
+- [ ] Flags are randomly ordered; same-country flags not adjacent in any page
+- [ ] Title and branding never visible inside the clip shape
+- [ ] Heart clip reuses `MaskCalculator.heartPath()`; feathered edge extracted as shared utility
+- [ ] `HeartFlagsCard` removed from carousel; `CardTemplateType.heart` redirects to grid + heart clip
+- [ ] All other templates (passport, timeline, etc.) skip `FlagShapeCustomiseScreen` entirely
+- [ ] M171 pages (country/continent outline) can be appended to the carousel without restructuring
 - [ ] `flutter analyze` no new issues
 
 ---
