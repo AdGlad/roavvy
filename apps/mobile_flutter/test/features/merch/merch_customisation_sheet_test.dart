@@ -84,16 +84,19 @@ void main() {
       expect(find.text('Grid'), findsOneWidget);
     });
 
-    testWidgets('shows Scatter section', (tester) async {
+    testWidgets('shows Arrangement section', (tester) async {
       await _pumpSheet(tester);
 
-      expect(find.text('Scatter'), findsOneWidget);
+      expect(find.text('Arrangement'), findsOneWidget);
     });
 
-    testWidgets('shows Density section', (tester) async {
+    testWidgets('shows Fill style section', (tester) async {
       await _pumpSheet(tester);
 
-      expect(find.text('Density'), findsOneWidget);
+      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      await tester.pump();
+
+      expect(find.text('Fill style'), findsOneWidget);
     });
 
     testWidgets('renders ChoiceChip preset options', (tester) async {

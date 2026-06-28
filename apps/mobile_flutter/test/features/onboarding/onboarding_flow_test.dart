@@ -177,7 +177,10 @@ void main() {
       late bool result;
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+          overrides: [
+            roavvyDatabaseProvider.overrideWithValue(db),
+            startupCompleteProvider.overrideWith((ref) async {}),
+          ],
           child: Consumer(
             builder: (context, ref, _) {
               final async = ref.watch(onboardingCompleteProvider);
@@ -207,7 +210,10 @@ void main() {
       late bool result;
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+          overrides: [
+            roavvyDatabaseProvider.overrideWithValue(db),
+            startupCompleteProvider.overrideWith((ref) async {}),
+          ],
           child: Consumer(
             builder: (context, ref, _) {
               final async = ref.watch(onboardingCompleteProvider);

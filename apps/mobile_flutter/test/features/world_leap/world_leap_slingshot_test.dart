@@ -5,36 +5,39 @@ import 'package:mobile_flutter/features/world_leap/presentation/widgets/slingsho
 
 void main() {
   group('computeBearing', () {
-    test('drag straight up (north) → 0°', () {
-      expect(computeBearing(0, -100), closeTo(0.0, 0.01));
+    // Slingshot convention: bearing = launch direction (opposite of drag).
+    // Pull down (dy>0) → launches north (0°). Pull up → launches south (180°).
+
+    test('pull up (dy=-100) → launches south (180°)', () {
+      expect(computeBearing(0, -100), closeTo(180.0, 0.01));
     });
 
-    test('drag straight right (east) → 90°', () {
-      expect(computeBearing(100, 0), closeTo(90.0, 0.01));
+    test('pull right (dx=100) → launches west (270°)', () {
+      expect(computeBearing(100, 0), closeTo(270.0, 0.01));
     });
 
-    test('drag straight down (south) → 180°', () {
-      expect(computeBearing(0, 100), closeTo(180.0, 0.01));
+    test('pull down (dy=100) → launches north (0°)', () {
+      expect(computeBearing(0, 100), closeTo(0.0, 0.01));
     });
 
-    test('drag straight left (west) → 270°', () {
-      expect(computeBearing(-100, 0), closeTo(270.0, 0.01));
+    test('pull left (dx=-100) → launches east (90°)', () {
+      expect(computeBearing(-100, 0), closeTo(90.0, 0.01));
     });
 
-    test('drag upper-right (northeast) → 45°', () {
-      expect(computeBearing(100, -100), closeTo(45.0, 0.5));
+    test('pull up-right → launches southwest (225°)', () {
+      expect(computeBearing(100, -100), closeTo(225.0, 0.5));
     });
 
-    test('drag lower-right (southeast) → 135°', () {
-      expect(computeBearing(100, 100), closeTo(135.0, 0.5));
+    test('pull down-right → launches northwest (315°)', () {
+      expect(computeBearing(100, 100), closeTo(315.0, 0.5));
     });
 
-    test('drag lower-left (southwest) → 225°', () {
-      expect(computeBearing(-100, 100), closeTo(225.0, 0.5));
+    test('pull down-left → launches northeast (45°)', () {
+      expect(computeBearing(-100, 100), closeTo(45.0, 0.5));
     });
 
-    test('drag upper-left (northwest) → 315°', () {
-      expect(computeBearing(-100, -100), closeTo(315.0, 0.5));
+    test('pull up-left → launches southeast (135°)', () {
+      expect(computeBearing(-100, -100), closeTo(135.0, 0.5));
     });
 
     test('result is always in [0, 360)', () {

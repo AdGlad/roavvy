@@ -107,6 +107,12 @@ class _TravelHeatmapCardState extends State<TravelHeatmapCard> {
       for (final e in _data.entries) e.key: dominantContinent(e.value),
     };
     final years = _data.keys.map((k) => k.$1).toList();
+    if (years.isEmpty) {
+      _startYear = DateTime.now().year;
+      _endYear = DateTime.now().year;
+      _monthsWithTravel = 0;
+      return;
+    }
     _startYear = years.reduce(math.min);
     _endYear = DateTime.now().year;
     _monthsWithTravel = _data.length;

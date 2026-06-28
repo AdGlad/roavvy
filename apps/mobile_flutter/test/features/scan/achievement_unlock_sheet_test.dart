@@ -7,6 +7,8 @@ Achievement get _achievement => kAchievements.first;
 final _unlockedAt = DateTime(2026, 1, 14, 10, 0);
 
 Future<void> pumpSheet(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(400, 900));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(

@@ -70,7 +70,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('No orders yet'), findsOneWidget);
+      expect(find.textContaining('Your travel collection is empty.'), findsOneWidget);
     });
 
     testWidgets('shows order rows when orders exist', (tester) async {
