@@ -4,6 +4,29 @@ import 'package:flutter/painting.dart';
 
 import 'grid_math_engine.dart';
 
+// ── GridClipShape ─────────────────────────────────────────────────────────────
+
+/// Clip mask applied to the flag tile area in [GridFlagsCard].
+///
+/// `countryOutline` and `continentOutline` are defined here but remain
+/// unimplemented until M171 — they silently fall back to `circle`.
+enum GridClipShape {
+  /// Rectangular grid — no clip applied (default).
+  none,
+
+  /// Heart-shaped mask using [MaskCalculator.heartPath] (M170).
+  heart,
+
+  /// Circular mask; diameter = min(width, height) × 0.92 (M170).
+  circle,
+
+  /// Country silhouette clip — single-country designs only (M171).
+  countryOutline,
+
+  /// Continent silhouette clip — continent-collection designs only (M171).
+  continentOutline,
+}
+
 // ── FlagGridLayoutMode ────────────────────────────────────────────────────────
 
 /// Selects the algorithm used to position flags in a [GridFlagsCard].
@@ -75,6 +98,10 @@ class FlagGridLayoutEngine {
   ///
   /// [topOffset] and [bottomOffset] are the title and branding zone heights
   /// already reserved by the card; the grid fills the remaining space.
+  ///
+  /// [flagRepeatCount] — how many times each code appears (1–9). Codes are
+  /// expanded and spread via the non-adjacency interleave algorithm so that
+  /// identical flags are never adjacent where avoidable.
   static List<FlagGridTile> compute({
     required List<String> codes,
     required Size canvasSize,
@@ -83,10 +110,16 @@ class FlagGridLayoutEngine {
     FlagGridLayoutMode mode = FlagGridLayoutMode.packedRow,
     double gutter = 2.0,
     double padding = 4.0,
+    int flagRepeatCount = 1,
   }) {
     if (codes.isEmpty || canvasSize.width <= 0 || canvasSize.height <= 0) {
       return [];
     }
+
+    // Expand codes by repeat count and spread to avoid adjacency.
+    final expanded = flagRepeatCount > 1
+        ? _expandAndSpread(codes, flagRepeatCount)
+        : List<String>.from(codes);
     final availH = canvasSize.height - topOffset - bottomOffset;
     if (availH <= 0) return [];
 
@@ -101,27 +134,57 @@ class FlagGridLayoutEngine {
 
     return switch (mode) {
       FlagGridLayoutMode.packedRow => _packedRow(
-        codes,
+        expanded,
         grid,
         originX,
         originY,
         gutter,
       ),
       FlagGridLayoutMode.normalizedGrid => _normalizedGrid(
-        codes,
+        expanded,
         grid,
         originX,
         originY,
         gutter,
       ),
       FlagGridLayoutMode.treemap => _treemap(
-        codes,
+        expanded,
         grid,
         originX,
         originY,
         gutter,
       ),
     };
+  }
+
+  /// Expands [codes] by [repeat] times and distributes them so that
+  /// same-country flags are never adjacent where avoidable.
+  ///
+  /// Uses a round-robin interleave: each code gets [repeat] copies placed in a
+  /// bucket; buckets are drained in round-robin order. This guarantees maximum
+  /// spread between identical codes.
+  ///
+  /// For a single country all tiles are identical — no constraint can be
+  /// satisfied, but that is acceptable.
+  static List<String> _expandAndSpread(List<String> codes, int repeat) {
+    if (codes.isEmpty) return [];
+    if (codes.length == 1) {
+      return List.filled(repeat, codes.first);
+    }
+
+    // Build one bucket per unique code (growable so removeLast works).
+    final buckets = codes.map((c) => List<String>.generate(repeat, (_) => c)).toList();
+    final result = <String>[];
+
+    // Round-robin across buckets until all are empty.
+    while (buckets.any((b) => b.isNotEmpty)) {
+      for (final bucket in buckets) {
+        if (bucket.isNotEmpty) {
+          result.add(bucket.removeLast());
+        }
+      }
+    }
+    return result;
   }
 
   /// Returns a representative tile width for SVG pre-loading at any mode.

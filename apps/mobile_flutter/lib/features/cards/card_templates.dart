@@ -421,6 +421,8 @@ class GridFlagsCard extends StatefulWidget {
     this.onAssetsLoaded,
     this.backgroundImageBytes,
     this.layoutMode = FlagGridLayoutMode.packedRow,
+    this.clipShape = GridClipShape.none,
+    this.flagRepeatCount = 1,
   });
 
   final List<String> countryCodes;
@@ -457,6 +459,14 @@ class GridFlagsCard extends StatefulWidget {
   /// Layout algorithm for positioning flags (M106, ADR-156).
   /// Defaults to [FlagGridLayoutMode.packedRow].
   final FlagGridLayoutMode layoutMode;
+
+  /// Clip mask applied to the flag tile area (M170).
+  /// Defaults to [GridClipShape.none] (rectangular).
+  final GridClipShape clipShape;
+
+  /// How many times each country flag is repeated in the grid (M170).
+  /// Range 1–9; defaults to 1.
+  final int flagRepeatCount;
 
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
@@ -616,11 +626,38 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               reprWidth: reprWidth,
               transparentBackground: widget.transparentBackground,
               textColor: widget.textColor,
+              clipShape: widget.clipShape,
+              flagRepeatCount: widget.flagRepeatCount,
             ),
           );
         },
       ),
     );
+  }
+}
+
+// ── Clip path helper (M170) ───────────────────────────────────────────────────
+
+/// Returns the clip [Path] for [shape] on a canvas of [size].
+///
+/// [countryOutline] and [continentOutline] fall back to circle until M171.
+/// Never throws — unrecognised shapes produce a full-rect path.
+Path _clipPathFor(Size size, GridClipShape shape) {
+  switch (shape) {
+    case GridClipShape.none:
+      return Path()..addRect(Offset.zero & size);
+    case GridClipShape.heart:
+      return MaskCalculator.heartPath(size);
+    case GridClipShape.circle:
+    case GridClipShape.countryOutline:
+    case GridClipShape.continentOutline:
+      return Path()
+        ..addOval(
+          Rect.fromCircle(
+            center: size.center(Offset.zero),
+            radius: math.min(size.width, size.height) * 0.46,
+          ),
+        );
   }
 }
 
@@ -637,6 +674,8 @@ class _GridPainter extends CustomPainter {
     required this.reprWidth,
     this.transparentBackground = false,
     this.textColor,
+    this.clipShape = GridClipShape.none,
+    this.flagRepeatCount = 1,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -665,6 +704,12 @@ class _GridPainter extends CustomPainter {
 
   /// Text colour for title and branding zones.
   final Color? textColor;
+
+  /// Clip mask for the flag tile area (M170).
+  final GridClipShape clipShape;
+
+  /// Flag repeat count (M170).
+  final int flagRepeatCount;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -727,8 +772,18 @@ class _GridPainter extends CustomPainter {
       topOffset: _topH,
       bottomOffset: _botH,
       mode: layoutMode,
+      flagRepeatCount: flagRepeatCount,
     );
     if (tiles.isEmpty) return;
+
+    // 2a. Apply clip shape (M170). For 'none', no clip is applied.
+    final clipPath = clipShape != GridClipShape.none
+        ? _clipPathFor(size, clipShape)
+        : null;
+    if (clipPath != null) {
+      canvas.save();
+      canvas.clipPath(clipPath, doAntiAlias: true);
+    }
 
     for (final tile in tiles) {
       final cached = _sharedCache.get(tile.code, reprWidth);
@@ -744,6 +799,12 @@ class _GridPainter extends CustomPainter {
         canvas.drawRect(tile.rect, _placeholderPaint);
       }
     }
+
+    if (clipPath != null) {
+      canvas.restore();
+      // 2b. Feathered edge for heart and circle (skipped for none).
+      MaskCalculator.applyFeatheredEdge(canvas, size, clipPath);
+    }
   }
 
   @override
@@ -757,7 +818,9 @@ class _GridPainter extends CustomPainter {
       old.layoutMode != layoutMode ||
       old.reprWidth != reprWidth ||
       old.transparentBackground != transparentBackground ||
-      old.textColor != textColor;
+      old.textColor != textColor ||
+      old.clipShape != clipShape ||
+      old.flagRepeatCount != flagRepeatCount;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by

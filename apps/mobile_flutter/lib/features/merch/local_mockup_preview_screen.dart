@@ -90,6 +90,8 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.initialColour,
     this.subtitleOverride,
     this.gridLayoutMode = FlagGridLayoutMode.packedRow,
+    this.clipShape = GridClipShape.none,
+    this.flagRepeatCount = 1,
   });
 
   final List<String> selectedCodes;
@@ -146,6 +148,12 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// Flag grid layout mode (Packed / Grid / Mosaic) carried from the card
   /// editor. Applied when regenerating artwork via a preset config.
   final FlagGridLayoutMode gridLayoutMode;
+
+  /// Clip mask for the flag grid (M170). Defaults to [GridClipShape.none].
+  final GridClipShape clipShape;
+
+  /// Flag repeat count for the flag grid (M170). Defaults to 1.
+  final int flagRepeatCount;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -670,6 +678,8 @@ class _LocalMockupPreviewScreenState
         stampJitterFactor: _stampJitterFactor,
         stampSizeMultiplier: _stampSizeMultiplier,
         gridLayoutMode: _gridLayoutMode,
+        clipShape: widget.clipShape,
+        flagRepeatCount: widget.flagRepeatCount,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;

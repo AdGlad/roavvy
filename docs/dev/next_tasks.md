@@ -1,9 +1,17 @@
-# M169 — Merch Shop UX Overhaul
+# Active Tasks: M170 — Flag Grid: Density Repeats & Clip Shapes
+Branch: milestone/m170-flag-grid-clip-shapes
 
-## Status: In Progress
+## Goal
+Users can choose a clip shape (none/heart/circle) and flag repeat count (×1–×9) in a new FlagShapeCustomiseScreen before designing a grid-template shirt.
 
 ## Tasks
 
-- [ ] T1: Fix country-select entry point — merch_design_entry_screen.dart push ShopCollectionOptionScreen instead of LocalMockupPreviewScreen; remove async title gen
-- [ ] T2: Full-screen design carousel — add MerchDesignCarousel (PageView ~70% card width, page dots, featured gold border) replacing MerchOptionAlternativesStrip in shop_collection_option_screen, achievement_merch_option_screen, pulse_merch_option_screen
-- [ ] T3: Shop screen collections grid — remove MerchIdentityHeader + MerchReadyToDesignSection; replace MerchCollectionsSection list with 2-column GridView of collection cards
+- [ ] T1 — GridClipShape enum + flagRepeatCount to layout engine + GridFlagsCard
+- [ ] T2 — _clipPathFor() + clip/feather pass in GridFlagsPainter
+- [ ] T3 — Deprecate HeartFlagsCard: redirect + remove from carousel/ranker
+- [ ] T4+T5 — FlagShapeCustomiseScreen + _ClipVariantCard
+- [ ] T6 — Routing: grid template taps → FlagShapeCustomiseScreen
+- [ ] T7 — LocalMockupPreviewScreen flagRepeatCount + clipShape params
+- [ ] T8 — merchDefaultRepeatCount() smart defaults helper
+- [ ] T9 — Unit tests: layout engine repeat + non-adjacency
+- [ ] T10 — flutter analyze clean

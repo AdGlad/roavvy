@@ -13,6 +13,7 @@ import '../cards/card_editor_screen.dart';
 import '../cards/card_image_renderer.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
+import 'flag_shape_customise_screen.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_share_exporter.dart';
 import 'merch_template_ranker.dart';
@@ -362,6 +363,25 @@ class _MerchOptionCardState extends State<MerchOptionCard>
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -803,6 +823,25 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -1267,6 +1306,25 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -1581,6 +1639,25 @@ class _DesignCardState extends State<_DesignCard> {
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
