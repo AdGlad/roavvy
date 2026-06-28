@@ -3,7 +3,7 @@
 **Branch:** `milestone/m148-flag-mosaic-wall`
 **Phase:** 22 — Stats Depth
 **Depends on:** M147 (stats visual upgrade)
-**Status:** Backlog
+**Status:** Complete (2026-06-28)
 
 ---
 

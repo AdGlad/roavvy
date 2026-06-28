@@ -3,7 +3,7 @@
 **Branch:** `milestone/m155-continent-completion-callout`
 **Phase:** 22 — Stats Depth
 **Depends on:** M147
-**Status:** Backlog
+**Status:** Complete (2026-06-28)
 
 ---
 
