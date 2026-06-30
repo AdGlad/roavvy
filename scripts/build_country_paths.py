@@ -27,7 +27,7 @@ from shapely.ops import unary_union
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-SHAPEFILE = '/tmp/ne_data/ne_50m_admin_0_countries.shp'
+SHAPEFILE = '/tmp/ne_data/ne_10m_admin_0_countries.shp'
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SCRIPT_DIR)
 APP_ASSETS = os.path.join(ROOT, 'apps', 'mobile_flutter', 'assets')
@@ -58,6 +58,8 @@ MIN_POLY_FRACTION: dict[str, float] = {
     'id': 0.03,   # Indonesia: keep main islands, drop micro-islands
     'ph': 0.03,   # Philippines: keep main islands
     'fj': 0.05,   # Fiji: Viti Levu + Vanua Levu
+    'mv': 0.05,   # Maldives: keep major atolls, drop tiny ones (100s of 3-pt triangles at 10m)
+    'ca': 0.005,  # Canada: keep major Arctic islands, drop micro-islands
 }
 
 # Countries with bbox filtering to remove overseas territories.
@@ -74,8 +76,10 @@ BBOX_FILTER = {
 # Per-country epsilon overrides in geographic degrees.
 EPSILON_OVERRIDES = {
     # Very large / complex countries: coarser simplification.
-    'ca': 0.5,   # Canada: many northern islands
-    'ru': 0.4,   # Russia: vast, mainland only
+    'ca': 1.5,   # Canada: many northern islands (10m needs coarser epsilon)
+    'ru': 0.6,   # Russia: vast, mainland only
+    'gl': 0.8,   # Greenland: massive coastline
+    'no': 0.5,   # Norway: fjords (complex at 10m)
     'id': 0.35,  # Indonesia: many islands
     'ph': 0.35,  # Philippines: archipelago
     'us': 0.3,   # USA: complex coastline
@@ -85,13 +89,13 @@ EPSILON_OVERRIDES = {
     'cn': 0.25,  # China
     'in': 0.25,  # India
     'ar': 0.25,  # Argentina
-    'gl': 0.5,   # Greenland: massive coastline
     'mm': 0.25,  # Myanmar
-    # Fine-detail island chains: keep original DEFAULT.
-    'jp': 0.10,  # Japan: recognisable islands
-    'gr': 0.10,  # Greece: archipelago
-    'gb': 0.10,  # Great Britain + NI
-    'no': 0.15,  # Norway: fjords
+    'mv': 0.3,   # Maldives: atolls (major ones kept by MIN_POLY_FRACTION)
+    # Fine-detail island chains: balance detail vs point count at 10m.
+    'jp': 0.15,  # Japan: recognisable islands
+    'gr': 0.12,  # Greece: archipelago
+    'gb': 0.12,  # Great Britain + NI
+    'nz': 0.20,  # New Zealand
 }
 
 # Countries to skip (disputed territories, micro-states with no meaningful outline).
@@ -329,8 +333,9 @@ def process_continents(continent_geoms: dict):
         dissolved = unary_union(geoms)
         mp = to_multipolygon(dissolved)
 
-        # For continents, use 0.5° simplification (~55 km) — continental scale.
-        geo_epsilon = 0.5
+        # For continents, use 1.0° simplification (~110 km) — continental scale.
+        # 10m source data needs coarser epsilon to keep continent path sizes reasonable.
+        geo_epsilon = 1.0
 
         simplified = simplify_polygons(mp, geo_epsilon)
         w, h, polys_out = normalise(simplified)
