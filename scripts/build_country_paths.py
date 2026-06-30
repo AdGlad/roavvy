@@ -199,12 +199,16 @@ def normalise(mp: MultiPolygon) -> tuple[float, float, list]:
     """
     Fit the MultiPolygon into a 1000×N coordinate space.
 
-    The coordinate system is anchored to the LARGEST polygon's bounding box.
-    This ensures the main landmass always fills the 1000-unit canvas. Smaller
-    or distant polygons (e.g. Alaska, outer Seychelles islands) receive
-    coordinates that may be negative or > 1000 — they will appear off-canvas
-    at render time, which is the desired behaviour (main landmass is centred
-    and fills the print area; distant features are naturally clipped).
+    Bounding-box selection:
+    - If the second-largest polygon is ≥ 35 % of the largest by area, use the
+      combined bounding box of ALL polygons. This puts all major islands of an
+      archipelago nation (NZ, Fiji, Japan, …) on-canvas together.
+    - Otherwise anchor to the largest polygon only. This keeps the main
+      landmass filling the full canvas for countries where one island
+      dominates (Seychelles: Praslin ≈ 26 % of Mahé → Mahé fills the canvas).
+
+    Polygons that fall outside the chosen bounding box receive off-canvas
+    coordinates and are naturally clipped at render time.
 
     Returns (norm_width, norm_height, polys_as_coord_lists).
     """
@@ -212,9 +216,16 @@ def normalise(mp: MultiPolygon) -> tuple[float, float, list]:
     if not polys:
         return NORM_WIDTH, MIN_HEIGHT, []
 
-    # Anchor the coordinate system to the largest polygon's bounds.
-    main_poly = max(polys, key=lambda p: p.area)
-    bounds = main_poly.bounds  # (minx, miny, maxx, maxy)
+    polys_sorted = sorted(polys, key=lambda p: p.area, reverse=True)
+    main_poly = polys_sorted[0]
+
+    # Choose bounding box: combined if two roughly equal major islands exist.
+    if (len(polys_sorted) >= 2 and
+            polys_sorted[1].area / main_poly.area >= 0.35):
+        bounds = unary_union(polys).bounds  # envelope of all polygons
+    else:
+        bounds = main_poly.bounds
+
     if bounds[2] == bounds[0]:
         return NORM_WIDTH, MIN_HEIGHT, []
 
@@ -223,7 +234,7 @@ def normalise(mp: MultiPolygon) -> tuple[float, float, list]:
     scale = NORM_WIDTH / geo_w
     norm_h = max(MIN_HEIGHT, geo_h * scale)
 
-    # Centre vertically if padded.
+    # Centre vertically if padded to MIN_HEIGHT.
     y_offset = (norm_h - geo_h * scale) / 2.0
 
     polys_out = []
