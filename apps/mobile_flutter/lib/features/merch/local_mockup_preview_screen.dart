@@ -422,6 +422,8 @@ class _LocalMockupPreviewScreenState
     super.initState();
     _template = widget.initialTemplate;
     _gridLayoutMode = widget.gridLayoutMode;
+    // Flag grid defaults to landscape; all other templates default to portrait.
+    _isPortrait = widget.initialTemplate != CardTemplateType.grid;
     _artworkConfirmationId = widget.artworkConfirmationId;
     if (widget.initialColour != null &&
         tshirtColors.contains(widget.initialColour)) {
@@ -495,6 +497,14 @@ class _LocalMockupPreviewScreenState
       } else if (_presetConfig != null) {
         // Preset-driven: auto-generate artwork on first frame.
         unawaited(_generateFromPreset(_presetConfig!));
+      } else {
+        // No pre-rendered bytes and no preset (e.g., navigated from
+        // FlagShapeCustomiseScreen). Render artwork from scratch.
+        if (_template == CardTemplateType.grid) {
+          unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+        } else {
+          unawaited(_renderVariant(0));
+        }
       }
     });
   }
@@ -1105,6 +1115,9 @@ class _LocalMockupPreviewScreenState
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
         stampSizeMultiplier: _stampSizeMultiplier,
         stampJitterFactor: _stampJitterFactor,
+        clipShape: widget.clipShape,
+        flagRepeatCount: widget.flagRepeatCount,
+        clipCode: widget.clipCode,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1194,6 +1207,9 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
+        clipShape: widget.clipShape,
+        flagRepeatCount: widget.flagRepeatCount,
+        clipCode: widget.clipCode,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);

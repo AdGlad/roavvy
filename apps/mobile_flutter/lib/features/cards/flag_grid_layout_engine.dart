@@ -157,34 +157,34 @@ class FlagGridLayoutEngine {
     };
   }
 
-  /// Expands [codes] by [repeat] times and distributes them so that
-  /// same-country flags are never adjacent where avoidable.
+  /// Expands [codes] by [repeat] times and shuffles them into a random order.
   ///
-  /// Uses a round-robin interleave: each code gets [repeat] copies placed in a
-  /// bucket; buckets are drained in round-robin order. This guarantees maximum
-  /// spread between identical codes.
+  /// Uses a deterministic seed derived from the code list and repeat count so
+  /// the layout is stable across repaints (no flickering) while appearing
+  /// random rather than sequential (A,B,C,A,B,C…).
   ///
-  /// For a single country all tiles are identical — no constraint can be
-  /// satisfied, but that is acceptable.
+  /// For a single country all tiles are identical — ordering has no effect.
   static List<String> _expandAndSpread(List<String> codes, int repeat) {
     if (codes.isEmpty) return [];
     if (codes.length == 1) {
       return List.filled(repeat, codes.first);
     }
 
-    // Build one bucket per unique code (growable so removeLast works).
-    final buckets = codes.map((c) => List<String>.generate(repeat, (_) => c)).toList();
-    final result = <String>[];
-
-    // Round-robin across buckets until all are empty.
-    while (buckets.any((b) => b.isNotEmpty)) {
-      for (final bucket in buckets) {
-        if (bucket.isNotEmpty) {
-          result.add(bucket.removeLast());
-        }
+    // Build the full repeated list.
+    final expanded = <String>[];
+    for (final code in codes) {
+      for (int i = 0; i < repeat; i++) {
+        expanded.add(code);
       }
     }
-    return result;
+
+    // Shuffle with a deterministic seed so the layout is stable across
+    // repaints within a session but looks random, not sequential.
+    final seed =
+        codes.fold<int>(17, (h, c) => h * 31 + c.hashCode) ^
+        (repeat * 0x9e3779b9);
+    expanded.shuffle(math.Random(seed));
+    return expanded;
   }
 
   /// Returns a representative tile width for SVG pre-loading at any mode.

@@ -299,8 +299,8 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                     child: Slider(
                       value: _repeatCount,
                       min: 1,
-                      max: 9,
-                      divisions: 8,
+                      max: 20,
+                      divisions: 19,
                       onChanged: _onSliderChanged,
                     ),
                   ),
@@ -497,7 +497,7 @@ class _ClipVariantCardState extends State<_ClipVariantCard> {
             productImage: shirt,
             artworkImage: art,
             spec: spec,
-            artworkBlendMode: BlendMode.multiply,
+            artworkBlendMode: BlendMode.srcOver,
           ),
         );
       },

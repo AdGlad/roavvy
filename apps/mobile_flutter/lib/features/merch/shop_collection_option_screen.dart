@@ -5,6 +5,15 @@ import 'merch_option_list_widgets.dart';
 import 'merch_template_ranker.dart';
 import 'pulse_merch_option.dart';
 
+const _kLabelToContinent = {
+  'Africa': 'africa',
+  'Asia': 'asia',
+  'Europe': 'europe',
+  'North America': 'north_america',
+  'Oceania': 'oceania',
+  'South America': 'south_america',
+};
+
 /// Merch option carousel shown when tapping a recommendation or collection
 /// in the Shop screen.
 ///
@@ -32,6 +41,8 @@ class ShopCollectionOptionScreen extends StatelessWidget {
         .where((r) => !r.exclude)
         .toList();
 
+    final continentKey = _kLabelToContinent[label];
+
     final options = ranks
         .map(
           (r) => PulseMerchOption(
@@ -44,6 +55,7 @@ class ShopCollectionOptionScreen extends StatelessWidget {
             trips: trips,
             jitter: 0.4,
             stampSizeMultiplier: 1.0,
+            continentKey: continentKey,
           ),
         )
         .toList();

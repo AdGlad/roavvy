@@ -113,11 +113,12 @@ String merchSuggestShirtColor(
 /// Aspect ratio for the back-card artwork based on template type.
 double merchBackCardAspectRatio(CardTemplateType template) =>
     switch (template) {
+      CardTemplateType.grid => 3.0 / 2.0, // flags — landscape
       CardTemplateType.timeline => 3.0 / 2.0,
       CardTemplateType.badge ||
       CardTemplateType.typography ||
       CardTemplateType.wordCloud => 1.0,
-      _ => 2.0 / 3.0, // passport, grid (flags), heart, frontRibbon — portrait
+      _ => 2.0 / 3.0, // passport, heart, frontRibbon — portrait
     };
 
 /// Default stamp colour override for a given template.

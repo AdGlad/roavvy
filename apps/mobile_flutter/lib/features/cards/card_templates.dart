@@ -687,19 +687,24 @@ Path _clipPathFor(Size size, GridClipShape shape, {ui.Path? outlinePath}) {
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
       if (outlinePath != null) {
-        // Re-scale the outline path to fit the current canvas size.
-        final bounds = outlinePath.getBounds();
-        if (bounds.width > 0 && bounds.height > 0) {
-          final scaleX = size.width / bounds.width;
-          final scaleY = size.height / bounds.height;
-          final scale = scaleX < scaleY ? scaleX : scaleY;
-          final dx = (size.width - bounds.width * scale) / 2 - bounds.left * scale;
-          final dy = (size.height - bounds.height * scale) / 2 - bounds.top * scale;
-          final matrix = Float64List(16);
-          matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
-          matrix[12] = dx; matrix[13] = dy;
-          return outlinePath.transform(matrix);
-        }
+        // Re-scale the outline path from the approxSize it was loaded at to the
+        // actual canvas size. We use the fixed approxSize (800×533) as the
+        // source bounds instead of outlinePath.getBounds() — that prevents
+        // off-canvas polygons (e.g. Alaska, distant islands) from inflating the
+        // bounding box and shrinking the main landmass.
+        // The pipeline normalises coordinates so the main landmass fills
+        // exactly [0, approxW] × [0, approxH] in the loaded path.
+        const approxW = 800.0;
+        const approxH = 533.0;
+        final scaleX = size.width / approxW;
+        final scaleY = size.height / approxH;
+        final scale = scaleX < scaleY ? scaleX : scaleY;
+        final dx = (size.width - approxW * scale) / 2;
+        final dy = (size.height - approxH * scale) / 2;
+        final matrix = Float64List(16);
+        matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
+        matrix[12] = dx; matrix[13] = dy;
+        return outlinePath.transform(matrix);
       }
       // Fallback to circle when path not yet loaded.
       return Path()
