@@ -54,7 +54,6 @@ FORCE_MAINLAND = {'ru'}
 # This trims distant micro-islands that would otherwise push the bounding box
 # outward, while the normalise() function still centres on the main landmass.
 MIN_POLY_FRACTION: dict[str, float] = {
-    'sc': 0.05,   # Seychelles: keep Mahé + Praslin (~24%) + La Digue (~6%)
     'id': 0.03,   # Indonesia: keep main islands, drop micro-islands
     'ph': 0.03,   # Philippines: keep main islands
     'fj': 0.05,   # Fiji: Viti Levu + Vanua Levu
@@ -71,6 +70,10 @@ BBOX_FILTER = {
     # In geographic degrees Alaska appears large due to high-latitude distortion,
     # so area-fraction filtering is insufficient — bbox is more reliable.
     'us': {'lon_min': -128.0},
+    # Seychelles: keep only granitic inner islands (Mahé, Praslin, La Digue ~55°E).
+    # Excludes Aldabra (~46°E), Farquhar (~50°E), Amirantes (~53°E) which are
+    # hundreds of km away and blow out the bounding box entirely.
+    'sc': {'lon_min': 54.5},
 }
 
 # Per-country epsilon overrides in geographic degrees.
@@ -96,6 +99,8 @@ EPSILON_OVERRIDES = {
     'gr': 0.12,  # Greece: archipelago
     'gb': 0.12,  # Great Britain + NI
     'nz': 0.20,  # New Zealand
+    # Micro-islands: very fine epsilon to get recognisable outline.
+    'sc': 0.01,  # Seychelles: Mahé is 27km long — 0.15° would destroy the shape
 }
 
 # Countries to skip (disputed territories, micro-states with no meaningful outline).
