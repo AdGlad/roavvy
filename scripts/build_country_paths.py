@@ -6,10 +6,10 @@ Usage:
     python3 scripts/build_country_paths.py
 
 Inputs:
-    /tmp/ne_data/ne_50m_admin_0_countries.shp  (Natural Earth 50m)
+    /tmp/ne_data/ne_10m_admin_0_countries.shp  (Natural Earth 10m)
 
 Outputs:
-    apps/mobile_flutter/assets/country_paths/{iso2}.json   (195 countries)
+    apps/mobile_flutter/assets/country_paths/{iso2}.json   (~240 countries)
     apps/mobile_flutter/assets/continent_paths/{key}.json  (6 continents)
     apps/mobile_flutter/assets/country_paths/_meta.json
 """
@@ -39,68 +39,50 @@ NORM_WIDTH = 1000.0
 # Minimum height to prevent sliver shapes (Chile, etc.)
 MIN_HEIGHT = 400.0
 
-# Default Douglas-Peucker tolerance in geographic degrees.
-# ~0.15° ≈ ~17 km — appropriate for 50m dataset shirt-scale rendering.
-DEFAULT_EPSILON = 0.15
+# ── Generic pipeline parameters ────────────────────────────────────────────────
 
-# Countries that use the 80% rule bypass (always multi-polygon).
-FORCE_MULTI = {'gb', 'jp', 'gr', 'id', 'ph', 'nz', 'fj', 'ca', 'no'}
+# Auto-epsilon: epsilon = max(MIN, min(MAX, main_geo_w / SCALE)).
+# Micro-islands (Mahé, 0.2°) → 0.005°; large countries (Canada, 87°) → 1.09°.
+# This replaces almost all per-country epsilon overrides.
+AUTO_EPSILON_SCALE = 80.0
+AUTO_EPSILON_MIN   = 0.005   # ~500 m — floor for micro-island detail
+AUTO_EPSILON_MAX   = 1.5     # ~165 km — ceiling for very wide countries
+
+# Generic overseas-territory / distant-island filter.
+# After finding the main (largest) polygon, any polygon whose centroid lies
+# more than FACTOR × main-polygon-extent from the main centre is removed.
+# Handles French DOM/TOM, Seychelles outer islands, etc. without per-country rules.
+MAX_CANVAS_DIST_FACTOR = 3.0
+
+# Area-fraction floor applied after the distance filter.
+# Polygons below this fraction of the largest remaining polygon are dropped.
+# Prevents micro-islands from generating hundreds of 3-point triangles.
+DEFAULT_MIN_FRAC = 0.01
+
+# ── Minimal per-country overrides ─────────────────────────────────────────────
+# Only truly exceptional cases that the generic rules cannot handle.
 
 # Countries that should only use mainland (filter to largest polygon).
 FORCE_MAINLAND = {'ru'}
 
-# Minimum polygon area as a fraction of the LARGEST polygon's area.
-# Polygons below this fraction are dropped. 0.0 = keep all (default for most).
-# This trims distant micro-islands that would otherwise push the bounding box
-# outward, while the normalise() function still centres on the main landmass.
-MIN_POLY_FRACTION: dict[str, float] = {
-    'id': 0.03,   # Indonesia: keep main islands, drop micro-islands
-    'ph': 0.03,   # Philippines: keep main islands
-    'fj': 0.05,   # Fiji: Viti Levu + Vanua Levu
-    'mv': 0.05,   # Maldives: keep major atolls, drop tiny ones (100s of 3-pt triangles at 10m)
-    'ca': 0.005,  # Canada: keep major Arctic islands, drop micro-islands
-}
+# Countries that always keep all polygons, bypassing the 80 % rule.
+# Only needed when the dominant landmass is > 80 % by area but additional
+# polygons are essential for recognition (Great Britain 92 %, Greek mainland 91 %).
+FORCE_MULTI = {'gb', 'gr'}
 
-# Countries with bbox filtering to remove overseas territories.
+# Countries with explicit bbox filtering that the generic distance filter
+# cannot handle — Alaska / Hawaii are only ~57 ° from the continental US centre
+# but that still falls inside 3 × 57 ° = 171 ° threshold.
 BBOX_FILTER = {
-    # France: only keep polygons with centroid longitude < 10° (metropolitan France).
-    'fr': {'lon_max': 10.0},
-    # USA: only keep polygons with centroid longitude > -128° (continental US).
-    # This excludes Alaska (centroid ≈ -153°) and Hawaii (centroid ≈ -157°).
-    # In geographic degrees Alaska appears large due to high-latitude distortion,
-    # so area-fraction filtering is insufficient — bbox is more reliable.
     'us': {'lon_min': -128.0},
-    # Seychelles: keep only granitic inner islands (Mahé, Praslin, La Digue ~55°E).
-    # Excludes Aldabra (~46°E), Farquhar (~50°E), Amirantes (~53°E) which are
-    # hundreds of km away and blow out the bounding box entirely.
-    'sc': {'lon_min': 54.5},
 }
 
-# Per-country epsilon overrides in geographic degrees.
+# Countries that need an explicit epsilon (auto formula is insufficient).
+# All other countries use AUTO_EPSILON_SCALE.
 EPSILON_OVERRIDES = {
-    # Very large / complex countries: coarser simplification.
-    'ca': 1.5,   # Canada: many northern islands (10m needs coarser epsilon)
-    'ru': 0.6,   # Russia: vast, mainland only
-    'gl': 0.8,   # Greenland: massive coastline
-    'no': 0.5,   # Norway: fjords (complex at 10m)
-    'id': 0.35,  # Indonesia: many islands
-    'ph': 0.35,  # Philippines: archipelago
-    'us': 0.3,   # USA: complex coastline
-    'br': 0.3,   # Brazil
-    'cl': 0.3,   # Chile: very long narrow
-    'au': 0.25,  # Australia
-    'cn': 0.25,  # China
-    'in': 0.25,  # India
-    'ar': 0.25,  # Argentina
-    'mm': 0.25,  # Myanmar
-    'mv': 0.3,   # Maldives: atolls (major ones kept by MIN_POLY_FRACTION)
-    # Fine-detail island chains: balance detail vs point count at 10m.
-    'jp': 0.15,  # Japan: recognisable islands
-    'gr': 0.12,  # Greece: archipelago
-    'gb': 0.12,  # Great Britain + NI
-    'nz': 0.20,  # New Zealand
-    # Micro-islands: very fine epsilon to get recognisable outline.
-    'sc': 0.01,  # Seychelles: Mahé is 27km long — 0.15° would destroy the shape
+    'ca': 1.5,   # Canada: Arctic archipelago; auto gives ~1.09 ° but still too many points
+    'id': 0.35,  # Indonesia: many islands; auto (~0.10 °) gives too many points
+    'ph': 0.35,  # Philippines: same reason as Indonesia
 }
 
 # Countries to skip (disputed territories, micro-states with no meaningful outline).
@@ -138,17 +120,21 @@ def select_polygons(mp: MultiPolygon, iso2: str, force_mainland: bool, force_mul
     """Apply polygon selection rules.
 
     Selection order:
-    1. bbox filter (remove overseas territories, e.g. French Guiana).
-    2. force_mainland → keep only the largest polygon.
-    3. min_poly_fraction → keep only polygons whose area ≥ fraction × largest area.
-    4. 80% rule (existing): if largest polygon ≥ 80% of total area, keep only it.
-    5. Otherwise keep all (multi-polygon island chains, etc.).
+    1. bbox filter  — US only: remove Alaska/Hawaii (too close for distance filter).
+    2. force_mainland → keep only the largest polygon (Russia).
+    3. Generic canvas-distance filter — remove polygons whose centroid is more
+       than MAX_CANVAS_DIST_FACTOR × main-polygon extent from the main centre.
+       Auto-handles French DOM/TOM, Seychelles outer islands, etc.
+    4. Generic area-fraction filter — drop polygons < DEFAULT_MIN_FRAC of largest.
+       Auto-handles micro-atoll nations (Maldives, Kiribati, …).
+    5. 80 % rule — if largest polygon ≥ 80 % of total area, keep only it
+       (unless FORCE_MULTI bypasses this, e.g. GB, GR).
     """
     polys = list(mp.geoms)
     if not polys:
         return mp
 
-    # 1. Apply bbox filter (e.g. France: remove DOM/TOM).
+    # 1. Explicit bbox filter (US only).
     if bbox_filter:
         lon_max = bbox_filter.get('lon_max')
         if lon_max is not None:
@@ -164,15 +150,28 @@ def select_polygons(mp: MultiPolygon, iso2: str, force_mainland: bool, force_mul
         largest = max(polys, key=lambda p: p.area)
         return MultiPolygon([largest])
 
-    # 3. Area-fraction filter (per-country config).
-    min_frac = MIN_POLY_FRACTION.get(iso2, 0.0)
-    if min_frac > 0.0:
-        largest = max(polys, key=lambda p: p.area)
-        polys = [p for p in polys if p.area >= min_frac * largest.area]
-        return MultiPolygon(polys) if polys else MultiPolygon([largest])
+    # 3. Generic canvas-distance filter.
+    largest = max(polys, key=lambda p: p.area)
+    b = largest.bounds
+    geo_w = max(b[2] - b[0], 0.001)
+    geo_h = max(b[3] - b[1], 0.001)
+    cx = (b[0] + b[2]) / 2
+    cy = (b[1] + b[3]) / 2
+    max_dx = MAX_CANVAS_DIST_FACTOR * geo_w
+    max_dy = MAX_CANVAS_DIST_FACTOR * geo_h
+    near = [p for p in polys
+            if abs(p.centroid.x - cx) <= max_dx and abs(p.centroid.y - cy) <= max_dy]
+    if near:
+        polys = near
 
-    # 4/5. 80% rule (for countries not in FORCE_MULTI).
-    if not force_multi and iso2 not in FORCE_MULTI:
+    # 4. Generic area-fraction filter.
+    largest = max(polys, key=lambda p: p.area)
+    polys = [p for p in polys if p.area >= DEFAULT_MIN_FRAC * largest.area]
+    if not polys:
+        polys = [largest]
+
+    # 5. 80 % rule (bypassed for FORCE_MULTI countries).
+    if not force_multi:
         total_area = sum(p.area for p in polys)
         if total_area > 0:
             largest = max(polys, key=lambda p: p.area)
@@ -295,8 +294,13 @@ def process_countries():
 
             selected = select_polygons(mp, iso2, force_mainland, force_multi, bbox_filter)
 
-            # Simplify in geographic space (degrees), then normalise.
-            geo_epsilon = EPSILON_OVERRIDES.get(iso2, DEFAULT_EPSILON)
+            # Compute epsilon: explicit override or auto-derived from main polygon width.
+            if iso2 in EPSILON_OVERRIDES:
+                geo_epsilon = EPSILON_OVERRIDES[iso2]
+            else:
+                main_poly = max(selected.geoms, key=lambda p: p.area)
+                geo_w_main = main_poly.bounds[2] - main_poly.bounds[0]
+                geo_epsilon = max(AUTO_EPSILON_MIN, min(AUTO_EPSILON_MAX, geo_w_main / AUTO_EPSILON_SCALE))
             simplified = simplify_polygons(selected, geo_epsilon)
             w, h, polys_out = normalise(simplified)
 
