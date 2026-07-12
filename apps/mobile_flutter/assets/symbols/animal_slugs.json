@@ -1,0 +1,872 @@
+{
+  "AE": {
+    "name": "Peregrine falcon",
+    "plant_name": "Date palm",
+    "plant_slug": "date_palm",
+    "slug": "peregrine_falcon"
+  },
+  "AF": {
+    "name": "Snow leopard",
+    "plant_name": "Tulip",
+    "plant_slug": "tulip",
+    "slug": "snow_leopard"
+  },
+  "AG": {
+    "name": "Fallow deer",
+    "plant_name": "Dagger log wood",
+    "plant_slug": "dagger_log_wood",
+    "slug": "fallow_deer"
+  },
+  "AL": {
+    "name": "Golden eagle",
+    "plant_name": "Olive",
+    "plant_slug": "olive",
+    "slug": "golden_eagle"
+  },
+  "AM": {
+    "name": "Golden eagle",
+    "plant_name": "Apricot tree",
+    "plant_slug": "apricot_tree",
+    "slug": "golden_eagle"
+  },
+  "AO": {
+    "name": "Sable antelope",
+    "plant_name": "Welwitschia",
+    "plant_slug": "welwitschia",
+    "slug": "sable_antelope"
+  },
+  "AR": {
+    "name": "Rufous hornero",
+    "plant_name": "Ceibo",
+    "plant_slug": "ceibo",
+    "slug": "rufous_hornero"
+  },
+  "AT": {
+    "name": "Barn swallow",
+    "plant_name": "Edelweiss",
+    "plant_slug": "edelweiss",
+    "slug": "barn_swallow"
+  },
+  "AU": {
+    "name": "Red kangaroo",
+    "plant_name": "Golden wattle",
+    "plant_slug": "golden_wattle",
+    "slug": "red_kangaroo"
+  },
+  "AZ": {
+    "name": "Karabakh horse",
+    "plant_name": "Pomegranate",
+    "plant_slug": "pomegranate",
+    "slug": "karabakh_horse"
+  },
+  "BA": {
+    "name": "Brown bear",
+    "plant_name": "Lilium bosniacum",
+    "plant_slug": "lilium_bosniacum",
+    "slug": "brown_bear"
+  },
+  "BB": {
+    "name": "Brown pelican",
+    "plant_name": "Pride of Barbados",
+    "plant_slug": "pride_of_barbados",
+    "slug": "brown_pelican"
+  },
+  "BD": {
+    "name": "Royal Bengal tiger",
+    "plant_name": "Water lily",
+    "plant_slug": "water_lily",
+    "slug": "royal_bengal_tiger"
+  },
+  "BE": {
+    "name": "Lion",
+    "plant_name": "Red poppy",
+    "plant_slug": "red_poppy",
+    "slug": "lion"
+  },
+  "BF": {
+    "name": "Stallion",
+    "plant_name": "Rose",
+    "plant_slug": "rose",
+    "slug": "stallion"
+  },
+  "BG": {
+    "name": "Balkan chamois",
+    "plant_name": "Damask rose",
+    "plant_slug": "damask_rose",
+    "slug": "balkan_chamois"
+  },
+  "BH": {
+    "name": "Arabian oryx",
+    "plant_name": "Date palm",
+    "plant_slug": "date_palm",
+    "slug": "arabian_oryx"
+  },
+  "BN": {
+    "name": "White-bellied sea eagle",
+    "plant_name": "Simpor",
+    "plant_slug": "simpor",
+    "slug": "white_bellied_sea_eagle"
+  },
+  "BO": {
+    "name": "Llama",
+    "plant_name": "Kantuta",
+    "plant_slug": "kantuta",
+    "slug": "llama"
+  },
+  "BR": {
+    "name": "Rufous-bellied thrush",
+    "plant_name": "Cattleya labiata",
+    "plant_slug": "cattleya_labiata",
+    "slug": "rufous_bellied_thrush"
+  },
+  "BS": {
+    "name": "Flamingo",
+    "plant_name": "Yellow elder",
+    "plant_slug": "yellow_elder",
+    "slug": "flamingo"
+  },
+  "BT": {
+    "name": "Takin",
+    "plant_name": "Blue poppy",
+    "plant_slug": "blue_poppy",
+    "slug": "takin"
+  },
+  "BW": {
+    "name": "Plains zebra",
+    "plant_name": "Mokolwane palm",
+    "plant_slug": "mokolwane_palm",
+    "slug": "plains_zebra"
+  },
+  "BY": {
+    "name": "European bison",
+    "plant_name": "Flax",
+    "plant_slug": "flax",
+    "slug": "european_bison"
+  },
+  "BZ": {
+    "name": "Baird's tapir",
+    "plant_name": "Black orchid",
+    "plant_slug": "black_orchid",
+    "slug": "baird_s_tapir"
+  },
+  "CA": {
+    "name": "Beaver",
+    "plant_name": "Sugar maple",
+    "plant_slug": "sugar_maple",
+    "slug": "beaver"
+  },
+  "CD": {
+    "name": "Okapi",
+    "plant_name": "Kapok tree",
+    "plant_slug": "kapok_tree",
+    "slug": "okapi"
+  },
+  "CF": {
+    "name": "Elephant",
+    "plant_name": "Kapok tree",
+    "plant_slug": "kapok_tree",
+    "slug": "elephant"
+  },
+  "CH": {
+    "name": "Cow",
+    "plant_name": "Edelweiss",
+    "plant_slug": "edelweiss",
+    "slug": "cow"
+  },
+  "CL": {
+    "name": "Andean condor",
+    "plant_name": "Copihue",
+    "plant_slug": "copihue",
+    "slug": "andean_condor"
+  },
+  "CM": {
+    "name": "Lion",
+    "plant_name": "Ebony",
+    "plant_slug": "ebony",
+    "slug": "lion"
+  },
+  "CN": {
+    "name": "Giant panda",
+    "plant_name": "Plum blossom",
+    "plant_slug": "plum_blossom",
+    "slug": "giant_panda"
+  },
+  "CO": {
+    "name": "Andean condor",
+    "plant_name": "Cattleya trianae",
+    "plant_slug": "cattleya_trianae",
+    "slug": "andean_condor"
+  },
+  "CR": {
+    "name": "White-tailed deer",
+    "plant_name": "Guaria morada",
+    "plant_slug": "guaria_morada",
+    "slug": "white_tailed_deer"
+  },
+  "CU": {
+    "name": "Cuban trogon",
+    "plant_name": "Mariposa jasmine",
+    "plant_slug": "mariposa_jasmine",
+    "slug": "cuban_trogon"
+  },
+  "CY": {
+    "name": "Mouflon",
+    "plant_name": "Rose of Sharon",
+    "plant_slug": "rose_of_sharon",
+    "slug": "mouflon"
+  },
+  "CZ": {
+    "name": "Double-tailed lion",
+    "plant_name": "Linden tree",
+    "plant_slug": "linden_tree",
+    "slug": "double_tailed_lion"
+  },
+  "DE": {
+    "name": "Black eagle",
+    "plant_name": "Cornflower",
+    "plant_slug": "cornflower",
+    "slug": "black_eagle"
+  },
+  "DK": {
+    "name": "Mute swan",
+    "plant_name": "Marguerite daisy",
+    "plant_slug": "marguerite_daisy",
+    "slug": "mute_swan"
+  },
+  "DM": {
+    "name": "Sisserou parrot",
+    "plant_name": "Bwa kwaib",
+    "plant_slug": "bwa_kwaib",
+    "slug": "sisserou_parrot"
+  },
+  "DO": {
+    "name": "Palmchat",
+    "plant_name": "Caoba mahogany",
+    "plant_slug": "caoba_mahogany",
+    "slug": "palmchat"
+  },
+  "DZ": {
+    "name": "Fennec fox",
+    "plant_name": "Fennel",
+    "plant_slug": "fennel",
+    "slug": "fennec_fox"
+  },
+  "EC": {
+    "name": "Andean condor",
+    "plant_name": "Rose",
+    "plant_slug": "rose",
+    "slug": "andean_condor"
+  },
+  "EE": {
+    "name": "Barn swallow",
+    "plant_name": "Cornflower",
+    "plant_slug": "cornflower",
+    "slug": "barn_swallow"
+  },
+  "EG": {
+    "name": "Steppe eagle",
+    "plant_name": "Lotus",
+    "plant_slug": "lotus",
+    "slug": "steppe_eagle"
+  },
+  "ES": {
+    "name": "Bull",
+    "plant_name": "Carnation",
+    "plant_slug": "carnation",
+    "slug": "bull"
+  },
+  "ET": {
+    "name": "Lion",
+    "plant_name": "Calla lily",
+    "plant_slug": "calla_lily",
+    "slug": "lion"
+  },
+  "FI": {
+    "name": "Brown bear",
+    "plant_name": "Lily of the valley",
+    "plant_slug": "lily_of_the_valley",
+    "slug": "brown_bear"
+  },
+  "FJ": {
+    "name": "Collared lory",
+    "plant_name": "Tagimoucia",
+    "plant_slug": "tagimoucia",
+    "slug": "collared_lory"
+  },
+  "FR": {
+    "name": "Gallic rooster",
+    "plant_name": "Fleur-de-lis",
+    "plant_slug": "fleur_de_lis",
+    "slug": "gallic_rooster"
+  },
+  "GA": {
+    "name": "Black panther",
+    "plant_name": "Okoum\u00e9",
+    "plant_slug": "okoum",
+    "slug": "black_panther"
+  },
+  "GB": {
+    "name": "Lion",
+    "plant_name": "Rose",
+    "plant_slug": "rose",
+    "slug": "lion"
+  },
+  "GH": {
+    "name": "Tawny eagle",
+    "plant_name": "Coconut palm",
+    "plant_slug": "coconut_palm",
+    "slug": "tawny_eagle"
+  },
+  "GR": {
+    "name": "Dolphin",
+    "plant_name": "Violet",
+    "plant_slug": "violet",
+    "slug": "dolphin"
+  },
+  "GT": {
+    "name": "Resplendent quetzal",
+    "plant_name": "White nun orchid",
+    "plant_slug": "white_nun_orchid",
+    "slug": "resplendent_quetzal"
+  },
+  "GY": {
+    "name": "Jaguar",
+    "plant_name": "Victoria amazonica",
+    "plant_slug": "victoria_amazonica",
+    "slug": "jaguar"
+  },
+  "HN": {
+    "name": "Scarlet macaw",
+    "plant_name": "Rhyncholaelia digbyana",
+    "plant_slug": "rhyncholaelia_digbyana",
+    "slug": "scarlet_macaw"
+  },
+  "HR": {
+    "name": "Pine marten",
+    "plant_name": "Iris croatica",
+    "plant_slug": "iris_croatica",
+    "slug": "pine_marten"
+  },
+  "HT": {
+    "name": "Hispaniolan trogon",
+    "plant_name": "Royal palm",
+    "plant_slug": "royal_palm",
+    "slug": "hispaniolan_trogon"
+  },
+  "HU": {
+    "name": "Turul",
+    "plant_name": "Tulip",
+    "plant_slug": "tulip",
+    "slug": "turul"
+  },
+  "ID": {
+    "name": "Komodo dragon",
+    "plant_name": "Rafflesia",
+    "plant_slug": "rafflesia",
+    "slug": "komodo_dragon"
+  },
+  "IE": {
+    "name": "Red deer",
+    "plant_name": "Shamrock",
+    "plant_slug": "shamrock",
+    "slug": "red_deer"
+  },
+  "IL": {
+    "name": "Hoopoe",
+    "plant_name": "Cyclamen",
+    "plant_slug": "cyclamen",
+    "slug": "hoopoe"
+  },
+  "IN": {
+    "name": "Bengal tiger",
+    "plant_name": "Lotus",
+    "plant_slug": "lotus",
+    "slug": "bengal_tiger"
+  },
+  "IQ": {
+    "name": "Chukar partridge",
+    "plant_name": "Date palm",
+    "plant_slug": "date_palm",
+    "slug": "chukar_partridge"
+  },
+  "IR": {
+    "name": "Asiatic cheetah",
+    "plant_name": "Red rose",
+    "plant_slug": "red_rose",
+    "slug": "asiatic_cheetah"
+  },
+  "IS": {
+    "name": "Gyrfalcon",
+    "plant_name": "Mountain avens",
+    "plant_slug": "mountain_avens",
+    "slug": "gyrfalcon"
+  },
+  "IT": {
+    "name": "Italian wolf",
+    "plant_name": "Strawberry tree",
+    "plant_slug": "strawberry_tree",
+    "slug": "italian_wolf"
+  },
+  "JM": {
+    "name": "Red-billed streamertail",
+    "plant_name": "Lignum vitae",
+    "plant_slug": "lignum_vitae",
+    "slug": "red_billed_streamertail"
+  },
+  "JO": {
+    "name": "Arabian oryx",
+    "plant_name": "Black iris",
+    "plant_slug": "black_iris",
+    "slug": "arabian_oryx"
+  },
+  "JP": {
+    "name": "Green pheasant",
+    "plant_name": "Cherry blossom",
+    "plant_slug": "cherry_blossom",
+    "slug": "green_pheasant"
+  },
+  "KE": {
+    "name": "Lion",
+    "plant_name": "Leleshwa",
+    "plant_slug": "leleshwa",
+    "slug": "lion"
+  },
+  "KG": {
+    "name": "Snow leopard",
+    "plant_name": "Edelweiss",
+    "plant_slug": "edelweiss",
+    "slug": "snow_leopard"
+  },
+  "KH": {
+    "name": "Kouprey",
+    "plant_name": "Rumduol",
+    "plant_slug": "rumduol",
+    "slug": "kouprey"
+  },
+  "KP": {
+    "name": "Chollima",
+    "plant_name": "Magnolia",
+    "plant_slug": "magnolia",
+    "slug": "chollima"
+  },
+  "KR": {
+    "name": "Siberian tiger",
+    "plant_name": "Hibiscus mugunghwa",
+    "plant_slug": "hibiscus_mugunghwa",
+    "slug": "siberian_tiger"
+  },
+  "KW": {
+    "name": "Arabian horse",
+    "plant_name": "Date palm",
+    "plant_slug": "date_palm",
+    "slug": "arabian_horse"
+  },
+  "KZ": {
+    "name": "Snow leopard",
+    "plant_name": "Tulip",
+    "plant_slug": "tulip",
+    "slug": "snow_leopard"
+  },
+  "LA": {
+    "name": "Elephant",
+    "plant_name": "Champa frangipani",
+    "plant_slug": "champa_frangipani",
+    "slug": "elephant"
+  },
+  "LK": {
+    "name": "Sri Lanka junglefowl",
+    "plant_name": "Blue lotus",
+    "plant_slug": "blue_lotus",
+    "slug": "sri_lanka_junglefowl"
+  },
+  "LS": {
+    "name": "Basotho pony",
+    "plant_name": "Spiral aloe",
+    "plant_slug": "spiral_aloe",
+    "slug": "basotho_pony"
+  },
+  "LT": {
+    "name": "White stork",
+    "plant_name": "Rue",
+    "plant_slug": "rue",
+    "slug": "white_stork"
+  },
+  "LU": {
+    "name": "Lion",
+    "plant_name": "Rose",
+    "plant_slug": "rose",
+    "slug": "lion"
+  },
+  "LV": {
+    "name": "White wagtail",
+    "plant_name": "Daisy",
+    "plant_slug": "daisy",
+    "slug": "white_wagtail"
+  },
+  "MA": {
+    "name": "Barbary macaque",
+    "plant_name": "Rose",
+    "plant_slug": "rose",
+    "slug": "barbary_macaque"
+  },
+  "MD": {
+    "name": "Aurochs",
+    "plant_name": "Grape vine",
+    "plant_slug": "grape_vine",
+    "slug": "aurochs"
+  },
+  "MG": {
+    "name": "Zebu",
+    "plant_name": "Traveller's palm",
+    "plant_slug": "traveller_s_palm",
+    "slug": "zebu"
+  },
+  "MK": {
+    "name": "Lynx",
+    "plant_name": "Poppy",
+    "plant_slug": "poppy",
+    "slug": "lynx"
+  },
+  "MM": {
+    "name": "Green peafowl",
+    "plant_name": "Padauk",
+    "plant_slug": "padauk",
+    "slug": "green_peafowl"
+  },
+  "MN": {
+    "name": "Snow leopard",
+    "plant_name": "Saussurea",
+    "plant_slug": "saussurea",
+    "slug": "snow_leopard"
+  },
+  "MT": {
+    "name": "Pharaoh hound",
+    "plant_name": "Maltese rock centaury",
+    "plant_slug": "maltese_rock_centaury",
+    "slug": "pharaoh_hound"
+  },
+  "MU": {
+    "name": "Dodo",
+    "plant_name": "Trochetia boutoniana",
+    "plant_slug": "trochetia_boutoniana",
+    "slug": "dodo"
+  },
+  "MV": {
+    "name": "Yellowfin tuna",
+    "plant_name": "Pink rose",
+    "plant_slug": "pink_rose",
+    "slug": "yellowfin_tuna"
+  },
+  "MX": {
+    "name": "Golden eagle",
+    "plant_name": "Dahlia",
+    "plant_slug": "dahlia",
+    "slug": "golden_eagle"
+  },
+  "MY": {
+    "name": "Malayan tiger",
+    "plant_name": "Hibiscus",
+    "plant_slug": "hibiscus",
+    "slug": "malayan_tiger"
+  },
+  "MZ": {
+    "name": "African fish eagle",
+    "plant_name": "Flame tree",
+    "plant_slug": "flame_tree",
+    "slug": "african_fish_eagle"
+  },
+  "NA": {
+    "name": "Oryx",
+    "plant_name": "Welwitschia",
+    "plant_slug": "welwitschia",
+    "slug": "oryx"
+  },
+  "NG": {
+    "name": "Eagle",
+    "plant_name": "Eagle flower",
+    "plant_slug": "eagle_flower",
+    "slug": "eagle"
+  },
+  "NI": {
+    "name": "Turquoise-browed motmot",
+    "plant_name": "Sacuanjoche",
+    "plant_slug": "sacuanjoche",
+    "slug": "turquoise_browed_motmot"
+  },
+  "NL": {
+    "name": "Lion",
+    "plant_name": "Tulip",
+    "plant_slug": "tulip",
+    "slug": "lion"
+  },
+  "NO": {
+    "name": "Lion",
+    "plant_name": "Purple heather",
+    "plant_slug": "purple_heather",
+    "slug": "lion"
+  },
+  "NP": {
+    "name": "Cow",
+    "plant_name": "Rhododendron",
+    "plant_slug": "rhododendron",
+    "slug": "cow"
+  },
+  "NZ": {
+    "name": "Kiwi",
+    "plant_name": "Silver fern",
+    "plant_slug": "silver_fern",
+    "slug": "kiwi"
+  },
+  "OM": {
+    "name": "Arabian oryx",
+    "plant_name": "Frankincense tree",
+    "plant_slug": "frankincense_tree",
+    "slug": "arabian_oryx"
+  },
+  "PA": {
+    "name": "Harpy eagle",
+    "plant_name": "Holy Ghost orchid",
+    "plant_slug": "holy_ghost_orchid",
+    "slug": "harpy_eagle"
+  },
+  "PE": {
+    "name": "Andean condor",
+    "plant_name": "Cantuta",
+    "plant_slug": "cantuta",
+    "slug": "andean_condor"
+  },
+  "PG": {
+    "name": "Raggiana bird-of-paradise",
+    "plant_name": "Rhododendron macgregoriae",
+    "plant_slug": "rhododendron_macgregoriae",
+    "slug": "raggiana_bird_of_paradise"
+  },
+  "PH": {
+    "name": "Philippine eagle",
+    "plant_name": "Sampaguita jasmine",
+    "plant_slug": "sampaguita_jasmine",
+    "slug": "philippine_eagle"
+  },
+  "PK": {
+    "name": "Markhor",
+    "plant_name": "Poet's jasmine",
+    "plant_slug": "poet_s_jasmine",
+    "slug": "markhor"
+  },
+  "PL": {
+    "name": "White-tailed eagle",
+    "plant_name": "Corn poppy",
+    "plant_slug": "corn_poppy",
+    "slug": "white_tailed_eagle"
+  },
+  "PT": {
+    "name": "Iberian wolf",
+    "plant_name": "Lavender",
+    "plant_slug": "lavender",
+    "slug": "iberian_wolf"
+  },
+  "PY": {
+    "name": "Bare-throated bellbird",
+    "plant_name": "Mburucuya passion flower",
+    "plant_slug": "mburucuya_passion_flower",
+    "slug": "bare_throated_bellbird"
+  },
+  "QA": {
+    "name": "Arabian oryx",
+    "plant_name": "Sidra tree",
+    "plant_slug": "sidra_tree",
+    "slug": "arabian_oryx"
+  },
+  "RO": {
+    "name": "Lynx",
+    "plant_name": "Dog rose",
+    "plant_slug": "dog_rose",
+    "slug": "lynx"
+  },
+  "RS": {
+    "name": "White eagle",
+    "plant_name": "Plum blossom",
+    "plant_slug": "plum_blossom",
+    "slug": "white_eagle"
+  },
+  "RU": {
+    "name": "Eurasian brown bear",
+    "plant_name": "Chamomile",
+    "plant_slug": "chamomile",
+    "slug": "eurasian_brown_bear"
+  },
+  "RW": {
+    "name": "Black-and-white colobus",
+    "plant_name": "Inzovu vine",
+    "plant_slug": "inzovu_vine",
+    "slug": "black_and_white_colobus"
+  },
+  "SA": {
+    "name": "Arabian horse",
+    "plant_name": "Date palm",
+    "plant_slug": "date_palm",
+    "slug": "arabian_horse"
+  },
+  "SC": {
+    "name": "Aldabra giant tortoise",
+    "plant_name": "Coco de Mer",
+    "plant_slug": "coco_de_mer",
+    "slug": "aldabra_giant_tortoise"
+  },
+  "SD": {
+    "name": "Secretary bird",
+    "plant_name": "Nubian acacia",
+    "plant_slug": "nubian_acacia",
+    "slug": "secretary_bird"
+  },
+  "SE": {
+    "name": "Eurasian elk",
+    "plant_name": "Twinflower Linnaea borealis",
+    "plant_slug": "twinflower_linnaea_borealis",
+    "slug": "eurasian_elk"
+  },
+  "SG": {
+    "name": "Lion",
+    "plant_name": "Vanda Miss Joaquim orchid",
+    "plant_slug": "vanda_miss_joaquim_orchid",
+    "slug": "lion"
+  },
+  "SL": {
+    "name": "Lion",
+    "plant_name": "African tulip",
+    "plant_slug": "african_tulip",
+    "slug": "lion"
+  },
+  "SN": {
+    "name": "Lion",
+    "plant_name": "Baobab",
+    "plant_slug": "baobab",
+    "slug": "lion"
+  },
+  "SO": {
+    "name": "Leopard",
+    "plant_name": "Frankincense tree",
+    "plant_slug": "frankincense_tree",
+    "slug": "leopard"
+  },
+  "SS": {
+    "name": "African fish eagle",
+    "plant_name": "Teak",
+    "plant_slug": "teak",
+    "slug": "african_fish_eagle"
+  },
+  "SV": {
+    "name": "Turquoise-browed motmot",
+    "plant_name": "Izote yucca",
+    "plant_slug": "izote_yucca",
+    "slug": "turquoise_browed_motmot"
+  },
+  "TH": {
+    "name": "Elephant",
+    "plant_name": "Ratchaphruek golden shower tree",
+    "plant_slug": "ratchaphruek_golden_shower_tree",
+    "slug": "elephant"
+  },
+  "TJ": {
+    "name": "Snow leopard",
+    "plant_name": "Tulip",
+    "plant_slug": "tulip",
+    "slug": "snow_leopard"
+  },
+  "TM": {
+    "name": "Akhal-Teke horse",
+    "plant_name": "Ephedra",
+    "plant_slug": "ephedra",
+    "slug": "akhal_teke_horse"
+  },
+  "TN": {
+    "name": "Carthaginian horse",
+    "plant_name": "Jasmine",
+    "plant_slug": "jasmine",
+    "slug": "carthaginian_horse"
+  },
+  "TR": {
+    "name": "Grey wolf",
+    "plant_name": "Tulip",
+    "plant_slug": "tulip",
+    "slug": "grey_wolf"
+  },
+  "TT": {
+    "name": "Scarlet ibis",
+    "plant_name": "Chaconia wild poinsettia",
+    "plant_slug": "chaconia_wild_poinsettia",
+    "slug": "scarlet_ibis"
+  },
+  "TZ": {
+    "name": "Giraffe",
+    "plant_name": "Clove tree",
+    "plant_slug": "clove_tree",
+    "slug": "giraffe"
+  },
+  "UA": {
+    "name": "Nightingale",
+    "plant_name": "Sunflower",
+    "plant_slug": "sunflower",
+    "slug": "nightingale"
+  },
+  "UG": {
+    "name": "Grey crowned crane",
+    "plant_name": "African tulip",
+    "plant_slug": "african_tulip",
+    "slug": "grey_crowned_crane"
+  },
+  "US": {
+    "name": "Bald eagle",
+    "plant_name": "Oak tree",
+    "plant_slug": "oak_tree",
+    "slug": "bald_eagle"
+  },
+  "UY": {
+    "name": "Southern lapwing",
+    "plant_name": "Ceibo",
+    "plant_slug": "ceibo",
+    "slug": "southern_lapwing"
+  },
+  "UZ": {
+    "name": "Snow leopard",
+    "plant_name": "Poplar",
+    "plant_slug": "poplar",
+    "slug": "snow_leopard"
+  },
+  "VE": {
+    "name": "Venezuelan troupial",
+    "plant_name": "Cattleya mossiae orchid",
+    "plant_slug": "cattleya_mossiae_orchid",
+    "slug": "venezuelan_troupial"
+  },
+  "VN": {
+    "name": "Water buffalo",
+    "plant_name": "Lotus",
+    "plant_slug": "lotus",
+    "slug": "water_buffalo"
+  },
+  "YE": {
+    "name": "Arabian oryx",
+    "plant_name": "Dragon blood tree",
+    "plant_slug": "dragon_blood_tree",
+    "slug": "arabian_oryx"
+  },
+  "ZA": {
+    "name": "Springbok",
+    "plant_name": "King protea",
+    "plant_slug": "king_protea",
+    "slug": "springbok"
+  },
+  "ZM": {
+    "name": "African fish eagle",
+    "plant_name": "Mutiti tree",
+    "plant_slug": "mutiti_tree",
+    "slug": "african_fish_eagle"
+  },
+  "ZW": {
+    "name": "Sable antelope",
+    "plant_name": "Flame lily",
+    "plant_slug": "flame_lily",
+    "slug": "sable_antelope"
+  }
+}

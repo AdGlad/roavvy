@@ -103,10 +103,10 @@ class MerchTemplateRanker {
   static List<MerchTemplateRank> _densityRanks(MerchDensityClass density) =>
       switch (density) {
         MerchDensityClass.solo => [
-          _rank(CardTemplateType.passport, 1),
-          _rank(CardTemplateType.badge, 2),
-          _rank(CardTemplateType.typography, 3),
-          _rank(CardTemplateType.grid, 4),
+          _rank(CardTemplateType.grid, 1),
+          _rank(CardTemplateType.passport, 2),
+          _rank(CardTemplateType.badge, 3),
+          _rank(CardTemplateType.typography, 4),
           _rank(CardTemplateType.timeline, 5),
           _excluded(CardTemplateType.heart),
           _excluded(CardTemplateType.wordCloud),

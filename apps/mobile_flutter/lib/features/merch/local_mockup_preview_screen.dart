@@ -93,6 +93,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
     this.clipCode,
+    this.rowCount,
   });
 
   final List<String> selectedCodes;
@@ -158,6 +159,9 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
 
   /// ISO 3166-1 alpha-2 code or continent key for outline clips (M171).
   final String? clipCode;
+
+  /// When non-null, forces the packed-row layout to use exactly this many rows.
+  final int? rowCount;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -695,6 +699,7 @@ class _LocalMockupPreviewScreenState
         clipShape: widget.clipShape,
         flagRepeatCount: widget.flagRepeatCount,
         clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
@@ -1118,6 +1123,7 @@ class _LocalMockupPreviewScreenState
         clipShape: widget.clipShape,
         flagRepeatCount: widget.flagRepeatCount,
         clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1210,6 +1216,7 @@ class _LocalMockupPreviewScreenState
         clipShape: widget.clipShape,
         flagRepeatCount: widget.flagRepeatCount,
         clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);

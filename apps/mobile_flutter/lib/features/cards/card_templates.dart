@@ -10,6 +10,7 @@ import 'card_branding_footer.dart';
 import 'card_text_renderer.dart';
 import 'country_path_service.dart';
 import 'flag_grid_layout_engine.dart';
+import '../merch/animal_silhouette_service.dart';
 import 'flag_tile_renderer.dart';
 import 'grid_math_engine.dart';
 import 'heart_layout_engine.dart';
@@ -425,6 +426,7 @@ class GridFlagsCard extends StatefulWidget {
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
     this.clipCode,
+    this.rowCount,
   });
 
   final List<String> countryCodes;
@@ -475,6 +477,11 @@ class GridFlagsCard extends StatefulWidget {
   /// to load the outline path (M171).
   final String? clipCode;
 
+  /// When non-null, forces the packed-row layout engine to use exactly this
+  /// many rows. Each row will contain [countryCodes.length] × [flagRepeatCount]
+  /// / [rowCount] flags, giving uniform complete rows.
+  final int? rowCount;
+
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
 }
@@ -485,6 +492,9 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   final _repaintNotifier = ValueNotifier<int>(0);
   bool _preloadStarted = false;
   bool _onAssetsLoadedFired = false;
+  bool _svgsLoaded = false;
+  // True when the outline path is not needed, or when it has finished loading.
+  bool _outlinePathLoaded = false;
 
   // Background image decoded from backgroundImageBytes (M93, ADR-138).
   ui.Image? _backgroundImage;
@@ -492,9 +502,16 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   // Outline path loaded from CountryPathService for countryOutline/continentOutline (M171).
   ui.Path? _outlinePath;
 
+  bool get _needsOutlinePath =>
+      widget.clipShape == GridClipShape.countryOutline ||
+      widget.clipShape == GridClipShape.continentOutline ||
+      widget.clipShape == GridClipShape.animalSilhouette ||
+      widget.clipShape == GridClipShape.plantSilhouette;
+
   @override
   void initState() {
     super.initState();
+    _outlinePathLoaded = !_needsOutlinePath;
     if (widget.backgroundImageBytes != null) {
       _decodeBackgroundImage(widget.backgroundImageBytes!);
     }
@@ -522,25 +539,45 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     if (oldWidget.clipCode != widget.clipCode ||
         oldWidget.clipShape != widget.clipShape) {
       _outlinePath = null;
+      _outlinePathLoaded = !_needsOutlinePath;
       _loadOutlinePath();
     }
   }
 
   void _loadOutlinePath() {
     final code = widget.clipCode;
-    if (code == null ||
-        (widget.clipShape != GridClipShape.countryOutline &&
-            widget.clipShape != GridClipShape.continentOutline)) {
-      return;
+    if (code == null) return;
+
+    switch (widget.clipShape) {
+      case GridClipShape.countryOutline:
+      case GridClipShape.continentOutline:
+        // Use a rough card size for the path (will be re-scaled by painter).
+        const approxSize = ui.Size(800, 533);
+        CountryPathService.pathFor(code, approxSize).then((path) {
+          if (!mounted) return;
+          if (path != null) setState(() => _outlinePath = path);
+          _onOutlineLoaded();
+        });
+      case GridClipShape.animalSilhouette:
+        AnimalSilhouetteService.pathFor(code).then((path) {
+          if (!mounted) return;
+          if (path != null) setState(() => _outlinePath = path);
+          _onOutlineLoaded();
+        });
+      case GridClipShape.plantSilhouette:
+        AnimalSilhouetteService.plantPathFor(code).then((path) {
+          if (!mounted) return;
+          if (path != null) setState(() => _outlinePath = path);
+          _onOutlineLoaded();
+        });
+      default:
+        break;
     }
-    // Use a rough card size for the path (will be re-scaled by painter).
-    // The painter receives the exact canvas size and scales accordingly.
-    const approxSize = ui.Size(800, 533);
-    CountryPathService.pathFor(code, approxSize).then((path) {
-      if (mounted && path != null) {
-        setState(() => _outlinePath = path);
-      }
-    });
+  }
+
+  void _onOutlineLoaded() {
+    _outlinePathLoaded = true;
+    if (_svgsLoaded) _fireOnAssetsLoaded();
   }
 
   Future<void> _decodeBackgroundImage(Uint8List bytes) async {
@@ -577,7 +614,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
             .toList();
 
     if (toLoad.isEmpty) {
-      _fireOnAssetsLoaded();
+      _svgsLoaded = true;
+      if (_outlinePathLoaded) _fireOnAssetsLoaded();
       return;
     }
 
@@ -590,7 +628,10 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       ).then((img) {
         if (mounted && img != null) _repaintNotifier.value++;
         remaining--;
-        if (remaining == 0) _fireOnAssetsLoaded();
+        if (remaining == 0) {
+          _svgsLoaded = true;
+          if (_outlinePathLoaded) _fireOnAssetsLoaded();
+        }
       });
     }
   }
@@ -662,6 +703,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               clipShape: widget.clipShape,
               flagRepeatCount: widget.flagRepeatCount,
               outlinePath: _outlinePath,
+              rowCount: widget.rowCount,
             ),
           );
         },
@@ -678,18 +720,73 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 /// When provided for [countryOutline]/[continentOutline] shapes it is used
 /// directly; when null those shapes fall back to circle.
 /// Never throws — unrecognised shapes produce a full-rect path.
-Path _clipPathFor(Size size, GridClipShape shape, {ui.Path? outlinePath}) {
+///
+/// [topOffset] and [bottomOffset] define the flag grid zone within [size].
+/// All shapes are positioned and sized to fill only the grid zone, so the
+/// clip boundary aligns with where flags are actually rendered.
+Path _clipPathFor(
+  Size size,
+  GridClipShape shape, {
+  ui.Path? outlinePath,
+  double topOffset = 0.0,
+  double bottomOffset = 0.0,
+}) {
+  final gridH = size.height - topOffset - bottomOffset;
+  final gridRect = Rect.fromLTWH(0, topOffset, size.width, gridH);
+
   switch (shape) {
     case GridClipShape.none:
       return Path()..addRect(Offset.zero & size);
     case GridClipShape.heart:
-      return MaskCalculator.heartPath(size);
+      // Generate heart within the grid zone dimensions, then shift down.
+      return MaskCalculator.heartPath(Size(size.width, gridH))
+          .shift(Offset(0, topOffset));
+    case GridClipShape.plantSilhouette:
+    case GridClipShape.animalSilhouette:
+      if (outlinePath != null) {
+        // For animal/plant silhouettes fit from actual path bounds — they are
+        // single contiguous shapes so getBounds() is tight and safe to use.
+        // An inset margin prevents wide-wingspan paths (e.g. bald eagle) from
+        // reaching the canvas edge. A final intersect with the safe zone is a
+        // hard guarantee that no floating-point overshoot can clip the wings.
+        const inset = 6.0;
+        final b = outlinePath.getBounds();
+        if (!b.isEmpty && b.width > 0 && b.height > 0) {
+          final availW = size.width - inset * 2;
+          final availH = gridH - inset * 2;
+          final scaleX = availW / b.width;
+          final scaleY = availH / b.height;
+          final scale = scaleX < scaleY ? scaleX : scaleY;
+          final dx = inset + (availW - b.width * scale) / 2 - b.left * scale;
+          final dy =
+              topOffset + inset + (availH - b.height * scale) / 2 - b.top * scale;
+          final matrix = Float64List(16);
+          matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
+          matrix[12] = dx; matrix[13] = dy;
+          final fitted = outlinePath.transform(matrix);
+          // Hard safety: intersect with the inset grid zone so that no
+          // floating-point imprecision in the path can push wings past the edge.
+          final safeZone = Path()
+            ..addRect(
+              Rect.fromLTWH(inset, topOffset + inset, availW, availH),
+            );
+          return Path.combine(PathOperation.intersect, fitted, safeZone);
+        }
+      }
+      // Fallback to circle when path not yet loaded.
+      return Path()
+        ..addOval(
+          Rect.fromCircle(
+            center: gridRect.center,
+            radius: math.min(size.width, gridH) * 0.46,
+          ),
+        );
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
       if (outlinePath != null) {
-        // Re-scale the outline path from the approxSize it was loaded at to the
-        // actual canvas size. We use the fixed approxSize (800×533) as the
-        // source bounds instead of outlinePath.getBounds() — that prevents
+        // Re-scale the outline path from the approxSize it was loaded at to
+        // fit within the grid zone. We use the fixed approxSize (800×533) as
+        // the source bounds instead of outlinePath.getBounds() — that prevents
         // off-canvas polygons (e.g. Alaska, distant islands) from inflating the
         // bounding box and shrinking the main landmass.
         // The pipeline normalises coordinates so the main landmass fills
@@ -697,10 +794,10 @@ Path _clipPathFor(Size size, GridClipShape shape, {ui.Path? outlinePath}) {
         const approxW = 800.0;
         const approxH = 533.0;
         final scaleX = size.width / approxW;
-        final scaleY = size.height / approxH;
+        final scaleY = gridH / approxH;
         final scale = scaleX < scaleY ? scaleX : scaleY;
         final dx = (size.width - approxW * scale) / 2;
-        final dy = (size.height - approxH * scale) / 2;
+        final dy = topOffset + (gridH - approxH * scale) / 2;
         final matrix = Float64List(16);
         matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
         matrix[12] = dx; matrix[13] = dy;
@@ -710,16 +807,16 @@ Path _clipPathFor(Size size, GridClipShape shape, {ui.Path? outlinePath}) {
       return Path()
         ..addOval(
           Rect.fromCircle(
-            center: size.center(Offset.zero),
-            radius: math.min(size.width, size.height) * 0.46,
+            center: gridRect.center,
+            radius: math.min(size.width, gridH) * 0.46,
           ),
         );
     case GridClipShape.circle:
       return Path()
         ..addOval(
           Rect.fromCircle(
-            center: size.center(Offset.zero),
-            radius: math.min(size.width, size.height) * 0.46,
+            center: gridRect.center,
+            radius: math.min(size.width, gridH) * 0.46,
           ),
         );
   }
@@ -741,6 +838,7 @@ class _GridPainter extends CustomPainter {
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
     this.outlinePath,
+    this.rowCount,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -778,6 +876,9 @@ class _GridPainter extends CustomPainter {
 
   /// Pre-loaded country/continent outline path from [CountryPathService] (M171).
   final ui.Path? outlinePath;
+
+  /// When non-null, forces the packed-row layout to use exactly this many rows.
+  final int? rowCount;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -841,12 +942,20 @@ class _GridPainter extends CustomPainter {
       bottomOffset: _botH,
       mode: layoutMode,
       flagRepeatCount: flagRepeatCount,
+      rowCount: rowCount,
     );
     if (tiles.isEmpty) return;
 
     // 2a. Apply clip shape (M170/M171). For 'none', no clip is applied.
+    // Pass grid zone offsets so shapes are positioned where flags are rendered.
     final clipPath = clipShape != GridClipShape.none
-        ? _clipPathFor(size, clipShape, outlinePath: outlinePath)
+        ? _clipPathFor(
+            size,
+            clipShape,
+            outlinePath: outlinePath,
+            topOffset: _topH,
+            bottomOffset: _botH,
+          )
         : null;
     if (clipPath != null) {
       canvas.save();
@@ -870,8 +979,14 @@ class _GridPainter extends CustomPainter {
 
     if (clipPath != null) {
       canvas.restore();
-      // 2b. Feathered edge for heart and circle (skipped for none).
+      // 2b. Feathered edge for the clip shape.
+      // Restrict to the grid zone so that dstIn doesn't erase the title and
+      // branding zones which are painted outside the clip region.
+      final gridZone = Rect.fromLTWH(0, _topH, size.width, size.height - _topH - _botH);
+      canvas.save();
+      canvas.clipRect(gridZone);
       MaskCalculator.applyFeatheredEdge(canvas, size, clipPath);
+      canvas.restore();
     }
   }
 
@@ -889,7 +1004,8 @@ class _GridPainter extends CustomPainter {
       old.textColor != textColor ||
       old.clipShape != clipShape ||
       old.flagRepeatCount != flagRepeatCount ||
-      old.outlinePath != outlinePath;
+      old.outlinePath != outlinePath ||
+      old.rowCount != rowCount;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by

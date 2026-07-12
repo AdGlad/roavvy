@@ -11,6 +11,7 @@ import 'shopify_pricing_repository.dart';
 
 import '../cards/card_editor_screen.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/flag_grid_layout_engine.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
 import 'flag_shape_customise_screen.dart';
@@ -378,6 +379,9 @@ class _MerchOptionCardState extends State<MerchOptionCard>
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
                 continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
               ),
         ),
       );
@@ -755,6 +759,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     final opt = widget.option;
     final aspectRatio = merchBackCardAspectRatio(opt.template);
     try {
+      final isSoloGrid =
+          opt.template == CardTemplateType.grid && opt.codes.length == 1;
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -770,6 +776,10 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
+        clipShape: isSoloGrid
+            ? GridClipShape.animalSilhouette
+            : GridClipShape.none,
+        clipCode: isSoloGrid ? opt.codes.first.toUpperCase() : null,
       );
       if (!mounted) return;
 
@@ -839,6 +849,9 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
                 continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
               ),
         ),
       );
@@ -1323,6 +1336,9 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
                 continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
               ),
         ),
       );
@@ -1572,6 +1588,8 @@ class _DesignCardState extends State<_DesignCard> {
     final opt = widget.option;
     try {
       final aspectRatio = merchBackCardAspectRatio(opt.template);
+      final isSoloGrid =
+          opt.template == CardTemplateType.grid && opt.codes.length == 1;
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -1587,6 +1605,10 @@ class _DesignCardState extends State<_DesignCard> {
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
+        clipShape: isSoloGrid
+            ? GridClipShape.animalSilhouette
+            : GridClipShape.none,
+        clipCode: isSoloGrid ? opt.codes.first.toUpperCase() : null,
       );
       if (!mounted) return;
 
@@ -1657,6 +1679,9 @@ class _DesignCardState extends State<_DesignCard> {
                 subtitleOverride: widget.option.artworkSubtitle,
                 initialColour: widget.option.suggestedShirtColor,
                 continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
               ),
         ),
       );

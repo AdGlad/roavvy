@@ -90,6 +90,7 @@ class CardImageRenderer {
     GridClipShape clipShape = GridClipShape.none,
     int flagRepeatCount = 1,
     String? clipCode,
+    int? rowCount,
 
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
@@ -213,6 +214,7 @@ class CardImageRenderer {
       clipShape: clipShape,
       flagRepeatCount: flagRepeatCount,
       clipCode: clipCode,
+      rowCount: rowCount,
       onAssetsLoaded:
           assetsCompleter != null
               ? () {
@@ -290,6 +292,7 @@ class CardImageRenderer {
     GridClipShape clipShape = GridClipShape.none,
     int flagRepeatCount = 1,
     String? clipCode,
+    int? rowCount,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -313,6 +316,7 @@ class CardImageRenderer {
           clipShape: clipShape,
           flagRepeatCount: flagRepeatCount,
           clipCode: clipCode,
+          rowCount: rowCount,
         );
       // ignore: deprecated_member_use_from_same_package
       case CardTemplateType.heart:

@@ -10,6 +10,7 @@ import '../../core/country_names.dart';
 import '../cards/card_image_renderer.dart';
 import '../cards/country_path_service.dart';
 import '../cards/flag_grid_layout_engine.dart';
+import 'animal_silhouette_service.dart';
 import 'local_mockup_painter.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_option_list_widgets.dart';
@@ -35,7 +36,7 @@ int merchDefaultRepeatCount(int codeCount, GridClipShape shape) {
               shape != GridClipShape.continentOutline)
           ? 1
           : 0;
-  return math.min(9, base + clipBoost);
+  return math.min(50, base + clipBoost);
 }
 
 // ── FlagShapeCustomiseScreen ───────────────────────────────────────────────────
@@ -56,6 +57,7 @@ class FlagShapeCustomiseScreen extends StatefulWidget {
     this.titleOverride,
     this.subtitleOverride,
     this.initialColour,
+    this.initialShape,
   });
 
   /// Country codes included in this design.
@@ -72,6 +74,9 @@ class FlagShapeCustomiseScreen extends StatefulWidget {
   final String? titleOverride;
   final String? subtitleOverride;
   final String? initialColour;
+
+  /// When non-null, the carousel opens directly on the page matching this shape.
+  final GridClipShape? initialShape;
 
   @override
   State<FlagShapeCustomiseScreen> createState() =>
@@ -94,26 +99,43 @@ const _kContinentDisplayNames = {
 
 class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   late final PageController _pageCtrl;
-  late final List<_PageDef> _pages;
+  late List<_PageDef> _pages;
   int _currentPage = 0;
-  double _repeatCount = 1;
+  int _rowCount = 3;
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _pages = _buildPages();
-    _pageCtrl = PageController();
-    // Set smart default based on initial shape (none).
-    _repeatCount = merchDefaultRepeatCount(
-      widget.codes.length,
-      GridClipShape.none,
-    ).toDouble();
+    _pages = _buildPages(animalName: null, plantName: null);
+    // Jump to the requested shape page if provided.
+    if (widget.initialShape != null) {
+      final idx = _pages.indexWhere((p) => p.shape == widget.initialShape);
+      if (idx >= 0) _currentPage = idx;
+    }
+    _pageCtrl = PageController(initialPage: _currentPage);
+    // Default rows: 3 for small sets, 2 for medium, 1 for large.
+    _rowCount = widget.codes.length <= 3 ? 3 : widget.codes.length <= 8 ? 2 : 1;
     // Preload outline paths in background.
     _preloadOutlinePaths();
+    // Load animal + plant names for single-country designs to show as page labels.
+    if (widget.codes.length == 1) {
+      final cc = widget.codes.first.toUpperCase();
+      Future.wait([
+        AnimalSilhouetteService.animalNameFor(cc),
+        AnimalSilhouetteService.plantNameFor(cc),
+      ]).then((names) {
+        if (mounted) {
+          setState(() => _pages = _buildPages(
+            animalName: names[0],
+            plantName: names[1],
+          ));
+        }
+      });
+    }
   }
 
-  List<_PageDef> _buildPages() {
+  List<_PageDef> _buildPages({required String? animalName, String? plantName}) {
     final pages = <_PageDef>[
       (shape: GridClipShape.none, label: 'Grid', clipCode: null),
       (shape: GridClipShape.heart, label: 'Heart', clipCode: null),
@@ -127,6 +149,18 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
         shape: GridClipShape.countryOutline,
         label: countryName,
         clipCode: widget.codes.first.toLowerCase(),
+      ));
+      // Animal silhouette
+      pages.add((
+        shape: GridClipShape.animalSilhouette,
+        label: animalName ?? 'Animal',
+        clipCode: code,
+      ));
+      // Plant silhouette
+      pages.add((
+        shape: GridClipShape.plantSilhouette,
+        label: plantName ?? 'Plant',
+        clipCode: code,
       ));
     }
     // Continent outline — only when a continent key is provided.
@@ -160,29 +194,11 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   }
 
   void _onPageChanged(int page) {
-    setState(() {
-      final prevShape = _pages[_currentPage].shape;
-      _currentPage = page;
-      // Recalculate smart default for new shape.
-      final newShape = _pages[page].shape;
-      final defaultRepeat = merchDefaultRepeatCount(
-        widget.codes.length,
-        newShape,
-      ).toDouble();
-      // Only auto-update if the user hasn't moved the slider
-      // from the previous page's default.
-      final prevDefault = merchDefaultRepeatCount(
-        widget.codes.length,
-        prevShape,
-      ).toDouble();
-      if (_repeatCount == prevDefault) {
-        _repeatCount = defaultRepeat;
-      }
-    });
+    setState(() => _currentPage = page);
   }
 
   void _onSliderChanged(double val) {
-    setState(() => _repeatCount = val.roundToDouble());
+    setState(() => _rowCount = val.round());
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
       if (mounted) setState(() {}); // triggers rebuild → pages re-render
@@ -207,8 +223,9 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
               titleOverride: widget.titleOverride,
               subtitleOverride: widget.subtitleOverride,
               clipShape: page.shape,
-              flagRepeatCount: _repeatCount.round(),
+              flagRepeatCount: _rowCount,
               clipCode: page.clipCode,
+              rowCount: _rowCount,
             ),
       ),
     );
@@ -217,7 +234,6 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final repeatInt = _repeatCount.round();
     final currentShape = _pages[_currentPage].shape;
 
     return Scaffold(
@@ -235,12 +251,13 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                   final page = _pages[i];
                   return _ClipVariantCard(
                     key: ValueKey(
-                      '${page.shape.name}_${repeatInt}_${widget.codes.hashCode}',
+                      '${page.shape.name}_${_rowCount}_${widget.codes.hashCode}',
                     ),
                     codes: widget.codes,
                     trips: widget.trips,
                     clipShape: page.shape,
-                    flagRepeatCount: repeatInt,
+                    flagRepeatCount: _rowCount,
+                    rowCount: _rowCount,
                     clipCode: page.clipCode,
                     titleOverride: widget.titleOverride,
                     subtitleOverride: widget.subtitleOverride,
@@ -280,16 +297,16 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
               style: theme.textTheme.labelLarge,
             ),
 
-            // ── Flag count slider ────────────────────────────────────────────
+            // ── Rows slider ─────────────────────────────────────────────────
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 children: [
-                  Text('Flag count', style: theme.textTheme.bodyMedium),
+                  Text('Rows', style: theme.textTheme.bodyMedium),
                   const SizedBox(width: 8),
                   Text(
-                    '×$repeatInt',
+                    '$_rowCount',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,
@@ -297,10 +314,10 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                   ),
                   Expanded(
                     child: Slider(
-                      value: _repeatCount,
+                      value: _rowCount.toDouble(),
                       min: 1,
-                      max: 20,
-                      divisions: 19,
+                      max: 10,
+                      divisions: 9,
                       onChanged: _onSliderChanged,
                     ),
                   ),
@@ -355,6 +372,7 @@ class _ClipVariantCard extends StatefulWidget {
     required this.trips,
     required this.clipShape,
     required this.flagRepeatCount,
+    required this.rowCount,
     this.clipCode,
     this.titleOverride,
     this.subtitleOverride,
@@ -364,6 +382,7 @@ class _ClipVariantCard extends StatefulWidget {
   final List<TripRecord> trips;
   final GridClipShape clipShape;
   final int flagRepeatCount;
+  final int rowCount;
   final String? clipCode;
   final String? titleOverride;
   final String? subtitleOverride;
@@ -414,6 +433,8 @@ class _ClipVariantCardState extends State<_ClipVariantCard> {
         clipShape: widget.clipShape,
         flagRepeatCount: repeatCount,
         clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
+        textColor: Colors.white,
         titleOverride: widget.titleOverride,
         subtitleOverride: widget.subtitleOverride,
       );

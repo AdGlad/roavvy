@@ -62,6 +62,7 @@ dependencies:
   shared_preferences: ^2.3.0
   intl: ^0.19.0
   flutter_svg: ^2.0.10+1
+  path_drawing: ^1.0.1
   audioplayers: ^6.0.0
   pdf: ^3.10.8
   flutter_custom_carousel: ^0.1.0+1
@@ -74,6 +75,7 @@ dependencies:
   image: ^4.2.0
   firebase_storage: ^12.3.0
   firebase_crashlytics: ^4.1.0
+  firebase_app_check: ^0.3.2
   app_links: ^6.0.0
 
 dev_dependencies:
@@ -118,6 +120,8 @@ flutter:
     - assets/onboarding/
     - assets/country_paths/
     - assets/continent_paths/
+    - assets/symbols/
+    - assets/silhouettes/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
