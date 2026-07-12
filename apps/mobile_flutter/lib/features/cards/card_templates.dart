@@ -784,24 +784,26 @@ Path _clipPathFor(
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
       if (outlinePath != null) {
-        // Re-scale the outline path from the approxSize it was loaded at to
-        // fit within the grid zone. We use the fixed approxSize (800×533) as
-        // the source bounds instead of outlinePath.getBounds() — that prevents
-        // off-canvas polygons (e.g. Alaska, distant islands) from inflating the
-        // bounding box and shrinking the main landmass.
-        // The pipeline normalises coordinates so the main landmass fills
-        // exactly [0, approxW] × [0, approxH] in the loaded path.
-        const approxW = 800.0;
-        const approxH = 533.0;
-        final scaleX = size.width / approxW;
-        final scaleY = gridH / approxH;
-        final scale = scaleX < scaleY ? scaleX : scaleY;
-        final dx = (size.width - approxW * scale) / 2;
-        final dy = topOffset + (gridH - approxH * scale) / 2;
-        final matrix = Float64List(16);
-        matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
-        matrix[12] = dx; matrix[13] = dy;
-        return outlinePath.transform(matrix);
+        // Scale from actual path bounds so the shape fills as much of the grid
+        // zone as possible. The build pipeline removes distant outliers (Alaska,
+        // overseas territories) before writing JSON, so getBounds() is tight and
+        // safe. A small inset adds visual breathing room.
+        const inset = 4.0;
+        final b = outlinePath.getBounds();
+        if (!b.isEmpty && b.width > 0 && b.height > 0) {
+          final availW = size.width - inset * 2;
+          final availH = gridH - inset * 2;
+          final scaleX = availW / b.width;
+          final scaleY = availH / b.height;
+          final scale = scaleX < scaleY ? scaleX : scaleY;
+          final dx = inset + (availW - b.width * scale) / 2 - b.left * scale;
+          final dy =
+              topOffset + inset + (availH - b.height * scale) / 2 - b.top * scale;
+          final matrix = Float64List(16);
+          matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
+          matrix[12] = dx; matrix[13] = dy;
+          return outlinePath.transform(matrix);
+        }
       }
       // Fallback to circle when path not yet loaded.
       return Path()
