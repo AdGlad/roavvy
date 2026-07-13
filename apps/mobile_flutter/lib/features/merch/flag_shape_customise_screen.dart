@@ -251,7 +251,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                   final page = _pages[i];
                   return _ClipVariantCard(
                     key: ValueKey(
-                      '${page.shape.name}_${_rowCount}_${widget.codes.hashCode}',
+                      '${page.shape.name}_${_rowCount}_${widget.codes.hashCode}_${widget.initialColour}',
                     ),
                     codes: widget.codes,
                     trips: widget.trips,
@@ -261,6 +261,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                     clipCode: page.clipCode,
                     titleOverride: widget.titleOverride,
                     subtitleOverride: widget.subtitleOverride,
+                    colour: widget.initialColour,
                   );
                 },
               ),
@@ -376,6 +377,7 @@ class _ClipVariantCard extends StatefulWidget {
     this.clipCode,
     this.titleOverride,
     this.subtitleOverride,
+    this.colour,
   });
 
   final List<String> codes;
@@ -386,6 +388,8 @@ class _ClipVariantCard extends StatefulWidget {
   final String? clipCode;
   final String? titleOverride;
   final String? subtitleOverride;
+  /// Shirt colour used for the preview mockup. Defaults to 'Black'.
+  final String? colour;
 
   @override
   State<_ClipVariantCard> createState() => _ClipVariantCardState();
@@ -442,7 +446,7 @@ class _ClipVariantCardState extends State<_ClipVariantCard> {
 
       final spec = ProductMockupSpecs.specsFor(
         MerchProduct.tshirt,
-        colour: 'Black',
+        colour: widget.colour ?? 'Black',
         placement: 'back',
       );
       final shirtData = await rootBundle.load(spec.assetPath);

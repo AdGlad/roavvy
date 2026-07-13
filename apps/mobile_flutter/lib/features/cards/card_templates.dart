@@ -744,12 +744,11 @@ Path _clipPathFor(
     case GridClipShape.plantSilhouette:
     case GridClipShape.animalSilhouette:
       if (outlinePath != null) {
-        // For animal/plant silhouettes fit from actual path bounds — they are
-        // single contiguous shapes so getBounds() is tight and safe to use.
-        // An inset margin prevents wide-wingspan paths (e.g. bald eagle) from
-        // reaching the canvas edge. A final intersect with the safe zone is a
-        // hard guarantee that no floating-point overshoot can clip the wings.
-        const inset = 6.0;
+        // Scale from actual path bounds with a generous inset so that
+        // wide-wingspan shapes (e.g. bald eagle) are comfortably inside
+        // the card canvas. Do NOT intersect with a rectangle — that creates
+        // a hard straight edge at the wing tips and makes them look clipped.
+        const inset = 14.0;
         final b = outlinePath.getBounds();
         if (!b.isEmpty && b.width > 0 && b.height > 0) {
           final availW = size.width - inset * 2;
@@ -763,14 +762,7 @@ Path _clipPathFor(
           final matrix = Float64List(16);
           matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
           matrix[12] = dx; matrix[13] = dy;
-          final fitted = outlinePath.transform(matrix);
-          // Hard safety: intersect with the inset grid zone so that no
-          // floating-point imprecision in the path can push wings past the edge.
-          final safeZone = Path()
-            ..addRect(
-              Rect.fromLTWH(inset, topOffset + inset, availW, availH),
-            );
-          return Path.combine(PathOperation.intersect, fitted, safeZone);
+          return outlinePath.transform(matrix);
         }
       }
       // Fallback to circle when path not yet loaded.

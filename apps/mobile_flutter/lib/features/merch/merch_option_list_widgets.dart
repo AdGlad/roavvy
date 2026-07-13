@@ -770,7 +770,7 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         entryOnly: opt.entryOnly,
         stampJitterFactor: opt.jitter,
         stampSizeMultiplier: opt.stampSizeMultiplier,
-        pixelRatio: 2.5,
+        pixelRatio: 2.0,
         cardAspectRatio: aspectRatio,
         titleOverride: opt.title,
         subtitleOverride: opt.artworkSubtitle,
@@ -1614,7 +1614,7 @@ class _DesignCardState extends State<_DesignCard> {
 
       final backSpec = ProductMockupSpecs.specsFor(
         MerchProduct.tshirt,
-        colour: 'Black',
+        colour: opt.suggestedShirtColor ?? 'Black',
         placement: 'back',
       );
       final backData = await rootBundle.load(backSpec.assetPath);
