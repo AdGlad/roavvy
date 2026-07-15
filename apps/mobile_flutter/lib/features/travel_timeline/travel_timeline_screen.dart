@@ -169,13 +169,63 @@ _TimelineStats _computeStats(List<TripRecord> trips) {
   );
 }
 
+// ── Filter helpers ────────────────────────────────────────────────────────────
+
+bool _matchesContinent(String countryCode, String? activeContinent) {
+  if (activeContinent == null) return true;
+  final continent = kCountryContinent[countryCode.toUpperCase()];
+  if (activeContinent == 'Americas') {
+    return continent == 'North America' || continent == 'South America';
+  }
+  return continent == activeContinent;
+}
+
+List<_TimelineItem> _filterItems(
+  List<_TimelineItem> items,
+  String? activeContinent,
+  bool firstVisitOnly,
+) {
+  if (activeContinent == null && !firstVisitOnly) return items;
+  return items.where((item) {
+    if (item is _TripItem) {
+      final cc = item.trip.countryCode.toUpperCase();
+      if (!_matchesContinent(cc, activeContinent)) return false;
+      if (firstVisitOnly && !item.isFirstVisit) return false;
+      return true;
+    }
+    return true;
+  }).toList();
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class TravelTimelineScreen extends ConsumerWidget {
+class TravelTimelineScreen extends ConsumerStatefulWidget {
   const TravelTimelineScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TravelTimelineScreen> createState() =>
+      _TravelTimelineScreenState();
+}
+
+class _TravelTimelineScreenState extends ConsumerState<TravelTimelineScreen> {
+  String? _activeContinent;
+  bool _firstVisitOnly = false;
+  late final ScrollController _scrollCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tripsAsync = ref.watch(tripListProvider);
     final achievementsAsync = ref.watch(unlockedAchievementIdsProvider);
 
@@ -196,11 +246,67 @@ class TravelTimelineScreen extends ConsumerWidget {
           final stats = _computeStats(trips);
           final unlockedIds = achievementsAsync.valueOrNull ?? {};
           final items = _buildTimeline(trips, unlockedIds);
+          final filteredItems = _filterItems(
+            items,
+            _activeContinent,
+            _firstVisitOnly,
+          );
           return Column(
             children: [
               _TimelineStatsHeader(stats: stats, trips: trips),
               const Divider(height: 1, thickness: 1),
-              Expanded(child: _TimelineBody(items: items)),
+              _FilterBar(
+                activeContinent: _activeContinent,
+                firstVisitOnly: _firstVisitOnly,
+                onContinentChanged: (c) =>
+                    setState(() => _activeContinent = c),
+                onFirstVisitOnlyChanged: (v) =>
+                    setState(() => _firstVisitOnly = v),
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final headerIndices = {
+                      for (int i = 0; i < filteredItems.length; i++)
+                        if (filteredItems[i] is _YearHeaderItem) i,
+                    };
+                    final positions = computeTimelinePositions(
+                      count: filteredItems.length,
+                      width: width,
+                      topPadding: _kTopPadding,
+                      nodeSpacing: _kNodeSpacing,
+                      headerIndices: headerIndices,
+                    );
+                    final yearOffsets = <int, double>{};
+                    for (int i = 0; i < filteredItems.length; i++) {
+                      final item = filteredItems[i];
+                      if (item is _YearHeaderItem) {
+                        yearOffsets[item.year] =
+                            positions[i].dy - _kTopPadding;
+                      }
+                    }
+                    return Stack(
+                      children: [
+                        _TimelineBody(
+                          items: filteredItems,
+                          scrollController: _scrollCtrl,
+                        ),
+                        if (yearOffsets.length >= 3)
+                          Positioned(
+                            right: 4,
+                            top: 0,
+                            bottom: 0,
+                            child: _YearJumpIndex(
+                              yearOffsets: yearOffsets,
+                              scrollController: _scrollCtrl,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ],
           );
         },
@@ -389,12 +495,135 @@ class _ContinentDot extends StatelessWidget {
   }
 }
 
+// ── Filter bar ────────────────────────────────────────────────────────────────
+
+const _kContinentLabels = [
+  'Europe',
+  'Asia',
+  'Americas',
+  'Africa',
+  'Oceania',
+];
+
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.activeContinent,
+    required this.firstVisitOnly,
+    required this.onContinentChanged,
+    required this.onFirstVisitOnlyChanged,
+  });
+
+  final String? activeContinent;
+  final bool firstVisitOnly;
+  final ValueChanged<String?> onContinentChanged;
+  final ValueChanged<bool> onFirstVisitOnlyChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        children: [
+          _buildContinentChip(context, cs, null),
+          for (final label in _kContinentLabels) ...[
+            const SizedBox(width: 6),
+            _buildContinentChip(context, cs, label),
+          ],
+          const SizedBox(width: 6),
+          FilterChip(
+            label: const Text('★ First visits'),
+            selected: firstVisitOnly,
+            onSelected: onFirstVisitOnlyChanged,
+            selectedColor: cs.primaryContainer,
+            labelStyle: TextStyle(
+              color: firstVisitOnly ? cs.onPrimaryContainer : cs.onSurface,
+              fontSize: 12,
+            ),
+            backgroundColor: cs.surfaceContainerHighest,
+            side: BorderSide.none,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContinentChip(
+    BuildContext context,
+    ColorScheme cs,
+    String? label,
+  ) {
+    final isActive = activeContinent == label;
+    return FilterChip(
+      label: Text(label ?? 'All'),
+      selected: isActive,
+      onSelected: (_) => onContinentChanged(isActive ? null : label),
+      selectedColor: cs.primaryContainer,
+      labelStyle: TextStyle(
+        color: isActive ? cs.onPrimaryContainer : cs.onSurface,
+        fontSize: 12,
+      ),
+      backgroundColor: cs.surfaceContainerHighest,
+      side: BorderSide.none,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+// ── Year jump index ───────────────────────────────────────────────────────────
+
+class _YearJumpIndex extends StatelessWidget {
+  const _YearJumpIndex({
+    required this.yearOffsets,
+    required this.scrollController,
+  });
+
+  final Map<int, double> yearOffsets;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedYears = yearOffsets.keys.toList()..sort();
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (final year in sortedYears)
+          GestureDetector(
+            onTap: () => scrollController.animateTo(
+              yearOffsets[year]!,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                year.toString(),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontSize: 9,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 // ── Timeline body ─────────────────────────────────────────────────────────────
 
 class _TimelineBody extends StatefulWidget {
-  const _TimelineBody({required this.items});
+  const _TimelineBody({required this.items, required this.scrollController});
 
   final List<_TimelineItem> items;
+  final ScrollController scrollController;
 
   @override
   State<_TimelineBody> createState() => _TimelineBodyState();
@@ -474,6 +703,7 @@ class _TimelineBodyState extends State<_TimelineBody>
                 (widget.items.length * 40).clamp(1, 800).toDouble();
 
             return SingleChildScrollView(
+              controller: widget.scrollController,
               child: SizedBox(
                 width: width,
                 height: totalHeight,
