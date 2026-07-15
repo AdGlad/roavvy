@@ -359,66 +359,132 @@ class _ContinentDot extends StatelessWidget {
 
 // ── Timeline body ─────────────────────────────────────────────────────────────
 
-class _TimelineBody extends StatelessWidget {
+class _TimelineBody extends StatefulWidget {
   const _TimelineBody({required this.items});
 
   final List<_TimelineItem> items;
 
   @override
+  State<_TimelineBody> createState() => _TimelineBodyState();
+}
+
+class _TimelineBodyState extends State<_TimelineBody>
+    with TickerProviderStateMixin {
+  // Only animate on the very first build — skip on scroll restore.
+  static bool _hasAnimated = false;
+
+  late final AnimationController _pathCtrl;
+  late final AnimationController _staggerCtrl;
+  late final Animation<double> _pathAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    final staggerMs =
+        (widget.items.length * 40).clamp(1, 800);
+
+    _pathCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _staggerCtrl = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: staggerMs),
+    );
+    _pathAnim = CurvedAnimation(parent: _pathCtrl, curve: Curves.easeInOut);
+
+    if (!_hasAnimated) {
+      _pathCtrl.forward();
+      _staggerCtrl.forward();
+      _hasAnimated = true;
+    } else {
+      _pathCtrl.value = 1.0;
+      _staggerCtrl.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pathCtrl.dispose();
+    _staggerCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final headerIndices = {
-          for (int i = 0; i < items.length; i++)
-            if (items[i] is _YearHeaderItem) i,
-        };
-        final positions = computeTimelinePositions(
-          count: items.length,
-          width: width,
-          topPadding: _kTopPadding,
-          nodeSpacing: _kNodeSpacing,
-          headerIndices: headerIndices,
-        );
-        final totalHeight = timelineHeight(
-          count: items.length,
-          topPadding: _kTopPadding,
-          nodeSpacing: _kNodeSpacing,
-          bottomPadding: _kBottomPadding,
-        );
+    return AnimatedBuilder(
+      animation: Listenable.merge([_pathAnim, _staggerCtrl]),
+      builder: (context, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final headerIndices = {
+              for (int i = 0; i < widget.items.length; i++)
+                if (widget.items[i] is _YearHeaderItem) i,
+            };
+            final positions = computeTimelinePositions(
+              count: widget.items.length,
+              width: width,
+              topPadding: _kTopPadding,
+              nodeSpacing: _kNodeSpacing,
+              headerIndices: headerIndices,
+            );
+            final totalHeight = timelineHeight(
+              count: widget.items.length,
+              topPadding: _kTopPadding,
+              nodeSpacing: _kNodeSpacing,
+              bottomPadding: _kBottomPadding,
+            );
 
-        final cs = Theme.of(context).colorScheme;
-        final pathColor = cs.primary.withValues(alpha: 0.35);
-        final pathShadow = cs.primary.withValues(alpha: 0.12);
+            final cs = Theme.of(context).colorScheme;
+            final pathShadow = cs.primary.withValues(alpha: 0.12);
+            final staggerMs =
+                (widget.items.length * 40).clamp(1, 800).toDouble();
 
-        return SingleChildScrollView(
-          child: SizedBox(
-            width: width,
-            height: totalHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Snake path
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: TimelinePainter(
-                      positions: positions,
-                      nodeRadius: _kNodeRadius,
-                      pathColor: pathColor,
-                      pathShadowColor: pathShadow,
+            return SingleChildScrollView(
+              child: SizedBox(
+                width: width,
+                height: totalHeight,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Snake path (draws on via pathProgress)
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: TimelinePainter(
+                          positions: positions,
+                          nodeRadius: _kNodeRadius,
+                          pathColor: cs.primary,
+                          pathShadowColor: pathShadow,
+                          pathProgress: _pathAnim.value,
+                        ),
+                      ),
                     ),
-                  ),
+                    // Nodes with staggered entry
+                    for (int i = 0; i < widget.items.length; i++) ...[
+                      () {
+                        final delayFraction =
+                            (i * 40.0 / staggerMs).clamp(0.0, 1.0);
+                        final endFraction =
+                            (delayFraction + 0.3).clamp(0.0, 1.0);
+                        final nodeProgress = Interval(
+                          delayFraction,
+                          endFraction,
+                          curve: Curves.easeOut,
+                        ).transform(_staggerCtrl.value);
+                        return _PositionedNode(
+                          item: widget.items[i],
+                          center: positions[i],
+                          width: width,
+                          nodeProgress: nodeProgress,
+                        );
+                      }(),
+                    ],
+                  ],
                 ),
-                // Nodes
-                for (int i = 0; i < items.length; i++)
-                  _PositionedNode(
-                    item: items[i],
-                    center: positions[i],
-                    width: width,
-                  ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -432,15 +498,17 @@ class _PositionedNode extends StatelessWidget {
     required this.item,
     required this.center,
     required this.width,
+    this.nodeProgress = 1.0,
   });
 
   final _TimelineItem item;
   final Offset center;
   final double width;
+  final double nodeProgress;
 
   @override
   Widget build(BuildContext context) {
-    return switch (item) {
+    final child = switch (item) {
       _TripItem(:final trip, :final isFirstVisit) => _TripNode(
         trip: trip,
         isFirstVisit: isFirstVisit,
@@ -460,6 +528,15 @@ class _PositionedNode extends StatelessWidget {
           center: center,
         ),
     };
+    if (nodeProgress >= 1.0) return child;
+    return Opacity(
+      opacity: nodeProgress,
+      child: Transform.scale(
+        scale: 0.6 + 0.4 * nodeProgress,
+        origin: center,
+        child: child,
+      ),
+    );
   }
 }
 
