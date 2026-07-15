@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/continent_emoji.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'country_scene_icons.dart';
@@ -134,6 +135,38 @@ List<_TimelineItem> _buildTimeline(
   return chronological.reversed.toList();
 }
 
+// ── Stats DTO ─────────────────────────────────────────────────────────────────
+
+class _TimelineStats {
+  const _TimelineStats({
+    required this.countryCount,
+    required this.visitedContinents,
+    required this.sinceYear,
+  });
+
+  final int countryCount;
+  final Set<String> visitedContinents;
+  final int sinceYear;
+}
+
+_TimelineStats _computeStats(List<TripRecord> trips) {
+  final countries = <String>{};
+  final continents = <String>{};
+  int earliest = DateTime.now().year;
+  for (final t in trips) {
+    final cc = t.countryCode.toUpperCase();
+    countries.add(cc);
+    final c = kCountryContinent[cc];
+    if (c != null) continents.add(c);
+    if (t.startedOn.year < earliest) earliest = t.startedOn.year;
+  }
+  return _TimelineStats(
+    countryCount: countries.length,
+    visitedContinents: continents,
+    sinceYear: earliest,
+  );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class TravelTimelineScreen extends ConsumerWidget {
@@ -158,10 +191,166 @@ class TravelTimelineScreen extends ConsumerWidget {
           if (trips.isEmpty) {
             return const _EmptyTimeline();
           }
+          final stats = _computeStats(trips);
           final unlockedIds = achievementsAsync.valueOrNull ?? {};
           final items = _buildTimeline(trips, unlockedIds);
-          return _TimelineBody(items: items);
+          return Column(
+            children: [
+              _TimelineStatsHeader(stats: stats),
+              const Divider(height: 1, thickness: 1),
+              Expanded(child: _TimelineBody(items: items)),
+            ],
+          );
         },
+      ),
+    );
+  }
+}
+
+// ── Stats header ──────────────────────────────────────────────────────────────
+
+const _kAllContinents = [
+  'Europe',
+  'Asia',
+  'North America',
+  'South America',
+  'Africa',
+  'Oceania',
+];
+
+class _TimelineStatsHeader extends StatelessWidget {
+  const _TimelineStatsHeader({required this.stats});
+
+  final _TimelineStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Stat chips row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _StatChip(
+                label: '${stats.countryCount} countries',
+                icon: '🌍',
+              ),
+              _StatChip(
+                label: '${stats.visitedContinents.length} continents',
+                icon: '🗺️',
+              ),
+              _StatChip(
+                label: 'Since ${stats.sinceYear}',
+                icon: '📅',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Continent dot strip
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final continent in _kAllContinents) ...[
+                _ContinentDot(
+                  continent: continent,
+                  visited: stats.visitedContinents.contains(continent),
+                ),
+                if (continent != _kAllContinents.last) const SizedBox(width: 8),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Share CTA
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // Wired to M153 JourneyShareExporter when available.
+              },
+              icon: const Icon(Icons.share_outlined, size: 16),
+              label: const Text('Share your journey'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: cs.primary,
+                side: BorderSide(color: cs.primary.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                textStyle: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.icon});
+
+  final String label;
+  final String icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: cs.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContinentDot extends StatelessWidget {
+  const _ContinentDot({required this.continent, required this.visited});
+
+  final String continent;
+  final bool visited;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final emoji = kContinentEmoji[continent] ?? '🌐';
+    return Tooltip(
+      message: continent,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: visited ? 28 : 18,
+        height: visited ? 28 : 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: visited ? cs.primaryContainer : cs.surfaceContainerHighest,
+          border: Border.all(
+            color: visited ? cs.primary : cs.outline.withValues(alpha: 0.3),
+            width: visited ? 2 : 1,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          emoji,
+          style: TextStyle(fontSize: visited ? 14 : 10),
+        ),
       ),
     );
   }
