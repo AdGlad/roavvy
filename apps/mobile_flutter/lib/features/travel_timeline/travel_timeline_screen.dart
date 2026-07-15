@@ -8,6 +8,7 @@ import '../../core/continent_emoji.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'country_scene_icons.dart';
+import 'journey_share_exporter.dart';
 import 'timeline_painter.dart';
 import 'trip_detail_sheet.dart';
 
@@ -197,7 +198,7 @@ class TravelTimelineScreen extends ConsumerWidget {
           final items = _buildTimeline(trips, unlockedIds);
           return Column(
             children: [
-              _TimelineStatsHeader(stats: stats),
+              _TimelineStatsHeader(stats: stats, trips: trips),
               const Divider(height: 1, thickness: 1),
               Expanded(child: _TimelineBody(items: items)),
             ],
@@ -219,10 +220,34 @@ const _kAllContinents = [
   'Oceania',
 ];
 
-class _TimelineStatsHeader extends StatelessWidget {
-  const _TimelineStatsHeader({required this.stats});
+class _TimelineStatsHeader extends StatefulWidget {
+  const _TimelineStatsHeader({required this.stats, required this.trips});
 
   final _TimelineStats stats;
+  final List<TripRecord> trips;
+
+  @override
+  State<_TimelineStatsHeader> createState() => _TimelineStatsHeaderState();
+}
+
+class _TimelineStatsHeaderState extends State<_TimelineStatsHeader> {
+  bool _isSharing = false;
+
+  Future<void> _share() async {
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
+    try {
+      await JourneyShareExporter.export(
+        context: context,
+        countryCount: widget.stats.countryCount,
+        continentCount: widget.stats.visitedContinents.length,
+        sinceYear: widget.stats.sinceYear,
+        trips: widget.trips,
+      );
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -237,15 +262,15 @@ class _TimelineStatsHeader extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _StatChip(
-                label: '${stats.countryCount} countries',
+                label: '${widget.stats.countryCount} countries',
                 icon: '🌍',
               ),
               _StatChip(
-                label: '${stats.visitedContinents.length} continents',
+                label: '${widget.stats.visitedContinents.length} continents',
                 icon: '🗺️',
               ),
               _StatChip(
-                label: 'Since ${stats.sinceYear}',
+                label: 'Since ${widget.stats.sinceYear}',
                 icon: '📅',
               ),
             ],
@@ -258,7 +283,7 @@ class _TimelineStatsHeader extends StatelessWidget {
               for (final continent in _kAllContinents) ...[
                 _ContinentDot(
                   continent: continent,
-                  visited: stats.visitedContinents.contains(continent),
+                  visited: widget.stats.visitedContinents.contains(continent),
                 ),
                 if (continent != _kAllContinents.last) const SizedBox(width: 8),
               ],
@@ -269,11 +294,18 @@ class _TimelineStatsHeader extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                // Wired to M153 JourneyShareExporter when available.
-              },
-              icon: const Icon(Icons.share_outlined, size: 16),
-              label: const Text('Share your journey'),
+              onPressed: _isSharing ? null : _share,
+              icon: _isSharing
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: cs.primary,
+                      ),
+                    )
+                  : const Icon(Icons.share_outlined, size: 16),
+              label: Text(_isSharing ? 'Sharing…' : 'Share your journey'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: cs.primary,
                 side: BorderSide(color: cs.primary.withValues(alpha: 0.5)),
