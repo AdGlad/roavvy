@@ -804,7 +804,7 @@ class _PositionedNode extends StatelessWidget {
 
 // ── Trip node ─────────────────────────────────────────────────────────────────
 
-class _TripNode extends StatelessWidget {
+class _TripNode extends StatefulWidget {
   const _TripNode({
     required this.trip,
     required this.isFirstVisit,
@@ -818,16 +818,26 @@ class _TripNode extends StatelessWidget {
   final double canvasWidth;
 
   @override
+  State<_TripNode> createState() => _TripNodeState();
+}
+
+class _TripNodeState extends State<_TripNode> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final cc = trip.countryCode.toUpperCase();
+    final cc = widget.trip.countryCode.toUpperCase();
     final countryName = kCountryNames[cc] ?? cc;
     final scene = countrySceneIcon(cc);
-    final date = _kMonthYear.format(trip.startedOn);
+    final date = _kMonthYear.format(widget.trip.startedOn);
+    final isFirstVisit = widget.isFirstVisit;
+    final center = widget.center;
+    final canvasWidth = widget.canvasWidth;
 
     final radius = isFirstVisit ? _kNodeRadiusFirst : _kNodeRadiusRepeat;
-    final flagW = isFirstVisit ? 36.0 : 28.0;
-    final flagH = isFirstVisit ? 24.0 : 18.0;
+    final flagW = isFirstVisit ? 40.0 : 30.0;
+    final flagH = isFirstVisit ? 26.0 : 20.0;
 
     final isLeft = center.dx < canvasWidth * 0.5;
     final labelLeft = isLeft ? center.dx + radius + 10 : null;
@@ -835,81 +845,83 @@ class _TripNode extends StatelessWidget {
     final labelWidth = (canvasWidth * 0.30).clamp(80.0, 130.0);
 
     return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       onTap: () => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => TripDetailSheet(trip: trip, isFirstVisit: isFirstVisit),
+        builder: (_) =>
+            TripDetailSheet(trip: widget.trip, isFirstVisit: isFirstVisit),
       ),
       child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Premium node circle with gradient fill + SVG flag
-        Positioned(
-          left: center.dx - radius,
-          top: center.dy - radius,
-          child: _PremiumNodeCircle(
-            radius: radius,
-            isFirstVisit: isFirstVisit,
-            child: ClipOval(
+        clipBehavior: Clip.none,
+        children: [
+          // 3-D node circle
+          Positioned(
+            left: center.dx - radius,
+            top: center.dy - radius,
+            child: _PremiumNodeCircle(
+              radius: radius,
+              isFirstVisit: isFirstVisit,
+              isPressed: _pressed,
               child: SvgPicture.asset(
                 'assets/flags/svg/${cc.toLowerCase()}.svg',
                 width: flagW,
                 height: flagH,
                 fit: BoxFit.cover,
-                placeholderBuilder:
-                    (_) => Text(
-                      flagEmoji(cc),
-                      style: TextStyle(fontSize: isFirstVisit ? 22 : 16),
-                    ),
+                placeholderBuilder: (_) => Text(
+                  flagEmoji(cc),
+                  style: TextStyle(fontSize: isFirstVisit ? 22 : 16),
+                ),
               ),
             ),
           ),
-        ),
-        // Scene badge — bottom-left of node
-        Positioned(
-          left: center.dx - radius + 2,
-          top: center.dy + radius - 18,
-          child: _SceneBadge(scene: scene),
-        ),
-        // First-visit gold star — top-right of node
-        if (isFirstVisit)
+          // Scene badge — bottom-left
           Positioned(
-            left: center.dx + radius - 14,
-            top: center.dy - radius - 2,
-            child: const _FirstVisitBadge(),
+            left: center.dx - radius + 2,
+            top: center.dy + radius - 18,
+            child: _SceneBadge(scene: scene),
           ),
-        // Label
-        Positioned(
-          left: labelLeft,
-          right: labelRight,
-          top: center.dy - 24,
-          width: labelWidth,
-          child: Column(
-            crossAxisAlignment:
-                isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-            children: [
-              Text(
-                countryName,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: cs.onSurface,
-                  fontWeight:
-                      isFirstVisit ? FontWeight.w700 : FontWeight.normal,
+          // First-visit gold star — top-right
+          if (isFirstVisit)
+            Positioned(
+              left: center.dx + radius - 14,
+              top: center.dy - radius - 2,
+              child: const _FirstVisitBadge(),
+            ),
+          // Label
+          Positioned(
+            left: labelLeft,
+            right: labelRight,
+            top: center.dy - 24,
+            width: labelWidth,
+            child: Column(
+              crossAxisAlignment:
+                  isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+              children: [
+                Text(
+                  countryName,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight:
+                        isFirstVisit ? FontWeight.w700 : FontWeight.normal,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                date,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.55),
-                  fontSize: 10,
+                Text(
+                  date,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.55),
+                    fontSize: 10,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
@@ -917,7 +929,7 @@ class _TripNode extends StatelessWidget {
 
 // ── Achievement node ──────────────────────────────────────────────────────────
 
-class _AchievementNode extends StatelessWidget {
+class _AchievementNode extends StatefulWidget {
   const _AchievementNode({
     required this.achievement,
     required this.center,
@@ -927,6 +939,13 @@ class _AchievementNode extends StatelessWidget {
   final Achievement achievement;
   final Offset center;
   final double canvasWidth;
+
+  @override
+  State<_AchievementNode> createState() => _AchievementNodeState();
+}
+
+class _AchievementNodeState extends State<_AchievementNode> {
+  bool _pressed = false;
 
   static const _kEmojis = {
     1: '🌱',
@@ -946,6 +965,9 @@ class _AchievementNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final achievement = widget.achievement;
+    final center = widget.center;
+    final canvasWidth = widget.canvasWidth;
     final emoji = _kEmojis[achievement.progressTarget] ?? '🏆';
     final isLeft = center.dx < canvasWidth * 0.5;
     final labelLeft = isLeft ? center.dx + _kAchievementRadius + 10 : null;
@@ -954,6 +976,9 @@ class _AchievementNode extends StatelessWidget {
     final labelWidth = (canvasWidth * 0.30).clamp(80.0, 130.0);
 
     return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       onTap: () => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -961,101 +986,166 @@ class _AchievementNode extends StatelessWidget {
         builder: (_) => AchievementDetailSheet(achievement: achievement),
       ),
       child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Achievement circle with glow
-        Positioned(
-          left: center.dx - _kAchievementRadius,
-          top: center.dy - _kAchievementRadius,
-          child: _AchievementCircle(
-            radius: _kAchievementRadius,
-            child: Text(emoji, style: const TextStyle(fontSize: 28)),
+        clipBehavior: Clip.none,
+        children: [
+          // 3-D achievement circle
+          Positioned(
+            left: center.dx - _kAchievementRadius,
+            top: center.dy - _kAchievementRadius,
+            child: _AchievementCircle(
+              radius: _kAchievementRadius,
+              isPressed: _pressed,
+              child: Text(emoji, style: const TextStyle(fontSize: 28)),
+            ),
           ),
-        ),
-        // Label
-        Positioned(
-          left: labelLeft,
-          right: labelRight,
-          top: center.dy - 24,
-          width: labelWidth,
-          child: Column(
-            crossAxisAlignment:
-                isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-            children: [
-              Text(
-                achievement.title,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: cs.secondary,
-                  fontWeight: FontWeight.w700,
+          // Label
+          Positioned(
+            left: labelLeft,
+            right: labelRight,
+            top: center.dy - 24,
+            width: labelWidth,
+            child: Column(
+              crossAxisAlignment:
+                  isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+              children: [
+                Text(
+                  achievement.title,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                '${achievement.progressTarget} countries',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.55),
-                  fontSize: 10,
+                Text(
+                  '${achievement.progressTarget} countries',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.55),
+                    fontSize: 10,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
 }
 
+// ── 3-D colour helper ─────────────────────────────────────────────────────────
+
+// Darkens [c] by reducing HSL lightness. Used for the raised-button base layer.
+Color _darken(Color c, [double amount = 0.22]) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl
+      .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
+      .toColor();
+}
+
 // ── Premium node circle (trip) ────────────────────────────────────────────────
 
+/// Duolingo-style raised 3-D button.
+///
+/// Layers (bottom to top):
+///   1. Base circle — same hue, darkened, offset [_kDepth] px down → creates depth
+///   2. Face circle — top-light gradient on top of the base → "raised surface"
+///   3. Gloss arc   — white-to-transparent at top → simulates sphere highlight
+///
+/// When [isPressed], the face translates down into the base, mimicking a real
+/// button press.
 class _PremiumNodeCircle extends StatelessWidget {
   const _PremiumNodeCircle({
     required this.radius,
     required this.isFirstVisit,
+    required this.isPressed,
     required this.child,
   });
 
   final double radius;
   final bool isFirstVisit;
+  final bool isPressed;
   final Widget child;
+
+  static const _kDepth = 5.0;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final diameter = radius * 2;
-    final borderColor = isFirstVisit ? cs.primary : cs.outline;
-    return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient:
-            isFirstVisit
-                ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    cs.primaryContainer,
-                    cs.primary.withValues(alpha: 0.25),
-                  ],
-                )
-                : null,
-        color: isFirstVisit ? null : cs.surfaceContainerHighest,
-        border: Border.all(
-          color: borderColor,
-          width: isFirstVisit ? 2.5 : 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: borderColor.withValues(alpha: isFirstVisit ? 0.35 : 0.15),
-            blurRadius: isFirstVisit ? 12 : 6,
-            offset: const Offset(0, 3),
+    final d = radius * 2;
+
+    // Face colours: top is lighter, bottom is the brand colour.
+    final faceTop = isFirstVisit ? cs.primaryContainer : cs.surfaceContainerHighest;
+    final faceBot = isFirstVisit ? cs.primary : cs.surfaceContainer;
+    final base    = isFirstVisit ? _darken(cs.primary) : _darken(cs.outlineVariant);
+
+    // Pressed: face drops down flush with the base (no depth visible).
+    final faceOffset = isPressed ? _kDepth : 0.0;
+
+    return SizedBox(
+      width: d,
+      height: d + _kDepth,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── 1. Base ──────────────────────────────────────
+          Positioned(
+            left: 0,
+            top: _kDepth,
+            child: Container(
+              width: d,
+              height: d,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: base),
+            ),
+          ),
+          // ── 2. Face ──────────────────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 80),
+            curve: Curves.easeOut,
+            left: 0,
+            top: faceOffset,
+            child: Container(
+              width: d,
+              height: d,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [faceTop, faceBot],
+                ),
+                border: Border.all(color: base, width: isFirstVisit ? 2.5 : 1.5),
+              ),
+              alignment: Alignment.center,
+              child: child,
+            ),
+          ),
+          // ── 3. Gloss arc ──────────────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 80),
+            curve: Curves.easeOut,
+            left: d * 0.18,
+            top: d * 0.10 + faceOffset,
+            child: IgnorePointer(
+              child: Container(
+                width: d * 0.64,
+                height: d * 0.30,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(d),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x60FFFFFF),
+                      Color(0x00FFFFFF),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      alignment: Alignment.center,
-      child: child,
     );
   }
 }
@@ -1063,37 +1153,100 @@ class _PremiumNodeCircle extends StatelessWidget {
 // ── Achievement circle ────────────────────────────────────────────────────────
 
 class _AchievementCircle extends StatelessWidget {
-  const _AchievementCircle({required this.radius, required this.child});
+  const _AchievementCircle({
+    required this.radius,
+    required this.isPressed,
+    required this.child,
+  });
 
   final double radius;
+  final bool isPressed;
   final Widget child;
+
+  static const _kDepth = 6.0;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final diameter = radius * 2;
-    return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cs.secondaryContainer, cs.tertiaryContainer],
-        ),
-        border: Border.all(color: cs.secondary, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: cs.secondary.withValues(alpha: 0.40),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: Offset.zero,
+    final d = radius * 2;
+    final base = _darken(cs.secondary, 0.30);
+    final faceOffset = isPressed ? _kDepth : 0.0;
+
+    return SizedBox(
+      width: d,
+      height: d + _kDepth,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── 1. Base + outer glow ─────────────────────────
+          Positioned(
+            left: 0,
+            top: _kDepth,
+            child: Container(
+              width: d,
+              height: d,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: base,
+                boxShadow: [
+                  BoxShadow(
+                    color: cs.secondary.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    spreadRadius: 3,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ── 2. Face ──────────────────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 80),
+            curve: Curves.easeOut,
+            left: 0,
+            top: faceOffset,
+            child: Container(
+              width: d,
+              height: d,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [cs.secondaryContainer, cs.secondary],
+                ),
+                border: Border.all(color: base, width: 3.0),
+              ),
+              alignment: Alignment.center,
+              child: child,
+            ),
+          ),
+          // ── 3. Gloss arc ──────────────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 80),
+            curve: Curves.easeOut,
+            left: d * 0.18,
+            top: d * 0.10 + faceOffset,
+            child: IgnorePointer(
+              child: Container(
+                width: d * 0.64,
+                height: d * 0.30,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(d),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x55FFFFFF),
+                      Color(0x00FFFFFF),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      alignment: Alignment.center,
-      child: child,
     );
   }
 }
