@@ -9,6 +9,7 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'country_scene_icons.dart';
 import 'timeline_painter.dart';
+import 'trip_detail_sheet.dart';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -494,7 +495,14 @@ class _TripNode extends StatelessWidget {
     final labelRight = !isLeft ? canvasWidth - center.dx + radius + 10 : null;
     final labelWidth = (canvasWidth * 0.30).clamp(80.0, 130.0);
 
-    return Stack(
+    return GestureDetector(
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => TripDetailSheet(trip: trip, isFirstVisit: isFirstVisit),
+      ),
+      child: Stack(
       clipBehavior: Clip.none,
       children: [
         // Premium node circle with gradient fill + SVG flag
@@ -563,6 +571,7 @@ class _TripNode extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -605,7 +614,14 @@ class _AchievementNode extends StatelessWidget {
         !isLeft ? canvasWidth - center.dx + _kAchievementRadius + 10 : null;
     final labelWidth = (canvasWidth * 0.30).clamp(80.0, 130.0);
 
-    return Stack(
+    return GestureDetector(
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => AchievementDetailSheet(achievement: achievement),
+      ),
+      child: Stack(
       clipBehavior: Clip.none,
       children: [
         // Achievement circle with glow
@@ -647,6 +663,7 @@ class _AchievementNode extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
