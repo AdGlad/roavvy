@@ -44,9 +44,21 @@ final class _AchievementItem extends _TimelineItem {
   final Achievement achievement;
 }
 
+final class _YearHeaderItem extends _TimelineItem {
+  _YearHeaderItem({
+    required this.year,
+    required this.countryCount,
+    required this.continentCount,
+  });
+
+  final int year;
+  final int countryCount;
+  final int continentCount;
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-/// Builds the interleaved list of trips + country-count achievement milestones,
+/// Builds the interleaved list of year headers + trips + achievement milestones,
 /// newest item first (top of screen).
 List<_TimelineItem> _buildTimeline(
   List<TripRecord> trips,
@@ -69,10 +81,35 @@ List<_TimelineItem> _buildTimeline(
           .toList()
         ..sort((a, b) => a.progressTarget.compareTo(b.progressTarget));
 
+  // Precompute per-year stats for headers.
+  final yearCountries = <int, Set<String>>{};
+  final yearContinents = <int, Set<String>>{};
+  for (final trip in sorted) {
+    final y = trip.startedOn.year;
+    final cc = trip.countryCode.toUpperCase();
+    (yearCountries[y] ??= {}).add(cc);
+    (yearContinents[y] ??= {}).add(kCountryContinent[cc] ?? 'Other');
+  }
+
   int nextAchIdx = 0;
+  int? lastYear;
 
   for (final trip in sorted) {
     final cc = trip.countryCode.toUpperCase();
+    final year = trip.startedOn.year;
+
+    // Inject a year header whenever the year changes.
+    if (year != lastYear) {
+      chronological.add(
+        _YearHeaderItem(
+          year: year,
+          countryCount: yearCountries[year]?.length ?? 0,
+          continentCount: yearContinents[year]?.length ?? 0,
+        ),
+      );
+      lastYear = year;
+    }
+
     final isFirst = !seen.contains(cc);
     if (isFirst) seen.add(cc);
     final runningCount = seen.length;
@@ -142,11 +179,16 @@ class _TimelineBody extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final headerIndices = {
+          for (int i = 0; i < items.length; i++)
+            if (items[i] is _YearHeaderItem) i,
+        };
         final positions = computeTimelinePositions(
           count: items.length,
           width: width,
           topPadding: _kTopPadding,
           nodeSpacing: _kNodeSpacing,
+          headerIndices: headerIndices,
         );
         final totalHeight = timelineHeight(
           count: items.length,
@@ -220,6 +262,13 @@ class _PositionedNode extends StatelessWidget {
         center: center,
         canvasWidth: width,
       ),
+      _YearHeaderItem(:final year, :final countryCount, :final continentCount) =>
+        _YearHeaderNode(
+          year: year,
+          countryCount: countryCount,
+          continentCount: continentCount,
+          center: center,
+        ),
     };
   }
 }
@@ -551,6 +600,58 @@ class _FirstVisitBadge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: const Text('⭐', style: TextStyle(fontSize: 9)),
+    );
+  }
+}
+
+// ── Year header node ──────────────────────────────────────────────────────────
+
+class _YearHeaderNode extends StatelessWidget {
+  const _YearHeaderNode({
+    required this.year,
+    required this.countryCount,
+    required this.continentCount,
+    required this.center,
+  });
+
+  final int year;
+  final int countryCount;
+  final int continentCount;
+  final Offset center;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final parts = <String>[
+      '$year',
+      '$countryCount ${countryCount == 1 ? 'country' : 'countries'}',
+      if (continentCount > 1) '$continentCount continents',
+    ];
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: center.dy - 22,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: cs.secondaryContainer.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: cs.secondary.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            parts.join('  ·  '),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: cs.onSecondaryContainer,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
