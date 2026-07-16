@@ -11,6 +11,7 @@ import '../../core/remote_config_service.dart';
 import '../challenge/daily_challenge_service.dart';
 import '../globe_replay/globe_replay_widget.dart';
 import '../memory/app_open_tracker.dart';
+// ignore: unused_import — kept for Journal tab reinstatement
 import '../journal/journal_screen.dart';
 import '../journal/trip_detail_screen.dart';
 import '../map/country_profile_screen.dart';
@@ -19,19 +20,23 @@ import '../merch/merch_cart_screen.dart';
 import '../merch/merch_shop_screen.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
+import '../travel_timeline/travel_timeline_screen.dart';
 import '../world_leap/presentation/screens/world_leap_lobby_screen.dart';
 
-/// Bottom navigation shell with four tabs: Map · Journal · Stats · Shop.
+/// Bottom navigation shell with tabs: Map · Journey · Stats · Shop · Play.
 ///
 /// Tab index contract (ADR-052):
 ///   0 — Map
-///   1 — Journal
+///   1 — Journey (travel timeline)
 ///   2 — Stats
 ///   3 — Shop (Cart + Orders)
 ///   4 — Play (World Leap)
 ///
+/// Journal tab is retained in code (JournalScreen import + commented stack entry)
+/// for possible reinstatement.
+///
 /// Scan is no longer a nav tab. It is accessible via the Scan button on the
-/// Map screen (top-right floating button) and from Journal/Map empty states.
+/// Map screen (top-right floating button) and from Map empty states.
 ///
 /// Uses [IndexedStack] to keep all screens alive, preserving scroll position
 /// and map state on tab switch. After a scan completes, [ScanScreen] calls
@@ -283,10 +288,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                 onNavigateToScanPartial:
                     () => _goToScan(autoStart: true, forceFullScan: false),
               ),
-              JournalScreen(
-                onNavigateToScan:
-                    () => _goToScan(autoStart: true, forceFullScan: true),
-              ),
+              // Journal — kept for possible reinstatement:
+              // JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
+              const TravelTimelineScreen(),
               const StatsScreen(),
               const MerchShopScreen(),
               const WorldLeapLobbyScreen(),
@@ -355,10 +359,16 @@ class _MainShellState extends ConsumerState<MainShell> {
             selectedIcon: Icon(Icons.map),
             label: 'Map',
           ),
+          // Journal — kept for possible reinstatement:
+          // const NavigationDestination(
+          //   icon: Icon(Icons.list_alt_outlined),
+          //   selectedIcon: Icon(Icons.list_alt),
+          //   label: 'Journal',
+          // ),
           const NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Journal',
+            icon: Icon(Icons.route_outlined),
+            selectedIcon: Icon(Icons.route),
+            label: 'Journey',
           ),
           const NavigationDestination(
             icon: Icon(Icons.leaderboard_outlined),
