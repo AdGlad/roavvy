@@ -1,4 +1,18 @@
 // lib/features/world_leap/presentation/widgets/world_leap_map_widget.dart
+//
+// M171: Performance overhaul — polygon layer is only rebuilt on game-state
+// transitions, not on every 60 fps animation tick.
+//
+// Architecture:
+//   • _staticPolygons, _currentPolygon, _targetPolygonPoints are pre-built
+//     in _rebuildPolygonCaches(), called from _onStateChanged (not build()).
+//   • AnimatedBuilder wraps only the animated sub-layers (target pulse,
+//     origin ring, flight arc, splash ring), so each rebuilds at 60 fps
+//     independently without touching the parent or the static layer.
+//   • RepaintBoundary around the static PolygonLayer tells Flutter to skip
+//     re-rasterizing it on animation frames.
+//   • _trajectoryNotifier (ValueNotifier) replaces setState on aim drag,
+//     so trajectory dots update without a full widget rebuild.
 
 import 'dart:math' as math;
 
@@ -15,42 +29,33 @@ import '../../domain/models/world_leap_run.dart';
 import '../../domain/services/world_leap_geo_service.dart';
 import '../../world_leap_config.dart';
 
-// ── Extra colour constants ────────────────────────────────────────────────────
-
-const _kFlightTrailColor = Color(0xCCFFFFFF); // semi-transparent white
-const _kProjectileColor = Color(0xFFFFD700);  // gold
-
 // ── Colour constants ─────────────────────────────────────────────────────────
 
-const _kOceanColor = Color(0xFF0D1B2A);
-const _kUnvisitedFill = Color(0xFF1E3A5F);
-const _kUnvisitedBorder = Color(0xFF2A4F7A);
-const _kVisitedFill = Color(0xFF3DBE6E);
-const _kVisitedBorder = Color(0xFF5DE88A);
-const _kCurrentFill = Color(0xFFFFD700);
-const _kCurrentBorder = Color(0xFFFFFFFF);
-const _kTargetFill = Color(0xFFE53935);
-const _kTargetBorder = Color(0xFFFF8A80);
-const _kTrajectoryColor = Color(0xFFFFFFFF);
+const _kOceanColor        = Color(0xFF0D1B2A);
+const _kUnvisitedFill     = Color(0xFF1E3A5F);
+const _kUnvisitedBorder   = Color(0xFF2A4F7A);
+const _kVisitedFill       = Color(0xFF3DBE6E);
+const _kVisitedBorder     = Color(0xFF5DE88A);
+const _kCurrentFill       = Color(0xFFFFD700);
+const _kCurrentBorder     = Color(0xFFFFFFFF);
+const _kTargetFill        = Color(0xFFE53935);
+const _kTargetBorder      = Color(0xFFFF8A80);
+const _kTrajectoryColor   = Color(0xFFFFFFFF);
+const _kFlightTrailColor  = Color(0xCCFFFFFF);
+const _kProjectileColor   = Color(0xFFFFD700);
 
 // ── Package-private helper (importable in tests) ──────────────────────────────
 
-/// Determines the fill colour for a country polygon given the current run state.
 Color countryFillColor({
   required String isoCode,
   required String? currentCode,
   required Set<String> visitedCodes,
   String? targetCode,
-  double targetPulse = 1.0, // 0.0–1.0 animation value for target pulse
+  double targetPulse = 1.0,
 }) {
   if (isoCode == currentCode) return _kCurrentFill;
   if (isoCode == targetCode) {
-    // Pulse between bright red and a darker red.
-    return Color.lerp(
-      const Color(0xFF8B0000),
-      _kTargetFill,
-      targetPulse,
-    )!;
+    return Color.lerp(const Color(0xFF8B0000), _kTargetFill, targetPulse)!;
   }
   if (visitedCodes.contains(isoCode)) return _kVisitedFill;
   return _kUnvisitedFill;
@@ -69,12 +74,7 @@ class WorldLeapMapWidget extends StatefulWidget {
 
   final WorldLeapController controller;
   final WorldLeapGeoService geo;
-
-  /// When true, the map's drag interaction is suppressed so the slingshot
-  /// can own the pan gesture without the map also panning.
   final ValueNotifier<bool>? slingshotActive;
-
-  /// Camera behaviour during the slingshot flight arc.
   final WorldLeapCameraMode cameraMode;
 
   @override
@@ -84,28 +84,35 @@ class WorldLeapMapWidget extends StatefulWidget {
 class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     with TickerProviderStateMixin {
   final _mapController = MapController();
-  List<CountryPolygon> _allPolygons = [];
-  List<LatLng> _trajectoryPoints = [];
 
-  // Pre-computed LatLng point lists — vertices never change so allocate once.
-  List<List<LatLng>> _cachedPoints = [];
+  // ── Raw polygon data (loaded once) ──────────────────────────────────────────
+  late final List<CountryPolygon> _allPolygons;
+  late final List<List<LatLng>> _cachedPoints; // pre-converted, never changes
 
-  // ── Flight animation ────────────────────────────────────────────────────────
+  // ── Pre-built polygon caches (rebuilt only on game-state changes) ──────────
+  List<Polygon> _staticPolygons = [];  // ~248 countries: unvisited + visited
+  Polygon? _currentPolygon;           // current (gold) — no animation
+  List<LatLng>? _targetPolygonPoints; // target points — used in AnimatedBuilder
+  String? _cachedCurrentCode;
+  String? _cachedTargetCode;
+  Set<String> _cachedVisitedCodes = {};
+
+  // ── Trajectory (aim preview) — drives only the trajectory dot layer ─────────
+  // Using ValueNotifier instead of setState so only the dot layer rebuilds.
+  final _trajectoryNotifier = ValueNotifier<List<LatLng>>([]);
+
+  // ── Animation controllers ────────────────────────────────────────────────────
   late final AnimationController _flightController;
-  double _flightProgress = 0.0;
-  bool _isLaunching = false;
-
-  // ── Target pulse animation ──────────────────────────────────────────────────
   late final AnimationController _pulseController;
-
-  // ── Landing splash animation ─────────────────────────────────────────────
   late final AnimationController _splashController;
+
+  // ── State flags (updated via setState, which is now rare) ──────────────────
+  bool _isLaunching = false;
   LatLng? _splashPoint;
-
-  // ── Miss line ────────────────────────────────────────────────────────────
   List<LatLng> _missLine = [];
+  bool _hasFlownToOrigin = false;
 
-  // ── Zoom ────────────────────────────────────────────────────────────────────
+  // ── Public API (called from screen) ─────────────────────────────────────────
 
   void zoomIn() {
     final z = (_mapController.camera.zoom + 1.0).clamp(1.0, 8.0);
@@ -117,50 +124,46 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     _mapController.move(_mapController.camera.center, z);
   }
 
+  bool isInCurrentCountry(Offset screenPos) {
+    final latLng = _mapController.camera.pointToLatLng(
+      math.Point<double>(screenPos.dx, screenPos.dy),
+    );
+    return widget.controller.isInCurrentCountry(
+      latLng.latitude,
+      latLng.longitude,
+    );
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────────
+
   @override
   void initState() {
     super.initState();
     _allPolygons = loadPolygons();
-    // Pre-compute LatLng lists once — polygon vertices never change.
     _cachedPoints = [
       for (final p in _allPolygons)
         [for (final (lat, lng) in p.vertices) LatLng(lat, lng)],
     ];
 
+    // Flight controller — no setState. AnimatedBuilder handles visual update.
+    // Camera tracking (mapController.move) does not require setState.
     _flightController = AnimationController(
       vsync: this,
-      duration:
-          const Duration(milliseconds: WorldLeapConfig.launchAnimationMs),
-    )..addListener(() {
-        final t = _flightController.value;
-        setState(() => _flightProgress = t);
-        // Move camera to track the projectile during flight.
-        if (widget.cameraMode.isTracking && _trajectoryPoints.isNotEmpty) {
-          final count = _trajectoryPoints.length;
-          final upTo = (t * count).clamp(0.0, count.toDouble()).round();
-          if (upTo > 0) {
-            _mapController.move(
-              _trajectoryPoints[upTo - 1],
-              widget.cameraMode.zoomAt(t),
-            );
-          }
-        }
-      });
+      duration: const Duration(milliseconds: WorldLeapConfig.launchAnimationMs),
+    )..addListener(_onFlightTick);
 
+    // Pulse controller — no addListener. AnimatedBuilder uses it directly.
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )
-      ..repeat(reverse: true)
-      ..addListener(() => setState(() {}));
+    )..repeat(reverse: true);
 
+    // Splash controller — no setState in tick. Status listener clears point.
     _splashController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )
-      ..addListener(() => setState(() {}))
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
           setState(() => _splashPoint = null);
         }
       });
@@ -169,52 +172,9 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     widget.controller.addListener(_onStateChanged);
     widget.controller.aimNotifier.addListener(_onAimChanged);
 
-    // The controller may already be in Aiming state (initialize() completed
-    // before this widget was built). Schedule a state-sync so the map flies
-    // to the start country on the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _onStateChanged();
     });
-  }
-
-  void _onSlingshotActiveChanged() => setState(() {});
-
-  /// Called by [aimNotifier] at pointer-move frequency (~60Hz) during aiming.
-  /// Only updates the trajectory preview — does not rebuild unrelated widgets.
-  void _onAimChanged() {
-    final aim = widget.controller.aimNotifier.value;
-    if (aim == null) {
-      if (mounted) setState(() => _trajectoryPoints = []);
-      return;
-    }
-    final state = widget.controller.state;
-    if (state is! WorldLeapStateAiming) return;
-    _computeTrajectory(state.run, aim.bearingDeg, aim.power);
-  }
-
-  void _computeTrajectory(WorldLeapRun run, double bearingDeg, double power) {
-    final origin = _originFor(run);
-    final distanceKm = (power * WorldLeapConfig.maxLaunchDistanceKm)
-        .clamp(WorldLeapConfig.minLaunchDistanceKm, WorldLeapConfig.maxLaunchDistanceKm);
-    final pts = widget.geo.trajectoryPoints(
-      fromLat: origin.latitude,
-      fromLon: origin.longitude,
-      bearingDeg: bearingDeg,
-      distanceKm: distanceKm,
-      count: WorldLeapConfig.trajectoryDotCount,
-    );
-    setState(() {
-      _trajectoryPoints = [for (final p in pts) LatLng(p.lat, p.lon)];
-    });
-  }
-
-  /// Returns true if [screenPos] (in local widget coordinates) maps to the
-  /// current source country — used by the slingshot as a hit test.
-  bool isInCurrentCountry(Offset screenPos) {
-    final latLng = _mapController.camera.pointToLatLng(
-      math.Point<double>(screenPos.dx, screenPos.dy),
-    );
-    return widget.controller.isInCurrentCountry(latLng.latitude, latLng.longitude);
   }
 
   @override
@@ -222,6 +182,7 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     widget.slingshotActive?.removeListener(_onSlingshotActiveChanged);
     widget.controller.removeListener(_onStateChanged);
     widget.controller.aimNotifier.removeListener(_onAimChanged);
+    _trajectoryNotifier.dispose();
     _flightController.dispose();
     _pulseController.dispose();
     _splashController.dispose();
@@ -229,86 +190,200 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     super.dispose();
   }
 
-  bool _hasFlownToOrigin = false;
+  // ── Flight tick — camera tracking only, no setState ───────────────────────
+
+  void _onFlightTick() {
+    if (!widget.cameraMode.isTracking) return;
+    final pts = _trajectoryNotifier.value;
+    if (pts.isEmpty) return;
+    final t = _flightController.value;
+    final count = pts.length;
+    final upTo = (t * count).clamp(0.0, count.toDouble()).round();
+    if (upTo > 0) {
+      _mapController.move(pts[upTo - 1], widget.cameraMode.zoomAt(t));
+    }
+  }
+
+  void _onSlingshotActiveChanged() => setState(() {});
+
+  // ── Aim drag — trajectory dots only, no full rebuild ──────────────────────
+
+  void _onAimChanged() {
+    final aim = widget.controller.aimNotifier.value;
+    if (aim == null) {
+      _trajectoryNotifier.value = [];
+      return;
+    }
+    final state = widget.controller.state;
+    if (state is! WorldLeapStateAiming) return;
+    _computeTrajectory(state.run, aim.bearingDeg, aim.power);
+  }
+
+  void _computeTrajectory(
+    WorldLeapRun run,
+    double bearingDeg,
+    double power,
+  ) {
+    final origin = _originFor(run);
+    final distanceKm = (power * WorldLeapConfig.maxLaunchDistanceKm).clamp(
+      WorldLeapConfig.minLaunchDistanceKm,
+      WorldLeapConfig.maxLaunchDistanceKm,
+    );
+    final pts = widget.geo.trajectoryPoints(
+      fromLat: origin.latitude,
+      fromLon: origin.longitude,
+      bearingDeg: bearingDeg,
+      distanceKm: distanceKm,
+      count: WorldLeapConfig.trajectoryDotCount,
+    );
+    // ValueNotifier update → only the ListenableBuilder rebuilds (not the map).
+    _trajectoryNotifier.value = [for (final p in pts) LatLng(p.lat, p.lon)];
+  }
+
+  // ── Polygon cache — rebuilt only on game-state transitions ────────────────
+
+  void _rebuildPolygonCaches(
+    String? currentCode,
+    String? targetCode,
+    Set<String> visitedCodes,
+  ) {
+    if (_cachedCurrentCode == currentCode &&
+        _cachedTargetCode == targetCode &&
+        _cachedVisitedCodes.length == visitedCodes.length &&
+        _cachedVisitedCodes.containsAll(visitedCodes)) {
+      return; // Nothing changed — skip the O(n) loop.
+    }
+    _cachedCurrentCode = currentCode;
+    _cachedTargetCode = targetCode;
+    _cachedVisitedCodes = visitedCodes;
+
+    final staticList = <Polygon>[];
+    Polygon? currentPoly;
+    List<LatLng>? targetPts;
+
+    for (int i = 0; i < _allPolygons.length; i++) {
+      final iso = _allPolygons[i].isoCode;
+      if (iso == 'AQ') continue;
+      final pts = _cachedPoints[i];
+
+      if (iso == currentCode) {
+        currentPoly = Polygon(
+          points: pts,
+          color: _kCurrentFill,
+          borderColor: _kCurrentBorder,
+          borderStrokeWidth: 1.5,
+        );
+      } else if (iso == targetCode) {
+        targetPts = pts; // rendered animated in AnimatedBuilder
+      } else {
+        final visited = visitedCodes.contains(iso);
+        staticList.add(
+          Polygon(
+            points: pts,
+            color: visited ? _kVisitedFill : _kUnvisitedFill,
+            borderColor: visited ? _kVisitedBorder : _kUnvisitedBorder,
+            borderStrokeWidth: visited ? 1.0 : 0.4,
+          ),
+        );
+      }
+    }
+
+    _staticPolygons = staticList;
+    _currentPolygon = currentPoly;
+    _targetPolygonPoints = targetPts;
+  }
+
+  // ── State change handler ──────────────────────────────────────────────────
 
   void _onStateChanged() {
+    if (!mounted) return;
     final state = widget.controller.state;
 
+    // Rebuild polygon caches whenever state (and thus run) changes.
+    final run = _runFromState(state);
+    _rebuildPolygonCaches(
+      run?.currentCountryCode,
+      widget.controller.targetCountryCode,
+      run?.visitedCountryCodes ?? const {},
+    );
+
     if (state is WorldLeapStateAiming) {
-      // Centre the map to show both the origin and the target country.
       if (!_hasFlownToOrigin) {
         _hasFlownToOrigin = true;
         _flyToShowBoth();
       }
-      _stopFlight();
-      // Trajectory is driven by aimNotifier; clear it here on state entry
-      // (bearing/power are null until the user starts dragging).
+      _flightController.stop();
       setState(() {
-        _trajectoryPoints = [];
+        _isLaunching = false;
         _missLine = [];
       });
+      _trajectoryNotifier.value = [];
     } else if (state is WorldLeapStateLaunching) {
       _updateTrajectoryFromLaunching(state);
-      _startFlight();
-      setState(() => _missLine = []);
-    } else if (state is WorldLeapStateLanded) {
-      _stopFlight();
-      _clearTrajectory();
-      // Reset flag so the next Aiming state re-centres on both countries.
-      _hasFlownToOrigin = false;
       setState(() {
-        _splashPoint = LatLng(state.lastLaunch.landingLat, state.lastLaunch.landingLon);
+        _isLaunching = true;
         _missLine = [];
       });
+      _flightController.forward(from: 0);
+    } else if (state is WorldLeapStateLanded) {
+      _flightController.stop();
+      _hasFlownToOrigin = false;
+      setState(() {
+        _isLaunching = false;
+        _splashPoint = LatLng(
+          state.lastLaunch.landingLat,
+          state.lastLaunch.landingLon,
+        );
+        _missLine = [];
+      });
+      _trajectoryNotifier.value = [];
       _splashController.forward(from: 0);
-      // Skip fly-to when tracking: camera already arrived at the landing spot.
       if (!widget.cameraMode.isTracking) {
-        _flyTo(state.lastLaunch.landingLat, state.lastLaunch.landingLon, zoom: 3.0);
+        _mapController.move(
+          LatLng(state.lastLaunch.landingLat, state.lastLaunch.landingLon),
+          3.0,
+        );
       }
     } else if (state is WorldLeapStateFailed) {
-      _stopFlight();
-      _clearTrajectory();
+      _flightController.stop();
+      _trajectoryNotifier.value = [];
+      List<LatLng> missLine = [];
       if (state.reason == WorldLeapFailureReason.wrongCountry &&
           state.run.launches.isNotEmpty &&
           widget.controller.targetLocation != null) {
-        setState(() {
-          _missLine = [
-            LatLng(state.run.launches.last.landingLat, state.run.launches.last.landingLon),
-            LatLng(widget.controller.targetLocation!.lat, widget.controller.targetLocation!.lon),
-          ];
-        });
-      } else {
-        setState(() => _missLine = []);
+        missLine = [
+          LatLng(
+            state.run.launches.last.landingLat,
+            state.run.launches.last.landingLon,
+          ),
+          LatLng(
+            widget.controller.targetLocation!.lat,
+            widget.controller.targetLocation!.lon,
+          ),
+        ];
       }
+      setState(() {
+        _isLaunching = false;
+        _missLine = missLine;
+      });
     } else {
-      _stopFlight();
-      _clearTrajectory();
-      setState(() => _missLine = []);
+      _flightController.stop();
+      _trajectoryNotifier.value = [];
+      setState(() {
+        _isLaunching = false;
+        _missLine = [];
+      });
     }
-  }
-
-  void _startFlight() {
-    setState(() {
-      _isLaunching = true;
-      _flightProgress = 0.0;
-    });
-    _flightController.forward(from: 0);
-  }
-
-  void _stopFlight() {
-    _flightController.stop();
-    setState(() {
-      _isLaunching = false;
-      _flightProgress = 0.0;
-    });
   }
 
   void _updateTrajectoryFromLaunching(WorldLeapStateLaunching state) {
     final run = state.run;
     final origin = _originFor(run);
     final distanceKm = (state.power * WorldLeapConfig.maxLaunchDistanceKm)
-        .clamp(WorldLeapConfig.minLaunchDistanceKm, WorldLeapConfig.maxLaunchDistanceKm);
-
+        .clamp(
+          WorldLeapConfig.minLaunchDistanceKm,
+          WorldLeapConfig.maxLaunchDistanceKm,
+        );
     final pts = widget.geo.trajectoryPoints(
       fromLat: origin.latitude,
       fromLon: origin.longitude,
@@ -316,16 +391,7 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       distanceKm: distanceKm,
       count: WorldLeapConfig.trajectoryDotCount,
     );
-
-    setState(() {
-      _trajectoryPoints = [for (final p in pts) LatLng(p.lat, p.lon)];
-    });
-  }
-
-  void _clearTrajectory() {
-    if (_trajectoryPoints.isNotEmpty) {
-      setState(() => _trajectoryPoints = []);
-    }
+    _trajectoryNotifier.value = [for (final p in pts) LatLng(p.lat, p.lon)];
   }
 
   LatLng _originFor(WorldLeapRun run) {
@@ -337,26 +403,28 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     return LatLng(o.lat, o.lon);
   }
 
-  void _flyTo(double lat, double lon, {double zoom = 3.5}) {
-    _mapController.move(LatLng(lat, lon), zoom);
-  }
+  WorldLeapRun? _runFromState(WorldLeapState state) => switch (state) {
+    WorldLeapStateAiming(:final run) => run,
+    WorldLeapStateLaunching(:final run) => run,
+    WorldLeapStateLanded(:final run) => run,
+    WorldLeapStateFailed(:final run) => run,
+    WorldLeapStateComplete(:final run) => run,
+    WorldLeapStateLocked(:final run) => run,
+    _ => null,
+  };
 
-  /// Flies the map to show both the current origin and the target country.
-  /// Centres on the midpoint of the two locations and picks a zoom level
-  /// that keeps both visible.
+  // ── Camera helpers ────────────────────────────────────────────────────────
+
   void _flyToShowBoth() {
     final origin = widget.controller.currentOrigin;
     final target = widget.controller.targetLocation;
 
     if (target == null) {
-      // No target yet — just centre on origin at a comfortable zoom.
-      _flyTo(origin.lat, origin.lon, zoom: 3.5);
+      _mapController.move(LatLng(origin.lat, origin.lon), 3.5);
       return;
     }
 
-    // ── Midpoint (handles antimeridian correctly) ────────────────────────────
     final midLat = (origin.lat + target.lat) / 2.0;
-
     double lonDiff = target.lon - origin.lon;
     if (lonDiff > 180) lonDiff -= 360;
     if (lonDiff < -180) lonDiff += 360;
@@ -364,131 +432,134 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     if (midLon > 180) midLon -= 360;
     if (midLon < -180) midLon += 360;
 
-    // ── Zoom based on great-circle distance ──────────────────────────────────
     final distKm = widget.controller.targetDistanceKm ?? 0;
-    final double zoom;
-    if (distKm > 14000) {
-      zoom = 1.3;
-    } else if (distKm > 10000) {
-      zoom = 1.5;
-    } else if (distKm > 7000) {
-      zoom = 1.8;
-    } else if (distKm > 4000) {
-      zoom = 2.2;
-    } else if (distKm > 2000) {
-      zoom = 2.8;
-    } else if (distKm > 800) {
-      zoom = 3.5;
-    } else {
-      zoom = 4.2;
+    final zoom = distKm > 14000 ? 1.3
+        : distKm > 10000 ? 1.5
+        : distKm > 7000  ? 1.8
+        : distKm > 4000  ? 2.2
+        : distKm > 2000  ? 2.8
+        : distKm > 800   ? 3.5
+        : 4.2;
+
+    _mapController.move(LatLng(midLat, midLon), zoom);
+  }
+
+  // ── Animated layer builders (called inside AnimatedBuilder) ───────────────
+
+  Widget _buildPulseLayers() {
+    final pulse = _pulseController.value;
+    final state = widget.controller.state;
+
+    final layers = <Widget>[];
+
+    // Animated target polygon (1 polygon, not ~250).
+    final targetPts = _targetPolygonPoints;
+    if (targetPts != null) {
+      layers.add(
+        PolygonLayer(
+          polygonCulling: true,
+          polygons: [
+            Polygon(
+              points: targetPts,
+              color: Color.lerp(
+                const Color(0xFF8B0000),
+                _kTargetFill,
+                pulse,
+              )!,
+              borderColor: _kTargetBorder,
+              borderStrokeWidth: 2.0,
+            ),
+          ],
+        ),
+      );
     }
 
-    _flyTo(midLat, midLon, zoom: zoom);
+    // Origin pulse ring (Aiming, not launching).
+    if (!_isLaunching && state is WorldLeapStateAiming) {
+      final o = widget.controller.currentOrigin;
+      layers.add(
+        CircleLayer(
+          circles: [
+            CircleMarker(
+              point: LatLng(o.lat, o.lon),
+              radius: 18 + pulse * 12,
+              useRadiusInMeter: false,
+              color: Colors.transparent,
+              borderColor: _kCurrentFill.withValues(alpha: 0.6 - pulse * 0.4),
+              borderStrokeWidth: 2.5,
+            ),
+            CircleMarker(
+              point: LatLng(o.lat, o.lon),
+              radius: 6,
+              useRadiusInMeter: false,
+              color: _kCurrentFill.withValues(alpha: 0.85),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Stack(children: layers);
   }
+
+  Widget _buildFlightLayer() {
+    final pts = _trajectoryNotifier.value;
+    final count = pts.length;
+    if (!_isLaunching || count == 0) return const SizedBox.shrink();
+
+    final t = _flightController.value;
+    final upTo = (t * count).clamp(0.0, count.toDouble()).round();
+
+    return Stack(
+      children: [
+        if (upTo >= 2)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: pts.sublist(0, upTo),
+                color: _kFlightTrailColor,
+                strokeWidth: 2.0,
+              ),
+            ],
+          ),
+        if (upTo > 0)
+          CircleLayer(
+            circles: [
+              CircleMarker(
+                point: pts[upTo - 1],
+                radius: 7,
+                color: _kProjectileColor,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSplashLayer() {
+    final sp = _splashPoint;
+    if (sp == null) return const SizedBox.shrink();
+    final t = _splashController.value;
+    return CircleLayer(
+      circles: [
+        CircleMarker(
+          point: sp,
+          radius: t * 40 + 8,
+          useRadiusInMeter: false,
+          color: Colors.white.withValues(alpha: (1.0 - t) * 0.6),
+          borderColor: Colors.white.withValues(alpha: (1.0 - t) * 0.9),
+          borderStrokeWidth: 2,
+        ),
+      ],
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final state = widget.controller.state;
-    final run = state is WorldLeapStateAiming ? state.run
-        : state is WorldLeapStateLaunching ? state.run
-        : state is WorldLeapStateLanded ? state.run
-        : state is WorldLeapStateFailed ? state.run
-        : state is WorldLeapStateComplete ? state.run
-        : state is WorldLeapStateLocked ? state.run
-        : null;
-
-    final currentCode = run?.currentCountryCode;
-    final visitedCodes = run?.visitedCountryCodes ?? const <String>{};
-    final targetCode = widget.controller.targetCountryCode;
-    final pulse = _pulseController.value;
-
-    final polygons = [
-      for (int i = 0; i < _allPolygons.length; i++)
-        if (_allPolygons[i].isoCode != 'AQ') // suppress Antarctica
-          Polygon(
-            points: _cachedPoints[i], // pre-computed — no per-frame allocation
-            color: countryFillColor(
-              isoCode: _allPolygons[i].isoCode,
-              currentCode: currentCode,
-              visitedCodes: visitedCodes,
-              targetCode: targetCode,
-              targetPulse: pulse,
-            ),
-            borderColor: _allPolygons[i].isoCode == currentCode
-                ? _kCurrentBorder
-                : _allPolygons[i].isoCode == targetCode
-                    ? _kTargetBorder
-                    : visitedCodes.contains(_allPolygons[i].isoCode)
-                        ? _kVisitedBorder
-                        : _kUnvisitedBorder,
-            borderStrokeWidth: _allPolygons[i].isoCode == currentCode ? 1.5
-                : _allPolygons[i].isoCode == targetCode ? 2.0
-                : 0.4,
-          ),
-    ];
-
-    // ── "Drag from here" pulse ring on origin (Aiming only) ──────────────────
-    final originPulse = (!_isLaunching && state is WorldLeapStateAiming)
-        ? () {
-            final o = widget.controller.currentOrigin;
-            final pulse = _pulseController.value; // 0→1→0
-            return [
-              CircleMarker(
-                point: LatLng(o.lat, o.lon),
-                radius: 18 + pulse * 12,
-                useRadiusInMeter: false,
-                color: Colors.transparent,
-                borderColor: _kCurrentFill.withValues(alpha: 0.6 - pulse * 0.4),
-                borderStrokeWidth: 2.5,
-              ),
-              CircleMarker(
-                point: LatLng(o.lat, o.lon),
-                radius: 6,
-                useRadiusInMeter: false,
-                color: _kCurrentFill.withValues(alpha: 0.85),
-              ),
-            ];
-          }()
-        : <CircleMarker>[];
-
-    // ── Aim-preview dots (Aiming only) ─────────────────────────────────────
-    final aimMarkers = _isLaunching
-        ? <CircleMarker>[]
-        : [
-            for (final pt in _trajectoryPoints)
-              CircleMarker(
-                point: pt,
-                radius: 3,
-                color: _kTrajectoryColor.withValues(alpha: 0.8),
-              ),
-          ];
-
-    // ── Animated flight arc (Launching only) ────────────────────────────────
-    final count = _trajectoryPoints.length;
-    final upTo = _isLaunching
-        ? (_flightProgress * count).clamp(0.0, count.toDouble()).round()
-        : 0;
-
-    final flightTrail = upTo >= 2
-        ? [
-            Polyline(
-              points: _trajectoryPoints.sublist(0, upTo),
-              color: _kFlightTrailColor,
-              strokeWidth: 2.0,
-            ),
-          ]
-        : <Polyline>[];
-
-    final projectile = upTo > 0
-        ? [
-            CircleMarker(
-              point: _trajectoryPoints[upTo - 1],
-              radius: 7,
-              color: _kProjectileColor,
-            ),
-          ]
-        : <CircleMarker>[];
-
+    // build() is now only called on game-state transitions (setState), not on
+    // every animation frame. Polygon lists are pre-built in _rebuildPolygonCaches.
     return ColoredBox(
       color: _kOceanColor,
       child: FlutterMap(
@@ -499,9 +570,6 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
           minZoom: 1.0,
           maxZoom: 8.0,
           backgroundColor: _kOceanColor,
-          // Drag is suppressed while the slingshot is actively tracking a
-          // gesture on the source country. Otherwise drag is enabled so the
-          // user can pan by touching anywhere outside the source country.
           interactionOptions: InteractionOptions(
             flags: (widget.slingshotActive?.value ?? false)
                 ? InteractiveFlag.pinchZoom
@@ -509,40 +577,80 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
           ),
         ),
         children: [
-          PolygonLayer(polygonCulling: true, polygons: polygons),
-          if (originPulse.isNotEmpty) CircleLayer(circles: originPulse),
-          if (aimMarkers.isNotEmpty) CircleLayer(circles: aimMarkers),
-          if (flightTrail.isNotEmpty) PolylineLayer(polylines: flightTrail),
-          if (projectile.isNotEmpty) CircleLayer(circles: projectile),
-          if (_splashPoint != null)
-            CircleLayer(circles: [
-              CircleMarker(
-                point: _splashPoint!,
-                radius: _splashController.value * 40 + 8,
-                useRadiusInMeter: false,
-                color: Colors.white.withValues(alpha: (1.0 - _splashController.value) * 0.6),
-                borderColor: Colors.white.withValues(alpha: (1.0 - _splashController.value) * 0.9),
-                borderStrokeWidth: 2,
-              ),
-            ]),
+          // ① Static polygons — RepaintBoundary skips re-rasterisation on
+          //   animation frames. Only invalidated by game-state setState calls.
+          RepaintBoundary(
+            child: PolygonLayer(
+              polygonCulling: true,
+              polygons: _staticPolygons,
+            ),
+          ),
+
+          // ② Current country (gold) — static color, no animation.
+          if (_currentPolygon != null)
+            PolygonLayer(polygons: [_currentPolygon!]),
+
+          // ③ Target polygon + origin ring — both use _pulseController.
+          //   Only ~1–2 objects rebuilt at 60 fps instead of ~250.
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (_, __) => _buildPulseLayers(),
+          ),
+
+          // ④ Trajectory dots — ValueNotifier; only this layer rebuilds on drag.
+          ListenableBuilder(
+            listenable: _trajectoryNotifier,
+            builder: (_, __) {
+              final pts = _trajectoryNotifier.value;
+              if (pts.isEmpty || _isLaunching) return const SizedBox.shrink();
+              return CircleLayer(
+                circles: [
+                  for (final pt in pts)
+                    CircleMarker(
+                      point: pt,
+                      radius: 3,
+                      color: _kTrajectoryColor.withValues(alpha: 0.8),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          // ⑤ Flight arc + projectile — scoped to _flightController.
+          AnimatedBuilder(
+            animation: _flightController,
+            builder: (_, __) => _buildFlightLayer(),
+          ),
+
+          // ⑥ Splash ring — scoped to _splashController.
+          AnimatedBuilder(
+            animation: _splashController,
+            builder: (_, __) => _buildSplashLayer(),
+          ),
+
+          // ⑦ Miss line — static between state changes, no animation.
           if (_missLine.length == 2) ...[
-            PolylineLayer(polylines: [
-              Polyline(
-                points: _missLine,
-                color: Colors.orange.withValues(alpha: 0.7),
-                strokeWidth: 2.0,
-                pattern: StrokePattern.dashed(segments: [8, 6]),
-              ),
-            ]),
-            CircleLayer(circles: [
-              CircleMarker(
-                point: _missLine.last,
-                radius: 8,
-                color: Colors.orange.withValues(alpha: 0.3),
-                borderColor: Colors.orange,
-                borderStrokeWidth: 2,
-              ),
-            ]),
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: _missLine,
+                  color: Colors.orange.withValues(alpha: 0.7),
+                  strokeWidth: 2.0,
+                  pattern: StrokePattern.dashed(segments: [8, 6]),
+                ),
+              ],
+            ),
+            CircleLayer(
+              circles: [
+                CircleMarker(
+                  point: _missLine.last,
+                  radius: 8,
+                  color: Colors.orange.withValues(alpha: 0.3),
+                  borderColor: Colors.orange,
+                  borderStrokeWidth: 2,
+                ),
+              ],
+            ),
           ],
         ],
       ),
