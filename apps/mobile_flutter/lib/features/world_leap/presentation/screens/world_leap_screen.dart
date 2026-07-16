@@ -1,5 +1,7 @@
 // lib/features/world_leap/presentation/screens/world_leap_screen.dart
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +16,89 @@ import 'package:mobile_flutter/features/world_leap/presentation/widgets/quokka_w
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_hud.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_score_panel.dart';
 import 'world_leap_result_screen.dart';
+
+// ── Landing particle burst ────────────────────────────────────────────────────
+
+class _ParticleBurst extends StatefulWidget {
+  const _ParticleBurst({super.key});
+
+  @override
+  State<_ParticleBurst> createState() => _ParticleBurstState();
+}
+
+class _ParticleBurstState extends State<_ParticleBurst>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  static const _colors = [
+    Color(0xFFFFD600),
+    Color(0xFFFF6D00),
+    Color(0xFF00E676),
+    Color(0xFF40C4FF),
+    Color(0xFFEA80FC),
+    Color(0xFFFF1744),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) => CustomPaint(
+            painter: _ParticlePainter(t: _ctrl.value, colors: _colors),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ParticlePainter extends CustomPainter {
+  final double t;
+  final List<Color> colors;
+
+  static const _count = 12;
+  static const _speed = 160.0; // max pixels from center at t=1
+
+  _ParticlePainter({required this.t, required this.colors});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final paint = Paint()..style = PaintingStyle.fill;
+    final dist = _speed * Curves.easeOut.transform(t);
+    final alpha = (1.0 - Curves.easeIn.transform(t)).clamp(0.0, 1.0);
+    final radius = (6.0 * (1.0 - t * 0.5)).clamp(1.0, 8.0);
+    for (var i = 0; i < _count; i++) {
+      final angle = (2 * math.pi / _count) * i;
+      // Vary distance slightly per particle for natural spread
+      final d = dist * (0.7 + 0.3 * ((i * 7) % _count) / _count);
+      final x = cx + d * math.cos(angle);
+      final y = cy + d * math.sin(angle);
+      paint.color = colors[i % colors.length].withValues(alpha: alpha);
+      canvas.drawCircle(Offset(x, y), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ParticlePainter old) => old.t != t;
+}
 
 // ── Floating score burst ──────────────────────────────────────────────────────
 
@@ -555,6 +640,12 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                       WorldLeapScorePanel(
                         launch: currentState.lastLaunch,
                         onDismiss: controller.dismissScorePanel,
+                      ),
+
+                    // Particle burst on landing
+                    if (currentState is WorldLeapStateLanded)
+                      _ParticleBurst(
+                        key: ValueKey('particles_${currentState.lastLaunch.scoreBreakdown.comboStreak}'),
                       ),
 
                     // Floating score burst — fresh widget per landing via key

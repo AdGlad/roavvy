@@ -13,6 +13,9 @@ import '../../domain/models/world_leap_run.dart';
 
 // ── Package-private helpers ───────────────────────────────────────────────────
 
+int _streakOf(WorldLeapRun run) =>
+    run.launches.isEmpty ? 0 : run.launches.last.scoreBreakdown.comboStreak;
+
 WorldLeapRun? runFromState(WorldLeapState state) => switch (state) {
       WorldLeapStateAiming(:final run) => run,
       WorldLeapStateLaunching(:final run) => run,
@@ -184,7 +187,7 @@ class _PortraitBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Row 1: country · score · shot# ────────────────────────────
+              // ── Row 1: country · score · shot# · streak ───────────────
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -217,6 +220,10 @@ class _PortraitBar extends StatelessWidget {
                   Text('#${run.countryCount}',
                       style: const TextStyle(
                           color: Colors.white54, fontSize: 11)),
+                  if (_streakOf(run) >= 2) ...[
+                    _dot(),
+                    _StreakBadge(streak: _streakOf(run)),
+                  ],
                 ],
               ),
               // ── Row 2: target · distance · timer · end ─────────────────────
@@ -346,7 +353,7 @@ class _LandscapePanel extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 2),
-              // Score + count
+              // Score + count + streak
               Row(children: [
                 Text('${run.totalScore}',
                     style: const TextStyle(
@@ -360,6 +367,10 @@ class _LandscapePanel extends StatelessWidget {
                     style: const TextStyle(
                         color: Colors.white54, fontSize: 11)),
               ]),
+              if (_streakOf(run) >= 2) ...[
+                const SizedBox(height: 4),
+                _StreakBadge(streak: _streakOf(run), large: true),
+              ],
 
               // ── Target ────────────────────────────────────────────────────
               if (isAiming && targetName != null) ...[
@@ -525,6 +536,45 @@ class _EndButton extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w600),
         ),
+      ),
+    );
+  }
+}
+
+// ── Streak fire badge ─────────────────────────────────────────────────────────
+
+class _StreakBadge extends StatelessWidget {
+  final int streak;
+  final bool large;
+
+  const _StreakBadge({required this.streak, this.large = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final fontSize = large ? 13.0 : 11.0;
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: large ? 8 : 5, vertical: large ? 3 : 2),
+      decoration: BoxDecoration(
+        color: Colors.deepOrange.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+            color: Colors.deepOrange.withValues(alpha: 0.5), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('🔥', style: TextStyle(fontSize: fontSize - 1)),
+          const SizedBox(width: 3),
+          Text(
+            '×$streak',
+            style: TextStyle(
+              color: Colors.deepOrangeAccent,
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

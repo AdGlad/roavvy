@@ -510,6 +510,18 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     final t = _flightController.value;
     final upTo = (t * count).clamp(0.0, count.toDouble()).round();
 
+    // Comet tail: up to 8 fading dots behind the projectile.
+    const tailLength = 8;
+    final tailCircles = <CircleMarker>[];
+    for (var i = 1; i <= tailLength && upTo - i - 1 >= 0; i++) {
+      final fade = 1.0 - (i / tailLength);
+      tailCircles.add(CircleMarker(
+        point: pts[upTo - i - 1],
+        radius: 7.0 * fade,
+        color: _kProjectileColor.withValues(alpha: fade * 0.8),
+      ));
+    }
+
     return Stack(
       children: [
         if (upTo >= 2)
@@ -522,6 +534,7 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
               ),
             ],
           ),
+        if (tailCircles.isNotEmpty) CircleLayer(circles: tailCircles),
         if (upTo > 0)
           CircleLayer(
             circles: [
