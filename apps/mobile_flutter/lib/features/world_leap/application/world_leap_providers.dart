@@ -61,6 +61,12 @@ final worldLeapControllerProvider = FutureProvider.autoDispose<WorldLeapControll
     }
   });
 
+  // Stretch creak when user pulls the slingshot (throttled inside playStretch).
+  controller.aimNotifier.addListener(() {
+    final aim = controller.aimNotifier.value;
+    if (aim != null) audio.playStretch(aim.power);
+  });
+
   ref.onDispose(() {
     controller.dispose();
     audio.dispose();
