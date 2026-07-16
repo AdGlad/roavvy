@@ -390,19 +390,30 @@ class MapScreen extends ConsumerWidget {
                 child: RovyBubble(),
               ),
             ),
-            // Globe ↔ flat map toggle — bottom-right.
-            Positioned(
-              bottom: globeMode ? 200 : 148,
-              right: 12,
-              child: _MapViewToggle(globeMode: globeMode),
+            // Globe ↔ flat map toggle + rotation toggle — bottom-right.
+            // Offsets are reduced in landscape where the screen is shorter.
+            Builder(
+              builder: (context) {
+                final isLandscape =
+                    MediaQuery.of(context).orientation == Orientation.landscape;
+                final baseBottom = isLandscape ? 100.0 : 148.0;
+                return Stack(
+                  children: [
+                    Positioned(
+                      bottom: globeMode ? baseBottom + 52 : baseBottom,
+                      right: 12,
+                      child: _MapViewToggle(globeMode: globeMode),
+                    ),
+                    if (globeMode)
+                      Positioned(
+                        bottom: baseBottom,
+                        right: 12,
+                        child: const _GlobeRotationToggle(),
+                      ),
+                  ],
+                );
+              },
             ),
-            // Globe rotation pause/play — bottom-right, above flag strip.
-            if (globeMode)
-              const Positioned(
-                bottom: 148,
-                right: 12,
-                child: _GlobeRotationToggle(),
-              ),
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               right: 8,

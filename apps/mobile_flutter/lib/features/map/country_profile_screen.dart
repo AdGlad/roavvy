@@ -163,7 +163,10 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
         slivers: [
           // ── Hero SliverAppBar ─────────────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 240,
+            expandedHeight: math.min(
+              240.0,
+              MediaQuery.of(context).size.height * 0.35,
+            ),
             pinned: true,
             stretch: true,
             backgroundColor:
@@ -174,7 +177,10 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
                   ? HeroImageView(
                       assetId: heroAssetId,
                       fallbackColor: accentColor,
-                      height: 240,
+                      height: math.min(
+                        240.0,
+                        MediaQuery.of(context).size.height * 0.35,
+                      ),
                       useFullResolution: false,
                     )
                   : Container(
