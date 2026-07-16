@@ -87,6 +87,10 @@ class CardImageRenderer {
     Duration assetsTimeout = const Duration(seconds: 10),
     Uint8List? backgroundImageBytes,
     FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
+    GridClipShape clipShape = GridClipShape.none,
+    int flagRepeatCount = 1,
+    String? clipCode,
+    int? rowCount,
 
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
@@ -207,6 +211,10 @@ class CardImageRenderer {
       stampJitterFactor: stampJitterFactor,
       backgroundImageBytes: backgroundImageBytes,
       gridLayoutMode: gridLayoutMode,
+      clipShape: clipShape,
+      flagRepeatCount: flagRepeatCount,
+      clipCode: clipCode,
+      rowCount: rowCount,
       onAssetsLoaded:
           assetsCompleter != null
               ? () {
@@ -281,6 +289,10 @@ class CardImageRenderer {
     double stampJitterFactor = 0.4,
     Uint8List? backgroundImageBytes,
     FlagGridLayoutMode gridLayoutMode = FlagGridLayoutMode.packedRow,
+    GridClipShape clipShape = GridClipShape.none,
+    int flagRepeatCount = 1,
+    String? clipCode,
+    int? rowCount,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -301,16 +313,27 @@ class CardImageRenderer {
           onAssetsLoaded: onAssetsLoaded,
           backgroundImageBytes: backgroundImageBytes,
           layoutMode: gridLayoutMode,
+          clipShape: clipShape,
+          flagRepeatCount: flagRepeatCount,
+          clipCode: clipCode,
+          rowCount: rowCount,
         );
+      // ignore: deprecated_member_use_from_same_package
       case CardTemplateType.heart:
-        return HeartFlagsCard(
+        // Redirect to GridFlagsCard with heart clip (M170 deprecation).
+        return GridFlagsCard(
           countryCodes: codes,
-          trips: trips,
-          flagOrder: heartOrder,
           aspectRatio: cardAspectRatio,
           dateLabel: dateLabel,
           titleOverride: titleOverride,
+          subtitleOverride: subtitleOverride,
+          transparentBackground: transparentBackground,
+          textColor: textColor,
           onAssetsLoaded: onAssetsLoaded,
+          backgroundImageBytes: backgroundImageBytes,
+          layoutMode: gridLayoutMode,
+          clipShape: GridClipShape.heart,
+          flagRepeatCount: flagRepeatCount,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

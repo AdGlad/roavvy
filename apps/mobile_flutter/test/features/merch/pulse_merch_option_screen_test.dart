@@ -68,6 +68,7 @@ void main() {
             MerchOptionAlternativesStrip(
               options: opts,
               allCodes: const ['GB'],
+              featuredIndex: -1,
             ),
           ),
         );

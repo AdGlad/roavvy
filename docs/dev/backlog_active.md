@@ -7,6 +7,70 @@
 
 ## Next up (mobile-first order)
 
+---
+
+## Phase 28 — Travel Timeline UX (M147–M154)
+
+> Full plan: `docs/dev/milestones/m147-154-travel-timeline-refactor.md`
+
+### M147 — Travel Timeline: Foundation & Routing
+**Goal:** Fix label overflow, wire nav entry in shell, format dates as "Mar 2024", improve empty-state copy.
+**Phase:** 28 — Timeline UX
+**Depends on:** —
+**Scope in:** `travel_timeline_screen.dart`, `main_shell.dart`, router config.
+**Status:** 🔜 Queued
+
+### M148 — Travel Timeline: Premium Node Visuals
+**Goal:** SVG flag as hero, scene badge, gold first-visit star, gradient achievement ring with glow.
+**Phase:** 28 — Timeline UX
+**Depends on:** M147
+**Scope in:** `_TripNode`, `_AchievementNode`, `_NodeCircle`, new `_SceneBadge`, `_FirstVisitBadge`.
+**Status:** 🔜 Queued
+
+### M149 — Travel Timeline: Year Group Headers
+**Goal:** Year header pills ("2024 · 8 countries · 3 continents") injected between year boundaries in the timeline.
+**Phase:** 28 — Timeline UX
+**Depends on:** M147
+**Scope in:** `_TimelineItem` sealed class, `_buildTimeline`, new `_YearHeaderNode`.
+**Status:** 🔜 Queued
+
+### M150 — Travel Timeline: Path & Motion
+**Goal:** Animated path draw-on (1.2 s), staggered node entry (40 ms per node), warm→cool gradient along path.
+**Phase:** 28 — Timeline UX
+**Depends on:** M148, M149
+**Scope in:** `timeline_painter.dart` gradient shader, `_TimelineBody` → StatefulWidget with AnimationControllers.
+**Status:** 🔜 Queued
+
+### M151 — Travel Timeline: Trip Detail Bottom Sheet
+**Goal:** Tap trip node → `DraggableScrollableSheet` with flag hero, dates, duration, "first time" banner, and action row (Map · Merch · Share).
+**Phase:** 28 — Timeline UX
+**Depends on:** M148
+**Scope in:** new `trip_detail_sheet.dart`, `GestureDetector` on nodes, router country-filter param.
+**Status:** 🔜 Queued
+
+### M152 — Travel Timeline: Stats Header Panel
+**Goal:** Non-scrolling header: 3 stat chips, continent dot strip, "Share your journey" CTA.
+**Phase:** 28 — Timeline UX
+**Depends on:** M149
+**Scope in:** `_TimelineStatsHeader` widget, screen body restructured as Column.
+**Status:** 🔜 Queued
+
+### M153 — Travel Timeline: Journey Share Card
+**Goal:** Off-screen card (snake path miniature + flag parade + stats) exported via `share_plus`.
+**Phase:** 28 — Timeline UX
+**Depends on:** M152
+**Scope in:** new `journey_share_card.dart`, `journey_share_exporter.dart`.
+**Status:** 🔜 Queued
+
+### M154 — Travel Timeline: Filter & Year Jump
+**Goal:** Continent filter chips, "first visits only" toggle, floating year-jump index strip.
+**Phase:** 28 — Timeline UX
+**Depends on:** M149, M152
+**Scope in:** `_FilterBar`, `_YearJumpIndex`, `_filteredItems` derived list, `ScrollController`.
+**Status:** 🔜 Queued
+
+---
+
 ### M137 — Merch Trust: Fix Product Names, Price Transparency & Post-Purchase Design
 **Goal:** Three targeted fixes bundled together: (1) replace "Roavvy Test Tee" in order history with the stored design title; (2) show "from £X" price on option cards before the user commits; (3) display the shirt mockup image on the post-purchase screen.
 **Phase:** 27 — Merch UX

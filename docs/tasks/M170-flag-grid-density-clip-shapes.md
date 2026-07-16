@@ -1,8 +1,8 @@
 # M170 — Flag Grid: Density Repeats & Clip Shapes
 
-**Status:** `backlog`
+**Status:** `complete`
 **Created:** 2026-06-28
-**Updated:** 2026-06-28 (revised after design review)
+**Updated:** 2026-06-29
 **Depends on:** M169 (carousel entry flow)
 
 ---

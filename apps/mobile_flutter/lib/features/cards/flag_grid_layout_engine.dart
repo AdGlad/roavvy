@@ -4,6 +4,37 @@ import 'package:flutter/painting.dart';
 
 import 'grid_math_engine.dart';
 
+// ── GridClipShape ─────────────────────────────────────────────────────────────
+
+/// Clip mask applied to the flag tile area in [GridFlagsCard].
+///
+/// `countryOutline` and `continentOutline` are defined here but remain
+/// unimplemented until M171 — they silently fall back to `circle`.
+enum GridClipShape {
+  /// Rectangular grid — no clip applied (default).
+  none,
+
+  /// Heart-shaped mask using [MaskCalculator.heartPath] (M170).
+  heart,
+
+  /// Circular mask; diameter = min(width, height) × 0.92 (M170).
+  circle,
+
+  /// Country silhouette clip — single-country designs only (M171).
+  countryOutline,
+
+  /// Continent silhouette clip — continent-collection designs only (M171).
+  continentOutline,
+
+  /// National animal silhouette clip — single-country designs only.
+  /// Path fetched from Firebase Storage via [AnimalSilhouetteService].
+  animalSilhouette,
+
+  /// National plant silhouette clip — single-country designs only.
+  /// Path fetched from Firebase Storage via [AnimalSilhouetteService].
+  plantSilhouette,
+}
+
 // ── FlagGridLayoutMode ────────────────────────────────────────────────────────
 
 /// Selects the algorithm used to position flags in a [GridFlagsCard].
@@ -75,6 +106,10 @@ class FlagGridLayoutEngine {
   ///
   /// [topOffset] and [bottomOffset] are the title and branding zone heights
   /// already reserved by the card; the grid fills the remaining space.
+  ///
+  /// [flagRepeatCount] — how many times each code appears (1–9). Codes are
+  /// expanded and spread via the non-adjacency interleave algorithm so that
+  /// identical flags are never adjacent where avoidable.
   static List<FlagGridTile> compute({
     required List<String> codes,
     required Size canvasSize,
@@ -83,45 +118,109 @@ class FlagGridLayoutEngine {
     FlagGridLayoutMode mode = FlagGridLayoutMode.packedRow,
     double gutter = 2.0,
     double padding = 4.0,
+    int flagRepeatCount = 1,
+    int? rowCount,
   }) {
     if (codes.isEmpty || canvasSize.width <= 0 || canvasSize.height <= 0) {
       return [];
     }
+
     final availH = canvasSize.height - topOffset - bottomOffset;
     if (availH <= 0) return [];
 
     final gridW = canvasSize.width - padding * 2;
     final gridH = availH - padding * 2;
     final originY = topOffset + padding;
-    final originX = padding;
 
     if (gridW <= 0 || gridH <= 0) return [];
+
+    // For single-country row-based mode: compute colsPerRow from geometry so
+    // every row is complete and flags render at their natural aspect ratio.
+    // Then centre the flag block horizontally.
+    int effectiveRepeat = flagRepeatCount;
+    double originX = padding;
+    if (rowCount != null && codes.length == 1 && mode == FlagGridLayoutMode.packedRow) {
+      final R = rowCount;
+      // Actual row height that _scaleRowsToFit will produce (fills gridH).
+      final rowH = (gridH - gutter * (R - 1)) / R;
+      if (rowH > 0) {
+        final flagAR = _ar(codes[0]);
+        // Pack as many flags per row as fit while staying inside gridW.
+        // Each flag cell is flagAR × rowH wide (the gutter is baked into the
+        // cell so the last column's trailing gap is counted as +gutter in the
+        // numerator when testing fit).
+        final colsPerRow = math.max(
+          1,
+          ((gridW + gutter) / (flagAR * rowH)).floor(),
+        );
+        effectiveRepeat = R * colsPerRow;
+        // Centre: remaining whitespace split equally on left and right.
+        final usedW = colsPerRow * flagAR * rowH - gutter;
+        originX = padding + (gridW - usedW) / 2;
+      }
+    }
+
+    // Expand codes by repeat count and spread to avoid adjacency.
+    final expanded = effectiveRepeat > 1
+        ? _expandAndSpread(codes, effectiveRepeat)
+        : List<String>.from(codes);
 
     final grid = Size(gridW, gridH);
 
     return switch (mode) {
       FlagGridLayoutMode.packedRow => _packedRow(
-        codes,
+        expanded,
         grid,
         originX,
         originY,
         gutter,
+        rowCount: rowCount,
       ),
       FlagGridLayoutMode.normalizedGrid => _normalizedGrid(
-        codes,
+        expanded,
         grid,
         originX,
         originY,
         gutter,
       ),
       FlagGridLayoutMode.treemap => _treemap(
-        codes,
+        expanded,
         grid,
         originX,
         originY,
         gutter,
       ),
     };
+  }
+
+  /// Expands [codes] by [repeat] times and shuffles them into a random order.
+  ///
+  /// Uses a deterministic seed derived from the code list and repeat count so
+  /// the layout is stable across repaints (no flickering) while appearing
+  /// random rather than sequential (A,B,C,A,B,C…).
+  ///
+  /// For a single country all tiles are identical — ordering has no effect.
+  static List<String> _expandAndSpread(List<String> codes, int repeat) {
+    if (codes.isEmpty) return [];
+    if (codes.length == 1) {
+      return List.filled(repeat, codes.first);
+    }
+
+    // Build the full repeated list.
+    final expanded = <String>[];
+    for (final code in codes) {
+      for (int i = 0; i < repeat; i++) {
+        expanded.add(code);
+      }
+    }
+
+    // Shuffle with a deterministic seed so the layout is stable across
+    // repaints within a session but looks random, not sequential.
+    final seed =
+        codes.fold<int>(17, (h, c) => h * 31 + c.hashCode) ^
+        (repeat * 0x9e3779b9);
+    expanded.shuffle(math.Random(seed));
+    return expanded;
   }
 
   /// Returns a representative tile width for SVG pre-loading at any mode.
@@ -142,11 +241,13 @@ class FlagGridLayoutEngine {
     Size grid,
     double originX,
     double originY,
-    double gutter,
-  ) {
+    double gutter, {
+    int? rowCount,
+  }) {
     final n = codes.length;
-    // Number of rows: aim for a visually square overall grid.
-    final R = math.max(1, math.sqrt(n * grid.height / grid.width).round());
+    // Number of rows: use forced rowCount when provided (uniform rows), otherwise
+    // aim for a visually square overall grid.
+    final R = rowCount ?? math.max(1, math.sqrt(n * grid.height / grid.width).round());
 
     // Chunk into R sequential rows.
     final rows = _chunkIntoRows(codes, R);

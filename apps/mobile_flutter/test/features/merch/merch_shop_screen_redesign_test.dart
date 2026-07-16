@@ -1,10 +1,12 @@
-// T5 — MerchShopScreen redesign widget tests (M145)
+// T5 — MerchShopScreen redesign widget tests (M145/M169)
 //
 // Covers:
 //   1. MerchIdentityHeader renders identity name and stats from mock providers
 //   2. MerchReadyToDesignSection shows shimmer cards while loading
 //   3. MerchCollectionsSection shows correct number of dynamic collections
 //   4. MerchShopScreen renders primary sections in scroll order
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,19 +88,19 @@ void main() {
     });
 
     testWidgets('shows shimmer while loading', (tester) async {
-      // Override with a provider that never resolves synchronously.
+      // Override with providers that never resolve (no pending timers).
       final overrides = [
         effectiveVisitsProvider.overrideWith(
-          (ref) => Future.delayed(const Duration(hours: 1), () => _visits5),
+          (ref) => Completer<List<EffectiveVisitedCountry>>().future,
         ),
         continentCountProvider.overrideWith(
-          (ref) => Future.delayed(const Duration(hours: 1), () => 0),
+          (ref) => Completer<int>().future,
         ),
         tripListProvider.overrideWith(
-          (ref) => Future.delayed(const Duration(hours: 1), () => <TripRecord>[]),
+          (ref) => Completer<List<TripRecord>>().future,
         ),
         earliestVisitYearProvider.overrideWith(
-          (ref) => Future.delayed(const Duration(hours: 1), () => null),
+          (ref) => Completer<int?>().future,
         ),
         achievementRepositoryProvider
             .overrideWithValue(_FakeAchievementRepository()),
@@ -121,10 +123,10 @@ void main() {
     testWidgets('shows shimmer cards while data is loading', (tester) async {
       final overrides = [
         effectiveVisitsProvider.overrideWith(
-          (ref) => Future.delayed(const Duration(hours: 1), () => _visits5),
+          (ref) => Completer<List<EffectiveVisitedCountry>>().future,
         ),
         tripListProvider.overrideWith(
-          (ref) => Future.delayed(const Duration(hours: 1), () => <TripRecord>[]),
+          (ref) => Completer<List<TripRecord>>().future,
         ),
         achievementRepositoryProvider
             .overrideWithValue(_FakeAchievementRepository()),
@@ -171,6 +173,8 @@ void main() {
 
     testWidgets('shows year-based collection when current-year visits exist',
         (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       // All 5 visits have firstSeen in current year.
       final thisYear = DateTime.now().year;
       final currentYearVisits = List.generate(
@@ -203,7 +207,7 @@ void main() {
   });
 
   group('MerchShopScreen', () {
-    testWidgets('renders identity header, design banner, and shop sections',
+    testWidgets('renders design banner and collections section (M169)',
         (tester) async {
       await tester.pumpWidget(_wrap(const MerchShopScreen()));
       await tester.pumpAndSettle();
@@ -211,27 +215,11 @@ void main() {
       // AppBar title
       expect(find.text('Shop'), findsOneWidget);
 
-      // Identity header is present.
-      expect(find.byType(MerchIdentityHeader), findsOneWidget);
-
       // Design entry banner CTA text.
       expect(find.text('Design a shirt →'), findsOneWidget);
 
-      // Ready to design section.
-      expect(find.byType(MerchReadyToDesignSection), findsOneWidget);
-
       // Collections section.
       expect(find.byType(MerchCollectionsSection), findsOneWidget);
-    });
-
-    testWidgets('shows empty state paragraph when uid is null', (tester) async {
-      await tester.pumpWidget(_wrap(const MerchShopScreen()));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining('Sign in to save designs'),
-        findsOneWidget,
-      );
     });
   });
 }

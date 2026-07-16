@@ -1,9 +1,13 @@
-# M169 — Merch Shop UX Overhaul
+# M147 — Travel Timeline: Foundation & Routing
 
 ## Status: In Progress
 
 ## Tasks
 
-- [ ] T1: Fix country-select entry point — merch_design_entry_screen.dart push ShopCollectionOptionScreen instead of LocalMockupPreviewScreen; remove async title gen
-- [ ] T2: Full-screen design carousel — add MerchDesignCarousel (PageView ~70% card width, page dots, featured gold border) replacing MerchOptionAlternativesStrip in shop_collection_option_screen, achievement_merch_option_screen, pulse_merch_option_screen
-- [ ] T3: Shop screen collections grid — remove MerchIdentityHeader + MerchReadyToDesignSection; replace MerchCollectionsSection list with 2-column GridView of collection cards
+- [x] T0: Shell nav — TravelTimelineScreen already wired at tab index 2 ("Journey")
+- [ ] T1: Fix label positioning — change `isLeft` threshold from 0.4 to 0.5
+- [ ] T2: Fix label overflow — replace fixed `_kLabelWidth = 100` with dynamic width based on canvas
+- [ ] T3: Date formatting — replace `year.toString()` with "Mar 2024" using intl DateFormat
+- [ ] T4: Clamp label to 3 lines (currently 2) for long country names
+- [ ] T5: Update empty state copy
+- [ ] T6: flutter analyze clean check

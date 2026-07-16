@@ -230,8 +230,8 @@ void main() {
 
     test('skips photos when resolver returns null', () {
       final photos = [
-        PhotoRecord(lat: 0.0, lng: 0.0),
-        PhotoRecord(lat: 51.5, lng: -0.1),
+        PhotoRecord(lat: 0.0, lng: 0.0, capturedAt: DateTime.utc(2023)),
+        PhotoRecord(lat: 51.5, lng: -0.1, capturedAt: DateTime.utc(2023)),
       ];
       final result = resolveBatch(photos, (lat, _) => lat > 45 ? 'GB' : null);
       expect(result.accum.containsKey('GB'), isTrue);

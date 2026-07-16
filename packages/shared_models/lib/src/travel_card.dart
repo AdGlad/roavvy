@@ -4,6 +4,8 @@ enum CardTemplateType {
   grid,
 
   /// Flag emojis on a warm amber gradient with a heart motif.
+  ///
+  /// @Deprecated Use [grid] with `clipShape: GridClipShape.heart` instead (M170).
   heart,
 
   /// Country "passport stamps" arranged on a leather-brown background.

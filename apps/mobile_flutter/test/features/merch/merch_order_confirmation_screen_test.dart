@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/merch/merch_order_confirmation_screen.dart';
 import 'package:shared_models/shared_models.dart';
@@ -98,39 +99,28 @@ MerchOrderConfirmationScreen _defaultScreen({
   onCheckoutLaunched: onCheckoutLaunched,
 );
 
-Widget _wrap(Widget child) => MaterialApp(home: child);
+Widget _wrap(Widget child) => ProviderScope(child: MaterialApp(home: child));
 
 void main() {
   group('MerchOrderConfirmationScreen', () {
-    testWidgets('proceed button is disabled initially', (tester) async {
+    testWidgets('shows swipe-to-confirm label', (tester) async {
       await tester.pumpWidget(_wrap(_defaultScreen()));
 
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Proceed to Checkout'),
-      );
-      expect(button.onPressed, isNull);
+      expect(find.text('Swipe to confirm order'), findsOneWidget);
     });
 
-    testWidgets('proceed button enables after ticking checkbox', (
-      tester,
-    ) async {
+    testWidgets('shows Review Your Order app bar title', (tester) async {
       await tester.pumpWidget(_wrap(_defaultScreen()));
 
-      tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged!(
-        true,
-      );
-      await tester.pump();
-
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Proceed to Checkout'),
-      );
-      expect(button.onPressed, isNotNull);
+      expect(find.text('Review Your Order'), findsOneWidget);
     });
 
     testWidgets('Go Back pops the navigator', (tester) async {
       final observer = _MockNavigatorObserver();
       await tester.pumpWidget(
-        MaterialApp(navigatorObservers: [observer], home: _defaultScreen()),
+        ProviderScope(
+          child: MaterialApp(navigatorObservers: [observer], home: _defaultScreen()),
+        ),
       );
 
       await tester.tap(find.widgetWithText(TextButton, 'Go Back'));

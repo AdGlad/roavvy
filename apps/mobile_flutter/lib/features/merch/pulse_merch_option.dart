@@ -36,6 +36,7 @@ class PulseMerchOption {
     this.suggestedShirtColor,
     this.contextLabel,
     this.artworkSubtitle,
+    this.continentKey,
   });
 
   final String id;
@@ -69,6 +70,11 @@ class PulseMerchOption {
   /// Rendered in the card's bottom branding zone via [CardTextRenderer.drawBranding].
   /// Format: `"Roavvy: N Countries • [context]"`.
   final String? artworkSubtitle;
+
+  /// Continent key (e.g. `'europe'`) when this option is scoped to a continent
+  /// collection. Passed through to [FlagShapeCustomiseScreen] to enable the
+  /// continent outline carousel page (M171).
+  final String? continentKey;
 
   /// Human-readable label shown in the template chip.
   String get templateLabel => switch (template) {

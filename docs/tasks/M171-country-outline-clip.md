@@ -1,8 +1,8 @@
 # M171 — Country & Continent Outline Clip
 
-**Status:** `backlog`
+**Status:** `complete`
 **Created:** 2026-06-28
-**Updated:** 2026-06-28 (revised after design review)
+**Updated:** 2026-06-29
 **Depends on:** M170 (clip shape infrastructure in `GridFlagsCard`)
 
 ---

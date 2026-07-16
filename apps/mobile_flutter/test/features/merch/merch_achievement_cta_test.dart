@@ -17,7 +17,7 @@ import 'package:mobile_flutter/features/stats/widgets/merch_moments_section.dart
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 final _achWithMerch = Achievement(
-  id: 'test_merch',
+  id: 'countries_5', // must match an ID in kAchievements for MerchMomentsSection
   title: 'Globetrotter',
   description: 'Visit 10 countries',
   category: AchievementCategory.countries,
@@ -91,14 +91,14 @@ void main() {
   });
 
   group('MerchMomentsSection', () {
-    testWidgets('header is "Design from your achievements"', (tester) async {
+    testWidgets('header is "Wear your achievements"', (tester) async {
       final unlocked = {_achWithMerch.id: _unlockedAt};
       await tester.pumpWidget(
         _wrap(MerchMomentsSection(unlockedById: unlocked)),
       );
       await tester.pump();
 
-      expect(find.text('Design from your achievements'), findsOneWidget);
+      expect(find.text('Wear your achievements'), findsOneWidget);
     });
 
     testWidgets('shows action-oriented CTA label for flagGrid', (tester) async {
@@ -108,7 +108,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Turn your flags into a tee'), findsOneWidget);
+      expect(find.text('Flag Tee'), findsOneWidget);
     });
   });
 }

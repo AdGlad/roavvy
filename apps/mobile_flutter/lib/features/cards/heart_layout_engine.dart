@@ -139,6 +139,31 @@ class MaskCalculator {
     path.close();
     return path;
   }
+
+  /// Applies a feathered (soft) edge along [clipPath] using a dstIn blend.
+  ///
+  /// Call this after `canvas.restore()` has removed the clip, so the soft
+  /// edge erodes the already-drawn tile pixels. Extracted from
+  /// [_HeartFlagsPainter] for reuse by [_GridPainter] (M170).
+  static void applyFeatheredEdge(
+    ui.Canvas canvas,
+    Size size,
+    ui.Path clipPath, {
+    double featherPx = 1.5,
+  }) {
+    if (featherPx <= 0) return;
+    canvas.saveLayer(
+      Offset.zero & size,
+      Paint()..blendMode = BlendMode.dstIn,
+    );
+    canvas.drawPath(
+      clipPath,
+      Paint()
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, featherPx)
+        ..color = const Color(0xFFFFFFFF),
+    );
+    canvas.restore();
+  }
 }
 
 // ── HeartLayoutEngine ─────────────────────────────────────────────────────────

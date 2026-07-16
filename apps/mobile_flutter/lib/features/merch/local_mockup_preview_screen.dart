@@ -90,6 +90,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.initialColour,
     this.subtitleOverride,
     this.gridLayoutMode = FlagGridLayoutMode.packedRow,
+    this.clipShape = GridClipShape.none,
+    this.flagRepeatCount = 1,
+    this.clipCode,
+    this.rowCount,
   });
 
   final List<String> selectedCodes;
@@ -146,6 +150,18 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// Flag grid layout mode (Packed / Grid / Mosaic) carried from the card
   /// editor. Applied when regenerating artwork via a preset config.
   final FlagGridLayoutMode gridLayoutMode;
+
+  /// Clip mask for the flag grid (M170). Defaults to [GridClipShape.none].
+  final GridClipShape clipShape;
+
+  /// Flag repeat count for the flag grid (M170). Defaults to 1.
+  final int flagRepeatCount;
+
+  /// ISO 3166-1 alpha-2 code or continent key for outline clips (M171).
+  final String? clipCode;
+
+  /// When non-null, forces the packed-row layout to use exactly this many rows.
+  final int? rowCount;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -410,6 +426,8 @@ class _LocalMockupPreviewScreenState
     super.initState();
     _template = widget.initialTemplate;
     _gridLayoutMode = widget.gridLayoutMode;
+    // Flag grid defaults to landscape; all other templates default to portrait.
+    _isPortrait = widget.initialTemplate != CardTemplateType.grid;
     _artworkConfirmationId = widget.artworkConfirmationId;
     if (widget.initialColour != null &&
         tshirtColors.contains(widget.initialColour)) {
@@ -483,6 +501,14 @@ class _LocalMockupPreviewScreenState
       } else if (_presetConfig != null) {
         // Preset-driven: auto-generate artwork on first frame.
         unawaited(_generateFromPreset(_presetConfig!));
+      } else {
+        // No pre-rendered bytes and no preset (e.g., navigated from
+        // FlagShapeCustomiseScreen). Render artwork from scratch.
+        if (_template == CardTemplateType.grid) {
+          unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+        } else {
+          unawaited(_renderVariant(0));
+        }
       }
     });
   }
@@ -670,6 +696,10 @@ class _LocalMockupPreviewScreenState
         stampJitterFactor: _stampJitterFactor,
         stampSizeMultiplier: _stampSizeMultiplier,
         gridLayoutMode: _gridLayoutMode,
+        clipShape: widget.clipShape,
+        flagRepeatCount: widget.flagRepeatCount,
+        clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
@@ -1090,6 +1120,10 @@ class _LocalMockupPreviewScreenState
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
         stampSizeMultiplier: _stampSizeMultiplier,
         stampJitterFactor: _stampJitterFactor,
+        clipShape: widget.clipShape,
+        flagRepeatCount: widget.flagRepeatCount,
+        clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1179,6 +1213,10 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
+        clipShape: widget.clipShape,
+        flagRepeatCount: widget.flagRepeatCount,
+        clipCode: widget.clipCode,
+        rowCount: widget.rowCount,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);

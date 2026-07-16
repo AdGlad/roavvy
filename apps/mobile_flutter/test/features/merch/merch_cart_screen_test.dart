@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/merch/merch_cart_item.dart';
+import 'package:mobile_flutter/features/merch/merch_cart_item_card.dart';
 import 'package:mobile_flutter/features/merch/merch_cart_screen.dart';
 
 // ── Fixture helpers ────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ void main() {
       await tester.pumpWidget(_pump(uid: 'user-001', items: const []));
       await tester.pump();
 
-      expect(find.textContaining('Your cart is empty'), findsOneWidget);
+      expect(find.textContaining('No designs saved yet.'), findsOneWidget);
     });
 
     testWidgets('no list tiles when cart is empty', (tester) async {
@@ -115,7 +116,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(ListTile), findsNWidgets(2));
+      expect(find.byType(MerchCartItemCard), findsNWidgets(2));
     });
 
     testWidgets('shows custom title when item.title is set', (tester) async {
@@ -124,7 +125,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('My Europe Tour'), findsOneWidget);
+      expect(find.text('My Europe Tour'), findsWidgets);
     });
 
     testWidgets(
@@ -140,9 +141,9 @@ void main() {
         );
         await tester.pump();
 
-        // Default title: "T-shirt · 2 countries"
-        expect(find.textContaining('T-shirt'), findsOneWidget);
-        expect(find.textContaining('countries'), findsOneWidget);
+        // Default title: "T-shirt · 2 countries" (appears in placeholder + info area)
+        expect(find.textContaining('T-shirt'), findsWidgets);
+        expect(find.textContaining('countries'), findsWidgets);
       },
     );
 

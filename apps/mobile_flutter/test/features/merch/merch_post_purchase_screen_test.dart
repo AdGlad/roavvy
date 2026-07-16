@@ -57,7 +57,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Back to my map'), findsOneWidget);
-      expect(find.text('Share my order'), findsOneWidget);
+      expect(find.text('Share my design'), findsOneWidget);
     });
 
     testWidgets('has no back button in AppBar', (tester) async {

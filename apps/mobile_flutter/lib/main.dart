@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -34,6 +35,12 @@ Future<void> main() async {
 
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
+        );
+
+        await FirebaseAppCheck.instance.activate(
+          appleProvider: kDebugMode
+              ? AppleProvider.debug
+              : AppleProvider.appAttestWithDeviceCheckFallback,
         );
 
         // Route Flutter framework errors to Crashlytics.

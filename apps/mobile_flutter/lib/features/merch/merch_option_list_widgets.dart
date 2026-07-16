@@ -11,8 +11,10 @@ import 'shopify_pricing_repository.dart';
 
 import '../cards/card_editor_screen.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/flag_grid_layout_engine.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
+import 'flag_shape_customise_screen.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_share_exporter.dart';
 import 'merch_template_ranker.dart';
@@ -112,11 +114,12 @@ String merchSuggestShirtColor(
 /// Aspect ratio for the back-card artwork based on template type.
 double merchBackCardAspectRatio(CardTemplateType template) =>
     switch (template) {
+      CardTemplateType.grid => 3.0 / 2.0, // flags — landscape
       CardTemplateType.timeline => 3.0 / 2.0,
       CardTemplateType.badge ||
       CardTemplateType.typography ||
       CardTemplateType.wordCloud => 1.0,
-      _ => 2.0 / 3.0, // passport, grid (flags), heart, frontRibbon — portrait
+      _ => 2.0 / 3.0, // passport, heart, frontRibbon — portrait
     };
 
 /// Default stamp colour override for a given template.
@@ -362,6 +365,29 @@ class _MerchOptionCardState extends State<MerchOptionCard>
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -733,6 +759,8 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     final opt = widget.option;
     final aspectRatio = merchBackCardAspectRatio(opt.template);
     try {
+      final isSoloGrid =
+          opt.template == CardTemplateType.grid && opt.codes.length == 1;
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -742,12 +770,16 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         entryOnly: opt.entryOnly,
         stampJitterFactor: opt.jitter,
         stampSizeMultiplier: opt.stampSizeMultiplier,
-        pixelRatio: 2.5,
+        pixelRatio: 2.0,
         cardAspectRatio: aspectRatio,
         titleOverride: opt.title,
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
+        clipShape: isSoloGrid
+            ? GridClipShape.animalSilhouette
+            : GridClipShape.none,
+        clipCode: isSoloGrid ? opt.codes.first.toUpperCase() : null,
       );
       if (!mounted) return;
 
@@ -803,6 +835,29 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -1267,6 +1322,29 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -1510,6 +1588,8 @@ class _DesignCardState extends State<_DesignCard> {
     final opt = widget.option;
     try {
       final aspectRatio = merchBackCardAspectRatio(opt.template);
+      final isSoloGrid =
+          opt.template == CardTemplateType.grid && opt.codes.length == 1;
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -1525,12 +1605,16 @@ class _DesignCardState extends State<_DesignCard> {
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
+        clipShape: isSoloGrid
+            ? GridClipShape.animalSilhouette
+            : GridClipShape.none,
+        clipCode: isSoloGrid ? opt.codes.first.toUpperCase() : null,
       );
       if (!mounted) return;
 
       final backSpec = ProductMockupSpecs.specsFor(
         MerchProduct.tshirt,
-        colour: 'Black',
+        colour: opt.suggestedShirtColor ?? 'Black',
         placement: 'back',
       );
       final backData = await rootBundle.load(backSpec.assetPath);
@@ -1581,6 +1665,29 @@ class _DesignCardState extends State<_DesignCard> {
     }
     final bytes = _artworkBytes;
     if (bytes == null) return;
+
+    // Grid template → FlagShapeCustomiseScreen (M170).
+    if (widget.option.template == CardTemplateType.grid) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => FlagShapeCustomiseScreen(
+                codes: widget.option.codes,
+                allCodes: widget.allCodes,
+                trips: widget.option.trips,
+                titleOverride: widget.option.title,
+                subtitleOverride: widget.option.artworkSubtitle,
+                initialColour: widget.option.suggestedShirtColor,
+                continentKey: widget.option.continentKey,
+                initialShape: widget.option.codes.length == 1
+                    ? GridClipShape.animalSilhouette
+                    : null,
+              ),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
