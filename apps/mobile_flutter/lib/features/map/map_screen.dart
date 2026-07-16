@@ -390,6 +390,12 @@ class MapScreen extends ConsumerWidget {
                 child: RovyBubble(),
               ),
             ),
+            // Globe ↔ flat map toggle — bottom-right.
+            Positioned(
+              bottom: globeMode ? 200 : 148,
+              right: 12,
+              child: _MapViewToggle(globeMode: globeMode),
+            ),
             // Globe rotation pause/play — bottom-right, above flag strip.
             if (globeMode)
               const Positioned(
@@ -1225,6 +1231,30 @@ class _GlobeRotationToggle extends ConsumerWidget {
         onPressed:
             () =>
                 ref.read(globeRotationPausedProvider.notifier).state = !paused,
+      ),
+    );
+  }
+}
+
+// ── Globe ↔ flat map toggle ───────────────────────────────────────────────────
+
+class _MapViewToggle extends ConsumerWidget {
+  const _MapViewToggle({required this.globeMode});
+
+  final bool globeMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: Colors.black45,
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: Icon(globeMode ? Icons.map_outlined : Icons.language_rounded),
+        color: Colors.white,
+        iconSize: 22,
+        tooltip: globeMode ? 'Switch to flat map' : 'Switch to globe',
+        onPressed: () =>
+            ref.read(globeModeProvider.notifier).state = !globeMode,
       ),
     );
   }
