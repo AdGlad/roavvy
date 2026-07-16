@@ -134,43 +134,35 @@ class WorldLeapConfig {
   static const String unescoAsset = 'assets/geodata/whs_sites.json';
 
   // ── Sound Assets ───────────────────────────────────────────────────────────
-  // All wl_* files are CC0 from kenney.nl (gamesounds.xyz mirror).
-  // Alternatives are in assets/audio/ prefixed wl_stretch_*, wl_launch_*, etc.
+  // All wl_* MP3s are procedurally generated 8-bit arcade sounds (public domain).
+  // Source: gen_8bit_sounds.py (tools/sounds/) — square/pulse waves, ADSR envelopes.
+  // Regenerate: python3 tools/sounds/gen_8bit_sounds.py && ffmpeg conversion.
 
-  /// Rubber band stretch pull — from Timbre cartoon catapult pack.
-  /// Source: Freesound #100027 by Timbre (CC BY 3.0) — pair 2 stretch segment
+  /// Rising charge tone (200→800 Hz) — slingshot pull tension.
   static const String soundStretch = 'audio/wl_stretch.mp3';
 
-  /// Rubber band snap on release — from Timbre cartoon catapult pack.
-  /// Source: Freesound #100027 by Timbre (CC BY 3.0) — pair 1 snap segment
+  /// Sharp 'PEW!' laser-style snap — elastic release, Space Invaders style.
   static const String soundLaunch = 'audio/wl_launch.mp3';
 
-  /// Ascending whoosh during flight arc.
-  /// Source: Kenney Interface Sounds / maximize_003.ogg (CC0)
+  /// Bell-curve whoosh with noise layer — matches flight arc shape.
   static const String soundWindFlight = 'audio/wl_wind.mp3';
 
-  /// Wood thud on successful landing.
-  /// Source: Kenney Impact Sounds / impactWood_heavy_000.ogg (CC0)
+  /// Low 'BOOM!' with high transient click — satisfying landing thud.
   static const String soundImpact = 'audio/wl_impact.mp3';
 
-  /// Error tone for wrong country / water landing.
-  /// Source: Kenney Interface Sounds / error_001.ogg (CC0)
+  /// Descending 3-note minor sting (C→G#→E) — Pac-Man death flavour.
   static const String soundMiss = 'audio/wl_miss.mp3';
 
-  /// Sharp click for each countdown second.
-  /// Source: Kenney UI Audio / click1.ogg (CC0)
+  /// Single C6 blip — clean countdown tick.
   static const String soundTick = 'audio/wl_tick.mp3';
 
-  /// Deeper error sting on timeout.
-  /// Source: Kenney Interface Sounds / error_008.ogg (CC0)
+  /// 5-blip descending alarm (B5→B4) — urgent timeout sting.
   static const String soundTimeout = 'audio/wl_timeout.mp3';
 
-  /// Saxophone victory jingle on successful target hit.
-  /// Source: Kenney Music Jingles / jingles-saxophone_00.ogg (CC0)
+  /// C-E-G-C ascending arpeggio + held chord — classic 8-bit win jingle.
   static const String soundFanfare = 'audio/wl_fanfare.mp3';
 
-  /// Retro end-of-run sting.
-  /// Source: Kenney Music Jingles / jingles-retro_16.ogg (CC0)
+  /// G4→G3 descending minor scale — dignified 8-bit game-over melody.
   static const String soundGameOver = 'audio/wl_game_over.mp3';
 
   // ── Difficulty Grades ──────────────────────────────────────────────────────
