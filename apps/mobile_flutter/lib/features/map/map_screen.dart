@@ -34,6 +34,7 @@ import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
 import '../heritage/unesco_nearby_explorer_screen.dart';
 import 'region_chips_marker_layer.dart';
+import 'photo_cluster_layer.dart';
 import 'world_heritage_marker_layer.dart';
 import 'region_progress_notifier.dart';
 import 'rovy_bubble.dart';
@@ -314,6 +315,7 @@ class MapScreen extends ConsumerWidget {
                 TargetCountryLayer(),
                 RegionChipsMarkerLayer(),
                 WorldHeritageMarkerLayer(),
+                PhotoClusterLayer(),
               ],
             ),
 
