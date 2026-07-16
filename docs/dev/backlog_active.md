@@ -9,6 +9,37 @@
 
 ---
 
+## Phase 29 — Photo Map Thumbnails (M167–M170)
+
+> Google Photos-style photo thumbnails on the rotating globe and flat map.
+> Full plans: `docs/dev/milestones/m167-photo-gps-cache.md` etc.
+
+### M167 — Photo GPS Cache
+**Goal:** Background service fetches lat/lng from PhotoKit via `photo_manager`, caches in new `photo_gps_cache` Drift table (schema v16). Foundation for all photo-map thumbnail features.
+**Phase:** 29 — Photo Map Thumbnails
+**Depends on:** —
+**Status:** ✅ Complete (2026-07-16)
+
+### M168 — Photo Thumbnails: Flat Map Layer
+**Goal:** Clustered badges at zoom 5–9; individual 48×48 thumbnails at zoom ≥ 10 on the 2D flutter_map. Viewport culling + `ThumbnailChannel` for zero-lag loading.
+**Phase:** 29 — Photo Map Thumbnails
+**Depends on:** M167 ✅
+**Status:** 🔜 Queued
+
+### M169 — Photo Thumbnails: Globe Overlay
+**Goal:** Stack overlay on the 3D globe; `GlobeProjection.project()` for positioning; fade out on rotation, fade in on settle; max 25 thumbnails from visible hemisphere.
+**Phase:** 29 — Photo Map Thumbnails
+**Depends on:** M167 ✅
+**Status:** 🔜 Queued
+
+### M170 — Photo Map: Cluster Polish & Performance Tuning
+**Goal:** Tap-to-zoom on clusters, thumbnail fade-in animation, Dart LRU cache, "Show photos on map" toggle in settings.
+**Phase:** 29 — Photo Map Thumbnails
+**Depends on:** M168 ✅, M169 ✅
+**Status:** 🔜 Queued
+
+---
+
 ## Phase 28 — Travel Timeline UX (M147–M154)
 
 > Full plan: `docs/dev/milestones/m147-154-travel-timeline-refactor.md`

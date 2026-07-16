@@ -19,6 +19,7 @@ import '../data/heritage_repository.dart';
 import '../data/level_up_repository.dart';
 import '../data/milestone_repository.dart';
 import '../data/db/roavvy_database.dart';
+import '../data/photo_gps_repository.dart';
 import '../data/region_repository.dart';
 import '../data/trip_repository.dart';
 import '../data/visit_repository.dart';
@@ -39,6 +40,7 @@ import '../data/daily_challenge_repository.dart';
 import '../features/challenge/daily_challenge_service.dart';
 import '../features/challenge/daily_challenge_notifier.dart';
 import '../features/challenge/daily_challenge_stats.dart';
+import '../features/map/photo_gps_fetch_service.dart';
 
 /// True when Image Playground (Apple Intelligence) is available on this device.
 /// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
@@ -595,3 +597,34 @@ final unescoNearbyProvider =
     AsyncNotifierProvider<UnescoNearbyNotifier, UnescoNearbyState>(
   UnescoNearbyNotifier.new,
 );
+
+// ── Photo GPS cache (M155) ────────────────────────────────────────────────────
+
+final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
+  (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+final photoGpsFetchServiceProvider = Provider<PhotoGpsFetchService>(
+  (ref) => PhotoGpsFetchService(
+    db: ref.watch(roavvyDatabaseProvider),
+    repo: ref.watch(photoGpsRepositoryProvider),
+  ),
+);
+
+/// Triggers a one-time background GPS fetch on first watch (M155).
+///
+/// Non-autoDispose so it persists for the app lifetime — the fetch runs
+/// exactly once per session. Invalidates [photoLocationsProvider] after
+/// completion so map layers see the newly cached positions.
+final photoGpsFetchProvider = FutureProvider<void>((ref) async {
+  await ref.read(photoGpsFetchServiceProvider).fetchAndCache();
+  ref.invalidate(photoLocationsProvider);
+});
+
+/// All cached GPS locations for geotagged photos.
+///
+/// Populated after [photoGpsFetchProvider] completes. Empty on first launch
+/// until the background fetch runs (M155).
+final photoLocationsProvider = FutureProvider<List<PhotoLocation>>((ref) {
+  return ref.watch(photoGpsRepositoryProvider).loadAll();
+});

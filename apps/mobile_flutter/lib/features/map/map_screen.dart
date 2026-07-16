@@ -205,6 +205,10 @@ class MapScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Trigger the one-time background GPS fetch (M155). Non-blocking — the
+    // provider caches its result so this only runs once per app session.
+    ref.watch(photoGpsFetchProvider);
+
     final user = ref.watch(authStateProvider).valueOrNull;
     final isAnonymous = user == null || user.isAnonymous;
     final isDarkMode = ref.watch(themeModeProvider) == ThemeMode.dark;
