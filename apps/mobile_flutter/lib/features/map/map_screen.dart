@@ -30,8 +30,6 @@ import 'space_background.dart';
 import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
-import 'photo_globe_overlay.dart';
-import 'globe_projection.dart';
 import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
 import '../heritage/unesco_nearby_explorer_screen.dart';
@@ -294,7 +292,7 @@ class MapScreen extends ConsumerWidget {
           if (mapIsDark) const StarfieldBackground(),
 
           if (globeMode)
-            _GlobeWithPhotoOverlay(
+            GlobeMapWidget(
               onCountryTap:
                   (code) => _onGlobeTap(context, ref, code, visitedByCode),
             )
@@ -585,72 +583,6 @@ class MapScreen extends ConsumerWidget {
           ], // end !overlayActive
         ],
       ),
-    );
-  }
-}
-
-// ── Globe + photo overlay wrapper ─────────────────────────────────────────────
-
-/// Combines [GlobeMapWidget] with [PhotoGlobeOverlay] in a single Stack.
-///
-/// Owns the [ValueNotifier]s that flow between the two widgets:
-/// - [_rotationNotifier] tells the overlay when to hide (during drag).
-/// - [_projection] / [_canvasSize] give the overlay the current camera state
-///   so it can project lat/lng to screen coordinates.
-///
-/// Projection is updated after each frame via [GlobeMapWidget.onProjectionUpdated].
-class _GlobeWithPhotoOverlay extends StatefulWidget {
-  const _GlobeWithPhotoOverlay({required this.onCountryTap});
-
-  final void Function(String isoCode) onCountryTap;
-
-  @override
-  State<_GlobeWithPhotoOverlay> createState() => _GlobeWithPhotoOverlayState();
-}
-
-class _GlobeWithPhotoOverlayState extends State<_GlobeWithPhotoOverlay> {
-  late final ValueNotifier<bool> _rotationNotifier;
-  GlobeProjection _projection = const GlobeProjection();
-  Size _canvasSize = Size.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _rotationNotifier = ValueNotifier<bool>(false);
-  }
-
-  @override
-  void dispose() {
-    _rotationNotifier.dispose();
-    super.dispose();
-  }
-
-  void _onProjectionUpdated(GlobeProjection p, Size s) {
-    // Only rebuild when the overlay is visible (not rotating) so we avoid
-    // 60 fps setState calls while the user is dragging (overlay is hidden).
-    if (!_rotationNotifier.value) {
-      setState(() {
-        _projection = p;
-        _canvasSize = s;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        GlobeMapWidget(
-          onCountryTap: widget.onCountryTap,
-          rotationNotifier: _rotationNotifier,
-          onProjectionUpdated: _onProjectionUpdated,
-        ),
-        PhotoGlobeOverlay(
-          rotationNotifier: _rotationNotifier,
-          projection: _projection,
-          canvasSize: _canvasSize,
-        ),
-      ],
     );
   }
 }

@@ -16,7 +16,8 @@ import 'thumbnail_lru_cache.dart';
 /// based on the current zoom level. (M168)
 ///
 /// Zoom < 5   → hidden (SizedBox.shrink)
-/// Zoom 5–9   → [_ClusterMarker] circle badges grouped by 0.5°/0.1° grid
+/// Zoom 5–7   → [_StackedClusterMarker] stacked thumbnail badges (0.5° grid)
+/// Zoom 8–9   → [_StackedClusterMarker] tighter clusters (0.1° grid)
 /// Zoom ≥ 10  → [_PhotoThumbnailMarker] individual photos (max 40 in viewport)
 ///
 /// Markers outside the viewport (expanded by 20%) are culled before building.
@@ -52,10 +53,14 @@ class PhotoClusterLayer extends ConsumerWidget {
           capped
               .map(
                 (loc) => Marker(
+                  key: ValueKey(loc.assetId),
                   point: LatLng(loc.lat, loc.lng),
                   width: 56,
                   height: 56,
-                  child: _PhotoThumbnailMarker(assetId: loc.assetId),
+                  child: _PhotoThumbnailMarker(
+                    key: ValueKey(loc.assetId),
+                    assetId: loc.assetId,
+                  ),
                 ),
               )
               .toList();
@@ -68,11 +73,13 @@ class PhotoClusterLayer extends ConsumerWidget {
         clusters.values
             .map(
               (cluster) => Marker(
+                key: ValueKey('cluster_${cluster.lat}_${cluster.lng}'),
                 point: LatLng(cluster.lat, cluster.lng),
-                width: 44,
-                height: 44,
-                child: _ClusterMarker(
+                width: 60,
+                height: 60,
+                child: _StackedClusterMarker(
                   count: cluster.count,
+                  previewAssetIds: cluster.assetIds.take(2).toList(),
                   centroid: LatLng(cluster.lat, cluster.lng),
                   currentZoom: zoom,
                 ),
@@ -135,40 +142,121 @@ class _Cluster {
   final List<String> assetIds = [];
 }
 
-// ── Cluster badge marker ───────────────────────────────────────────────────────
+// ── Stacked cluster marker ─────────────────────────────────────────────────────
 
-/// Filled circle showing the photo count for a grid cell. Tapping zooms in by
-/// 2 levels centred on this cluster's centroid (no animation).
-class _ClusterMarker extends StatelessWidget {
-  const _ClusterMarker({
+/// iPhone Photos-style stacked thumbnail cluster. Shows up to 2 photo previews
+/// fanned at angles with a count badge. Tapping zooms in by 2 levels.
+class _StackedClusterMarker extends StatefulWidget {
+  const _StackedClusterMarker({
     required this.count,
+    required this.previewAssetIds,
     required this.centroid,
     required this.currentZoom,
   });
 
   final int count;
+  final List<String> previewAssetIds;
   final LatLng centroid;
   final double currentZoom;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => MapController.of(context).move(centroid, currentZoom + 2),
+  State<_StackedClusterMarker> createState() => _StackedClusterMarkerState();
+}
+
+class _StackedClusterMarkerState extends State<_StackedClusterMarker> {
+  final _images = <String, Uint8List?>{};
+
+  @override
+  void initState() {
+    super.initState();
+    for (final id in widget.previewAssetIds) {
+      _loadImage(id);
+    }
+  }
+
+  Future<void> _loadImage(String assetId) async {
+    final cached = ThumbnailLruCache.instance.get(assetId);
+    if (cached != null) {
+      if (mounted) setState(() => _images[assetId] = cached);
+      return;
+    }
+    final bytes = await const ThumbnailChannel().getThumbnail(assetId, size: 64);
+    if (bytes != null) ThumbnailLruCache.instance.put(assetId, bytes);
+    if (mounted) setState(() => _images[assetId] = bytes);
+  }
+
+  Widget _thumbnail(String assetId, double rotation) {
+    final bytes = _images[assetId];
+    return Transform.rotate(
+      angle: rotation,
       child: Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.white, width: 1.5),
+          boxShadow: const [
+            BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(0, 1)),
+          ],
+          color: Colors.grey.shade400,
+          image: bytes != null
+              ? DecorationImage(
+                  image: MemoryImage(bytes),
+                  fit: BoxFit.cover,
+                )
+              : null,
         ),
-        alignment: Alignment.center,
-        child: Text(
-          '$count',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ids = widget.previewAssetIds;
+    return GestureDetector(
+      onTap: () =>
+          MapController.of(context).move(widget.centroid, widget.currentZoom + 2),
+      child: SizedBox(
+        width: 60,
+        height: 60,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Back card (rotated right) — only when ≥ 2 photos.
+            if (ids.length >= 2)
+              Positioned(
+                top: 4,
+                left: 6,
+                child: _thumbnail(ids[1], 0.25),
+              ),
+            // Front card (slight left tilt).
+            Positioned(
+              top: 8,
+              left: 12,
+              child: _thumbnail(ids[0], -0.15),
+            ),
+            // Count badge — top-right corner.
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+                child: Text(
+                  widget.count > 99 ? '99+' : '${widget.count}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -180,7 +268,7 @@ class _ClusterMarker extends StatelessWidget {
 /// Async-loads a 96 px thumbnail via [ThumbnailChannel] and renders a rounded
 /// square. Tapping opens [PhotoGalleryScreen] for this single photo.
 class _PhotoThumbnailMarker extends StatefulWidget {
-  const _PhotoThumbnailMarker({required this.assetId});
+  const _PhotoThumbnailMarker({super.key, required this.assetId});
 
   final String assetId;
 
@@ -218,7 +306,7 @@ class _PhotoThumbnailMarkerState extends State<_PhotoThumbnailMarker> {
         _bytes = bytes;
         _loading = false;
       });
-      // Trigger fade-in on next frame so AnimatedOpacity transition plays.
+      // Trigger fade-in + scale-in on next frame so animations play.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _visible = true);
       });
@@ -244,18 +332,27 @@ class _PhotoThumbnailMarkerState extends State<_PhotoThumbnailMarker> {
             borderRadius: BorderRadius.circular(8),
             child: Container(width: 48, height: 48, color: Colors.grey.shade300),
           )
-        : AnimatedOpacity(
-            duration: const Duration(milliseconds: 200),
-            opacity: _visible ? 1.0 : 0.0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white, width: 1.5),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-                ],
+        : AnimatedScale(
+            duration: const Duration(milliseconds: 250),
+            scale: _visible ? 1.0 : 0.4,
+            curve: Curves.easeOutBack,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _visible ? 1.0 : 0.0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: image,
               ),
-              child: image,
             ),
           );
 
