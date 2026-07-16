@@ -615,12 +615,13 @@ final photoGpsFetchServiceProvider = Provider<PhotoGpsFetchService>(
   ),
 );
 
-/// Triggers a one-time background GPS fetch on first watch (M155).
+/// Triggers a background GPS fetch whenever the map screen is active (M155).
 ///
-/// Non-autoDispose so it persists for the app lifetime — the fetch runs
-/// exactly once per session. Invalidates [photoLocationsProvider] after
-/// completion so map layers see the newly cached positions.
-final photoGpsFetchProvider = FutureProvider<void>((ref) async {
+/// autoDispose so it re-runs each time the map tab is re-entered, picking up
+/// photos added by a new scan. [fetchAndCache] is idempotent — already-cached
+/// assets are skipped, so re-running after nothing changed is cheap.
+/// Invalidates [photoLocationsProvider] after completion.
+final photoGpsFetchProvider = FutureProvider.autoDispose<void>((ref) async {
   await ref.read(photoGpsFetchServiceProvider).fetchAndCache();
   ref.invalidate(photoLocationsProvider);
 });
