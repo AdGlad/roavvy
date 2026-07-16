@@ -1,7 +1,6 @@
 // lib/features/world_leap/presentation/screens/world_leap_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mobile_flutter/features/world_leap/application/world_leap_providers.dart';
@@ -15,6 +14,197 @@ import 'package:mobile_flutter/features/world_leap/presentation/widgets/quokka_w
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_hud.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_score_panel.dart';
 import 'world_leap_result_screen.dart';
+
+// ── Floating score burst ──────────────────────────────────────────────────────
+
+/// Animates a `+N pts` label + accuracy word upward then fades it out.
+/// Gets a fresh [key] on each landing so the animation restarts each shot.
+class _FloatingScoreLabel extends StatefulWidget {
+  final int points;
+  final int stars; // 1–3
+
+  const _FloatingScoreLabel({super.key, required this.points, required this.stars});
+
+  @override
+  State<_FloatingScoreLabel> createState() => _FloatingScoreLabelState();
+}
+
+class _FloatingScoreLabelState extends State<_FloatingScoreLabel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _slide = Tween<Offset>(begin: Offset.zero, end: const Offset(0, -0.8)).animate(
+      CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 1.0, curve: Curves.easeOut)),
+    );
+    // Fade in fast, hold, then fade out
+    _fade = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 15),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 35),
+    ]).animate(_ctrl);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  String get _label => switch (widget.stars) {
+        3 => 'BULLSEYE!',
+        2 => 'GREAT SHOT!',
+        _ => 'NICE!',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: IgnorePointer(
+        child: Center(
+          child: SlideTransition(
+            position: _slide,
+            child: FadeTransition(
+              opacity: _fade,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '+${widget.points} pts',
+                    style: const TextStyle(
+                      color: Color(0xFFFFD600),
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
+                      shadows: [Shadow(blurRadius: 12, color: Colors.black)],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                      shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Combo milestone banner ─────────────────────────────────────────────────────
+
+/// Slides in from the top, holds, then slides out when a combo tier is reached.
+class _ComboBanner extends StatefulWidget {
+  final double multiplier;
+
+  const _ComboBanner({super.key, required this.multiplier});
+
+  @override
+  State<_ComboBanner> createState() => _ComboBannerState();
+}
+
+class _ComboBannerState extends State<_ComboBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    // 350ms in, hold 1100ms, 350ms out → 1800ms total
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _slide = TweenSequence<Offset>([
+      TweenSequenceItem(
+        tween: Tween(begin: const Offset(0, -1), end: Offset.zero)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 20,
+      ),
+      TweenSequenceItem(tween: ConstantTween(Offset.zero), weight: 60),
+      TweenSequenceItem(
+        tween: Tween(begin: Offset.zero, end: const Offset(0, -1))
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 20,
+      ),
+    ]).animate(_ctrl);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  String get _label {
+    final m = widget.multiplier;
+    final formatted = m == m.truncateToDouble() ? '×${m.toInt()}' : '×$m';
+    return 'COMBO $formatted!';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: SlideTransition(
+          position: _slide,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.deepOrange.shade900.withValues(alpha: 0.95),
+                  Colors.orange.shade700.withValues(alpha: 0.95),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Text(
+                _label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3,
+                  shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 // ── Zoom button ───────────────────────────────────────────────────────────────
 
@@ -145,7 +335,7 @@ class WorldLeapScreen extends ConsumerStatefulWidget {
 }
 
 class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _geo = WorldLeapGeoService();
   final _mapKey = GlobalKey<WorldLeapMapWidgetState>();
 
@@ -153,14 +343,8 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
   late final Animation<Offset> _shakeAnimation;
   WorldLeapState? _prevState;
 
-  /// Shared flag: true while the slingshot is actively tracking a gesture.
-  /// Passed to the map to suppress its drag recognizer during slingshot use.
   final _slingshotActive = ValueNotifier<bool>(false);
-
-  /// Camera mode for the flight arc; persists for the session.
   final _cameraMode = ValueNotifier<WorldLeapCameraMode>(WorldLeapCameraMode.stationary);
-
-  /// Difficulty grade 1–5; persists for the session.
   final _difficulty = ValueNotifier<int>(1);
 
   @override
@@ -190,12 +374,7 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
           weight: 3),
     ]).animate(
         CurvedAnimation(parent: _shakeController, curve: Curves.easeOut));
-    // Allow landscape while in the game — more map real estate.
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // Orientation is now managed globally — no lock/unlock needed here.
   }
 
   @override
@@ -204,8 +383,6 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
     _slingshotActive.dispose();
     _cameraMode.dispose();
     _difficulty.dispose();
-    // Restore portrait lock for the rest of the app.
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
@@ -378,6 +555,22 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                       WorldLeapScorePanel(
                         launch: currentState.lastLaunch,
                         onDismiss: controller.dismissScorePanel,
+                      ),
+
+                    // Floating score burst — fresh widget per landing via key
+                    if (currentState is WorldLeapStateLanded)
+                      _FloatingScoreLabel(
+                        key: ValueKey('score_${currentState.lastLaunch.scoreBreakdown.comboStreak}'),
+                        points: currentState.lastLaunch.scoreBreakdown.total,
+                        stars: currentState.lastLaunch.scoreBreakdown.stars,
+                      ),
+
+                    // Combo milestone banner — only when multiplier > 1
+                    if (currentState is WorldLeapStateLanded &&
+                        currentState.lastLaunch.scoreBreakdown.comboMultiplier > 1.0)
+                      _ComboBanner(
+                        key: ValueKey('combo_${currentState.lastLaunch.scoreBreakdown.comboStreak}'),
+                        multiplier: currentState.lastLaunch.scoreBreakdown.comboMultiplier,
                       ),
                   ],
                 ),
