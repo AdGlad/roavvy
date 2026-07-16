@@ -27,7 +27,6 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
-      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       tz.initializeTimeZones();
 
       try {
