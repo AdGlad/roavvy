@@ -26,10 +26,17 @@ Make World Leap feel like a polished arcade game that players want to return to 
 12. **Personal best notification**: On run end, if new high score, banner shows "NEW BEST 🏆".
 
 ## Acceptance Criteria
-- [ ] Floating score text appears on every successful shot
-- [ ] Combo banner appears on multiplier tier unlock
-- [ ] Comet trail renders without jank
-- [ ] Landing particles fire on every landing
-- [ ] Streak badge updates in HUD
-- [ ] Personal best detected and shown
-- [ ] `flutter analyze` clean
+- [x] Floating score text appears on every successful shot
+- [x] Combo banner appears on multiplier tier unlock
+- [x] Comet trail renders without jank
+- [x] Landing particles fire on every landing
+- [x] Streak badge updates in HUD
+- [x] Personal best detected and shown
+- [x] `flutter analyze` clean
+
+## Implementation Notes
+- Accuracy labels (BULLSEYE/GREAT SHOT/NICE based on `stars`) embedded in `_FloatingScoreLabel`
+- Comet trail: 8 fading `CircleMarker`s built in `_buildFlightLayer()` from existing trajectory pts — zero extra allocations
+- Particles: `_ParticleBurst` `CustomPainter`, 12 dots in 6 colours, polar spread, 700ms easeOut distance + easeIn fade
+- Streak badge: `_StreakBadge` in both portrait pill and landscape panel; hidden when streak < 2
+- Personal best: `SharedPreferences` key `world_leap_best_score`; gold banner on result screen
