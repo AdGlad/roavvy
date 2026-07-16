@@ -10,6 +10,7 @@ import '../../core/providers.dart';
 import '../../data/photo_gps_repository.dart';
 import '../shared/thumbnail_channel.dart';
 import 'photo_gallery_screen.dart';
+import 'thumbnail_lru_cache.dart';
 
 /// Renders photo clusters or individual thumbnails on the flat [FlutterMap]
 /// based on the current zoom level. (M168)
@@ -24,6 +25,8 @@ class PhotoClusterLayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(showPhotoThumbnailsProvider)) return const SizedBox.shrink();
+
     final locationsAsync = ref.watch(photoLocationsProvider);
     final locations = locationsAsync.valueOrNull;
     if (locations == null || locations.isEmpty) return const SizedBox.shrink();
@@ -188,11 +191,20 @@ class _PhotoThumbnailMarker extends StatefulWidget {
 class _PhotoThumbnailMarkerState extends State<_PhotoThumbnailMarker> {
   Uint8List? _bytes;
   bool _loading = true;
+  bool _visible = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchThumbnail();
+    // Check LRU cache before hitting the channel.
+    final cached = ThumbnailLruCache.instance.get(widget.assetId);
+    if (cached != null) {
+      _bytes = cached;
+      _loading = false;
+      _visible = true;
+    } else {
+      _fetchThumbnail();
+    }
   }
 
   Future<void> _fetchThumbnail() async {
@@ -200,45 +212,50 @@ class _PhotoThumbnailMarkerState extends State<_PhotoThumbnailMarker> {
       widget.assetId,
       size: 96,
     );
+    if (bytes != null) ThumbnailLruCache.instance.put(widget.assetId, bytes);
     if (mounted) {
       setState(() {
         _bytes = bytes;
         _loading = false;
+      });
+      // Trigger fade-in on next frame so AnimatedOpacity transition plays.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _visible = true);
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final content = _loading || _bytes == null
-        ? ClipRRect(
+    final image = _bytes == null
+        ? null
+        : ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(
+            child: Image.memory(
+              _bytes!,
               width: 48,
               height: 48,
-              color: Colors.grey.shade300,
+              fit: BoxFit.cover,
             ),
+          );
+
+    final content = _loading || image == null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(width: 48, height: 48, color: Colors.grey.shade300),
           )
-        : DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white, width: 1.5),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.memory(
-                _bytes!,
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
+        : AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _visible ? 1.0 : 0.0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                ],
               ),
+              child: image,
             ),
           );
 

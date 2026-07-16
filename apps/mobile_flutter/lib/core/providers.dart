@@ -598,7 +598,11 @@ final unescoNearbyProvider =
   UnescoNearbyNotifier.new,
 );
 
-// ── Photo GPS cache (M155) ────────────────────────────────────────────────────
+// ── Photo GPS cache & map thumbnails (M167–M170) ─────────────────────────────
+
+/// Whether photo thumbnails are shown on the map (M170).
+/// Defaults true. Toggled from the settings screen.
+final showPhotoThumbnailsProvider = StateProvider<bool>((ref) => true);
 
 final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
   (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),

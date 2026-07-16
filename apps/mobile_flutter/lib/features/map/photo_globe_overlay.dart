@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../shared/thumbnail_channel.dart';
 import 'globe_projection.dart';
+import 'thumbnail_lru_cache.dart';
 
 /// Overlay that renders photo thumbnails on the 3D globe based on GPS location.
 ///
@@ -58,6 +59,7 @@ class _PhotoGlobeOverlayState extends ConsumerState<PhotoGlobeOverlay> {
   void _onRotationChanged() => setState(() {});
 
   List<Widget> _buildMarkers() {
+    if (!ref.watch(showPhotoThumbnailsProvider)) return const [];
     final locations =
         ref.watch(photoLocationsProvider).valueOrNull ?? const [];
     if (locations.isEmpty || widget.canvasSize == Size.zero) return const [];
@@ -135,7 +137,14 @@ class _GlobeThumbnailMarkerState extends State<_GlobeThumbnailMarker> {
   }
 
   Future<void> _loadThumbnail() async {
+    // Check LRU cache first — avoids a redundant channel call.
+    final cached = ThumbnailLruCache.instance.get(widget.assetId);
+    if (cached != null) {
+      if (mounted) setState(() => _bytes = cached);
+      return;
+    }
     final bytes = await _channel.getThumbnail(widget.assetId, size: 88);
+    if (bytes != null) ThumbnailLruCache.instance.put(widget.assetId, bytes);
     if (mounted) setState(() => _bytes = bytes);
   }
 
