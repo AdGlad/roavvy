@@ -1,0 +1,686 @@
+[
+  {
+    "iso2": "AF",
+    "country": "Afghanistan",
+    "plant": "Tulip",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "AL",
+    "country": "Albania",
+    "plant": "Red poppy",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "AD",
+    "country": "Andorra",
+    "plant": "Narcissus poeticus",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "AG",
+    "country": "Antigua and Barbuda",
+    "plant": "Agave karatto",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "AR",
+    "country": "Argentina",
+    "plant": "Ceibo flower",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "AM",
+    "country": "Armenia",
+    "plant": "Apricot",
+    "source": "general knowledge — Prunus armeniaca"
+  },
+  {
+    "iso2": "AU",
+    "country": "Australia",
+    "plant": "Golden wattle",
+    "source": "Wikipedia: floral emblem since 1988"
+  },
+  {
+    "iso2": "AT",
+    "country": "Austria",
+    "plant": "Edelweiss",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BS",
+    "country": "Bahamas",
+    "plant": "Yellow elder",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BD",
+    "country": "Bangladesh",
+    "plant": "Water lily (shapla)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BB",
+    "country": "Barbados",
+    "plant": "Pride of Barbados",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BY",
+    "country": "Belarus",
+    "plant": "Flax flower",
+    "source": "general knowledge — textile tradition"
+  },
+  {
+    "iso2": "BE",
+    "country": "Belgium",
+    "plant": "Flanders poppy",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BZ",
+    "country": "Belize",
+    "plant": "Black orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BT",
+    "country": "Bhutan",
+    "plant": "Blue poppy",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BO",
+    "country": "Bolivia",
+    "plant": "Kantuta",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BR",
+    "country": "Brazil",
+    "plant": "Golden trumpet tree flower (ipê-amarelo)",
+    "source": "Wikipedia: popularly considered"
+  },
+  {
+    "iso2": "BN",
+    "country": "Brunei Darussalam",
+    "plant": "Simpoh Ayer",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "BG",
+    "country": "Bulgaria",
+    "plant": "Rose (Rose Valley)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "KH",
+    "country": "Cambodia",
+    "plant": "Romduol",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CA",
+    "country": "Canada",
+    "plant": "Maple leaf",
+    "source": "Wikipedia: arboreal emblem, since 1996"
+  },
+  {
+    "iso2": "CL",
+    "country": "Chile",
+    "plant": "Copihue",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CN",
+    "country": "China",
+    "plant": "Peony",
+    "source": "general knowledge — traditional imperial flower"
+  },
+  {
+    "iso2": "CO",
+    "country": "Colombia",
+    "plant": "Cattleya trianae orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CR",
+    "country": "Costa Rica",
+    "plant": "Guaria morada orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CU",
+    "country": "Cuba",
+    "plant": "White ginger lily",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CZ",
+    "country": "Czech Republic",
+    "plant": "Linden leaf",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CI",
+    "country": "Côte d'Ivoire",
+    "plant": "Cocoa pod",
+    "source": "general knowledge — world's largest producer"
+  },
+  {
+    "iso2": "DM",
+    "country": "Dominica",
+    "plant": "Carib wood (Sabinea carinalis)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "DO",
+    "country": "Dominican Republic",
+    "plant": "Bayahíbe rose",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "EG",
+    "country": "Egypt",
+    "plant": "Blue lotus",
+    "source": "general knowledge — ancient Egyptian symbol"
+  },
+  {
+    "iso2": "SV",
+    "country": "El Salvador",
+    "plant": "Izote (yucca flower)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "ET",
+    "country": "Ethiopia",
+    "plant": "Coffee plant",
+    "source": "general knowledge — birthplace of coffee"
+  },
+  {
+    "iso2": "FJ",
+    "country": "Fiji",
+    "plant": "Tagimaucia",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "FI",
+    "country": "Finland",
+    "plant": "Lily of the valley",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "FR",
+    "country": "France",
+    "plant": "Fleur-de-lis (iris)",
+    "source": "general knowledge — historic French emblem"
+  },
+  {
+    "iso2": "GE",
+    "country": "Georgia",
+    "plant": "Grape vine",
+    "source": "general knowledge — birthplace of wine"
+  },
+  {
+    "iso2": "DE",
+    "country": "Germany",
+    "plant": "Oak leaf",
+    "source": "general knowledge — national heraldic symbol"
+  },
+  {
+    "iso2": "GH",
+    "country": "Ghana",
+    "plant": "Cocoa pod",
+    "source": "general knowledge — major global producer"
+  },
+  {
+    "iso2": "GR",
+    "country": "Greece",
+    "plant": "Olive branch",
+    "source": "general knowledge — ancient symbol"
+  },
+  {
+    "iso2": "GT",
+    "country": "Guatemala",
+    "plant": "Monja blanca orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "GY",
+    "country": "Guyana",
+    "plant": "Victoria regia lily pad",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "HT",
+    "country": "Haiti",
+    "plant": "Hibiscus",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "HN",
+    "country": "Honduras",
+    "plant": "Rhyncholaelia digbyana orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "HU",
+    "country": "Hungary",
+    "plant": "Tulip",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "IS",
+    "country": "Iceland",
+    "plant": "White dryad",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "IN",
+    "country": "India",
+    "plant": "Lotus",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "ID",
+    "country": "Indonesia",
+    "plant": "Rafflesia arnoldii",
+    "source": "Wikipedia: List of national flowers (puspa langka)"
+  },
+  {
+    "iso2": "IQ",
+    "country": "Iraq",
+    "plant": "Date palm",
+    "source": "general knowledge — ancient cultivation"
+  },
+  {
+    "iso2": "IE",
+    "country": "Ireland",
+    "plant": "Shamrock",
+    "source": "general knowledge — national emblem"
+  },
+  {
+    "iso2": "IL",
+    "country": "Israel",
+    "plant": "Poppy anemone",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "IT",
+    "country": "Italy",
+    "plant": "Cypress tree",
+    "source": "general knowledge — iconic Tuscan silhouette"
+  },
+  {
+    "iso2": "JM",
+    "country": "Jamaica",
+    "plant": "Lignum vitae",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "JP",
+    "country": "Japan",
+    "plant": "Cherry blossom",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "JO",
+    "country": "Jordan",
+    "plant": "Black iris",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "KE",
+    "country": "Kenya",
+    "plant": "Tea leaf",
+    "source": "general knowledge — major global tea producer"
+  },
+  {
+    "iso2": "KW",
+    "country": "Kuwait",
+    "plant": "Arfaj",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "LA",
+    "country": "Laos",
+    "plant": "Champa (plumeria)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "LB",
+    "country": "Lebanon",
+    "plant": "Cedar of Lebanon",
+    "source": "general knowledge — on the national flag"
+  },
+  {
+    "iso2": "MG",
+    "country": "Madagascar",
+    "plant": "Vanilla orchid pod",
+    "source": "general knowledge — world's largest vanilla producer"
+  },
+  {
+    "iso2": "MY",
+    "country": "Malaysia",
+    "plant": "Hibiscus (bunga raya)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "MV",
+    "country": "Maldives",
+    "plant": "Pink polyantha rose",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "MU",
+    "country": "Mauritius",
+    "plant": "Trochetia boutoniana (boucle d'oreille)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "MX",
+    "country": "Mexico",
+    "plant": "Dahlia",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "MD",
+    "country": "Moldova",
+    "plant": "Grape vine",
+    "source": "general knowledge — major wine culture"
+  },
+  {
+    "iso2": "MN",
+    "country": "Mongolia",
+    "plant": "Scabiosa comosa",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "MA",
+    "country": "Morocco",
+    "plant": "Argan tree",
+    "source": "general knowledge — unique to Morocco's argan forest"
+  },
+  {
+    "iso2": "MM",
+    "country": "Myanmar",
+    "plant": "Padauk (Pterocarpus indicus)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "NP",
+    "country": "Nepal",
+    "plant": "Rhododendron",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "NL",
+    "country": "Netherlands",
+    "plant": "Tulip",
+    "source": "general knowledge — globally associated despite 2023 daisy vote"
+  },
+  {
+    "iso2": "NZ",
+    "country": "New Zealand",
+    "plant": "Silver fern",
+    "source": "Wikipedia: national emblem"
+  },
+  {
+    "iso2": "NI",
+    "country": "Nicaragua",
+    "plant": "Sacuanjoche (plumeria)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "NG",
+    "country": "Nigeria",
+    "plant": "Costus spectabilis (yellow trumpet)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "KP",
+    "country": "North Korea",
+    "plant": "Korean mountain magnolia",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "MK",
+    "country": "North Macedonia",
+    "plant": "Poppy",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "OM",
+    "country": "Oman",
+    "plant": "Frankincense tree",
+    "source": "general knowledge — Dhofar region, ancient trade"
+  },
+  {
+    "iso2": "PK",
+    "country": "Pakistan",
+    "plant": "Jasmine",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "PS",
+    "country": "Palestine",
+    "plant": "Faqqua iris",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "PY",
+    "country": "Paraguay",
+    "plant": "Passion flower (mburucuyá)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "PE",
+    "country": "Peru",
+    "plant": "Cantuta",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "PH",
+    "country": "Philippines",
+    "plant": "Sampaguita (jasmine)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "PL",
+    "country": "Poland",
+    "plant": "Red poppy",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "PT",
+    "country": "Portugal",
+    "plant": "Cork oak",
+    "source": "general knowledge — world's largest cork producer"
+  },
+  {
+    "iso2": "RO",
+    "country": "Romania",
+    "plant": "Peony",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "RU",
+    "country": "Russia",
+    "plant": "Birch tree",
+    "source": "general knowledge — deep cultural symbol"
+  },
+  {
+    "iso2": "SA",
+    "country": "Saudi Arabia",
+    "plant": "Date palm",
+    "source": "general knowledge — on the national emblem"
+  },
+  {
+    "iso2": "SN",
+    "country": "Senegal",
+    "plant": "Baobab tree",
+    "source": "general knowledge — national tree"
+  },
+  {
+    "iso2": "RS",
+    "country": "Serbia",
+    "plant": "Natalie's ramonda",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "SC",
+    "country": "Seychelles",
+    "plant": "Coco de mer nut",
+    "source": "general knowledge — iconic double coconut, endemic to Seychelles"
+  },
+  {
+    "iso2": "SG",
+    "country": "Singapore",
+    "plant": "Vanda Miss Joaquim orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "SK",
+    "country": "Slovakia",
+    "plant": "Linden leaf",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "SI",
+    "country": "Slovenia",
+    "plant": "Carnation",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "ZA",
+    "country": "South Africa",
+    "plant": "King Protea",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "KR",
+    "country": "South Korea",
+    "plant": "Hibiscus syriacus (mugunghwa)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "ES",
+    "country": "Spain",
+    "plant": "Carnation",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "LK",
+    "country": "Sri Lanka",
+    "plant": "Blue water lily (nil manel)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "SR",
+    "country": "Suriname",
+    "plant": "Jungle geranium (faya lobi)",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "SE",
+    "country": "Sweden",
+    "plant": "Harebell",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "CH",
+    "country": "Switzerland",
+    "plant": "Edelweiss",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "TW",
+    "country": "Taiwan, Province of China",
+    "plant": "Plum blossom",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "TZ",
+    "country": "Tanzania",
+    "plant": "Clove",
+    "source": "general knowledge — Zanzibar, the Spice Island"
+  },
+  {
+    "iso2": "TH",
+    "country": "Thailand",
+    "plant": "Golden shower tree",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "TO",
+    "country": "Tonga",
+    "plant": "Heilala",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "TN",
+    "country": "Tunisia",
+    "plant": "Jasmine",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "TR",
+    "country": "Turkey",
+    "plant": "Tulip",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "UA",
+    "country": "Ukraine",
+    "plant": "Sunflower",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "AE",
+    "country": "United Arab Emirates",
+    "plant": "Date palm",
+    "source": "general knowledge"
+  },
+  {
+    "iso2": "GB",
+    "country": "United Kingdom",
+    "plant": "Tudor rose",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "US",
+    "country": "United States",
+    "plant": "Rose",
+    "source": "Wikipedia: List of national flowers (1986)"
+  },
+  {
+    "iso2": "UY",
+    "country": "Uruguay",
+    "plant": "Ceibo flower",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "UZ",
+    "country": "Uzbekistan",
+    "plant": "Cotton boll",
+    "source": "general knowledge — historic 'white gold'"
+  },
+  {
+    "iso2": "VE",
+    "country": "Venezuela",
+    "plant": "Flor de mayo orchid",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "VN",
+    "country": "Vietnam",
+    "plant": "Lotus",
+    "source": "Wikipedia: List of national flowers"
+  },
+  {
+    "iso2": "ZW",
+    "country": "Zimbabwe",
+    "plant": "Flame lily",
+    "source": "Wikipedia: List of national flowers"
+  }
+]

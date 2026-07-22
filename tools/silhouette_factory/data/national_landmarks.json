@@ -1,0 +1,1655 @@
+[
+  {
+    "iso2": "AF",
+    "country": "Afghanistan",
+    "landmarks": [
+      "Blue Mosque of Mazar-i-Sharif",
+      "Bamiyan Buddha niches"
+    ]
+  },
+  {
+    "iso2": "AL",
+    "country": "Albania",
+    "landmarks": [
+      "Rozafa Castle",
+      "Berat Old Town"
+    ]
+  },
+  {
+    "iso2": "DZ",
+    "country": "Algeria",
+    "landmarks": [
+      "Casbah of Algiers",
+      "Djémila Roman ruins"
+    ]
+  },
+  {
+    "iso2": "AS",
+    "country": "American Samoa",
+    "landmarks": [
+      "Pago Pago Harbor"
+    ]
+  },
+  {
+    "iso2": "AD",
+    "country": "Andorra",
+    "landmarks": [
+      "Casa de la Vall",
+      "Sanctuary of Meritxell"
+    ]
+  },
+  {
+    "iso2": "AO",
+    "country": "Angola",
+    "landmarks": [
+      "Fortress of São Miguel",
+      "Kalandula Falls"
+    ]
+  },
+  {
+    "iso2": "AG",
+    "country": "Antigua and Barbuda",
+    "landmarks": [
+      "Nelson's Dockyard",
+      "Shirley Heights"
+    ]
+  },
+  {
+    "iso2": "AR",
+    "country": "Argentina",
+    "landmarks": [
+      "Perito Moreno Glacier",
+      "Obelisco de Buenos Aires"
+    ]
+  },
+  {
+    "iso2": "AM",
+    "country": "Armenia",
+    "landmarks": [
+      "Geghard Monastery",
+      "Mount Ararat"
+    ]
+  },
+  {
+    "iso2": "AW",
+    "country": "Aruba",
+    "landmarks": [
+      "Natural Bridge",
+      "California Lighthouse"
+    ]
+  },
+  {
+    "iso2": "AU",
+    "country": "Australia",
+    "landmarks": [
+      "Sydney Opera House",
+      "Uluru"
+    ]
+  },
+  {
+    "iso2": "AT",
+    "country": "Austria",
+    "landmarks": [
+      "Schönbrunn Palace",
+      "Hallstatt"
+    ]
+  },
+  {
+    "iso2": "AZ",
+    "country": "Azerbaijan",
+    "landmarks": [
+      "Flame Towers",
+      "Maiden Tower"
+    ]
+  },
+  {
+    "iso2": "BS",
+    "country": "Bahamas",
+    "landmarks": [
+      "Atlantis Paradise Island",
+      "Pink Sands Beach"
+    ]
+  },
+  {
+    "iso2": "BH",
+    "country": "Bahrain",
+    "landmarks": [
+      "Bahrain Fort (Qal'at al-Bahrain)",
+      "Al Fateh Grand Mosque"
+    ]
+  },
+  {
+    "iso2": "BD",
+    "country": "Bangladesh",
+    "landmarks": [
+      "Lalbagh Fort",
+      "Sundarbans"
+    ]
+  },
+  {
+    "iso2": "BB",
+    "country": "Barbados",
+    "landmarks": [
+      "Harrison's Cave",
+      "Bridgetown Garrison"
+    ]
+  },
+  {
+    "iso2": "BY",
+    "country": "Belarus",
+    "landmarks": [
+      "Mir Castle",
+      "National Library of Belarus"
+    ]
+  },
+  {
+    "iso2": "BE",
+    "country": "Belgium",
+    "landmarks": [
+      "Atomium",
+      "Grand Place"
+    ]
+  },
+  {
+    "iso2": "BZ",
+    "country": "Belize",
+    "landmarks": [
+      "Great Blue Hole",
+      "Xunantunich"
+    ]
+  },
+  {
+    "iso2": "BJ",
+    "country": "Benin",
+    "landmarks": [
+      "Ganvié stilt village",
+      "Royal Palaces of Abomey"
+    ]
+  },
+  {
+    "iso2": "BM",
+    "country": "Bermuda",
+    "landmarks": [
+      "Gibbs Hill Lighthouse",
+      "Crystal Caves"
+    ]
+  },
+  {
+    "iso2": "BT",
+    "country": "Bhutan",
+    "landmarks": [
+      "Paro Taktsang (Tiger's Nest)",
+      "Punakha Dzong"
+    ]
+  },
+  {
+    "iso2": "BO",
+    "country": "Bolivia",
+    "landmarks": [
+      "Salar de Uyuni",
+      "Tiwanaku"
+    ]
+  },
+  {
+    "iso2": "BA",
+    "country": "Bosnia and Herzegovina",
+    "landmarks": [
+      "Stari Most",
+      "Baščaršija"
+    ]
+  },
+  {
+    "iso2": "BW",
+    "country": "Botswana",
+    "landmarks": [
+      "Okavango Delta",
+      "Tsodilo Hills"
+    ]
+  },
+  {
+    "iso2": "BR",
+    "country": "Brazil",
+    "landmarks": [
+      "Christ the Redeemer",
+      "Iguazu Falls"
+    ]
+  },
+  {
+    "iso2": "IO",
+    "country": "British Indian Ocean Territory",
+    "landmarks": []
+  },
+  {
+    "iso2": "BN",
+    "country": "Brunei Darussalam",
+    "landmarks": [
+      "Sultan Omar Ali Saifuddin Mosque",
+      "Kampong Ayer"
+    ]
+  },
+  {
+    "iso2": "BG",
+    "country": "Bulgaria",
+    "landmarks": [
+      "Rila Monastery",
+      "Alexander Nevsky Cathedral"
+    ]
+  },
+  {
+    "iso2": "BF",
+    "country": "Burkina Faso",
+    "landmarks": [
+      "Grand Mosque of Bobo-Dioulasso",
+      "Sindou Peaks"
+    ]
+  },
+  {
+    "iso2": "BI",
+    "country": "Burundi",
+    "landmarks": [
+      "Source of the Nile monument",
+      "Lake Tanganyika"
+    ]
+  },
+  {
+    "iso2": "CV",
+    "country": "Cabo Verde",
+    "landmarks": [
+      "Cidade Velha",
+      "Pico do Fogo"
+    ]
+  },
+  {
+    "iso2": "KH",
+    "country": "Cambodia",
+    "landmarks": [
+      "Angkor Wat",
+      "Bayon Temple"
+    ]
+  },
+  {
+    "iso2": "CM",
+    "country": "Cameroon",
+    "landmarks": [
+      "Mount Cameroon",
+      "Waza National Park"
+    ]
+  },
+  {
+    "iso2": "CA",
+    "country": "Canada",
+    "landmarks": [
+      "Niagara Falls",
+      "CN Tower"
+    ]
+  },
+  {
+    "iso2": "CF",
+    "country": "Central African Republic",
+    "landmarks": [
+      "Dzanga-Sangha rainforest"
+    ]
+  },
+  {
+    "iso2": "TD",
+    "country": "Chad",
+    "landmarks": [
+      "Ennedi Plateau",
+      "Lake Chad"
+    ]
+  },
+  {
+    "iso2": "CL",
+    "country": "Chile",
+    "landmarks": [
+      "Torres del Paine",
+      "Moai of Easter Island"
+    ]
+  },
+  {
+    "iso2": "CN",
+    "country": "China",
+    "landmarks": [
+      "Great Wall of China",
+      "Forbidden City"
+    ]
+  },
+  {
+    "iso2": "CO",
+    "country": "Colombia",
+    "landmarks": [
+      "Ciudad Perdida",
+      "Cocora Valley"
+    ]
+  },
+  {
+    "iso2": "KM",
+    "country": "Comoros",
+    "landmarks": [
+      "Mount Karthala",
+      "Moroni Friday Mosque"
+    ]
+  },
+  {
+    "iso2": "CK",
+    "country": "Cook Islands",
+    "landmarks": [
+      "Aitutaki Lagoon"
+    ]
+  },
+  {
+    "iso2": "CR",
+    "country": "Costa Rica",
+    "landmarks": [
+      "Arenal Volcano",
+      "Monteverde Cloud Forest"
+    ]
+  },
+  {
+    "iso2": "HR",
+    "country": "Croatia",
+    "landmarks": [
+      "Plitvice Lakes",
+      "Diocletian's Palace"
+    ]
+  },
+  {
+    "iso2": "CU",
+    "country": "Cuba",
+    "landmarks": [
+      "Old Havana",
+      "El Morro Castle"
+    ]
+  },
+  {
+    "iso2": "CW",
+    "country": "Curaçao",
+    "landmarks": [
+      "Handelskade, Willemstad"
+    ]
+  },
+  {
+    "iso2": "CY",
+    "country": "Cyprus",
+    "landmarks": [
+      "Tombs of the Kings",
+      "Kourion"
+    ]
+  },
+  {
+    "iso2": "CZ",
+    "country": "Czech Republic",
+    "landmarks": [
+      "Prague Castle",
+      "Charles Bridge"
+    ]
+  },
+  {
+    "iso2": "CI",
+    "country": "Côte d'Ivoire",
+    "landmarks": [
+      "Basilica of Our Lady of Peace",
+      "Comoé National Park"
+    ]
+  },
+  {
+    "iso2": "CD",
+    "country": "Democratic Republic of the Congo",
+    "landmarks": [
+      "Virunga National Park",
+      "Congo River"
+    ]
+  },
+  {
+    "iso2": "DK",
+    "country": "Denmark",
+    "landmarks": [
+      "The Little Mermaid statue",
+      "Kronborg Castle"
+    ]
+  },
+  {
+    "iso2": "DJ",
+    "country": "Djibouti",
+    "landmarks": [
+      "Lake Assal",
+      "Day Forest"
+    ]
+  },
+  {
+    "iso2": "DM",
+    "country": "Dominica",
+    "landmarks": [
+      "Boiling Lake",
+      "Trafalgar Falls"
+    ]
+  },
+  {
+    "iso2": "DO",
+    "country": "Dominican Republic",
+    "landmarks": [
+      "Zona Colonial, Santo Domingo",
+      "Pico Duarte"
+    ]
+  },
+  {
+    "iso2": "EC",
+    "country": "Ecuador",
+    "landmarks": [
+      "Galápagos Islands",
+      "Middle of the World monument"
+    ]
+  },
+  {
+    "iso2": "EG",
+    "country": "Egypt",
+    "landmarks": [
+      "Pyramids of Giza",
+      "Great Sphinx"
+    ]
+  },
+  {
+    "iso2": "SV",
+    "country": "El Salvador",
+    "landmarks": [
+      "Joya de Cerén",
+      "Santa Ana Volcano"
+    ]
+  },
+  {
+    "iso2": "GQ",
+    "country": "Equatorial Guinea",
+    "landmarks": [
+      "Pico Basilé",
+      "Malabo Cathedral"
+    ]
+  },
+  {
+    "iso2": "ER",
+    "country": "Eritrea",
+    "landmarks": [
+      "Asmara modernist architecture",
+      "Dahlak Archipelago"
+    ]
+  },
+  {
+    "iso2": "EE",
+    "country": "Estonia",
+    "landmarks": [
+      "Tallinn Old Town",
+      "Kadriorg Palace"
+    ]
+  },
+  {
+    "iso2": "SZ",
+    "country": "Eswatini",
+    "landmarks": [
+      "Sibebe Rock",
+      "Mlilwane Wildlife Sanctuary"
+    ]
+  },
+  {
+    "iso2": "ET",
+    "country": "Ethiopia",
+    "landmarks": [
+      "Lalibela rock-hewn churches",
+      "Simien Mountains"
+    ]
+  },
+  {
+    "iso2": "FJ",
+    "country": "Fiji",
+    "landmarks": [
+      "Sigatoka Sand Dunes"
+    ]
+  },
+  {
+    "iso2": "FI",
+    "country": "Finland",
+    "landmarks": [
+      "Suomenlinna Fortress",
+      "Lapland Northern Lights"
+    ]
+  },
+  {
+    "iso2": "FR",
+    "country": "France",
+    "landmarks": [
+      "Eiffel Tower",
+      "Mont Saint-Michel"
+    ]
+  },
+  {
+    "iso2": "GF",
+    "country": "French Guiana",
+    "landmarks": [
+      "Devil's Island"
+    ]
+  },
+  {
+    "iso2": "GA",
+    "country": "Gabon",
+    "landmarks": [
+      "Lopé National Park",
+      "Pointe Denis"
+    ]
+  },
+  {
+    "iso2": "GM",
+    "country": "Gambia",
+    "landmarks": [
+      "Kunta Kinteh Island",
+      "Abuko Nature Reserve"
+    ]
+  },
+  {
+    "iso2": "GE",
+    "country": "Georgia",
+    "landmarks": [
+      "Gergeti Trinity Church",
+      "Narikala Fortress"
+    ]
+  },
+  {
+    "iso2": "DE",
+    "country": "Germany",
+    "landmarks": [
+      "Neuschwanstein Castle",
+      "Brandenburg Gate"
+    ]
+  },
+  {
+    "iso2": "GH",
+    "country": "Ghana",
+    "landmarks": [
+      "Cape Coast Castle",
+      "Kakum Canopy Walkway"
+    ]
+  },
+  {
+    "iso2": "GR",
+    "country": "Greece",
+    "landmarks": [
+      "Acropolis of Athens",
+      "Santorini caldera"
+    ]
+  },
+  {
+    "iso2": "GD",
+    "country": "Grenada",
+    "landmarks": [
+      "Grand Etang Lake",
+      "Underwater Sculpture Park"
+    ]
+  },
+  {
+    "iso2": "GT",
+    "country": "Guatemala",
+    "landmarks": [
+      "Tikal",
+      "Lake Atitlán"
+    ]
+  },
+  {
+    "iso2": "GG",
+    "country": "Guernsey",
+    "landmarks": [
+      "Castle Cornet"
+    ]
+  },
+  {
+    "iso2": "GN",
+    "country": "Guinea",
+    "landmarks": [
+      "Fouta Djallon",
+      "Îles de Los"
+    ]
+  },
+  {
+    "iso2": "GW",
+    "country": "Guinea-Bissau",
+    "landmarks": [
+      "Bijagós Archipelago"
+    ]
+  },
+  {
+    "iso2": "GY",
+    "country": "Guyana",
+    "landmarks": [
+      "Kaieteur Falls",
+      "Shell Beach"
+    ]
+  },
+  {
+    "iso2": "HT",
+    "country": "Haiti",
+    "landmarks": [
+      "Citadelle Laferrière",
+      "Sans-Souci Palace"
+    ]
+  },
+  {
+    "iso2": "VA",
+    "country": "Holy See (Vatican City State)",
+    "landmarks": [
+      "St. Peter's Basilica",
+      "Sistine Chapel"
+    ]
+  },
+  {
+    "iso2": "HN",
+    "country": "Honduras",
+    "landmarks": [
+      "Copán ruins",
+      "Roatán reef"
+    ]
+  },
+  {
+    "iso2": "HU",
+    "country": "Hungary",
+    "landmarks": [
+      "Hungarian Parliament Building",
+      "Fisherman's Bastion"
+    ]
+  },
+  {
+    "iso2": "IS",
+    "country": "Iceland",
+    "landmarks": [
+      "Blue Lagoon",
+      "Gullfoss waterfall"
+    ]
+  },
+  {
+    "iso2": "IN",
+    "country": "India",
+    "landmarks": [
+      "Taj Mahal",
+      "Red Fort"
+    ]
+  },
+  {
+    "iso2": "ID",
+    "country": "Indonesia",
+    "landmarks": [
+      "Borobudur",
+      "Komodo National Park"
+    ]
+  },
+  {
+    "iso2": "IR",
+    "country": "Iran",
+    "landmarks": [
+      "Persepolis",
+      "Naqsh-e Jahan Square"
+    ]
+  },
+  {
+    "iso2": "IQ",
+    "country": "Iraq",
+    "landmarks": [
+      "Ziggurat of Ur",
+      "Malwiya Minaret, Samarra"
+    ]
+  },
+  {
+    "iso2": "IE",
+    "country": "Ireland",
+    "landmarks": [
+      "Cliffs of Moher",
+      "Giant's Causeway"
+    ]
+  },
+  {
+    "iso2": "IL",
+    "country": "Israel",
+    "landmarks": [
+      "Western Wall",
+      "Masada"
+    ]
+  },
+  {
+    "iso2": "IT",
+    "country": "Italy",
+    "landmarks": [
+      "Colosseum",
+      "Leaning Tower of Pisa"
+    ]
+  },
+  {
+    "iso2": "JM",
+    "country": "Jamaica",
+    "landmarks": [
+      "Dunn's River Falls",
+      "Blue Mountains"
+    ]
+  },
+  {
+    "iso2": "JP",
+    "country": "Japan",
+    "landmarks": [
+      "Mount Fuji",
+      "Fushimi Inari Shrine"
+    ]
+  },
+  {
+    "iso2": "JO",
+    "country": "Jordan",
+    "landmarks": [
+      "Petra",
+      "Wadi Rum"
+    ]
+  },
+  {
+    "iso2": "KZ",
+    "country": "Kazakhstan",
+    "landmarks": [
+      "Bayterek Tower",
+      "Charyn Canyon"
+    ]
+  },
+  {
+    "iso2": "KE",
+    "country": "Kenya",
+    "landmarks": [
+      "Maasai Mara",
+      "Mount Kenya"
+    ]
+  },
+  {
+    "iso2": "KI",
+    "country": "Kiribati",
+    "landmarks": [
+      "South Tarawa WWII relics"
+    ]
+  },
+  {
+    "iso2": "KW",
+    "country": "Kuwait",
+    "landmarks": [
+      "Kuwait Towers",
+      "Grand Mosque of Kuwait"
+    ]
+  },
+  {
+    "iso2": "KG",
+    "country": "Kyrgyzstan",
+    "landmarks": [
+      "Issyk-Kul Lake",
+      "Ala-Archa National Park"
+    ]
+  },
+  {
+    "iso2": "LA",
+    "country": "Laos",
+    "landmarks": [
+      "Pha That Luang",
+      "Plain of Jars"
+    ]
+  },
+  {
+    "iso2": "LV",
+    "country": "Latvia",
+    "landmarks": [
+      "Riga Old Town",
+      "Gauja National Park"
+    ]
+  },
+  {
+    "iso2": "LB",
+    "country": "Lebanon",
+    "landmarks": [
+      "Baalbek",
+      "Jeita Grotto"
+    ]
+  },
+  {
+    "iso2": "LS",
+    "country": "Lesotho",
+    "landmarks": [
+      "Maletsunyane Falls",
+      "Sani Pass"
+    ]
+  },
+  {
+    "iso2": "LR",
+    "country": "Liberia",
+    "landmarks": [
+      "Providence Island",
+      "Sapo National Park"
+    ]
+  },
+  {
+    "iso2": "LY",
+    "country": "Libya",
+    "landmarks": [
+      "Leptis Magna",
+      "Ghadames Old Town"
+    ]
+  },
+  {
+    "iso2": "LI",
+    "country": "Liechtenstein",
+    "landmarks": [
+      "Vaduz Castle"
+    ]
+  },
+  {
+    "iso2": "LT",
+    "country": "Lithuania",
+    "landmarks": [
+      "Trakai Island Castle",
+      "Hill of Crosses"
+    ]
+  },
+  {
+    "iso2": "LU",
+    "country": "Luxembourg",
+    "landmarks": [
+      "Vianden Castle",
+      "Grund quarter"
+    ]
+  },
+  {
+    "iso2": "MG",
+    "country": "Madagascar",
+    "landmarks": [
+      "Avenue of the Baobabs",
+      "Tsingy de Bemaraha"
+    ]
+  },
+  {
+    "iso2": "MW",
+    "country": "Malawi",
+    "landmarks": [
+      "Lake Malawi",
+      "Mount Mulanje"
+    ]
+  },
+  {
+    "iso2": "MY",
+    "country": "Malaysia",
+    "landmarks": [
+      "Petronas Towers",
+      "Batu Caves"
+    ]
+  },
+  {
+    "iso2": "MV",
+    "country": "Maldives",
+    "landmarks": [
+      "Malé's Old Friday Mosque"
+    ]
+  },
+  {
+    "iso2": "ML",
+    "country": "Mali",
+    "landmarks": [
+      "Great Mosque of Djenné",
+      "Bandiagara Escarpment"
+    ]
+  },
+  {
+    "iso2": "MT",
+    "country": "Malta",
+    "landmarks": [
+      "Ġgantija Temples",
+      "Blue Grotto"
+    ]
+  },
+  {
+    "iso2": "MH",
+    "country": "Marshall Islands",
+    "landmarks": [
+      "Bikini Atoll"
+    ]
+  },
+  {
+    "iso2": "MR",
+    "country": "Mauritania",
+    "landmarks": [
+      "Eye of the Sahara (Richat Structure)",
+      "Chinguetti"
+    ]
+  },
+  {
+    "iso2": "MU",
+    "country": "Mauritius",
+    "landmarks": [
+      "Le Morne Brabant",
+      "Black River Gorges"
+    ]
+  },
+  {
+    "iso2": "MX",
+    "country": "Mexico",
+    "landmarks": [
+      "Chichén Itzá",
+      "Teotihuacan"
+    ]
+  },
+  {
+    "iso2": "FM",
+    "country": "Micronesia",
+    "landmarks": [
+      "Nan Madol"
+    ]
+  },
+  {
+    "iso2": "MD",
+    "country": "Moldova",
+    "landmarks": [
+      "Orheiul Vechi",
+      "Mileștii Mici wine cellars"
+    ]
+  },
+  {
+    "iso2": "MC",
+    "country": "Monaco",
+    "landmarks": [
+      "Monte Carlo Casino",
+      "Prince's Palace of Monaco"
+    ]
+  },
+  {
+    "iso2": "MN",
+    "country": "Mongolia",
+    "landmarks": [
+      "Genghis Khan Equestrian Statue",
+      "Gobi Desert"
+    ]
+  },
+  {
+    "iso2": "ME",
+    "country": "Montenegro",
+    "landmarks": [
+      "Bay of Kotor",
+      "Ostrog Monastery"
+    ]
+  },
+  {
+    "iso2": "MA",
+    "country": "Morocco",
+    "landmarks": [
+      "Hassan II Mosque",
+      "Chefchaouen"
+    ]
+  },
+  {
+    "iso2": "MZ",
+    "country": "Mozambique",
+    "landmarks": [
+      "Island of Mozambique",
+      "Bazaruto Archipelago"
+    ]
+  },
+  {
+    "iso2": "MM",
+    "country": "Myanmar",
+    "landmarks": [
+      "Shwedagon Pagoda",
+      "Bagan temples"
+    ]
+  },
+  {
+    "iso2": "NA",
+    "country": "Namibia",
+    "landmarks": [
+      "Sossusvlei dunes",
+      "Fish River Canyon"
+    ]
+  },
+  {
+    "iso2": "NR",
+    "country": "Nauru",
+    "landmarks": []
+  },
+  {
+    "iso2": "NP",
+    "country": "Nepal",
+    "landmarks": [
+      "Mount Everest",
+      "Kathmandu Durbar Square"
+    ]
+  },
+  {
+    "iso2": "NL",
+    "country": "Netherlands",
+    "landmarks": [
+      "Keukenhof Gardens",
+      "Anne Frank House"
+    ]
+  },
+  {
+    "iso2": "NZ",
+    "country": "New Zealand",
+    "landmarks": [
+      "Milford Sound",
+      "Hobbiton Movie Set"
+    ]
+  },
+  {
+    "iso2": "NI",
+    "country": "Nicaragua",
+    "landmarks": [
+      "Ometepe Island",
+      "Masaya Volcano"
+    ]
+  },
+  {
+    "iso2": "NE",
+    "country": "Niger",
+    "landmarks": [
+      "Grand Mosque of Agadez",
+      "Aïr Mountains"
+    ]
+  },
+  {
+    "iso2": "NG",
+    "country": "Nigeria",
+    "landmarks": [
+      "Zuma Rock",
+      "Yankari Game Reserve"
+    ]
+  },
+  {
+    "iso2": "NU",
+    "country": "Niue",
+    "landmarks": []
+  },
+  {
+    "iso2": "NF",
+    "country": "Norfolk Island",
+    "landmarks": []
+  },
+  {
+    "iso2": "KP",
+    "country": "North Korea",
+    "landmarks": [
+      "Kumsusan Palace of the Sun",
+      "Ryugyong Hotel"
+    ]
+  },
+  {
+    "iso2": "MK",
+    "country": "North Macedonia",
+    "landmarks": [
+      "Lake Ohrid",
+      "Matka Canyon"
+    ]
+  },
+  {
+    "iso2": "MP",
+    "country": "Northern Mariana Islands",
+    "landmarks": []
+  },
+  {
+    "iso2": "NO",
+    "country": "Norway",
+    "landmarks": [
+      "Preikestolen (Pulpit Rock)",
+      "Geirangerfjord"
+    ]
+  },
+  {
+    "iso2": "OM",
+    "country": "Oman",
+    "landmarks": [
+      "Sultan Qaboos Grand Mosque",
+      "Wahiba Sands"
+    ]
+  },
+  {
+    "iso2": "PK",
+    "country": "Pakistan",
+    "landmarks": [
+      "Badshahi Mosque",
+      "K2"
+    ]
+  },
+  {
+    "iso2": "PW",
+    "country": "Palau",
+    "landmarks": [
+      "Rock Islands",
+      "Jellyfish Lake"
+    ]
+  },
+  {
+    "iso2": "PS",
+    "country": "Palestine",
+    "landmarks": [
+      "Church of the Nativity"
+    ]
+  },
+  {
+    "iso2": "PA",
+    "country": "Panama",
+    "landmarks": [
+      "Panama Canal",
+      "Casco Viejo"
+    ]
+  },
+  {
+    "iso2": "PG",
+    "country": "Papua New Guinea",
+    "landmarks": [
+      "Kokoda Track",
+      "Sepik River"
+    ]
+  },
+  {
+    "iso2": "PY",
+    "country": "Paraguay",
+    "landmarks": [
+      "Jesuit Missions of La Santísima Trinidad",
+      "Itaipu Dam"
+    ]
+  },
+  {
+    "iso2": "PE",
+    "country": "Peru",
+    "landmarks": [
+      "Machu Picchu",
+      "Nazca Lines"
+    ]
+  },
+  {
+    "iso2": "PH",
+    "country": "Philippines",
+    "landmarks": [
+      "Chocolate Hills",
+      "Banaue Rice Terraces"
+    ]
+  },
+  {
+    "iso2": "PN",
+    "country": "Pitcairn Islands",
+    "landmarks": []
+  },
+  {
+    "iso2": "PL",
+    "country": "Poland",
+    "landmarks": [
+      "Wawel Castle",
+      "Wieliczka Salt Mine"
+    ]
+  },
+  {
+    "iso2": "PT",
+    "country": "Portugal",
+    "landmarks": [
+      "Belém Tower",
+      "Pena Palace"
+    ]
+  },
+  {
+    "iso2": "QA",
+    "country": "Qatar",
+    "landmarks": [
+      "Museum of Islamic Art",
+      "The Pearl-Qatar"
+    ]
+  },
+  {
+    "iso2": "CG",
+    "country": "Republic of the Congo",
+    "landmarks": [
+      "Congo River rapids"
+    ]
+  },
+  {
+    "iso2": "RO",
+    "country": "Romania",
+    "landmarks": [
+      "Bran Castle",
+      "Peleș Castle"
+    ]
+  },
+  {
+    "iso2": "RU",
+    "country": "Russia",
+    "landmarks": [
+      "Red Square",
+      "Lake Baikal"
+    ]
+  },
+  {
+    "iso2": "RW",
+    "country": "Rwanda",
+    "landmarks": [
+      "Volcanoes National Park",
+      "Kigali Genocide Memorial"
+    ]
+  },
+  {
+    "iso2": "KN",
+    "country": "Saint Kitts and Nevis",
+    "landmarks": [
+      "Brimstone Hill Fortress"
+    ]
+  },
+  {
+    "iso2": "LC",
+    "country": "Saint Lucia",
+    "landmarks": [
+      "The Pitons (Gros Piton and Petit Piton)"
+    ]
+  },
+  {
+    "iso2": "MF",
+    "country": "Saint Martin",
+    "landmarks": [
+      "Maho Beach"
+    ]
+  },
+  {
+    "iso2": "PM",
+    "country": "Saint Pierre and Miquelon",
+    "landmarks": []
+  },
+  {
+    "iso2": "VC",
+    "country": "Saint Vincent and the Grenadines",
+    "landmarks": [
+      "La Soufrière volcano"
+    ]
+  },
+  {
+    "iso2": "WS",
+    "country": "Samoa",
+    "landmarks": [
+      "To Sua Ocean Trench"
+    ]
+  },
+  {
+    "iso2": "SM",
+    "country": "San Marino",
+    "landmarks": [
+      "Guaita Tower",
+      "Titano Tower"
+    ]
+  },
+  {
+    "iso2": "ST",
+    "country": "Sao Tome and Principe",
+    "landmarks": [
+      "Pico Cão Grande"
+    ]
+  },
+  {
+    "iso2": "SA",
+    "country": "Saudi Arabia",
+    "landmarks": [
+      "Masjid al-Haram, Mecca",
+      "Mada'in Salih"
+    ]
+  },
+  {
+    "iso2": "SN",
+    "country": "Senegal",
+    "landmarks": [
+      "African Renaissance Monument",
+      "Île de Gorée"
+    ]
+  },
+  {
+    "iso2": "RS",
+    "country": "Serbia",
+    "landmarks": [
+      "Belgrade Fortress (Kalemegdan)",
+      "Church of Saint Sava"
+    ]
+  },
+  {
+    "iso2": "SC",
+    "country": "Seychelles",
+    "landmarks": [
+      "Vallée de Mai",
+      "Anse Source d'Argent"
+    ]
+  },
+  {
+    "iso2": "SL",
+    "country": "Sierra Leone",
+    "landmarks": [
+      "Bunce Island",
+      "Tacugama Chimpanzee Sanctuary"
+    ]
+  },
+  {
+    "iso2": "SG",
+    "country": "Singapore",
+    "landmarks": [
+      "Marina Bay Sands",
+      "Gardens by the Bay"
+    ]
+  },
+  {
+    "iso2": "SK",
+    "country": "Slovakia",
+    "landmarks": [
+      "Bratislava Castle",
+      "Spiš Castle"
+    ]
+  },
+  {
+    "iso2": "SI",
+    "country": "Slovenia",
+    "landmarks": [
+      "Lake Bled",
+      "Postojna Cave"
+    ]
+  },
+  {
+    "iso2": "SB",
+    "country": "Solomon Islands",
+    "landmarks": [
+      "Marovo Lagoon"
+    ]
+  },
+  {
+    "iso2": "SO",
+    "country": "Somalia",
+    "landmarks": [
+      "Laas Geel rock art"
+    ]
+  },
+  {
+    "iso2": "ZA",
+    "country": "South Africa",
+    "landmarks": [
+      "Table Mountain",
+      "Kruger National Park"
+    ]
+  },
+  {
+    "iso2": "KR",
+    "country": "South Korea",
+    "landmarks": [
+      "Gyeongbokgung Palace",
+      "Jeju Island"
+    ]
+  },
+  {
+    "iso2": "SS",
+    "country": "South Sudan",
+    "landmarks": [
+      "Boma National Park"
+    ]
+  },
+  {
+    "iso2": "ES",
+    "country": "Spain",
+    "landmarks": [
+      "Sagrada Família",
+      "Alhambra"
+    ]
+  },
+  {
+    "iso2": "LK",
+    "country": "Sri Lanka",
+    "landmarks": [
+      "Sigiriya",
+      "Temple of the Sacred Tooth Relic"
+    ]
+  },
+  {
+    "iso2": "SD",
+    "country": "Sudan",
+    "landmarks": [
+      "Pyramids of Meroë",
+      "Sanganeb Marine Park"
+    ]
+  },
+  {
+    "iso2": "SR",
+    "country": "Suriname",
+    "landmarks": [
+      "Historic Inner City of Paramaribo"
+    ]
+  },
+  {
+    "iso2": "SE",
+    "country": "Sweden",
+    "landmarks": [
+      "Vasa Museum",
+      "Icehotel"
+    ]
+  },
+  {
+    "iso2": "CH",
+    "country": "Switzerland",
+    "landmarks": [
+      "Matterhorn",
+      "Chapel Bridge, Lucerne"
+    ]
+  },
+  {
+    "iso2": "SY",
+    "country": "Syrian Arab Republic",
+    "landmarks": [
+      "Palmyra ruins",
+      "Umayyad Mosque"
+    ]
+  },
+  {
+    "iso2": "TW",
+    "country": "Taiwan, Province of China",
+    "landmarks": [
+      "Taipei 101",
+      "Sun Moon Lake"
+    ]
+  },
+  {
+    "iso2": "TJ",
+    "country": "Tajikistan",
+    "landmarks": [
+      "Pamir Highway",
+      "Iskanderkul Lake"
+    ]
+  },
+  {
+    "iso2": "TZ",
+    "country": "Tanzania",
+    "landmarks": [
+      "Mount Kilimanjaro",
+      "Serengeti National Park"
+    ]
+  },
+  {
+    "iso2": "TH",
+    "country": "Thailand",
+    "landmarks": [
+      "Wat Arun",
+      "Ayutthaya Historical Park"
+    ]
+  },
+  {
+    "iso2": "TL",
+    "country": "Timor-Leste",
+    "landmarks": [
+      "Cristo Rei of Dili"
+    ]
+  },
+  {
+    "iso2": "TG",
+    "country": "Togo",
+    "landmarks": [
+      "Koutammakou (Land of the Batammariba)"
+    ]
+  },
+  {
+    "iso2": "TO",
+    "country": "Tonga",
+    "landmarks": [
+      "Ha'amonga 'a Maui trilithon"
+    ]
+  },
+  {
+    "iso2": "TT",
+    "country": "Trinidad and Tobago",
+    "landmarks": [
+      "Pitch Lake",
+      "Maracas Bay"
+    ]
+  },
+  {
+    "iso2": "TN",
+    "country": "Tunisia",
+    "landmarks": [
+      "Amphitheatre of El Jem",
+      "Medina of Tunis"
+    ]
+  },
+  {
+    "iso2": "TR",
+    "country": "Turkey",
+    "landmarks": [
+      "Hagia Sophia",
+      "Cappadocia"
+    ]
+  },
+  {
+    "iso2": "TM",
+    "country": "Turkmenistan",
+    "landmarks": [
+      "Door to Hell (Darvaza gas crater)",
+      "Ashgabat white marble city"
+    ]
+  },
+  {
+    "iso2": "TV",
+    "country": "Tuvalu",
+    "landmarks": []
+  },
+  {
+    "iso2": "UG",
+    "country": "Uganda",
+    "landmarks": [
+      "Bwindi Impenetrable Forest",
+      "Source of the Nile, Jinja"
+    ]
+  },
+  {
+    "iso2": "UA",
+    "country": "Ukraine",
+    "landmarks": [
+      "Saint Sophia Cathedral, Kyiv",
+      "Chernobyl Exclusion Zone"
+    ]
+  },
+  {
+    "iso2": "AE",
+    "country": "United Arab Emirates",
+    "landmarks": [
+      "Burj Khalifa",
+      "Sheikh Zayed Grand Mosque"
+    ]
+  },
+  {
+    "iso2": "GB",
+    "country": "United Kingdom",
+    "landmarks": [
+      "Big Ben",
+      "Stonehenge"
+    ]
+  },
+  {
+    "iso2": "US",
+    "country": "United States",
+    "landmarks": [
+      "Statue of Liberty",
+      "Grand Canyon"
+    ]
+  },
+  {
+    "iso2": "UY",
+    "country": "Uruguay",
+    "landmarks": [
+      "Palacio Salvo",
+      "Casapueblo"
+    ]
+  },
+  {
+    "iso2": "UZ",
+    "country": "Uzbekistan",
+    "landmarks": [
+      "Registan, Samarkand",
+      "Bukhara Old City"
+    ]
+  },
+  {
+    "iso2": "VU",
+    "country": "Vanuatu",
+    "landmarks": [
+      "Mount Yasur volcano"
+    ]
+  },
+  {
+    "iso2": "VE",
+    "country": "Venezuela",
+    "landmarks": [
+      "Angel Falls",
+      "Mount Roraima"
+    ]
+  },
+  {
+    "iso2": "VN",
+    "country": "Vietnam",
+    "landmarks": [
+      "Ha Long Bay",
+      "Hoi An Ancient Town"
+    ]
+  },
+  {
+    "iso2": "VG",
+    "country": "Virgin Islands, British",
+    "landmarks": [
+      "The Baths, Virgin Gorda"
+    ]
+  },
+  {
+    "iso2": "VI",
+    "country": "Virgin Islands, U.S.",
+    "landmarks": [
+      "Trunk Bay, St. John"
+    ]
+  },
+  {
+    "iso2": "EH",
+    "country": "Western Sahara",
+    "landmarks": []
+  },
+  {
+    "iso2": "YE",
+    "country": "Yemen",
+    "landmarks": [
+      "Old City of Sana'a",
+      "Socotra dragon's blood trees"
+    ]
+  },
+  {
+    "iso2": "ZM",
+    "country": "Zambia",
+    "landmarks": [
+      "Victoria Falls",
+      "South Luangwa National Park"
+    ]
+  },
+  {
+    "iso2": "ZW",
+    "country": "Zimbabwe",
+    "landmarks": [
+      "Victoria Falls",
+      "Great Zimbabwe ruins"
+    ]
+  },
+  {
+    "iso2": "AX",
+    "country": "Åland Islands",
+    "landmarks": [
+      "Kastelholm Castle"
+    ]
+  }
+]

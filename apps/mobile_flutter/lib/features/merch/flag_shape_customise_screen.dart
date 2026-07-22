@@ -107,7 +107,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   @override
   void initState() {
     super.initState();
-    _pages = _buildPages(animalName: null, plantName: null);
+    _pages = _buildPages(animalName: null, plantName: null, landmarkName: null);
     // Jump to the requested shape page if provided.
     if (widget.initialShape != null) {
       final idx = _pages.indexWhere((p) => p.shape == widget.initialShape);
@@ -118,24 +118,30 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
     _rowCount = widget.codes.length <= 3 ? 3 : widget.codes.length <= 8 ? 2 : 1;
     // Preload outline paths in background.
     _preloadOutlinePaths();
-    // Load animal + plant names for single-country designs to show as page labels.
+    // Load animal + plant + landmark names for single-country designs to show as page labels.
     if (widget.codes.length == 1) {
       final cc = widget.codes.first.toUpperCase();
       Future.wait([
         AnimalSilhouetteService.animalNameFor(cc),
         AnimalSilhouetteService.plantNameFor(cc),
+        AnimalSilhouetteService.landmarkNameFor(cc),
       ]).then((names) {
         if (mounted) {
           setState(() => _pages = _buildPages(
             animalName: names[0],
             plantName: names[1],
+            landmarkName: names[2],
           ));
         }
       });
     }
   }
 
-  List<_PageDef> _buildPages({required String? animalName, String? plantName}) {
+  List<_PageDef> _buildPages({
+    required String? animalName,
+    String? plantName,
+    String? landmarkName,
+  }) {
     final pages = <_PageDef>[
       (shape: GridClipShape.none, label: 'Grid', clipCode: null),
       (shape: GridClipShape.heart, label: 'Heart', clipCode: null),
@@ -160,6 +166,12 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
       pages.add((
         shape: GridClipShape.plantSilhouette,
         label: plantName ?? 'Plant',
+        clipCode: code,
+      ));
+      // Landmark silhouette
+      pages.add((
+        shape: GridClipShape.landmarkSilhouette,
+        label: landmarkName ?? 'Landmark',
         clipCode: code,
       ));
     }

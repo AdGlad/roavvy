@@ -33,6 +33,10 @@ enum GridClipShape {
   /// National plant silhouette clip — single-country designs only.
   /// Path fetched from Firebase Storage via [AnimalSilhouetteService].
   plantSilhouette,
+
+  /// National landmark silhouette clip — single-country designs only.
+  /// Path fetched from Firebase Storage via [AnimalSilhouetteService].
+  landmarkSilhouette,
 }
 
 // ── FlagGridLayoutMode ────────────────────────────────────────────────────────

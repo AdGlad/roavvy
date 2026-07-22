@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' show min;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -7,18 +8,28 @@ import 'dart:ui' as ui;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Fetches, parses, and caches national animal and plant SVG silhouettes from
 /// Firebase Storage, returning them as scaled [ui.Path] objects ready for use
 /// as clip masks in [GridFlagsCard].
 ///
 /// Storage paths:
-///   `symbols/animals/{CC}/{slug}.svg`  — [GridClipShape.animalSilhouette]
-///   `symbols/plants/{CC}/{slug}.svg`   — [GridClipShape.plantSilhouette]
+///   `symbols/animals/{CC}/{slug}.svg`    — [GridClipShape.animalSilhouette]
+///   `symbols/plants/{CC}/{slug}.svg`     — [GridClipShape.plantSilhouette]
+///   `symbols/landmarks/{CC}/{slug}.svg`  — [GridClipShape.landmarkSilhouette]
 ///
-/// Animal slugs are looked up from the bundled asset
-/// `assets/symbols/animal_slugs.json`. Plant slugs are derived from the
-/// country_symbols.json data at build time (first plant entry per country).
+/// Animal, plant, and landmark slugs are all looked up from the bundled
+/// asset `assets/symbols/animal_slugs.json`, keyed by country code with
+/// `slug`/`plant_slug`/`landmark_slug` fields respectively.
+///
+/// Three-tier cache, cheapest first:
+///   1. In-memory LRU of parsed [ui.Path] objects (this session only).
+///   2. On-disk raw SVG bytes in the app's Documents directory (persists
+///      across launches — mirrors the pattern in [LandmarkImageService],
+///      and is what keeps this feature usable offline per ADR / hard rule 4
+///      in `apps/mobile_flutter/CLAUDE.md`).
+///   3. Firebase Storage download — only reached on a cold cache miss.
 ///
 /// Returned paths are pre-scaled to fit an 800×533 canvas (same convention as
 /// [CountryPathService]) so [_clipPathFor] can apply final scaling unchanged.
@@ -43,6 +54,10 @@ class AnimalSilhouetteService {
   static Future<ui.Path?> plantPathFor(String countryCode) =>
       _pathForType('plant', countryCode);
 
+  /// Returns a [ui.Path] for the iconic landmark of [countryCode], or null.
+  static Future<ui.Path?> landmarkPathFor(String countryCode) =>
+      _pathForType('landmark', countryCode);
+
   static Future<ui.Path?> _pathForType(String type, String countryCode) async {
     final cc = countryCode.toUpperCase();
     final key = '${type}_$cc';
@@ -59,7 +74,9 @@ class AnimalSilhouetteService {
       return null;
     }
 
-    final svgBytes = await _downloadSvg(cc, slug, type);
+    final svgBytes =
+        await _readDiskCache(type, cc, slug) ??
+        await _downloadAndCache(cc, slug, type);
     if (svgBytes == null) {
       _pathCache[key] = null;
       return null;
@@ -69,6 +86,16 @@ class AnimalSilhouetteService {
     _pathCache[key] = path;
     if (_pathCache.length > _maxEntries) _pathCache.remove(_pathCache.keys.first);
     return path;
+  }
+
+  static Future<Uint8List?> _downloadAndCache(
+    String cc,
+    String slug,
+    String type,
+  ) async {
+    final bytes = await _downloadSvg(cc, slug, type);
+    if (bytes != null) await _writeDiskCache(type, cc, slug, bytes);
+    return bytes;
   }
 
   /// Returns the display name of the national animal for [countryCode],
@@ -87,15 +114,25 @@ class AnimalSilhouetteService {
     return (map[cc] as Map<String, dynamic>?)?['plant_name'] as String?;
   }
 
+  /// Returns the display name of the iconic landmark for [countryCode],
+  /// or null if not in the bundled map.
+  static Future<String?> landmarkNameFor(String countryCode) async {
+    final cc = countryCode.toUpperCase();
+    final map = await _loadSlugMap();
+    return (map[cc] as Map<String, dynamic>?)?['landmark_name'] as String?;
+  }
+
   // ── Asset loading ──────────────────────────────────────────────────────────
 
   static Future<String?> _slugFor(String cc, String type) async {
     final map = await _loadSlugMap();
     final entry = map[cc] as Map<String, dynamic>?;
     if (entry == null) return null;
-    return type == 'plant'
-        ? entry['plant_slug'] as String?
-        : entry['slug'] as String?;
+    return switch (type) {
+      'plant' => entry['plant_slug'] as String?,
+      'landmark' => entry['landmark_slug'] as String?,
+      _ => entry['slug'] as String?,
+    };
   }
 
   static Future<Map<String, dynamic>> _loadSlugMap() async {
@@ -107,6 +144,41 @@ class AnimalSilhouetteService {
       _slugMap = {};
     }
     return _slugMap!;
+  }
+
+  // ── Disk cache ─────────────────────────────────────────────────────────────
+  //
+  // Raw SVG bytes are cached under the app's Documents directory so a
+  // silhouette downloaded once is available offline on every later launch,
+  // without re-hitting Firebase Storage (bandwidth + egress cost).
+
+  static Future<File> _diskCacheFile(String type, String cc, String slug) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/symbols_${type}_${cc.toLowerCase()}_$slug.svg');
+  }
+
+  static Future<Uint8List?> _readDiskCache(
+    String type,
+    String cc,
+    String slug,
+  ) async {
+    try {
+      final file = await _diskCacheFile(type, cc, slug);
+      if (await file.exists()) return await file.readAsBytes();
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> _writeDiskCache(
+    String type,
+    String cc,
+    String slug,
+    Uint8List bytes,
+  ) async {
+    try {
+      final file = await _diskCacheFile(type, cc, slug);
+      await file.writeAsBytes(bytes, flush: true);
+    } catch (_) {}
   }
 
   // ── Firebase Storage download ──────────────────────────────────────────────
