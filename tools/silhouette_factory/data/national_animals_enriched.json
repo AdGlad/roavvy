@@ -1,0 +1,2127 @@
+[
+  {
+    "country": "Afghanistan",
+    "iso2": "AF",
+    "sourced": [
+      "Snow leopard",
+      "Abyssinian cat"
+    ],
+    "additional": [
+      "Afghan hound"
+    ]
+  },
+  {
+    "country": "Albania",
+    "iso2": "AL",
+    "sourced": [
+      "Golden Eagle"
+    ],
+    "additional": [
+      "Balkan lynx"
+    ]
+  },
+  {
+    "country": "Algeria",
+    "iso2": "DZ",
+    "sourced": [
+      "Fennec fox"
+    ],
+    "additional": [
+      "Barbary macaque"
+    ]
+  },
+  {
+    "country": "American Samoa",
+    "iso2": "AS",
+    "sourced": [
+      "Fruit bats"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Andorra",
+    "iso2": "AD",
+    "sourced": [
+      "Cattle"
+    ],
+    "additional": [
+      "Pyrenean chamois"
+    ]
+  },
+  {
+    "country": "Angola",
+    "iso2": "AO",
+    "sourced": [
+      "Sable antelopes"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Antigua and Barbuda",
+    "iso2": "AG",
+    "sourced": [
+      "European fallow deer",
+      "Frigatebird",
+      "Hawksbill turtle",
+      "Fallow deer"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Argentina",
+    "iso2": "AR",
+    "sourced": [
+      "Rufous hornero"
+    ],
+    "additional": [
+      "Puma",
+      "Guanaco"
+    ]
+  },
+  {
+    "country": "Armenia",
+    "iso2": "AM",
+    "sourced": [
+      "Golden eagle",
+      "Eagle"
+    ],
+    "additional": [
+      "Armenian mouflon"
+    ]
+  },
+  {
+    "country": "Aruba",
+    "iso2": "AW",
+    "sourced": [
+      "Prikichi"
+    ],
+    "additional": [
+      "Aruban whiptail lizard"
+    ]
+  },
+  {
+    "country": "Australia",
+    "iso2": "AU",
+    "sourced": [
+      "Red kangaroo",
+      "Emu"
+    ],
+    "additional": [
+      "Koala",
+      "Redback spider",
+      "Great white shark",
+      "Platypus"
+    ]
+  },
+  {
+    "country": "Austria",
+    "iso2": "AT",
+    "sourced": [
+      "Austrian Bundesadler"
+    ],
+    "additional": [
+      "Alpine ibex"
+    ]
+  },
+  {
+    "country": "Azerbaijan",
+    "iso2": "AZ",
+    "sourced": [
+      "Karabakh horse"
+    ],
+    "additional": [
+      "Caucasian leopard"
+    ]
+  },
+  {
+    "country": "Bahamas",
+    "iso2": "BS",
+    "sourced": [
+      "Blue marlin",
+      "Flamingo"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Bahrain",
+    "iso2": "BH",
+    "sourced": [
+      "Arabian oryx"
+    ],
+    "additional": [
+      "Hoopoe"
+    ]
+  },
+  {
+    "country": "Bangladesh",
+    "iso2": "BD",
+    "sourced": [
+      "Bengal tiger",
+      "Magpie robin",
+      "Ilish",
+      "Royal Bengal Tiger"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Barbados",
+    "iso2": "BB",
+    "sourced": [
+      "Mahi-mahi"
+    ],
+    "additional": [
+      "Green monkey"
+    ]
+  },
+  {
+    "country": "Belarus",
+    "iso2": "BY",
+    "sourced": [
+      "European bison"
+    ],
+    "additional": [
+      "White stork"
+    ]
+  },
+  {
+    "country": "Belgium",
+    "iso2": "BE",
+    "sourced": [
+      "Leo Belgicus",
+      "Lion"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Belize",
+    "iso2": "BZ",
+    "sourced": [
+      "Baird's tapir",
+      "Keel-billed toucan",
+      "Tapir"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Benin",
+    "iso2": "BJ",
+    "sourced": [
+      "African Leopard"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Bermuda",
+    "iso2": "BM",
+    "sourced": [
+      "Bermuda petrel (Pterodroma cahow)"
+    ],
+    "additional": [
+      "Bermuda skink"
+    ]
+  },
+  {
+    "country": "Bhutan",
+    "iso2": "BT",
+    "sourced": [
+      "Druk",
+      "Takin"
+    ],
+    "additional": [
+      "Royal Bengal tiger"
+    ]
+  },
+  {
+    "country": "Bolivia",
+    "iso2": "BO",
+    "sourced": [
+      "Andean condor"
+    ],
+    "additional": [
+      "Llama",
+      "Andean bear"
+    ]
+  },
+  {
+    "country": "Bosnia and Herzegovina",
+    "iso2": "BA",
+    "sourced": [
+      "Tornjak"
+    ],
+    "additional": [
+      "Balkan lynx"
+    ]
+  },
+  {
+    "country": "Botswana",
+    "iso2": "BW",
+    "sourced": [
+      "Plains zebra",
+      "Zebra"
+    ],
+    "additional": [
+      "Elephant",
+      "Lion"
+    ]
+  },
+  {
+    "country": "Brazil",
+    "iso2": "BR",
+    "sourced": [
+      "Jaguar",
+      "Rufous-bellied thrush"
+    ],
+    "additional": [
+      "Toucan",
+      "Macaw",
+      "Amazon river dolphin"
+    ]
+  },
+  {
+    "country": "British Indian Ocean Territory",
+    "iso2": "IO",
+    "sourced": [
+      "Striated Heron"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Brunei Darussalam",
+    "iso2": "BN",
+    "sourced": [
+      "White-bellied Sea Eagle"
+    ],
+    "additional": [
+      "Proboscis monkey"
+    ]
+  },
+  {
+    "country": "Bulgaria",
+    "iso2": "BG",
+    "sourced": [
+      "Lion"
+    ],
+    "additional": [
+      "Brown bear"
+    ]
+  },
+  {
+    "country": "Burkina Faso",
+    "iso2": "BF",
+    "sourced": [
+      "African Horse"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Burundi",
+    "iso2": "BI",
+    "sourced": [
+      "Hyena"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Cabo Verde",
+    "iso2": "CV",
+    "sourced": [
+      "Manatees"
+    ],
+    "additional": [
+      "Loggerhead sea turtle"
+    ]
+  },
+  {
+    "country": "Cambodia",
+    "iso2": "KH",
+    "sourced": [
+      "Kouprey",
+      "Giant ibis",
+      "Northern river terrapin",
+      "Giant barb"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Cameroon",
+    "iso2": "CM",
+    "sourced": [
+      "Lion"
+    ],
+    "additional": [
+      "Forest elephant"
+    ]
+  },
+  {
+    "country": "Canada",
+    "iso2": "CA",
+    "sourced": [
+      "North American beaver",
+      "Canadian horse",
+      "Beaver"
+    ],
+    "additional": [
+      "Moose",
+      "Polar bear",
+      "Common loon"
+    ]
+  },
+  {
+    "country": "Central African Republic",
+    "iso2": "CF",
+    "sourced": [
+      "African Elephant"
+    ],
+    "additional": [
+      "Western lowland gorilla"
+    ]
+  },
+  {
+    "country": "Chad",
+    "iso2": "TD",
+    "sourced": [
+      "Goat"
+    ],
+    "additional": [
+      "Addax"
+    ]
+  },
+  {
+    "country": "Chile",
+    "iso2": "CL",
+    "sourced": [
+      "South Andean deer",
+      "Andean condor"
+    ],
+    "additional": [
+      "Puma"
+    ]
+  },
+  {
+    "country": "China",
+    "iso2": "CN",
+    "sourced": [
+      "Chinese dragon",
+      "Giant panda",
+      "Red-crowned crane"
+    ],
+    "additional": [
+      "Red panda",
+      "Amur tiger"
+    ]
+  },
+  {
+    "country": "Colombia",
+    "iso2": "CO",
+    "sourced": [
+      "Andean condor"
+    ],
+    "additional": [
+      "Jaguar"
+    ]
+  },
+  {
+    "country": "Comoros",
+    "iso2": "KM",
+    "sourced": [
+      "Mongoose Lemur"
+    ],
+    "additional": [
+      "Livingstone's fruit bat"
+    ]
+  },
+  {
+    "country": "Cook Islands",
+    "iso2": "CK",
+    "sourced": [
+      "Pacific fruit bats"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Costa Rica",
+    "iso2": "CR",
+    "sourced": [
+      "Yigüirro (clay-colored thrush)",
+      "White-tailed deer",
+      "West Indian manatee",
+      "Hoffmann's two-toed sloth",
+      "Brown-throated three-toed sloth"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Croatia",
+    "iso2": "HR",
+    "sourced": [
+      "European pine marten",
+      "Marten"
+    ],
+    "additional": [
+      "Dalmatian dog"
+    ]
+  },
+  {
+    "country": "Cuba",
+    "iso2": "CU",
+    "sourced": [
+      "Cuban trogon"
+    ],
+    "additional": [
+      "Cuban crocodile"
+    ]
+  },
+  {
+    "country": "Curaçao",
+    "iso2": "CW",
+    "sourced": [
+      "Flamingo"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Cyprus",
+    "iso2": "CY",
+    "sourced": [
+      "Cypriot mouflon"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Czech Republic",
+    "iso2": "CZ",
+    "sourced": [
+      "Double-tailed lion"
+    ],
+    "additional": [
+      "Eurasian lynx"
+    ]
+  },
+  {
+    "country": "Côte d'Ivoire",
+    "iso2": "CI",
+    "sourced": [
+      "Elephants"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Democratic Republic of the Congo",
+    "iso2": "CD",
+    "sourced": [
+      "Okapi"
+    ],
+    "additional": [
+      "Mountain gorilla",
+      "Bonobo"
+    ]
+  },
+  {
+    "country": "Denmark",
+    "iso2": "DK",
+    "sourced": [
+      "Red squirrel",
+      "Mute swan",
+      "Small tortoiseshell"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Djibouti",
+    "iso2": "DJ",
+    "sourced": [
+      "Elk"
+    ],
+    "additional": [
+      "Beira antelope"
+    ]
+  },
+  {
+    "country": "Dominica",
+    "iso2": "DM",
+    "sourced": [
+      "Sisserou parrot"
+    ],
+    "additional": [
+      "Sperm whale"
+    ]
+  },
+  {
+    "country": "Dominican Republic",
+    "iso2": "DO",
+    "sourced": [
+      "Palm Chat"
+    ],
+    "additional": [
+      "Humpback whale"
+    ]
+  },
+  {
+    "country": "Ecuador",
+    "iso2": "EC",
+    "sourced": [
+      "Andean condor"
+    ],
+    "additional": [
+      "Galápagos tortoise",
+      "Blue-footed booby"
+    ]
+  },
+  {
+    "country": "Egypt",
+    "iso2": "EG",
+    "sourced": [
+      "Steppe eagle"
+    ],
+    "additional": [
+      "Nile crocodile"
+    ]
+  },
+  {
+    "country": "El Salvador",
+    "iso2": "SV",
+    "sourced": [
+      "Turquoise-browed motmot",
+      "Motmot"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Equatorial Guinea",
+    "iso2": "GQ",
+    "sourced": [
+      "Giraffe"
+    ],
+    "additional": [
+      "Western lowland gorilla"
+    ]
+  },
+  {
+    "country": "Eritrea",
+    "iso2": "ER",
+    "sourced": [
+      "Arabian camel"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Estonia",
+    "iso2": "EE",
+    "sourced": [
+      "Wolf",
+      "Barn swallow",
+      "Baltic herring",
+      "Swallowtail",
+      "Grey Wolf"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Eswatini",
+    "iso2": "SZ",
+    "sourced": [],
+    "additional": [
+      "White rhinoceros"
+    ]
+  },
+  {
+    "country": "Ethiopia",
+    "iso2": "ET",
+    "sourced": [
+      "Lion",
+      "Mighty lion"
+    ],
+    "additional": [
+      "Walia ibex"
+    ]
+  },
+  {
+    "country": "Fiji",
+    "iso2": "FJ",
+    "sourced": [
+      "Fiji banded iguana"
+    ],
+    "additional": [
+      "Fiji flying fox"
+    ]
+  },
+  {
+    "country": "Finland",
+    "iso2": "FI",
+    "sourced": [
+      "Brown bear",
+      "Whooper swan",
+      "European perch",
+      "Seven-spot ladybird"
+    ],
+    "additional": []
+  },
+  {
+    "country": "France",
+    "iso2": "FR",
+    "sourced": [
+      "Gallic rooster"
+    ],
+    "additional": [
+      "Camargue horse"
+    ]
+  },
+  {
+    "country": "French Guiana",
+    "iso2": "GF",
+    "sourced": [
+      "brocket deer"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Gabon",
+    "iso2": "GA",
+    "sourced": [
+      "African leopard (black panther)",
+      "Black Panther"
+    ],
+    "additional": [
+      "Western lowland gorilla"
+    ]
+  },
+  {
+    "country": "Gambia",
+    "iso2": "GM",
+    "sourced": [
+      "Spotted hyena"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Georgia",
+    "iso2": "GE",
+    "sourced": [
+      "White-Tailed Deer"
+    ],
+    "additional": [
+      "Caucasian leopard"
+    ]
+  },
+  {
+    "country": "Germany",
+    "iso2": "DE",
+    "sourced": [
+      "Bundesadler",
+      "Black Eagle"
+    ],
+    "additional": [
+      "Wild boar"
+    ]
+  },
+  {
+    "country": "Ghana",
+    "iso2": "GH",
+    "sourced": [
+      "Tawny Eagle"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Greece",
+    "iso2": "GR",
+    "sourced": [
+      "Dolphin"
+    ],
+    "additional": [
+      "Brown bear"
+    ]
+  },
+  {
+    "country": "Grenada",
+    "iso2": "GD",
+    "sourced": [
+      "Grenada dove"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Guatemala",
+    "iso2": "GT",
+    "sourced": [
+      "Resplendent quetzal",
+      "Quetzal"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Guernsey",
+    "iso2": "GG",
+    "sourced": [
+      "Donkey"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Guinea",
+    "iso2": "GN",
+    "sourced": [
+      "African Elephant"
+    ],
+    "additional": [
+      "Western chimpanzee"
+    ]
+  },
+  {
+    "country": "Guinea-Bissau",
+    "iso2": "GW",
+    "sourced": [],
+    "additional": [
+      "Hippopotamus"
+    ]
+  },
+  {
+    "country": "Guyana",
+    "iso2": "GY",
+    "sourced": [
+      "Jaguar"
+    ],
+    "additional": [
+      "Harpy eagle"
+    ]
+  },
+  {
+    "country": "Haiti",
+    "iso2": "HT",
+    "sourced": [
+      "Hispaniolan trogon"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Holy See (Vatican City State)",
+    "iso2": "VA",
+    "sourced": [],
+    "additional": []
+  },
+  {
+    "country": "Honduras",
+    "iso2": "HN",
+    "sourced": [
+      "White-tailed deer",
+      "Scarlet macaw"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Hungary",
+    "iso2": "HU",
+    "sourced": [
+      "Turul"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Iceland",
+    "iso2": "IS",
+    "sourced": [
+      "Gyrfalcon"
+    ],
+    "additional": [
+      "Icelandic horse",
+      "Arctic fox",
+      "Atlantic puffin"
+    ]
+  },
+  {
+    "country": "India",
+    "iso2": "IN",
+    "sourced": [
+      "Bengal tiger",
+      "Indian peafowl",
+      "Ganges river dolphin",
+      "Indian elephant",
+      "Benaal tiger"
+    ],
+    "additional": [
+      "Asiatic lion",
+      "Indian rhinoceros",
+      "Indian cobra"
+    ]
+  },
+  {
+    "country": "Indonesia",
+    "iso2": "ID",
+    "sourced": [
+      "Komodo dragon",
+      "Javan hawk-eagle",
+      "Asian arowana"
+    ],
+    "additional": [
+      "Orangutan",
+      "Sumatran tiger",
+      "Bali myna"
+    ]
+  },
+  {
+    "country": "Iran",
+    "iso2": "IR",
+    "sourced": [
+      "Asiatic lion",
+      "Persian leopard"
+    ],
+    "additional": [
+      "Persian fallow deer",
+      "Persian cat"
+    ]
+  },
+  {
+    "country": "Iraq",
+    "iso2": "IQ",
+    "sourced": [
+      "Chukar partridge",
+      "Wild goat",
+      "Goat"
+    ],
+    "additional": [
+      "Water buffalo"
+    ]
+  },
+  {
+    "country": "Ireland",
+    "iso2": "IE",
+    "sourced": [
+      "Mountain hare",
+      "Irish hare"
+    ],
+    "additional": [
+      "Atlantic puffin"
+    ]
+  },
+  {
+    "country": "Israel",
+    "iso2": "IL",
+    "sourced": [
+      "Eurasian hoopoe",
+      "Palestine viper",
+      "Canaan Dog",
+      "Deathstalker (common black scorpion)",
+      "Mountain gazelle",
+      "Israeli gazelle"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Italy",
+    "iso2": "IT",
+    "sourced": [
+      "Italian wolf",
+      "Wolf"
+    ],
+    "additional": [
+      "Marsican brown bear"
+    ]
+  },
+  {
+    "country": "Jamaica",
+    "iso2": "JM",
+    "sourced": [
+      "Red-billed streamertail"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Japan",
+    "iso2": "JP",
+    "sourced": [
+      "Green pheasant",
+      "Koi"
+    ],
+    "additional": [
+      "Japanese macaque"
+    ]
+  },
+  {
+    "country": "Jordan",
+    "iso2": "JO",
+    "sourced": [
+      "Arabian oryx"
+    ],
+    "additional": [
+      "Nubian ibex"
+    ]
+  },
+  {
+    "country": "Kazakhstan",
+    "iso2": "KZ",
+    "sourced": [
+      "Golden eagle"
+    ],
+    "additional": [
+      "Snow leopard"
+    ]
+  },
+  {
+    "country": "Kenya",
+    "iso2": "KE",
+    "sourced": [
+      "Lion"
+    ],
+    "additional": [
+      "Elephant",
+      "Giraffe",
+      "Zebra"
+    ]
+  },
+  {
+    "country": "Kiribati",
+    "iso2": "KI",
+    "sourced": [
+      "Frigate bird"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Kuwait",
+    "iso2": "KW",
+    "sourced": [
+      "Arabian camel"
+    ],
+    "additional": [
+      "Houbara bustard"
+    ]
+  },
+  {
+    "country": "Kyrgyzstan",
+    "iso2": "KG",
+    "sourced": [
+      "markhor goat"
+    ],
+    "additional": [
+      "Snow leopard"
+    ]
+  },
+  {
+    "country": "Laos",
+    "iso2": "LA",
+    "sourced": [
+      "Asian elephant",
+      "Indian elephant"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Latvia",
+    "iso2": "LV",
+    "sourced": [
+      "White wagtail",
+      "Two-spotted ladybird"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Lebanon",
+    "iso2": "LB",
+    "sourced": [
+      "Striped hyena"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Lesotho",
+    "iso2": "LS",
+    "sourced": [
+      "black rhino"
+    ],
+    "additional": [
+      "Basotho pony"
+    ]
+  },
+  {
+    "country": "Liberia",
+    "iso2": "LR",
+    "sourced": [
+      "lion"
+    ],
+    "additional": [
+      "Pygmy hippo"
+    ]
+  },
+  {
+    "country": "Libya",
+    "iso2": "LY",
+    "sourced": [
+      "Arabian Eagle"
+    ],
+    "additional": [
+      "Fennec fox"
+    ]
+  },
+  {
+    "country": "Liechtenstein",
+    "iso2": "LI",
+    "sourced": [
+      "kestrel"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Lithuania",
+    "iso2": "LT",
+    "sourced": [
+      "White stork"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Luxembourg",
+    "iso2": "LU",
+    "sourced": [
+      "lion"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Madagascar",
+    "iso2": "MG",
+    "sourced": [
+      "Zebu",
+      "Ring-tailed lemur"
+    ],
+    "additional": [
+      "Fossa"
+    ]
+  },
+  {
+    "country": "Malawi",
+    "iso2": "MW",
+    "sourced": [
+      "Thomson's gazelle"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Malaysia",
+    "iso2": "MY",
+    "sourced": [
+      "Malayan tiger"
+    ],
+    "additional": [
+      "Orangutan",
+      "Proboscis monkey"
+    ]
+  },
+  {
+    "country": "Maldives",
+    "iso2": "MV",
+    "sourced": [
+      "yellowfin tuna"
+    ],
+    "additional": [
+      "Whale shark"
+    ]
+  },
+  {
+    "country": "Mali",
+    "iso2": "ML",
+    "sourced": [
+      "Vulture"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Malta",
+    "iso2": "MT",
+    "sourced": [
+      "Pharaoh Hound"
+    ],
+    "additional": [
+      "Blue rock thrush"
+    ]
+  },
+  {
+    "country": "Marshall Islands",
+    "iso2": "MH",
+    "sourced": [
+      "Black-footed Cat"
+    ],
+    "additional": [
+      "Green sea turtle"
+    ]
+  },
+  {
+    "country": "Mauritania",
+    "iso2": "MR",
+    "sourced": [],
+    "additional": [
+      "Mediterranean monk seal"
+    ]
+  },
+  {
+    "country": "Mauritius",
+    "iso2": "MU",
+    "sourced": [
+      "Dodo"
+    ],
+    "additional": [
+      "Pink pigeon"
+    ]
+  },
+  {
+    "country": "Mexico",
+    "iso2": "MX",
+    "sourced": [
+      "Golden eagle",
+      "Xoloitzcuintli",
+      "Jaguar",
+      "Grasshopper",
+      "Vaquita",
+      "eagle"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Micronesia",
+    "iso2": "FM",
+    "sourced": [
+      "Chuuk Flying Fox"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Moldova",
+    "iso2": "MD",
+    "sourced": [
+      "Aurochs"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Monaco",
+    "iso2": "MC",
+    "sourced": [
+      "European hedgehog",
+      "European rabbit",
+      "Wood mouse",
+      "hedgehog"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Mongolia",
+    "iso2": "MN",
+    "sourced": [
+      "Przewalski's horse",
+      "Saker falcon",
+      "Gobi bear"
+    ],
+    "additional": [
+      "Bactrian camel"
+    ]
+  },
+  {
+    "country": "Montenegro",
+    "iso2": "ME",
+    "sourced": [
+      "Double-headed eagles"
+    ],
+    "additional": [
+      "Balkan lynx"
+    ]
+  },
+  {
+    "country": "Morocco",
+    "iso2": "MA",
+    "sourced": [
+      "Barbary lion"
+    ],
+    "additional": [
+      "Barbary macaque"
+    ]
+  },
+  {
+    "country": "Mozambique",
+    "iso2": "MZ",
+    "sourced": [
+      "African elephant"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Myanmar",
+    "iso2": "MM",
+    "sourced": [
+      "green peafowl"
+    ],
+    "additional": [
+      "Asian elephant"
+    ]
+  },
+  {
+    "country": "Namibia",
+    "iso2": "NA",
+    "sourced": [
+      "Oryx"
+    ],
+    "additional": [
+      "Cheetah",
+      "Desert elephant"
+    ]
+  },
+  {
+    "country": "Nauru",
+    "iso2": "NR",
+    "sourced": [
+      "Great Frigatebird"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Nepal",
+    "iso2": "NP",
+    "sourced": [
+      "Cow",
+      "Himalayan monal"
+    ],
+    "additional": [
+      "Red panda",
+      "Snow leopard",
+      "Greater one-horned rhinoceros"
+    ]
+  },
+  {
+    "country": "Netherlands",
+    "iso2": "NL",
+    "sourced": [
+      "Lion",
+      "Black-tailed godwit",
+      "Asiatic Lion"
+    ],
+    "additional": []
+  },
+  {
+    "country": "New Zealand",
+    "iso2": "NZ",
+    "sourced": [
+      "Kiwi"
+    ],
+    "additional": [
+      "Kakapo",
+      "Tuatara"
+    ]
+  },
+  {
+    "country": "Nicaragua",
+    "iso2": "NI",
+    "sourced": [
+      "Turquoise-browed motmot",
+      "Guardabarranco"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Niger",
+    "iso2": "NE",
+    "sourced": [
+      "Dama gazelle"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Nigeria",
+    "iso2": "NG",
+    "sourced": [
+      "Eagle",
+      "Black crowned crane"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Niue",
+    "iso2": "NU",
+    "sourced": [
+      "Niue Blue Nacaduba niueensis (butterfly)"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Norfolk Island",
+    "iso2": "NF",
+    "sourced": [
+      "Green Parrot"
+    ],
+    "additional": []
+  },
+  {
+    "country": "North Korea",
+    "iso2": "KP",
+    "sourced": [
+      "Qianlima (chollima)",
+      "Pungsan dog",
+      "Korean magpie",
+      "winged horse Chollima"
+    ],
+    "additional": []
+  },
+  {
+    "country": "North Macedonia",
+    "iso2": "MK",
+    "sourced": [
+      "Lion"
+    ],
+    "additional": [
+      "Balkan lynx"
+    ]
+  },
+  {
+    "country": "Northern Mariana Islands",
+    "iso2": "MP",
+    "sourced": [
+      "Mariana fruit dove"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Norway",
+    "iso2": "NO",
+    "sourced": [
+      "Eurasian elk / moose",
+      "Lion",
+      "White-throated dipper",
+      "Fjord horse",
+      "Moose"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Oman",
+    "iso2": "OM",
+    "sourced": [
+      "Arabian oryx"
+    ],
+    "additional": [
+      "Arabian leopard"
+    ]
+  },
+  {
+    "country": "Pakistan",
+    "iso2": "PK",
+    "sourced": [
+      "Markhor",
+      "Indus river dolphin",
+      "Chukar",
+      "Mugger crocodile",
+      "Shaheen falcon",
+      "Snow leopard"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Palau",
+    "iso2": "PW",
+    "sourced": [
+      "Palau fruit dove"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Palestine",
+    "iso2": "PS",
+    "sourced": [
+      "Gazelle"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Panama",
+    "iso2": "PA",
+    "sourced": [
+      "Harpy eagle",
+      "Panamanian golden frog"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Papua New Guinea",
+    "iso2": "PG",
+    "sourced": [],
+    "additional": [
+      "Bird-of-paradise"
+    ]
+  },
+  {
+    "country": "Paraguay",
+    "iso2": "PY",
+    "sourced": [
+      "pampas fox"
+    ],
+    "additional": [
+      "Jaguar"
+    ]
+  },
+  {
+    "country": "Peru",
+    "iso2": "PE",
+    "sourced": [
+      "Vicuña",
+      "Andean cock-of-the-rock"
+    ],
+    "additional": [
+      "Llama",
+      "Andean bear"
+    ]
+  },
+  {
+    "country": "Philippines",
+    "iso2": "PH",
+    "sourced": [
+      "Carabao",
+      "Philippine eagle"
+    ],
+    "additional": [
+      "Tarsier",
+      "Whale shark"
+    ]
+  },
+  {
+    "country": "Pitcairn Islands",
+    "iso2": "PN",
+    "sourced": [],
+    "additional": [
+      "Pitcairn reed warbler"
+    ]
+  },
+  {
+    "country": "Poland",
+    "iso2": "PL",
+    "sourced": [
+      "White-tailed eagle",
+      "White stork",
+      "European bison"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Portugal",
+    "iso2": "PT",
+    "sourced": [
+      "Dragon",
+      "Cock of Barcelos",
+      "Iberian wolf"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Qatar",
+    "iso2": "QA",
+    "sourced": [
+      "Arabian oryx"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Republic of the Congo",
+    "iso2": "CG",
+    "sourced": [
+      "Okapi"
+    ],
+    "additional": [
+      "Western lowland gorilla"
+    ]
+  },
+  {
+    "country": "Romania",
+    "iso2": "RO",
+    "sourced": [
+      "Eurasian lynx"
+    ],
+    "additional": [
+      "Brown bear"
+    ]
+  },
+  {
+    "country": "Russia",
+    "iso2": "RU",
+    "sourced": [
+      "Eurasian brown bear",
+      "Double-headed eagle",
+      "Bear"
+    ],
+    "additional": [
+      "Siberian tiger",
+      "Amur leopard",
+      "Polar bear"
+    ]
+  },
+  {
+    "country": "Rwanda",
+    "iso2": "RW",
+    "sourced": [
+      "Leopard"
+    ],
+    "additional": [
+      "Mountain gorilla"
+    ]
+  },
+  {
+    "country": "Saint Kitts and Nevis",
+    "iso2": "KN",
+    "sourced": [
+      "Brown pelican"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Saint Lucia",
+    "iso2": "LC",
+    "sourced": [
+      "Saint Lucia amazon",
+      "Kaimite fruit"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Saint Martin",
+    "iso2": "MF",
+    "sourced": [
+      "pelican"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Saint Pierre and Miquelon",
+    "iso2": "PM",
+    "sourced": [
+      "Grey Dolphin"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Saint Vincent and the Grenadines",
+    "iso2": "VC",
+    "sourced": [
+      "Saint Vincent amazon",
+      "Saint Vincent parrot"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Samoa",
+    "iso2": "WS",
+    "sourced": [
+      "whale"
+    ],
+    "additional": [
+      "Flying fox"
+    ]
+  },
+  {
+    "country": "San Marino",
+    "iso2": "SM",
+    "sourced": [
+      "whale"
+    ],
+    "additional": [
+      "Crested porcupine"
+    ]
+  },
+  {
+    "country": "Sao Tome and Principe",
+    "iso2": "ST",
+    "sourced": [
+      "Sao Tome Shrew"
+    ],
+    "additional": [
+      "African grey parrot"
+    ]
+  },
+  {
+    "country": "Saudi Arabia",
+    "iso2": "SA",
+    "sourced": [
+      "Arabian camel",
+      "Camel"
+    ],
+    "additional": [
+      "Arabian leopard"
+    ]
+  },
+  {
+    "country": "Senegal",
+    "iso2": "SN",
+    "sourced": [
+      "Lions"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Serbia",
+    "iso2": "RS",
+    "sourced": [
+      "Wolf",
+      "White eagle",
+      "Gray Wolf"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Seychelles",
+    "iso2": "SC",
+    "sourced": [
+      "flying foxes"
+    ],
+    "additional": [
+      "Aldabra giant tortoise"
+    ]
+  },
+  {
+    "country": "Sierra Leone",
+    "iso2": "SL",
+    "sourced": [
+      "Chimpanzee"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Singapore",
+    "iso2": "SG",
+    "sourced": [
+      "Lion",
+      "Asiatic Lion"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Slovakia",
+    "iso2": "SK",
+    "sourced": [
+      "Czech lion"
+    ],
+    "additional": [
+      "Tatra chamois"
+    ]
+  },
+  {
+    "country": "Slovenia",
+    "iso2": "SI",
+    "sourced": [
+      "Carniolan honey bee"
+    ],
+    "additional": [
+      "Brown bear"
+    ]
+  },
+  {
+    "country": "Solomon Islands",
+    "iso2": "SB",
+    "sourced": [
+      "Hawksbill turtle"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Somalia",
+    "iso2": "SO",
+    "sourced": [
+      "Leopard"
+    ],
+    "additional": [
+      "Somali wild ass"
+    ]
+  },
+  {
+    "country": "South Africa",
+    "iso2": "ZA",
+    "sourced": [
+      "Springbok",
+      "Blue crane",
+      "Galjoen"
+    ],
+    "additional": [
+      "Lion",
+      "Elephant",
+      "Rhinoceros"
+    ]
+  },
+  {
+    "country": "South Korea",
+    "iso2": "KR",
+    "sourced": [
+      "Siberian tiger",
+      "Amur Tiger"
+    ],
+    "additional": []
+  },
+  {
+    "country": "South Sudan",
+    "iso2": "SS",
+    "sourced": [
+      "African fish eagle"
+    ],
+    "additional": [
+      "White-eared kob"
+    ]
+  },
+  {
+    "country": "Spain",
+    "iso2": "ES",
+    "sourced": [
+      "Bull"
+    ],
+    "additional": [
+      "Iberian lynx"
+    ]
+  },
+  {
+    "country": "Sri Lanka",
+    "iso2": "LK",
+    "sourced": [
+      "Grizzled giant squirrel",
+      "Sri Lankan junglefowl",
+      "Lions"
+    ],
+    "additional": [
+      "Sri Lankan elephant",
+      "Leopard"
+    ]
+  },
+  {
+    "country": "Sudan",
+    "iso2": "SD",
+    "sourced": [
+      "Secretarybird",
+      "Sudan Cheetah"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Suriname",
+    "iso2": "SR",
+    "sourced": [
+      "Jaguarundi"
+    ],
+    "additional": [
+      "Jaguar"
+    ]
+  },
+  {
+    "country": "Sweden",
+    "iso2": "SE",
+    "sourced": [
+      "Eurasian elk / moose",
+      "Common blackbird",
+      "Moose"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Switzerland",
+    "iso2": "CH",
+    "sourced": [
+      "Cow",
+      "St. Bernhard dog"
+    ],
+    "additional": [
+      "Alpine ibex"
+    ]
+  },
+  {
+    "country": "Syrian Arab Republic",
+    "iso2": "SY",
+    "sourced": [
+      "Syrian Brown Bear"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Taiwan, Province of China",
+    "iso2": "TW",
+    "sourced": [
+      "Formosan black bear"
+    ],
+    "additional": [
+      "Mikado pheasant"
+    ]
+  },
+  {
+    "country": "Tajikistan",
+    "iso2": "TJ",
+    "sourced": [
+      "Ovis ammon polii"
+    ],
+    "additional": [
+      "Snow leopard",
+      "Marco Polo sheep"
+    ]
+  },
+  {
+    "country": "Tanzania",
+    "iso2": "TZ",
+    "sourced": [
+      "Giraffe",
+      "Masai giraffe"
+    ],
+    "additional": [
+      "Lion",
+      "Elephant"
+    ]
+  },
+  {
+    "country": "Thailand",
+    "iso2": "TH",
+    "sourced": [
+      "Asian elephant",
+      "Siamese fighting fish",
+      "elephants"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Timor-Leste",
+    "iso2": "TL",
+    "sourced": [
+      "Crocodile"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Togo",
+    "iso2": "TG",
+    "sourced": [
+      "Lion"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Tonga",
+    "iso2": "TO",
+    "sourced": [
+      "Flying fox"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Trinidad and Tobago",
+    "iso2": "TT",
+    "sourced": [
+      "scarlet ibis"
+    ],
+    "additional": [
+      "Hummingbird"
+    ]
+  },
+  {
+    "country": "Tunisia",
+    "iso2": "TN",
+    "sourced": [
+      "Arabian Camel"
+    ],
+    "additional": [
+      "Fennec fox"
+    ]
+  },
+  {
+    "country": "Turkey",
+    "iso2": "TR",
+    "sourced": [
+      "Gray wolf",
+      "Kangal Shepherd Dog",
+      "Turkish Angora"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Turkmenistan",
+    "iso2": "TM",
+    "sourced": [
+      "Alabay dog"
+    ],
+    "additional": [
+      "Akhal-Teke horse"
+    ]
+  },
+  {
+    "country": "Tuvalu",
+    "iso2": "TV",
+    "sourced": [],
+    "additional": [
+      "Coconut crab"
+    ]
+  },
+  {
+    "country": "Uganda",
+    "iso2": "UG",
+    "sourced": [
+      "Grey crowned crane",
+      "Ugandan kob",
+      "Uganda Kob"
+    ],
+    "additional": [
+      "Mountain gorilla"
+    ]
+  },
+  {
+    "country": "Ukraine",
+    "iso2": "UA",
+    "sourced": [
+      "Nightingal"
+    ],
+    "additional": []
+  },
+  {
+    "country": "United Arab Emirates",
+    "iso2": "AE",
+    "sourced": [
+      "Saker falcon",
+      "Arabian oryx"
+    ],
+    "additional": []
+  },
+  {
+    "country": "United Kingdom",
+    "iso2": "GB",
+    "sourced": [
+      "Bulldog",
+      "Lion",
+      "Red kite",
+      "Unicorn",
+      "Y Ddraig Goch (Red Dragon)"
+    ],
+    "additional": [
+      "Hedgehog"
+    ]
+  },
+  {
+    "country": "United States",
+    "iso2": "US",
+    "sourced": [
+      "Bald eagle",
+      "American bison",
+      "Bison"
+    ],
+    "additional": [
+      "Grizzly bear",
+      "American alligator",
+      "Rattlesnake",
+      "Mountain lion"
+    ]
+  },
+  {
+    "country": "Uruguay",
+    "iso2": "UY",
+    "sourced": [
+      "southern lapwing"
+    ],
+    "additional": [
+      "Greater rhea"
+    ]
+  },
+  {
+    "country": "Uzbekistan",
+    "iso2": "UZ",
+    "sourced": [
+      "Turkestan Sand Cat"
+    ],
+    "additional": [
+      "Snow leopard"
+    ]
+  },
+  {
+    "country": "Vanuatu",
+    "iso2": "VU",
+    "sourced": [
+      "Iguana"
+    ],
+    "additional": [
+      "Dugong"
+    ]
+  },
+  {
+    "country": "Venezuela",
+    "iso2": "VE",
+    "sourced": [
+      "Venezuelan troupial"
+    ],
+    "additional": [
+      "Jaguar"
+    ]
+  },
+  {
+    "country": "Vietnam",
+    "iso2": "VN",
+    "sourced": [
+      "Water buffalo"
+    ],
+    "additional": [
+      "Indochinese tiger"
+    ]
+  },
+  {
+    "country": "Virgin Islands, British",
+    "iso2": "VG",
+    "sourced": [
+      "mourning dove"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Virgin Islands, U.S.",
+    "iso2": "VI",
+    "sourced": [
+      "Bats"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Western Sahara",
+    "iso2": "EH",
+    "sourced": [
+      "addax"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Yemen",
+    "iso2": "YE",
+    "sourced": [
+      "Arabian Leopard"
+    ],
+    "additional": []
+  },
+  {
+    "country": "Zambia",
+    "iso2": "ZM",
+    "sourced": [
+      "African Fish Eagle"
+    ],
+    "additional": [
+      "African elephant"
+    ]
+  },
+  {
+    "country": "Zimbabwe",
+    "iso2": "ZW",
+    "sourced": [
+      "Sable antelope",
+      "African fish eagle"
+    ],
+    "additional": [
+      "Elephant"
+    ]
+  },
+  {
+    "country": "Åland Islands",
+    "iso2": "AX",
+    "sourced": [
+      "White-tailed eagle"
+    ],
+    "additional": []
+  }
+]

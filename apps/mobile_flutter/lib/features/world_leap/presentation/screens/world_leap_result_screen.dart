@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile_flutter/features/world_leap/domain/models/world_leap_failure_reason.dart';
 import 'package:mobile_flutter/features/world_leap/domain/models/world_leap_run.dart';
@@ -62,6 +63,25 @@ class WorldLeapResultScreen extends StatefulWidget {
 class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
   static const _gold = Color(0xFFFFD700);
   static const _darkGreen = Color(0xFF1A2A1A);
+  static const _kBestScoreKey = 'world_leap_best_score';
+
+  bool _isNewBest = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPersonalBest();
+  }
+
+  Future<void> _checkPersonalBest() async {
+    final prefs = await SharedPreferences.getInstance();
+    final prev = prefs.getInt(_kBestScoreKey) ?? 0;
+    final current = widget.run.totalScore;
+    if (current > prev) {
+      await prefs.setInt(_kBestScoreKey, current);
+      if (mounted) setState(() => _isNewBest = true);
+    }
+  }
 
   String get _headerEmoji {
     if (widget.run.failureReason == null) return '🌍';
@@ -114,6 +134,40 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                   isSuccess: run.failureReason == null,
                   goldColor: _gold,
                 ),
+                if (_isNewBest) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [
+                        Color(0xFFFFD700),
+                        Color(0xFFFF8F00),
+                      ]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('🏆',
+                            style: TextStyle(fontSize: 22)),
+                        SizedBox(width: 10),
+                        Text(
+                          'NEW PERSONAL BEST!',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text('🏆',
+                            style: TextStyle(fontSize: 22)),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
 
                 // ── Stats cards ────────────────────────────────────────────

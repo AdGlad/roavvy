@@ -334,6 +334,23 @@ class ChallengeStatsTable extends Table {
 /// or `"nearby"` (≤ 10 km). (ADR-165)
 ///
 /// Never synced to Firestore in MVP — local-only.
+/// GPS coordinate cache for geotagged photos (M155, ADR-160).
+///
+/// ADR-002 discards lat/lng after country-code resolution during scanning.
+/// This table stores them back after a one-time background fetch via
+/// [PhotoGpsFetchService], so map thumbnails can be placed at exact locations.
+///
+/// Only photos whose [AssetEntity] exposes non-null lat/lng are stored.
+@DataClassName('PhotoGpsCacheRow')
+class PhotoGpsCache extends Table {
+  TextColumn get assetId => text()();
+  RealColumn get lat => real()();
+  RealColumn get lng => real()();
+
+  @override
+  Set<Column> get primaryKey => {assetId};
+}
+
 @DataClassName('VisitedHeritageSiteRow')
 class VisitedHeritageSites extends Table {
   TextColumn get siteId => text()();
@@ -369,13 +386,14 @@ class VisitedHeritageSites extends Table {
     VisitedHeritageSites,
     DailyChallengeProgressTable,
     ChallengeStatsTable,
+    PhotoGpsCache,
   ],
 )
 class RoavvyDatabase extends _$RoavvyDatabase {
   RoavvyDatabase(super.e);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -439,6 +457,9 @@ class RoavvyDatabase extends _$RoavvyDatabase {
           dailyChallengeProgressTable.failed,
         );
         await m.createTable(challengeStatsTable);
+      }
+      if (from < 16) {
+        await m.createTable(photoGpsCache);
       }
     },
   );

@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../application/world_leap_state.dart';
+import '../../domain/models/world_leap_failure_reason.dart';
 import '../../world_leap_config.dart';
 
 /// Audio service for World Leap game sounds and mute preference management.
@@ -24,6 +25,9 @@ class WorldLeapAudioService {
 
   bool _muted = false;
   bool get isMuted => _muted;
+
+  // Throttle stretch sound to at most once per 400 ms.
+  DateTime? _lastStretch;
 
   // ── Initialisation ──────────────────────────────────────────────────────────
 
@@ -46,9 +50,17 @@ class WorldLeapAudioService {
   // ── Play methods ───────────────────────────────────────────────────────────
 
   /// Plays the slingshot stretch creak.
-  /// [power] is normalised 0.0–1.0; sound is debounced below 0.15.
+  /// [power] is normalised 0.0–1.0; sound is debounced below 0.15 and
+  /// throttled to at most once per 400 ms so it doesn't spam on every
+  /// pointer-move event.
   Future<void> playStretch(double power) {
     if (power <= 0.15) return Future.value();
+    final now = DateTime.now();
+    if (_lastStretch != null &&
+        now.difference(_lastStretch!) < const Duration(milliseconds: 400)) {
+      return Future.value();
+    }
+    _lastStretch = now;
     return _play(WorldLeapConfig.soundStretch);
   }
 
@@ -93,10 +105,18 @@ class WorldLeapAudioService {
   /// Plays the appropriate sound for the given [state].
   /// Call this from a WorldLeapController listener.
   Future<void> playForState(WorldLeapState state) => switch (state) {
-        WorldLeapStateLaunching() => playLaunch(),
-        WorldLeapStateLanded() => playImpact(),
-        WorldLeapStateFailed() => playMiss(),
-        WorldLeapStateComplete() => playFanfare(),
-        _ => Future.value(),
-      };
+    WorldLeapStateLaunching() => playLaunch(),
+    WorldLeapStateLanded() => playImpact(),
+    WorldLeapStateFailed(:final reason) =>
+      reason == WorldLeapFailureReason.timeout ? playTimeout() : playMiss(),
+    WorldLeapStateComplete() => _playCompletionSequence(),
+    _ => Future.value(),
+  };
+
+  /// Plays fanfare then game-over sting 1.5 s later (non-blocking).
+  Future<void> _playCompletionSequence() async {
+    await playFanfare();
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    await playGameOver();
+  }
 }

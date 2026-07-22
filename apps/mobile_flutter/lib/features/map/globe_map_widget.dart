@@ -30,10 +30,30 @@ const _kZoomTotalMs = _kZoomInMs + _kHoldMs + _kZoomOutMs; // 6 900
 /// - Flag-strip tap: [globeTargetProvider] → 900 ms rotation snap, then
 ///   zoom-in to 2.0× (400 ms) → hold (5 s) → slow zoom-out to 1.0 (1 500 ms).
 ///   Auto-rotation resumes after the full zoom sequence. (M86)
+///
+/// [rotationNotifier] is set to `true` when the user begins a drag gesture and
+/// back to `false` on release — useful for sibling overlays that should hide
+/// during interaction (M169).
+///
+/// [onProjectionUpdated] is called once per frame (via post-frame callback)
+/// with the current [GlobeProjection] and canvas size — useful for sibling
+/// overlays that need to project lat/lng to screen coordinates (M169).
 class GlobeMapWidget extends ConsumerStatefulWidget {
-  const GlobeMapWidget({super.key, required this.onCountryTap});
+  const GlobeMapWidget({
+    super.key,
+    required this.onCountryTap,
+    this.rotationNotifier,
+    this.onProjectionUpdated,
+  });
 
   final void Function(String isoCode) onCountryTap;
+
+  /// Updated to `true` when a scale/drag gesture begins and `false` on end.
+  final ValueNotifier<bool>? rotationNotifier;
+
+  /// Called after each frame with the current projection + canvas size.
+  final void Function(GlobeProjection projection, Size canvasSize)?
+      onProjectionUpdated;
 
   @override
   ConsumerState<GlobeMapWidget> createState() => _GlobeMapWidgetState();
@@ -279,6 +299,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     _velocity = Offset.zero;
     _snapController.stop();
     _zoomController.stop();
+    widget.rotationNotifier?.value = true;
   }
 
   void _onScaleUpdate(ScaleUpdateDetails d) {
@@ -303,6 +324,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
   void _onScaleEnd(ScaleEndDetails d) {
     _isInteracting = false;
+    widget.rotationNotifier?.value = false;
     // Capture velocity in radians per SECOND, then convert to per TICK (approx).
     // Note: We integrate in _onRotationTick using dt.
     final pixelsPerSec = d.velocity.pixelsPerSecond;
@@ -489,6 +511,16 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     return LayoutBuilder(
       builder: (context, constraints) {
         _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+
+        // Notify sibling overlay of the current projection after each frame
+        // so it can position photo thumbnails accurately (M169).
+        if (widget.onProjectionUpdated != null) {
+          final snap = _projection;
+          final size = _canvasSize;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onProjectionUpdated!(snap, size);
+          });
+        }
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
 

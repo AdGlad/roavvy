@@ -358,29 +358,70 @@ class _TimelineStatsHeaderState extends State<_TimelineStatsHeader> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    final chipsRow = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _StatChip(
+          label: '${widget.stats.countryCount} countries',
+          icon: '🌍',
+        ),
+        _StatChip(
+          label: '${widget.stats.visitedContinents.length} continents',
+          icon: '🗺️',
+        ),
+        _StatChip(
+          label: 'Since ${widget.stats.sinceYear}',
+          icon: '📅',
+        ),
+      ],
+    );
+
+    final shareButton = OutlinedButton.icon(
+      onPressed: _isSharing ? null : _share,
+      icon: _isSharing
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: cs.primary,
+              ),
+            )
+          : const Icon(Icons.share_outlined, size: 16),
+      label: Text(_isSharing ? 'Sharing…' : 'Share your journey'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: cs.primary,
+        side: BorderSide(color: cs.primary.withValues(alpha: 0.5)),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        textStyle: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+
+    if (isLandscape) {
+      // Compact landscape layout: chips + share button side by side, no dot strip.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          children: [
+            Expanded(child: chipsRow),
+            const SizedBox(width: 12),
+            shareButton,
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Stat chips row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _StatChip(
-                label: '${widget.stats.countryCount} countries',
-                icon: '🌍',
-              ),
-              _StatChip(
-                label: '${widget.stats.visitedContinents.length} continents',
-                icon: '🗺️',
-              ),
-              _StatChip(
-                label: 'Since ${widget.stats.sinceYear}',
-                icon: '📅',
-              ),
-            ],
-          ),
+          chipsRow,
           const SizedBox(height: 10),
           // Continent dot strip
           Row(
@@ -391,37 +432,13 @@ class _TimelineStatsHeaderState extends State<_TimelineStatsHeader> {
                   continent: continent,
                   visited: widget.stats.visitedContinents.contains(continent),
                 ),
-                if (continent != _kAllContinents.last) const SizedBox(width: 8),
+                if (continent != _kAllContinents.last)
+                  const SizedBox(width: 8),
               ],
             ],
           ),
           const SizedBox(height: 12),
-          // Share CTA
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isSharing ? null : _share,
-              icon: _isSharing
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: cs.primary,
-                      ),
-                    )
-                  : const Icon(Icons.share_outlined, size: 16),
-              label: Text(_isSharing ? 'Sharing…' : 'Share your journey'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: cs.primary,
-                side: BorderSide(color: cs.primary.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                textStyle: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
+          SizedBox(width: double.infinity, child: shareButton),
         ],
       ),
     );

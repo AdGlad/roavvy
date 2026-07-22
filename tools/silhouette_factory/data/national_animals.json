@@ -1,0 +1,2401 @@
+{
+  "sources": [
+    "https://en.wikipedia.org/wiki/List_of_national_animals",
+    "https://www.flagpictures.com/countries/national-animals/"
+  ],
+  "retrieved": "2026-07-18",
+  "country_count": 214,
+  "countries": [
+    {
+      "country": "Afghanistan",
+      "iso2": "AF",
+      "wikipedia_animals": [
+        {
+          "name": "Snow leopard",
+          "scientific_name": "Panthera uncia",
+          "category": "national animal"
+        },
+        {
+          "name": "Abyssinian cat",
+          "scientific_name": "Felis catus",
+          "category": "national cat"
+        }
+      ],
+      "flagpictures_animal": "Snow Leopard"
+    },
+    {
+      "country": "Albania",
+      "iso2": "AL",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "The Golden Eagle"
+    },
+    {
+      "country": "Algeria",
+      "iso2": "DZ",
+      "wikipedia_animals": [
+        {
+          "name": "Fennec fox",
+          "scientific_name": "Vulpes zerda",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Fennec Fox"
+    },
+    {
+      "country": "American Samoa",
+      "iso2": "AS",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Fruit bats"
+    },
+    {
+      "country": "Andorra",
+      "iso2": "AD",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Cattle"
+    },
+    {
+      "country": "Angola",
+      "iso2": "AO",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Sable antelopes"
+    },
+    {
+      "country": "Antigua and Barbuda",
+      "iso2": "AG",
+      "wikipedia_animals": [
+        {
+          "name": "European fallow deer",
+          "scientific_name": "Dama dama",
+          "category": "national animal"
+        },
+        {
+          "name": "Frigatebird",
+          "scientific_name": "Fregata magnificens",
+          "category": "national bird"
+        },
+        {
+          "name": "Hawksbill turtle",
+          "scientific_name": "Eretmochelys imbricata",
+          "category": "national sea creature"
+        }
+      ],
+      "flagpictures_animal": "Fallow deer"
+    },
+    {
+      "country": "Argentina",
+      "iso2": "AR",
+      "wikipedia_animals": [
+        {
+          "name": "Rufous hornero",
+          "scientific_name": "Furnarius rufus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Rufous Hornero"
+    },
+    {
+      "country": "Armenia",
+      "iso2": "AM",
+      "wikipedia_animals": [
+        {
+          "name": "Golden eagle",
+          "scientific_name": "Aquila chrysaetos",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Eagle"
+    },
+    {
+      "country": "Aruba",
+      "iso2": "AW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Prikichi"
+    },
+    {
+      "country": "Australia",
+      "iso2": "AU",
+      "wikipedia_animals": [
+        {
+          "name": "Red kangaroo",
+          "scientific_name": "Macropus rufus",
+          "category": "national animal"
+        },
+        {
+          "name": "Emu",
+          "scientific_name": "Dromaius novaehollandiae",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Red Kangaroo"
+    },
+    {
+      "country": "Austria",
+      "iso2": "AT",
+      "wikipedia_animals": [
+        {
+          "name": "Austrian Bundesadler",
+          "scientific_name": null,
+          "category": "heraldic Federal Eagle (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Austria"
+    },
+    {
+      "country": "Azerbaijan",
+      "iso2": "AZ",
+      "wikipedia_animals": [
+        {
+          "name": "Karabakh horse",
+          "scientific_name": "Equus caballus",
+          "category": "national horse"
+        }
+      ],
+      "flagpictures_animal": "Karabakh horses"
+    },
+    {
+      "country": "Bahamas",
+      "iso2": "BS",
+      "wikipedia_animals": [
+        {
+          "name": "Blue marlin",
+          "scientific_name": "Makaira nigricans",
+          "category": "national fish"
+        },
+        {
+          "name": "Flamingo",
+          "scientific_name": "Phoenicopterus ruber",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Flamingo"
+    },
+    {
+      "country": "Bahrain",
+      "iso2": "BH",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian oryx"
+    },
+    {
+      "country": "Bangladesh",
+      "iso2": "BD",
+      "wikipedia_animals": [
+        {
+          "name": "Bengal tiger",
+          "scientific_name": "Panthera tigris tigris",
+          "category": "national animal"
+        },
+        {
+          "name": "Magpie robin",
+          "scientific_name": "Copsychus saularis",
+          "category": "national bird"
+        },
+        {
+          "name": "Ilish",
+          "scientific_name": "Tenualosa ilisha",
+          "category": "national fish"
+        }
+      ],
+      "flagpictures_animal": "Royal Bengal Tiger"
+    },
+    {
+      "country": "Barbados",
+      "iso2": "BB",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Mahi-mahi"
+    },
+    {
+      "country": "Belarus",
+      "iso2": "BY",
+      "wikipedia_animals": [
+        {
+          "name": "European bison",
+          "scientific_name": "Bison bonasus",
+          "category": null
+        }
+      ],
+      "flagpictures_animal": "European Bison"
+    },
+    {
+      "country": "Belgium",
+      "iso2": "BE",
+      "wikipedia_animals": [
+        {
+          "name": "Leo Belgicus",
+          "scientific_name": null,
+          "category": "heraldic Belgic lion (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Lion"
+    },
+    {
+      "country": "Belize",
+      "iso2": "BZ",
+      "wikipedia_animals": [
+        {
+          "name": "Baird's tapir",
+          "scientific_name": "Tapirus bairdii",
+          "category": "national animal"
+        },
+        {
+          "name": "Keel-billed toucan",
+          "scientific_name": "Ramphastos sulfuratus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Tapir"
+    },
+    {
+      "country": "Benin",
+      "iso2": "BJ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "African Leopard"
+    },
+    {
+      "country": "Bermuda",
+      "iso2": "BM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Bermuda petrel (Pterodroma cahow)"
+    },
+    {
+      "country": "Bhutan",
+      "iso2": "BT",
+      "wikipedia_animals": [
+        {
+          "name": "Druk",
+          "scientific_name": null,
+          "category": "national mythical creature"
+        },
+        {
+          "name": "Takin",
+          "scientific_name": "Budorcas taxicolor",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Takin"
+    },
+    {
+      "country": "Bolivia",
+      "iso2": "BO",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Andean condor"
+    },
+    {
+      "country": "Bosnia and Herzegovina",
+      "iso2": "BA",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Tornjak"
+    },
+    {
+      "country": "Botswana",
+      "iso2": "BW",
+      "wikipedia_animals": [
+        {
+          "name": "Plains zebra",
+          "scientific_name": "Equus quagga",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Zebra"
+    },
+    {
+      "country": "Brazil",
+      "iso2": "BR",
+      "wikipedia_animals": [
+        {
+          "name": "Jaguar",
+          "scientific_name": "Panthera onca",
+          "category": "national animal"
+        },
+        {
+          "name": "Rufous-bellied thrush",
+          "scientific_name": "Turdus rufiventris",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Jaguar"
+    },
+    {
+      "country": "British Indian Ocean Territory",
+      "iso2": "IO",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Striated Heron"
+    },
+    {
+      "country": "Brunei Darussalam",
+      "iso2": "BN",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "White-bellied Sea Eagle"
+    },
+    {
+      "country": "Bulgaria",
+      "iso2": "BG",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Lion"
+    },
+    {
+      "country": "Burkina Faso",
+      "iso2": "BF",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "African Horse"
+    },
+    {
+      "country": "Burundi",
+      "iso2": "BI",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Hyena"
+    },
+    {
+      "country": "Cabo Verde",
+      "iso2": "CV",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Manatees"
+    },
+    {
+      "country": "Cambodia",
+      "iso2": "KH",
+      "wikipedia_animals": [
+        {
+          "name": "Kouprey",
+          "scientific_name": "Bos sauveli",
+          "category": "national mammal"
+        },
+        {
+          "name": "Giant ibis",
+          "scientific_name": "Pseudibis gigantea",
+          "category": "national bird"
+        },
+        {
+          "name": "Northern river terrapin",
+          "scientific_name": "Batagur baska",
+          "category": "national reptile"
+        },
+        {
+          "name": "Giant barb",
+          "scientific_name": "Catlocarpio siamensis",
+          "category": "national fish"
+        }
+      ],
+      "flagpictures_animal": "Kouprey"
+    },
+    {
+      "country": "Cameroon",
+      "iso2": "CM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Lion"
+    },
+    {
+      "country": "Canada",
+      "iso2": "CA",
+      "wikipedia_animals": [
+        {
+          "name": "North American beaver",
+          "scientific_name": "Castor canadensis",
+          "category": "national animal"
+        },
+        {
+          "name": "Canadian horse",
+          "scientific_name": "Equus ferus caballus",
+          "category": "national horse"
+        }
+      ],
+      "flagpictures_animal": "Beaver"
+    },
+    {
+      "country": "Central African Republic",
+      "iso2": "CF",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "African Elephant"
+    },
+    {
+      "country": "Chad",
+      "iso2": "TD",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Goat"
+    },
+    {
+      "country": "Chile",
+      "iso2": "CL",
+      "wikipedia_animals": [
+        {
+          "name": "South Andean deer",
+          "scientific_name": "Hippocamelus bisulcus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Andean condor"
+    },
+    {
+      "country": "China",
+      "iso2": "CN",
+      "wikipedia_animals": [
+        {
+          "name": "Chinese dragon",
+          "scientific_name": null,
+          "category": "national mythical creature"
+        },
+        {
+          "name": "Giant panda",
+          "scientific_name": "Ailuropoda melanoleuca",
+          "category": "national animal"
+        },
+        {
+          "name": "Red-crowned crane",
+          "scientific_name": "Grus japonensis",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "giant panda"
+    },
+    {
+      "country": "Colombia",
+      "iso2": "CO",
+      "wikipedia_animals": [
+        {
+          "name": "Andean condor",
+          "scientific_name": "Vultur gryphus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Andean condors"
+    },
+    {
+      "country": "Comoros",
+      "iso2": "KM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Mongoose Lemur"
+    },
+    {
+      "country": "Cook Islands",
+      "iso2": "CK",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Pacific fruit bats"
+    },
+    {
+      "country": "Costa Rica",
+      "iso2": "CR",
+      "wikipedia_animals": [
+        {
+          "name": "Yigüirro (clay-colored thrush)",
+          "scientific_name": "Turdus grayi",
+          "category": "national bird"
+        },
+        {
+          "name": "White-tailed deer",
+          "scientific_name": "Odocoileus virginianus",
+          "category": "national animal"
+        },
+        {
+          "name": "West Indian manatee",
+          "scientific_name": "Trichechus manatus",
+          "category": "national aquatic animal"
+        },
+        {
+          "name": "Hoffmann's two-toed sloth",
+          "scientific_name": "Choloepus hoffmanni",
+          "category": "national animal"
+        },
+        {
+          "name": "Brown-throated three-toed sloth",
+          "scientific_name": "Bradypus variegatus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "White-tailed deer"
+    },
+    {
+      "country": "Croatia",
+      "iso2": "HR",
+      "wikipedia_animals": [
+        {
+          "name": "European pine marten",
+          "scientific_name": "Martes martes",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Marten"
+    },
+    {
+      "country": "Cuba",
+      "iso2": "CU",
+      "wikipedia_animals": [
+        {
+          "name": "Cuban trogon",
+          "scientific_name": "Priotelus temnurus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Cuban Trogon"
+    },
+    {
+      "country": "Curaçao",
+      "iso2": "CW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Flamingo"
+    },
+    {
+      "country": "Cyprus",
+      "iso2": "CY",
+      "wikipedia_animals": [
+        {
+          "name": "Cypriot mouflon",
+          "scientific_name": "Ovis orientalis",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Cypriot Mouflon"
+    },
+    {
+      "country": "Czech Republic",
+      "iso2": "CZ",
+      "wikipedia_animals": [
+        {
+          "name": "Double-tailed lion",
+          "scientific_name": null,
+          "category": "heraldic (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Double-tailed lion"
+    },
+    {
+      "country": "Côte d'Ivoire",
+      "iso2": "CI",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Elephants"
+    },
+    {
+      "country": "Democratic Republic of the Congo",
+      "iso2": "CD",
+      "wikipedia_animals": [
+        {
+          "name": "Okapi",
+          "scientific_name": "Okapia johnstoni",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Okapi"
+    },
+    {
+      "country": "Denmark",
+      "iso2": "DK",
+      "wikipedia_animals": [
+        {
+          "name": "Red squirrel",
+          "scientific_name": "Sciurus vulgaris",
+          "category": "national mammal"
+        },
+        {
+          "name": "Mute swan",
+          "scientific_name": "Cygnus olor",
+          "category": "national bird"
+        },
+        {
+          "name": "Small tortoiseshell",
+          "scientific_name": "Aglais urticae",
+          "category": "national butterfly"
+        }
+      ],
+      "flagpictures_animal": "Mute Swan"
+    },
+    {
+      "country": "Djibouti",
+      "iso2": "DJ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Elk"
+    },
+    {
+      "country": "Dominica",
+      "iso2": "DM",
+      "wikipedia_animals": [
+        {
+          "name": "Sisserou parrot",
+          "scientific_name": "Amazona imperialis",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Sisserou parrot"
+    },
+    {
+      "country": "Dominican Republic",
+      "iso2": "DO",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Palm Chat"
+    },
+    {
+      "country": "Ecuador",
+      "iso2": "EC",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Andean condor"
+    },
+    {
+      "country": "Egypt",
+      "iso2": "EG",
+      "wikipedia_animals": [
+        {
+          "name": "Steppe eagle",
+          "scientific_name": "Aquila nipalensis",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Steppe eagle"
+    },
+    {
+      "country": "El Salvador",
+      "iso2": "SV",
+      "wikipedia_animals": [
+        {
+          "name": "Turquoise-browed motmot",
+          "scientific_name": "Eumomota superciliosa",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Motmot"
+    },
+    {
+      "country": "Equatorial Guinea",
+      "iso2": "GQ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Giraffe"
+    },
+    {
+      "country": "Eritrea",
+      "iso2": "ER",
+      "wikipedia_animals": [
+        {
+          "name": "Arabian camel",
+          "scientific_name": "Camelus dromedarius",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Arabian camel"
+    },
+    {
+      "country": "Estonia",
+      "iso2": "EE",
+      "wikipedia_animals": [
+        {
+          "name": "Wolf",
+          "scientific_name": "Canis lupus",
+          "category": "national animal"
+        },
+        {
+          "name": "Barn swallow",
+          "scientific_name": "Hirundo rustica",
+          "category": "national bird"
+        },
+        {
+          "name": "Baltic herring",
+          "scientific_name": "Clupea harengus membras",
+          "category": "national fish"
+        },
+        {
+          "name": "Swallowtail",
+          "scientific_name": "Papilio machaon",
+          "category": "national butterfly"
+        }
+      ],
+      "flagpictures_animal": "Grey Wolf"
+    },
+    {
+      "country": "Eswatini",
+      "iso2": "SZ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Eswatini"
+    },
+    {
+      "country": "Ethiopia",
+      "iso2": "ET",
+      "wikipedia_animals": [
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Mighty lion"
+    },
+    {
+      "country": "Fiji",
+      "iso2": "FJ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Fiji banded iguana"
+    },
+    {
+      "country": "Finland",
+      "iso2": "FI",
+      "wikipedia_animals": [
+        {
+          "name": "Brown bear",
+          "scientific_name": "Ursus arctos",
+          "category": "national animal"
+        },
+        {
+          "name": "Whooper swan",
+          "scientific_name": "Cygnus cygnus",
+          "category": "national bird"
+        },
+        {
+          "name": "European perch",
+          "scientific_name": "Perca fluviatilis",
+          "category": "national fish"
+        },
+        {
+          "name": "Seven-spot ladybird",
+          "scientific_name": "Coccinella septempunctata",
+          "category": "national insect"
+        }
+      ],
+      "flagpictures_animal": "Brown Bear"
+    },
+    {
+      "country": "France",
+      "iso2": "FR",
+      "wikipedia_animals": [
+        {
+          "name": "Gallic rooster",
+          "scientific_name": "Gallus gallus domesticus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Gallic Rooster"
+    },
+    {
+      "country": "French Guiana",
+      "iso2": "GF",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "brocket deer"
+    },
+    {
+      "country": "Gabon",
+      "iso2": "GA",
+      "wikipedia_animals": [
+        {
+          "name": "African leopard (black panther)",
+          "scientific_name": "Panthera pardus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Black Panther"
+    },
+    {
+      "country": "Gambia",
+      "iso2": "GM",
+      "wikipedia_animals": [
+        {
+          "name": "Spotted hyena",
+          "scientific_name": "Crocuta crocuta",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Spotted hyena"
+    },
+    {
+      "country": "Georgia",
+      "iso2": "GE",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "White-Tailed Deer"
+    },
+    {
+      "country": "Germany",
+      "iso2": "DE",
+      "wikipedia_animals": [
+        {
+          "name": "Bundesadler",
+          "scientific_name": null,
+          "category": "heraldic Federal Eagle (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Black Eagle"
+    },
+    {
+      "country": "Ghana",
+      "iso2": "GH",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Tawny Eagle"
+    },
+    {
+      "country": "Greece",
+      "iso2": "GR",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Dolphin"
+    },
+    {
+      "country": "Grenada",
+      "iso2": "GD",
+      "wikipedia_animals": [
+        {
+          "name": "Grenada dove",
+          "scientific_name": "Leptotila wellsi",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Grenada Dove"
+    },
+    {
+      "country": "Guatemala",
+      "iso2": "GT",
+      "wikipedia_animals": [
+        {
+          "name": "Resplendent quetzal",
+          "scientific_name": "Pharomachrus mocinno",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Quetzal"
+    },
+    {
+      "country": "Guernsey",
+      "iso2": "GG",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Donkey"
+    },
+    {
+      "country": "Guinea",
+      "iso2": "GN",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "African Elephant"
+    },
+    {
+      "country": "Guinea-Bissau",
+      "iso2": "GW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Not Declared"
+    },
+    {
+      "country": "Guyana",
+      "iso2": "GY",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Jaguar"
+    },
+    {
+      "country": "Haiti",
+      "iso2": "HT",
+      "wikipedia_animals": [
+        {
+          "name": "Hispaniolan trogon",
+          "scientific_name": "Priotelus roseigaster",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Hispaniolan Trogons"
+    },
+    {
+      "country": "Holy See (Vatican City State)",
+      "iso2": "VA",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "-"
+    },
+    {
+      "country": "Honduras",
+      "iso2": "HN",
+      "wikipedia_animals": [
+        {
+          "name": "White-tailed deer",
+          "scientific_name": "Odocoileus virginianus",
+          "category": "national animal"
+        },
+        {
+          "name": "Scarlet macaw",
+          "scientific_name": "Ara macao",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "White-tailed Deer"
+    },
+    {
+      "country": "Hungary",
+      "iso2": "HU",
+      "wikipedia_animals": [
+        {
+          "name": "Turul",
+          "scientific_name": "Falco cherrug (probable basis)",
+          "category": "national mythical creature"
+        }
+      ],
+      "flagpictures_animal": "Turul"
+    },
+    {
+      "country": "Iceland",
+      "iso2": "IS",
+      "wikipedia_animals": [
+        {
+          "name": "Gyrfalcon",
+          "scientific_name": "Falco rusticolus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Gyrfalcon"
+    },
+    {
+      "country": "India",
+      "iso2": "IN",
+      "wikipedia_animals": [
+        {
+          "name": "Bengal tiger",
+          "scientific_name": "Panthera tigris tigris",
+          "category": "national animal"
+        },
+        {
+          "name": "Indian peafowl",
+          "scientific_name": "Pavo cristatus",
+          "category": "national bird"
+        },
+        {
+          "name": "Ganges river dolphin",
+          "scientific_name": "Platanista gangetica",
+          "category": "national aquatic animal"
+        },
+        {
+          "name": "Indian elephant",
+          "scientific_name": "Elephas maximus indicus",
+          "category": "national heritage animal"
+        }
+      ],
+      "flagpictures_animal": "Benaal tiger"
+    },
+    {
+      "country": "Indonesia",
+      "iso2": "ID",
+      "wikipedia_animals": [
+        {
+          "name": "Komodo dragon",
+          "scientific_name": "Varanus komodoensis",
+          "category": "national animal"
+        },
+        {
+          "name": "Javan hawk-eagle",
+          "scientific_name": "Nisaetus bartelsi",
+          "category": "national bird"
+        },
+        {
+          "name": "Asian arowana",
+          "scientific_name": "Scleropages formosus",
+          "category": "national fish"
+        }
+      ],
+      "flagpictures_animal": "Komodo dragon"
+    },
+    {
+      "country": "Iran",
+      "iso2": "IR",
+      "wikipedia_animals": [
+        {
+          "name": "Asiatic lion",
+          "scientific_name": "Panthera leo persica",
+          "category": "national animal"
+        },
+        {
+          "name": "Persian leopard",
+          "scientific_name": "Panthera pardus saxicolor",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Asiatic lion"
+    },
+    {
+      "country": "Iraq",
+      "iso2": "IQ",
+      "wikipedia_animals": [
+        {
+          "name": "Chukar partridge",
+          "scientific_name": "Alectoris chukar",
+          "category": "national bird"
+        },
+        {
+          "name": "Wild goat",
+          "scientific_name": "Capra aegagrus",
+          "category": "national animal (Kurdistan Region)"
+        }
+      ],
+      "flagpictures_animal": "Goat"
+    },
+    {
+      "country": "Ireland",
+      "iso2": "IE",
+      "wikipedia_animals": [
+        {
+          "name": "Mountain hare",
+          "scientific_name": "Lepus timidus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Irish hare"
+    },
+    {
+      "country": "Israel",
+      "iso2": "IL",
+      "wikipedia_animals": [
+        {
+          "name": "Eurasian hoopoe",
+          "scientific_name": "Upupa epops",
+          "category": "national bird"
+        },
+        {
+          "name": "Palestine viper",
+          "scientific_name": "Daboia palaestinae",
+          "category": "national snake"
+        },
+        {
+          "name": "Canaan Dog",
+          "scientific_name": "Canis familiaris",
+          "category": "national dog breed"
+        },
+        {
+          "name": "Deathstalker (common black scorpion)",
+          "scientific_name": "Nebo hierichonticus",
+          "category": "national scorpion"
+        },
+        {
+          "name": "Mountain gazelle",
+          "scientific_name": "Gazella gazella",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Israeli gazelle"
+    },
+    {
+      "country": "Italy",
+      "iso2": "IT",
+      "wikipedia_animals": [
+        {
+          "name": "Italian wolf",
+          "scientific_name": "Canis lupus italicus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Wolf"
+    },
+    {
+      "country": "Jamaica",
+      "iso2": "JM",
+      "wikipedia_animals": [
+        {
+          "name": "Red-billed streamertail",
+          "scientific_name": "Trochilus polytmus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "red-billed streamertail"
+    },
+    {
+      "country": "Japan",
+      "iso2": "JP",
+      "wikipedia_animals": [
+        {
+          "name": "Green pheasant",
+          "scientific_name": "Phasianus versicolor",
+          "category": "national bird"
+        },
+        {
+          "name": "Koi",
+          "scientific_name": "Cyprinus carpio",
+          "category": "national fish"
+        }
+      ],
+      "flagpictures_animal": "Green Pheasant"
+    },
+    {
+      "country": "Jordan",
+      "iso2": "JO",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian oryx"
+    },
+    {
+      "country": "Kazakhstan",
+      "iso2": "KZ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Golden eagle"
+    },
+    {
+      "country": "Kenya",
+      "iso2": "KE",
+      "wikipedia_animals": [
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Lions"
+    },
+    {
+      "country": "Kiribati",
+      "iso2": "KI",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Frigate bird"
+    },
+    {
+      "country": "Kuwait",
+      "iso2": "KW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian camel"
+    },
+    {
+      "country": "Kyrgyzstan",
+      "iso2": "KG",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "markhor goat"
+    },
+    {
+      "country": "Laos",
+      "iso2": "LA",
+      "wikipedia_animals": [
+        {
+          "name": "Asian elephant",
+          "scientific_name": "Elephas maximus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Indian elephant"
+    },
+    {
+      "country": "Latvia",
+      "iso2": "LV",
+      "wikipedia_animals": [
+        {
+          "name": "White wagtail",
+          "scientific_name": "Motacilla alba",
+          "category": "national bird"
+        },
+        {
+          "name": "Two-spotted ladybird",
+          "scientific_name": "Adalia bipunctata",
+          "category": "national insect"
+        }
+      ],
+      "flagpictures_animal": "White wagtail"
+    },
+    {
+      "country": "Lebanon",
+      "iso2": "LB",
+      "wikipedia_animals": [
+        {
+          "name": "Striped hyena",
+          "scientific_name": "Hyaena hyaena",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "striped hyena"
+    },
+    {
+      "country": "Lesotho",
+      "iso2": "LS",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "black rhino"
+    },
+    {
+      "country": "Liberia",
+      "iso2": "LR",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "lion"
+    },
+    {
+      "country": "Libya",
+      "iso2": "LY",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian Eagle"
+    },
+    {
+      "country": "Liechtenstein",
+      "iso2": "LI",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "kestrel"
+    },
+    {
+      "country": "Lithuania",
+      "iso2": "LT",
+      "wikipedia_animals": [
+        {
+          "name": "White stork",
+          "scientific_name": "Ciconia ciconia",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "white stork"
+    },
+    {
+      "country": "Luxembourg",
+      "iso2": "LU",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "lion"
+    },
+    {
+      "country": "Madagascar",
+      "iso2": "MG",
+      "wikipedia_animals": [
+        {
+          "name": "Zebu",
+          "scientific_name": "Bos primigenius indicus",
+          "category": "Malagasy heraldry"
+        },
+        {
+          "name": "Ring-tailed lemur",
+          "scientific_name": "Lemur catta",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "ring-tailed lemur"
+    },
+    {
+      "country": "Malawi",
+      "iso2": "MW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Thomson's gazelle"
+    },
+    {
+      "country": "Malaysia",
+      "iso2": "MY",
+      "wikipedia_animals": [
+        {
+          "name": "Malayan tiger",
+          "scientific_name": "Panthera tigris",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "The Malayan tiger"
+    },
+    {
+      "country": "Maldives",
+      "iso2": "MV",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "yellowfin tuna"
+    },
+    {
+      "country": "Mali",
+      "iso2": "ML",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Vulture"
+    },
+    {
+      "country": "Malta",
+      "iso2": "MT",
+      "wikipedia_animals": [
+        {
+          "name": "Pharaoh Hound",
+          "scientific_name": "Canis lupus familiaris",
+          "category": "national dog breed"
+        }
+      ],
+      "flagpictures_animal": "Pharaoh Hound"
+    },
+    {
+      "country": "Marshall Islands",
+      "iso2": "MH",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Black-footed Cat"
+    },
+    {
+      "country": "Mauritania",
+      "iso2": "MR",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Mauritania"
+    },
+    {
+      "country": "Mauritius",
+      "iso2": "MU",
+      "wikipedia_animals": [
+        {
+          "name": "Dodo",
+          "scientific_name": "Raphus cucullatus",
+          "category": "national bird and animal"
+        }
+      ],
+      "flagpictures_animal": "Dodo"
+    },
+    {
+      "country": "Mexico",
+      "iso2": "MX",
+      "wikipedia_animals": [
+        {
+          "name": "Golden eagle",
+          "scientific_name": "Aquila chrysaetos",
+          "category": "national bird and animal"
+        },
+        {
+          "name": "Xoloitzcuintli",
+          "scientific_name": "Canis lupus familiaris",
+          "category": "national dog breed"
+        },
+        {
+          "name": "Jaguar",
+          "scientific_name": "Panthera onca",
+          "category": "national mammal"
+        },
+        {
+          "name": "Grasshopper",
+          "scientific_name": "Sphenarium purpurascens",
+          "category": "national arthropod"
+        },
+        {
+          "name": "Vaquita",
+          "scientific_name": "Phocoena sinus",
+          "category": "national marine mammal"
+        }
+      ],
+      "flagpictures_animal": "eagle"
+    },
+    {
+      "country": "Micronesia",
+      "iso2": "FM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Chuuk Flying Fox"
+    },
+    {
+      "country": "Moldova",
+      "iso2": "MD",
+      "wikipedia_animals": [
+        {
+          "name": "Aurochs",
+          "scientific_name": "Bos primigenius",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Aurochs"
+    },
+    {
+      "country": "Monaco",
+      "iso2": "MC",
+      "wikipedia_animals": [
+        {
+          "name": "European hedgehog",
+          "scientific_name": "Erinaceus europaeus",
+          "category": "national animal"
+        },
+        {
+          "name": "European rabbit",
+          "scientific_name": "Oryctolagus cuniculus",
+          "category": "national animal"
+        },
+        {
+          "name": "Wood mouse",
+          "scientific_name": "Apodemus sylvaticus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "hedgehog"
+    },
+    {
+      "country": "Mongolia",
+      "iso2": "MN",
+      "wikipedia_animals": [
+        {
+          "name": "Przewalski's horse",
+          "scientific_name": "Equus ferus przewalskii",
+          "category": "national animal"
+        },
+        {
+          "name": "Saker falcon",
+          "scientific_name": "Falco cherrug",
+          "category": "national bird"
+        },
+        {
+          "name": "Gobi bear",
+          "scientific_name": "Ursus arctos gobiensis",
+          "category": "national pride animal"
+        }
+      ],
+      "flagpictures_animal": "Przewalski Horse"
+    },
+    {
+      "country": "Montenegro",
+      "iso2": "ME",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Double-headed eagles"
+    },
+    {
+      "country": "Morocco",
+      "iso2": "MA",
+      "wikipedia_animals": [
+        {
+          "name": "Barbary lion",
+          "scientific_name": "Panthera leo leo",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Barbary lions"
+    },
+    {
+      "country": "Mozambique",
+      "iso2": "MZ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "African elephant"
+    },
+    {
+      "country": "Myanmar",
+      "iso2": "MM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "green peafowl"
+    },
+    {
+      "country": "Namibia",
+      "iso2": "NA",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Oryx"
+    },
+    {
+      "country": "Nauru",
+      "iso2": "NR",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Great Frigatebird"
+    },
+    {
+      "country": "Nepal",
+      "iso2": "NP",
+      "wikipedia_animals": [
+        {
+          "name": "Cow",
+          "scientific_name": "Bos indicus",
+          "category": "national animal"
+        },
+        {
+          "name": "Himalayan monal",
+          "scientific_name": "Lophophorus impejanus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Cow"
+    },
+    {
+      "country": "Netherlands",
+      "iso2": "NL",
+      "wikipedia_animals": [
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "heraldic symbol"
+        },
+        {
+          "name": "Black-tailed godwit",
+          "scientific_name": "Limosa limosa",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Asiatic Lion"
+    },
+    {
+      "country": "New Zealand",
+      "iso2": "NZ",
+      "wikipedia_animals": [
+        {
+          "name": "Kiwi",
+          "scientific_name": "Apteryx sp.",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "kiwi"
+    },
+    {
+      "country": "Nicaragua",
+      "iso2": "NI",
+      "wikipedia_animals": [
+        {
+          "name": "Turquoise-browed motmot",
+          "scientific_name": "Eumomota superciliosa",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Guardabarranco"
+    },
+    {
+      "country": "Niger",
+      "iso2": "NE",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Dama gazelle"
+    },
+    {
+      "country": "Nigeria",
+      "iso2": "NG",
+      "wikipedia_animals": [
+        {
+          "name": "Eagle",
+          "scientific_name": "Accipitridae",
+          "category": "national animal"
+        },
+        {
+          "name": "Black crowned crane",
+          "scientific_name": "Balearica pavonina",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Eagle"
+    },
+    {
+      "country": "Niue",
+      "iso2": "NU",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Niue Blue Nacaduba niueensis (butterfly)"
+    },
+    {
+      "country": "Norfolk Island",
+      "iso2": "NF",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "The Green Parrot"
+    },
+    {
+      "country": "North Korea",
+      "iso2": "KP",
+      "wikipedia_animals": [
+        {
+          "name": "Qianlima (chollima)",
+          "scientific_name": null,
+          "category": "national mythical creature"
+        },
+        {
+          "name": "Pungsan dog",
+          "scientific_name": "Canis familiaris",
+          "category": "national dog"
+        },
+        {
+          "name": "Korean magpie",
+          "scientific_name": "Pica serica",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "winged horse Chollima"
+    },
+    {
+      "country": "North Macedonia",
+      "iso2": "MK",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Lion"
+    },
+    {
+      "country": "Northern Mariana Islands",
+      "iso2": "MP",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Mariana fruit dove"
+    },
+    {
+      "country": "Norway",
+      "iso2": "NO",
+      "wikipedia_animals": [
+        {
+          "name": "Eurasian elk / moose",
+          "scientific_name": "Alces alces",
+          "category": "national animal"
+        },
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "royal national animal"
+        },
+        {
+          "name": "White-throated dipper",
+          "scientific_name": "Cinclus cinclus",
+          "category": "national bird"
+        },
+        {
+          "name": "Fjord horse",
+          "scientific_name": "Equus ferus caballus",
+          "category": "national horse"
+        }
+      ],
+      "flagpictures_animal": "Moose"
+    },
+    {
+      "country": "Oman",
+      "iso2": "OM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian oryx"
+    },
+    {
+      "country": "Pakistan",
+      "iso2": "PK",
+      "wikipedia_animals": [
+        {
+          "name": "Markhor",
+          "scientific_name": "Capra falconeri",
+          "category": "national animal"
+        },
+        {
+          "name": "Indus river dolphin",
+          "scientific_name": "Platanista minor",
+          "category": "national aquatic mammal"
+        },
+        {
+          "name": "Chukar",
+          "scientific_name": "Alectoris chukar",
+          "category": "national bird"
+        },
+        {
+          "name": "Mugger crocodile",
+          "scientific_name": "Crocodylus palustris",
+          "category": "national reptile"
+        },
+        {
+          "name": "Shaheen falcon",
+          "scientific_name": "Falco peregrinus peregrinator",
+          "category": "heritage bird"
+        },
+        {
+          "name": "Snow leopard",
+          "scientific_name": "Panthera uncia",
+          "category": "national predator"
+        }
+      ],
+      "flagpictures_animal": "markhor"
+    },
+    {
+      "country": "Palau",
+      "iso2": "PW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Palau fruit dove"
+    },
+    {
+      "country": "Palestine",
+      "iso2": "PS",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Gazelle"
+    },
+    {
+      "country": "Panama",
+      "iso2": "PA",
+      "wikipedia_animals": [
+        {
+          "name": "Harpy eagle",
+          "scientific_name": "Harpia harpyja",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Panamanian golden frog"
+    },
+    {
+      "country": "Papua New Guinea",
+      "iso2": "PG",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "New Guinea"
+    },
+    {
+      "country": "Paraguay",
+      "iso2": "PY",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "pampas fox"
+    },
+    {
+      "country": "Peru",
+      "iso2": "PE",
+      "wikipedia_animals": [
+        {
+          "name": "Vicuña",
+          "scientific_name": "Vicugna vicugna",
+          "category": "national animal"
+        },
+        {
+          "name": "Andean cock-of-the-rock",
+          "scientific_name": "Rupicola peruviana",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "vicuñas"
+    },
+    {
+      "country": "Philippines",
+      "iso2": "PH",
+      "wikipedia_animals": [
+        {
+          "name": "Carabao",
+          "scientific_name": "Bubalus bubalis",
+          "category": "national animal"
+        },
+        {
+          "name": "Philippine eagle",
+          "scientific_name": "Pithecophaga jefferyi",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Carabao"
+    },
+    {
+      "country": "Pitcairn Islands",
+      "iso2": "PN",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "bird"
+    },
+    {
+      "country": "Poland",
+      "iso2": "PL",
+      "wikipedia_animals": [
+        {
+          "name": "White-tailed eagle",
+          "scientific_name": "Haliaeetus albicilla",
+          "category": "national bird"
+        },
+        {
+          "name": "White stork",
+          "scientific_name": "Ciconia ciconia",
+          "category": "national bird"
+        },
+        {
+          "name": "European bison",
+          "scientific_name": "Bison bonasus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "European Bison"
+    },
+    {
+      "country": "Portugal",
+      "iso2": "PT",
+      "wikipedia_animals": [
+        {
+          "name": "Dragon",
+          "scientific_name": null,
+          "category": "traditional coat of arms / national animal (mythical)"
+        },
+        {
+          "name": "Cock of Barcelos",
+          "scientific_name": null,
+          "category": "national bird (mythical)"
+        },
+        {
+          "name": "Iberian wolf",
+          "scientific_name": "Canis lupus signatus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Iberian wolf"
+    },
+    {
+      "country": "Qatar",
+      "iso2": "QA",
+      "wikipedia_animals": [
+        {
+          "name": "Arabian oryx",
+          "scientific_name": "Oryx leucoryx",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Arabian oryx"
+    },
+    {
+      "country": "Republic of the Congo",
+      "iso2": "CG",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Okapi"
+    },
+    {
+      "country": "Romania",
+      "iso2": "RO",
+      "wikipedia_animals": [
+        {
+          "name": "Eurasian lynx",
+          "scientific_name": "Lynx lynx",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Eurasian lynx"
+    },
+    {
+      "country": "Russia",
+      "iso2": "RU",
+      "wikipedia_animals": [
+        {
+          "name": "Eurasian brown bear",
+          "scientific_name": "Ursus arctos arctos",
+          "category": "national animal"
+        },
+        {
+          "name": "Double-headed eagle",
+          "scientific_name": null,
+          "category": "traditional coat of arms (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Bear"
+    },
+    {
+      "country": "Rwanda",
+      "iso2": "RW",
+      "wikipedia_animals": [
+        {
+          "name": "Leopard",
+          "scientific_name": "Panthera pardus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Leopard"
+    },
+    {
+      "country": "Saint Kitts and Nevis",
+      "iso2": "KN",
+      "wikipedia_animals": [
+        {
+          "name": "Brown pelican",
+          "scientific_name": "Pelecanus occidentalis",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "brown pelican"
+    },
+    {
+      "country": "Saint Lucia",
+      "iso2": "LC",
+      "wikipedia_animals": [
+        {
+          "name": "Saint Lucia amazon",
+          "scientific_name": "Amazona versicolor",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Kaimite fruit"
+    },
+    {
+      "country": "Saint Martin",
+      "iso2": "MF",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "pelican"
+    },
+    {
+      "country": "Saint Pierre and Miquelon",
+      "iso2": "PM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Grey Dolphin"
+    },
+    {
+      "country": "Saint Vincent and the Grenadines",
+      "iso2": "VC",
+      "wikipedia_animals": [
+        {
+          "name": "Saint Vincent amazon",
+          "scientific_name": "Amazona guildingii",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Saint Vincent parrot"
+    },
+    {
+      "country": "Samoa",
+      "iso2": "WS",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "whale"
+    },
+    {
+      "country": "San Marino",
+      "iso2": "SM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "whale"
+    },
+    {
+      "country": "Sao Tome and Principe",
+      "iso2": "ST",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Sao Tome Shrew"
+    },
+    {
+      "country": "Saudi Arabia",
+      "iso2": "SA",
+      "wikipedia_animals": [
+        {
+          "name": "Arabian camel",
+          "scientific_name": "Camelus dromedarius",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Camel"
+    },
+    {
+      "country": "Senegal",
+      "iso2": "SN",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Lions"
+    },
+    {
+      "country": "Serbia",
+      "iso2": "RS",
+      "wikipedia_animals": [
+        {
+          "name": "Wolf",
+          "scientific_name": "Canis lupus lupus",
+          "category": "national animal"
+        },
+        {
+          "name": "White eagle",
+          "scientific_name": null,
+          "category": "traditional coat of arms (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Gray Wolf"
+    },
+    {
+      "country": "Seychelles",
+      "iso2": "SC",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "flying foxes"
+    },
+    {
+      "country": "Sierra Leone",
+      "iso2": "SL",
+      "wikipedia_animals": [
+        {
+          "name": "Chimpanzee",
+          "scientific_name": "Pan troglodytes",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Chimpanzee"
+    },
+    {
+      "country": "Singapore",
+      "iso2": "SG",
+      "wikipedia_animals": [
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Asiatic Lion"
+    },
+    {
+      "country": "Slovakia",
+      "iso2": "SK",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Czech lion"
+    },
+    {
+      "country": "Slovenia",
+      "iso2": "SI",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Carniolan honey bee"
+    },
+    {
+      "country": "Solomon Islands",
+      "iso2": "SB",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Hawksbill turtle"
+    },
+    {
+      "country": "Somalia",
+      "iso2": "SO",
+      "wikipedia_animals": [
+        {
+          "name": "Leopard",
+          "scientific_name": "Panthera pardus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Leopard"
+    },
+    {
+      "country": "South Africa",
+      "iso2": "ZA",
+      "wikipedia_animals": [
+        {
+          "name": "Springbok",
+          "scientific_name": "Antidorcas marsupialis",
+          "category": "national animal"
+        },
+        {
+          "name": "Blue crane",
+          "scientific_name": "Anthropoides paradiseus",
+          "category": "national bird"
+        },
+        {
+          "name": "Galjoen",
+          "scientific_name": "Dichistius capensis",
+          "category": "national fish"
+        }
+      ],
+      "flagpictures_animal": "springbok"
+    },
+    {
+      "country": "South Korea",
+      "iso2": "KR",
+      "wikipedia_animals": [
+        {
+          "name": "Siberian tiger",
+          "scientific_name": "Panthera tigris altaica",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Amur Tiger"
+    },
+    {
+      "country": "South Sudan",
+      "iso2": "SS",
+      "wikipedia_animals": [
+        {
+          "name": "African fish eagle",
+          "scientific_name": "Haliaeetus vocifer",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "African fish eagle"
+    },
+    {
+      "country": "Spain",
+      "iso2": "ES",
+      "wikipedia_animals": [
+        {
+          "name": "Bull",
+          "scientific_name": "Bos taurus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "bull"
+    },
+    {
+      "country": "Sri Lanka",
+      "iso2": "LK",
+      "wikipedia_animals": [
+        {
+          "name": "Grizzled giant squirrel",
+          "scientific_name": "Ratufa macroura",
+          "category": "national animal"
+        },
+        {
+          "name": "Sri Lankan junglefowl",
+          "scientific_name": "Gallus lafayettii",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Lions"
+    },
+    {
+      "country": "Sudan",
+      "iso2": "SD",
+      "wikipedia_animals": [
+        {
+          "name": "Secretarybird",
+          "scientific_name": "Sagittarius serpentarius",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Sudan Cheetah"
+    },
+    {
+      "country": "Suriname",
+      "iso2": "SR",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Jaguarundi"
+    },
+    {
+      "country": "Sweden",
+      "iso2": "SE",
+      "wikipedia_animals": [
+        {
+          "name": "Eurasian elk / moose",
+          "scientific_name": "Alces alces",
+          "category": "national animal"
+        },
+        {
+          "name": "Common blackbird",
+          "scientific_name": "Turdus merula",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Moose"
+    },
+    {
+      "country": "Switzerland",
+      "iso2": "CH",
+      "wikipedia_animals": [
+        {
+          "name": "Cow",
+          "scientific_name": "Bos taurus",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "St. Bernhard dog"
+    },
+    {
+      "country": "Syrian Arab Republic",
+      "iso2": "SY",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Syrian Brown Bear"
+    },
+    {
+      "country": "Taiwan, Province of China",
+      "iso2": "TW",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Formosan black bear"
+    },
+    {
+      "country": "Tajikistan",
+      "iso2": "TJ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Ovis ammon polii"
+    },
+    {
+      "country": "Tanzania",
+      "iso2": "TZ",
+      "wikipedia_animals": [
+        {
+          "name": "Giraffe",
+          "scientific_name": "Giraffa sp.",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Masai giraffe"
+    },
+    {
+      "country": "Thailand",
+      "iso2": "TH",
+      "wikipedia_animals": [
+        {
+          "name": "Asian elephant",
+          "scientific_name": "Elephas maximus",
+          "category": "national animal"
+        },
+        {
+          "name": "Siamese fighting fish",
+          "scientific_name": "Betta splendens",
+          "category": "national aquatic animal"
+        }
+      ],
+      "flagpictures_animal": "elephants"
+    },
+    {
+      "country": "Timor-Leste",
+      "iso2": "TL",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Crocodile"
+    },
+    {
+      "country": "Togo",
+      "iso2": "TG",
+      "wikipedia_animals": [
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Lion"
+    },
+    {
+      "country": "Tonga",
+      "iso2": "TO",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Flying fox"
+    },
+    {
+      "country": "Trinidad and Tobago",
+      "iso2": "TT",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "scarlet ibis"
+    },
+    {
+      "country": "Tunisia",
+      "iso2": "TN",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian Camel"
+    },
+    {
+      "country": "Turkey",
+      "iso2": "TR",
+      "wikipedia_animals": [
+        {
+          "name": "Gray wolf",
+          "scientific_name": "Canis lupus",
+          "category": "national animal"
+        },
+        {
+          "name": "Kangal Shepherd Dog",
+          "scientific_name": "Canis lupus familiaris",
+          "category": "national dog"
+        },
+        {
+          "name": "Turkish Angora",
+          "scientific_name": "Felis catus",
+          "category": "national cat"
+        }
+      ],
+      "flagpictures_animal": "Gray wolf"
+    },
+    {
+      "country": "Turkmenistan",
+      "iso2": "TM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Alabay dog"
+    },
+    {
+      "country": "Tuvalu",
+      "iso2": "TV",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Not selected by Tavalu"
+    },
+    {
+      "country": "Uganda",
+      "iso2": "UG",
+      "wikipedia_animals": [
+        {
+          "name": "Grey crowned crane",
+          "scientific_name": "Balearica regulorum",
+          "category": "national bird"
+        },
+        {
+          "name": "Ugandan kob",
+          "scientific_name": "Kobus kob thomasi",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Uganda Kob"
+    },
+    {
+      "country": "Ukraine",
+      "iso2": "UA",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Nightingal"
+    },
+    {
+      "country": "United Arab Emirates",
+      "iso2": "AE",
+      "wikipedia_animals": [
+        {
+          "name": "Saker falcon",
+          "scientific_name": "Falco cherrug",
+          "category": "national bird"
+        },
+        {
+          "name": "Arabian oryx",
+          "scientific_name": "Oryx leucoryx",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Arabian oryx"
+    },
+    {
+      "country": "United Kingdom",
+      "iso2": "GB",
+      "wikipedia_animals": [
+        {
+          "name": "Bulldog",
+          "scientific_name": "Canis lupus familiaris",
+          "category": "Britain, as \"British Bulldog\""
+        },
+        {
+          "name": "Lion",
+          "scientific_name": "Panthera leo",
+          "category": "England"
+        },
+        {
+          "name": "Red kite",
+          "scientific_name": "Milvus milvus",
+          "category": "Wales"
+        },
+        {
+          "name": "Unicorn",
+          "scientific_name": null,
+          "category": "Scotland (mythical)"
+        },
+        {
+          "name": "Y Ddraig Goch (Red Dragon)",
+          "scientific_name": null,
+          "category": "Wales (mythical)"
+        }
+      ],
+      "flagpictures_animal": "Lion"
+    },
+    {
+      "country": "United States",
+      "iso2": "US",
+      "wikipedia_animals": [
+        {
+          "name": "Bald eagle",
+          "scientific_name": "Haliaeetus leucocephalus",
+          "category": "national bird"
+        },
+        {
+          "name": "American bison",
+          "scientific_name": "Bison bison",
+          "category": "national mammal"
+        }
+      ],
+      "flagpictures_animal": "Bison"
+    },
+    {
+      "country": "Uruguay",
+      "iso2": "UY",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "southern lapwing"
+    },
+    {
+      "country": "Uzbekistan",
+      "iso2": "UZ",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Turkestan Sand Cat"
+    },
+    {
+      "country": "Vanuatu",
+      "iso2": "VU",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "The Iguana"
+    },
+    {
+      "country": "Venezuela",
+      "iso2": "VE",
+      "wikipedia_animals": [
+        {
+          "name": "Venezuelan troupial",
+          "scientific_name": "Icterus icterus",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Venezuelan troupial"
+    },
+    {
+      "country": "Vietnam",
+      "iso2": "VN",
+      "wikipedia_animals": [
+        {
+          "name": "Water buffalo",
+          "scientific_name": "Bubalus bubalis",
+          "category": "national animal"
+        }
+      ],
+      "flagpictures_animal": "Water Buffalo"
+    },
+    {
+      "country": "Virgin Islands, British",
+      "iso2": "VG",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "mourning dove"
+    },
+    {
+      "country": "Virgin Islands, U.S.",
+      "iso2": "VI",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Bats"
+    },
+    {
+      "country": "Western Sahara",
+      "iso2": "EH",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "addax"
+    },
+    {
+      "country": "Yemen",
+      "iso2": "YE",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "Arabian Leopard"
+    },
+    {
+      "country": "Zambia",
+      "iso2": "ZM",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "African Fish Eagle"
+    },
+    {
+      "country": "Zimbabwe",
+      "iso2": "ZW",
+      "wikipedia_animals": [
+        {
+          "name": "Sable antelope",
+          "scientific_name": "Hippotragus niger",
+          "category": "national animal"
+        },
+        {
+          "name": "African fish eagle",
+          "scientific_name": "Haliaeetus vocifer",
+          "category": "national bird"
+        }
+      ],
+      "flagpictures_animal": "Sable Antelope"
+    },
+    {
+      "country": "Åland Islands",
+      "iso2": "AX",
+      "wikipedia_animals": null,
+      "flagpictures_animal": "White-tailed eagle"
+    }
+  ]
+}

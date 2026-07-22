@@ -12,6 +12,7 @@ import 'core/theme/theme_mode_provider.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/legal/terms_screen.dart';
 import 'features/onboarding/onboarding_flow.dart';
+import 'features/shared/quokka/quokka_preview_screen.dart';
 import 'features/shell/main_shell.dart';
 import 'features/web/landing_page.dart';
 
@@ -27,6 +28,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: notifier,
     redirect: (context, state) {
+      if (kDebugMode) {
+        // temp: skip auth gate for visual review
+        if (state.uri.path == '/') return '/app';
+        return null;
+      }
       if (notifier.isLoading) return null;
       final path = state.uri.path;
 
@@ -44,6 +50,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const SignInScreen(),
+      ),
+      // DEV-ONLY: remove before shipping
+      GoRoute(
+        path: '/dev/quokka',
+        builder: (context, state) => const QuokkaPreviewScreen(),
       ),
       GoRoute(
         path: '/app',

@@ -14,6 +14,10 @@ class RemoteConfigService {
   /// should invalidate purchasing providers when this fires.
   static final onUpdate = StreamController<void>.broadcast();
 
+  /// Fast path: only local work (settings + defaults) is awaited. The network
+  /// fetch runs in the background so a slow or broken connection can never
+  /// delay [runApp]. Defaults are fail-open, so the store stays functional
+  /// until the fetch lands; providers are refreshed via [onUpdate].
   static Future<void> initialise() async {
     final rc = FirebaseRemoteConfig.instance;
     await rc.setConfigSettings(RemoteConfigSettings(
@@ -36,10 +40,15 @@ class RemoteConfigService {
       'purchasing_enabled_word_cloud': true,
       'purchasing_enabled_landmark': true,
     });
-    // Best-effort fetch — failure is silent; the default keeps the store open.
-    try {
-      await rc.fetchAndActivate();
-    } catch (_) {}
+
+    // Background fetch — never blocks startup. Notify listeners when fresh
+    // values activate so purchasing providers re-read them.
+    unawaited(() async {
+      try {
+        final activated = await rc.fetchAndActivate();
+        if (activated) onUpdate.add(null);
+      } catch (_) {}
+    }());
 
     // Real-time listener: Firebase pushes changes instantly, bypassing the
     // 1-hour minimum fetch interval. When a new value arrives, activate it

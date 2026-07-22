@@ -6679,6 +6679,272 @@ class ChallengeStatsTableCompanion extends UpdateCompanion<ChallengeStatsRow> {
   }
 }
 
+class $PhotoGpsCacheTable extends PhotoGpsCache
+    with TableInfo<$PhotoGpsCacheTable, PhotoGpsCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PhotoGpsCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _assetIdMeta = const VerificationMeta(
+    'assetId',
+  );
+  @override
+  late final GeneratedColumn<String> assetId = GeneratedColumn<String>(
+    'asset_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _latMeta = const VerificationMeta('lat');
+  @override
+  late final GeneratedColumn<double> lat = GeneratedColumn<double>(
+    'lat',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lngMeta = const VerificationMeta('lng');
+  @override
+  late final GeneratedColumn<double> lng = GeneratedColumn<double>(
+    'lng',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [assetId, lat, lng];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'photo_gps_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PhotoGpsCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('asset_id')) {
+      context.handle(
+        _assetIdMeta,
+        assetId.isAcceptableOrUnknown(data['asset_id']!, _assetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_assetIdMeta);
+    }
+    if (data.containsKey('lat')) {
+      context.handle(
+        _latMeta,
+        lat.isAcceptableOrUnknown(data['lat']!, _latMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_latMeta);
+    }
+    if (data.containsKey('lng')) {
+      context.handle(
+        _lngMeta,
+        lng.isAcceptableOrUnknown(data['lng']!, _lngMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lngMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {assetId};
+  @override
+  PhotoGpsCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PhotoGpsCacheRow(
+      assetId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}asset_id'],
+          )!,
+      lat:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}lat'],
+          )!,
+      lng:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}lng'],
+          )!,
+    );
+  }
+
+  @override
+  $PhotoGpsCacheTable createAlias(String alias) {
+    return $PhotoGpsCacheTable(attachedDatabase, alias);
+  }
+}
+
+class PhotoGpsCacheRow extends DataClass
+    implements Insertable<PhotoGpsCacheRow> {
+  final String assetId;
+  final double lat;
+  final double lng;
+  const PhotoGpsCacheRow({
+    required this.assetId,
+    required this.lat,
+    required this.lng,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['asset_id'] = Variable<String>(assetId);
+    map['lat'] = Variable<double>(lat);
+    map['lng'] = Variable<double>(lng);
+    return map;
+  }
+
+  PhotoGpsCacheCompanion toCompanion(bool nullToAbsent) {
+    return PhotoGpsCacheCompanion(
+      assetId: Value(assetId),
+      lat: Value(lat),
+      lng: Value(lng),
+    );
+  }
+
+  factory PhotoGpsCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PhotoGpsCacheRow(
+      assetId: serializer.fromJson<String>(json['assetId']),
+      lat: serializer.fromJson<double>(json['lat']),
+      lng: serializer.fromJson<double>(json['lng']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'assetId': serializer.toJson<String>(assetId),
+      'lat': serializer.toJson<double>(lat),
+      'lng': serializer.toJson<double>(lng),
+    };
+  }
+
+  PhotoGpsCacheRow copyWith({String? assetId, double? lat, double? lng}) =>
+      PhotoGpsCacheRow(
+        assetId: assetId ?? this.assetId,
+        lat: lat ?? this.lat,
+        lng: lng ?? this.lng,
+      );
+  PhotoGpsCacheRow copyWithCompanion(PhotoGpsCacheCompanion data) {
+    return PhotoGpsCacheRow(
+      assetId: data.assetId.present ? data.assetId.value : this.assetId,
+      lat: data.lat.present ? data.lat.value : this.lat,
+      lng: data.lng.present ? data.lng.value : this.lng,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PhotoGpsCacheRow(')
+          ..write('assetId: $assetId, ')
+          ..write('lat: $lat, ')
+          ..write('lng: $lng')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(assetId, lat, lng);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PhotoGpsCacheRow &&
+          other.assetId == this.assetId &&
+          other.lat == this.lat &&
+          other.lng == this.lng);
+}
+
+class PhotoGpsCacheCompanion extends UpdateCompanion<PhotoGpsCacheRow> {
+  final Value<String> assetId;
+  final Value<double> lat;
+  final Value<double> lng;
+  final Value<int> rowid;
+  const PhotoGpsCacheCompanion({
+    this.assetId = const Value.absent(),
+    this.lat = const Value.absent(),
+    this.lng = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PhotoGpsCacheCompanion.insert({
+    required String assetId,
+    required double lat,
+    required double lng,
+    this.rowid = const Value.absent(),
+  }) : assetId = Value(assetId),
+       lat = Value(lat),
+       lng = Value(lng);
+  static Insertable<PhotoGpsCacheRow> custom({
+    Expression<String>? assetId,
+    Expression<double>? lat,
+    Expression<double>? lng,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (assetId != null) 'asset_id': assetId,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PhotoGpsCacheCompanion copyWith({
+    Value<String>? assetId,
+    Value<double>? lat,
+    Value<double>? lng,
+    Value<int>? rowid,
+  }) {
+    return PhotoGpsCacheCompanion(
+      assetId: assetId ?? this.assetId,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (assetId.present) {
+      map['asset_id'] = Variable<String>(assetId.value);
+    }
+    if (lat.present) {
+      map['lat'] = Variable<double>(lat.value);
+    }
+    if (lng.present) {
+      map['lng'] = Variable<double>(lng.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PhotoGpsCacheCompanion(')
+          ..write('assetId: $assetId, ')
+          ..write('lat: $lat, ')
+          ..write('lng: $lng, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RoavvyDatabase extends GeneratedDatabase {
   _$RoavvyDatabase(QueryExecutor e) : super(e);
   $RoavvyDatabaseManager get managers => $RoavvyDatabaseManager(this);
@@ -6705,6 +6971,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
       $DailyChallengeProgressTableTable(this);
   late final $ChallengeStatsTableTable challengeStatsTable =
       $ChallengeStatsTableTable(this);
+  late final $PhotoGpsCacheTable photoGpsCache = $PhotoGpsCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6724,6 +6991,7 @@ abstract class _$RoavvyDatabase extends GeneratedDatabase {
     visitedHeritageSites,
     dailyChallengeProgressTable,
     challengeStatsTable,
+    photoGpsCache,
   ];
 }
 
@@ -10333,6 +10601,185 @@ typedef $$ChallengeStatsTableTableProcessedTableManager =
       ChallengeStatsRow,
       PrefetchHooks Function()
     >;
+typedef $$PhotoGpsCacheTableCreateCompanionBuilder =
+    PhotoGpsCacheCompanion Function({
+      required String assetId,
+      required double lat,
+      required double lng,
+      Value<int> rowid,
+    });
+typedef $$PhotoGpsCacheTableUpdateCompanionBuilder =
+    PhotoGpsCacheCompanion Function({
+      Value<String> assetId,
+      Value<double> lat,
+      Value<double> lng,
+      Value<int> rowid,
+    });
+
+class $$PhotoGpsCacheTableFilterComposer
+    extends Composer<_$RoavvyDatabase, $PhotoGpsCacheTable> {
+  $$PhotoGpsCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lat => $composableBuilder(
+    column: $table.lat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lng => $composableBuilder(
+    column: $table.lng,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PhotoGpsCacheTableOrderingComposer
+    extends Composer<_$RoavvyDatabase, $PhotoGpsCacheTable> {
+  $$PhotoGpsCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get assetId => $composableBuilder(
+    column: $table.assetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lat => $composableBuilder(
+    column: $table.lat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lng => $composableBuilder(
+    column: $table.lng,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PhotoGpsCacheTableAnnotationComposer
+    extends Composer<_$RoavvyDatabase, $PhotoGpsCacheTable> {
+  $$PhotoGpsCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get assetId =>
+      $composableBuilder(column: $table.assetId, builder: (column) => column);
+
+  GeneratedColumn<double> get lat =>
+      $composableBuilder(column: $table.lat, builder: (column) => column);
+
+  GeneratedColumn<double> get lng =>
+      $composableBuilder(column: $table.lng, builder: (column) => column);
+}
+
+class $$PhotoGpsCacheTableTableManager
+    extends
+        RootTableManager<
+          _$RoavvyDatabase,
+          $PhotoGpsCacheTable,
+          PhotoGpsCacheRow,
+          $$PhotoGpsCacheTableFilterComposer,
+          $$PhotoGpsCacheTableOrderingComposer,
+          $$PhotoGpsCacheTableAnnotationComposer,
+          $$PhotoGpsCacheTableCreateCompanionBuilder,
+          $$PhotoGpsCacheTableUpdateCompanionBuilder,
+          (
+            PhotoGpsCacheRow,
+            BaseReferences<
+              _$RoavvyDatabase,
+              $PhotoGpsCacheTable,
+              PhotoGpsCacheRow
+            >,
+          ),
+          PhotoGpsCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$PhotoGpsCacheTableTableManager(
+    _$RoavvyDatabase db,
+    $PhotoGpsCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$PhotoGpsCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () =>
+                  $$PhotoGpsCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$PhotoGpsCacheTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> assetId = const Value.absent(),
+                Value<double> lat = const Value.absent(),
+                Value<double> lng = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PhotoGpsCacheCompanion(
+                assetId: assetId,
+                lat: lat,
+                lng: lng,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String assetId,
+                required double lat,
+                required double lng,
+                Value<int> rowid = const Value.absent(),
+              }) => PhotoGpsCacheCompanion.insert(
+                assetId: assetId,
+                lat: lat,
+                lng: lng,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PhotoGpsCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RoavvyDatabase,
+      $PhotoGpsCacheTable,
+      PhotoGpsCacheRow,
+      $$PhotoGpsCacheTableFilterComposer,
+      $$PhotoGpsCacheTableOrderingComposer,
+      $$PhotoGpsCacheTableAnnotationComposer,
+      $$PhotoGpsCacheTableCreateCompanionBuilder,
+      $$PhotoGpsCacheTableUpdateCompanionBuilder,
+      (
+        PhotoGpsCacheRow,
+        BaseReferences<_$RoavvyDatabase, $PhotoGpsCacheTable, PhotoGpsCacheRow>,
+      ),
+      PhotoGpsCacheRow,
+      PrefetchHooks Function()
+    >;
 
 class $RoavvyDatabaseManager {
   final _$RoavvyDatabase _db;
@@ -10369,4 +10816,6 @@ class $RoavvyDatabaseManager {
       );
   $$ChallengeStatsTableTableTableManager get challengeStatsTable =>
       $$ChallengeStatsTableTableTableManager(_db, _db.challengeStatsTable);
+  $$PhotoGpsCacheTableTableManager get photoGpsCache =>
+      $$PhotoGpsCacheTableTableManager(_db, _db.photoGpsCache);
 }

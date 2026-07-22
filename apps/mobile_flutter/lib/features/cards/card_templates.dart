@@ -506,7 +506,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       widget.clipShape == GridClipShape.countryOutline ||
       widget.clipShape == GridClipShape.continentOutline ||
       widget.clipShape == GridClipShape.animalSilhouette ||
-      widget.clipShape == GridClipShape.plantSilhouette;
+      widget.clipShape == GridClipShape.plantSilhouette ||
+      widget.clipShape == GridClipShape.landmarkSilhouette;
 
   @override
   void initState() {
@@ -566,6 +567,12 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
         });
       case GridClipShape.plantSilhouette:
         AnimalSilhouetteService.plantPathFor(code).then((path) {
+          if (!mounted) return;
+          if (path != null) setState(() => _outlinePath = path);
+          _onOutlineLoaded();
+        });
+      case GridClipShape.landmarkSilhouette:
+        AnimalSilhouetteService.landmarkPathFor(code).then((path) {
           if (!mounted) return;
           if (path != null) setState(() => _outlinePath = path);
           _onOutlineLoaded();
@@ -743,6 +750,7 @@ Path _clipPathFor(
           .shift(Offset(0, topOffset));
     case GridClipShape.plantSilhouette:
     case GridClipShape.animalSilhouette:
+    case GridClipShape.landmarkSilhouette:
       if (outlinePath != null) {
         // Scale from actual path bounds with a generous inset so that
         // wide-wingspan shapes (e.g. bald eagle) are comfortably inside

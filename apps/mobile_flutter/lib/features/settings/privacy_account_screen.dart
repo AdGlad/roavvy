@@ -243,6 +243,14 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
               ? const Center(child: CircularProgressIndicator())
               : ListView(
                 children: [
+                  _SectionHeader('Map'),
+                  SwitchListTile(
+                    title: const Text('Show photos on map'),
+                    subtitle: const Text('Display your photos at their GPS location'),
+                    value: ref.watch(showPhotoThumbnailsProvider),
+                    onChanged: (v) =>
+                        ref.read(showPhotoThumbnailsProvider.notifier).state = v,
+                  ),
                   _SectionHeader('Sharing'),
                   _shareToken != null
                       ? _activeShareTile()

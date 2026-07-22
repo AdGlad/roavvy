@@ -19,6 +19,7 @@ import '../data/heritage_repository.dart';
 import '../data/level_up_repository.dart';
 import '../data/milestone_repository.dart';
 import '../data/db/roavvy_database.dart';
+import '../data/photo_gps_repository.dart';
 import '../data/region_repository.dart';
 import '../data/trip_repository.dart';
 import '../data/visit_repository.dart';
@@ -39,6 +40,7 @@ import '../data/daily_challenge_repository.dart';
 import '../features/challenge/daily_challenge_service.dart';
 import '../features/challenge/daily_challenge_notifier.dart';
 import '../features/challenge/daily_challenge_stats.dart';
+import '../features/map/photo_gps_fetch_service.dart';
 
 /// True when Image Playground (Apple Intelligence) is available on this device.
 /// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
@@ -69,14 +71,20 @@ final startupCompleteProvider = FutureProvider<void>((ref) async {
   // FirebaseAuth.instance.currentUser is populated synchronously after
   // Firebase.initializeApp() in main.dart; safe to read here.
   final uid = FirebaseAuth.instance.currentUser?.uid;
+  // ignore: avoid_print
+  print('[roavvy-startup] startup-provider: uid=${uid != null}');
 
   // 1. Restore Firestore data if this is a fresh install (ADR-160).
   if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
+    // ignore: avoid_print
+    print('[roavvy-startup] startup-provider: restoring from Firestore');
     await FirestoreRestoreService(db: db).restore(uid);
   }
 
   // 2. Synthesise one trip per country for pre-v6 users (ADR-048).
   await bootstrapExistingUser(visitRepo, tripRepo, regionRepo: regionRepo);
+  // ignore: avoid_print
+  print('[roavvy-startup] startup-provider: complete');
 
   // 3. Flush dirty rows to Firestore (fire-and-forget).
   if (uid != null) {
@@ -243,7 +251,8 @@ final thisYearCountryCountProvider = FutureProvider<int>((ref) async {
 final yearFilterProvider = StateProvider<int?>((ref) => null);
 
 /// Whether the globe map is active. true = globe (default). (ADR-116)
-final globeModeProvider = StateProvider<bool>((ref) => true);
+// ignore: avoid_redundant_argument_values
+final globeModeProvider = StateProvider<bool>((ref) => false); // temp: flat for review
 
 /// When true the globe idles without auto-spinning so the user can inspect
 /// heritage sites. Manual drag and snap animations still work normally.
@@ -595,3 +604,50 @@ final unescoNearbyProvider =
     AsyncNotifierProvider<UnescoNearbyNotifier, UnescoNearbyState>(
   UnescoNearbyNotifier.new,
 );
+
+// ── Photo GPS cache & map thumbnails (M167–M170) ─────────────────────────────
+
+/// Whether photo thumbnails are shown on the map (M170).
+/// Defaults true. Toggled from the settings screen.
+final showPhotoThumbnailsProvider = StateProvider<bool>((ref) => true);
+
+/// Current flat-map viewport, updated via [MapOptions.onPositionChanged].
+/// null until the map first moves. Used by [MapPhotoStrip].
+typedef MapViewport = ({
+  double north,
+  double south,
+  double east,
+  double west
+});
+
+final mapViewportProvider = StateProvider<MapViewport?>((ref) => null);
+
+final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
+  (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),
+);
+
+final photoGpsFetchServiceProvider = Provider<PhotoGpsFetchService>(
+  (ref) => PhotoGpsFetchService(
+    db: ref.watch(roavvyDatabaseProvider),
+    repo: ref.watch(photoGpsRepositoryProvider),
+  ),
+);
+
+/// Triggers a background GPS fetch whenever the map screen is active (M155).
+///
+/// autoDispose so it re-runs each time the map tab is re-entered, picking up
+/// photos added by a new scan. [fetchAndCache] is idempotent — already-cached
+/// assets are skipped, so re-running after nothing changed is cheap.
+/// Invalidates [photoLocationsProvider] after completion.
+final photoGpsFetchProvider = FutureProvider.autoDispose<void>((ref) async {
+  await ref.read(photoGpsFetchServiceProvider).fetchAndCache();
+  ref.invalidate(photoLocationsProvider);
+});
+
+/// All cached GPS locations for geotagged photos.
+///
+/// Populated after [photoGpsFetchProvider] completes. Empty on first launch
+/// until the background fetch runs (M155).
+final photoLocationsProvider = FutureProvider<List<PhotoLocation>>((ref) {
+  return ref.watch(photoGpsRepositoryProvider).loadAll();
+});

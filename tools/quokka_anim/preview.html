@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quokka Mascot — Animation Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1a2e;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #f5c842;
+    letter-spacing: -0.5px;
+  }
+  p.sub { color: #888; font-size: 0.85rem; margin-bottom: 28px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover, .card.active {
+    border-color: #f5c842;
+    box-shadow: 0 0 16px rgba(245,200,66,0.2);
+  }
+  .card .label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #f5c842;
+  }
+  .card .meta {
+    font-size: 0.72rem;
+    color: #666;
+  }
+  .card .tag {
+    font-size: 0.7rem;
+    background: #0f3460;
+    padding: 3px 8px;
+    border-radius: 99px;
+    color: #88aaff;
+  }
+  lottie-player {
+    background: #222;
+    border-radius: 10px;
+  }
+  #status {
+    margin-top: 20px;
+    font-size: 0.8rem;
+    color: #555;
+  }
+</style>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+</head>
+<body>
+
+<h1>Roavvy Quokka — Animation Preview</h1>
+<p class="sub">
+  Click any card to focus. Animations load from <code>assets/lottie/</code> via
+  relative path — open this file from <code>tools/quokka_anim/</code> in a local server
+  or serve the repo root with <code>python3 -m http.server</code> then visit
+  <code>http://localhost:8000/tools/quokka_anim/preview.html</code>.
+</p>
+
+<div class="grid" id="grid"></div>
+<p id="status">Loading animations…</p>
+
+<script>
+const ANIMS = [
+  { id: 'idle',      label: 'Idle',      tag: 'loops',    src: '../../apps/mobile_flutter/assets/lottie/quokka_idle.json',      fps: 30, frames: 90  },
+  { id: 'wave',      label: 'Wave',      tag: 'one-shot', src: '../../apps/mobile_flutter/assets/lottie/quokka_wave.json',      fps: 30, frames: 45  },
+  { id: 'dance',     label: 'Dance',     tag: 'one-shot', src: '../../apps/mobile_flutter/assets/lottie/quokka_dance.json',     fps: 30, frames: 60  },
+  { id: 'celebrate', label: 'Celebrate', tag: 'one-shot', src: '../../apps/mobile_flutter/assets/lottie/quokka_celebrate.json', fps: 30, frames: 60  },
+  { id: 'walk',      label: 'Walk',      tag: 'loops',    src: '../../apps/mobile_flutter/assets/lottie/quokka_walk.json',      fps: 30, frames: 45  },
+  { id: 'point',     label: 'Point',     tag: 'one-shot', src: '../../apps/mobile_flutter/assets/lottie/quokka_point.json',     fps: 30, frames: 60  },
+  { id: 'think',     label: 'Think',     tag: 'loops',    src: '../../apps/mobile_flutter/assets/lottie/quokka_think.json',     fps: 30, frames: 60  },
+];
+
+const grid = document.getElementById('grid');
+const status = document.getElementById('status');
+let loaded = 0;
+
+ANIMS.forEach(a => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + a.id;
+
+  const isLoop = a.tag === 'loops';
+  const dur = (a.frames / a.fps).toFixed(1);
+
+  card.innerHTML = `
+    <lottie-player
+      id="lp-${a.id}"
+      src="${a.src}"
+      background="transparent"
+      speed="1"
+      style="width:160px;height:160px"
+      ${isLoop ? 'loop autoplay' : 'autoplay'}
+    ></lottie-player>
+    <span class="label">${a.label}</span>
+    <span class="tag">${a.tag}</span>
+    <span class="meta">${a.frames} frames · ${dur}s · 30fps</span>
+  `;
+
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    const player = document.getElementById('lp-' + a.id);
+    player.stop();
+    player.play();
+  });
+
+  const player = card.querySelector('lottie-player');
+  player.addEventListener('load', () => {
+    loaded++;
+    status.textContent = `${loaded} / ${ANIMS.length} animations loaded`;
+    if (loaded === ANIMS.length) {
+      status.textContent = `All ${ANIMS.length} animations loaded ✓`;
+    }
+  });
+  player.addEventListener('error', (e) => {
+    status.textContent = `Error loading ${a.label} — check console`;
+    console.error(a.label, e);
+  });
+
+  grid.appendChild(card);
+});
+</script>
+
+</body>
+</html>

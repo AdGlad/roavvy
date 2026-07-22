@@ -1,872 +1,1492 @@
 {
+  "AD": {
+    "name": "Cattle",
+    "slug": "cattle",
+    "plant_name": "Narcissus poeticus",
+    "plant_slug": "narcissus_poeticus",
+    "landmark_name": "Casa de la Vall",
+    "landmark_slug": "casa_de_la_vall"
+  },
   "AE": {
-    "name": "Peregrine falcon",
+    "name": "Saker falcon",
+    "slug": "saker_falcon",
     "plant_name": "Date palm",
     "plant_slug": "date_palm",
-    "slug": "peregrine_falcon"
+    "landmark_name": "Burj Khalifa",
+    "landmark_slug": "burj_khalifa"
   },
   "AF": {
     "name": "Snow leopard",
+    "slug": "snow_leopard",
     "plant_name": "Tulip",
     "plant_slug": "tulip",
-    "slug": "snow_leopard"
+    "landmark_name": "Blue Mosque of Mazar-i-Sharif",
+    "landmark_slug": "blue_mosque_of_mazar_i_sharif"
   },
   "AG": {
-    "name": "Fallow deer",
-    "plant_name": "Dagger log wood",
-    "plant_slug": "dagger_log_wood",
-    "slug": "fallow_deer"
+    "name": "European fallow deer",
+    "slug": "european_fallow_deer",
+    "plant_name": "Agave karatto",
+    "plant_slug": "agave_karatto",
+    "landmark_name": "Nelson's Dockyard",
+    "landmark_slug": "nelson_s_dockyard"
   },
   "AL": {
-    "name": "Golden eagle",
-    "plant_name": "Olive",
-    "plant_slug": "olive",
-    "slug": "golden_eagle"
+    "name": "Golden Eagle",
+    "slug": "golden_eagle",
+    "plant_name": "Red poppy",
+    "plant_slug": "red_poppy",
+    "landmark_name": "Rozafa Castle",
+    "landmark_slug": "rozafa_castle"
   },
   "AM": {
     "name": "Golden eagle",
-    "plant_name": "Apricot tree",
-    "plant_slug": "apricot_tree",
-    "slug": "golden_eagle"
+    "slug": "golden_eagle",
+    "plant_name": "Apricot",
+    "plant_slug": "apricot",
+    "landmark_name": "Mount Ararat",
+    "landmark_slug": "mount_ararat"
   },
   "AO": {
-    "name": "Sable antelope",
-    "plant_name": "Welwitschia",
-    "plant_slug": "welwitschia",
-    "slug": "sable_antelope"
+    "name": "Sable antelopes",
+    "slug": "sable_antelopes",
+    "landmark_name": "Fortress of São Miguel",
+    "landmark_slug": "fortress_of_s_o_miguel"
   },
   "AR": {
     "name": "Rufous hornero",
-    "plant_name": "Ceibo",
-    "plant_slug": "ceibo",
-    "slug": "rufous_hornero"
+    "slug": "rufous_hornero",
+    "plant_name": "Ceibo flower",
+    "plant_slug": "ceibo_flower",
+    "landmark_name": "Obelisco de Buenos Aires",
+    "landmark_slug": "obelisco_de_buenos_aires"
+  },
+  "AS": {
+    "name": "Fruit bats",
+    "slug": "fruit_bats",
+    "landmark_name": "Pago Pago Harbor",
+    "landmark_slug": "pago_pago_harbor"
   },
   "AT": {
-    "name": "Barn swallow",
+    "name": "Alpine ibex",
+    "slug": "alpine_ibex",
     "plant_name": "Edelweiss",
     "plant_slug": "edelweiss",
-    "slug": "barn_swallow"
+    "landmark_name": "Schönbrunn Palace",
+    "landmark_slug": "sch_nbrunn_palace"
   },
   "AU": {
     "name": "Red kangaroo",
+    "slug": "red_kangaroo",
     "plant_name": "Golden wattle",
     "plant_slug": "golden_wattle",
-    "slug": "red_kangaroo"
+    "landmark_name": "Sydney Opera House",
+    "landmark_slug": "sydney_opera_house"
+  },
+  "AW": {
+    "name": "Prikichi",
+    "slug": "prikichi",
+    "landmark_name": "California Lighthouse",
+    "landmark_slug": "california_lighthouse"
+  },
+  "AX": {
+    "name": "White-tailed eagle",
+    "slug": "white_tailed_eagle",
+    "landmark_name": "Kastelholm Castle",
+    "landmark_slug": "kastelholm_castle"
   },
   "AZ": {
     "name": "Karabakh horse",
-    "plant_name": "Pomegranate",
-    "plant_slug": "pomegranate",
-    "slug": "karabakh_horse"
+    "slug": "karabakh_horse",
+    "landmark_name": "Flame Towers",
+    "landmark_slug": "flame_towers"
   },
   "BA": {
-    "name": "Brown bear",
-    "plant_name": "Lilium bosniacum",
-    "plant_slug": "lilium_bosniacum",
-    "slug": "brown_bear"
+    "name": "Tornjak",
+    "slug": "tornjak",
+    "landmark_name": "Stari Most",
+    "landmark_slug": "stari_most"
   },
   "BB": {
-    "name": "Brown pelican",
+    "name": "Mahi-mahi",
+    "slug": "mahi_mahi",
     "plant_name": "Pride of Barbados",
     "plant_slug": "pride_of_barbados",
-    "slug": "brown_pelican"
+    "landmark_name": "Bridgetown Garrison",
+    "landmark_slug": "bridgetown_garrison"
   },
   "BD": {
-    "name": "Royal Bengal tiger",
-    "plant_name": "Water lily",
-    "plant_slug": "water_lily",
-    "slug": "royal_bengal_tiger"
+    "name": "Bengal tiger",
+    "slug": "bengal_tiger",
+    "plant_name": "Water lily (shapla)",
+    "plant_slug": "water_lily_shapla",
+    "landmark_name": "Lalbagh Fort",
+    "landmark_slug": "lalbagh_fort"
   },
   "BE": {
     "name": "Lion",
-    "plant_name": "Red poppy",
-    "plant_slug": "red_poppy",
-    "slug": "lion"
+    "slug": "lion",
+    "plant_name": "Flanders poppy",
+    "plant_slug": "flanders_poppy",
+    "landmark_name": "Atomium",
+    "landmark_slug": "atomium"
   },
   "BF": {
-    "name": "Stallion",
-    "plant_name": "Rose",
-    "plant_slug": "rose",
-    "slug": "stallion"
+    "name": "African Horse",
+    "slug": "african_horse",
+    "landmark_name": "Grand Mosque of Bobo-Dioulasso",
+    "landmark_slug": "grand_mosque_of_bobo_dioulasso"
   },
   "BG": {
-    "name": "Balkan chamois",
-    "plant_name": "Damask rose",
-    "plant_slug": "damask_rose",
-    "slug": "balkan_chamois"
+    "name": "Lion",
+    "slug": "lion",
+    "plant_name": "Rose (Rose Valley)",
+    "plant_slug": "rose_rose_valley",
+    "landmark_name": "Alexander Nevsky Cathedral",
+    "landmark_slug": "alexander_nevsky_cathedral"
   },
   "BH": {
     "name": "Arabian oryx",
-    "plant_name": "Date palm",
-    "plant_slug": "date_palm",
-    "slug": "arabian_oryx"
+    "slug": "arabian_oryx",
+    "landmark_name": "Al Fateh Grand Mosque",
+    "landmark_slug": "al_fateh_grand_mosque"
+  },
+  "BI": {
+    "name": "Hyena",
+    "slug": "hyena",
+    "landmark_name": "Source of the Nile monument",
+    "landmark_slug": "source_of_the_nile_monument"
+  },
+  "BJ": {
+    "name": "African Leopard",
+    "slug": "african_leopard",
+    "landmark_name": "Ganvié stilt village",
+    "landmark_slug": "ganvi_stilt_village"
+  },
+  "BM": {
+    "name": "Bermuda petrel (Pterodroma cahow)",
+    "slug": "bermuda_petrel_pterodroma_cahow",
+    "landmark_name": "Gibbs Hill Lighthouse",
+    "landmark_slug": "gibbs_hill_lighthouse"
   },
   "BN": {
-    "name": "White-bellied sea eagle",
-    "plant_name": "Simpor",
-    "plant_slug": "simpor",
-    "slug": "white_bellied_sea_eagle"
+    "name": "White-bellied Sea Eagle",
+    "slug": "white_bellied_sea_eagle",
+    "plant_name": "Simpoh Ayer",
+    "plant_slug": "simpoh_ayer",
+    "landmark_name": "Sultan Omar Ali Saifuddin Mosque",
+    "landmark_slug": "sultan_omar_ali_saifuddin_mosque"
   },
   "BO": {
-    "name": "Llama",
+    "name": "Andean condor",
+    "slug": "andean_condor",
     "plant_name": "Kantuta",
     "plant_slug": "kantuta",
-    "slug": "llama"
+    "landmark_name": "Tiwanaku",
+    "landmark_slug": "tiwanaku"
   },
   "BR": {
-    "name": "Rufous-bellied thrush",
-    "plant_name": "Cattleya labiata",
-    "plant_slug": "cattleya_labiata",
-    "slug": "rufous_bellied_thrush"
+    "name": "Jaguar",
+    "slug": "jaguar",
+    "plant_name": "Golden trumpet tree flower (ipê-amarelo)",
+    "plant_slug": "golden_trumpet_tree_flower_ip_amarelo",
+    "landmark_name": "Christ the Redeemer",
+    "landmark_slug": "christ_the_redeemer"
   },
   "BS": {
-    "name": "Flamingo",
+    "name": "Blue marlin",
+    "slug": "blue_marlin",
     "plant_name": "Yellow elder",
     "plant_slug": "yellow_elder",
-    "slug": "flamingo"
+    "landmark_name": "Atlantis Paradise Island",
+    "landmark_slug": "atlantis_paradise_island"
   },
   "BT": {
-    "name": "Takin",
+    "name": "Druk",
+    "slug": "druk",
     "plant_name": "Blue poppy",
     "plant_slug": "blue_poppy",
-    "slug": "takin"
+    "landmark_name": "Paro Taktsang (Tiger's Nest)",
+    "landmark_slug": "paro_taktsang_tiger_s_nest"
   },
   "BW": {
     "name": "Plains zebra",
-    "plant_name": "Mokolwane palm",
-    "plant_slug": "mokolwane_palm",
-    "slug": "plains_zebra"
+    "slug": "plains_zebra",
+    "landmark_name": "Tsodilo Hills",
+    "landmark_slug": "tsodilo_hills"
   },
   "BY": {
     "name": "European bison",
-    "plant_name": "Flax",
-    "plant_slug": "flax",
-    "slug": "european_bison"
+    "slug": "european_bison",
+    "plant_name": "Flax flower",
+    "plant_slug": "flax_flower",
+    "landmark_name": "Mir Castle",
+    "landmark_slug": "mir_castle"
   },
   "BZ": {
     "name": "Baird's tapir",
+    "slug": "baird_s_tapir",
     "plant_name": "Black orchid",
     "plant_slug": "black_orchid",
-    "slug": "baird_s_tapir"
+    "landmark_name": "Xunantunich",
+    "landmark_slug": "xunantunich"
   },
   "CA": {
-    "name": "Beaver",
-    "plant_name": "Sugar maple",
-    "plant_slug": "sugar_maple",
-    "slug": "beaver"
+    "name": "North American beaver",
+    "slug": "north_american_beaver",
+    "plant_name": "Maple leaf",
+    "plant_slug": "maple_leaf",
+    "landmark_name": "CN Tower",
+    "landmark_slug": "cn_tower"
   },
   "CD": {
     "name": "Okapi",
-    "plant_name": "Kapok tree",
-    "plant_slug": "kapok_tree",
-    "slug": "okapi"
+    "slug": "okapi",
+    "landmark_name": "Virunga National Park",
+    "landmark_slug": "virunga_national_park"
   },
   "CF": {
-    "name": "Elephant",
-    "plant_name": "Kapok tree",
-    "plant_slug": "kapok_tree",
-    "slug": "elephant"
+    "name": "African Elephant",
+    "slug": "african_elephant",
+    "landmark_name": "Dzanga-Sangha rainforest",
+    "landmark_slug": "dzanga_sangha_rainforest"
+  },
+  "CG": {
+    "name": "Okapi",
+    "slug": "okapi",
+    "landmark_name": "Congo River rapids",
+    "landmark_slug": "congo_river_rapids"
   },
   "CH": {
     "name": "Cow",
+    "slug": "cow",
     "plant_name": "Edelweiss",
     "plant_slug": "edelweiss",
-    "slug": "cow"
+    "landmark_name": "Matterhorn",
+    "landmark_slug": "matterhorn"
+  },
+  "CI": {
+    "name": "Elephants",
+    "slug": "elephants",
+    "plant_name": "Cocoa pod",
+    "plant_slug": "cocoa_pod",
+    "landmark_name": "Basilica of Our Lady of Peace",
+    "landmark_slug": "basilica_of_our_lady_of_peace"
+  },
+  "CK": {
+    "name": "Pacific fruit bats",
+    "slug": "pacific_fruit_bats",
+    "landmark_name": "Aitutaki Lagoon",
+    "landmark_slug": "aitutaki_lagoon"
   },
   "CL": {
-    "name": "Andean condor",
+    "name": "South Andean deer",
+    "slug": "south_andean_deer",
     "plant_name": "Copihue",
     "plant_slug": "copihue",
-    "slug": "andean_condor"
+    "landmark_name": "Moai of Easter Island",
+    "landmark_slug": "moai_of_easter_island"
   },
   "CM": {
     "name": "Lion",
-    "plant_name": "Ebony",
-    "plant_slug": "ebony",
-    "slug": "lion"
+    "slug": "lion",
+    "landmark_name": "Mount Cameroon",
+    "landmark_slug": "mount_cameroon"
   },
   "CN": {
     "name": "Giant panda",
-    "plant_name": "Plum blossom",
-    "plant_slug": "plum_blossom",
-    "slug": "giant_panda"
+    "slug": "giant_panda",
+    "plant_name": "Peony",
+    "plant_slug": "peony",
+    "landmark_name": "Great Wall of China",
+    "landmark_slug": "great_wall_of_china"
   },
   "CO": {
     "name": "Andean condor",
-    "plant_name": "Cattleya trianae",
-    "plant_slug": "cattleya_trianae",
-    "slug": "andean_condor"
+    "slug": "andean_condor",
+    "plant_name": "Cattleya trianae orchid",
+    "plant_slug": "cattleya_trianae_orchid",
+    "landmark_name": "Cocora Valley wax palms",
+    "landmark_slug": "cocora_valley_wax_palms"
   },
   "CR": {
-    "name": "White-tailed deer",
-    "plant_name": "Guaria morada",
-    "plant_slug": "guaria_morada",
-    "slug": "white_tailed_deer"
+    "name": "Yigüirro (clay-colored thrush)",
+    "slug": "yig_irro_clay_colored_thrush",
+    "plant_name": "Guaria morada orchid",
+    "plant_slug": "guaria_morada_orchid",
+    "landmark_name": "Arenal Volcano",
+    "landmark_slug": "arenal_volcano"
   },
   "CU": {
     "name": "Cuban trogon",
-    "plant_name": "Mariposa jasmine",
-    "plant_slug": "mariposa_jasmine",
-    "slug": "cuban_trogon"
+    "slug": "cuban_trogon",
+    "plant_name": "White ginger lily",
+    "plant_slug": "white_ginger_lily",
+    "landmark_name": "El Morro Castle",
+    "landmark_slug": "el_morro_castle"
+  },
+  "CV": {
+    "name": "Manatees",
+    "slug": "manatees",
+    "landmark_name": "Pico do Fogo",
+    "landmark_slug": "pico_do_fogo"
+  },
+  "CW": {
+    "name": "Flamingo",
+    "slug": "flamingo",
+    "landmark_name": "Handelskade, Willemstad",
+    "landmark_slug": "handelskade_willemstad"
   },
   "CY": {
-    "name": "Mouflon",
-    "plant_name": "Rose of Sharon",
-    "plant_slug": "rose_of_sharon",
-    "slug": "mouflon"
+    "name": "Cypriot mouflon",
+    "slug": "cypriot_mouflon",
+    "landmark_name": "Kourion amphitheatre",
+    "landmark_slug": "kourion_amphitheatre"
   },
   "CZ": {
-    "name": "Double-tailed lion",
-    "plant_name": "Linden tree",
-    "plant_slug": "linden_tree",
-    "slug": "double_tailed_lion"
+    "name": "Eurasian lynx",
+    "slug": "eurasian_lynx",
+    "plant_name": "Linden leaf",
+    "plant_slug": "linden_leaf",
+    "landmark_name": "Prague Castle",
+    "landmark_slug": "prague_castle"
   },
   "DE": {
-    "name": "Black eagle",
-    "plant_name": "Cornflower",
-    "plant_slug": "cornflower",
-    "slug": "black_eagle"
+    "name": "Black Eagle",
+    "slug": "black_eagle",
+    "plant_name": "Oak leaf",
+    "plant_slug": "oak_leaf",
+    "landmark_name": "Neuschwanstein Castle",
+    "landmark_slug": "neuschwanstein_castle"
+  },
+  "DJ": {
+    "name": "Elk",
+    "slug": "elk",
+    "landmark_name": "Lake Assal",
+    "landmark_slug": "lake_assal"
   },
   "DK": {
-    "name": "Mute swan",
-    "plant_name": "Marguerite daisy",
-    "plant_slug": "marguerite_daisy",
-    "slug": "mute_swan"
+    "name": "Red squirrel",
+    "slug": "red_squirrel",
+    "landmark_name": "Kronborg Castle",
+    "landmark_slug": "kronborg_castle"
   },
   "DM": {
     "name": "Sisserou parrot",
-    "plant_name": "Bwa kwaib",
-    "plant_slug": "bwa_kwaib",
-    "slug": "sisserou_parrot"
+    "slug": "sisserou_parrot",
+    "plant_name": "Carib wood (Sabinea carinalis)",
+    "plant_slug": "carib_wood_sabinea_carinalis",
+    "landmark_name": "Trafalgar Falls",
+    "landmark_slug": "trafalgar_falls"
   },
   "DO": {
-    "name": "Palmchat",
-    "plant_name": "Caoba mahogany",
-    "plant_slug": "caoba_mahogany",
-    "slug": "palmchat"
+    "name": "Palm Chat",
+    "slug": "palm_chat",
+    "plant_name": "Bayahíbe rose",
+    "plant_slug": "bayah_be_rose",
+    "landmark_name": "Pico Duarte",
+    "landmark_slug": "pico_duarte"
   },
   "DZ": {
     "name": "Fennec fox",
-    "plant_name": "Fennel",
-    "plant_slug": "fennel",
-    "slug": "fennec_fox"
+    "slug": "fennec_fox",
+    "landmark_name": "Casbah of Algiers",
+    "landmark_slug": "casbah_of_algiers"
   },
   "EC": {
     "name": "Andean condor",
-    "plant_name": "Rose",
-    "plant_slug": "rose",
-    "slug": "andean_condor"
+    "slug": "andean_condor",
+    "landmark_name": "Middle of the World monument",
+    "landmark_slug": "middle_of_the_world_monument"
   },
   "EE": {
-    "name": "Barn swallow",
-    "plant_name": "Cornflower",
-    "plant_slug": "cornflower",
-    "slug": "barn_swallow"
+    "name": "Wolf",
+    "slug": "wolf",
+    "landmark_name": "Tallinn Old Town",
+    "landmark_slug": "tallinn_old_town"
   },
   "EG": {
     "name": "Steppe eagle",
-    "plant_name": "Lotus",
-    "plant_slug": "lotus",
-    "slug": "steppe_eagle"
+    "slug": "steppe_eagle",
+    "plant_name": "Blue lotus",
+    "plant_slug": "blue_lotus",
+    "landmark_name": "Pyramids of Giza",
+    "landmark_slug": "pyramids_of_giza"
+  },
+  "EH": {
+    "name": "addax",
+    "slug": "addax"
+  },
+  "ER": {
+    "name": "Arabian camel",
+    "slug": "arabian_camel",
+    "landmark_name": "Fiat Tagliero Building, Asmara",
+    "landmark_slug": "fiat_tagliero_building_asmara"
   },
   "ES": {
     "name": "Bull",
+    "slug": "bull",
     "plant_name": "Carnation",
     "plant_slug": "carnation",
-    "slug": "bull"
+    "landmark_name": "Sagrada Família",
+    "landmark_slug": "sagrada_fam_lia"
   },
   "ET": {
     "name": "Lion",
-    "plant_name": "Calla lily",
-    "plant_slug": "calla_lily",
-    "slug": "lion"
+    "slug": "lion",
+    "plant_name": "Coffee plant",
+    "plant_slug": "coffee_plant",
+    "landmark_name": "Bete Giyorgis, Lalibela",
+    "landmark_slug": "bete_giyorgis_lalibela"
   },
   "FI": {
     "name": "Brown bear",
+    "slug": "brown_bear",
     "plant_name": "Lily of the valley",
     "plant_slug": "lily_of_the_valley",
-    "slug": "brown_bear"
+    "landmark_name": "Suomenlinna Fortress",
+    "landmark_slug": "suomenlinna_fortress"
   },
   "FJ": {
-    "name": "Collared lory",
-    "plant_name": "Tagimoucia",
-    "plant_slug": "tagimoucia",
-    "slug": "collared_lory"
+    "name": "Fiji banded iguana",
+    "slug": "fiji_banded_iguana",
+    "plant_name": "Tagimaucia",
+    "plant_slug": "tagimaucia",
+    "landmark_name": "Sigatoka Sand Dunes",
+    "landmark_slug": "sigatoka_sand_dunes"
+  },
+  "FM": {
+    "name": "Chuuk Flying Fox",
+    "slug": "chuuk_flying_fox",
+    "landmark_name": "Nan Madol",
+    "landmark_slug": "nan_madol"
   },
   "FR": {
     "name": "Gallic rooster",
-    "plant_name": "Fleur-de-lis",
-    "plant_slug": "fleur_de_lis",
-    "slug": "gallic_rooster"
+    "slug": "gallic_rooster",
+    "plant_name": "Fleur-de-lis (iris)",
+    "plant_slug": "fleur_de_lis_iris",
+    "landmark_name": "Eiffel Tower",
+    "landmark_slug": "eiffel_tower"
   },
   "GA": {
-    "name": "Black panther",
-    "plant_name": "Okoum\u00e9",
-    "plant_slug": "okoum",
-    "slug": "black_panther"
+    "name": "African leopard (black panther)",
+    "slug": "african_leopard_black_panther",
+    "landmark_name": "Lopé National Park",
+    "landmark_slug": "lop_national_park"
   },
   "GB": {
-    "name": "Lion",
-    "plant_name": "Rose",
-    "plant_slug": "rose",
-    "slug": "lion"
+    "name": "Bulldog",
+    "slug": "bulldog",
+    "plant_name": "Tudor rose",
+    "plant_slug": "tudor_rose",
+    "landmark_name": "Big Ben",
+    "landmark_slug": "big_ben"
+  },
+  "GD": {
+    "name": "Grenada dove",
+    "slug": "grenada_dove",
+    "landmark_name": "Grand Etang Lake",
+    "landmark_slug": "grand_etang_lake"
+  },
+  "GE": {
+    "name": "White-Tailed Deer",
+    "slug": "white_tailed_deer",
+    "plant_name": "Grape vine",
+    "plant_slug": "grape_vine",
+    "landmark_name": "Gergeti Trinity Church",
+    "landmark_slug": "gergeti_trinity_church"
+  },
+  "GF": {
+    "name": "brocket deer",
+    "slug": "brocket_deer",
+    "landmark_name": "Devil's Island",
+    "landmark_slug": "devil_s_island"
+  },
+  "GG": {
+    "name": "Donkey",
+    "slug": "donkey",
+    "landmark_name": "Castle Cornet",
+    "landmark_slug": "castle_cornet"
   },
   "GH": {
-    "name": "Tawny eagle",
-    "plant_name": "Coconut palm",
-    "plant_slug": "coconut_palm",
-    "slug": "tawny_eagle"
+    "name": "Tawny Eagle",
+    "slug": "tawny_eagle",
+    "plant_name": "Cocoa pod",
+    "plant_slug": "cocoa_pod",
+    "landmark_name": "Cape Coast Castle",
+    "landmark_slug": "cape_coast_castle"
+  },
+  "GM": {
+    "name": "Spotted hyena",
+    "slug": "spotted_hyena",
+    "landmark_name": "Kunta Kinteh Island",
+    "landmark_slug": "kunta_kinteh_island"
+  },
+  "GN": {
+    "name": "African Elephant",
+    "slug": "african_elephant",
+    "landmark_name": "Fouta Djallon highlands",
+    "landmark_slug": "fouta_djallon_highlands"
+  },
+  "GQ": {
+    "name": "Giraffe",
+    "slug": "giraffe",
+    "landmark_name": "Malabo Cathedral",
+    "landmark_slug": "malabo_cathedral"
   },
   "GR": {
     "name": "Dolphin",
-    "plant_name": "Violet",
-    "plant_slug": "violet",
-    "slug": "dolphin"
+    "slug": "dolphin",
+    "plant_name": "Olive branch",
+    "plant_slug": "olive_branch",
+    "landmark_name": "Acropolis of Athens",
+    "landmark_slug": "acropolis_of_athens"
   },
   "GT": {
     "name": "Resplendent quetzal",
-    "plant_name": "White nun orchid",
-    "plant_slug": "white_nun_orchid",
-    "slug": "resplendent_quetzal"
+    "slug": "resplendent_quetzal",
+    "plant_name": "Monja blanca orchid",
+    "plant_slug": "monja_blanca_orchid",
+    "landmark_name": "Tikal",
+    "landmark_slug": "tikal"
+  },
+  "GW": {
+    "name": "Hippopotamus",
+    "slug": "hippopotamus",
+    "landmark_name": "Bijagós Archipelago",
+    "landmark_slug": "bijag_s_archipelago"
   },
   "GY": {
     "name": "Jaguar",
-    "plant_name": "Victoria amazonica",
-    "plant_slug": "victoria_amazonica",
-    "slug": "jaguar"
+    "slug": "jaguar",
+    "plant_name": "Victoria regia lily pad",
+    "plant_slug": "victoria_regia_lily_pad",
+    "landmark_name": "Kaieteur Falls",
+    "landmark_slug": "kaieteur_falls"
   },
   "HN": {
-    "name": "Scarlet macaw",
-    "plant_name": "Rhyncholaelia digbyana",
-    "plant_slug": "rhyncholaelia_digbyana",
-    "slug": "scarlet_macaw"
+    "name": "White-tailed deer",
+    "slug": "white_tailed_deer",
+    "plant_name": "Rhyncholaelia digbyana orchid",
+    "plant_slug": "rhyncholaelia_digbyana_orchid",
+    "landmark_name": "Copán ruins",
+    "landmark_slug": "cop_n_ruins"
   },
   "HR": {
-    "name": "Pine marten",
-    "plant_name": "Iris croatica",
-    "plant_slug": "iris_croatica",
-    "slug": "pine_marten"
+    "name": "European pine marten",
+    "slug": "european_pine_marten",
+    "landmark_name": "Diocletian's Palace",
+    "landmark_slug": "diocletian_s_palace"
   },
   "HT": {
     "name": "Hispaniolan trogon",
-    "plant_name": "Royal palm",
-    "plant_slug": "royal_palm",
-    "slug": "hispaniolan_trogon"
+    "slug": "hispaniolan_trogon",
+    "plant_name": "Hibiscus",
+    "plant_slug": "hibiscus",
+    "landmark_name": "Citadelle Laferrière",
+    "landmark_slug": "citadelle_laferri_re"
   },
   "HU": {
-    "name": "Turul",
     "plant_name": "Tulip",
     "plant_slug": "tulip",
-    "slug": "turul"
+    "landmark_name": "Hungarian Parliament Building",
+    "landmark_slug": "hungarian_parliament_building"
   },
   "ID": {
     "name": "Komodo dragon",
-    "plant_name": "Rafflesia",
-    "plant_slug": "rafflesia",
-    "slug": "komodo_dragon"
+    "slug": "komodo_dragon",
+    "plant_name": "Rafflesia arnoldii",
+    "plant_slug": "rafflesia_arnoldii",
+    "landmark_name": "Borobudur",
+    "landmark_slug": "borobudur"
   },
   "IE": {
-    "name": "Red deer",
+    "name": "Mountain hare",
+    "slug": "mountain_hare",
     "plant_name": "Shamrock",
     "plant_slug": "shamrock",
-    "slug": "red_deer"
+    "landmark_name": "Cliffs of Moher",
+    "landmark_slug": "cliffs_of_moher"
   },
   "IL": {
-    "name": "Hoopoe",
-    "plant_name": "Cyclamen",
-    "plant_slug": "cyclamen",
-    "slug": "hoopoe"
+    "name": "Eurasian hoopoe",
+    "slug": "eurasian_hoopoe",
+    "plant_name": "Poppy anemone",
+    "plant_slug": "poppy_anemone",
+    "landmark_name": "Western Wall",
+    "landmark_slug": "western_wall"
   },
   "IN": {
     "name": "Bengal tiger",
+    "slug": "bengal_tiger",
     "plant_name": "Lotus",
     "plant_slug": "lotus",
-    "slug": "bengal_tiger"
+    "landmark_name": "Taj Mahal",
+    "landmark_slug": "taj_mahal"
+  },
+  "IO": {
+    "name": "Striated Heron",
+    "slug": "striated_heron"
   },
   "IQ": {
     "name": "Chukar partridge",
+    "slug": "chukar_partridge",
     "plant_name": "Date palm",
     "plant_slug": "date_palm",
-    "slug": "chukar_partridge"
+    "landmark_name": "Malwiya Minaret, Samarra",
+    "landmark_slug": "malwiya_minaret_samarra"
   },
   "IR": {
-    "name": "Asiatic cheetah",
-    "plant_name": "Red rose",
-    "plant_slug": "red_rose",
-    "slug": "asiatic_cheetah"
+    "name": "Asiatic lion",
+    "slug": "asiatic_lion",
+    "landmark_name": "Gate of All Nations, Persepolis",
+    "landmark_slug": "gate_of_all_nations_persepolis"
   },
   "IS": {
     "name": "Gyrfalcon",
-    "plant_name": "Mountain avens",
-    "plant_slug": "mountain_avens",
-    "slug": "gyrfalcon"
+    "slug": "gyrfalcon",
+    "plant_name": "White dryad",
+    "plant_slug": "white_dryad",
+    "landmark_name": "Gullfoss waterfall",
+    "landmark_slug": "gullfoss_waterfall"
   },
   "IT": {
     "name": "Italian wolf",
-    "plant_name": "Strawberry tree",
-    "plant_slug": "strawberry_tree",
-    "slug": "italian_wolf"
+    "slug": "italian_wolf",
+    "plant_name": "Cypress tree",
+    "plant_slug": "cypress_tree",
+    "landmark_name": "Colosseum",
+    "landmark_slug": "colosseum"
   },
   "JM": {
     "name": "Red-billed streamertail",
+    "slug": "red_billed_streamertail",
     "plant_name": "Lignum vitae",
     "plant_slug": "lignum_vitae",
-    "slug": "red_billed_streamertail"
+    "landmark_name": "Dunn's River Falls",
+    "landmark_slug": "dunn_s_river_falls"
   },
   "JO": {
     "name": "Arabian oryx",
+    "slug": "arabian_oryx",
     "plant_name": "Black iris",
     "plant_slug": "black_iris",
-    "slug": "arabian_oryx"
+    "landmark_name": "Petra Treasury",
+    "landmark_slug": "petra_treasury"
   },
   "JP": {
     "name": "Green pheasant",
+    "slug": "green_pheasant",
     "plant_name": "Cherry blossom",
     "plant_slug": "cherry_blossom",
-    "slug": "green_pheasant"
+    "landmark_name": "Mount Fuji",
+    "landmark_slug": "mount_fuji"
   },
   "KE": {
     "name": "Lion",
-    "plant_name": "Leleshwa",
-    "plant_slug": "leleshwa",
-    "slug": "lion"
+    "slug": "lion",
+    "plant_name": "Tea leaf",
+    "plant_slug": "tea_leaf",
+    "landmark_name": "Mount Kenya",
+    "landmark_slug": "mount_kenya"
   },
   "KG": {
-    "name": "Snow leopard",
-    "plant_name": "Edelweiss",
-    "plant_slug": "edelweiss",
-    "slug": "snow_leopard"
+    "name": "markhor goat",
+    "slug": "markhor_goat",
+    "landmark_name": "Ala-Archa National Park",
+    "landmark_slug": "ala_archa_national_park"
   },
   "KH": {
     "name": "Kouprey",
-    "plant_name": "Rumduol",
-    "plant_slug": "rumduol",
-    "slug": "kouprey"
+    "slug": "kouprey",
+    "plant_name": "Romduol",
+    "plant_slug": "romduol",
+    "landmark_name": "Angkor Wat",
+    "landmark_slug": "angkor_wat"
+  },
+  "KI": {
+    "name": "Frigate bird",
+    "slug": "frigate_bird",
+    "landmark_name": "South Tarawa WWII relics",
+    "landmark_slug": "south_tarawa_wwii_relics"
+  },
+  "KM": {
+    "name": "Mongoose Lemur",
+    "slug": "mongoose_lemur",
+    "landmark_name": "Moroni Friday Mosque",
+    "landmark_slug": "moroni_friday_mosque"
+  },
+  "KN": {
+    "name": "Brown pelican",
+    "slug": "brown_pelican",
+    "landmark_name": "Brimstone Hill Fortress",
+    "landmark_slug": "brimstone_hill_fortress"
   },
   "KP": {
-    "name": "Chollima",
-    "plant_name": "Magnolia",
-    "plant_slug": "magnolia",
-    "slug": "chollima"
+    "name": "Pungsan dog",
+    "slug": "pungsan_dog",
+    "plant_name": "Korean mountain magnolia",
+    "plant_slug": "korean_mountain_magnolia",
+    "landmark_name": "Ryugyong Hotel",
+    "landmark_slug": "ryugyong_hotel"
   },
   "KR": {
     "name": "Siberian tiger",
-    "plant_name": "Hibiscus mugunghwa",
-    "plant_slug": "hibiscus_mugunghwa",
-    "slug": "siberian_tiger"
+    "slug": "siberian_tiger",
+    "plant_name": "Hibiscus syriacus (mugunghwa)",
+    "plant_slug": "hibiscus_syriacus_mugunghwa",
+    "landmark_name": "Gyeongbokgung Palace",
+    "landmark_slug": "gyeongbokgung_palace"
   },
   "KW": {
-    "name": "Arabian horse",
-    "plant_name": "Date palm",
-    "plant_slug": "date_palm",
-    "slug": "arabian_horse"
+    "name": "Arabian camel",
+    "slug": "arabian_camel",
+    "plant_name": "Arfaj",
+    "plant_slug": "arfaj",
+    "landmark_name": "Kuwait Towers",
+    "landmark_slug": "kuwait_towers"
   },
   "KZ": {
-    "name": "Snow leopard",
-    "plant_name": "Tulip",
-    "plant_slug": "tulip",
-    "slug": "snow_leopard"
+    "name": "Golden eagle",
+    "slug": "golden_eagle",
+    "landmark_name": "Bayterek Tower",
+    "landmark_slug": "bayterek_tower"
   },
   "LA": {
-    "name": "Elephant",
-    "plant_name": "Champa frangipani",
-    "plant_slug": "champa_frangipani",
-    "slug": "elephant"
+    "name": "Asian elephant",
+    "slug": "asian_elephant",
+    "plant_name": "Champa (plumeria)",
+    "plant_slug": "champa_plumeria",
+    "landmark_name": "Pha That Luang",
+    "landmark_slug": "pha_that_luang"
+  },
+  "LB": {
+    "name": "Striped hyena",
+    "slug": "striped_hyena",
+    "plant_name": "Cedar of Lebanon",
+    "plant_slug": "cedar_of_lebanon",
+    "landmark_name": "Baalbek",
+    "landmark_slug": "baalbek"
+  },
+  "LC": {
+    "name": "Saint Lucia amazon",
+    "slug": "saint_lucia_amazon",
+    "landmark_name": "The Pitons",
+    "landmark_slug": "the_pitons"
+  },
+  "LI": {
+    "name": "kestrel",
+    "slug": "kestrel",
+    "landmark_name": "Vaduz Castle",
+    "landmark_slug": "vaduz_castle"
   },
   "LK": {
-    "name": "Sri Lanka junglefowl",
-    "plant_name": "Blue lotus",
-    "plant_slug": "blue_lotus",
-    "slug": "sri_lanka_junglefowl"
+    "name": "Grizzled giant squirrel",
+    "slug": "grizzled_giant_squirrel",
+    "plant_name": "Blue water lily (nil manel)",
+    "plant_slug": "blue_water_lily_nil_manel",
+    "landmark_name": "Sigiriya rock fortress",
+    "landmark_slug": "sigiriya_rock_fortress"
+  },
+  "LR": {
+    "name": "lion",
+    "slug": "lion",
+    "landmark_name": "Providence Island",
+    "landmark_slug": "providence_island"
   },
   "LS": {
-    "name": "Basotho pony",
-    "plant_name": "Spiral aloe",
-    "plant_slug": "spiral_aloe",
-    "slug": "basotho_pony"
+    "name": "black rhino",
+    "slug": "black_rhino",
+    "landmark_name": "Maletsunyane Falls",
+    "landmark_slug": "maletsunyane_falls"
   },
   "LT": {
     "name": "White stork",
-    "plant_name": "Rue",
-    "plant_slug": "rue",
-    "slug": "white_stork"
+    "slug": "white_stork",
+    "landmark_name": "Trakai Island Castle",
+    "landmark_slug": "trakai_island_castle"
   },
   "LU": {
-    "name": "Lion",
-    "plant_name": "Rose",
-    "plant_slug": "rose",
-    "slug": "lion"
+    "name": "lion",
+    "slug": "lion",
+    "landmark_name": "Vianden Castle",
+    "landmark_slug": "vianden_castle"
   },
   "LV": {
     "name": "White wagtail",
-    "plant_name": "Daisy",
-    "plant_slug": "daisy",
-    "slug": "white_wagtail"
+    "slug": "white_wagtail",
+    "landmark_name": "Riga Old Town",
+    "landmark_slug": "riga_old_town"
+  },
+  "LY": {
+    "name": "Arabian Eagle",
+    "slug": "arabian_eagle",
+    "landmark_name": "Leptis Magna",
+    "landmark_slug": "leptis_magna"
   },
   "MA": {
-    "name": "Barbary macaque",
-    "plant_name": "Rose",
-    "plant_slug": "rose",
-    "slug": "barbary_macaque"
+    "name": "Barbary lion",
+    "slug": "barbary_lion",
+    "plant_name": "Argan tree",
+    "plant_slug": "argan_tree",
+    "landmark_name": "Hassan II Mosque",
+    "landmark_slug": "hassan_ii_mosque"
+  },
+  "MC": {
+    "name": "European hedgehog",
+    "slug": "european_hedgehog",
+    "landmark_name": "Monte Carlo Casino",
+    "landmark_slug": "monte_carlo_casino"
   },
   "MD": {
     "name": "Aurochs",
+    "slug": "aurochs",
     "plant_name": "Grape vine",
     "plant_slug": "grape_vine",
-    "slug": "aurochs"
+    "landmark_name": "Orheiul Vechi",
+    "landmark_slug": "orheiul_vechi"
+  },
+  "ME": {
+    "name": "Balkan lynx",
+    "slug": "balkan_lynx",
+    "landmark_name": "Ostrog Monastery",
+    "landmark_slug": "ostrog_monastery"
+  },
+  "MF": {
+    "name": "pelican",
+    "slug": "pelican",
+    "landmark_name": "Maho Beach",
+    "landmark_slug": "maho_beach"
   },
   "MG": {
     "name": "Zebu",
-    "plant_name": "Traveller's palm",
-    "plant_slug": "traveller_s_palm",
-    "slug": "zebu"
+    "slug": "zebu",
+    "plant_name": "Vanilla orchid pod",
+    "plant_slug": "vanilla_orchid_pod",
+    "landmark_name": "Avenue of the Baobabs",
+    "landmark_slug": "avenue_of_the_baobabs"
+  },
+  "MH": {
+    "name": "Black-footed Cat",
+    "slug": "black_footed_cat",
+    "landmark_name": "Bikini Atoll",
+    "landmark_slug": "bikini_atoll"
   },
   "MK": {
-    "name": "Lynx",
+    "name": "Lion",
+    "slug": "lion",
     "plant_name": "Poppy",
     "plant_slug": "poppy",
-    "slug": "lynx"
+    "landmark_name": "Church of St. John at Kaneo, Lake Ohrid",
+    "landmark_slug": "church_of_st_john_at_kaneo_lake_ohrid"
+  },
+  "ML": {
+    "name": "Vulture",
+    "slug": "vulture",
+    "landmark_name": "Great Mosque of Djenné",
+    "landmark_slug": "great_mosque_of_djenn"
   },
   "MM": {
-    "name": "Green peafowl",
-    "plant_name": "Padauk",
-    "plant_slug": "padauk",
-    "slug": "green_peafowl"
+    "name": "green peafowl",
+    "slug": "green_peafowl",
+    "plant_name": "Padauk (Pterocarpus indicus)",
+    "plant_slug": "padauk_pterocarpus_indicus",
+    "landmark_name": "Shwedagon Pagoda",
+    "landmark_slug": "shwedagon_pagoda"
   },
   "MN": {
-    "name": "Snow leopard",
-    "plant_name": "Saussurea",
-    "plant_slug": "saussurea",
-    "slug": "snow_leopard"
+    "name": "Przewalski's horse",
+    "slug": "przewalski_s_horse",
+    "plant_name": "Scabiosa comosa",
+    "plant_slug": "scabiosa_comosa",
+    "landmark_name": "Genghis Khan Equestrian Statue",
+    "landmark_slug": "genghis_khan_equestrian_statue"
+  },
+  "MP": {
+    "name": "Mariana fruit dove",
+    "slug": "mariana_fruit_dove"
+  },
+  "MR": {
+    "name": "Mediterranean monk seal",
+    "slug": "mediterranean_monk_seal",
+    "landmark_name": "Chinguetti minaret",
+    "landmark_slug": "chinguetti_minaret"
   },
   "MT": {
-    "name": "Pharaoh hound",
-    "plant_name": "Maltese rock centaury",
-    "plant_slug": "maltese_rock_centaury",
-    "slug": "pharaoh_hound"
+    "name": "Pharaoh Hound",
+    "slug": "pharaoh_hound",
+    "landmark_name": "Ġgantija Temples",
+    "landmark_slug": "gantija_temples"
   },
   "MU": {
     "name": "Dodo",
-    "plant_name": "Trochetia boutoniana",
-    "plant_slug": "trochetia_boutoniana",
-    "slug": "dodo"
+    "slug": "dodo",
+    "plant_name": "Trochetia boutoniana (boucle d'oreille)",
+    "plant_slug": "trochetia_boutoniana_boucle_d_oreille",
+    "landmark_name": "Le Morne Brabant",
+    "landmark_slug": "le_morne_brabant"
   },
   "MV": {
-    "name": "Yellowfin tuna",
-    "plant_name": "Pink rose",
-    "plant_slug": "pink_rose",
-    "slug": "yellowfin_tuna"
+    "name": "yellowfin tuna",
+    "slug": "yellowfin_tuna",
+    "plant_name": "Pink polyantha rose",
+    "plant_slug": "pink_polyantha_rose",
+    "landmark_name": "Malé's Old Friday Mosque",
+    "landmark_slug": "mal_s_old_friday_mosque"
+  },
+  "MW": {
+    "name": "Thomson's gazelle",
+    "slug": "thomson_s_gazelle",
+    "landmark_name": "Mount Mulanje",
+    "landmark_slug": "mount_mulanje"
   },
   "MX": {
     "name": "Golden eagle",
+    "slug": "golden_eagle",
     "plant_name": "Dahlia",
     "plant_slug": "dahlia",
-    "slug": "golden_eagle"
+    "landmark_name": "Chichén Itzá",
+    "landmark_slug": "chich_n_itz"
   },
   "MY": {
     "name": "Malayan tiger",
-    "plant_name": "Hibiscus",
-    "plant_slug": "hibiscus",
-    "slug": "malayan_tiger"
+    "slug": "malayan_tiger",
+    "plant_name": "Hibiscus (bunga raya)",
+    "plant_slug": "hibiscus_bunga_raya",
+    "landmark_name": "Petronas Towers",
+    "landmark_slug": "petronas_towers"
   },
   "MZ": {
-    "name": "African fish eagle",
-    "plant_name": "Flame tree",
-    "plant_slug": "flame_tree",
-    "slug": "african_fish_eagle"
+    "name": "African elephant",
+    "slug": "african_elephant",
+    "landmark_name": "Island of Mozambique",
+    "landmark_slug": "island_of_mozambique"
   },
   "NA": {
     "name": "Oryx",
-    "plant_name": "Welwitschia",
-    "plant_slug": "welwitschia",
-    "slug": "oryx"
+    "slug": "oryx",
+    "landmark_name": "Deadvlei, Sossusvlei",
+    "landmark_slug": "deadvlei_sossusvlei"
+  },
+  "NE": {
+    "name": "Dama gazelle",
+    "slug": "dama_gazelle",
+    "landmark_name": "Grand Mosque of Agadez",
+    "landmark_slug": "grand_mosque_of_agadez"
+  },
+  "NF": {
+    "name": "Green Parrot",
+    "slug": "green_parrot"
   },
   "NG": {
     "name": "Eagle",
-    "plant_name": "Eagle flower",
-    "plant_slug": "eagle_flower",
-    "slug": "eagle"
+    "slug": "eagle",
+    "plant_name": "Costus spectabilis (yellow trumpet)",
+    "plant_slug": "costus_spectabilis_yellow_trumpet",
+    "landmark_name": "Zuma Rock",
+    "landmark_slug": "zuma_rock"
   },
   "NI": {
     "name": "Turquoise-browed motmot",
-    "plant_name": "Sacuanjoche",
-    "plant_slug": "sacuanjoche",
-    "slug": "turquoise_browed_motmot"
+    "slug": "turquoise_browed_motmot",
+    "plant_name": "Sacuanjoche (plumeria)",
+    "plant_slug": "sacuanjoche_plumeria",
+    "landmark_name": "Ometepe Island",
+    "landmark_slug": "ometepe_island"
   },
   "NL": {
     "name": "Lion",
+    "slug": "lion",
     "plant_name": "Tulip",
     "plant_slug": "tulip",
-    "slug": "lion"
+    "landmark_name": "Anne Frank House",
+    "landmark_slug": "anne_frank_house"
   },
   "NO": {
-    "name": "Lion",
-    "plant_name": "Purple heather",
-    "plant_slug": "purple_heather",
-    "slug": "lion"
+    "name": "Eurasian elk / moose",
+    "slug": "eurasian_elk_moose",
+    "landmark_name": "Preikestolen (Pulpit Rock)",
+    "landmark_slug": "preikestolen_pulpit_rock"
   },
   "NP": {
     "name": "Cow",
+    "slug": "cow",
     "plant_name": "Rhododendron",
     "plant_slug": "rhododendron",
-    "slug": "cow"
+    "landmark_name": "Mount Everest",
+    "landmark_slug": "mount_everest"
+  },
+  "NR": {
+    "name": "Great Frigatebird",
+    "slug": "great_frigatebird"
+  },
+  "NU": {
+    "name": "Niue Blue Nacaduba niueensis (butterfly)",
+    "slug": "niue_blue_nacaduba_niueensis_butterfly"
   },
   "NZ": {
     "name": "Kiwi",
+    "slug": "kiwi_bird",
     "plant_name": "Silver fern",
     "plant_slug": "silver_fern",
-    "slug": "kiwi"
+    "landmark_name": "Milford Sound (Mitre Peak)",
+    "landmark_slug": "milford_sound_mitre_peak"
   },
   "OM": {
     "name": "Arabian oryx",
+    "slug": "arabian_oryx",
     "plant_name": "Frankincense tree",
     "plant_slug": "frankincense_tree",
-    "slug": "arabian_oryx"
+    "landmark_name": "Sultan Qaboos Grand Mosque",
+    "landmark_slug": "sultan_qaboos_grand_mosque"
   },
   "PA": {
     "name": "Harpy eagle",
-    "plant_name": "Holy Ghost orchid",
-    "plant_slug": "holy_ghost_orchid",
-    "slug": "harpy_eagle"
+    "slug": "harpy_eagle",
+    "landmark_name": "Panama Canal",
+    "landmark_slug": "panama_canal"
   },
   "PE": {
-    "name": "Andean condor",
+    "name": "Vicuña",
+    "slug": "vicu_a",
     "plant_name": "Cantuta",
     "plant_slug": "cantuta",
-    "slug": "andean_condor"
+    "landmark_name": "Machu Picchu",
+    "landmark_slug": "machu_picchu"
   },
   "PG": {
-    "name": "Raggiana bird-of-paradise",
-    "plant_name": "Rhododendron macgregoriae",
-    "plant_slug": "rhododendron_macgregoriae",
-    "slug": "raggiana_bird_of_paradise"
+    "name": "Bird-of-paradise",
+    "slug": "bird_of_paradise",
+    "landmark_name": "Kokoda Track",
+    "landmark_slug": "kokoda_track"
   },
   "PH": {
-    "name": "Philippine eagle",
-    "plant_name": "Sampaguita jasmine",
+    "name": "Carabao",
+    "slug": "carabao",
+    "plant_name": "Sampaguita (jasmine)",
     "plant_slug": "sampaguita_jasmine",
-    "slug": "philippine_eagle"
+    "landmark_name": "Chocolate Hills",
+    "landmark_slug": "chocolate_hills"
   },
   "PK": {
     "name": "Markhor",
-    "plant_name": "Poet's jasmine",
-    "plant_slug": "poet_s_jasmine",
-    "slug": "markhor"
+    "slug": "markhor",
+    "plant_name": "Jasmine",
+    "plant_slug": "jasmine",
+    "landmark_name": "Badshahi Mosque",
+    "landmark_slug": "badshahi_mosque"
   },
   "PL": {
     "name": "White-tailed eagle",
-    "plant_name": "Corn poppy",
-    "plant_slug": "corn_poppy",
-    "slug": "white_tailed_eagle"
+    "slug": "white_tailed_eagle",
+    "plant_name": "Red poppy",
+    "plant_slug": "red_poppy",
+    "landmark_name": "Wawel Castle",
+    "landmark_slug": "wawel_castle"
+  },
+  "PM": {
+    "name": "Grey Dolphin",
+    "slug": "grey_dolphin"
+  },
+  "PN": {
+    "name": "Pitcairn reed warbler",
+    "slug": "pitcairn_reed_warbler"
+  },
+  "PS": {
+    "name": "Gazelle",
+    "slug": "gazelle",
+    "plant_name": "Faqqua iris",
+    "plant_slug": "faqqua_iris",
+    "landmark_name": "Church of the Nativity",
+    "landmark_slug": "church_of_the_nativity"
   },
   "PT": {
     "name": "Iberian wolf",
-    "plant_name": "Lavender",
-    "plant_slug": "lavender",
-    "slug": "iberian_wolf"
+    "slug": "iberian_wolf",
+    "plant_name": "Cork oak",
+    "plant_slug": "cork_oak",
+    "landmark_name": "Belém Tower",
+    "landmark_slug": "bel_m_tower"
+  },
+  "PW": {
+    "name": "Palau fruit dove",
+    "slug": "palau_fruit_dove",
+    "landmark_name": "Rock Islands",
+    "landmark_slug": "rock_islands"
   },
   "PY": {
-    "name": "Bare-throated bellbird",
-    "plant_name": "Mburucuya passion flower",
-    "plant_slug": "mburucuya_passion_flower",
-    "slug": "bare_throated_bellbird"
+    "name": "pampas fox",
+    "slug": "pampas_fox",
+    "plant_name": "Passion flower (mburucuyá)",
+    "plant_slug": "passion_flower_mburucuy",
+    "landmark_name": "Itaipu Dam",
+    "landmark_slug": "itaipu_dam"
   },
   "QA": {
     "name": "Arabian oryx",
-    "plant_name": "Sidra tree",
-    "plant_slug": "sidra_tree",
-    "slug": "arabian_oryx"
+    "slug": "arabian_oryx",
+    "landmark_name": "Museum of Islamic Art",
+    "landmark_slug": "museum_of_islamic_art"
   },
   "RO": {
-    "name": "Lynx",
-    "plant_name": "Dog rose",
-    "plant_slug": "dog_rose",
-    "slug": "lynx"
+    "name": "Eurasian lynx",
+    "slug": "eurasian_lynx",
+    "plant_name": "Peony",
+    "plant_slug": "peony",
+    "landmark_name": "Bran Castle",
+    "landmark_slug": "bran_castle"
   },
   "RS": {
-    "name": "White eagle",
-    "plant_name": "Plum blossom",
-    "plant_slug": "plum_blossom",
-    "slug": "white_eagle"
+    "name": "Wolf",
+    "slug": "wolf",
+    "plant_name": "Natalie's ramonda",
+    "plant_slug": "natalie_s_ramonda",
+    "landmark_name": "Church of Saint Sava",
+    "landmark_slug": "church_of_saint_sava"
   },
   "RU": {
     "name": "Eurasian brown bear",
-    "plant_name": "Chamomile",
-    "plant_slug": "chamomile",
-    "slug": "eurasian_brown_bear"
+    "slug": "eurasian_brown_bear",
+    "plant_name": "Birch tree",
+    "plant_slug": "birch_tree",
+    "landmark_name": "Saint Basil's Cathedral, Red Square",
+    "landmark_slug": "saint_basil_s_cathedral_red_square"
   },
   "RW": {
-    "name": "Black-and-white colobus",
-    "plant_name": "Inzovu vine",
-    "plant_slug": "inzovu_vine",
-    "slug": "black_and_white_colobus"
+    "name": "Leopard",
+    "slug": "leopard",
+    "landmark_name": "Volcanoes National Park",
+    "landmark_slug": "volcanoes_national_park"
   },
   "SA": {
-    "name": "Arabian horse",
+    "name": "Arabian camel",
+    "slug": "arabian_camel",
     "plant_name": "Date palm",
     "plant_slug": "date_palm",
-    "slug": "arabian_horse"
+    "landmark_name": "Masjid al-Haram, Mecca",
+    "landmark_slug": "masjid_al_haram_mecca"
+  },
+  "SB": {
+    "name": "Hawksbill turtle",
+    "slug": "hawksbill_turtle",
+    "landmark_name": "Marovo Lagoon",
+    "landmark_slug": "marovo_lagoon"
   },
   "SC": {
-    "name": "Aldabra giant tortoise",
-    "plant_name": "Coco de Mer",
-    "plant_slug": "coco_de_mer",
-    "slug": "aldabra_giant_tortoise"
+    "name": "flying foxes",
+    "slug": "flying_foxes",
+    "plant_name": "Coco de mer nut",
+    "plant_slug": "coco_de_mer_nut",
+    "landmark_name": "Anse Source d'Argent granite boulders",
+    "landmark_slug": "anse_source_d_argent_granite_boulders"
   },
   "SD": {
-    "name": "Secretary bird",
-    "plant_name": "Nubian acacia",
-    "plant_slug": "nubian_acacia",
-    "slug": "secretary_bird"
+    "name": "Secretarybird",
+    "slug": "secretarybird",
+    "landmark_name": "Pyramids of Meroë",
+    "landmark_slug": "pyramids_of_mero"
   },
   "SE": {
-    "name": "Eurasian elk",
-    "plant_name": "Twinflower Linnaea borealis",
-    "plant_slug": "twinflower_linnaea_borealis",
-    "slug": "eurasian_elk"
+    "name": "Eurasian elk / moose",
+    "slug": "eurasian_elk_moose",
+    "plant_name": "Harebell",
+    "plant_slug": "harebell",
+    "landmark_name": "Vasa Museum",
+    "landmark_slug": "vasa_museum"
   },
   "SG": {
     "name": "Lion",
+    "slug": "lion",
     "plant_name": "Vanda Miss Joaquim orchid",
     "plant_slug": "vanda_miss_joaquim_orchid",
-    "slug": "lion"
+    "landmark_name": "Marina Bay Sands",
+    "landmark_slug": "marina_bay_sands"
+  },
+  "SI": {
+    "name": "Carniolan honey bee",
+    "slug": "carniolan_honey_bee",
+    "plant_name": "Carnation",
+    "plant_slug": "carnation",
+    "landmark_name": "Lake Bled island church",
+    "landmark_slug": "lake_bled_island_church"
+  },
+  "SK": {
+    "name": "Tatra chamois",
+    "slug": "tatra_chamois",
+    "plant_name": "Linden leaf",
+    "plant_slug": "linden_leaf",
+    "landmark_name": "Bratislava Castle",
+    "landmark_slug": "bratislava_castle"
   },
   "SL": {
-    "name": "Lion",
-    "plant_name": "African tulip",
-    "plant_slug": "african_tulip",
-    "slug": "lion"
+    "name": "Chimpanzee",
+    "slug": "chimpanzee",
+    "landmark_name": "Bunce Island",
+    "landmark_slug": "bunce_island"
+  },
+  "SM": {
+    "name": "whale",
+    "slug": "whale",
+    "landmark_name": "Guaita Tower",
+    "landmark_slug": "guaita_tower"
   },
   "SN": {
-    "name": "Lion",
-    "plant_name": "Baobab",
-    "plant_slug": "baobab",
-    "slug": "lion"
+    "name": "Lions",
+    "slug": "lions",
+    "plant_name": "Baobab tree",
+    "plant_slug": "baobab_tree",
+    "landmark_name": "African Renaissance Monument",
+    "landmark_slug": "african_renaissance_monument"
   },
   "SO": {
     "name": "Leopard",
-    "plant_name": "Frankincense tree",
-    "plant_slug": "frankincense_tree",
-    "slug": "leopard"
+    "slug": "leopard",
+    "landmark_name": "Laas Geel rock shelters",
+    "landmark_slug": "laas_geel_rock_shelters"
+  },
+  "SR": {
+    "name": "Jaguarundi",
+    "slug": "jaguarundi",
+    "plant_name": "Jungle geranium (faya lobi)",
+    "plant_slug": "jungle_geranium_faya_lobi",
+    "landmark_name": "Historic Inner City of Paramaribo",
+    "landmark_slug": "historic_inner_city_of_paramaribo"
   },
   "SS": {
     "name": "African fish eagle",
-    "plant_name": "Teak",
-    "plant_slug": "teak",
-    "slug": "african_fish_eagle"
+    "slug": "african_fish_eagle",
+    "landmark_name": "Boma National Park",
+    "landmark_slug": "boma_national_park"
+  },
+  "ST": {
+    "name": "Sao Tome Shrew",
+    "slug": "sao_tome_shrew",
+    "landmark_name": "Pico Cão Grande",
+    "landmark_slug": "pico_c_o_grande"
   },
   "SV": {
     "name": "Turquoise-browed motmot",
-    "plant_name": "Izote yucca",
-    "plant_slug": "izote_yucca",
-    "slug": "turquoise_browed_motmot"
+    "slug": "turquoise_browed_motmot",
+    "plant_name": "Izote (yucca flower)",
+    "plant_slug": "izote_yucca_flower",
+    "landmark_name": "Santa Ana Volcano",
+    "landmark_slug": "santa_ana_volcano"
+  },
+  "SY": {
+    "name": "Syrian Brown Bear",
+    "slug": "syrian_brown_bear",
+    "landmark_name": "Umayyad Mosque",
+    "landmark_slug": "umayyad_mosque"
+  },
+  "SZ": {
+    "name": "White rhinoceros",
+    "slug": "white_rhinoceros",
+    "landmark_name": "Sibebe Rock",
+    "landmark_slug": "sibebe_rock"
+  },
+  "TD": {
+    "name": "Goat",
+    "slug": "goat",
+    "landmark_name": "Ennedi Plateau",
+    "landmark_slug": "ennedi_plateau"
+  },
+  "TG": {
+    "name": "Lion",
+    "slug": "lion",
+    "landmark_name": "Koutammakou tower houses",
+    "landmark_slug": "koutammakou_tower_houses"
   },
   "TH": {
-    "name": "Elephant",
-    "plant_name": "Ratchaphruek golden shower tree",
-    "plant_slug": "ratchaphruek_golden_shower_tree",
-    "slug": "elephant"
+    "name": "Asian elephant",
+    "slug": "asian_elephant",
+    "plant_name": "Golden shower tree",
+    "plant_slug": "golden_shower_tree",
+    "landmark_name": "Wat Arun",
+    "landmark_slug": "wat_arun"
   },
   "TJ": {
-    "name": "Snow leopard",
-    "plant_name": "Tulip",
-    "plant_slug": "tulip",
-    "slug": "snow_leopard"
+    "name": "Ovis ammon polii",
+    "slug": "ovis_ammon_polii",
+    "landmark_name": "Iskanderkul Lake",
+    "landmark_slug": "iskanderkul_lake"
+  },
+  "TL": {
+    "name": "Crocodile",
+    "slug": "crocodile",
+    "landmark_name": "Cristo Rei of Dili",
+    "landmark_slug": "cristo_rei_of_dili"
   },
   "TM": {
-    "name": "Akhal-Teke horse",
-    "plant_name": "Ephedra",
-    "plant_slug": "ephedra",
-    "slug": "akhal_teke_horse"
+    "name": "Alabay dog",
+    "slug": "alabay_dog",
+    "landmark_name": "Darvaza gas crater (Door to Hell)",
+    "landmark_slug": "darvaza_gas_crater_door_to_hell"
   },
   "TN": {
-    "name": "Carthaginian horse",
+    "name": "Arabian Camel",
+    "slug": "arabian_camel",
     "plant_name": "Jasmine",
     "plant_slug": "jasmine",
-    "slug": "carthaginian_horse"
+    "landmark_name": "Amphitheatre of El Jem",
+    "landmark_slug": "amphitheatre_of_el_jem"
+  },
+  "TO": {
+    "name": "Flying fox",
+    "slug": "flying_fox",
+    "plant_name": "Heilala",
+    "plant_slug": "heilala",
+    "landmark_name": "Ha'amonga 'a Maui trilithon",
+    "landmark_slug": "ha_amonga_a_maui_trilithon"
   },
   "TR": {
-    "name": "Grey wolf",
+    "name": "Gray wolf",
+    "slug": "gray_wolf",
     "plant_name": "Tulip",
     "plant_slug": "tulip",
-    "slug": "grey_wolf"
+    "landmark_name": "Hagia Sophia",
+    "landmark_slug": "hagia_sophia"
   },
   "TT": {
-    "name": "Scarlet ibis",
-    "plant_name": "Chaconia wild poinsettia",
-    "plant_slug": "chaconia_wild_poinsettia",
-    "slug": "scarlet_ibis"
+    "name": "scarlet ibis",
+    "slug": "scarlet_ibis",
+    "landmark_name": "Pitch Lake",
+    "landmark_slug": "pitch_lake"
+  },
+  "TV": {
+    "name": "Coconut crab",
+    "slug": "coconut_crab"
+  },
+  "TW": {
+    "name": "Formosan black bear",
+    "slug": "formosan_black_bear",
+    "plant_name": "Plum blossom",
+    "plant_slug": "plum_blossom",
+    "landmark_name": "Taipei 101",
+    "landmark_slug": "taipei_101"
   },
   "TZ": {
     "name": "Giraffe",
-    "plant_name": "Clove tree",
-    "plant_slug": "clove_tree",
-    "slug": "giraffe"
+    "slug": "giraffe",
+    "plant_name": "Clove",
+    "plant_slug": "clove",
+    "landmark_name": "Mount Kilimanjaro",
+    "landmark_slug": "mount_kilimanjaro"
   },
   "UA": {
-    "name": "Nightingale",
+    "name": "Nightingal",
+    "slug": "nightingal",
     "plant_name": "Sunflower",
     "plant_slug": "sunflower",
-    "slug": "nightingale"
+    "landmark_name": "Saint Sophia Cathedral, Kyiv",
+    "landmark_slug": "saint_sophia_cathedral_kyiv"
   },
   "UG": {
     "name": "Grey crowned crane",
-    "plant_name": "African tulip",
-    "plant_slug": "african_tulip",
-    "slug": "grey_crowned_crane"
+    "slug": "grey_crowned_crane",
+    "landmark_name": "Source of the Nile, Jinja",
+    "landmark_slug": "source_of_the_nile_jinja"
   },
   "US": {
     "name": "Bald eagle",
-    "plant_name": "Oak tree",
-    "plant_slug": "oak_tree",
-    "slug": "bald_eagle"
+    "slug": "bald_eagle",
+    "plant_name": "Rose",
+    "plant_slug": "rose",
+    "landmark_name": "Statue of Liberty",
+    "landmark_slug": "statue_of_liberty"
   },
   "UY": {
-    "name": "Southern lapwing",
-    "plant_name": "Ceibo",
-    "plant_slug": "ceibo",
-    "slug": "southern_lapwing"
+    "name": "southern lapwing",
+    "slug": "southern_lapwing",
+    "plant_name": "Ceibo flower",
+    "plant_slug": "ceibo_flower",
+    "landmark_name": "Palacio Salvo",
+    "landmark_slug": "palacio_salvo"
   },
   "UZ": {
-    "name": "Snow leopard",
-    "plant_name": "Poplar",
-    "plant_slug": "poplar",
-    "slug": "snow_leopard"
+    "name": "Turkestan Sand Cat",
+    "slug": "turkestan_sand_cat",
+    "plant_name": "Cotton boll",
+    "plant_slug": "cotton_boll",
+    "landmark_name": "Registan, Samarkand",
+    "landmark_slug": "registan_samarkand"
+  },
+  "VA": {
+    "landmark_name": "St. Peter's Basilica",
+    "landmark_slug": "st_peter_s_basilica"
+  },
+  "VC": {
+    "name": "Saint Vincent amazon",
+    "slug": "saint_vincent_amazon",
+    "landmark_name": "La Soufrière volcano",
+    "landmark_slug": "la_soufri_re_volcano"
   },
   "VE": {
     "name": "Venezuelan troupial",
-    "plant_name": "Cattleya mossiae orchid",
-    "plant_slug": "cattleya_mossiae_orchid",
-    "slug": "venezuelan_troupial"
+    "slug": "venezuelan_troupial",
+    "plant_name": "Flor de mayo orchid",
+    "plant_slug": "flor_de_mayo_orchid",
+    "landmark_name": "Mount Roraima",
+    "landmark_slug": "mount_roraima"
+  },
+  "VG": {
+    "name": "mourning dove",
+    "slug": "mourning_dove",
+    "landmark_name": "The Baths, Virgin Gorda",
+    "landmark_slug": "the_baths_virgin_gorda"
+  },
+  "VI": {
+    "name": "Bats",
+    "slug": "bats",
+    "landmark_name": "Trunk Bay, St. John",
+    "landmark_slug": "trunk_bay_st_john"
   },
   "VN": {
     "name": "Water buffalo",
+    "slug": "water_buffalo",
     "plant_name": "Lotus",
     "plant_slug": "lotus",
-    "slug": "water_buffalo"
+    "landmark_name": "Ha Long Bay",
+    "landmark_slug": "ha_long_bay"
+  },
+  "VU": {
+    "name": "Iguana",
+    "slug": "iguana",
+    "landmark_name": "Mount Yasur volcano",
+    "landmark_slug": "mount_yasur_volcano"
+  },
+  "WS": {
+    "name": "whale",
+    "slug": "whale",
+    "landmark_name": "To Sua Ocean Trench",
+    "landmark_slug": "to_sua_ocean_trench"
   },
   "YE": {
-    "name": "Arabian oryx",
-    "plant_name": "Dragon blood tree",
-    "plant_slug": "dragon_blood_tree",
-    "slug": "arabian_oryx"
+    "name": "Arabian Leopard",
+    "slug": "arabian_leopard",
+    "landmark_name": "Socotra dragon's blood tree",
+    "landmark_slug": "socotra_dragon_s_blood_tree"
   },
   "ZA": {
     "name": "Springbok",
-    "plant_name": "King protea",
+    "slug": "springbok_antelope",
+    "plant_name": "King Protea",
     "plant_slug": "king_protea",
-    "slug": "springbok"
+    "landmark_name": "Table Mountain",
+    "landmark_slug": "table_mountain"
   },
   "ZM": {
-    "name": "African fish eagle",
-    "plant_name": "Mutiti tree",
-    "plant_slug": "mutiti_tree",
-    "slug": "african_fish_eagle"
+    "name": "African Fish Eagle",
+    "slug": "african_fish_eagle",
+    "landmark_name": "Victoria Falls",
+    "landmark_slug": "victoria_falls"
   },
   "ZW": {
     "name": "Sable antelope",
+    "slug": "sable_antelope",
     "plant_name": "Flame lily",
     "plant_slug": "flame_lily",
-    "slug": "sable_antelope"
+    "landmark_name": "Great Zimbabwe ruins",
+    "landmark_slug": "great_zimbabwe_ruins"
   }
 }

@@ -34,7 +34,10 @@ import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
 import '../heritage/unesco_nearby_explorer_screen.dart';
 import 'region_chips_marker_layer.dart';
+import 'photo_cluster_layer.dart';
 import 'world_heritage_marker_layer.dart';
+import 'map_photo_strip.dart';
+import 'photo_heatmap_layer.dart';
 import 'region_progress_notifier.dart';
 import 'rovy_bubble.dart';
 import 'stats_strip.dart';
@@ -205,9 +208,17 @@ class MapScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Trigger the one-time background GPS fetch (M155). Non-blocking — the
+    // provider caches its result so this only runs once per app session.
+    ref.watch(photoGpsFetchProvider);
+
     final user = ref.watch(authStateProvider).valueOrNull;
     final isAnonymous = user == null || user.isAnonymous;
     final isDarkMode = ref.watch(themeModeProvider) == ThemeMode.dark;
+
+    // Height of the photo grid panel shown below the flat map (2 tile rows).
+    // Used to offset floating buttons so they sit above the grid.
+    final screenWidth = MediaQuery.of(context).size.width;
 
     final yearFilter = ref.watch(yearFilterProvider);
 
@@ -265,6 +276,7 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
+    final photoGridH = globeMode ? 0.0 : (screenWidth - 4) / 3 * 2 + 2;
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
         const <EffectiveVisitedCountry>[];
@@ -296,20 +308,33 @@ class MapScreen extends ConsumerWidget {
               options: MapOptions(
                 initialCenter: const LatLng(20, 0),
                 initialZoom: 2,
-                // Transparent so the starfield shows through ocean areas.
+                // Flat map uses a solid ocean colour — no stars visible through
+                // the ocean gaps. Globe mode uses transparent so stars fill the
+                // corners outside the disk (handled by GlobeMapWidget instead).
                 backgroundColor:
                     mapIsDark
-                        ? Colors.transparent
-                        : mapTheme.colorScheme.surface,
+                        ? const Color(0xFF0D2137) // dark ocean blue
+                        : const Color(0xFFB8D4E8), // light ocean blue
                 onTap:
                     (pos, latlng) =>
                         _onMapTap(context, ref, visitedByCode, pos, latlng),
+                onPositionChanged: (camera, _) {
+                  final b = camera.visibleBounds;
+                  ref.read(mapViewportProvider.notifier).state = (
+                    north: b.north,
+                    south: b.south,
+                    east: b.east,
+                    west: b.west,
+                  );
+                },
               ),
               children: const [
                 CountryPolygonLayer(),
                 TargetCountryLayer(),
                 RegionChipsMarkerLayer(),
                 WorldHeritageMarkerLayer(),
+                PhotoHeatmapLayer(),
+                PhotoClusterLayer(),
               ],
             ),
 
@@ -353,7 +378,9 @@ class MapScreen extends ConsumerWidget {
                     ),
                   ),
                   if (globeMode && visitedByCode.isNotEmpty)
-                    _VisitedCountryFlagStrip(visits: filteredVisits),
+                    _VisitedCountryFlagStrip(visits: filteredVisits)
+                  else if (!globeMode)
+                    const MapPhotoStrip(),
                   const TimelineScrubberBar(),
                   const StatsStrip(),
                 ],
@@ -377,20 +404,36 @@ class MapScreen extends ConsumerWidget {
             ),
             if (!hasVisits)
               _EmptyStateOverlay(onNavigateToScan: onNavigateToScan),
-            const Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 80),
-                child: RovyBubble(),
-              ),
+            Positioned(
+              bottom: photoGridH + 16,
+              left: 0,
+              right: 0,
+              child: const Center(child: RovyBubble()),
             ),
-            // Globe rotation pause/play — bottom-right, above flag strip.
-            if (globeMode)
-              const Positioned(
-                bottom: 148,
-                right: 12,
-                child: _GlobeRotationToggle(),
-              ),
+            // Globe ↔ flat map toggle + rotation toggle — bottom-right.
+            // Offsets are reduced in landscape where the screen is shorter.
+            Builder(
+              builder: (context) {
+                final isLandscape =
+                    MediaQuery.of(context).orientation == Orientation.landscape;
+                final baseBottom = isLandscape ? 100.0 : photoGridH + 56;
+                return Stack(
+                  children: [
+                    Positioned(
+                      bottom: globeMode ? baseBottom + 52 : baseBottom,
+                      right: 12,
+                      child: _MapViewToggle(globeMode: globeMode),
+                    ),
+                    if (globeMode)
+                      Positioned(
+                        bottom: baseBottom,
+                        right: 12,
+                        child: const _GlobeRotationToggle(),
+                      ),
+                  ],
+                );
+              },
+            ),
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               right: 8,
@@ -1219,6 +1262,30 @@ class _GlobeRotationToggle extends ConsumerWidget {
         onPressed:
             () =>
                 ref.read(globeRotationPausedProvider.notifier).state = !paused,
+      ),
+    );
+  }
+}
+
+// ── Globe ↔ flat map toggle ───────────────────────────────────────────────────
+
+class _MapViewToggle extends ConsumerWidget {
+  const _MapViewToggle({required this.globeMode});
+
+  final bool globeMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: Colors.black45,
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: Icon(globeMode ? Icons.map_outlined : Icons.language_rounded),
+        color: Colors.white,
+        iconSize: 22,
+        tooltip: globeMode ? 'Switch to flat map' : 'Switch to globe',
+        onPressed: () =>
+            ref.read(globeModeProvider.notifier).state = !globeMode,
       ),
     );
   }

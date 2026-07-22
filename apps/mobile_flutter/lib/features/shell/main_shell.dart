@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/globe_overlay.dart';
@@ -274,79 +275,147 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final overlay = ref.watch(globeOverlayProvider);
-    return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _selectedIndex,
-            children: [
-              MapScreen(
-                onNavigateToScan:
-                    () => _goToScan(autoStart: true, forceFullScan: true),
-                onNavigateToScanFull:
-                    () => _goToScan(autoStart: true, forceFullScan: true),
-                onNavigateToScanPartial:
-                    () => _goToScan(autoStart: true, forceFullScan: false),
-              ),
-              // Journal — kept for possible reinstatement:
-              // JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
-              const TravelTimelineScreen(),
-              const StatsScreen(),
-              const MerchShopScreen(),
-              const WorldLeapLobbyScreen(),
-            ],
+    final cartCount = ref.watch(merchCartCountProvider);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    final body = Stack(
+      children: [
+        IndexedStack(
+          index: _selectedIndex,
+          children: [
+            MapScreen(
+              onNavigateToScan:
+                  () => _goToScan(autoStart: true, forceFullScan: true),
+              onNavigateToScanFull:
+                  () => _goToScan(autoStart: true, forceFullScan: true),
+              onNavigateToScanPartial:
+                  () => _goToScan(autoStart: true, forceFullScan: false),
+            ),
+            // Journal — kept for possible reinstatement:
+            // JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
+            const TravelTimelineScreen(),
+            const StatsScreen(),
+            const MerchShopScreen(),
+            const WorldLeapLobbyScreen(),
+          ],
+        ),
+        // M134: Globe animation overlay — shown in-place so replay and scan
+        // animations appear on the main-screen globe without route transitions.
+        if (overlay.isActive)
+          Positioned.fill(
+            child: GlobeReplayWidget(
+              embedded: true,
+              script: overlay.replayScript,
+              dataSource: overlay.scanSource,
+              initialCollectedCodes: overlay.initialCollectedCodes,
+              onScanComplete:
+                  overlay.isReplayMode
+                      ? () => ref.read(globeOverlayProvider.notifier).hide()
+                      : overlay.onScanComplete,
+              onClose: () {
+                if (overlay.isScanMode) overlay.onScanComplete?.call();
+                ref.read(globeOverlayProvider.notifier).hide();
+              },
+            ),
           ),
-          // M134: Globe animation overlay — shown in-place so replay and scan
-          // animations appear on the main-screen globe without route transitions.
-          if (overlay.isActive)
-            Positioned.fill(
-              child: GlobeReplayWidget(
-                embedded: true,
-                script: overlay.replayScript,
-                dataSource: overlay.scanSource,
-                initialCollectedCodes: overlay.initialCollectedCodes,
-                // For replay mode, use MainShell's own ref so hide() is always
-                // reachable regardless of whether the entry sheet is disposed.
-                onScanComplete:
-                    overlay.isReplayMode
-                        ? () =>
-                            ref.read(globeOverlayProvider.notifier).hide()
-                        : overlay.onScanComplete,
-                // Always call hide() on cancel so the overlay is never stuck.
-                // For scan mode, also invoke onScanComplete to clean up the
-                // scan controller; for replay mode hide() is already enough.
-                onClose: () {
-                  if (overlay.isScanMode) overlay.onScanComplete?.call();
-                  ref.read(globeOverlayProvider.notifier).hide();
-                },
+        // Cancel button — only shown during active scan, not replay.
+        if (overlay.isActive && overlay.isScanMode)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            right: 16,
+            child: FilledButton.tonal(
+              onPressed: () {
+                overlay.onScanComplete?.call();
+                ref.read(globeOverlayProvider.notifier).hide();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.black54,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
+              child: const Text(
+                'Cancel scan',
+                style: TextStyle(fontSize: 13),
               ),
             ),
-          // Cancel button — only shown during active scan, not replay.
-          // Placed in the outer Stack so it is always on top of GlobeReplayWidget.
-          if (overlay.isActive && overlay.isScanMode)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 12,
-              right: 16,
-              child: FilledButton.tonal(
-                onPressed: () {
-                  overlay.onScanComplete?.call();
-                  ref.read(globeOverlayProvider.notifier).hide();
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.black54,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+          ),
+      ],
+    );
+
+    if (isLandscape) {
+      // Landscape: NavigationRail on the left, content fills the rest.
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainer,
+              indicatorColor:
+                  Theme.of(context).colorScheme.primaryContainer,
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (i) =>
+                  setState(() => _selectedIndex = i),
+              labelType: NavigationRailLabelType.all,
+              destinations: [
+                const NavigationRailDestination(
+                  icon: Icon(Icons.map_outlined),
+                  selectedIcon: Icon(Icons.map),
+                  label: Text('Map'),
+                ),
+                // Journal — kept for possible reinstatement:
+                // const NavigationRailDestination(
+                //   icon: Icon(Icons.list_alt_outlined),
+                //   selectedIcon: Icon(Icons.list_alt),
+                //   label: Text('Journal'),
+                // ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.route_outlined),
+                  selectedIcon: Icon(Icons.route),
+                  label: Text('Journey'),
+                ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.leaderboard_outlined),
+                  selectedIcon: Icon(Icons.leaderboard),
+                  label: Text('Stats'),
+                ),
+                NavigationRailDestination(
+                  icon: _CartBadgeIcon(
+                    icon: Icons.storefront_outlined,
+                    cartCount: cartCount,
                   ),
+                  selectedIcon: _CartBadgeIcon(
+                    icon: Icons.storefront,
+                    cartCount: cartCount,
+                  ),
+                  label: const Text('Shop'),
                 ),
-                child: const Text(
-                  'Cancel scan',
-                  style: TextStyle(fontSize: 13),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.sports_esports_outlined),
+                  selectedIcon: Icon(Icons.sports_esports),
+                  label: Text('Play'),
                 ),
-              ),
+              ],
             ),
-        ],
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(child: body),
+          ],
+        ),
+      );
+    }
+
+    // Portrait: NavigationBar at the bottom.
+    return Scaffold(
+      body: body,
+      // DEV-ONLY: remove before shipping
+      floatingActionButton: FloatingActionButton.small(
+        heroTag: 'dev_quokka',
+        backgroundColor: const Color(0xFFf5c842),
+        onPressed: () => context.go('/dev/quokka'),
+        child: const Text('🐨', style: TextStyle(fontSize: 18)),
       ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
@@ -378,11 +447,11 @@ class _MainShellState extends ConsumerState<MainShell> {
           NavigationDestination(
             icon: _CartBadgeIcon(
               icon: Icons.storefront_outlined,
-              cartCount: ref.watch(merchCartCountProvider),
+              cartCount: cartCount,
             ),
             selectedIcon: _CartBadgeIcon(
               icon: Icons.storefront,
-              cartCount: ref.watch(merchCartCountProvider),
+              cartCount: cartCount,
             ),
             label: 'Shop',
           ),

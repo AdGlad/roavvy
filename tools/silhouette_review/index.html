@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Silhouette Review</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: #1a1d2e; color: #e0e0e0; height: 100vh; display: flex; overflow: hidden; }
+
+/* ── Sidebar ── */
+#sidebar { width: 280px; min-width: 220px; border-right: 1px solid #2e3150;
+           display: flex; flex-direction: column; background: #12152a; }
+#source-bar { padding: 8px 12px; border-bottom: 1px solid #2e3150; background: #0d0f1e; }
+#source-bar .src-label { font-size: 10px; color: #555; text-transform: uppercase;
+                          letter-spacing: 0.5px; margin-bottom: 4px; }
+#source-select { width: 100%; background: #1a1d30; border: 1px solid #3a3f6e;
+                 border-radius: 6px; color: #c0c8ff; padding: 5px 8px; font-size: 12px; }
+#source-select:focus { outline: none; border-color: #6c8eff; }
+#source-desc { font-size: 10px; color: #555; margin-top: 3px; }
+#sidebar-top { padding: 12px; display: flex; flex-direction: column; gap: 8px;
+               border-bottom: 1px solid #2e3150; }
+#search { background: #1e2240; border: 1px solid #3a3f6e; border-radius: 6px;
+          color: #e0e0e0; padding: 7px 10px; font-size: 13px; width: 100%; }
+#search:focus { outline: none; border-color: #6c8eff; }
+.filter-row { display: flex; gap: 6px; }
+.filter-row select { flex: 1; background: #1e2240; border: 1px solid #3a3f6e;
+                     border-radius: 6px; color: #e0e0e0; padding: 5px 8px; font-size: 12px; }
+.filter-row select:focus { outline: none; border-color: #6c8eff; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { padding: 3px 10px; border-radius: 12px; font-size: 11px; cursor: pointer;
+        background: #1e2240; border: 1px solid #3a3f6e; color: #aaa; user-select: none; }
+.chip.active { background: #6c8eff; border-color: #6c8eff; color: #fff; }
+#list { flex: 1; overflow-y: auto; }
+.list-item { padding: 9px 14px; cursor: pointer; border-bottom: 1px solid #1e2240;
+             display: flex; flex-direction: column; gap: 2px; }
+.list-item:hover { background: #1e2240; }
+.list-item.selected { background: #2a2d50; border-left: 3px solid #6c8eff; }
+.item-name { font-size: 13px; font-weight: 500; }
+.item-sub { font-size: 11px; color: #888; display: flex; gap: 6px; align-items: center; }
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.dot-png { background: #4fc3f7; }
+.dot-svg { background: #a5d6a7; }
+.dot-off { background: #444; }
+.cat-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+.cat-animal { background: #2d4a3e; color: #81c784; }
+.cat-plant  { background: #3a4a1e; color: #aed581; }
+.cat-other  { background: #3a3060; color: #b39ddb; }
+#list-count { padding: 6px 14px; font-size: 11px; color: #666; border-top: 1px solid #1e2240; }
+
+/* ── Main area ── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#toolbar { padding: 8px 14px; background: #12152a; border-bottom: 1px solid #2e3150;
+           display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar-group { display: flex; gap: 6px; align-items: center; }
+.toolbar-sep { width: 1px; height: 24px; background: #2e3150; }
+.lbl { font-size: 11px; color: #888; }
+.tb-input { background: #1e2240; border: 1px solid #3a3f6e; border-radius: 5px;
+            color: #e0e0e0; padding: 4px 7px; font-size: 12px; width: 54px; }
+.tb-input:focus { outline: none; border-color: #6c8eff; }
+button { padding: 5px 12px; border-radius: 5px; border: 1px solid #3a3f6e;
+         background: #1e2240; color: #e0e0e0; font-size: 12px; cursor: pointer; }
+button:hover { background: #2a2d50; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.danger { border-color: #ef5350; color: #ef5350; }
+button.danger:hover { background: #2d1a1a; }
+
+/* ── Panels ── */
+#panels { flex: 1; display: flex; overflow: hidden; }
+.panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #2e3150; }
+.panel:last-child { border-right: none; }
+.panel-label { padding: 6px 12px; font-size: 11px; color: #888; background: #12152a;
+               border-bottom: 1px solid #2e3150; display: flex; align-items: center; gap: 8px; }
+.panel-body { flex: 1; overflow: hidden; display: flex; align-items: center;
+              justify-content: center; position: relative; cursor: pointer; }
+.panel-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.has-checker { background-image:
+  linear-gradient(45deg,#2a2d3e 25%,transparent 25%),
+  linear-gradient(-45deg,#2a2d3e 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#2a2d3e 75%),
+  linear-gradient(-45deg,transparent 75%,#2a2d3e 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  background-color: #1e2240; }
+.placeholder { color: #555; font-size: 13px; text-align: center; padding: 20px; }
+
+/* Preview controls in panel label */
+.panel-label input[type=text] { background: #1e2240; border: 1px solid #3a3f6e;
+  border-radius: 4px; color: #e0e0e0; padding: 2px 6px; font-size: 12px;
+  width: 36px; text-transform: uppercase; }
+.panel-label input[type=text]:focus { outline: none; border-color: #6c8eff; }
+.panel-label select { background: #1e2240; border: 1px solid #3a3f6e; border-radius: 4px;
+  color: #e0e0e0; padding: 2px 5px; font-size: 12px; }
+.panel-label select:focus { outline: none; }
+.panel-label label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #888; }
+#preview-canvas { max-width: 100%; max-height: 100%; }
+
+/* Lightbox */
+#lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            align-items: center; justify-content: center; z-index: 100; cursor: zoom-out; }
+#lightbox.open { display: flex; }
+#lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; }
+
+/* Toast */
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+         background: #333; color: #fff; padding: 8px 18px; border-radius: 6px;
+         font-size: 13px; display: none; z-index: 200; }
+#toast.visible { display: block; }
+#toast.error { background: #c62828; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div id="source-bar">
+    <div class="src-label">Source</div>
+    <select id="source-select"></select>
+    <div id="source-desc"></div>
+  </div>
+  <div id="sidebar-top">
+    <input id="search" placeholder="Search silhouettes…" autocomplete="off">
+    <div class="filter-row">
+      <select id="cat-filter"><option value="">All categories</option></select>
+      <select id="country-filter"><option value="">All countries</option></select>
+    </div>
+    <div class="chips">
+      <span class="chip active" id="chip-all">All</span>
+      <span class="chip" id="chip-files">Has files</span>
+      <span class="chip" id="chip-missing">No files</span>
+    </div>
+  </div>
+  <div id="list"></div>
+  <div id="list-count"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="toolbar">
+    <div class="toolbar-group">
+      <span class="lbl">Blur</span>
+      <input class="tb-input" id="p-blur" type="number" value="3" min="0" max="20" step="0.5">
+      <span class="lbl">Simplify</span>
+      <input class="tb-input" id="p-simplify" type="number" value="0.5" min="0" max="5" step="0.1">
+      <label style="font-size:12px;color:#aaa;display:flex;gap:4px;align-items:center;">
+        <input type="checkbox" id="p-detail"> Detail
+      </label>
+      <button id="btn-regen">Regenerate SVG</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <span class="lbl">Width</span>
+      <input class="tb-input" id="p-export-width" type="number" value="512" min="64" max="4096" step="64">
+      <button id="btn-export-png">SVG → PNG</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button id="btn-upload">Upload PNG</button>
+      <input type="file" id="file-input" accept="image/*" style="display:none">
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button id="btn-rot-ccw" title="Rotate 90° counter-clockwise">↺ CCW</button>
+      <button id="btn-rot-cw"  title="Rotate 90° clockwise">↻ CW</button>
+    </div>
+  </div>
+
+  <div id="panels">
+    <!-- PNG -->
+    <div class="panel">
+      <div class="panel-label">PNG</div>
+      <div class="panel-body has-checker" id="png-panel" onclick="openLightbox('png')">
+        <div class="placeholder" id="png-placeholder">Select a silhouette</div>
+        <img id="png-img" style="display:none">
+      </div>
+    </div>
+
+    <!-- SVG -->
+    <div class="panel">
+      <div class="panel-label">SVG (vector)</div>
+      <div class="panel-body" id="svg-panel" style="background:#ffffff;" onclick="openLightbox('svg')">
+        <div class="placeholder" id="svg-placeholder" style="color:#999;">Select a silhouette</div>
+        <img id="svg-img" style="display:none">
+      </div>
+    </div>
+
+    <!-- Flag grid preview -->
+    <div class="panel">
+      <div class="panel-label">
+        Flag preview &nbsp;
+        <label>Flag <input id="preview-flag" type="text" maxlength="2" placeholder="CC"></label>
+        <label>Cols
+          <select id="preview-cols">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="6">6</option>
+            <option value="9">9</option>
+            <option value="12">12</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="preview-outline"> Outline</label>
+      </div>
+      <div class="panel-body" id="preview-panel" style="background:#2a2d3e;">
+        <canvas id="preview-canvas" style="display:none;max-width:100%;max-height:100%;"></canvas>
+        <div class="placeholder" id="preview-placeholder">Select a silhouette with SVG</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img">
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currentItem = null;
+let allItems = [];
+let svgViewBox = null;
+let svgPaths = [];
+let svgTransform = null;
+let flagImgCache = {};
+let vectoriseAvailable = false;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  const statusData = await fetch('/api/status').then(r => r.json());
+  vectoriseAvailable = statusData.vectorise_available;
+  document.getElementById('btn-regen').disabled = !vectoriseAvailable;
+  if (!vectoriseAvailable) {
+    document.getElementById('btn-regen').title = 'vectorise.py not found';
+  }
+
+  await initSources();
+  await reinitFilters();
+  setupChips();
+  setupFilters();
+  setupToolbar();
+  await loadList();
+}
+
+// ── Source selector ────────────────────────────────────────────────────────
+async function initSources() {
+  const sources = await fetch('/api/sources').then(r => r.json());
+  const sel = document.getElementById('source-select');
+  sel.innerHTML = '';
+  sources.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.key;
+    o.textContent = `${s.label}  (${s.svg_count} SVG · ${s.png_count} PNG)`;
+    if (s.active) {
+      o.selected = true;
+      document.getElementById('source-desc').textContent = s.desc;
+    }
+    sel.appendChild(o);
+  });
+  sel.onchange = () => switchSource(sel.value, sources);
+}
+
+async function switchSource(key, allSources) {
+  const sel = document.getElementById('source-select');
+  sel.disabled = true;
+  try {
+    await fetch(`/api/source/${key}`, { method: 'POST' });
+    const src = (allSources || []).find(s => s.key === key);
+    document.getElementById('source-desc').textContent = src ? src.desc : '';
+    currentItem = null;
+    // Clear panels
+    ['png-img','svg-img'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+    ['png-placeholder','svg-placeholder'].forEach(id => {
+      const el = document.getElementById(id);
+      el.style.display = 'block';
+      el.textContent = 'Select a silhouette';
+    });
+    showPreviewPlaceholder('Select a silhouette with SVG');
+    // Reset filters
+    document.getElementById('search').value = '';
+    document.getElementById('cat-filter').value = '';
+    document.getElementById('country-filter').value = '';
+    await reinitFilters();
+    await loadList();
+  } finally {
+    sel.disabled = false;
+  }
+}
+
+async function reinitFilters() {
+  const [cats, countries] = await Promise.all([
+    fetch('/api/categories').then(r => r.json()),
+    fetch('/api/countries').then(r => r.json()),
+  ]);
+  const catSel = document.getElementById('cat-filter');
+  catSel.innerHTML = '<option value="">All categories</option>';
+  cats.forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c;
+    catSel.appendChild(o);
+  });
+  const countrySel = document.getElementById('country-filter');
+  countrySel.innerHTML = '<option value="">All countries</option>';
+  countries.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.iso; o.textContent = `${c.name} (${c.iso})`;
+    countrySel.appendChild(o);
+  });
+}
+
+// ── Chips ──────────────────────────────────────────────────────────────────
+let activeChip = 'chip-all';
+
+function setupChips() {
+  ['chip-all', 'chip-files', 'chip-missing'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => {
+      document.getElementById(activeChip).classList.remove('active');
+      activeChip = id;
+      document.getElementById(id).classList.add('active');
+      loadList();
+    });
+  });
+}
+
+// ── Filters ────────────────────────────────────────────────────────────────
+function setupFilters() {
+  document.getElementById('search').addEventListener('input', () => loadList());
+  document.getElementById('cat-filter').addEventListener('change', () => loadList());
+  document.getElementById('country-filter').addEventListener('change', () => loadList());
+}
+
+// ── Load list ──────────────────────────────────────────────────────────────
+async function loadList() {
+  const params = new URLSearchParams();
+  const q = document.getElementById('search').value.trim();
+  if (q) params.set('q', q);
+  const cat = document.getElementById('cat-filter').value;
+  if (cat) params.set('category', cat);
+  const country = document.getElementById('country-filter').value;
+  if (country) params.set('country', country);
+  if (activeChip === 'chip-files')   params.set('has_files', 'true');
+  if (activeChip === 'chip-missing') params.set('has_files', 'false');
+
+  const items = await fetch('/api/silhouettes?' + params).then(r => r.json());
+  allItems = items;
+  renderList(items);
+}
+
+function renderList(items) {
+  const el = document.getElementById('list');
+  el.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'list-item' + (currentItem && currentItem.id === item.id ? ' selected' : '');
+    div.dataset.id = item.id;
+
+    const catCls = item.category === 'animal' ? 'cat-animal' : item.category === 'plant' ? 'cat-plant' : 'cat-other';
+    div.innerHTML = `
+      <div class="item-name">${item.display_name}</div>
+      <div class="item-sub">
+        <span class="dot ${item.has_png ? 'dot-png' : 'dot-off'}" title="PNG"></span>
+        <span class="dot ${item.has_svg ? 'dot-svg' : 'dot-off'}" title="SVG"></span>
+        <span class="cat-badge ${catCls}">${item.category}</span>
+        <span>${item.country} · ${item.iso_code}</span>
+      </div>`;
+    div.addEventListener('click', () => selectItem(item));
+    el.appendChild(div);
+  });
+  document.getElementById('list-count').textContent = `${items.length} silhouettes`;
+}
+
+// ── Select item ────────────────────────────────────────────────────────────
+function selectItem(item) {
+  currentItem = item;
+  document.querySelectorAll('.list-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.id === item.id);
+  });
+  loadItem(item);
+}
+
+function loadItem(item) {
+  const t = Date.now();
+
+  // PNG
+  if (item.has_png && item.png_url) {
+    const img = document.getElementById('png-img');
+    img.src = `${item.png_url}?t=${t}`;
+    img.style.display = 'block';
+    document.getElementById('png-placeholder').style.display = 'none';
+  } else {
+    document.getElementById('png-img').style.display = 'none';
+    document.getElementById('png-placeholder').style.display = 'block';
+    document.getElementById('png-placeholder').textContent = 'No PNG file';
+  }
+
+  // SVG
+  if (item.has_svg && item.svg_url) {
+    const img = document.getElementById('svg-img');
+    img.src = `${item.svg_url}?t=${t}`;
+    img.style.display = 'block';
+    document.getElementById('svg-placeholder').style.display = 'none';
+  } else {
+    document.getElementById('svg-img').style.display = 'none';
+    document.getElementById('svg-placeholder').style.display = 'block';
+    document.getElementById('svg-placeholder').textContent = 'No SVG file';
+  }
+
+  // Set default flag CC in preview input
+  const flagInput = document.getElementById('preview-flag');
+  if (!flagInput.value || flagInput.dataset.auto === 'true') {
+    flagInput.value = item.iso_code.toUpperCase();
+    flagInput.dataset.auto = 'true';
+  }
+
+  // SVG parse + preview (fire-and-forget)
+  svgViewBox = null; svgPaths = []; svgTransform = null;
+  showPreviewPlaceholder(item.has_svg ? 'Loading…' : 'No SVG file');
+
+  if (item.has_svg && item.svg_url) {
+    fetch(`${item.svg_url}?t=${t}`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      .then(text => { parseSvgContent(text); return renderPreview(); })
+      .catch(() => showPreviewPlaceholder('Could not load SVG'));
+  }
+}
+
+// ── SVG parsing ────────────────────────────────────────────────────────────
+function parseSvgContent(text) {
+  svgViewBox = null; svgPaths = []; svgTransform = null;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) throw new Error('parse error');
+    const svgEl = doc.documentElement;
+    const vb = svgEl.getAttribute('viewBox');
+    if (vb) svgViewBox = vb.trim().split(/[\s,]+/).map(Number);
+    const gEl = doc.querySelector('g[transform]');
+    svgTransform = gEl ? gEl.getAttribute('transform') : null;
+    svgPaths = Array.from(doc.querySelectorAll('path'))
+      .map(p => p.getAttribute('d')).filter(Boolean);
+  } catch (_) {
+    // Regex fallback for malformed SVGs
+    const vbM = text.match(/viewBox="([^"]+)"/);
+    if (vbM) svgViewBox = vbM[1].trim().split(/[\s,]+/).map(Number);
+    const trM = text.match(/<g\b[^>]*transform="([^"]+)"/);
+    if (trM) svgTransform = trM[1];
+    const dMatches = [...text.matchAll(/ d="([^"]+)"/g)];
+    svgPaths = dMatches.map(m => m[1]).filter(Boolean);
+  }
+}
+
+function parseSvgTransformString(str) {
+  if (!str) return null;
+  try {
+    const mM = str.match(/matrix\(\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)\s*\)/);
+    if (mM) return new DOMMatrix(mM.slice(1, 7).map(Number));
+    let tx = 0, ty = 0, sx = 1, sy = 1;
+    const tM = str.match(/translate\(\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)\s*\)/);
+    if (tM) { tx = parseFloat(tM[1]); ty = parseFloat(tM[2]); }
+    const sM = str.match(/scale\(\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)\s*\)/);
+    if (sM) { sx = parseFloat(sM[1]); sy = parseFloat(sM[2]); }
+    return new DOMMatrix([sx, 0, 0, sy, tx, ty]);
+  } catch (_) { return null; }
+}
+
+// ── Canvas preview ─────────────────────────────────────────────────────────
+function showPreviewPlaceholder(msg) {
+  const canvas = document.getElementById('preview-canvas');
+  const ph = document.getElementById('preview-placeholder');
+  if (msg === null) {
+    canvas.style.display = 'block';
+    ph.style.display = 'none';
+  } else {
+    canvas.style.display = 'none';
+    ph.style.display = 'block';
+    ph.textContent = msg;
+  }
+}
+
+async function renderPreview() {
+  if (!svgViewBox || svgPaths.length === 0) {
+    showPreviewPlaceholder('No paths to render');
+    return;
+  }
+  try {
+    const [vx, vy, vw, vh] = svgViewBox;
+    const maxDim = 400;
+    const scale = Math.min(maxDim / vw, maxDim / vh);
+    const cw = Math.round(vw * scale);
+    const ch = Math.round(vh * scale);
+
+    const canvas = document.getElementById('preview-canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, cw, ch);
+
+    // T-shirt background
+    drawShirtBackground(ctx, cw, ch);
+
+    // Build clip path with SVG transform
+    const matrix = parseSvgTransformString(svgTransform);
+    const scaleMat = new DOMMatrix([scale, 0, 0, scale, -vx * scale, -vy * scale]);
+    const finalMat = matrix ? scaleMat.multiply(matrix) : scaleMat;
+
+    const clip = new Path2D();
+    let pathsOk = 0;
+    for (const d of svgPaths) {
+      try {
+        const p = new Path2D(d);
+        clip.addPath(p, finalMat);
+        pathsOk++;
+      } catch (_) {}
+    }
+    if (pathsOk === 0) {
+      showPreviewPlaceholder('No valid paths');
+      return;
+    }
+
+    ctx.save();
+    ctx.clip(clip, 'evenodd');
+
+    // Tile flag image
+    const flagCC = (document.getElementById('preview-flag').value || '').toLowerCase().trim();
+    const cols = parseInt(document.getElementById('preview-cols').value, 10) || 4;
+    const flagImg = flagCC ? await loadFlagImage(flagCC).catch(() => null) : null;
+
+    if (flagImg) {
+      const tileW = Math.ceil(cw / cols);
+      const tileH = Math.round(tileW * flagImg.naturalHeight / flagImg.naturalWidth);
+      const rows = Math.ceil(ch / tileH) + 1;
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          ctx.drawImage(flagImg, col * tileW, row * tileH, tileW, tileH);
+        }
+      }
+    } else {
+      ctx.fillStyle = '#6c8eff';
+      ctx.fillRect(0, 0, cw, ch);
+    }
+    ctx.restore();
+
+    // Optional outline
+    if (document.getElementById('preview-outline').checked) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke(clip);
+      ctx.restore();
+    }
+
+    showPreviewPlaceholder(null);
+  } catch (err) {
+    showPreviewPlaceholder('Render error: ' + err.message);
+  }
+}
+
+function drawShirtBackground(ctx, w, h) {
+  const bx = w * 0.12, bw = w * 0.76, bh = h * 0.70, by = h * 0.30;
+  const sw = w * 0.30, sh = h * 0.28, sleeveTop = h * 0.04;
+  const neckW = w * 0.22, neckH = h * 0.10;
+
+  ctx.save();
+  ctx.fillStyle = '#f5f0ea';
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  // Left sleeve
+  ctx.moveTo(0, sleeveTop + sh);
+  ctx.lineTo(0, sleeveTop);
+  ctx.lineTo(bx + sw * 0.4, sleeveTop);
+  // Left shoulder to collar
+  ctx.lineTo(bx, by);
+  // Collar left arc
+  ctx.bezierCurveTo(bx + w*0.05, by - neckH, w/2 - neckW/2, by - neckH*0.5, w/2, by - neckH*0.3);
+  // Collar right arc
+  ctx.bezierCurveTo(w/2 + neckW/2, by - neckH*0.5, bx + bw - w*0.05, by - neckH, bx + bw, by);
+  // Right shoulder to sleeve
+  ctx.lineTo(w - bx - sw * 0.4, sleeveTop);
+  ctx.lineTo(w, sleeveTop);
+  ctx.lineTo(w, sleeveTop + sh);
+  ctx.lineTo(w - bx, by + sh * 0.5);
+  // Body right
+  ctx.lineTo(bx + bw, by + bh);
+  ctx.lineTo(bx, by + bh);
+  ctx.lineTo(bx, by + sh * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function loadFlagImage(cc) {
+  if (flagImgCache[cc]) return Promise.resolve(flagImgCache[cc]);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { flagImgCache[cc] = img; resolve(img); };
+    img.onerror = reject;
+    img.src = `https://flagcdn.com/w160/${cc}.png`;
+  });
+}
+
+// ── Toolbar ────────────────────────────────────────────────────────────────
+function setupToolbar() {
+  document.getElementById('btn-regen').addEventListener('click', regenerate);
+  document.getElementById('btn-export-png').addEventListener('click', exportPng);
+  document.getElementById('btn-upload').addEventListener('click', () =>
+    document.getElementById('file-input').click());
+  document.getElementById('file-input').addEventListener('change', uploadPng);
+  document.getElementById('btn-rot-ccw').addEventListener('click', () => rotateItem(-90));
+  document.getElementById('btn-rot-cw').addEventListener('click', () => rotateItem(90));
+  document.getElementById('preview-flag').addEventListener('input', e => {
+    e.target.dataset.auto = 'false';
+    flagImgCache = {};
+    renderPreview();
+  });
+  document.getElementById('preview-cols').addEventListener('change', () => renderPreview());
+  document.getElementById('preview-outline').addEventListener('change', () => renderPreview());
+}
+
+async function regenerate() {
+  if (!currentItem) return;
+  const btn = document.getElementById('btn-regen');
+  btn.disabled = true; btn.textContent = 'Working…';
+  try {
+    const body = new FormData();
+    body.append('blur', document.getElementById('p-blur').value);
+    body.append('simplify', document.getElementById('p-simplify').value);
+    body.append('preserve_detail', document.getElementById('p-detail').checked ? 'true' : 'false');
+    const res = await fetch(`/api/regenerate/${currentItem.id}`, { method: 'POST', body });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || res.statusText); }
+    const item = await fetch(`/api/silhouette/${currentItem.id}`).then(r => r.json());
+    currentItem = item;
+    loadItem(item);
+    refreshListItem(item);
+    toast('SVG regenerated');
+  } catch (err) {
+    toast('Error: ' + err.message, true);
+  } finally {
+    btn.disabled = !vectoriseAvailable;
+    btn.textContent = 'Regenerate SVG';
+  }
+}
+
+async function exportPng() {
+  if (!currentItem) return;
+  if (!currentItem.has_svg) { toast('No SVG to export from', true); return; }
+  const btn = document.getElementById('btn-export-png');
+  btn.disabled = true; btn.textContent = 'Rendering…';
+  try {
+    const width = document.getElementById('p-export-width').value || 512;
+    const res = await fetch(`/api/export_png/${currentItem.id}?width=${width}`, { method: 'POST' });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || res.statusText); }
+    const item = await fetch(`/api/silhouette/${currentItem.id}`).then(r => r.json());
+    currentItem = item;
+    loadItem(item);
+    refreshListItem(item);
+    toast(`PNG exported at ${width}px`);
+  } catch (err) {
+    toast('Export failed: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'SVG → PNG';
+  }
+}
+
+async function uploadPng(e) {
+  if (!currentItem || !e.target.files[0]) return;
+  const file = e.target.files[0];
+  e.target.value = '';
+  const body = new FormData();
+  body.append('file', file);
+  try {
+    const res = await fetch(`/api/upload_png/${currentItem.id}`, { method: 'POST', body });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.detail || res.statusText); }
+    const item = await fetch(`/api/silhouette/${currentItem.id}`).then(r => r.json());
+    currentItem = item;
+    loadItem(item);
+    refreshListItem(item);
+    toast('PNG uploaded');
+  } catch (err) {
+    toast('Upload failed: ' + err.message, true);
+  }
+}
+
+async function rotateItem(degrees) {
+  if (!currentItem) return;
+  try {
+    const res = await fetch(`/api/rotate/${currentItem.id}?degrees=${degrees}`, { method: 'POST' });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || res.statusText); }
+    loadItem(currentItem);
+    toast(`Rotated ${degrees > 0 ? '↻' : '↺'} ${Math.abs(degrees)}°`);
+  } catch (err) {
+    toast('Rotate failed: ' + err.message, true);
+  }
+}
+
+function refreshListItem(item) {
+  const el = document.querySelector(`.list-item[data-id="${item.id}"]`);
+  if (!el) return;
+  const catCls = item.category === 'animal' ? 'cat-animal' : item.category === 'plant' ? 'cat-plant' : 'cat-other';
+  el.querySelector('.item-sub').innerHTML = `
+    <span class="dot ${item.has_png ? 'dot-png' : 'dot-off'}" title="PNG"></span>
+    <span class="dot ${item.has_svg ? 'dot-svg' : 'dot-off'}" title="SVG"></span>
+    <span class="cat-badge ${catCls}">${item.category}</span>
+    <span>${item.country} · ${item.iso_code}</span>`;
+}
+
+// ── Lightbox ───────────────────────────────────────────────────────────────
+function openLightbox(type) {
+  const src = type === 'png'
+    ? document.getElementById('png-img').src
+    : document.getElementById('svg-img').src;
+  if (!src || !currentItem) return;
+  const img = document.getElementById('lightbox-img');
+  img.src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'visible' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 2500);
+}
+
+init();
+</script>
+</body>
+</html>

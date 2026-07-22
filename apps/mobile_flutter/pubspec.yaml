@@ -64,6 +64,7 @@ dependencies:
   flutter_svg: ^2.0.10+1
   path_drawing: ^1.0.1
   audioplayers: ^6.0.0
+  lottie: ^3.1.0
   pdf: ^3.10.8
   flutter_custom_carousel: ^0.1.0+1
   flutter_animate: ^4.5.0
@@ -122,6 +123,8 @@ flutter:
     - assets/continent_paths/
     - assets/symbols/
     - assets/silhouettes/
+    - assets/lottie/
+    - assets/mascot/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
