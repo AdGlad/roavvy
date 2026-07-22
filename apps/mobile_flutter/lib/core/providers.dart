@@ -71,14 +71,20 @@ final startupCompleteProvider = FutureProvider<void>((ref) async {
   // FirebaseAuth.instance.currentUser is populated synchronously after
   // Firebase.initializeApp() in main.dart; safe to read here.
   final uid = FirebaseAuth.instance.currentUser?.uid;
+  // ignore: avoid_print
+  print('[roavvy-startup] startup-provider: uid=${uid != null}');
 
   // 1. Restore Firestore data if this is a fresh install (ADR-160).
   if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
+    // ignore: avoid_print
+    print('[roavvy-startup] startup-provider: restoring from Firestore');
     await FirestoreRestoreService(db: db).restore(uid);
   }
 
   // 2. Synthesise one trip per country for pre-v6 users (ADR-048).
   await bootstrapExistingUser(visitRepo, tripRepo, regionRepo: regionRepo);
+  // ignore: avoid_print
+  print('[roavvy-startup] startup-provider: complete');
 
   // 3. Flush dirty rows to Firestore (fire-and-forget).
   if (uid != null) {

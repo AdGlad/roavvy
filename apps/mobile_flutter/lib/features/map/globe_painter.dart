@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:country_lookup/country_lookup.dart';
@@ -37,6 +38,12 @@ const _kDepth2FillLight = Color(0xFFD49200);
 const _kDepth3FillLight = Color(0xFFBF7500);
 const _kDepth4FillLight = Color(0xFF8B5000);
 
+// Ocean lit/shadow variants — endpoints of the sun-biased radial gradient.
+const _kOceanLit = Color(0xFF2E5C86);
+const _kOceanShadow = Color(0xFF0E2136);
+const _kOceanLitLight = Color(0xFFB9E8FF);
+const _kOceanShadowLight = Color(0xFF4A9CC7);
+
 Color _depthFillColor(int tripCount) {
   if (tripCount <= 0) return _kDepth1Fill;
   if (tripCount == 1) return _kDepth1Fill;
@@ -53,16 +60,89 @@ Color _depthFillColorLight(int tripCount) {
   return _kDepth4FillLight;
 }
 
+// ── Sun direction (day/night + lighting) ────────────────────────────────────
+
+/// Approximate subsolar point (lat, lng in degrees) for [utc].
+///
+/// Stylistic approximation only (no equation-of-time correction) — good
+/// enough for a soft day/night wash, not for navigation.
+(double lat, double lng) _subsolarPoint(DateTime utc) {
+  final dayOfYear = utc.difference(DateTime.utc(utc.year, 1, 1)).inDays + 1;
+  final decl = 23.44 * math.sin(2 * math.pi * (284 + dayOfYear) / 365.0);
+  final hours = utc.hour + utc.minute / 60.0 + utc.second / 3600.0;
+  final lng = ((12.0 - hours) * 15.0 + 180.0) % 360.0 - 180.0;
+  return (decl, lng);
+}
+
+// ── Graticule (lat/long grid) ───────────────────────────────────────────────
+
+const _kGraticuleStepDeg = 5;
+
+List<List<(double, double)>> _buildMeridians() => [
+  for (var lng = -180; lng < 180; lng += 30)
+    [
+      for (var lat = -90; lat <= 90; lat += _kGraticuleStepDeg)
+        (lat.toDouble(), lng.toDouble()),
+    ],
+];
+
+List<List<(double, double)>> _buildParallels() => [
+  for (var lat = -60; lat <= 60; lat += 30)
+    [
+      for (var lng = -180; lng <= 180; lng += _kGraticuleStepDeg)
+        (lat.toDouble(), lng.toDouble()),
+    ],
+];
+
+final _kGraticuleLines = [..._buildMeridians(), ..._buildParallels()];
+
+/// Graticule vertices as unit 3D vectors — computed once so the per-frame
+/// cost is rotation multiply-adds, not ~800 lat/lng trig conversions.
+final _kGraticuleUnitLines = [
+  for (final line in _kGraticuleLines)
+    [for (final v in line) GlobeProjection.unitVector(v.$1, v.$2)],
+];
+
+// ── Cloud layer ──────────────────────────────────────────────────────────────
+
+class _CloudBlob {
+  const _CloudBlob(this.lat, this.lng, this.radiusFactor, this.opacity, this.driftSpeed);
+  final double lat, lng, radiusFactor, opacity, driftSpeed;
+}
+
+/// Generated once — fixed seed so blob placement is deterministic per install.
+final _kCloudBlobs = _buildClouds(24, seed: 0xC10DED);
+
+List<_CloudBlob> _buildClouds(int count, {required int seed}) {
+  final rng = math.Random(seed);
+  return List.generate(count, (_) {
+    return _CloudBlob(
+      rng.nextDouble() * 140 - 70, // bias away from the poles
+      rng.nextDouble() * 360 - 180,
+      0.05 + rng.nextDouble() * 0.09,
+      0.05 + rng.nextDouble() * 0.08,
+      0.4 + rng.nextDouble() * 0.9, // relative drift speed (parallax)
+    );
+  });
+}
+
+// Full drift cycle for the slowest cloud blob (driftSpeed 1.0).
+const _kCloudCycleMs = 40 * 60 * 1000; // 40 minutes
+
 // ── GlobePainter ──────────────────────────────────────────────────────────────
 
 /// [CustomPainter] that renders all country polygons onto a 3D globe using
 /// orthographic projection (ADR-116).
 ///
 /// Rendering order:
-/// 1. Ocean fill circle.
-/// 2. Country polygon fills + borders (back-face culled by centroid).
-/// 3. Atmosphere rim stroke.
-/// 4. Optional highlight halo on [highlightedCode] (celebration — ADR-123).
+/// 1. Ocean fill circle — radial gradient biased toward the sun direction.
+/// 2. Lat/long graticule (faint grid, shows through ocean gaps only).
+/// 3. Country polygon fills + borders (back-face culled by centroid).
+/// 4. Atmosphere rim stroke.
+/// 5. Day/night + rim-light wash — approximate lighting from wall-clock UTC.
+/// 6. Procedural cloud layer (soft, low-opacity, drifts independently).
+/// 7. Optional highlight halo on [highlightedCode] (celebration — ADR-123).
+/// 8. Heritage/challenge site markers, drawn last so they stay legible.
 class GlobePainter extends CustomPainter {
   const GlobePainter({
     required this.polygons,
@@ -117,38 +197,100 @@ class GlobePainter extends CustomPainter {
   static const _kSuppressed = {'AQ'};
   static const _kStrokeWidth = 0.3;
 
+  // ── Per-geometry caches (UI isolate only) ─────────────────────────────────
+  // Polygon lists come from providers and are identity-stable across frames,
+  // so geometry-derived values are cached per CountryPolygon instance:
+  // centroid (back-face cull), antimeridian-split rings, and the rings as
+  // precomputed unit vectors for the fast projection path.
+  static final _centroidCache = Expando<(double, double)>();
+  static final _unitRingsCache =
+      Expando<List<List<(double, double, double)>>>();
+
+  // Shader caches — keyed by quantised inputs so shaders are rebuilt a few
+  // times per second at most (sun direction drifts slowly) instead of every
+  // frame. Bounded: keys change only with canvas size / theme / sun drift.
+  static int? _oceanShaderKey;
+  static ui.Shader? _oceanShader;
+  static int? _washShaderKey;
+  static ui.Shader? _washShader;
+  static final _cloudShaderCache = <int, ui.Shader>{};
+
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
     final r = projection.radius(size);
     final c = projection.centre(size);
 
-    // 1. Ocean circle.
-    canvas.drawCircle(c, r, Paint()..color = isDark ? _kOcean : _kOceanLight);
+    // Approximate sun direction in screen space — reused below for the ocean
+    // gradient and the day/night + rim-light wash. Recomputed every frame
+    // from wall-clock UTC; the globe already repaints continuously via the
+    // rotation ticker (GlobeMapWidget) so this stays live without extra state.
+    final sun = _subsolarPoint(DateTime.now().toUtc());
+    final sunView = projection.viewVector(sun.$1, sun.$2);
+    final sunDir = Offset(sunView.$1, -sunView.$2); // flip y: screen-down axis
+    final sunDirNorm =
+        sunDir.distance > 0.01 ? sunDir / sunDir.distance : Offset.zero;
 
-    // 2. Country polygons — back-face culled.
+    // 1. Ocean fill — radial gradient biased toward the lit side. The sun
+    // direction is quantised so the shader is only rebuilt when it visibly
+    // moves (idle spin drifts it ~5°/sec), not on every frame.
+    final qSunX = (sunDirNorm.dx * 50).round();
+    final qSunY = (sunDirNorm.dy * 50).round();
+    final oceanKey = Object.hash(qSunX, qSunY, r.round(), c.dx, c.dy, isDark);
+    if (_oceanShaderKey != oceanKey) {
+      _oceanShaderKey = oceanKey;
+      _oceanShader = RadialGradient(
+        center: Alignment(qSunX / 50 * 0.6, qSunY / 50 * 0.6),
+        radius: 1.15,
+        colors:
+            isDark
+                ? const [_kOceanLit, _kOcean, _kOceanShadow]
+                : const [_kOceanLitLight, _kOceanLight, _kOceanShadowLight],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(Rect.fromCircle(center: c, radius: r));
+    }
+    canvas.drawCircle(c, r, Paint()..shader = _oceanShader);
+
+    // 2. Lat/long graticule — faint, shows through ocean gaps; land polygons
+    // painted next cover it over landmasses (ADR-116 layering).
+    _paintGraticule(canvas, size);
+
+    // 3. Country polygons — back-face culled. Centroids, antimeridian splits
+    // and unit vectors depend only on the (identity-stable) geometry, so they
+    // are computed once per polygon and cached.
     for (final poly in polygons) {
       if (_kSuppressed.contains(poly.isoCode)) continue;
-
-      // Centroid back-face cull: compute approximate centroid from first ring.
       if (poly.vertices.isEmpty) continue;
-      final centroidLat =
-          poly.vertices.fold(0.0, (s, v) => s + v.$1) / poly.vertices.length;
-      final centroidLng =
-          poly.vertices.fold(0.0, (s, v) => s + v.$2) / poly.vertices.length;
-      if (!projection.isVisible(centroidLat, centroidLng)) continue;
+
+      var centroid = _centroidCache[poly];
+      if (centroid == null) {
+        final centroidLat =
+            poly.vertices.fold(0.0, (s, v) => s + v.$1) / poly.vertices.length;
+        final centroidLng =
+            poly.vertices.fold(0.0, (s, v) => s + v.$2) / poly.vertices.length;
+        centroid = (centroidLat, centroidLng);
+        _centroidCache[poly] = centroid;
+      }
+      if (!projection.isVisible(centroid.$1, centroid.$2)) continue;
 
       final state = visualStates[poly.isoCode] ?? CountryVisualState.unvisited;
       final fillColor = _fillColor(poly.isoCode, state);
       final borderColor = _borderColor(state);
 
       // Each CountryPolygon has one contiguous ring; split at antimeridian.
-      final rings = projection.splitAtAntimeridian(poly.vertices);
-      for (final ring in rings) {
+      var unitRings = _unitRingsCache[poly];
+      if (unitRings == null) {
+        unitRings = [
+          for (final ring in projection.splitAtAntimeridian(poly.vertices))
+            [for (final v in ring) GlobeProjection.unitVector(v.$1, v.$2)],
+        ];
+        _unitRingsCache[poly] = unitRings;
+      }
+      for (final ring in unitRings) {
         _paintRing(canvas, size, ring, fillColor, borderColor);
       }
     }
 
-    // 3. Atmosphere rim.
+    // 4. Atmosphere rim.
     canvas.drawCircle(
       c,
       r,
@@ -158,7 +300,42 @@ class GlobePainter extends CustomPainter {
         ..strokeWidth = 1.5,
     );
 
-    // 4. Celebration halo — drawn on top of everything (ADR-123).
+    // 5. Day/night + rim-light wash. A single linear gradient along the sun
+    // axis: a soft highlight on the lit limb, transparent through the middle,
+    // a dark wash on the night limb. Approximate (per-globe, not per-country)
+    // but gives a convincing "one lit sphere" read without per-vertex lighting.
+    // Reuses the quantised sun direction from the ocean pass so the gradient
+    // is rebuilt only when the sun direction visibly moves.
+    final washKey = Object.hash(qSunX, qSunY, r.round(), c.dx, c.dy, isDark);
+    if (_washShaderKey != washKey) {
+      _washShaderKey = washKey;
+      final qSunDir = Offset(qSunX / 50, qSunY / 50);
+      _washShader = ui.Gradient.linear(
+        c - qSunDir * r,
+        c + qSunDir * r,
+        isDark
+            ? [
+              const Color(0xFF01060D).withValues(alpha: 0.45),
+              const Color(0xFF01060D).withValues(alpha: 0.12),
+              Colors.transparent,
+              Colors.white.withValues(alpha: 0.10),
+            ]
+            : [
+              const Color(0xFF0B2438).withValues(alpha: 0.28),
+              const Color(0xFF0B2438).withValues(alpha: 0.08),
+              Colors.transparent,
+              Colors.white.withValues(alpha: 0.22),
+            ],
+        const [0.0, 0.32, 0.62, 1.0],
+      );
+    }
+    canvas.drawCircle(c, r, Paint()..shader = _washShader);
+
+    // 6. Cloud layer — soft, low-opacity, drifts independently of rotation.
+    // Drawn above the lighting wash but below markers so tap targets stay crisp.
+    _paintClouds(canvas, size);
+
+    // 7. Celebration halo — drawn on top of everything (ADR-123).
     if (highlightedCode != null && pulseValue > 0.0) {
       final centroid = kCountryCentroids[highlightedCode];
       if (centroid != null) {
@@ -174,7 +351,7 @@ class GlobePainter extends CustomPainter {
       }
     }
 
-    // 5. Heritage site dots (M126/M128).
+    // 8. Heritage site dots (M126/M128).
     // Cultural/Mixed = amber; Natural = green.
     // Inner dot always visible; outer glow ring pulses.
     void paintHeritageDots(
@@ -228,7 +405,7 @@ class GlobePainter extends CustomPainter {
       );
     }
 
-    // 6. Challenge site highlight — large pulsing red dot (M134+).
+    // 9. Challenge site highlight — large pulsing red dot (M134+).
     final challengeCoord = challengeHighlightCoord;
     if (challengeCoord != null) {
       final pt = projection.project(challengeCoord.$1, challengeCoord.$2, size);
@@ -247,14 +424,80 @@ class GlobePainter extends CustomPainter {
       }
     }
 
-    // 7. Optional overlay painter (e.g. replay arc layer — M134).
+    // 10. Optional overlay painter (e.g. replay arc layer — M134).
     afterPainter?.paint(canvas, size);
+  }
+
+  /// Draws faint meridian/parallel lines, back-face culled per-segment like
+  /// [_paintRing] but as open polylines (stroke only, no fill/close).
+  void _paintGraticule(ui.Canvas canvas, ui.Size size) {
+    final color =
+        isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.05);
+    final paint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.5;
+    for (final line in _kGraticuleUnitLines) {
+      final path = Path();
+      var started = false;
+      for (final vertex in line) {
+        final pt = projection.projectUnit(vertex, size);
+        if (pt == null) {
+          started = false;
+          continue;
+        }
+        if (!started) {
+          path.moveTo(pt.dx, pt.dy);
+          started = true;
+        } else {
+          path.lineTo(pt.dx, pt.dy);
+        }
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  /// Draws soft, low-opacity cloud blobs that drift slowly in longitude,
+  /// independent of globe rotation (driven by wall-clock time).
+  void _paintClouds(ui.Canvas canvas, ui.Size size) {
+    final r = projection.radius(size);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    for (final blob in _kCloudBlobs) {
+      final cycleT = (nowMs % _kCloudCycleMs) / _kCloudCycleMs; // 0..1
+      final driftedLng = blob.lng + cycleT * 360.0 * blob.driftSpeed;
+      final pt = projection.project(blob.lat, driftedLng, size);
+      if (pt == null) continue;
+      // Shader is origin-centred and cached by (radius, opacity); the canvas
+      // is translated per blob so drift/rotation never rebuilds shaders.
+      // Radius is quantised to whole pixels to keep the cache bounded while
+      // zooming.
+      final blobRadius = (r * blob.radiusFactor).roundToDouble();
+      if (blobRadius < 1) continue;
+      final key = Object.hash(blobRadius, blob.opacity);
+      if (_cloudShaderCache.length > 256) _cloudShaderCache.clear();
+      final shader = _cloudShaderCache.putIfAbsent(
+        key,
+        () => RadialGradient(
+          colors: [
+            Colors.white.withValues(alpha: blob.opacity),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: blobRadius)),
+      );
+      canvas.save();
+      canvas.translate(pt.dx, pt.dy);
+      canvas.drawCircle(Offset.zero, blobRadius, Paint()..shader = shader);
+      canvas.restore();
+    }
   }
 
   void _paintRing(
     ui.Canvas canvas,
     ui.Size size,
-    List<(double, double)> ring,
+    List<(double, double, double)> ring,
     Color fill,
     Color border,
   ) {
@@ -265,7 +508,7 @@ class GlobePainter extends CustomPainter {
     bool started = false;
 
     for (final vertex in ring) {
-      final pt = projection.project(vertex.$1, vertex.$2, size);
+      final pt = projection.projectUnit(vertex, size);
       if (pt == null) {
         // Back-face vertex: if we were drawing, close the sub-path.
         if (started) {

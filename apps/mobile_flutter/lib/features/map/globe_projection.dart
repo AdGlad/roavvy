@@ -57,6 +57,27 @@ class GlobeProjection {
   /// Returns true when [lat]/[lng] is on the visible hemisphere.
   bool isVisible(double lat, double lng) => _rotate(_toUnit(lat, lng)).$3 >= 0;
 
+  /// Camera-space unit vector (x, y, z) for [lat]/[lng] under the current
+  /// rotation — the same vector [project] and [isVisible] use internally.
+  /// Exposed for shading calculations (e.g. sun-direction lighting).
+  (double, double, double) viewVector(double lat, double lng) =>
+      _rotate(_toUnit(lat, lng));
+
+  /// Unit 3D vector for [lat]/[lng] — precompute once per geometry, then
+  /// project each frame with [projectUnit] to skip the per-vertex trig.
+  static (double, double, double) unitVector(double lat, double lng) =>
+      _toUnit(lat, lng);
+
+  /// Same as [project] but takes a precomputed [unitVector]. Per-frame cost is
+  /// multiply-adds only (rotation trig is memoised across vertices).
+  Offset? projectUnit((double, double, double) unit, Size canvasSize) {
+    final v = _rotate(unit);
+    if (v.$3 < 0) return null;
+    final r = radius(canvasSize);
+    final c = centre(canvasSize);
+    return Offset(c.dx + v.$1 * r, c.dy - v.$2 * r);
+  }
+
   /// Inverse-projects [screenPoint] on [canvasSize] back to (lat, lng) degrees.
   ///
   /// Returns `null` when [screenPoint] is outside the globe circle.
@@ -136,18 +157,36 @@ class GlobeProjection {
     return (cosLat * math.sin(lngR), math.sin(latR), cosLat * math.cos(lngR));
   }
 
+  // Rotation trig memo: a single paint projects thousands of vertices with
+  // the same camera angles, so cache sin/cos keyed by the last-seen values.
+  // UI-isolate only (painters), so plain statics are safe.
+  static double _memoRotLat = double.nan;
+  static double _memoSinLat = 0.0, _memoCosLat = 1.0;
+  static double _memoRotLng = double.nan;
+  static double _memoSinLng = 0.0, _memoCosLng = 1.0;
+
   /// Applies the camera rotation (rotLng then rotLat) to unit vector [v].
   (double, double, double) _rotate((double, double, double) v) {
+    if (rotLng != _memoRotLng) {
+      _memoRotLng = rotLng;
+      _memoSinLng = math.sin(rotLng);
+      _memoCosLng = math.cos(rotLng);
+    }
+    if (rotLat != _memoRotLat) {
+      _memoRotLat = rotLat;
+      _memoSinLat = math.sin(rotLat);
+      _memoCosLat = math.cos(rotLat);
+    }
     // Rotate around Y axis by rotLng (east-west spin).
-    final sinLng = math.sin(rotLng);
-    final cosLng = math.cos(rotLng);
+    final sinLng = _memoSinLng;
+    final cosLng = _memoCosLng;
     final x1 = v.$1 * cosLng + v.$3 * sinLng;
     final y1 = v.$2;
     final z1 = -v.$1 * sinLng + v.$3 * cosLng;
 
     // Rotate around X axis by rotLat (north-south tilt).
-    final sinLat = math.sin(rotLat);
-    final cosLat = math.cos(rotLat);
+    final sinLat = _memoSinLat;
+    final cosLat = _memoCosLat;
     final x2 = x1;
     final y2 = y1 * cosLat - z1 * sinLat;
     final z2 = y1 * sinLat + z1 * cosLat;

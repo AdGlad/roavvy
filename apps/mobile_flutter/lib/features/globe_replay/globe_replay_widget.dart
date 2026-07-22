@@ -653,7 +653,19 @@ class _CombinedGlobePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CombinedGlobePainter old) => true;
+  bool shouldRepaint(_CombinedGlobePainter old) =>
+      !identical(polygons, old.polygons) ||
+      !identical(visualStates, old.visualStates) ||
+      !identical(tripCounts, old.tripCounts) ||
+      !identical(projection, old.projection) ||
+      highlightedCode != old.highlightedCode ||
+      pulseValue != old.pulseValue ||
+      !identical(heritageSiteCoords, old.heritageSiteCoords) ||
+      heritagePulseValue != old.heritagePulseValue ||
+      !identical(replayPainter.script, old.replayPainter.script) ||
+      replayPainter.currentLegIndex != old.replayPainter.currentLegIndex ||
+      replayPainter.arcProgress != old.replayPainter.arcProgress ||
+      replayPainter.pulseValue != old.replayPainter.pulseValue;
 }
 
 class _LegCounter extends StatelessWidget {
