@@ -610,6 +610,17 @@ final unescoNearbyProvider =
 /// Defaults true. Toggled from the settings screen.
 final showPhotoThumbnailsProvider = StateProvider<bool>((ref) => true);
 
+/// Current flat-map viewport, updated via [MapOptions.onPositionChanged].
+/// null until the map first moves. Used by [MapPhotoStrip].
+typedef MapViewport = ({
+  double north,
+  double south,
+  double east,
+  double west
+});
+
+final mapViewportProvider = StateProvider<MapViewport?>((ref) => null);
+
 final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
   (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),
 );
