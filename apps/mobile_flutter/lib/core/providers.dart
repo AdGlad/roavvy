@@ -251,7 +251,8 @@ final thisYearCountryCountProvider = FutureProvider<int>((ref) async {
 final yearFilterProvider = StateProvider<int?>((ref) => null);
 
 /// Whether the globe map is active. true = globe (default). (ADR-116)
-final globeModeProvider = StateProvider<bool>((ref) => true);
+// ignore: avoid_redundant_argument_values
+final globeModeProvider = StateProvider<bool>((ref) => false); // temp: flat for review
 
 /// When true the globe idles without auto-spinning so the user can inspect
 /// heritage sites. Manual drag and snap animations still work normally.
