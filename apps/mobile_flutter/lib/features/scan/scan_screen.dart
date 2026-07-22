@@ -394,8 +394,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     _loadPersisted();
   }
 
+  /// Startup-style breadcrumb (plain print so release builds emit it too) —
+  /// the autoStart scan flow is an invisible overlay, so console breadcrumbs
+  /// are the only way to see where it stalled on a device.
+  static void _crumb(String msg) {
+    // ignore: avoid_print
+    print('[roavvy-scan] $msg');
+  }
+
   Future<void> _loadPersisted() async {
     try {
+      if (widget.autoStart) _crumb('load-persisted-start');
       final visits = await _repo.loadEffective();
       final lastScanAt = await _repo.loadLastScanAt();
       if (!mounted) return;
@@ -412,21 +421,34 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // and the native scan channel gets access immediately — avoiding the
       // race condition where two concurrent permission calls freeze the scan.
       if (widget.autoStart) {
+        _crumb('requesting-photo-permission');
         try {
           final permission = await requestPhotoPermission();
           if (!mounted) return;
+          _crumb('photo-permission=$permission');
           setState(() => _permission = permission);
-        } catch (_) {
+        } catch (e) {
           // Permission check failed — leave _permission as-is.
+          _crumb('photo-permission ERROR: $e');
         }
       }
 
       // Auto-start scan when triggered from the main-screen action bar.
       // Only skip if the user explicitly denied or restricted access.
-      if (widget.autoStart &&
-          _permission != PhotoPermissionStatus.denied &&
-          _permission != PhotoPermissionStatus.restricted) {
-        unawaited(_scan());
+      if (widget.autoStart) {
+        if (_permission != PhotoPermissionStatus.denied &&
+            _permission != PhotoPermissionStatus.restricted) {
+          _crumb('starting-scan');
+          unawaited(_scan());
+        } else {
+          // The autoStart screen is an invisible modal route; if the scan
+          // cannot start, it must pop itself or its barrier silently blocks
+          // every tap and the app appears frozen.
+          _crumb('permission-denied-popping');
+          _popWithMessage(
+            'Photo access is denied — enable it in Settings to scan.',
+          );
+        }
       }
 
       // For non-autoStart screens with a prior scan: check permission silently
@@ -440,14 +462,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           // Permission check failed — button stays disabled.
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
+      _crumb('load-persisted ERROR: $e\n$stack');
       if (mounted) {
         setState(() {
           _error = 'Failed to load saved visits: $e';
           _loading = false;
         });
+        // In autoStart mode this screen renders nothing, so a swallowed error
+        // leaves an invisible modal barrier eating all input ("app frozen").
+        if (widget.autoStart) {
+          _popWithMessage('Could not start the scan: $e');
+        }
       }
     }
+  }
+
+  /// Pops the (invisible) autoStart route and surfaces [message] on the
+  /// underlying screen's ScaffoldMessenger.
+  void _popWithMessage(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    Navigator.of(context).pop();
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _requestPermission() async {
@@ -610,6 +646,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           widget.scanStarter != null
               ? widget.scanStarter!(limit: 100000)
               : startPhotoScan(limit: 100000, sinceDate: sinceDate);
+      _crumb('native-scan-stream-opened');
       await for (final event in scanStream) {
         if (_cancelled) break;
         if (event is ScanBatchEvent) {
@@ -1162,8 +1199,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // M132: signal replay to drain and complete. Must come after buildSummary
       // is set so onScanComplete can push the correct screen.
       liveSource.markScanComplete();
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+    } catch (e, stack) {
+      _crumb('scan ERROR: $e\n$stack');
+      if (mounted) {
+        setState(() => _error = e.toString());
+        // autoStart renders nothing: tear down the overlay and the invisible
+        // modal route, otherwise the app appears frozen with no feedback.
+        if (widget.autoStart) {
+          ref.read(globeOverlayProvider.notifier).hide();
+          _popWithMessage('Scan failed: $e');
+        }
+      }
     } finally {
       if (mounted) {
         setState(() {

@@ -74,17 +74,26 @@ final startupCompleteProvider = FutureProvider<void>((ref) async {
   // ignore: avoid_print
   print('[roavvy-startup] startup-provider: uid=${uid != null}');
 
-  // 1. Restore Firestore data if this is a fresh install (ADR-160).
-  if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
-    // ignore: avoid_print
-    print('[roavvy-startup] startup-provider: restoring from Firestore');
-    await FirestoreRestoreService(db: db).restore(uid);
-  }
+  // Restore + bootstrap fail open: the app must stay fully usable offline
+  // (CLAUDE.md hard rule 4), and an error here previously vanished into the
+  // provider's AsyncError with no log — the gate proceeded and downstream
+  // screens silently showed empty data.
+  try {
+    // 1. Restore Firestore data if this is a fresh install (ADR-160).
+    if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
+      // ignore: avoid_print
+      print('[roavvy-startup] startup-provider: restoring from Firestore');
+      await FirestoreRestoreService(db: db).restore(uid);
+    }
 
-  // 2. Synthesise one trip per country for pre-v6 users (ADR-048).
-  await bootstrapExistingUser(visitRepo, tripRepo, regionRepo: regionRepo);
-  // ignore: avoid_print
-  print('[roavvy-startup] startup-provider: complete');
+    // 2. Synthesise one trip per country for pre-v6 users (ADR-048).
+    await bootstrapExistingUser(visitRepo, tripRepo, regionRepo: regionRepo);
+    // ignore: avoid_print
+    print('[roavvy-startup] startup-provider: complete');
+  } catch (e, stack) {
+    // ignore: avoid_print
+    print('[roavvy-startup] startup-provider ERROR: $e\n$stack');
+  }
 
   // 3. Flush dirty rows to Firestore (fire-and-forget).
   if (uid != null) {

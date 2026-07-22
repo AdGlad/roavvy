@@ -247,6 +247,8 @@ class _MainShellState extends ConsumerState<MainShell> {
   /// When [autoStart] is false (called from Journal empty state / prompt gate),
   /// the legacy full-screen [ScanScreen] UI is pushed.
   void _goToScan({bool autoStart = false, bool forceFullScan = false}) {
+    // ignore: avoid_print
+    print('[roavvy-scan] go-to-scan autoStart=$autoStart full=$forceFullScan');
     if (autoStart) {
       setState(() => _selectedIndex = 0); // ensure Map tab is visible
       Navigator.of(context).push(
