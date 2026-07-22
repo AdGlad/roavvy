@@ -23,30 +23,70 @@ import 'data/db/roavvy_database.dart';
 
 import 'firebase_options.dart';
 
+/// Startup breadcrumb visible in the Xcode console / Console.app in ALL build
+/// modes (uses print, not debugPrint, so release builds emit it too). Used to
+/// diagnose device-specific launch stalls: the last emitted stage is the one
+/// that hung.
+void _stage(String name) {
+  // ignore: avoid_print
+  print('[roavvy-startup] $name');
+}
+
 Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      _stage('binding-initialized');
       tz.initializeTimeZones();
 
       try {
-        await NotificationService.instance.init();
+        // Start bundled-asset loads immediately (native only) so the disk I/O
+        // overlaps with Firebase/plugin initialisation below.
+        final assetsFuture = kIsWeb
+            ? null
+            : (
+                rootBundle.load('assets/geodata/ne_countries.bin'),
+                rootBundle.load('assets/geodata/ne_admin1.bin'),
+                rootBundle.loadString('assets/geodata/whs_sites.json'),
+              ).wait;
 
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
+        // Notification plugin init is local and independent of Firebase —
+        // run both concurrently.
+        await (
+          NotificationService.instance.init(),
+          Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          ),
+        ).wait;
+        _stage('firebase-and-notifications-ready');
 
         await FirebaseAppCheck.instance.activate(
           appleProvider: kDebugMode
               ? AppleProvider.debug
               : AppleProvider.appAttestWithDeviceCheckFallback,
         );
+        _stage('appcheck-activated');
 
         // Route Flutter framework errors to Crashlytics.
         FlutterError.onError =
             FirebaseCrashlytics.instance.recordFlutterFatalError;
 
+        if (kDebugMode) {
+          // Dev builds: disable crash collection and drop any report backlog.
+          // Crashlytics "urgent mode" (previous run crashed) uploads reports
+          // synchronously on the main thread at launch; on a slow network that
+          // blocks every platform-channel call and freezes startup. Release
+          // builds are unaffected.
+          unawaited(
+            FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false),
+          );
+          unawaited(FirebaseCrashlytics.instance.deleteUnsentReports());
+        }
+
+        // Local-only (settings + defaults). The network fetch runs in the
+        // background inside initialise() and can never block startup.
         await RemoteConfigService.initialise();
+        _stage('remote-config-initialised');
 
         // On web we only serve the public landing page — SQLite is not available
         // without a WASM worker, and the landing page needs neither the DB nor
@@ -71,17 +111,17 @@ Future<void> main() async {
             ),
           ),
         );
-
-        final (countryData, regionData) =
-            await (
-              rootBundle.load('assets/geodata/ne_countries.bin'),
-              rootBundle.load('assets/geodata/ne_admin1.bin'),
-            ).wait;
+        _stage('audio-context-set');
 
         FirebaseFirestore.instance.settings = const Settings(
           persistenceEnabled: true,
           cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
         );
+
+        // Asset loads were started before Firebase init; by now they have
+        // typically already completed.
+        final (countryData, regionData, whsJson) = await assetsFuture!;
+        _stage('assets-loaded');
 
         final countryBytes = countryData.buffer.asUint8List(
           countryData.offsetInBytes,
@@ -95,12 +135,10 @@ Future<void> main() async {
         initRegionLookup(regionBytes);
 
         // M119: load World Heritage Site dataset (ADR-164).
-        final whsJson = await rootBundle.loadString(
-          'assets/geodata/whs_sites.json',
-        );
         WorldHeritageLookupService.init(whsJson);
 
         final db = RoavvyDatabase(driftDatabase(name: 'roavvy'));
+        _stage('database-opened-calling-runApp');
 
         runApp(
           ProviderScope(
@@ -113,6 +151,7 @@ Future<void> main() async {
           ),
         );
       } catch (e, stack) {
+        _stage('INIT-ERROR: $e');
         debugPrint('Initialization error: $e\n$stack');
         runApp(
           MaterialApp(
