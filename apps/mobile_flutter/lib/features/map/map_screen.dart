@@ -197,6 +197,8 @@ class MapScreen extends ConsumerWidget {
     }
     if (nearest == null) return false;
     ref.read(selectedMapPhotoProvider.notifier).state = nearest;
+    // Reveal the grid so the tap visibly scrolls it to the selected photo.
+    ref.read(mapPhotoPanelExpandedProvider.notifier).state = true;
     return true;
   }
 
@@ -316,8 +318,10 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
-    final photoGridH =
-        globeMode ? 0.0 : MapPhotoStrip.panelHeight(screenWidth);
+    final photoPanelExpanded = ref.watch(mapPhotoPanelExpandedProvider);
+    final photoGridH = globeMode
+        ? 0.0
+        : MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded);
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
         const <EffectiveVisitedCountry>[];
@@ -426,9 +430,15 @@ class MapScreen extends ConsumerWidget {
                   else if (!globeMode)
                     const MapPhotoStrip(),
                   const TimelineScrubberBar(),
-                  const StatsStrip(),
                 ],
               ),
+            ),
+            // Travel stats — top-left text overlay on the map (frees the
+            // vertical space the old bottom stats bar occupied).
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 96,
+              left: 14,
+              child: const StatsStrip(),
             ),
             // Action chips — top center, below the XP progress bar.
             Positioned(

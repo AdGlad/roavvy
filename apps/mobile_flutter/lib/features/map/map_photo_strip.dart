@@ -10,9 +10,17 @@ import '../shared/thumbnail_channel.dart';
 import 'map_photo_pin.dart';
 import 'thumbnail_lru_cache.dart';
 
+/// Whether the map photo panel is expanded to show the grid. Collapsed by
+/// default so the flat map's visible area matches the globe view; the
+/// header (drag handle + photo count) stays visible as the affordance.
+final mapPhotoPanelExpandedProvider = StateProvider<bool>((ref) => false);
+
 /// Google Photos-style photo panel under the flat map: rounded-top sheet with
 /// a drag handle, a live "N photos" count for the visible map region, and a
 /// 4-column newest-first grid.
+///
+/// Collapses to just its header (tap or drag the header to toggle) so the
+/// map keeps its full height by default.
 ///
 /// Bidirectional scrubbing (mirrors Google Photos "Your Map"):
 /// - scrolling the grid moves the map's photo pin to the top-visible photo
@@ -26,13 +34,13 @@ class MapPhotoStrip extends ConsumerStatefulWidget {
   // the grid (the grid builder is lazy, so a large cap costs little).
   static const _maxPhotos = 300;
 
-  /// Header block height (drag handle + count label).
+  /// Header block height (drag handle + count label) — the collapsed height.
   static const double _headerHeight = 36.0;
 
   /// Panel height for [screenWidth] — used by MapScreen to offset the UI
   /// stacked above the panel.
-  static double panelHeight(double screenWidth) =>
-      (screenWidth - 6) / 4 * 2 + 2 + _headerHeight;
+  static double panelHeight(double screenWidth, {required bool expanded}) =>
+      expanded ? (screenWidth - 6) / 4 * 2 + 2 + _headerHeight : _headerHeight;
 
   @override
   ConsumerState<MapPhotoStrip> createState() => _MapPhotoStripState();
@@ -128,8 +136,14 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
     final tileSize = (screenWidth - 6) / 4; // 2px gaps between 4 cols
     _rowExtent = tileSize + 2;
 
-    return Container(
-      height: MapPhotoStrip.panelHeight(screenWidth),
+    final expanded = ref.watch(mapPhotoPanelExpandedProvider);
+    void setExpanded(bool value) =>
+        ref.read(mapPhotoPanelExpandedProvider.notifier).state = value;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      height: MapPhotoStrip.panelHeight(screenWidth, expanded: expanded),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xF2101014) : const Color(0xF7FFFFFF),
@@ -144,25 +158,50 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
       ),
       child: Column(
         children: [
-          const SizedBox(height: 6),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white24 : Colors.black26,
-              borderRadius: BorderRadius.circular(2),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setExpanded(!expanded),
+            onVerticalDragEnd: (d) {
+              final vy = d.velocity.pixelsPerSecond.dy;
+              if (vy < -100) setExpanded(true);
+              if (vy > 100) setExpanded(false);
+            },
+            child: Column(
+              children: [
+                const SizedBox(height: 6),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black26,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${pool.length} ${pool.length == 1 ? 'photo' : 'photos'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                    ),
+                    Icon(
+                      expanded
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_up_rounded,
+                      size: 16,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+              ],
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            '${pool.length} ${pool.length == 1 ? 'photo' : 'photos'}',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 5),
           Expanded(
             child: GridView.builder(
               controller: _scroll,

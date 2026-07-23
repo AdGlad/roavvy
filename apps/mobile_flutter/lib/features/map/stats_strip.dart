@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../stats/countries_list_screen.dart';
 
-/// A slim stats bar overlaid at the bottom of the map.
+/// Compact travel stats rendered as a text overlay at the top-left of the
+/// map area (countries / first visit / latest visit / trips), freeing the
+/// vertical space the old bottom stats bar used to occupy.
 ///
 /// Watches [filteredEffectiveVisitsProvider] for the country count (so it
 /// respects the year filter) and [tripCountProvider] for the trip count.
+/// The Countries row is tappable → [CountriesListScreen].
 ///
 /// Renders nothing ([SizedBox.shrink]) while loading or on error.
 class StatsStrip extends ConsumerWidget {
@@ -27,80 +30,85 @@ class StatsStrip extends ConsumerWidget {
         final earliest = summary.earliestVisit?.year.toString() ?? '—';
         final latest = summary.latestVisit?.year.toString() ?? '—';
 
-        final bottomInset = MediaQuery.paddingOf(context).bottom;
-        final stripTheme = Theme.of(context);
-        final stripIsDark = stripTheme.brightness == Brightness.dark;
-        return Container(
-          color:
-              stripIsDark
-                  ? const Color(0xFF0D2137).withValues(alpha: 0.88)
-                  : stripTheme.colorScheme.surface.withValues(alpha: 0.96),
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + bottomInset),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _Stat(
-                label: 'Countries',
-                value: countryCount.toString(),
-                onTap: () {
-                  final visits =
-                      ref.read(effectiveVisitsProvider).valueOrNull ?? [];
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CountriesListScreen(visits: visits),
-                    ),
-                  );
-                },
-              ),
-              _Stat(label: 'First visit', value: earliest),
-              _Stat(label: 'Latest visit', value: latest),
-              _Stat(label: 'Trips', value: tripCount.toString()),
-            ],
-          ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _StatRow(
+              value: countryCount.toString(),
+              label: 'Countries',
+              onTap: () {
+                final visits =
+                    ref.read(effectiveVisitsProvider).valueOrNull ?? [];
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CountriesListScreen(visits: visits),
+                  ),
+                );
+              },
+            ),
+            _StatRow(value: earliest, label: 'First visit'),
+            _StatRow(value: latest, label: 'Latest visit'),
+            _StatRow(value: tripCount.toString(), label: 'Trips'),
+          ],
         );
       },
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.onTap});
+class _StatRow extends StatelessWidget {
+  const _StatRow({required this.value, required this.label, this.onTap});
 
-  final String label;
   final String value;
+  final String label;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: cs.onSurface,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF0B2438);
+    // Soft counter-shadow keeps the bare text legible over any map colour.
+    final shadows = [
+      Shadow(
+        color: isDark ? Colors.black87 : Colors.white,
+        blurRadius: 4,
+      ),
+    ];
+
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              shadows: shadows,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.70), fontSize: 11),
-        ),
-      ],
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.75),
+              fontSize: 11,
+              shadows: shadows,
+            ),
+          ),
+        ],
+      ),
     );
-    if (onTap == null) return content;
+    if (onTap == null) return row;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: cs.onSurface.withValues(alpha: 0.08),
-        ),
-        child: content,
-      ),
+      behavior: HitTestBehavior.opaque,
+      child: row,
     );
   }
 }
