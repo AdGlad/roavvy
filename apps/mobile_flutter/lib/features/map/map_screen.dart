@@ -464,16 +464,22 @@ class MapScreen extends ConsumerWidget {
                 return Stack(
                   children: [
                     Positioned(
-                      bottom: globeMode ? baseBottom + 52 : baseBottom,
+                      bottom: globeMode ? baseBottom + 104 : baseBottom,
                       right: 12,
                       child: _MapViewToggle(globeMode: globeMode),
                     ),
-                    if (globeMode)
+                    if (globeMode) ...[
                       Positioned(
-                        bottom: baseBottom,
+                        bottom: baseBottom + 52,
                         right: 12,
                         child: const _GlobeRotationToggle(),
                       ),
+                      Positioned(
+                        bottom: baseBottom,
+                        right: 12,
+                        child: const _GlobeHeatmapToggle(),
+                      ),
+                    ],
                   ],
                 );
               },
@@ -1306,6 +1312,28 @@ class _GlobeRotationToggle extends ConsumerWidget {
         onPressed:
             () =>
                 ref.read(globeRotationPausedProvider.notifier).state = !paused,
+      ),
+    );
+  }
+}
+
+/// Toggles the Google Photos-style heatmap layer on the globe. Gold when on.
+class _GlobeHeatmapToggle extends ConsumerWidget {
+  const _GlobeHeatmapToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(globeHeatmapEnabledProvider);
+    return Material(
+      color: Colors.black45,
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: const Icon(Icons.blur_on_rounded),
+        color: enabled ? const Color(0xFFF2C94C) : Colors.white,
+        iconSize: 22,
+        tooltip: enabled ? 'Hide photo heatmap' : 'Show photo heatmap',
+        onPressed: () =>
+            ref.read(globeHeatmapEnabledProvider.notifier).state = !enabled,
       ),
     );
   }

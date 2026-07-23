@@ -267,6 +267,11 @@ final globeModeProvider = StateProvider<bool>((ref) => false); // temp: flat for
 /// heritage sites. Manual drag and snap animations still work normally.
 final globeRotationPausedProvider = StateProvider<bool>((ref) => false);
 
+/// Whether the photo heatmap layer is shown on the 3D globe. Off by default;
+/// toggled from the globe's FAB stack. Also gated on
+/// [showPhotoThumbnailsProvider] like the flat-map photo layers.
+final globeHeatmapEnabledProvider = StateProvider<bool>((ref) => false);
+
 /// Whether heritage site dots are shown on the main map globe (M129).
 final heritageDotsEnabledProvider = StateProvider<bool>((ref) => true);
 

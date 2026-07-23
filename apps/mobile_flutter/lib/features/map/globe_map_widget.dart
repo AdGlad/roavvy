@@ -14,6 +14,7 @@ import '../heritage/heritage_detail_sheet.dart';
 import '../heritage/world_heritage_lookup_service.dart';
 import 'country_visual_state.dart';
 import 'globe_painter.dart';
+import 'globe_photo_heatmap.dart';
 import 'globe_projection.dart';
 import 'replay_globe_frame.dart';
 
@@ -522,6 +523,13 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     final overlayActive = ref.watch(globeOverlayProvider).isActive;
     final frame = overlayActive ? ref.watch(replayGlobeFrameProvider) : null;
 
+    // Photo heatmap (toggle-gated); hidden during replay/scan animations.
+    final heatmapEnabled = ref.watch(globeHeatmapEnabledProvider) &&
+        ref.watch(showPhotoThumbnailsProvider) &&
+        frame == null;
+    final photoLocations =
+        heatmapEnabled ? ref.watch(photoLocationsProvider).valueOrNull : null;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
@@ -537,6 +545,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         }
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        final heatmap = (photoLocations == null || photoLocations.isEmpty)
+            ? null
+            : GlobeHeatmapData.of(
+                photoLocations,
+                _projection.scale,
+                _canvasSize.shortestSide / 2,
+              );
 
         final globe = GestureDetector(
           // Disable interaction while replay/scan is running.
@@ -566,6 +582,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
               challengeHighlightCoord:
                   frame != null ? null : _challengeHighlightCoord,
               challengeHighlightPulse: _challengeHighlightCtrl.value,
+              photoHeatmap: heatmap,
               afterPainter: frame?.afterPainter,
             ),
           ),
