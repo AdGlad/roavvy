@@ -4,7 +4,7 @@
 // transitions, not on every 60 fps animation tick.
 //
 // Architecture:
-//   • _staticPolygons, _currentPolygon, _targetPolygonPoints are pre-built
+//   • _staticPolygons, _currentPolygons, _targetPolygonRings are pre-built
 //     in _rebuildPolygonCaches(), called from _onStateChanged (not build()).
 //   • AnimatedBuilder wraps only the animated sub-layers (target pulse,
 //     origin ring, flight arc, splash ring), so each rebuilds at 60 fps
@@ -98,8 +98,13 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
 
   // ── Pre-built polygon caches (rebuilt only on game-state changes) ──────────
   List<Polygon> _staticPolygons = [];  // ~248 countries: unvisited + visited
-  Polygon? _currentPolygon;           // current (gold) — no animation
-  List<LatLng>? _targetPolygonPoints; // target points — used in AnimatedBuilder
+  // Multi-ring countries (archipelagos, islands — e.g. Yemen/Socotra, Saudi
+  // Arabia/Farasan) share one ISO code across several CountryPolygon entries
+  // (see country_lookup's loadPolygons() doc). Current/target must collect
+  // ALL matching rings, not just the last one seen, or the mainland silently
+  // renders with no highlight while a small offshore island gets it instead.
+  List<Polygon> _currentPolygons = [];      // current (gold) — no animation
+  List<List<LatLng>> _targetPolygonRings = []; // target rings — animated
   String? _cachedCurrentCode;
   String? _cachedTargetCode;
   Set<String> _cachedVisitedCodes = {};
@@ -265,8 +270,8 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     _cachedVisitedCodes = visitedCodes;
 
     final staticList = <Polygon>[];
-    Polygon? currentPoly;
-    List<LatLng>? targetPts;
+    final currentPolys = <Polygon>[];
+    final targetRings = <List<LatLng>>[];
 
     for (int i = 0; i < _allPolygons.length; i++) {
       final iso = _allPolygons[i].isoCode;
@@ -274,14 +279,19 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       final pts = _cachedPoints[i];
 
       if (iso == currentCode) {
-        currentPoly = Polygon(
-          points: pts,
-          color: _kCurrentFill,
-          borderColor: _kCurrentBorder,
-          borderStrokeWidth: 1.5,
+        // Accumulate — multi-ring countries (islands/archipelagos) have
+        // several entries sharing this ISO code; collecting only the last
+        // one would silently drop the mainland (see field doc above).
+        currentPolys.add(
+          Polygon(
+            points: pts,
+            color: _kCurrentFill,
+            borderColor: _kCurrentBorder,
+            borderStrokeWidth: 1.5,
+          ),
         );
       } else if (iso == targetCode) {
-        targetPts = pts; // rendered animated in AnimatedBuilder
+        targetRings.add(pts); // rendered animated in AnimatedBuilder
       } else {
         final visited = visitedCodes.contains(iso);
         staticList.add(
@@ -296,8 +306,8 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     }
 
     _staticPolygons = staticList;
-    _currentPolygon = currentPoly;
-    _targetPolygonPoints = targetPts;
+    _currentPolygons = currentPolys;
+    _targetPolygonRings = targetRings;
   }
 
   // ── State change handler ──────────────────────────────────────────────────
@@ -428,11 +438,17 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   /// requires more zoom wins. Thresholds are rough country-diameter bands
   /// (degrees of lat/lon span), tuned against flutter_map's zoom scale.
   double _minZoomForTargetSize() {
-    final pts = _targetPolygonPoints;
-    if (pts == null || pts.isEmpty) return 1.0;
-    double minLat = pts.first.latitude, maxLat = pts.first.latitude;
-    double minLon = pts.first.longitude, maxLon = pts.first.longitude;
-    for (final p in pts) {
+    final rings = _targetPolygonRings;
+    if (rings.isEmpty) return 1.0;
+    // Use the largest ring (by vertex count) as a proxy for the country's
+    // main landmass. A union bounding box across ALL rings would wildly
+    // overstate a multi-ring country's visible extent — e.g. Yemen's
+    // mainland + Socotra island, ~350 km offshore — and suppress the zoom
+    // boost this is meant to provide.
+    final mainland = rings.reduce((a, b) => a.length >= b.length ? a : b);
+    double minLat = mainland.first.latitude, maxLat = mainland.first.latitude;
+    double minLon = mainland.first.longitude, maxLon = mainland.first.longitude;
+    for (final p in mainland) {
       if (p.latitude < minLat) minLat = p.latitude;
       if (p.latitude > maxLat) maxLat = p.latitude;
       if (p.longitude < minLon) minLon = p.longitude;
@@ -483,24 +499,27 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
 
     final layers = <Widget>[];
 
-    // Animated target polygon (1 polygon, not ~250). Pulses between two
-    // vivid reds — never a dark tone that could blend with the ocean.
-    final targetPts = _targetPolygonPoints;
-    if (targetPts != null) {
+    // Animated target polygon(s) — one per ring, so multi-ring countries
+    // (e.g. Yemen mainland + Socotra) highlight in full, not just whichever
+    // ring happened to be processed last. Pulses between two vivid reds —
+    // never a dark tone that could blend with the ocean.
+    if (_targetPolygonRings.isNotEmpty) {
+      final targetColor = Color.lerp(
+        const Color(0xFFC62828),
+        _kTargetFill,
+        pulse,
+      )!;
       layers.add(
         PolygonLayer(
           polygonCulling: true,
           polygons: [
-            Polygon(
-              points: targetPts,
-              color: Color.lerp(
-                const Color(0xFFC62828),
-                _kTargetFill,
-                pulse,
-              )!,
-              borderColor: _kTargetBorder,
-              borderStrokeWidth: 3.0,
-            ),
+            for (final ring in _targetPolygonRings)
+              Polygon(
+                points: ring,
+                color: targetColor,
+                borderColor: _kTargetBorder,
+                borderStrokeWidth: 3.0,
+              ),
           ],
         ),
       );
@@ -659,9 +678,10 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
             ),
           ),
 
-          // ② Current country (gold) — static color, no animation.
-          if (_currentPolygon != null)
-            PolygonLayer(polygons: [_currentPolygon!]),
+          // ② Current country (gold) — static color, no animation. All
+          //   rings (multi-ring countries share one ISO code), not just one.
+          if (_currentPolygons.isNotEmpty)
+            PolygonLayer(polygons: _currentPolygons),
 
           // ③ Target polygon + origin ring — both use _pulseController.
           //   Only ~1–2 objects rebuilt at 60 fps instead of ~250.
