@@ -14,7 +14,21 @@ abstract class IWorldLeapRunRepository {
   /// Load the run for [userId] on [date]. Returns null if none exists.
   Future<WorldLeapRun?> loadRun(String userId, String date);
 
-  /// Persist [run] to both local cache and Firestore.
+  /// Persists [run] to the local cache only. Fast and always available
+  /// offline — safe to await inside the gameplay loop without the shot's
+  /// outcome waiting on network latency.
+  Future<void> saveRunLocal(WorldLeapRun run);
+
+  /// Syncs [run] to Firestore. Network-dependent and can take seconds on a
+  /// slow connection, so gameplay code should fire-and-forget this rather
+  /// than await it — the local cache is already the source of truth for
+  /// resuming a run (offline-first, CLAUDE.md hard rule 4).
+  Future<void> syncRunToFirestore(WorldLeapRun run);
+
+  /// Persist [run] to both local cache and Firestore, awaiting both. Only
+  /// appropriate where blocking on network latency is acceptable (e.g.
+  /// tests) — NOT inside the aim/launch/timeout loop; use [saveRunLocal] +
+  /// a fire-and-forget [syncRunToFirestore] there instead.
   Future<void> saveRun(WorldLeapRun run);
 
   /// Stream that emits whenever the run document changes in Firestore.
@@ -72,13 +86,20 @@ class WorldLeapRunRepository implements IWorldLeapRunRepository {
   }
 
   @override
-  Future<void> saveRun(WorldLeapRun run) async {
-    // Write to local cache.
+  Future<void> saveRunLocal(WorldLeapRun run) async {
     await _prefs.setString(
         WorldLeapConfig.localRunKey, jsonEncode(run.toJson()));
+  }
 
-    // Write to Firestore (merge so partial updates don't clobber fields).
+  @override
+  Future<void> syncRunToFirestore(WorldLeapRun run) async {
     await _doc(run.userId, run.date).set(run.toJson());
+  }
+
+  @override
+  Future<void> saveRun(WorldLeapRun run) async {
+    await saveRunLocal(run);
+    await syncRunToFirestore(run);
   }
 
   @override

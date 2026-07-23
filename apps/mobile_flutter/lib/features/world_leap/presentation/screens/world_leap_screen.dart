@@ -410,11 +410,59 @@ class _CameraToggleButton extends StatelessWidget {
       };
 }
 
+// ── Beginner-mode toggle button ────────────────────────────────────────────────
+
+/// Switches beginner/classic firing mode. Unlike the lobby's picker, this is
+/// available throughout the game — tap it any time between shots.
+class _BeginnerModeToggleButton extends StatelessWidget {
+  final bool beginnerMode;
+  final VoidCallback onTap;
+
+  const _BeginnerModeToggleButton({
+    required this.beginnerMode,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: beginnerMode
+              ? Colors.amber.withValues(alpha: 0.9)
+              : Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: beginnerMode
+                ? Colors.amber
+                : Colors.white.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Tooltip(
+          message: beginnerMode
+              ? 'Beginner mode — tap for Classic (fires on release)'
+              : 'Classic mode — tap for Beginner (adjust aim before firing)',
+          child: Icon(
+            beginnerMode ? Icons.school_rounded : Icons.bolt_rounded,
+            color: beginnerMode ? Colors.black : Colors.white60,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class WorldLeapScreen extends ConsumerStatefulWidget {
   const WorldLeapScreen({super.key, this.beginnerMode = false});
 
-  /// Chosen in the lobby before play starts. See
-  /// [WorldLeapController.beginnerMode] for the resulting behaviour.
+  /// The lobby's initial choice — only used to construct the controller.
+  /// Thereafter the LIVE value is `controller.beginnerMode`, changeable at
+  /// any time via the in-game toggle (see [_BeginnerModeToggleButton]).
   final bool beginnerMode;
 
   @override
@@ -431,7 +479,7 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
   WorldLeapState? _prevState;
 
   final _slingshotActive = ValueNotifier<bool>(false);
-  final _cameraMode = ValueNotifier<WorldLeapCameraMode>(WorldLeapCameraMode.stationary);
+  final _cameraMode = ValueNotifier<WorldLeapCameraMode>(WorldLeapCameraMode.birdseye);
 
   @override
   void initState() {
@@ -578,14 +626,14 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                     // starts on the source country; all other touches pan map.
                     SlingshotWidget(
                       controller: controller,
-                      beginnerMode: widget.beginnerMode,
+                      beginnerMode: controller.beginnerMode,
                       hitTestFn: (pos) =>
                           _mapKey.currentState?.isInCurrentCountry(pos) ??
                           false,
                       onActiveChanged: (v) => _slingshotActive.value = v,
                     ),
 
-                    // Zoom buttons + camera mode.
+                    // Zoom buttons + camera mode + beginner-mode toggle.
                     // Portrait: bottom-right. Landscape: bottom-left (right side is HUD panel).
                     Positioned(
                       bottom: isLandscape ? 12 : 170,
@@ -609,6 +657,14 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                               mode: mode,
                               onTap: () => _cameraMode.value = mode.next,
                             ),
+                            const SizedBox(height: 8),
+                            // Changeable any time between shots — not just
+                            // in the lobby.
+                            _BeginnerModeToggleButton(
+                              beginnerMode: controller.beginnerMode,
+                              onTap: () => controller
+                                  .setBeginnerMode(!controller.beginnerMode),
+                            ),
                           ],
                         ),
                       ),
@@ -616,7 +672,7 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
 
                     // FIRE button (beginner mode only) — appears once a
                     // release has frozen an aim; confirms and fires the shot.
-                    if (widget.beginnerMode &&
+                    if (controller.beginnerMode &&
                         currentState is WorldLeapStateAiming &&
                         currentState.bearingDeg != null &&
                         (currentState.power ?? 0) >=

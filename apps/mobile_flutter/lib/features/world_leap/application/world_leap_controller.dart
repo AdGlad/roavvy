@@ -147,7 +147,7 @@ class WorldLeapController extends ChangeNotifier {
     required WorldLeapGeoService geo,
     required WorldLeapCountryService countryService,
     required WorldLeapScoringService scoring,
-    this.beginnerMode = false,
+    bool beginnerMode = false,
     CountryLookupFn? countryLookup,
   })  : _userId = userId,
         _date = date,
@@ -156,13 +156,26 @@ class WorldLeapController extends ChangeNotifier {
         _geo = geo,
         _countryService = countryService,
         _scoring = scoring,
-        _countryLookup = countryLookup;
+        _countryLookup = countryLookup,
+        _beginnerMode = beginnerMode;
 
   /// When true, releasing the slingshot freezes the aim for review instead of
   /// firing immediately — [SlingshotWidget] calls [confirmAim] instead of
-  /// [launch] on release, and the screen shows a separate FIRE button. Fixed
-  /// for the lifetime of a run (chosen in the lobby before play starts).
-  final bool beginnerMode;
+  /// [launch] on release, and the screen shows a separate FIRE button.
+  /// Initialised from the lobby's choice, but changeable at any time via
+  /// [setBeginnerMode] — e.g. a toggle in the game screen itself, between
+  /// shots.
+  bool _beginnerMode;
+  bool get beginnerMode => _beginnerMode;
+
+  /// Switches beginner/classic mode mid-game. Safe to call at any time; only
+  /// affects the NEXT release (an in-progress drag keeps whatever mode was
+  /// active when it started, read fresh by [SlingshotWidget] on each build).
+  void setBeginnerMode(bool value) {
+    if (_beginnerMode == value) return;
+    _beginnerMode = value;
+    notifyListeners();
+  }
 
   /// Notifier for aim-only updates (bearing/power) that fire at pointer-move
   /// frequency (~60Hz). Widgets that only care about game state transitions
@@ -204,18 +217,28 @@ class WorldLeapController extends ChangeNotifier {
     return WorldLeapConfig.countdownStartSeconds;
   }
 
-  /// ISO code of the current target country.
+  /// ISO code of the current target country. Stays populated through
+  /// [WorldLeapStateLaunching] (not just [WorldLeapStateAiming]) so the map's
+  /// target highlight remains visible for the whole flight, not just while
+  /// aiming — the target isn't resolved (hit or missed) until landing.
   String? get targetCountryCode {
     final s = _state;
-    if (s is WorldLeapStateAiming) return s.run.targetCountryCode;
-    return null;
+    return switch (s) {
+      WorldLeapStateAiming(:final run) => run.targetCountryCode,
+      WorldLeapStateLaunching(:final run) => run.targetCountryCode,
+      _ => null,
+    };
   }
 
-  /// Display name of the current target country.
+  /// Display name of the current target country. See [targetCountryCode] for
+  /// why this also stays populated during [WorldLeapStateLaunching].
   String? get targetCountryName {
     final s = _state;
-    if (s is WorldLeapStateAiming) return s.run.targetCountryName;
-    return null;
+    return switch (s) {
+      WorldLeapStateAiming(:final run) => run.targetCountryName,
+      WorldLeapStateLaunching(:final run) => run.targetCountryName,
+      _ => null,
+    };
   }
 
   /// Centroid coordinates of the target country, or null if no target set.
@@ -370,8 +393,9 @@ class WorldLeapController extends ChangeNotifier {
       completedAt: DateTime.now(),
     );
     try {
-      await _repository.saveRun(failed);
+      await _repository.saveRunLocal(failed);
     } catch (_) {}
+    unawaited(_repository.syncRunToFirestore(failed).catchError((_) {}));
     _emit(WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout));
   }
 
@@ -439,7 +463,8 @@ class WorldLeapController extends ChangeNotifier {
       );
       run = _ensureTarget(run);
 
-      await _repository.saveRun(run);
+      await _repository.saveRunLocal(run);
+      unawaited(_repository.syncRunToFirestore(run).catchError((_) {}));
       _emit(WorldLeapStateAiming(run: run));
       _startCountdown(run.timeLimitSeconds);
     } catch (e) {
@@ -558,13 +583,17 @@ class WorldLeapController extends ChangeNotifier {
         failureReason: reason,
         completedAt: DateTime.now(),
       );
+      // Only the local save + the fixed animation hold-time block the state
+      // transition — Firestore sync is fire-and-forget so a slow connection
+      // never delays showing the result (offline-first, CLAUDE.md rule 4).
       try {
         await Future.wait([
-          _repository.saveRun(failed),
+          _repository.saveRunLocal(failed),
           Future.delayed(
               const Duration(milliseconds: WorldLeapConfig.launchAnimationMs)),
         ]);
       } catch (_) {}
+      unawaited(_repository.syncRunToFirestore(failed).catchError((_) {}));
       _emit(WorldLeapStateFailed(run: failed, reason: reason));
     }
 
@@ -635,10 +664,15 @@ class WorldLeapController extends ChangeNotifier {
     // Assign next target (must not include the country we just landed in).
     updatedRun = _ensureTarget(updatedRun);
 
-    // Run the Firestore save and the animation hold-time in parallel.
+    // Only the local save + the fixed animation hold-time block the state
+    // transition — Firestore sync is fire-and-forget so a slow or flaky
+    // connection never delays the next shot. This was the "aim doesn't
+    // respond for a few seconds after a hit" bug: awaiting the Firestore
+    // write here meant network latency directly held up returning to
+    // Aiming (offline-first, CLAUDE.md hard rule 4).
     try {
       await Future.wait([
-        _repository.saveRun(updatedRun),
+        _repository.saveRunLocal(updatedRun),
         Future.delayed(
             const Duration(milliseconds: WorldLeapConfig.launchAnimationMs)),
       ]);
@@ -646,6 +680,7 @@ class WorldLeapController extends ChangeNotifier {
       _emit(WorldLeapStateError(message: 'Failed to save run: $e'));
       return;
     }
+    unawaited(_repository.syncRunToFirestore(updatedRun).catchError((_) {}));
     _emit(WorldLeapStateLanded(run: updatedRun, lastLaunch: newLaunch));
   }
 
@@ -700,7 +735,8 @@ class WorldLeapController extends ChangeNotifier {
       completedAt: DateTime.now(),
     );
 
-    await _repository.saveRun(completed);
+    await _repository.saveRunLocal(completed);
+    unawaited(_repository.syncRunToFirestore(completed).catchError((_) {}));
     _emit(WorldLeapStateComplete(run: completed));
   }
 

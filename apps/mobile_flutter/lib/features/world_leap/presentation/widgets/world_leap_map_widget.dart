@@ -652,13 +652,21 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   Widget build(BuildContext context) {
     // build() is now only called on game-state transitions (setState), not on
     // every animation frame. Polygon lists are pre-built in _rebuildPolygonCaches.
+    //
+    // initialCenter/initialZoom only take effect once, when the underlying
+    // map camera is first created — safe to read from the controller here
+    // since this widget is only constructed after a run is already active.
+    // Starting at the player's current position (not a flat world view)
+    // avoids a jarring flash of the whole globe before _flyToShowBoth's
+    // post-frame callback frames the actual origin/target.
+    final origin = widget.controller.currentOrigin;
     return ColoredBox(
       color: _kOceanColor,
       child: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: const LatLng(20, 0),
-          initialZoom: 1.5,
+          initialCenter: LatLng(origin.lat, origin.lon),
+          initialZoom: 3.5,
           minZoom: 1.0,
           maxZoom: 8.0,
           backgroundColor: _kOceanColor,
