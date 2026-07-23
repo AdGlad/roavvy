@@ -193,8 +193,22 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     }
 
     // 3. Integrate
-    double newLng = _projection.rotLng + _velocity.dx * dtSec;
-    double newLat = (_projection.rotLat + _velocity.dy * dtSec).clamp(
+    final dLng = _velocity.dx * dtSec;
+    final dLat = _velocity.dy * dtSec;
+
+    // Stationary guard: when rotation is paused and momentum has decayed to
+    // nothing, skip the setState — a fresh but value-identical projection
+    // would force a full repaint of a visually static globe every frame.
+    // (When not paused, the idle-spin blend above keeps the deltas well
+    // above this threshold, so auto-rotation is unaffected.)
+    const eps = 1e-5; // radians/tick ≈ 0.002 px at typical globe radius
+    if (dLng.abs() < eps && dLat.abs() < eps) {
+      _velocity = Offset.zero;
+      return;
+    }
+
+    double newLng = _projection.rotLng + dLng;
+    double newLat = (_projection.rotLat + dLat).clamp(
       -math.pi / 2,
       math.pi / 2,
     );
