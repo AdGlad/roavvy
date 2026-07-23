@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/globe_overlay.dart';
@@ -412,13 +411,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     // Portrait: NavigationBar at the bottom.
     return Scaffold(
       body: body,
-      // DEV-ONLY: remove before shipping
-      floatingActionButton: FloatingActionButton.small(
-        heroTag: 'dev_quokka',
-        backgroundColor: const Color(0xFFf5c842),
-        onPressed: () => context.go('/dev/quokka'),
-        child: const Text('🐨', style: TextStyle(fontSize: 18)),
-      ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
         indicatorColor: Theme.of(context).colorScheme.primaryContainer,

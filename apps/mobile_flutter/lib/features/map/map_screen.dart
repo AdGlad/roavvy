@@ -463,23 +463,24 @@ class MapScreen extends ConsumerWidget {
                 final baseBottom = isLandscape ? 100.0 : photoGridH + 56;
                 return Stack(
                   children: [
-                    Positioned(
-                      bottom: globeMode ? baseBottom + 104 : baseBottom,
-                      right: 12,
-                      child: _MapViewToggle(globeMode: globeMode),
-                    ),
-                    if (globeMode) ...[
+                    // Top→bottom in globe mode: heatmap, view toggle, rotation.
+                    if (globeMode)
                       Positioned(
-                        bottom: baseBottom + 52,
-                        right: 12,
-                        child: const _GlobeRotationToggle(),
-                      ),
-                      Positioned(
-                        bottom: baseBottom,
+                        bottom: baseBottom + 104,
                         right: 12,
                         child: const _GlobeHeatmapToggle(),
                       ),
-                    ],
+                    Positioned(
+                      bottom: globeMode ? baseBottom + 52 : baseBottom,
+                      right: 12,
+                      child: _MapViewToggle(globeMode: globeMode),
+                    ),
+                    if (globeMode)
+                      Positioned(
+                        bottom: baseBottom,
+                        right: 12,
+                        child: const _GlobeRotationToggle(),
+                      ),
                   ],
                 );
               },
