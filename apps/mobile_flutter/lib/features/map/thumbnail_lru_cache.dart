@@ -10,7 +10,9 @@ class ThumbnailLruCache {
 
   static final ThumbnailLruCache instance = ThumbnailLruCache._();
 
-  static const int _kMaxEntries = 60;
+  // Sized for the map grid's 300-photo cap: ~150px JPEG thumbnails are
+  // roughly 15-30 KB each, so 200 entries stays under ~6 MB.
+  static const int _kMaxEntries = 200;
 
   final _cache = <String, Uint8List>{};
 

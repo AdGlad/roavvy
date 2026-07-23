@@ -145,7 +145,7 @@ class _PinThumbnailState extends State<_PinThumbnail> {
 class PhotoAnchorDotsLayer extends ConsumerWidget {
   const PhotoAnchorDotsLayer({super.key});
 
-  static const double _minZoom = 10.0;
+  static const double _minZoom = 8.0;
   static const int _maxDots = 200;
 
   @override
@@ -184,11 +184,22 @@ class _AnchorDotsPainter extends CustomPainter {
     final halo = Paint()..color = Colors.white;
     final dot = Paint()..color = const Color(0xFF3E3F4A);
 
-    final stride = locations.length <= PhotoAnchorDotsLayer._maxDots
+    // Viewport-filter before capping so zoomed-in regions keep all their
+    // dots (striding the whole library first would dilute them).
+    final bounds = camera.visibleBounds;
+    final inView = <PhotoLocation>[
+      for (final loc in locations)
+        if (loc.lat >= bounds.south &&
+            loc.lat <= bounds.north &&
+            loc.lng >= bounds.west &&
+            loc.lng <= bounds.east)
+          loc,
+    ];
+    final stride = inView.length <= PhotoAnchorDotsLayer._maxDots
         ? 1
-        : (locations.length / PhotoAnchorDotsLayer._maxDots).ceil();
-    for (int i = 0; i < locations.length; i += stride) {
-      final loc = locations[i];
+        : (inView.length / PhotoAnchorDotsLayer._maxDots).ceil();
+    for (int i = 0; i < inView.length; i += stride) {
+      final loc = inView[i];
       if (loc.assetId == excludeAssetId) continue;
       final p = camera.latLngToScreenPoint(LatLng(loc.lat, loc.lng));
       if (p.x < -8 || p.x > size.width + 8 || p.y < -8 || p.y > size.height + 8) {

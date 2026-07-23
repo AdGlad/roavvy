@@ -22,7 +22,9 @@ import 'thumbnail_lru_cache.dart';
 class MapPhotoStrip extends ConsumerStatefulWidget {
   const MapPhotoStrip({super.key});
 
-  static const _maxPhotos = 60;
+  // High enough that a heat-tap's target photo is almost always present in
+  // the grid (the grid builder is lazy, so a large cap costs little).
+  static const _maxPhotos = 300;
 
   /// Header block height (drag handle + count label).
   static const double _headerHeight = 36.0;

@@ -98,14 +98,29 @@ class _HeatmapPainter extends CustomPainter {
     const margin = _blobRadius * 2.0;
     final ir2 = _influenceRadius * _influenceRadius;
 
-    // Evenly-strided subsample of the source list, projected and filtered to
-    // the viewport. Bounds both the projection pass and the draw pass below.
-    final srcStride = locations.length <= _maxDrawPts
-        ? 1
-        : (locations.length / _maxDrawPts).ceil();
+    // Viewport-filter FIRST (cheap lat/lng bounds check), then cap with an
+    // evenly-spaced stride. Striding the full library before filtering would
+    // dilute zoomed-in regions to a fraction of their photos and destroy the
+    // heatmap's local detail.
+    final bounds = camera.visibleBounds;
+    final lngPad = (bounds.east - bounds.west).abs() * 0.05;
+    final latPad = (bounds.north - bounds.south).abs() * 0.05;
+    final inView = <PhotoLocation>[];
+    for (final loc in locations) {
+      if (loc.lat >= bounds.south - latPad &&
+          loc.lat <= bounds.north + latPad &&
+          loc.lng >= bounds.west - lngPad &&
+          loc.lng <= bounds.east + lngPad) {
+        inView.add(loc);
+      }
+    }
+    if (inView.isEmpty) return;
+
+    final srcStride =
+        inView.length <= _maxDrawPts ? 1 : (inView.length / _maxDrawPts).ceil();
     final pts = <Offset>[];
-    for (int i = 0; i < locations.length; i += srcStride) {
-      final loc = locations[i];
+    for (int i = 0; i < inView.length; i += srcStride) {
+      final loc = inView[i];
       final p = camera.latLngToScreenPoint(LatLng(loc.lat, loc.lng));
       final o = Offset(p.x, p.y);
       if (o.dx >= -margin &&
