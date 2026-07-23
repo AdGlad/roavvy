@@ -40,6 +40,11 @@ const _kCurrentFill       = Color(0xFFFFD700);
 const _kCurrentBorder     = Color(0xFFFFFFFF);
 const _kTargetFill        = Color(0xFFE53935);
 const _kTargetBorder      = Color(0xFFFF8A80);
+// Vivid glow ring drawn at the target's centroid, independent of its polygon
+// size/colour — guarantees the target is visible even when its fill colour
+// is hard to distinguish from the ocean, or the country is too small to read
+// at the current zoom (usability rework).
+const _kTargetGlowColor   = Color(0xFFFF1744);
 const _kTrajectoryColor   = Color(0xFFFFFFFF);
 const _kFlightTrailColor  = Color(0xCCFFFFFF);
 const _kProjectileColor   = Color(0xFFFFD700);
@@ -55,7 +60,9 @@ Color countryFillColor({
 }) {
   if (isoCode == currentCode) return _kCurrentFill;
   if (isoCode == targetCode) {
-    return Color.lerp(const Color(0xFF8B0000), _kTargetFill, targetPulse)!;
+    // Pulse between two vivid reds — never dips into a dark tone that could
+    // blend with the dark-navy ocean/unvisited fill (usability rework).
+    return Color.lerp(const Color(0xFFC62828), _kTargetFill, targetPulse)!;
   }
   if (visitedCodes.contains(isoCode)) return _kVisitedFill;
   return _kUnvisitedFill;
@@ -415,6 +422,29 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
 
   // ── Camera helpers ────────────────────────────────────────────────────────
 
+  /// Minimum zoom so a small target country's polygon doesn't render too
+  /// small to read, even when far from the launch origin. Combined with the
+  /// distance-based zoom in [_flyToShowBoth] via [math.max] — whichever
+  /// requires more zoom wins. Thresholds are rough country-diameter bands
+  /// (degrees of lat/lon span), tuned against flutter_map's zoom scale.
+  double _minZoomForTargetSize() {
+    final pts = _targetPolygonPoints;
+    if (pts == null || pts.isEmpty) return 1.0;
+    double minLat = pts.first.latitude, maxLat = pts.first.latitude;
+    double minLon = pts.first.longitude, maxLon = pts.first.longitude;
+    for (final p in pts) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLon) minLon = p.longitude;
+      if (p.longitude > maxLon) maxLon = p.longitude;
+    }
+    final span = math.max(maxLat - minLat, maxLon - minLon);
+    if (span < 1.0) return 5.5;  // tiny — e.g. Luxembourg, Singapore
+    if (span < 2.5) return 4.5;  // small — e.g. Belgium, Rwanda
+    if (span < 5.0) return 3.5;  // medium-small
+    return 1.0;                  // large countries — no extra minimum
+  }
+
   void _flyToShowBoth() {
     final origin = widget.controller.currentOrigin;
     final target = widget.controller.targetLocation;
@@ -433,13 +463,14 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     if (midLon < -180) midLon += 360;
 
     final distKm = widget.controller.targetDistanceKm ?? 0;
-    final zoom = distKm > 14000 ? 1.3
+    final distZoom = distKm > 14000 ? 1.3
         : distKm > 10000 ? 1.5
         : distKm > 7000  ? 1.8
         : distKm > 4000  ? 2.2
         : distKm > 2000  ? 2.8
         : distKm > 800   ? 3.5
         : 4.2;
+    final zoom = math.max(distZoom, _minZoomForTargetSize());
 
     _mapController.move(LatLng(midLat, midLon), zoom);
   }
@@ -452,7 +483,8 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
 
     final layers = <Widget>[];
 
-    // Animated target polygon (1 polygon, not ~250).
+    // Animated target polygon (1 polygon, not ~250). Pulses between two
+    // vivid reds — never a dark tone that could blend with the ocean.
     final targetPts = _targetPolygonPoints;
     if (targetPts != null) {
       layers.add(
@@ -462,12 +494,40 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
             Polygon(
               points: targetPts,
               color: Color.lerp(
-                const Color(0xFF8B0000),
+                const Color(0xFFC62828),
                 _kTargetFill,
                 pulse,
               )!,
               borderColor: _kTargetBorder,
-              borderStrokeWidth: 2.0,
+              borderStrokeWidth: 3.0,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Glow ring + core dot at the target's centroid — visible regardless of
+    // the target polygon's size or fill colour, so a tiny or hard-to-see
+    // target country is still unmistakable (usability rework).
+    final targetLoc = widget.controller.targetLocation;
+    if (targetLoc != null) {
+      layers.add(
+        CircleLayer(
+          circles: [
+            CircleMarker(
+              point: LatLng(targetLoc.lat, targetLoc.lon),
+              radius: 26 + pulse * 16,
+              useRadiusInMeter: false,
+              color: Colors.transparent,
+              borderColor:
+                  _kTargetGlowColor.withValues(alpha: 0.85 - pulse * 0.35),
+              borderStrokeWidth: 3.5,
+            ),
+            CircleMarker(
+              point: LatLng(targetLoc.lat, targetLoc.lon),
+              radius: 9,
+              useRadiusInMeter: false,
+              color: _kTargetGlowColor.withValues(alpha: 0.95),
             ),
           ],
         ),

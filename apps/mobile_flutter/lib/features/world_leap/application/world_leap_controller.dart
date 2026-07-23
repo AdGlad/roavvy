@@ -147,6 +147,7 @@ class WorldLeapController extends ChangeNotifier {
     required WorldLeapGeoService geo,
     required WorldLeapCountryService countryService,
     required WorldLeapScoringService scoring,
+    this.beginnerMode = false,
     CountryLookupFn? countryLookup,
   })  : _userId = userId,
         _date = date,
@@ -156,6 +157,12 @@ class WorldLeapController extends ChangeNotifier {
         _countryService = countryService,
         _scoring = scoring,
         _countryLookup = countryLookup;
+
+  /// When true, releasing the slingshot freezes the aim for review instead of
+  /// firing immediately — [SlingshotWidget] calls [confirmAim] instead of
+  /// [launch] on release, and the screen shows a separate FIRE button. Fixed
+  /// for the lifetime of a run (chosen in the lobby before play starts).
+  final bool beginnerMode;
 
   /// Notifier for aim-only updates (bearing/power) that fire at pointer-move
   /// frequency (~60Hz). Widgets that only care about game state transitions
@@ -173,20 +180,6 @@ class WorldLeapController extends ChangeNotifier {
   final CountryLookupFn? _countryLookup;
 
   WorldLeapState _state = WorldLeapStateIdle();
-
-  // ── Difficulty (1 = easiest, 5 = exact country hit) ──────────────────────
-
-  int _difficulty = 1;
-
-  /// Current difficulty grade (1–5).
-  int get difficulty => _difficulty;
-
-  /// Update difficulty for the current session.
-  void setDifficulty(int level) {
-    assert(level >= 1 && level <= 5);
-    _difficulty = level.clamp(1, 5);
-    notifyListeners();
-  }
 
   // ── Countdown timer state ────────────────────────────────────────────────
 
@@ -287,18 +280,59 @@ class WorldLeapController extends ChangeNotifier {
 
   // ── Target country selection ────────────────────────────────────────────
 
-  /// Picks a random eligible target country that has not been visited and
-  /// is different from the current country. Uses a seeded RNG so the same
-  /// run always gets the same sequence of targets.
+  /// The geographic origin the NEXT launch will fly from for [run]: the last
+  /// landing point if any launches have occurred, otherwise the start
+  /// country centroid. Mirrors [currentOrigin] but reads an explicit [run]
+  /// rather than [_state] — needed because [_pickTarget] is called with an
+  /// already-updated run (the just-completed launch appended) before that
+  /// run has been emitted as the new [_state].
+  ({double lat, double lon}) _originForRun(WorldLeapRun run) {
+    if (run.launches.isNotEmpty) {
+      final last = run.launches.last;
+      return (lat: last.landingLat, lon: last.landingLon);
+    }
+    return _centroidFor(run.startCountryCode);
+  }
+
+  /// Picks an eligible target country that has not been visited and is
+  /// different from the current country, weighted toward nearby countries
+  /// early in the run and progressively opening up to any distance as
+  /// [WorldLeapConfig.progressiveDistanceRampLaunches] launches accumulate —
+  /// so new players aren't asked to aim across the globe on their first shot.
+  ///
+  /// Uses a seeded RNG so the same run always gets the same sequence of
+  /// targets.
   ({String code, String name})? _pickTarget(WorldLeapRun run) {
     final visited = run.visitedCountryCodes;
     final candidates = _countryData.entries
         .where((e) => !visited.contains(e.key))
         .toList();
     if (candidates.isEmpty) return null;
+
+    final origin = _originForRun(run);
+    final byDistance = [
+      for (final e in candidates)
+        (
+          code: e.key,
+          name: e.value.name,
+          distanceKm: _geo.greatCircleDistanceKm(
+            lat1: origin.lat, lon1: origin.lon,
+            lat2: e.value.lat, lon2: e.value.lon,
+          ),
+        ),
+    ]..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+
+    final rampProgress = (run.launches.length /
+            WorldLeapConfig.progressiveDistanceRampLaunches)
+        .clamp(0.0, 1.0);
+    final poolSize = max(
+      WorldLeapConfig.progressiveMinCandidatePool,
+      (byDistance.length * rampProgress).ceil(),
+    ).clamp(1, byDistance.length);
+
     final seed = _date.hashCode ^ run.launches.length;
-    final entry = candidates[Random(seed).nextInt(candidates.length)];
-    return (code: entry.key, name: entry.value.name);
+    final entry = byDistance[Random(seed).nextInt(poolSize)];
+    return (code: entry.code, name: entry.name);
   }
 
   // ── Countdown timer ─────────────────────────────────────────────────────
@@ -341,20 +375,18 @@ class WorldLeapController extends ChangeNotifier {
     _emit(WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout));
   }
 
-  /// Returns true if [landing] is within the tolerance for the current
-  /// difficulty grade compared to [targetCode]'s centroid.
-  /// Grade 5 always returns false (exact polygon required).
-  bool _isWithinDifficultyTolerance(
+  /// Returns true if [landing] is within [WorldLeapConfig.landingToleranceKm]
+  /// of [targetCode]'s centroid — accepted even when the reverse-geocoded
+  /// country differs (e.g. landing just over a border).
+  bool _isWithinLandingTolerance(
       ({double lat, double lon}) landing, String targetCode) {
-    final toleranceKm = WorldLeapConfig.difficultyToleranceKm[_difficulty - 1];
-    if (toleranceKm <= 0) return false; // grade 5 — exact only
     final centroid = _countryData[targetCode];
     if (centroid == null) return false;
     final dist = _geo.greatCircleDistanceKm(
       lat1: landing.lat, lon1: landing.lon,
       lat2: centroid.lat, lon2: centroid.lon,
     );
-    return dist <= toleranceKm;
+    return dist <= WorldLeapConfig.landingToleranceKm;
   }
 
   /// Looks up a country using injected [_countryLookup] (for tests) or the
@@ -457,6 +489,17 @@ class WorldLeapController extends ChangeNotifier {
     aimNotifier.value = (bearingDeg: bearingDeg, power: clampedPower);
   }
 
+  /// Beginner mode: called when the player releases the drag WITHOUT firing,
+  /// so the frozen aim can be reviewed before committing. [updateAim] already
+  /// stored the bearing/power in [_state] without notifying (to avoid 60Hz
+  /// rebuilds); this just triggers the one rebuild needed to show the FIRE
+  /// button and "on target" hint at their final values. Does not advance
+  /// game state — [launch] is still required to actually fire.
+  void confirmAim() {
+    if (_state is! WorldLeapStateAiming) return;
+    notifyListeners();
+  }
+
   /// Player releases — starts the launch sequence.
   Future<void> launch() async {
     final current = _state;
@@ -540,7 +583,7 @@ class WorldLeapController extends ChangeNotifier {
     final targetCode = run.targetCountryCode;
     if (targetCode != null) {
       final bool isHit = destCountry.code == targetCode ||
-          _isWithinDifficultyTolerance(dest, targetCode);
+          _isWithinLandingTolerance(dest, targetCode);
       if (!isHit) {
         await failWith(WorldLeapFailureReason.wrongCountry);
         return;

@@ -70,19 +70,26 @@ class SlingshotWidget extends StatefulWidget {
   /// the map can suppress its own drag recognizer during slingshot operation.
   final void Function(bool active)? onActiveChanged;
 
+  /// When true, releasing the drag freezes the aim for review (calls
+  /// [WorldLeapController.confirmAim]) instead of firing immediately — the
+  /// screen shows a separate FIRE button and the player may re-aim by
+  /// starting a new drag before committing.
+  final bool beginnerMode;
+
   const SlingshotWidget({
     super.key,
     required this.controller,
     this.maxDragPixels,
     this.hitTestFn,
     this.onActiveChanged,
+    this.beginnerMode = false,
   });
 
   @override
-  State<SlingshotWidget> createState() => _SlingshotWidgetState();
+  State<SlingshotWidget> createState() => SlingshotWidgetState();
 }
 
-class _SlingshotWidgetState extends State<SlingshotWidget>
+class SlingshotWidgetState extends State<SlingshotWidget>
     with SingleTickerProviderStateMixin {
   Offset? _dragStart;
   Offset? _dragCurrent;
@@ -110,12 +117,28 @@ class _SlingshotWidgetState extends State<SlingshotWidget>
         });
       }
     });
+    // Beginner mode freezes the drag visuals on release so the aim can be
+    // reviewed before the FIRE button is tapped. Once the controller moves
+    // past Aiming (fired, failed, or a new turn started elsewhere), clear
+    // the frozen state so a stale arrow doesn't appear on the next turn.
+    widget.controller.addListener(_onControllerStateChanged);
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerStateChanged);
     _snapController.dispose();
     super.dispose();
+  }
+
+  void _onControllerStateChanged() {
+    if (widget.controller.state is! WorldLeapStateAiming &&
+        (_dragStart != null || _dragCurrent != null)) {
+      setState(() {
+        _dragStart = null;
+        _dragCurrent = null;
+      });
+    }
   }
 
   Offset? get _dragDelta =>
@@ -154,13 +177,21 @@ class _SlingshotWidgetState extends State<SlingshotWidget>
 
   void _endTracking({required bool launch}) {
     final lastDelta = _dragDelta;
+    final hasAimed = lastDelta != null && lastDelta.distance >= 1;
+    // Beginner mode + a real release (not a cancel): freeze the pull band in
+    // place instead of snapping back to zero, so the aim stays visible for
+    // review until the player fires or starts a new drag.
+    final freeze = widget.beginnerMode && launch && hasAimed;
+
     setState(() {
-      _dragStart = null;
-      _dragCurrent = null;
+      if (!freeze) {
+        _dragStart = null;
+        _dragCurrent = null;
+      }
       _trackingPointer = null;
     });
     widget.onActiveChanged?.call(false);
-    if (lastDelta != null && lastDelta.distance >= 1) {
+    if (!freeze && hasAimed) {
       final curved = CurvedAnimation(
         parent: _snapController,
         curve: Curves.elasticOut,
@@ -171,7 +202,13 @@ class _SlingshotWidgetState extends State<SlingshotWidget>
       ).animate(curved);
       _snapController.forward(from: 0);
     }
-    if (launch) widget.controller.launch();
+    if (launch) {
+      if (widget.beginnerMode) {
+        if (hasAimed) widget.controller.confirmAim();
+      } else {
+        widget.controller.launch();
+      }
+    }
   }
 
   @override

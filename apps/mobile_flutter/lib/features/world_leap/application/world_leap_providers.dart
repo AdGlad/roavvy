@@ -21,7 +21,12 @@ String worldLeapTodayDate() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
 /// Provides a fully-wired [WorldLeapController] for today's game.
 /// Created as AutoDispose so it tears down when the tab is not visible.
-final worldLeapControllerProvider = FutureProvider.autoDispose<WorldLeapController>((ref) async {
+///
+/// Parameterised by [beginnerMode] (chosen in the lobby before play starts)
+/// so the controller is constructed with the right firing behaviour from
+/// the outset — see [WorldLeapController.beginnerMode].
+final worldLeapControllerProvider = FutureProvider.autoDispose
+    .family<WorldLeapController, bool>((ref, beginnerMode) async {
   final prefs = await SharedPreferences.getInstance();
   final firestore = FirebaseFirestore.instance;
   final geo = WorldLeapGeoService();
@@ -48,6 +53,7 @@ final worldLeapControllerProvider = FutureProvider.autoDispose<WorldLeapControll
     geo: geo,
     countryService: countryService,
     scoring: scoring,
+    beginnerMode: beginnerMode,
   );
 
   controller.addListener(() {

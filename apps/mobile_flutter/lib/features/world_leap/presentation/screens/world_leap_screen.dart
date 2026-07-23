@@ -318,50 +318,48 @@ class _ZoomButton extends StatelessWidget {
   }
 }
 
-// ── Difficulty button ─────────────────────────────────────────────────────────
+// ── FIRE button (beginner mode) ────────────────────────────────────────────────
 
-class _DifficultyButton extends StatelessWidget {
-  final int difficulty; // 1–5
+/// Shown only in beginner mode once the player has released a frozen aim —
+/// confirms and actually fires the shot (classic mode fires on release, so
+/// this button is never needed there).
+class _FireButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _DifficultyButton({required this.difficulty, required this.onTap});
+  const _FireButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final label = WorldLeapConfig.difficultyLabels[difficulty - 1];
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.3),
-            width: 1,
-          ),
+          color: Colors.amber,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withValues(alpha: 0.5),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
         ),
-        child: Tooltip(
-          message: label,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'D',
-                style: TextStyle(color: Colors.white54, fontSize: 9, height: 1.1),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.rocket_launch, color: Colors.black, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'FIRE',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                letterSpacing: 1.0,
               ),
-              Text(
-                '$difficulty',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  height: 1.1,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -413,7 +411,11 @@ class _CameraToggleButton extends StatelessWidget {
 }
 
 class WorldLeapScreen extends ConsumerStatefulWidget {
-  const WorldLeapScreen({super.key});
+  const WorldLeapScreen({super.key, this.beginnerMode = false});
+
+  /// Chosen in the lobby before play starts. See
+  /// [WorldLeapController.beginnerMode] for the resulting behaviour.
+  final bool beginnerMode;
 
   @override
   ConsumerState<WorldLeapScreen> createState() => _WorldLeapScreenState();
@@ -430,7 +432,6 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
 
   final _slingshotActive = ValueNotifier<bool>(false);
   final _cameraMode = ValueNotifier<WorldLeapCameraMode>(WorldLeapCameraMode.stationary);
-  final _difficulty = ValueNotifier<int>(1);
 
   @override
   void initState() {
@@ -467,13 +468,13 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
     _shakeController.dispose();
     _slingshotActive.dispose();
     _cameraMode.dispose();
-    _difficulty.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final asyncController = ref.watch(worldLeapControllerProvider);
+    final asyncController =
+        ref.watch(worldLeapControllerProvider(widget.beginnerMode));
 
     return asyncController.when(
       loading: () => const Scaffold(
@@ -577,21 +578,22 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                     // starts on the source country; all other touches pan map.
                     SlingshotWidget(
                       controller: controller,
+                      beginnerMode: widget.beginnerMode,
                       hitTestFn: (pos) =>
                           _mapKey.currentState?.isInCurrentCountry(pos) ??
                           false,
                       onActiveChanged: (v) => _slingshotActive.value = v,
                     ),
 
-                    // Zoom buttons + camera mode + difficulty
+                    // Zoom buttons + camera mode.
                     // Portrait: bottom-right. Landscape: bottom-left (right side is HUD panel).
                     Positioned(
                       bottom: isLandscape ? 12 : 170,
                       right: isLandscape ? null : 16,
                       left: isLandscape ? 16 : null,
-                      child: ListenableBuilder(
-                        listenable: Listenable.merge([_cameraMode, _difficulty]),
-                        builder: (context, _) => Column(
+                      child: ValueListenableBuilder<WorldLeapCameraMode>(
+                        valueListenable: _cameraMode,
+                        builder: (context, mode, _) => Column(
                           children: [
                             _ZoomButton(
                               icon: Icons.add,
@@ -604,22 +606,29 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                             ),
                             const SizedBox(height: 8),
                             _CameraToggleButton(
-                              mode: _cameraMode.value,
-                              onTap: () => _cameraMode.value = _cameraMode.value.next,
-                            ),
-                            const SizedBox(height: 8),
-                            _DifficultyButton(
-                              difficulty: _difficulty.value,
-                              onTap: () {
-                                final next = (_difficulty.value % 5) + 1;
-                                _difficulty.value = next;
-                                controller.setDifficulty(next);
-                              },
+                              mode: mode,
+                              onTap: () => _cameraMode.value = mode.next,
                             ),
                           ],
                         ),
                       ),
                     ),
+
+                    // FIRE button (beginner mode only) — appears once a
+                    // release has frozen an aim; confirms and fires the shot.
+                    if (widget.beginnerMode &&
+                        currentState is WorldLeapStateAiming &&
+                        currentState.bearingDeg != null &&
+                        (currentState.power ?? 0) >=
+                            WorldLeapConfig.minLaunchPower)
+                      Positioned(
+                        bottom: isLandscape ? 16 : 130,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _FireButton(onTap: controller.launch),
+                        ),
+                      ),
 
                     // Quokka mascot — purely decorative, must never absorb touches.
                     // Without IgnorePointer the ConfettiWidget's CustomPaint
