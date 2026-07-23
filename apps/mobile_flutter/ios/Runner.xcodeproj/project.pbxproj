@@ -219,7 +219,7 @@
 				D3F1AD89A3E3487623EBE20A /* [CP] Embed Pods Frameworks */,
 				6FC8B43D6C76A1265142684B /* Re-sign Embedded Frameworks */,
 				7017B9B7B30A42E4BD8BC7B159F4EC9E /* Upload Crashlytics dSYMs */,
-				9E85A25F3A409054701F59C5 /* Generate sqlite3 dSYM */,
+				EEC536C9914F19DF6D535A9D /* Generate sqlite3 dSYM */,
 			);
 			buildRules = (
 			);
@@ -383,24 +383,6 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
-		9E85A25F3A409054701F59C5 /* Generate sqlite3 dSYM */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Generate sqlite3 dSYM";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Generate sqlite3.framework.dSYM for App Store Connect symbol upload.\n# Flutter Native Assets embeds sqlite3 inside the app bundle; this script\n# locates it and produces the dSYM the upload tool requires.\nOUT=\"${DWARF_DSYM_FOLDER_PATH}/sqlite3.framework.dSYM\"\n[ -d \"${OUT}\" ] && exit 0          # already present\n[ -z \"${DWARF_DSYM_FOLDER_PATH}\" ] && exit 0  # not archiving\n\n# 1. Copy a pre-built dSYM if the build system already produced one\nfor DIR in   \"${BUILT_PRODUCTS_DIR}\"   \"${BUILD_DIR}/${CONFIGURATION}-iphoneos\"   \"${OBJROOT}/UninstalledProducts/iphoneos\"; do\n  SRC=\"${DIR}/sqlite3.framework.dSYM\"\n  if [ -d \"${SRC}\" ]; then\n    cp -R \"${SRC}\" \"${OUT}\" && exit 0\n  fi\ndone\n\n# 2. Extract from the embedded binary (dwarf format – symbols still inside)\nfor FW in   \"${CODESIGNING_FOLDER_PATH}/Frameworks/sqlite3.framework/sqlite3\"   \"${BUILT_PRODUCTS_DIR}/sqlite3.framework/sqlite3\"; do\n  if [ -f \"${FW}\" ]; then\n    xcrun dsymutil \"${FW}\" -o \"${OUT}\" 2>/dev/null && exit 0\n  fi\ndone\n\necho \"warning: sqlite3.framework dSYM could not be generated; App Store symbol upload may warn\"\n";
-		};
 		BB87C090B3FC0785219D3F40 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -434,6 +416,24 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		EEC536C9914F19DF6D535A9D /* Generate sqlite3 dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate sqlite3 dSYM";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Generate sqlite3.framework.dSYM for App Store Connect symbol upload.\n# Flutter Native Assets embeds sqlite3 inside the app bundle; this script\n# locates it and produces the dSYM the upload tool requires.\nOUT=\"${DWARF_DSYM_FOLDER_PATH}/sqlite3.framework.dSYM\"\n[ -d \"${OUT}\" ] && exit 0          # already present\n[ -z \"${DWARF_DSYM_FOLDER_PATH}\" ] && exit 0  # not archiving\n\n# 1. Copy a pre-built dSYM if the build system already produced one\nfor DIR in   \"${BUILT_PRODUCTS_DIR}\"   \"${BUILD_DIR}/${CONFIGURATION}-iphoneos\"   \"${OBJROOT}/UninstalledProducts/iphoneos\"; do\n  SRC=\"${DIR}/sqlite3.framework.dSYM\"\n  if [ -d \"${SRC}\" ]; then\n    cp -R \"${SRC}\" \"${OUT}\" && exit 0\n  fi\ndone\n\n# 2. Extract from the embedded binary (dwarf format – symbols still inside)\nfor FW in   \"${CODESIGNING_FOLDER_PATH}/Frameworks/sqlite3.framework/sqlite3\"   \"${BUILT_PRODUCTS_DIR}/sqlite3.framework/sqlite3\"; do\n  if [ -f \"${FW}\" ]; then\n    xcrun dsymutil \"${FW}\" -o \"${OUT}\" 2>/dev/null && exit 0\n  fi\ndone\n\necho \"warning: sqlite3.framework dSYM could not be generated; App Store symbol upload may warn\"\n";
 		};
 		F3EF1DDC1A623FDB93A803F7 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
