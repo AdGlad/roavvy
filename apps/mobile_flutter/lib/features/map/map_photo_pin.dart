@@ -15,6 +15,18 @@ import 'thumbnail_lru_cache.dart';
 /// "Your Map" current-photo pin.
 final selectedMapPhotoProvider = StateProvider<PhotoLocation?>((ref) => null);
 
+/// The point the gallery is currently sorted around — set only by an
+/// explicit map tap (heat blob or pin), NOT by grid scrubbing. [MapPhotoStrip]
+/// reorders its pool by distance from this point (nearest first) so tapping
+/// an area of the heatmap surfaces that area's photos first, mirroring
+/// Google Photos' "tap the heat mark to jump to photos in that area".
+///
+/// Kept separate from [selectedMapPhotoProvider] so scrolling the grid (which
+/// only updates the pin) never triggers a re-sort — only a fresh map tap does.
+final mapGallerySortAnchorProvider = StateProvider<PhotoLocation?>(
+  (ref) => null,
+);
+
 /// Google Photos-style current-photo pin: a circular thumbnail inside a thick
 /// white ring with a short tail down to a small dark anchor dot at the exact
 /// photo location. The thumbnail crossfades when the selection changes.

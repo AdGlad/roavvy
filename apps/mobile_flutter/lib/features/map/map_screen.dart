@@ -197,6 +197,9 @@ class MapScreen extends ConsumerWidget {
     }
     if (nearest == null) return false;
     ref.read(selectedMapPhotoProvider.notifier).state = nearest;
+    // Re-sort the gallery around the tapped area, nearest photo first
+    // (Google Photos: "tap the heat mark to jump to photos in that area").
+    ref.read(mapGallerySortAnchorProvider.notifier).state = nearest;
     // Reveal the grid so the tap visibly scrolls it to the selected photo.
     ref.read(mapPhotoPanelExpandedProvider.notifier).state = true;
     return true;

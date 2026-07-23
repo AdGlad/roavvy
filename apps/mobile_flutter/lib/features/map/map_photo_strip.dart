@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,18 @@ import 'thumbnail_lru_cache.dart';
 /// default so the flat map's visible area matches the globe view; the
 /// header (drag handle + photo count) stays visible as the affordance.
 final mapPhotoPanelExpandedProvider = StateProvider<bool>((ref) => false);
+
+/// Squared "flat-earth" distance between two points, scaled so longitude
+/// degrees shrink toward the poles like they do on screen (cos of the mean
+/// latitude). Only used for relative ordering, so this cheap approximation
+/// is preferable to a full haversine — it never needs to be an absolute
+/// distance, only sort correctly at the local scale of a heatmap tap.
+double _distanceSquared(PhotoLocation a, PhotoLocation b) {
+  final dLat = a.lat - b.lat;
+  final meanLatRad = (a.lat + b.lat) / 2 * (math.pi / 180);
+  final dLng = (a.lng - b.lng) * math.cos(meanLatRad);
+  return dLat * dLat + dLng * dLng;
+}
 
 /// Google Photos-style photo panel under the flat map: rounded-top sheet with
 /// a drag handle, a live "N photos" count for the visible map region, and a
@@ -120,10 +133,27 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
 
     if (pool.isEmpty) return const SizedBox.shrink();
 
-    final capped = pool.length > MapPhotoStrip._maxPhotos
-        ? pool.sublist(pool.length - MapPhotoStrip._maxPhotos)
-        : pool;
-    final photos = capped.reversed.toList();
+    final sortAnchor = ref.watch(mapGallerySortAnchorProvider);
+
+    final List<PhotoLocation> photos;
+    if (sortAnchor != null) {
+      // Nearest-first from the tapped area (Google Photos: "tap the heat
+      // mark to jump to photos in that area"). Sort the FULL viewport pool
+      // before capping so the cap keeps the closest photos, not the newest.
+      final byDistance = [...pool]..sort(
+        (a, b) => _distanceSquared(sortAnchor, a).compareTo(
+          _distanceSquared(sortAnchor, b),
+        ),
+      );
+      photos = byDistance.length > MapPhotoStrip._maxPhotos
+          ? byDistance.sublist(0, MapPhotoStrip._maxPhotos)
+          : byDistance;
+    } else {
+      final capped = pool.length > MapPhotoStrip._maxPhotos
+          ? pool.sublist(pool.length - MapPhotoStrip._maxPhotos)
+          : pool;
+      photos = capped.reversed.toList();
+    }
     final assetIds = photos.map((p) => p.assetId).toList();
     _photos = photos;
 
