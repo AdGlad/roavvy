@@ -260,17 +260,16 @@ final thisYearCountryCountProvider = FutureProvider<int>((ref) async {
 final yearFilterProvider = StateProvider<int?>((ref) => null);
 
 /// Whether the globe map is active. true = globe (default). (ADR-116)
-// ignore: avoid_redundant_argument_values
-final globeModeProvider = StateProvider<bool>((ref) => false); // temp: flat for review
+final globeModeProvider = StateProvider<bool>((ref) => true);
 
 /// When true the globe idles without auto-spinning so the user can inspect
 /// heritage sites. Manual drag and snap animations still work normally.
 final globeRotationPausedProvider = StateProvider<bool>((ref) => false);
 
-/// Whether the photo heatmap layer is shown on the 3D globe. Off by default;
+/// Whether the photo heatmap layer is shown on the 3D globe. On by default;
 /// toggled from the globe's FAB stack. Also gated on
 /// [showPhotoThumbnailsProvider] like the flat-map photo layers.
-final globeHeatmapEnabledProvider = StateProvider<bool>((ref) => false);
+final globeHeatmapEnabledProvider = StateProvider<bool>((ref) => true);
 
 /// Whether heritage site dots are shown on the main map globe (M129).
 final heritageDotsEnabledProvider = StateProvider<bool>((ref) => true);
