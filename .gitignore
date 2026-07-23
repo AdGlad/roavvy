@@ -130,6 +130,4 @@ docs/screenshots/discovery.MP4
 # Raw mascot source images (app-bundled copies live in apps/mobile_flutter/assets/mascot)
 /mascot/
 
-# Silhouette factory generated artifacts (scripts/ and data/ are committed)
-/tools/silhouette_factory/assets/
 __pycache__/
