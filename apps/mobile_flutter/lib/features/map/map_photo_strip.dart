@@ -7,18 +7,86 @@ import 'package:share_plus/share_plus.dart' show Share, XFile;
 import '../../core/providers.dart';
 import '../../data/photo_gps_repository.dart';
 import '../shared/thumbnail_channel.dart';
+import 'map_photo_pin.dart';
 import 'thumbnail_lru_cache.dart';
 
-/// 3-column photo grid shown below the flat map — mirrors the Google Photos
-/// map experience where a grid of location-tagged photos sits in a panel
-/// below the map, viewport-synced and newest-first.
-class MapPhotoStrip extends ConsumerWidget {
+/// Google Photos-style photo panel under the flat map: rounded-top sheet with
+/// a drag handle, a live "N photos" count for the visible map region, and a
+/// 4-column newest-first grid.
+///
+/// Bidirectional scrubbing (mirrors Google Photos "Your Map"):
+/// - scrolling the grid moves the map's photo pin to the top-visible photo
+///   (via [selectedMapPhotoProvider])
+/// - an external selection (tapping a heat blob on the map) scrolls the grid
+///   to that photo
+class MapPhotoStrip extends ConsumerStatefulWidget {
   const MapPhotoStrip({super.key});
 
   static const _maxPhotos = 60;
 
+  /// Header block height (drag handle + count label).
+  static const double _headerHeight = 36.0;
+
+  /// Panel height for [screenWidth] — used by MapScreen to offset the UI
+  /// stacked above the panel.
+  static double panelHeight(double screenWidth) =>
+      (screenWidth - 6) / 4 * 2 + 2 + _headerHeight;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MapPhotoStrip> createState() => _MapPhotoStripState();
+}
+
+class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
+  final _scroll = ScrollController();
+  List<PhotoLocation> _photos = const [];
+  double _rowExtent = 1.0;
+  bool _programmaticScroll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Grid scrub → pin: select the first photo of the top visible row.
+  void _onScroll() {
+    if (_programmaticScroll || _photos.isEmpty) return;
+    final row = (_scroll.offset / _rowExtent).round();
+    final idx = (row * 4).clamp(0, _photos.length - 1);
+    final photo = _photos[idx];
+    if (ref.read(selectedMapPhotoProvider)?.assetId != photo.assetId) {
+      ref.read(selectedMapPhotoProvider.notifier).state = photo;
+    }
+  }
+
+  /// Pin (heat tap) → grid: scroll so the selected photo's row is on top.
+  void _scrollToAsset(String assetId) {
+    final idx = _photos.indexWhere((p) => p.assetId == assetId);
+    if (idx < 0 || !_scroll.hasClients) return;
+    final targetOffset = (idx ~/ 4) * _rowExtent;
+    // Skip if that row is already within the visible band (avoid fighting
+    // the user's own scroll, which is what set the selection).
+    final visibleTop = _scroll.offset - _rowExtent * 0.5;
+    final visibleBottom = _scroll.offset + _rowExtent * 1.5;
+    if (targetOffset >= visibleTop && targetOffset <= visibleBottom) return;
+    _programmaticScroll = true;
+    _scroll
+        .animateTo(
+          targetOffset.clamp(0.0, _scroll.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        )
+        .whenComplete(() => _programmaticScroll = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     if (!ref.watch(showPhotoThumbnailsProvider)) return const SizedBox.shrink();
 
     final locationsAsync = ref.watch(photoLocationsProvider);
@@ -42,41 +110,84 @@ class MapPhotoStrip extends ConsumerWidget {
 
     if (pool.isEmpty) return const SizedBox.shrink();
 
-    final capped =
-        pool.length > _maxPhotos ? pool.sublist(pool.length - _maxPhotos) : pool;
+    final capped = pool.length > MapPhotoStrip._maxPhotos
+        ? pool.sublist(pool.length - MapPhotoStrip._maxPhotos)
+        : pool;
     final photos = capped.reversed.toList();
     final assetIds = photos.map((p) => p.assetId).toList();
+    _photos = photos;
+
+    ref.listen<PhotoLocation?>(selectedMapPhotoProvider, (_, next) {
+      if (next != null) _scrollToAsset(next.assetId);
+    });
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tileSize =
-        (MediaQuery.of(context).size.width - 4) / 3; // 2px gaps between 3 cols
-    // Show 2 full rows + a sliver of the 3rd so it's obvious the grid scrolls.
-    final panelHeight = tileSize * 2 + 2;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final tileSize = (screenWidth - 6) / 4; // 2px gaps between 4 cols
+    _rowExtent = tileSize + 2;
 
-    return SizedBox(
-      height: panelHeight,
-      child: ColoredBox(
-        color: isDark ? const Color(0xDD050510) : const Color(0xDDFFFFFF),
-        child: GridView.builder(
-          padding: EdgeInsets.zero,
-          physics: const ClampingScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 2,
-            mainAxisSpacing: 2,
+    return Container(
+      height: MapPhotoStrip.panelHeight(screenWidth),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xF2101014) : const Color(0xF7FFFFFF),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 12,
+            offset: Offset(0, -2),
           ),
-          itemCount: photos.length,
-          itemBuilder: (context, i) => _GridTile(
-            key: ValueKey(photos[i].assetId),
-            assetId: photos[i].assetId,
-            onTap: () => Navigator.of(context).push(
-              _MapPhotoViewer.route(
-                assetIds: assetIds,
-                initialIndex: i,
+        ],
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 6),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white24 : Colors.black26,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${pool.length} ${pool.length == 1 ? 'photo' : 'photos'}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Expanded(
+            child: GridView.builder(
+              controller: _scroll,
+              padding: EdgeInsets.zero,
+              physics: const ClampingScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+              ),
+              itemCount: photos.length,
+              itemBuilder: (context, i) => _GridTile(
+                key: ValueKey(photos[i].assetId),
+                assetId: photos[i].assetId,
+                onTap: () {
+                  ref.read(selectedMapPhotoProvider.notifier).state = photos[i];
+                  Navigator.of(context).push(
+                    _MapPhotoViewer.route(
+                      assetIds: assetIds,
+                      initialIndex: i,
+                    ),
+                  );
+                },
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

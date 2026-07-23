@@ -13,6 +13,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
+import '../../data/photo_gps_repository.dart';
 import '../../core/theme/theme_mode_provider.dart';
 import '../../data/firestore_sync_service.dart';
 import '../xp/xp_event.dart';
@@ -34,8 +35,8 @@ import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
 import '../heritage/unesco_nearby_explorer_screen.dart';
 import 'region_chips_marker_layer.dart';
-import 'photo_cluster_layer.dart';
 import 'world_heritage_marker_layer.dart';
+import 'map_photo_pin.dart';
 import 'map_photo_strip.dart';
 import 'photo_heatmap_layer.dart';
 import 'region_progress_notifier.dart';
@@ -154,10 +155,49 @@ class MapScreen extends ConsumerWidget {
     TapPosition _,
     LatLng point,
   ) {
+    // Google Photos behaviour: tapping a heat blob selects the nearest photo
+    // (pin drops, grid scrolls to it). Falls through to the country sheet
+    // when the tap isn't near any photo.
+    if (_tryHeatTap(context, ref, point)) return;
+
     final resolver = tapResolverOverride ?? resolveCountry;
     final code = resolver(point.latitude, point.longitude);
     if (code == null) return;
     _showCountryDetail(context, ref, code, visitedByCode);
+  }
+
+  /// Selects the photo nearest to [point] if it is within roughly one heat
+  /// blob radius on screen. Returns true when a photo was selected.
+  ///
+  /// Screen distance is approximated from the current viewport bounds
+  /// (degrees-per-pixel), which is accurate enough for tap disambiguation.
+  bool _tryHeatTap(BuildContext context, WidgetRef ref, LatLng point) {
+    if (!ref.read(showPhotoThumbnailsProvider)) return false;
+    final locations = ref.read(photoLocationsProvider).valueOrNull;
+    final vp = ref.read(mapViewportProvider);
+    if (locations == null || locations.isEmpty || vp == null) return false;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final degPerPx = (vp.east - vp.west) / screenWidth;
+    if (degPerPx <= 0) return false;
+    const thresholdPx = 28.0;
+
+    PhotoLocation? nearest;
+    var nearestPx = thresholdPx;
+    for (final loc in locations) {
+      final dxPx = (loc.lng - point.longitude).abs() / degPerPx;
+      if (dxPx > thresholdPx) continue;
+      final dyPx = (loc.lat - point.latitude).abs() / degPerPx;
+      if (dyPx > thresholdPx) continue;
+      final dist = (Offset(dxPx, dyPx)).distance;
+      if (dist < nearestPx) {
+        nearestPx = dist;
+        nearest = loc;
+      }
+    }
+    if (nearest == null) return false;
+    ref.read(selectedMapPhotoProvider.notifier).state = nearest;
+    return true;
   }
 
   /// Shows [CountryDetailSheet] for a country tapped on the globe (ADR-116).
@@ -276,7 +316,8 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
-    final photoGridH = globeMode ? 0.0 : (screenWidth - 4) / 3 * 2 + 2;
+    final photoGridH =
+        globeMode ? 0.0 : MapPhotoStrip.panelHeight(screenWidth);
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
         const <EffectiveVisitedCountry>[];
@@ -334,7 +375,10 @@ class MapScreen extends ConsumerWidget {
                 RegionChipsMarkerLayer(),
                 WorldHeritageMarkerLayer(),
                 PhotoHeatmapLayer(),
-                PhotoClusterLayer(),
+                // Google Photos-style: no thumbnail clusters — a heatmap at
+                // every zoom plus anchor dots and a single photo pin.
+                PhotoAnchorDotsLayer(),
+                PhotoPinLayer(),
               ],
             ),
 

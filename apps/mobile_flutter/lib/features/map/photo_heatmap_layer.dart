@@ -9,11 +9,14 @@ import '../../data/photo_gps_repository.dart';
 /// Google Photos-style photo density heatmap.
 ///
 /// Uses Gaussian kernel density estimation so nearby points compound into
-/// hotspots. The result maps to a spectral gradient (blue=sparse → pink=dense),
-/// matching the Google Photos "Your Map" visual design.
+/// hotspots, rendered with Google Photos' "Your Map" colour ramp:
+/// violet (sparse) → blue → teal → yellow → orange → hot pink (dense).
+/// Colours are banded rather than smoothly interpolated to reproduce the
+/// contour-ring / weather-radar look of the original, at ~55% opacity so
+/// the map stays readable underneath.
 ///
-/// Visible at zoom < 8; fades smoothly from zoom 5→8 as the cluster
-/// layer takes over.
+/// Like Google Photos, the heatmap persists at every zoom level — there is
+/// no cluster handoff; blob radius is constant in screen pixels.
 class PhotoHeatmapLayer extends ConsumerWidget {
   const PhotoHeatmapLayer({super.key});
 
@@ -24,7 +27,6 @@ class PhotoHeatmapLayer extends ConsumerWidget {
     final locations = locationsAsync.valueOrNull;
     if (locations == null || locations.isEmpty) return const SizedBox.shrink();
     final camera = MapCamera.of(context);
-    if (camera.zoom >= 8) return const SizedBox.shrink();
     return SizedBox.expand(
       child: CustomPaint(
         painter: _HeatmapPainter(locations: locations, camera: camera),
@@ -33,31 +35,19 @@ class PhotoHeatmapLayer extends ConsumerWidget {
   }
 }
 
-/// Spectral colour at normalised heat t ∈ [0, 1].
+/// Google Photos heat colour at normalised heat t ∈ [0, 1].
 ///
-/// Matches Google Photos' gradient:
-///   sparse (0) → blue → cyan → green → amber → deep-orange → pink/red (1)
-Color _spectralColor(double t, double opacity) {
-  const stops = <double>[0.0, 0.15, 0.35, 0.55, 0.70, 0.85, 1.0];
-  const colors = <Color>[
-    Color(0x002196F3), // transparent blue  (isolated point)
-    Color(0xAA2196F3), // Material Blue 500
-    Color(0xAA00BCD4), // Material Cyan 500
-    Color(0xAA4CAF50), // Material Green 500
-    Color(0xBBFFC107), // Material Amber 500
-    Color(0xBBFF5722), // Material Deep Orange 500
-    Color(0xCCE91E63), // Material Pink 500  (hotspot)
-  ];
-
-  for (int i = 0; i < stops.length - 1; i++) {
-    if (t <= stops[i + 1]) {
-      final local = (t - stops[i]) / (stops[i + 1] - stops[i]);
-      final c = Color.lerp(colors[i], colors[i + 1], local)!;
-      return c.withValues(alpha: c.a * opacity);
-    }
-  }
-  final last = colors.last;
-  return last.withValues(alpha: last.a * opacity);
+/// Band edges and colours sampled from Google Photos "Your Map" screenshots:
+/// a broad violet sparse field, thin blue/teal/yellow/orange transition
+/// rings, and a flat hot-pink dense core. Alpha is baked in (~55%, slightly
+/// higher toward the core).
+Color _gpHeatColor(double t) {
+  if (t < 0.30) return const Color(0x8CA574EC); // violet — sparse field
+  if (t < 0.45) return const Color(0x8C5C7EDC); // periwinkle blue
+  if (t < 0.58) return const Color(0x8C4FBFA0); // teal
+  if (t < 0.70) return const Color(0x8CE8C93F); // yellow
+  if (t < 0.84) return const Color(0x96F08A3C); // orange
+  return const Color(0xA0F37DC6); // hot pink — dense core
 }
 
 class _HeatmapPainter extends CustomPainter {
@@ -66,8 +56,9 @@ class _HeatmapPainter extends CustomPainter {
   final List<PhotoLocation> locations;
   final MapCamera camera;
 
-  /// Blob radius in screen pixels — constant like Google Photos.
-  static const double _blobRadius = 30.0;
+  /// Blob radius in screen pixels — constant like Google Photos, where an
+  /// isolated photo reads as a small soft violet dot (~5% of screen width).
+  static const double _blobRadius = 20.0;
 
   /// Influence radius for density accumulation; wider = smoother merging.
   static const double _influenceRadius = _blobRadius * 2.4;
@@ -91,14 +82,8 @@ class _HeatmapPainter extends CustomPainter {
   /// and no shader is ever rebuilt mid-pan.
   static final Map<int, Shader> _blobShaderCache = {};
 
-  double get _layerOpacity {
-    if (camera.zoom < 5.0) return 1.0;
-    return (1.0 - (camera.zoom - 5.0) / 3.0).clamp(0.0, 1.0);
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
-    final opacity = _layerOpacity;
     const margin = _blobRadius * 2.0;
     final ir2 = _influenceRadius * _influenceRadius;
 
@@ -150,12 +135,10 @@ class _HeatmapPainter extends CustomPainter {
 
     for (int i = 0; i < pts.length; i++) {
       final center = pts[i];
-      // Quantise heat/opacity so blobs share cached shaders.
+      // Quantise heat so blobs share cached shaders.
       final qT = ((heat[i] / normMax).clamp(0.0, 1.0) * 32).round();
-      final qOpacity = (opacity * 16).round();
-      if (qT == 0 || qOpacity == 0) continue;
-      final shader = _blobShaderCache.putIfAbsent(qT * 100 + qOpacity, () {
-        final color = _spectralColor(qT / 32, qOpacity / 16);
+      final shader = _blobShaderCache.putIfAbsent(qT, () {
+        final color = _gpHeatColor(qT / 32);
         return RadialGradient(
           // Gaussian-like falloff: full at centre, half-alpha mid, gone at edge.
           colors: [
