@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,19 +36,33 @@ class PhotoHeatmapLayer extends ConsumerWidget {
   }
 }
 
-/// Google Photos heat colour at normalised heat t ∈ [0, 1].
+/// Google Photos heat bands, outermost (sparse) → innermost (dense core).
 ///
-/// Band edges and colours sampled from Google Photos "Your Map" screenshots:
-/// a broad violet sparse field, thin blue/teal/yellow/orange transition
-/// rings, and a flat hot-pink dense core. Alpha is baked in (~55%, slightly
-/// higher toward the core).
-Color _gpHeatColor(double t) {
-  if (t < 0.30) return const Color(0x8CA574EC); // violet — sparse field
-  if (t < 0.45) return const Color(0x8C5C7EDC); // periwinkle blue
-  if (t < 0.58) return const Color(0x8C4FBFA0); // teal
-  if (t < 0.70) return const Color(0x8CE8C93F); // yellow
-  if (t < 0.84) return const Color(0x96F08A3C); // orange
-  return const Color(0xA0F37DC6); // hot pink — dense core
+/// Colours sampled from Google Photos "Your Map" screenshots: violet sparse
+/// field, blue/teal/yellow/orange transition rings, hot-pink core. Alpha is
+/// baked in (~45-55%); bands composite on top of each other so cores read
+/// stronger, matching the original.
+const _kBandColors = <Color>[
+  Color(0x78A574EC), // violet — sparse field
+  Color(0x785C7EDC), // periwinkle blue
+  Color(0x784FBFA0), // teal
+  Color(0x82E8C93F), // yellow
+  Color(0x8CF08A3C), // orange
+  Color(0x96F37DC6), // hot pink — dense core
+];
+
+/// Per-band circle radius as a fraction of the base blob radius — hotter
+/// bands are drawn smaller, producing the nested contour-ring look.
+const _kBandRadiusFactor = <double>[1.0, 0.80, 0.63, 0.48, 0.36, 0.26];
+
+/// Band index (0-5) for normalised heat t ∈ [0, 1].
+int _bandIndex(double t) {
+  if (t < 0.30) return 0;
+  if (t < 0.45) return 1;
+  if (t < 0.58) return 2;
+  if (t < 0.70) return 3;
+  if (t < 0.84) return 4;
+  return 5;
 }
 
 class _HeatmapPainter extends CustomPainter {
@@ -57,8 +72,8 @@ class _HeatmapPainter extends CustomPainter {
   final MapCamera camera;
 
   /// Blob radius in screen pixels — constant like Google Photos, where an
-  /// isolated photo reads as a small soft violet dot (~5% of screen width).
-  static const double _blobRadius = 20.0;
+  /// isolated photo reads as a small subtle violet dot (~3% of screen width).
+  static const double _blobRadius = 12.0;
 
   /// Influence radius for density accumulation; wider = smoother merging.
   static const double _influenceRadius = _blobRadius * 2.4;
@@ -78,10 +93,6 @@ class _HeatmapPainter extends CustomPainter {
   static const int _maxDrawPts = 800;
 
   /// Blob shaders keyed by quantised (heat, opacity) — radius is constant, so
-  /// with an origin-centred shader + canvas.translate the cache stays small
-  /// and no shader is ever rebuilt mid-pan.
-  static final Map<int, Shader> _blobShaderCache = {};
-
   @override
   void paint(Canvas canvas, Size size) {
     const margin = _blobRadius * 2.0;
@@ -130,31 +141,34 @@ class _HeatmapPainter extends CustomPainter {
       return h;
     });
 
-    // Normalise: isolated point (heat ≈ 1) → blue; dense cluster → pink.
+    // Normalise: isolated point (heat ≈ 1) → violet; dense cluster → pink.
     final normMax = math.max(maxHeat, _heatCap);
+    final bands = List<int>.generate(
+      pts.length,
+      (i) => _bandIndex((heat[i] / normMax).clamp(0.0, 1.0)),
+    );
 
-    for (int i = 0; i < pts.length; i++) {
-      final center = pts[i];
-      // Quantise heat so blobs share cached shaders.
-      final qT = ((heat[i] / normMax).clamp(0.0, 1.0) * 32).round();
-      final shader = _blobShaderCache.putIfAbsent(qT, () {
-        final color = _gpHeatColor(qT / 32);
-        return RadialGradient(
-          // Gaussian-like falloff: full at centre, half-alpha mid, gone at edge.
-          colors: [
-            color,
-            color.withValues(alpha: color.a * 0.5),
-            color.withValues(alpha: 0.0),
-          ],
-          stops: const [0.0, 0.45, 1.0],
-        ).createShader(
-          Rect.fromCircle(center: Offset.zero, radius: _blobRadius),
-        );
-      });
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.drawCircle(Offset.zero, _blobRadius, Paint()..shader = shader);
-      canvas.restore();
+    // Stacked contour rendering (the Google Photos look): for each band,
+    // union the circles of every point at least that hot into ONE path and
+    // fill it once — overlapping circles merge into amoeba-shaped contours
+    // with no alpha seams, and hotter bands nest inside cooler ones as
+    // progressively smaller rings. A soft blur feathers each contour edge.
+    for (int b = 0; b < _kBandColors.length; b++) {
+      final radius = _blobRadius * _kBandRadiusFactor[b];
+      final path = ui.Path();
+      var any = false;
+      for (int i = 0; i < pts.length; i++) {
+        if (bands[i] < b) continue;
+        path.addOval(Rect.fromCircle(center: pts[i], radius: radius));
+        any = true;
+      }
+      if (!any) break; // no point reaches this band → none reaches hotter ones
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = _kBandColors[b]
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
     }
   }
 
