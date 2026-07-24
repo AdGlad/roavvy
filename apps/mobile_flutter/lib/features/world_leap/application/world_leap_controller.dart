@@ -147,6 +147,7 @@ class WorldLeapController extends ChangeNotifier {
     required WorldLeapGeoService geo,
     required WorldLeapCountryService countryService,
     required WorldLeapScoringService scoring,
+    bool beginnerMode = false,
     CountryLookupFn? countryLookup,
   })  : _userId = userId,
         _date = date,
@@ -155,7 +156,36 @@ class WorldLeapController extends ChangeNotifier {
         _geo = geo,
         _countryService = countryService,
         _scoring = scoring,
-        _countryLookup = countryLookup;
+        _countryLookup = countryLookup,
+        _beginnerMode = beginnerMode;
+
+  /// When true, releasing the slingshot freezes the aim for review instead of
+  /// firing immediately — [SlingshotWidget] calls [confirmAim] instead of
+  /// [launch] on release, and the screen shows a separate FIRE button.
+  /// Initialised from the lobby's choice, but changeable at any time via
+  /// [setBeginnerMode] — e.g. a toggle in the game screen itself, between
+  /// shots.
+  bool _beginnerMode;
+  bool get beginnerMode => _beginnerMode;
+
+  /// Switches beginner/classic mode mid-game. Safe to call at any time; only
+  /// affects the NEXT release (an in-progress drag keeps whatever mode was
+  /// active when it started, read fresh by [SlingshotWidget] on each build).
+  void setBeginnerMode(bool value) {
+    if (_beginnerMode == value) return;
+    _beginnerMode = value;
+    notifyListeners();
+  }
+
+  /// True once the player has released at least one aim in beginner mode
+  /// (via [confirmAim]) and it hasn't been fired yet. Drives the FIRE
+  /// button's visibility directly and explicitly — deliberately NOT inferred
+  /// from bearing/power thresholds, which dip transiently while the player is
+  /// mid-drag adjusting an already-confirmed aim and would otherwise make the
+  /// button flicker. Persists across any number of re-aim drags until
+  /// [launch] fires or a fresh turn begins.
+  bool _hasConfirmedAim = false;
+  bool get hasConfirmedAim => _hasConfirmedAim;
 
   /// Notifier for aim-only updates (bearing/power) that fire at pointer-move
   /// frequency (~60Hz). Widgets that only care about game state transitions
@@ -173,20 +203,6 @@ class WorldLeapController extends ChangeNotifier {
   final CountryLookupFn? _countryLookup;
 
   WorldLeapState _state = WorldLeapStateIdle();
-
-  // ── Difficulty (1 = easiest, 5 = exact country hit) ──────────────────────
-
-  int _difficulty = 1;
-
-  /// Current difficulty grade (1–5).
-  int get difficulty => _difficulty;
-
-  /// Update difficulty for the current session.
-  void setDifficulty(int level) {
-    assert(level >= 1 && level <= 5);
-    _difficulty = level.clamp(1, 5);
-    notifyListeners();
-  }
 
   // ── Countdown timer state ────────────────────────────────────────────────
 
@@ -211,18 +227,28 @@ class WorldLeapController extends ChangeNotifier {
     return WorldLeapConfig.countdownStartSeconds;
   }
 
-  /// ISO code of the current target country.
+  /// ISO code of the current target country. Stays populated through
+  /// [WorldLeapStateLaunching] (not just [WorldLeapStateAiming]) so the map's
+  /// target highlight remains visible for the whole flight, not just while
+  /// aiming — the target isn't resolved (hit or missed) until landing.
   String? get targetCountryCode {
     final s = _state;
-    if (s is WorldLeapStateAiming) return s.run.targetCountryCode;
-    return null;
+    return switch (s) {
+      WorldLeapStateAiming(:final run) => run.targetCountryCode,
+      WorldLeapStateLaunching(:final run) => run.targetCountryCode,
+      _ => null,
+    };
   }
 
-  /// Display name of the current target country.
+  /// Display name of the current target country. See [targetCountryCode] for
+  /// why this also stays populated during [WorldLeapStateLaunching].
   String? get targetCountryName {
     final s = _state;
-    if (s is WorldLeapStateAiming) return s.run.targetCountryName;
-    return null;
+    return switch (s) {
+      WorldLeapStateAiming(:final run) => run.targetCountryName,
+      WorldLeapStateLaunching(:final run) => run.targetCountryName,
+      _ => null,
+    };
   }
 
   /// Centroid coordinates of the target country, or null if no target set.
@@ -287,18 +313,59 @@ class WorldLeapController extends ChangeNotifier {
 
   // ── Target country selection ────────────────────────────────────────────
 
-  /// Picks a random eligible target country that has not been visited and
-  /// is different from the current country. Uses a seeded RNG so the same
-  /// run always gets the same sequence of targets.
+  /// The geographic origin the NEXT launch will fly from for [run]: the last
+  /// landing point if any launches have occurred, otherwise the start
+  /// country centroid. Mirrors [currentOrigin] but reads an explicit [run]
+  /// rather than [_state] — needed because [_pickTarget] is called with an
+  /// already-updated run (the just-completed launch appended) before that
+  /// run has been emitted as the new [_state].
+  ({double lat, double lon}) _originForRun(WorldLeapRun run) {
+    if (run.launches.isNotEmpty) {
+      final last = run.launches.last;
+      return (lat: last.landingLat, lon: last.landingLon);
+    }
+    return _centroidFor(run.startCountryCode);
+  }
+
+  /// Picks an eligible target country that has not been visited and is
+  /// different from the current country, weighted toward nearby countries
+  /// early in the run and progressively opening up to any distance as
+  /// [WorldLeapConfig.progressiveDistanceRampLaunches] launches accumulate —
+  /// so new players aren't asked to aim across the globe on their first shot.
+  ///
+  /// Uses a seeded RNG so the same run always gets the same sequence of
+  /// targets.
   ({String code, String name})? _pickTarget(WorldLeapRun run) {
     final visited = run.visitedCountryCodes;
     final candidates = _countryData.entries
         .where((e) => !visited.contains(e.key))
         .toList();
     if (candidates.isEmpty) return null;
+
+    final origin = _originForRun(run);
+    final byDistance = [
+      for (final e in candidates)
+        (
+          code: e.key,
+          name: e.value.name,
+          distanceKm: _geo.greatCircleDistanceKm(
+            lat1: origin.lat, lon1: origin.lon,
+            lat2: e.value.lat, lon2: e.value.lon,
+          ),
+        ),
+    ]..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+
+    final rampProgress = (run.launches.length /
+            WorldLeapConfig.progressiveDistanceRampLaunches)
+        .clamp(0.0, 1.0);
+    final poolSize = max(
+      WorldLeapConfig.progressiveMinCandidatePool,
+      (byDistance.length * rampProgress).ceil(),
+    ).clamp(1, byDistance.length);
+
     final seed = _date.hashCode ^ run.launches.length;
-    final entry = candidates[Random(seed).nextInt(candidates.length)];
-    return (code: entry.key, name: entry.value.name);
+    final entry = byDistance[Random(seed).nextInt(poolSize)];
+    return (code: entry.code, name: entry.name);
   }
 
   // ── Countdown timer ─────────────────────────────────────────────────────
@@ -336,25 +403,24 @@ class WorldLeapController extends ChangeNotifier {
       completedAt: DateTime.now(),
     );
     try {
-      await _repository.saveRun(failed);
+      await _repository.saveRunLocal(failed);
     } catch (_) {}
+    unawaited(_repository.syncRunToFirestore(failed).catchError((_) {}));
     _emit(WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout));
   }
 
-  /// Returns true if [landing] is within the tolerance for the current
-  /// difficulty grade compared to [targetCode]'s centroid.
-  /// Grade 5 always returns false (exact polygon required).
-  bool _isWithinDifficultyTolerance(
+  /// Returns true if [landing] is within [WorldLeapConfig.landingToleranceKm]
+  /// of [targetCode]'s centroid — accepted even when the reverse-geocoded
+  /// country differs (e.g. landing just over a border).
+  bool _isWithinLandingTolerance(
       ({double lat, double lon}) landing, String targetCode) {
-    final toleranceKm = WorldLeapConfig.difficultyToleranceKm[_difficulty - 1];
-    if (toleranceKm <= 0) return false; // grade 5 — exact only
     final centroid = _countryData[targetCode];
     if (centroid == null) return false;
     final dist = _geo.greatCircleDistanceKm(
       lat1: landing.lat, lon1: landing.lon,
       lat2: centroid.lat, lon2: centroid.lon,
     );
-    return dist <= toleranceKm;
+    return dist <= WorldLeapConfig.landingToleranceKm;
   }
 
   /// Looks up a country using injected [_countryLookup] (for tests) or the
@@ -407,7 +473,8 @@ class WorldLeapController extends ChangeNotifier {
       );
       run = _ensureTarget(run);
 
-      await _repository.saveRun(run);
+      await _repository.saveRunLocal(run);
+      unawaited(_repository.syncRunToFirestore(run).catchError((_) {}));
       _emit(WorldLeapStateAiming(run: run));
       _startCountdown(run.timeLimitSeconds);
     } catch (e) {
@@ -457,11 +524,24 @@ class WorldLeapController extends ChangeNotifier {
     aimNotifier.value = (bearingDeg: bearingDeg, power: clampedPower);
   }
 
+  /// Beginner mode: called when the player releases the drag WITHOUT firing,
+  /// so the frozen aim can be reviewed before committing. [updateAim] already
+  /// stored the bearing/power in [_state] without notifying (to avoid 60Hz
+  /// rebuilds); this just triggers the one rebuild needed to show the FIRE
+  /// button and "on target" hint at their final values. Does not advance
+  /// game state — [launch] is still required to actually fire.
+  void confirmAim() {
+    if (_state is! WorldLeapStateAiming) return;
+    _hasConfirmedAim = true;
+    notifyListeners();
+  }
+
   /// Player releases — starts the launch sequence.
   Future<void> launch() async {
     final current = _state;
     if (current is! WorldLeapStateAiming) return;
 
+    _hasConfirmedAim = false;
     _cancelCountdown();
     aimNotifier.value = null;
 
@@ -515,13 +595,17 @@ class WorldLeapController extends ChangeNotifier {
         failureReason: reason,
         completedAt: DateTime.now(),
       );
+      // Only the local save + the fixed animation hold-time block the state
+      // transition — Firestore sync is fire-and-forget so a slow connection
+      // never delays showing the result (offline-first, CLAUDE.md rule 4).
       try {
         await Future.wait([
-          _repository.saveRun(failed),
+          _repository.saveRunLocal(failed),
           Future.delayed(
               const Duration(milliseconds: WorldLeapConfig.launchAnimationMs)),
         ]);
       } catch (_) {}
+      unawaited(_repository.syncRunToFirestore(failed).catchError((_) {}));
       _emit(WorldLeapStateFailed(run: failed, reason: reason));
     }
 
@@ -540,7 +624,7 @@ class WorldLeapController extends ChangeNotifier {
     final targetCode = run.targetCountryCode;
     if (targetCode != null) {
       final bool isHit = destCountry.code == targetCode ||
-          _isWithinDifficultyTolerance(dest, targetCode);
+          _isWithinLandingTolerance(dest, targetCode);
       if (!isHit) {
         await failWith(WorldLeapFailureReason.wrongCountry);
         return;
@@ -592,10 +676,15 @@ class WorldLeapController extends ChangeNotifier {
     // Assign next target (must not include the country we just landed in).
     updatedRun = _ensureTarget(updatedRun);
 
-    // Run the Firestore save and the animation hold-time in parallel.
+    // Only the local save + the fixed animation hold-time block the state
+    // transition — Firestore sync is fire-and-forget so a slow or flaky
+    // connection never delays the next shot. This was the "aim doesn't
+    // respond for a few seconds after a hit" bug: awaiting the Firestore
+    // write here meant network latency directly held up returning to
+    // Aiming (offline-first, CLAUDE.md hard rule 4).
     try {
       await Future.wait([
-        _repository.saveRun(updatedRun),
+        _repository.saveRunLocal(updatedRun),
         Future.delayed(
             const Duration(milliseconds: WorldLeapConfig.launchAnimationMs)),
       ]);
@@ -603,6 +692,7 @@ class WorldLeapController extends ChangeNotifier {
       _emit(WorldLeapStateError(message: 'Failed to save run: $e'));
       return;
     }
+    unawaited(_repository.syncRunToFirestore(updatedRun).catchError((_) {}));
     _emit(WorldLeapStateLanded(run: updatedRun, lastLaunch: newLaunch));
   }
 
@@ -621,6 +711,7 @@ class WorldLeapController extends ChangeNotifier {
   Future<void> resetRun() async {
     _cancelCountdown();
     _comboStreak = 0;
+    _hasConfirmedAim = false;
     try {
       await _repository.deleteRun(_userId, _date);
     } catch (_) {
@@ -657,7 +748,8 @@ class WorldLeapController extends ChangeNotifier {
       completedAt: DateTime.now(),
     );
 
-    await _repository.saveRun(completed);
+    await _repository.saveRunLocal(completed);
+    unawaited(_repository.syncRunToFirestore(completed).catchError((_) {}));
     _emit(WorldLeapStateComplete(run: completed));
   }
 

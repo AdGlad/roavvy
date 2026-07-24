@@ -165,25 +165,29 @@ class WorldLeapConfig {
   /// G4→G3 descending minor scale — dignified 8-bit game-over melody.
   static const String soundGameOver = 'audio/wl_game_over.mp3';
 
-  // ── Difficulty Grades ──────────────────────────────────────────────────────
+  // ── Landing Tolerance ──────────────────────────────────────────────────────
+  // Replaces the old manual 1–5 difficulty picker (usability rework): a
+  // single fixed forgiveness radius applies to everyone, and the game's
+  // actual difficulty curve comes from progressive target distance instead
+  // (see "Progressive Target Distance" below).
 
-  /// Tolerance radii (km) for difficulty grades 1–5.
-  /// Grade 1 = easiest (large margin); grade 5 = exact country boundary.
-  static const List<double> difficultyToleranceKm = [
-    500.0, // grade 1 — land within 500 km of target centroid
-    250.0, // grade 2 — within 250 km
-    100.0, // grade 3 — within 100 km
-    30.0,  // grade 4 — within 30 km
-    0.0,   // grade 5 — must land in exact country
-  ];
+  /// Landing is accepted within this radius (km) of the target centroid, even
+  /// if the reverse-geocoded country differs (e.g. landing just over a
+  /// border). Roughly the old grade-2 "Normal" tolerance.
+  static const double landingToleranceKm = 250.0;
 
-  static const List<String> difficultyLabels = [
-    'Easy',
-    'Normal',
-    'Tricky',
-    'Hard',
-    'Expert',
-  ];
+  // ── Progressive Target Distance ─────────────────────────────────────────────
+
+  /// Number of successful launches over which target distance ramps from
+  /// "nearest candidates only" to "any unvisited country" — early targets
+  /// are close to the launch point so new players aren't asked to aim
+  /// halfway around the globe on their first shot.
+  static const int progressiveDistanceRampLaunches = 8;
+
+  /// Minimum number of nearest candidates considered even on the very first
+  /// shot, so target selection still has some variety rather than always
+  /// picking the single closest country.
+  static const int progressiveMinCandidatePool = 4;
 
   // ── Countdown Timer ────────────────────────────────────────────────────────
 

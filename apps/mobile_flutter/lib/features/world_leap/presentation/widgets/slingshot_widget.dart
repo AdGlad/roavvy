@@ -70,22 +70,38 @@ class SlingshotWidget extends StatefulWidget {
   /// the map can suppress its own drag recognizer during slingshot operation.
   final void Function(bool active)? onActiveChanged;
 
+  /// When true, releasing the drag freezes the aim for review (calls
+  /// [WorldLeapController.confirmAim]) instead of firing immediately — the
+  /// screen shows a separate FIRE button and the player may re-aim by
+  /// starting a new drag before committing.
+  final bool beginnerMode;
+
   const SlingshotWidget({
     super.key,
     required this.controller,
     this.maxDragPixels,
     this.hitTestFn,
     this.onActiveChanged,
+    this.beginnerMode = false,
   });
 
   @override
-  State<SlingshotWidget> createState() => _SlingshotWidgetState();
+  State<SlingshotWidget> createState() => SlingshotWidgetState();
 }
 
-class _SlingshotWidgetState extends State<SlingshotWidget>
+class SlingshotWidgetState extends State<SlingshotWidget>
     with SingleTickerProviderStateMixin {
+  // Live touch segment — relative to wherever THIS touch started, always
+  // zero right after a fresh onPointerDown.
   Offset? _dragStart;
   Offset? _dragCurrent;
+
+  // Beginner mode only: the aim committed by a previous release, being
+  // adjusted by a new touch. [_dragDelta] adds the live segment on top of
+  // this so a new touch-down continues from the existing pull instead of
+  // restarting it from zero — the player can release, drag again to nudge
+  // the aim, release again, etc., any number of times before firing.
+  Offset? _frozenDelta;
 
   // Pointer tracking — only the pointer that started on the source country.
   int? _trackingPointer;
@@ -110,21 +126,48 @@ class _SlingshotWidgetState extends State<SlingshotWidget>
         });
       }
     });
+    // Beginner mode freezes the drag visuals on release so the aim can be
+    // reviewed before the FIRE button is tapped. Once the controller moves
+    // past Aiming (fired, failed, or a new turn started elsewhere), clear
+    // the frozen state so a stale arrow doesn't appear on the next turn.
+    widget.controller.addListener(_onControllerStateChanged);
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerStateChanged);
     _snapController.dispose();
     super.dispose();
   }
 
-  Offset? get _dragDelta =>
+  void _onControllerStateChanged() {
+    if (widget.controller.state is! WorldLeapStateAiming &&
+        (_dragStart != null || _dragCurrent != null || _frozenDelta != null)) {
+      setState(() {
+        _dragStart = null;
+        _dragCurrent = null;
+        _frozenDelta = null;
+      });
+    }
+  }
+
+  Offset? get _liveSegmentDelta =>
       _dragCurrent != null && _dragStart != null
           ? _dragCurrent! - _dragStart!
           : null;
 
-  /// The effective drag delta shown to the painter — either the live drag or
-  /// the in-progress snap-back animation, whichever is active.
+  /// Total aim: the live touch segment on top of any frozen baseline from a
+  /// previous beginner-mode release. Null only when there is neither an
+  /// active drag nor a frozen aim to adjust.
+  Offset? get _dragDelta {
+    final live = _liveSegmentDelta;
+    if (live == null) return _frozenDelta;
+    final frozen = _frozenDelta;
+    return frozen != null ? frozen + live : live;
+  }
+
+  /// The effective drag delta shown to the painter — the live/frozen total,
+  /// or the in-progress classic-mode snap-back animation, whichever applies.
   Offset? get _effectiveDragDelta {
     if (_dragDelta != null) return _dragDelta;
     if (_snapAnimation != null && _snapController.isAnimating) {
@@ -153,25 +196,43 @@ class _SlingshotWidgetState extends State<SlingshotWidget>
   }
 
   void _endTracking({required bool launch}) {
-    final lastDelta = _dragDelta;
+    final totalDelta = _dragDelta; // frozen baseline + this touch's segment
+    final hasAimed = totalDelta != null && totalDelta.distance >= 1;
+    // Beginner mode + a real release (not a cancel): commit the total as the
+    // new frozen baseline instead of snapping back to zero, so the aim stays
+    // visible and can be nudged further by another touch, any number of
+    // times, before the player taps FIRE.
+    final freeze = widget.beginnerMode && launch && hasAimed;
+    // A cancel while adjusting an existing frozen aim should discard just
+    // this touch's contribution, not the aim itself — snap-back only makes
+    // sense when there is nothing frozen to fall back on.
+    final hadPriorFrozen = _frozenDelta != null;
+
     setState(() {
       _dragStart = null;
       _dragCurrent = null;
       _trackingPointer = null;
+      if (freeze) _frozenDelta = totalDelta;
     });
     widget.onActiveChanged?.call(false);
-    if (lastDelta != null && lastDelta.distance >= 1) {
+    if (!freeze && hasAimed && !hadPriorFrozen) {
       final curved = CurvedAnimation(
         parent: _snapController,
         curve: Curves.elasticOut,
       );
       _snapAnimation = Tween<Offset>(
-        begin: lastDelta,
+        begin: totalDelta,
         end: Offset.zero,
       ).animate(curved);
       _snapController.forward(from: 0);
     }
-    if (launch) widget.controller.launch();
+    if (launch) {
+      if (widget.beginnerMode) {
+        if (hasAimed) widget.controller.confirmAim();
+      } else {
+        widget.controller.launch();
+      }
+    }
   }
 
   @override

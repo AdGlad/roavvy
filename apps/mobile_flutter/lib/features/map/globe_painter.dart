@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 
 import 'country_centroids.dart';
 import 'country_visual_state.dart';
+import 'globe_photo_heatmap.dart';
 import 'globe_projection.dart';
+import 'photo_heatmap_layer.dart';
 
 // ── Colour constants (mirror country_polygon_layer.dart — ADR-116) ─────────────
 
@@ -158,6 +160,7 @@ class GlobePainter extends CustomPainter {
     this.heritagePulseValue = 0.0,
     this.challengeHighlightCoord,
     this.challengeHighlightPulse = 0.0,
+    this.photoHeatmap,
     this.afterPainter,
   });
 
@@ -190,6 +193,11 @@ class GlobePainter extends CustomPainter {
 
   /// Animation value 0.0–1.0 driving the red highlight pulse. 0.0 = no glow.
   final double challengeHighlightPulse;
+
+  /// Precomputed photo heatmap (unit vectors + bands), or null when the
+  /// globe heatmap toggle is off. Density is precomputed per zoom bucket in
+  /// [GlobeHeatmapData]; painting is projection + six path fills per frame.
+  final GlobeHeatmapData? photoHeatmap;
 
   /// Optional painter called after the globe is drawn (e.g. replay arc layer).
   final CustomPainter? afterPainter;
@@ -334,6 +342,34 @@ class GlobePainter extends CustomPainter {
     // 6. Cloud layer — soft, low-opacity, drifts independently of rotation.
     // Drawn above the lighting wash but below markers so tap targets stay crisp.
     _paintClouds(canvas, size);
+
+    // 6b. Photo heatmap (optional, toggle-gated) — above the lighting wash
+    // and clouds so the bands stay true to their colours, below markers and
+    // halos so tap targets stay crisp. No blur on the globe: the banded
+    // alpha carries the contour look and blur would force per-frame layer
+    // work on a canvas that repaints continuously while rotating.
+    final heatmapData = photoHeatmap;
+    if (heatmapData != null && heatmapData.unitVectors.isNotEmpty) {
+      final projected = List<Offset?>.generate(
+        heatmapData.unitVectors.length,
+        (i) => projection.projectUnit(heatmapData.unitVectors[i], size),
+      );
+      for (var b = 0; b < kHeatBandColors.length; b++) {
+        final bandRadius =
+            GlobeHeatmapData.blobRadiusPx * kHeatBandRadiusFactor[b];
+        final path = ui.Path();
+        var any = false;
+        for (var i = 0; i < projected.length; i++) {
+          if (heatmapData.bands[i] < b) continue;
+          final pt = projected[i];
+          if (pt == null) continue; // back face
+          path.addOval(Rect.fromCircle(center: pt, radius: bandRadius));
+          any = true;
+        }
+        if (!any) break;
+        canvas.drawPath(path, Paint()..color = kHeatBandColors[b]);
+      }
+    }
 
     // 7. Celebration halo — drawn on top of everything (ADR-123).
     if (highlightedCode != null && pulseValue > 0.0) {
@@ -581,5 +617,6 @@ class GlobePainter extends CustomPainter {
       heritagePulseValue != old.heritagePulseValue ||
       challengeHighlightCoord != old.challengeHighlightCoord ||
       challengeHighlightPulse != old.challengeHighlightPulse ||
+      !identical(photoHeatmap, old.photoHeatmap) ||
       afterPainter != old.afterPainter;
 }

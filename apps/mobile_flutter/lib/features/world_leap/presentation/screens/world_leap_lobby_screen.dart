@@ -9,8 +9,18 @@ import 'package:intl/intl.dart';
 
 import 'world_leap_screen.dart';
 
-class WorldLeapLobbyScreen extends StatelessWidget {
+class WorldLeapLobbyScreen extends StatefulWidget {
   const WorldLeapLobbyScreen({super.key});
+
+  @override
+  State<WorldLeapLobbyScreen> createState() => _WorldLeapLobbyScreenState();
+}
+
+class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
+  // Beginner mode lets the player re-aim as many times as they like before
+  // firing; classic fires the instant the drag is released. Chosen here so
+  // the controller is constructed with the right behaviour from the start.
+  bool _beginnerMode = false;
 
   @override
   Widget build(BuildContext context) {
@@ -18,12 +28,17 @@ class WorldLeapLobbyScreen extends StatelessWidget {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
+    final modeToggle = _ModeToggle(
+      beginnerMode: _beginnerMode,
+      onChanged: (v) => setState(() => _beginnerMode = v),
+    );
+
     final playButton = SizedBox(
       width: double.infinity,
       child: FilledButton(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => const WorldLeapScreen(),
+            builder: (_) => WorldLeapScreen(beginnerMode: _beginnerMode),
             fullscreenDialog: true,
           ),
         ),
@@ -50,17 +65,112 @@ class WorldLeapLobbyScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF0A0F1A),
       body: SafeArea(
         child: isLandscape
-            ? _LandscapeLayout(today: today, playButton: playButton)
-            : _PortraitLayout(today: today, playButton: playButton),
+            ? _LandscapeLayout(
+                today: today, modeToggle: modeToggle, playButton: playButton)
+            : _PortraitLayout(
+                today: today, modeToggle: modeToggle, playButton: playButton),
+      ),
+    );
+  }
+}
+
+// ── Beginner / Classic mode toggle ─────────────────────────────────────────────
+
+class _ModeToggle extends StatelessWidget {
+  const _ModeToggle({required this.beginnerMode, required this.onChanged});
+
+  final bool beginnerMode;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ModeOption(
+            label: 'Beginner',
+            subtitle: 'Adjust aim, then fire',
+            selected: beginnerMode,
+            onTap: () => onChanged(true),
+          ),
+          _ModeOption(
+            label: 'Classic',
+            subtitle: 'Fires on release',
+            selected: !beginnerMode,
+            onTap: () => onChanged(false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeOption extends StatelessWidget {
+  const _ModeOption({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? Colors.amber : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: selected
+                    ? Colors.black.withValues(alpha: 0.7)
+                    : Colors.white54,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _PortraitLayout extends StatelessWidget {
-  const _PortraitLayout({required this.today, required this.playButton});
+  const _PortraitLayout({
+    required this.today,
+    required this.modeToggle,
+    required this.playButton,
+  });
 
   final String today;
+  final Widget modeToggle;
   final Widget playButton;
 
   @override
@@ -97,7 +207,9 @@ class _PortraitLayout extends StatelessWidget {
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 28),
+            modeToggle,
+            const SizedBox(height: 28),
             playButton,
           ],
         ),
@@ -107,9 +219,14 @@ class _PortraitLayout extends StatelessWidget {
 }
 
 class _LandscapeLayout extends StatelessWidget {
-  const _LandscapeLayout({required this.today, required this.playButton});
+  const _LandscapeLayout({
+    required this.today,
+    required this.modeToggle,
+    required this.playButton,
+  });
 
   final String today;
+  final Widget modeToggle;
   final Widget playButton;
 
   @override
@@ -142,7 +259,7 @@ class _LandscapeLayout extends StatelessWidget {
             ),
           ),
         ),
-        // Right: description + play button
+        // Right: description + mode toggle + play button
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -158,7 +275,9 @@ class _LandscapeLayout extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+                modeToggle,
+                const SizedBox(height: 20),
                 playButton,
               ],
             ),

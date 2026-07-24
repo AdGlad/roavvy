@@ -197,6 +197,11 @@ class MapScreen extends ConsumerWidget {
     }
     if (nearest == null) return false;
     ref.read(selectedMapPhotoProvider.notifier).state = nearest;
+    // Re-sort the gallery around the tapped area, nearest photo first
+    // (Google Photos: "tap the heat mark to jump to photos in that area").
+    ref.read(mapGallerySortAnchorProvider.notifier).state = nearest;
+    // Reveal the grid so the tap visibly scrolls it to the selected photo.
+    ref.read(mapPhotoPanelExpandedProvider.notifier).state = true;
     return true;
   }
 
@@ -316,8 +321,15 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
-    final photoGridH =
-        globeMode ? 0.0 : MapPhotoStrip.panelHeight(screenWidth);
+    final globeOverlayMode = ref.watch(globeOverlayModeProvider);
+    // The photo gallery panel shows on the flat map always, and on the globe
+    // only in heatmap mode (heritage mode shows the visited-flag strip
+    // instead — see the body Stack below).
+    final showPhotoGrid = !globeMode || globeOverlayMode == GlobeOverlayMode.heatmap;
+    final photoPanelExpanded = ref.watch(mapPhotoPanelExpandedProvider);
+    final photoGridH = showPhotoGrid
+        ? MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded)
+        : 0.0;
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
         const <EffectiveVisitedCountry>[];
@@ -421,14 +433,20 @@ class MapScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (globeMode && visitedByCode.isNotEmpty)
-                    _VisitedCountryFlagStrip(visits: filteredVisits)
-                  else if (!globeMode)
-                    const MapPhotoStrip(),
+                  if (showPhotoGrid)
+                    const MapPhotoStrip()
+                  else if (globeMode && visitedByCode.isNotEmpty)
+                    _VisitedCountryFlagStrip(visits: filteredVisits),
                   const TimelineScrubberBar(),
-                  const StatsStrip(),
                 ],
               ),
+            ),
+            // Travel stats — top-left text overlay on the map (frees the
+            // vertical space the old bottom stats bar occupied).
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 96,
+              left: 14,
+              child: const StatsStrip(),
             ),
             // Action chips — top center, below the XP progress bar.
             Positioned(
@@ -463,6 +481,13 @@ class MapScreen extends ConsumerWidget {
                 final baseBottom = isLandscape ? 100.0 : photoGridH + 56;
                 return Stack(
                   children: [
+                    // Top→bottom in globe mode: heatmap, view toggle, rotation.
+                    if (globeMode)
+                      Positioned(
+                        bottom: baseBottom + 104,
+                        right: 12,
+                        child: const _GlobeHeatmapToggle(),
+                      ),
                     Positioned(
                       bottom: globeMode ? baseBottom + 52 : baseBottom,
                       right: 12,
@@ -1306,6 +1331,35 @@ class _GlobeRotationToggle extends ConsumerWidget {
         onPressed:
             () =>
                 ref.read(globeRotationPausedProvider.notifier).state = !paused,
+      ),
+    );
+  }
+}
+
+/// Cycles the globe's optional overlay between the Google Photos-style photo
+/// heatmap and UNESCO heritage site dots (mutually exclusive — see
+/// [GlobeOverlayMode]). Gold when the heatmap is active.
+class _GlobeHeatmapToggle extends ConsumerWidget {
+  const _GlobeHeatmapToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(globeOverlayModeProvider);
+    final isHeatmap = mode == GlobeOverlayMode.heatmap;
+    return Material(
+      color: Colors.black45,
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: Icon(
+          isHeatmap ? Icons.blur_on_rounded : Icons.account_balance_rounded,
+        ),
+        color: isHeatmap ? const Color(0xFFF2C94C) : Colors.white,
+        iconSize: 22,
+        tooltip: isHeatmap
+            ? 'Showing photo heatmap — tap for UNESCO sites'
+            : 'Showing UNESCO sites — tap for photo heatmap',
+        onPressed: () => ref.read(globeOverlayModeProvider.notifier).state =
+            isHeatmap ? GlobeOverlayMode.heritage : GlobeOverlayMode.heatmap,
       ),
     );
   }

@@ -260,15 +260,22 @@ final thisYearCountryCountProvider = FutureProvider<int>((ref) async {
 final yearFilterProvider = StateProvider<int?>((ref) => null);
 
 /// Whether the globe map is active. true = globe (default). (ADR-116)
-// ignore: avoid_redundant_argument_values
-final globeModeProvider = StateProvider<bool>((ref) => false); // temp: flat for review
+final globeModeProvider = StateProvider<bool>((ref) => true);
 
 /// When true the globe idles without auto-spinning so the user can inspect
 /// heritage sites. Manual drag and snap animations still work normally.
 final globeRotationPausedProvider = StateProvider<bool>((ref) => false);
 
-/// Whether heritage site dots are shown on the main map globe (M129).
-final heritageDotsEnabledProvider = StateProvider<bool>((ref) => true);
+/// Which optional overlay is shown on the 3D globe — the photo heatmap or
+/// UNESCO heritage site dots. Mutually exclusive: both used to be
+/// independently toggleable (heatmap defaulting on, heritage dots always on
+/// with no user control at all), so they rendered simultaneously and a tap
+/// near a heritage dot silently intercepted taps meant for the photo
+/// heatmap. Heatmap is the default; toggled from the globe's FAB stack.
+enum GlobeOverlayMode { heatmap, heritage }
+
+final globeOverlayModeProvider =
+    StateProvider<GlobeOverlayMode>((ref) => GlobeOverlayMode.heatmap);
 
 /// Target (lat, lng) in degrees to animate the globe to. Set from outside
 /// (e.g. country flag strip); the globe resets this to null after arriving.
@@ -630,6 +637,30 @@ typedef MapViewport = ({
 });
 
 final mapViewportProvider = StateProvider<MapViewport?>((ref) => null);
+
+/// The photo currently highlighted on the map — set by scrolling the photo
+/// grid (scrubbing) or tapping a heatmap blob, mirroring Google Photos'
+/// "Your Map" current-photo pin.
+final selectedMapPhotoProvider = StateProvider<PhotoLocation?>((ref) => null);
+
+/// The point the gallery is currently sorted around — set only by an
+/// explicit map tap (heat blob or pin), NOT by grid scrubbing. The gallery
+/// (see `computeMapGalleryPhotos` in map_photo_viewer.dart) reorders its full
+/// photo pool by distance from this point (nearest first) so tapping an area
+/// of the heatmap surfaces that area's photos first, mirroring Google
+/// Photos' "tap the heat mark to jump to photos in that area".
+///
+/// Kept separate from [selectedMapPhotoProvider] so scrolling the grid (which
+/// only updates the pin) never triggers a re-sort — only a fresh map tap does.
+final mapGallerySortAnchorProvider = StateProvider<PhotoLocation?>(
+  (ref) => null,
+);
+
+/// Whether the map photo panel (grid) is expanded to show photos, on either
+/// the flat map or the globe (in [GlobeOverlayMode.heatmap]). Collapsed by
+/// default so the map keeps its full visible area; the header stays visible
+/// as the affordance.
+final mapPhotoPanelExpandedProvider = StateProvider<bool>((ref) => false);
 
 final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
   (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),
