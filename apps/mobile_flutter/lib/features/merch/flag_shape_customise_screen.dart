@@ -11,6 +11,7 @@ import '../cards/card_image_renderer.dart';
 import '../cards/country_path_service.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import 'animal_silhouette_service.dart';
+import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_painter.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_option_list_widgets.dart';
@@ -18,6 +19,11 @@ import 'merch_variant_lookup.dart';
 import 'product_mockup_specs.dart';
 
 // ── Smart defaults ─────────────────────────────────────────────────────────────
+
+/// Row count for a single-country grid design's densest packing — the
+/// slider's max. Shared with the Shop's "Best Match" preview thumbnail
+/// ([MerchDesignCarousel]) so the two stay visually consistent.
+const int kSoloGridRowCount = 10;
 
 /// Returns the recommended repeat count for [codeCount] unique countries
 /// and [shape]. Heart/circle clip shapes lose ~35% effective area, so the
@@ -115,11 +121,11 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
     }
     _pageCtrl = PageController(initialPage: _currentPage);
     // Default rows: a single country repeats its one flag into a full
-    // mosaic, so it reads best packed at the slider's max (10) rather than
-    // the sparse 3 rows used for a handful of distinct flags. 3 for small
-    // sets, 2 for medium, 1 for large otherwise.
+    // mosaic, so it reads best packed at the slider's max rather than the
+    // sparse 3 rows used for a handful of distinct flags. 3 for small sets,
+    // 2 for medium, 1 for large otherwise.
     _rowCount = widget.codes.length == 1
-        ? 10
+        ? kSoloGridRowCount
         : widget.codes.length <= 3
             ? 3
             : widget.codes.length <= 8
@@ -447,6 +453,19 @@ class _ClipVariantCardState extends State<_ClipVariantCard> {
     setState(() => _state = _CardState.loading);
 
     try {
+      // Each shape page (Grid, Heart, Circle, country outline, animal /
+      // plant / landmark silhouette) has its own natural proportions for the
+      // same country — a tall kangaroo and a wide opera house shouldn't
+      // share one fixed landscape canvas. Fall back to the template default
+      // for shapes with no country-specific image (none/heart/circle).
+      final isPortrait = await isPortraitForClipShape(
+        widget.clipShape,
+        widget.clipCode,
+      );
+      if (!mounted) return;
+      final aspectRatio = isPortrait == null
+          ? merchBackCardAspectRatio(CardTemplateType.grid)
+          : (isPortrait ? kPortraitCardAspectRatio : kLandscapeCardAspectRatio);
       final artResult = await CardImageRenderer.render(
         ctx,
         CardTemplateType.grid,
@@ -454,7 +473,7 @@ class _ClipVariantCardState extends State<_ClipVariantCard> {
         trips: widget.trips,
         transparentBackground: true,
         pixelRatio: 2.0,
-        cardAspectRatio: merchBackCardAspectRatio(CardTemplateType.grid),
+        cardAspectRatio: aspectRatio,
         clipShape: widget.clipShape,
         flagRepeatCount: repeatCount,
         clipCode: widget.clipCode,

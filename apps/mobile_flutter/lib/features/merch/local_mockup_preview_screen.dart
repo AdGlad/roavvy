@@ -14,6 +14,7 @@ import '../../core/providers.dart';
 import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
 import '../cards/flag_grid_layout_engine.dart';
+import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
 import 'merch_cart_item.dart';
@@ -505,7 +506,7 @@ class _LocalMockupPreviewScreenState
         // No pre-rendered bytes and no preset (e.g., navigated from
         // FlagShapeCustomiseScreen). Render artwork from scratch.
         if (_template == CardTemplateType.grid) {
-          unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
+          unawaited(_initGridOrientationAndRender());
         } else {
           unawaited(_renderVariant(0));
         }
@@ -1201,6 +1202,24 @@ class _LocalMockupPreviewScreenState
     } finally {
       if (mounted) setState(() => _variantLoading = false);
     }
+  }
+
+  // ── Grid orientation from clip shape (M170) ────────────────────────────────
+
+  /// Resolves the clip shape's natural aspect ratio (if it has one) before
+  /// the first grid render, so a shape-specific design (e.g. a kangaroo
+  /// silhouette) starts in whichever orientation actually fills the print
+  /// area, instead of always defaulting to the template's landscape default.
+  Future<void> _initGridOrientationAndRender() async {
+    final isPortrait = await isPortraitForClipShape(
+      widget.clipShape,
+      widget.clipCode,
+    );
+    if (!mounted) return;
+    if (isPortrait != null && isPortrait != _isPortrait) {
+      setState(() => _isPortrait = isPortrait);
+    }
+    await _setGridTextColor(_gridTextColor ?? Colors.white);
   }
 
   // ── Grid text colour selection (M107) ─────────────────────────────────────

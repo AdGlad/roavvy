@@ -15,6 +15,7 @@ import '../cards/flag_grid_layout_engine.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
 import 'flag_shape_customise_screen.dart';
+import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_share_exporter.dart';
 import 'merch_template_ranker.dart';
@@ -1587,9 +1588,19 @@ class _DesignCardState extends State<_DesignCard> {
     if (!mounted) return;
     final opt = widget.option;
     try {
-      final aspectRatio = merchBackCardAspectRatio(opt.template);
       final isSoloGrid =
           opt.template == CardTemplateType.grid && opt.codes.length == 1;
+      final clipShape =
+          isSoloGrid ? GridClipShape.animalSilhouette : GridClipShape.none;
+      final clipCode = isSoloGrid ? opt.codes.first.toUpperCase() : null;
+      // A single-country design's shape (e.g. a kangaroo) may fill more of
+      // the print area in portrait or landscape depending on its own
+      // proportions — fall back to the template default otherwise.
+      final isPortrait = await isPortraitForClipShape(clipShape, clipCode);
+      if (!mounted) return;
+      final aspectRatio = isPortrait == null
+          ? merchBackCardAspectRatio(opt.template)
+          : (isPortrait ? kPortraitCardAspectRatio : kLandscapeCardAspectRatio);
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -1605,10 +1616,10 @@ class _DesignCardState extends State<_DesignCard> {
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
-        clipShape: isSoloGrid
-            ? GridClipShape.animalSilhouette
-            : GridClipShape.none,
-        clipCode: isSoloGrid ? opt.codes.first.toUpperCase() : null,
+        clipShape: clipShape,
+        clipCode: clipCode,
+        flagRepeatCount: isSoloGrid ? kSoloGridRowCount : 1,
+        rowCount: isSoloGrid ? kSoloGridRowCount : null,
       );
       if (!mounted) return;
 
