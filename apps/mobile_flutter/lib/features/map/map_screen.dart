@@ -328,9 +328,17 @@ class MapScreen extends ConsumerWidget {
     // Shared mode so switching between globe and flat map keeps your choice.
     final showPhotoGrid = overlayMode == MapOverlayMode.heatmap;
     final photoPanelExpanded = ref.watch(mapPhotoPanelExpandedProvider);
-    final photoGridH = showPhotoGrid
-        ? MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded)
-        : 0.0;
+    // In heatmap mode the flag strip rides ABOVE the grid while it's
+    // collapsed (its default state) — reinstating the visited-country
+    // flags that used to live in this space — and makes way for the grid
+    // once expanded, on both the flat map and the globe.
+    final showFlagStripAboveGrid =
+        showPhotoGrid && !photoPanelExpanded && visitedByCode.isNotEmpty;
+    final photoGridH =
+        (showPhotoGrid
+            ? MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded)
+            : 0.0) +
+        (showFlagStripAboveGrid ? _VisitedCountryFlagStrip.height : 0.0);
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
         const <EffectiveVisitedCountry>[];
@@ -449,9 +457,17 @@ class MapScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (showPhotoGrid)
-                    const MapPhotoStrip()
-                  else if (visitedByCode.isNotEmpty)
+                  if (showPhotoGrid) ...[
+                    if (visitedByCode.isNotEmpty)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        child: photoPanelExpanded
+                            ? const SizedBox.shrink()
+                            : _VisitedCountryFlagStrip(visits: filteredVisits),
+                      ),
+                    const MapPhotoStrip(),
+                  ] else if (visitedByCode.isNotEmpty)
                     _VisitedCountryFlagStrip(visits: filteredVisits),
                   const TimelineScrubberBar(),
                 ],
@@ -786,6 +802,10 @@ class _VisitedCountryFlagStrip extends ConsumerWidget {
   /// All effective visits; sorted here by [firstSeen] ascending (earliest first).
   final List<EffectiveVisitedCountry> visits;
 
+  /// Matches the SizedBox height below — shared so callers can reserve the
+  /// right amount of space without duplicating the magic number.
+  static const double height = 44.0;
+
   static String _flag(String iso) {
     if (iso.length != 2) return '';
     const base = 0x1F1E6;
@@ -806,7 +826,7 @@ class _VisitedCountryFlagStrip extends ConsumerWidget {
     });
 
     return SizedBox(
-      height: 44,
+      height: height,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8),
