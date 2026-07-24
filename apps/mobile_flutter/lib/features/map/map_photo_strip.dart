@@ -1,32 +1,18 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart' show Share, XFile;
 
 import '../../core/providers.dart';
 import '../../data/photo_gps_repository.dart';
 import '../shared/thumbnail_channel.dart';
-import 'map_photo_pin.dart';
+import 'map_photo_viewer.dart';
 import 'thumbnail_lru_cache.dart';
 
 /// Whether the map photo panel is expanded to show the grid. Collapsed by
 /// default so the flat map's visible area matches the globe view; the
 /// header (drag handle + photo count) stays visible as the affordance.
 final mapPhotoPanelExpandedProvider = StateProvider<bool>((ref) => false);
-
-/// Squared "flat-earth" distance between two points, scaled so longitude
-/// degrees shrink toward the poles like they do on screen (cos of the mean
-/// latitude). Only used for relative ordering, so this cheap approximation
-/// is preferable to a full haversine — it never needs to be an absolute
-/// distance, only sort correctly at the local scale of a heatmap tap.
-double _distanceSquared(PhotoLocation a, PhotoLocation b) {
-  final dLat = a.lat - b.lat;
-  final meanLatRad = (a.lat + b.lat) / 2 * (math.pi / 180);
-  final dLng = (a.lng - b.lng) * math.cos(meanLatRad);
-  return dLat * dLat + dLng * dLng;
-}
 
 /// Google Photos-style photo panel under the flat map: rounded-top sheet with
 /// a drag handle, a live "N photos" count for the visible map region, and a
@@ -42,10 +28,6 @@ double _distanceSquared(PhotoLocation a, PhotoLocation b) {
 ///   to that photo
 class MapPhotoStrip extends ConsumerStatefulWidget {
   const MapPhotoStrip({super.key});
-
-  // High enough that a heat-tap's target photo is almost always present in
-  // the grid (the grid builder is lazy, so a large cap costs little).
-  static const _maxPhotos = 300;
 
   /// Header block height (drag handle + count label) — the collapsed height.
   static const double _headerHeight = 36.0;
@@ -117,50 +99,18 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
     if (locations == null || locations.isEmpty) return const SizedBox.shrink();
 
     final sortAnchor = ref.watch(mapGallerySortAnchorProvider);
-
-    final int displayCount;
-    final List<PhotoLocation> photos;
-    if (sortAnchor != null) {
-      // Nearest-first from the tapped area, across the WHOLE library — not
-      // just the current viewport. Google Photos doesn't confine the grid
-      // to the visible map region once you've picked a spot: scrolling
-      // further down the (distance-sorted) grid can carry you past the
-      // tapped area's photos into a neighbouring region entirely, and the
-      // map's hero pin follows wherever the grid has scrolled to (see
-      // MapPhotoStrip._onScroll). Viewport-limiting here would cap how far
-      // you could ever scroll from the tap point.
-      final byDistance = [...locations]..sort(
-        (a, b) => _distanceSquared(sortAnchor, a).compareTo(
-          _distanceSquared(sortAnchor, b),
-        ),
-      );
-      photos = byDistance.length > MapPhotoStrip._maxPhotos
-          ? byDistance.sublist(0, MapPhotoStrip._maxPhotos)
-          : byDistance;
-      displayCount = locations.length;
-    } else {
-      // No spot selected yet: mirrors Google Photos' default browsing mode
-      // — "photos in the visible map area", newest first.
-      final vp = ref.watch(mapViewportProvider);
-      final List<PhotoLocation> pool;
-      if (vp != null) {
-        pool = locations
-            .where((loc) =>
-                loc.lat >= vp.south &&
-                loc.lat <= vp.north &&
-                loc.lng >= vp.west &&
-                loc.lng <= vp.east)
-            .toList();
-      } else {
-        pool = locations;
-      }
-      if (pool.isEmpty) return const SizedBox.shrink();
-      final capped = pool.length > MapPhotoStrip._maxPhotos
-          ? pool.sublist(pool.length - MapPhotoStrip._maxPhotos)
-          : pool;
-      photos = capped.reversed.toList();
-      displayCount = pool.length;
-    }
+    // Only watch the viewport when it actually matters (no anchor set) — the
+    // grid stays viewport-stable and doesn't rebuild from panning while
+    // browsing a distance-sorted selection.
+    final viewport = sortAnchor == null ? ref.watch(mapViewportProvider) : null;
+    final gallery = computeMapGalleryPhotos(
+      locations: locations,
+      sortAnchor: sortAnchor,
+      viewport: viewport,
+    );
+    if (gallery.photos.isEmpty) return const SizedBox.shrink();
+    final photos = gallery.photos;
+    final displayCount = gallery.totalCount;
     final assetIds = photos.map((p) => p.assetId).toList();
     _photos = photos;
 
@@ -256,9 +206,10 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
                 onTap: () {
                   ref.read(selectedMapPhotoProvider.notifier).state = photos[i];
                   Navigator.of(context).push(
-                    _MapPhotoViewer.route(
+                    MapPhotoViewer.route(
                       assetIds: assetIds,
                       initialIndex: i,
+                      heroTag: 'map_photo_${photos[i].assetId}',
                     ),
                   );
                 },
@@ -331,246 +282,6 @@ class _GridTileState extends State<_GridTile> {
       child: _bytes != null
           ? Hero(tag: 'map_photo_${widget.assetId}', child: content)
           : content,
-    );
-  }
-}
-
-// ── Full-screen viewer ────────────────────────────────────────────────────────
-
-/// Full-screen photo viewer matching the Google Photos map viewer pattern:
-/// - Swipe left/right to browse all photos in the current viewport set
-/// - Swipe down to dismiss (velocity-based)
-/// - Black background, edge-to-edge
-/// - Top bar: close + photo count
-/// - Bottom bar: share
-class _MapPhotoViewer extends StatefulWidget {
-  const _MapPhotoViewer({
-    required this.assetIds,
-    required this.initialIndex,
-  });
-
-  final List<String> assetIds;
-  final int initialIndex;
-
-  static Route<void> route({
-    required List<String> assetIds,
-    required int initialIndex,
-  }) {
-    return PageRouteBuilder<void>(
-      opaque: true, // Hero shared-element animation requires an opaque route
-      pageBuilder: (_, __, ___) => _MapPhotoViewer(
-        assetIds: assetIds,
-        initialIndex: initialIndex,
-      ),
-      transitionsBuilder: (_, animation, __, child) =>
-          FadeTransition(opacity: animation, child: child),
-    );
-  }
-
-  @override
-  State<_MapPhotoViewer> createState() => _MapPhotoViewerState();
-}
-
-class _MapPhotoViewerState extends State<_MapPhotoViewer> {
-  late final PageController _page;
-  late int _current;
-
-  // Swipe-down-to-dismiss tracking.
-  double _dragOffset = 0;
-  bool _dismissing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _current = widget.initialIndex;
-    _page = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _page.dispose();
-    super.dispose();
-  }
-
-  void _dismiss() {
-    if (_dismissing) return;
-    _dismissing = true;
-    Navigator.of(context).pop();
-  }
-
-  Future<void> _share() async {
-    final assetId = widget.assetIds[_current];
-    final bytes =
-        ThumbnailLruCache.instance.get(assetId) ??
-        await const ThumbnailChannel().getThumbnail(assetId, size: 600);
-    if (bytes == null || !mounted) return;
-    await Share.shareXFiles(
-      [XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'photo.jpg')],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = widget.assetIds.length;
-    final topPad = MediaQuery.of(context).padding.top;
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-
-    return GestureDetector(
-      onVerticalDragUpdate: (d) {
-        if (d.delta.dy > 0) setState(() => _dragOffset += d.delta.dy);
-      },
-      onVerticalDragEnd: (d) {
-        if (_dragOffset > 80 || (d.velocity.pixelsPerSecond.dy > 600)) {
-          _dismiss();
-        } else {
-          setState(() => _dragOffset = 0);
-        }
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black.withValues(
-          alpha: (_dragOffset / 200).clamp(0.0, 0.6) == 0.0
-              ? 1.0
-              : 1.0 - (_dragOffset / 200).clamp(0.0, 0.6),
-        ),
-        body: Transform.translate(
-          offset: Offset(0, _dragOffset),
-          child: Stack(
-            children: [
-              // Photo PageView
-              PageView.builder(
-                controller: _page,
-                itemCount: total,
-                onPageChanged: (i) => setState(() => _current = i),
-                itemBuilder: (context, i) => _PhotoPage(
-                  assetId: widget.assetIds[i],
-                  heroTag: i == widget.initialIndex
-                      ? 'map_photo_${widget.assetIds[i]}'
-                      : null,
-                ),
-              ),
-
-              // Top bar: close + counter
-              Positioned(
-                top: topPad + 4,
-                left: 0,
-                right: 0,
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: _dismiss,
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${_current + 1} / $total',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    const SizedBox(width: 48), // balance the close button
-                  ],
-                ),
-              ),
-
-              // Bottom bar: share
-              Positioned(
-                bottom: bottomPad + 8,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _BottomAction(
-                      icon: Icons.share_outlined,
-                      label: 'Share',
-                      onTap: _share,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PhotoPage extends StatefulWidget {
-  const _PhotoPage({required this.assetId, this.heroTag});
-
-  final String assetId;
-  // Non-null only for the photo the user tapped (enables zoom-expand Hero).
-  final String? heroTag;
-
-  @override
-  State<_PhotoPage> createState() => _PhotoPageState();
-}
-
-class _PhotoPageState extends State<_PhotoPage> {
-  Uint8List? _bytes;
-
-  @override
-  void initState() {
-    super.initState();
-    // Show cached thumbnail immediately (no flash/spinner for photos in grid).
-    _bytes = ThumbnailLruCache.instance.get(widget.assetId);
-    _loadHiRes();
-  }
-
-  Future<void> _loadHiRes() async {
-    final hi =
-        await const ThumbnailChannel().getThumbnail(widget.assetId, size: 800);
-    if (hi != null) {
-      ThumbnailLruCache.instance.put(widget.assetId, hi);
-      if (mounted) setState(() => _bytes = hi);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_bytes == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white54),
-      );
-    }
-    Widget image = Image.memory(_bytes!, fit: BoxFit.contain);
-    if (widget.heroTag != null) {
-      image = Hero(tag: widget.heroTag!, child: image);
-    }
-    return InteractiveViewer(child: Center(child: image));
-  }
-}
-
-class _BottomAction extends StatelessWidget {
-  const _BottomAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 26),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
-          ),
-        ],
-      ),
     );
   }
 }

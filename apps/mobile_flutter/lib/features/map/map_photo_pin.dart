@@ -8,28 +8,15 @@ import 'package:latlong2/latlong.dart';
 import '../../core/providers.dart';
 import '../../data/photo_gps_repository.dart';
 import '../shared/thumbnail_channel.dart';
+import 'map_photo_viewer.dart';
 import 'thumbnail_lru_cache.dart';
-
-/// The photo currently highlighted on the map — set by scrolling the photo
-/// grid (scrubbing) or tapping a heatmap blob, mirroring Google Photos'
-/// "Your Map" current-photo pin.
-final selectedMapPhotoProvider = StateProvider<PhotoLocation?>((ref) => null);
-
-/// The point the gallery is currently sorted around — set only by an
-/// explicit map tap (heat blob or pin), NOT by grid scrubbing. [MapPhotoStrip]
-/// reorders its pool by distance from this point (nearest first) so tapping
-/// an area of the heatmap surfaces that area's photos first, mirroring
-/// Google Photos' "tap the heat mark to jump to photos in that area".
-///
-/// Kept separate from [selectedMapPhotoProvider] so scrolling the grid (which
-/// only updates the pin) never triggers a re-sort — only a fresh map tap does.
-final mapGallerySortAnchorProvider = StateProvider<PhotoLocation?>(
-  (ref) => null,
-);
 
 /// Google Photos-style current-photo pin: a circular thumbnail inside a thick
 /// white ring with a short tail down to a small dark anchor dot at the exact
 /// photo location. The thumbnail crossfades when the selection changes.
+///
+/// Tapping the pin opens the same full-screen viewer, on the same
+/// [computeMapGalleryPhotos] sequence, as tapping the grid ([MapPhotoStrip]).
 class PhotoPinLayer extends ConsumerWidget {
   const PhotoPinLayer({super.key});
 
@@ -37,6 +24,25 @@ class PhotoPinLayer extends ConsumerWidget {
   static const double _ringWidth = 4.0;
   static const double _tailHeight = 8.0;
   static const double _anchorSize = 12.0;
+
+  void _openViewer(BuildContext context, WidgetRef ref, PhotoLocation selected) {
+    final locations = ref.read(photoLocationsProvider).valueOrNull ?? const [];
+    final sortAnchor = ref.read(mapGallerySortAnchorProvider);
+    final viewport = sortAnchor == null ? ref.read(mapViewportProvider) : null;
+    final gallery = computeMapGalleryPhotos(
+      locations: locations,
+      sortAnchor: sortAnchor,
+      viewport: viewport,
+    );
+    final assetIds = gallery.photos.map((p) => p.assetId).toList();
+    final idx = assetIds.indexOf(selected.assetId);
+    Navigator.of(context).push(
+      MapPhotoViewer.route(
+        assetIds: idx >= 0 ? assetIds : [selected.assetId],
+        initialIndex: idx >= 0 ? idx : 0,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,32 +58,35 @@ class PhotoPinLayer extends ConsumerWidget {
           height: totalH,
           // Anchor dot (bottom of the column) sits on the coordinate.
           alignment: Alignment.topCenter,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _PinThumbnail(
-                key: ValueKey(selected.assetId),
-                assetId: selected.assetId,
-                size: _pinSize,
-                ringWidth: _ringWidth,
-              ),
-              // Tail connecting the pin to the anchor dot.
-              Container(
-                width: 2.5,
-                height: _tailHeight,
-                color: Colors.white,
-              ),
-              // Dark anchor dot with a white halo ring.
-              Container(
-                width: _anchorSize,
-                height: _anchorSize,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3E3F4A),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+          child: GestureDetector(
+            onTap: () => _openViewer(context, ref, selected),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _PinThumbnail(
+                  key: ValueKey(selected.assetId),
+                  assetId: selected.assetId,
+                  size: _pinSize,
+                  ringWidth: _ringWidth,
                 ),
-              ),
-            ],
+                // Tail connecting the pin to the anchor dot.
+                Container(
+                  width: 2.5,
+                  height: _tailHeight,
+                  color: Colors.white,
+                ),
+                // Dark anchor dot with a white halo ring.
+                Container(
+                  width: _anchorSize,
+                  height: _anchorSize,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3E3F4A),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

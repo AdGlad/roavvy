@@ -635,6 +635,24 @@ typedef MapViewport = ({
 
 final mapViewportProvider = StateProvider<MapViewport?>((ref) => null);
 
+/// The photo currently highlighted on the map — set by scrolling the photo
+/// grid (scrubbing) or tapping a heatmap blob, mirroring Google Photos'
+/// "Your Map" current-photo pin.
+final selectedMapPhotoProvider = StateProvider<PhotoLocation?>((ref) => null);
+
+/// The point the gallery is currently sorted around — set only by an
+/// explicit map tap (heat blob or pin), NOT by grid scrubbing. The gallery
+/// (see `computeMapGalleryPhotos` in map_photo_viewer.dart) reorders its full
+/// photo pool by distance from this point (nearest first) so tapping an area
+/// of the heatmap surfaces that area's photos first, mirroring Google
+/// Photos' "tap the heat mark to jump to photos in that area".
+///
+/// Kept separate from [selectedMapPhotoProvider] so scrolling the grid (which
+/// only updates the pin) never triggers a re-sort — only a fresh map tap does.
+final mapGallerySortAnchorProvider = StateProvider<PhotoLocation?>(
+  (ref) => null,
+);
+
 final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
   (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),
 );
