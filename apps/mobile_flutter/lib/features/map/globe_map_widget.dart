@@ -10,6 +10,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/globe_overlay.dart';
 import '../../core/providers.dart';
+import '../../data/photo_gps_repository.dart';
 import '../heritage/heritage_detail_sheet.dart';
 import '../heritage/world_heritage_lookup_service.dart';
 import 'country_visual_state.dart';
@@ -137,7 +138,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     // on changes, not on the initial value).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final enabled = ref.read(heritageDotsEnabledProvider);
+      final enabled =
+          ref.read(globeOverlayModeProvider) == GlobeOverlayMode.heritage;
       final visited = ref.read(visitedHeritageProvider).valueOrNull ?? const [];
       _rebuildHeritageLists(enabled, visited);
     });
@@ -357,22 +359,58 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
   void _onTapUp(TapUpDetails d) {
     if (_canvasSize == Size.zero) return;
-    // Visited heritage site tap — has full visit data.
-    final visitedSite = _findNearestVisitedSite(d.localPosition);
-    if (visitedSite != null) {
-      showHeritageDetailSheet(context, visitedSite);
-      return;
-    }
-    // Unvisited heritage site tap — show info without visit stats.
-    final unvisitedSite = _findNearestUnvisitedSite(d.localPosition);
-    if (unvisitedSite != null) {
-      showHeritageDetailSheetForSite(context, unvisitedSite);
-      return;
+    // Heritage and photo-heatmap taps are mutually exclusive — only the
+    // active overlay's tap targets are checked (see GlobeOverlayMode). Taps
+    // near a heritage dot used to intercept photo-heatmap taps and vice
+    // versa whenever both overlays happened to render together.
+    if (ref.read(globeOverlayModeProvider) == GlobeOverlayMode.heritage) {
+      // Visited heritage site tap — has full visit data.
+      final visitedSite = _findNearestVisitedSite(d.localPosition);
+      if (visitedSite != null) {
+        showHeritageDetailSheet(context, visitedSite);
+        return;
+      }
+      // Unvisited heritage site tap — show info without visit stats.
+      final unvisitedSite = _findNearestUnvisitedSite(d.localPosition);
+      if (unvisitedSite != null) {
+        showHeritageDetailSheetForSite(context, unvisitedSite);
+        return;
+      }
+    } else {
+      if (_tryHeatTap(d.localPosition)) return;
     }
     final hit = _projection.inverseProject(d.localPosition, _canvasSize);
     if (hit == null) return;
     final isoCode = resolveCountry(hit.$1, hit.$2);
     if (isoCode != null) widget.onCountryTap(isoCode);
+  }
+
+  /// Selects the photo nearest [tapPos] if within a heat-blob-ish screen
+  /// radius, mirroring the flat map's heat-tap: drops the globe's photo pin,
+  /// re-sorts the gallery by distance from that point, and reveals the
+  /// gallery panel so the scroll-to-photo response is visible. Returns true
+  /// when a photo was selected.
+  bool _tryHeatTap(Offset tapPos) {
+    if (!ref.read(showPhotoThumbnailsProvider)) return false;
+    final locations = ref.read(photoLocationsProvider).valueOrNull;
+    if (locations == null || locations.isEmpty) return false;
+    const thresholdPx = 28.0;
+    PhotoLocation? nearest;
+    var nearestDist = thresholdPx;
+    for (final loc in locations) {
+      final pt = _projection.project(loc.lat, loc.lng, _canvasSize);
+      if (pt == null) continue; // back face of the globe
+      final dist = (tapPos - pt).distance;
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = loc;
+      }
+    }
+    if (nearest == null) return false;
+    ref.read(selectedMapPhotoProvider.notifier).state = nearest;
+    ref.read(mapGallerySortAnchorProvider.notifier).state = nearest;
+    ref.read(mapPhotoPanelExpandedProvider.notifier).state = true;
+    return true;
   }
 
   void _rebuildHeritageLists(bool enabled, List<VisitedHeritageSite> visited) {
@@ -465,20 +503,24 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         ref.watch(countryTripCountsProvider).valueOrNull ??
         const <String, int>{};
 
-    final heritageEnabled = ref.watch(heritageDotsEnabledProvider);
+    final overlayMode = ref.watch(globeOverlayModeProvider);
+    final heritageEnabled = overlayMode == GlobeOverlayMode.heritage;
     final visitedHeritage =
         ref.watch(visitedHeritageProvider).valueOrNull ??
         const <VisitedHeritageSite>[];
 
-    ref.listen<bool>(heritageDotsEnabledProvider, (_, enabled) {
-      _rebuildHeritageLists(enabled, visitedHeritage);
+    ref.listen<GlobeOverlayMode>(globeOverlayModeProvider, (_, mode) {
+      _rebuildHeritageLists(mode == GlobeOverlayMode.heritage, visitedHeritage);
     });
 
     ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider, (
       _,
       next,
     ) {
-      _rebuildHeritageLists(true, next.valueOrNull ?? const []);
+      _rebuildHeritageLists(
+        ref.read(globeOverlayModeProvider) == GlobeOverlayMode.heritage,
+        next.valueOrNull ?? const [],
+      );
     });
 
     ref.listen<bool>(globeRotationPausedProvider, (_, paused) {
@@ -523,8 +565,9 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     final overlayActive = ref.watch(globeOverlayProvider).isActive;
     final frame = overlayActive ? ref.watch(replayGlobeFrameProvider) : null;
 
-    // Photo heatmap (toggle-gated); hidden during replay/scan animations.
-    final heatmapEnabled = ref.watch(globeHeatmapEnabledProvider) &&
+    // Photo heatmap (mutually exclusive with heritage dots); hidden during
+    // replay/scan animations.
+    final heatmapEnabled = overlayMode == GlobeOverlayMode.heatmap &&
         ref.watch(showPhotoThumbnailsProvider) &&
         frame == null;
     final photoLocations =

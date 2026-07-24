@@ -321,10 +321,15 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
+    final globeOverlayMode = ref.watch(globeOverlayModeProvider);
+    // The photo gallery panel shows on the flat map always, and on the globe
+    // only in heatmap mode (heritage mode shows the visited-flag strip
+    // instead — see the body Stack below).
+    final showPhotoGrid = !globeMode || globeOverlayMode == GlobeOverlayMode.heatmap;
     final photoPanelExpanded = ref.watch(mapPhotoPanelExpandedProvider);
-    final photoGridH = globeMode
-        ? 0.0
-        : MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded);
+    final photoGridH = showPhotoGrid
+        ? MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded)
+        : 0.0;
     final filteredVisits =
         ref.watch(filteredEffectiveVisitsProvider).valueOrNull ??
         const <EffectiveVisitedCountry>[];
@@ -428,10 +433,10 @@ class MapScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (globeMode && visitedByCode.isNotEmpty)
-                    _VisitedCountryFlagStrip(visits: filteredVisits)
-                  else if (!globeMode)
-                    const MapPhotoStrip(),
+                  if (showPhotoGrid)
+                    const MapPhotoStrip()
+                  else if (globeMode && visitedByCode.isNotEmpty)
+                    _VisitedCountryFlagStrip(visits: filteredVisits),
                   const TimelineScrubberBar(),
                 ],
               ),
@@ -1331,23 +1336,30 @@ class _GlobeRotationToggle extends ConsumerWidget {
   }
 }
 
-/// Toggles the Google Photos-style heatmap layer on the globe. Gold when on.
+/// Cycles the globe's optional overlay between the Google Photos-style photo
+/// heatmap and UNESCO heritage site dots (mutually exclusive — see
+/// [GlobeOverlayMode]). Gold when the heatmap is active.
 class _GlobeHeatmapToggle extends ConsumerWidget {
   const _GlobeHeatmapToggle();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(globeHeatmapEnabledProvider);
+    final mode = ref.watch(globeOverlayModeProvider);
+    final isHeatmap = mode == GlobeOverlayMode.heatmap;
     return Material(
       color: Colors.black45,
       shape: const CircleBorder(),
       child: IconButton(
-        icon: const Icon(Icons.blur_on_rounded),
-        color: enabled ? const Color(0xFFF2C94C) : Colors.white,
+        icon: Icon(
+          isHeatmap ? Icons.blur_on_rounded : Icons.account_balance_rounded,
+        ),
+        color: isHeatmap ? const Color(0xFFF2C94C) : Colors.white,
         iconSize: 22,
-        tooltip: enabled ? 'Hide photo heatmap' : 'Show photo heatmap',
-        onPressed: () =>
-            ref.read(globeHeatmapEnabledProvider.notifier).state = !enabled,
+        tooltip: isHeatmap
+            ? 'Showing photo heatmap — tap for UNESCO sites'
+            : 'Showing UNESCO sites — tap for photo heatmap',
+        onPressed: () => ref.read(globeOverlayModeProvider.notifier).state =
+            isHeatmap ? GlobeOverlayMode.heritage : GlobeOverlayMode.heatmap,
       ),
     );
   }

@@ -9,11 +9,6 @@ import '../shared/thumbnail_channel.dart';
 import 'map_photo_viewer.dart';
 import 'thumbnail_lru_cache.dart';
 
-/// Whether the map photo panel is expanded to show the grid. Collapsed by
-/// default so the flat map's visible area matches the globe view; the
-/// header (drag handle + photo count) stays visible as the affordance.
-final mapPhotoPanelExpandedProvider = StateProvider<bool>((ref) => false);
-
 /// Google Photos-style photo panel under the flat map: rounded-top sheet with
 /// a drag handle, a live "N photos" count for the visible map region, and a
 /// 4-column newest-first grid.
