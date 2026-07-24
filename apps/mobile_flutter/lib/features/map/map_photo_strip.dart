@@ -116,31 +116,20 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
     final locations = locationsAsync.valueOrNull;
     if (locations == null || locations.isEmpty) return const SizedBox.shrink();
 
-    final vp = ref.watch(mapViewportProvider);
-
-    final List<PhotoLocation> pool;
-    if (vp != null) {
-      pool = locations
-          .where((loc) =>
-              loc.lat >= vp.south &&
-              loc.lat <= vp.north &&
-              loc.lng >= vp.west &&
-              loc.lng <= vp.east)
-          .toList();
-    } else {
-      pool = locations;
-    }
-
-    if (pool.isEmpty) return const SizedBox.shrink();
-
     final sortAnchor = ref.watch(mapGallerySortAnchorProvider);
 
+    final int displayCount;
     final List<PhotoLocation> photos;
     if (sortAnchor != null) {
-      // Nearest-first from the tapped area (Google Photos: "tap the heat
-      // mark to jump to photos in that area"). Sort the FULL viewport pool
-      // before capping so the cap keeps the closest photos, not the newest.
-      final byDistance = [...pool]..sort(
+      // Nearest-first from the tapped area, across the WHOLE library — not
+      // just the current viewport. Google Photos doesn't confine the grid
+      // to the visible map region once you've picked a spot: scrolling
+      // further down the (distance-sorted) grid can carry you past the
+      // tapped area's photos into a neighbouring region entirely, and the
+      // map's hero pin follows wherever the grid has scrolled to (see
+      // MapPhotoStrip._onScroll). Viewport-limiting here would cap how far
+      // you could ever scroll from the tap point.
+      final byDistance = [...locations]..sort(
         (a, b) => _distanceSquared(sortAnchor, a).compareTo(
           _distanceSquared(sortAnchor, b),
         ),
@@ -148,11 +137,29 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
       photos = byDistance.length > MapPhotoStrip._maxPhotos
           ? byDistance.sublist(0, MapPhotoStrip._maxPhotos)
           : byDistance;
+      displayCount = locations.length;
     } else {
+      // No spot selected yet: mirrors Google Photos' default browsing mode
+      // — "photos in the visible map area", newest first.
+      final vp = ref.watch(mapViewportProvider);
+      final List<PhotoLocation> pool;
+      if (vp != null) {
+        pool = locations
+            .where((loc) =>
+                loc.lat >= vp.south &&
+                loc.lat <= vp.north &&
+                loc.lng >= vp.west &&
+                loc.lng <= vp.east)
+            .toList();
+      } else {
+        pool = locations;
+      }
+      if (pool.isEmpty) return const SizedBox.shrink();
       final capped = pool.length > MapPhotoStrip._maxPhotos
           ? pool.sublist(pool.length - MapPhotoStrip._maxPhotos)
           : pool;
       photos = capped.reversed.toList();
+      displayCount = pool.length;
     }
     final assetIds = photos.map((p) => p.assetId).toList();
     _photos = photos;
@@ -212,7 +219,7 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${pool.length} ${pool.length == 1 ? 'photo' : 'photos'}',
+                      '$displayCount ${displayCount == 1 ? 'photo' : 'photos'}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
