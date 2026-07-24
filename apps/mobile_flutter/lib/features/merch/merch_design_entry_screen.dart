@@ -72,6 +72,15 @@ class _MerchDesignEntryScreenState
     List<EffectiveVisitedCountry> visits,
   ) {
     setState(() {
+      // Tapping "All countries" again while it's already the active filter
+      // toggles the whole list off, rather than re-selecting the same set —
+      // the quickest way to clear a selection and start picking manually.
+      if (chip == MerchDesignFilterChip.all &&
+          _chip == MerchDesignFilterChip.all) {
+        _chip = MerchDesignFilterChip.custom;
+        _selectedCodes = {};
+        return;
+      }
       _chip = chip;
       if (chip != MerchDesignFilterChip.custom) {
         _selectedCodes = _applyFilter(visits, chip);
