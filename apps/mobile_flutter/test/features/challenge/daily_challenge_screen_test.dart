@@ -153,6 +153,23 @@ void main() {
       expect(find.text('Built in the 17th century'), findsNothing);
     });
 
+    testWidgets(
+      'newest revealed clue renders above earlier clues (cluesRevealed=2)',
+      (tester) async {
+        await tester.pumpWidget(
+          _pumpChallenge(tester, AsyncValue.data(_state(cluesRevealed: 2))),
+        );
+        await tester.pumpAndSettle();
+
+        // Clue 2 ("Cultural site") was revealed most recently, so it should
+        // sit above clue 1 ("Located in South Asia") in the list — the
+        // newest clue always surfaces where the player is already looking.
+        final clue1Y = tester.getTopLeft(find.text('Located in South Asia')).dy;
+        final clue2Y = tester.getTopLeft(find.text('Cultural site')).dy;
+        expect(clue2Y, lessThan(clue1Y));
+      },
+    );
+
     testWidgets('guess input TextField is visible when game is active', (
       tester,
     ) async {

@@ -259,7 +259,11 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
         DailyChallengeState.maxGuesses - progress.guesses.length;
     final gameOver = progress.solved || progress.failed;
 
-    // Play clue-reveal chime and scroll to new clue whenever one becomes visible.
+    // Play clue-reveal chime and scroll newest-clue-into-view whenever one
+    // becomes visible. New clues render at the top of the list (below), so
+    // "into view" means snapping back to the top rather than the bottom —
+    // the player is looking at the newest clue first, most-to-least recent,
+    // so it should never require a scroll to find.
     ref.listen<AsyncValue<DailyChallengeState>>(
       dailyChallengeNotifierProvider,
       (_, next) {
@@ -267,11 +271,10 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
         if (revealed > _lastCluesRevealed) {
           _audio.playClue(revealed);
           _lastCluesRevealed = revealed;
-          // Scroll to bottom after the new clue card is laid out.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_scrollCtrl.hasClients) {
               _scrollCtrl.animateTo(
-                _scrollCtrl.position.maxScrollExtent,
+                0,
                 duration: const Duration(milliseconds: 350),
                 curve: Curves.easeOut,
               );
@@ -281,21 +284,30 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
       },
     );
 
+    final revealedCount = progress.cluesRevealed.clamp(0, clues.length);
+
     return Stack(
       children: [
         Column(
           children: [
             Expanded(
-              child: ListView.builder(
+              child: ListView(
                 controller: _scrollCtrl,
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                itemCount: progress.cluesRevealed.clamp(0, clues.length),
-                itemBuilder:
-                    (context, index) => _ClueCard(
-                      number: index + 1,
-                      clue: clues[index],
-                      imageUrl: index == 4 ? state.site.imageUrl : null,
+                // Newest clue first (top of the list): each reveal should
+                // appear right where the player is already looking, not
+                // require scrolling down to find it.
+                children: [
+                  for (var i = revealedCount - 1; i >= 0; i--)
+                    _AnimatedClueEntry(
+                      key: ValueKey('clue-$i'),
+                      child: _ClueCard(
+                        number: i + 1,
+                        clue: clues[i],
+                        imageUrl: i == 4 ? state.site.imageUrl : null,
+                      ),
                     ),
+                ],
               ),
             ),
             if (progress.guesses.where((g) => g.isNotEmpty).isNotEmpty)
@@ -377,6 +389,51 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
             isRestored: _gameWasAlreadyOver,
           ),
       ],
+    );
+  }
+}
+
+// ── Animated clue entry ────────────────────────────────────────────────────────
+
+/// Wraps a [_ClueCard] with a one-shot slide-and-fade entrance so a freshly
+/// revealed clue (which now lands at the top of the list) visibly announces
+/// itself instead of just popping into place above the others. Keyed by clue
+/// index so the animation only plays once, on first build, and never replays
+/// as older clues are pushed down the list by later reveals.
+class _AnimatedClueEntry extends StatefulWidget {
+  const _AnimatedClueEntry({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<_AnimatedClueEntry> createState() => _AnimatedClueEntryState();
+}
+
+class _AnimatedClueEntryState extends State<_AnimatedClueEntry>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+  )..forward();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curved = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, -0.15),
+          end: Offset.zero,
+        ).animate(curved),
+        child: widget.child,
+      ),
     );
   }
 }
