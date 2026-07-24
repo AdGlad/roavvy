@@ -3,6 +3,7 @@
 // available on the globe (same look, same tap-to-view behaviour, just
 // projected via GlobeProjection instead of a flutter_map Marker).
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -39,6 +40,104 @@ Widget _harness({
 }
 
 void main() {
+  group('findCenterMostPhoto', () {
+    test('returns null for empty locations or zero canvas size', () {
+      expect(
+        findCenterMostPhoto(
+          locations: const [],
+          projection: _kProjection,
+          canvasSize: _kSize,
+        ),
+        isNull,
+      );
+      expect(
+        findCenterMostPhoto(
+          locations: const [PhotoLocation('a', 0.0, 0.0)],
+          projection: _kProjection,
+          canvasSize: Size.zero,
+        ),
+        isNull,
+      );
+    });
+
+    test('excludes back-facing photos', () {
+      // Antipodal to the projection's front-facing centre.
+      const backFacing = PhotoLocation('back', -60.0, 180.0);
+      expect(
+        findCenterMostPhoto(
+          locations: const [backFacing],
+          projection: _kProjection,
+          canvasSize: _kSize,
+        ),
+        isNull,
+      );
+    });
+
+    test('excludes front-facing photos that project outside the canvas', () {
+      // Orthographic projection guarantees a front-facing point ALWAYS
+      // lands within the globe disk — which only exceeds the canvas
+      // rectangle once scale pushes the disk radius past the canvas itself
+      // (zoomed in). At the default scale (1.0) the disk fits inside the
+      // canvas, so a point off dead-centre still lands on-screen...
+      const nearCentre = PhotoLocation('centre-ish', 0.0, 0.0);
+      expect(
+        findCenterMostPhoto(
+          locations: const [nearCentre],
+          projection: _kProjection,
+          canvasSize: _kSize,
+        )?.assetId,
+        'centre-ish',
+      );
+      // ...but zoomed in far enough, that same off-centre point's pixel
+      // offset (which scales with the radius) is pushed outside the canvas
+      // even though it's still front-facing (z > 0) — this is the case
+      // findCenterMostPhoto must exclude.
+      const zoomedIn = GlobeProjection(scale: 30.0);
+      expect(
+        findCenterMostPhoto(
+          locations: const [nearCentre],
+          projection: zoomedIn,
+          canvasSize: _kSize,
+        ),
+        isNull,
+      );
+    });
+
+    test('picks the candidate nearest the screen centre', () {
+      // The default projection's rotLat (0.35 rad) IS its true screen-centre
+      // latitude, at lng 0 — so this point projects almost exactly to the
+      // canvas centre. (-20, 90) is angularly far from that, still
+      // front-facing and on-screen, but nowhere near the centre pixel.
+      const centreLatDeg = 0.35 * 180 / math.pi; // ~20.05°N
+      final near = PhotoLocation('near', centreLatDeg, 0.0);
+      const far = PhotoLocation('far', -20.0, 90.0);
+      final result = findCenterMostPhoto(
+        locations: [far, near], // order shouldn't matter
+        projection: _kProjection,
+        canvasSize: _kSize,
+      );
+      expect(result?.assetId, 'near');
+    });
+
+    test('reflects a changed locations list rather than a stale cache', () {
+      const first = PhotoLocation('only-candidate', 0.0, 0.0);
+      final firstResult = findCenterMostPhoto(
+        locations: [first],
+        projection: _kProjection,
+        canvasSize: _kSize,
+      );
+      expect(firstResult?.assetId, 'only-candidate');
+
+      const second = PhotoLocation('different-candidate', 5.0, 5.0);
+      final secondResult = findCenterMostPhoto(
+        locations: [second], // a NEW list instance, different content
+        projection: _kProjection,
+        canvasSize: _kSize,
+      );
+      expect(secondResult?.assetId, 'different-candidate');
+    });
+  });
+
   const channel = MethodChannel('roavvy/thumbnail');
 
   setUp(() {

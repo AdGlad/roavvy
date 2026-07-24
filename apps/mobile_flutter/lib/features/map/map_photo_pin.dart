@@ -42,17 +42,90 @@ void openMapPhotoViewer(BuildContext context, WidgetRef ref, PhotoLocation selec
   );
 }
 
+/// Caches unit vectors for [findCenterMostPhoto] so repeated calls (the
+/// globe's hero-photo rotation ticks every few seconds while turning) don't
+/// redo lat/lng→unit-vector trig each time — only the projection step
+/// (cheap multiply-adds via [GlobeProjection.projectUnit]) reruns per call.
+/// Recomputed only when the [locations] list identity changes (a fresh
+/// scan/reload), mirroring the caching pattern in globe_photo_heatmap.dart.
+class _CenterMostPhotoCache {
+  _CenterMostPhotoCache._(this._locations, this._units);
+
+  final List<PhotoLocation> _locations;
+  final List<(double, double, double)> _units;
+
+  static _CenterMostPhotoCache? _cache;
+
+  static _CenterMostPhotoCache _of(List<PhotoLocation> locations) {
+    final cached = _cache;
+    if (cached != null && identical(cached._locations, locations)) {
+      return cached;
+    }
+    final units = [
+      for (final loc in locations) GlobeProjection.unitVector(loc.lat, loc.lng),
+    ];
+    final fresh = _CenterMostPhotoCache._(locations, units);
+    _cache = fresh;
+    return fresh;
+  }
+}
+
+/// Returns the photo location closest to the centre of the screen among
+/// those on the visible (front-facing) hemisphere AND actually within
+/// [canvasSize]'s bounds — at high zoom a front-facing point near the edge
+/// of the globe disk can still project well outside the canvas, and picking
+/// that as "the centre-most photo" would be misleading. Returns null when
+/// [locations] is empty or nothing qualifies (e.g. zoomed into empty ocean).
+///
+/// Drives the globe's hero pin cycling as it rotates — see [GlobeHeroPin]
+/// and its periodic caller in map_screen.dart's `_GlobeWithHeroPinState`.
+PhotoLocation? findCenterMostPhoto({
+  required List<PhotoLocation> locations,
+  required GlobeProjection projection,
+  required Size canvasSize,
+}) {
+  if (locations.isEmpty || canvasSize == Size.zero) return null;
+  final cache = _CenterMostPhotoCache._of(locations);
+  final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
+
+  PhotoLocation? nearest;
+  var nearestDist = double.infinity;
+  for (var i = 0; i < locations.length; i++) {
+    final pt = projection.projectUnit(cache._units[i], canvasSize);
+    if (pt == null) continue; // back face of the globe
+    if (pt.dx < 0 ||
+        pt.dx > canvasSize.width ||
+        pt.dy < 0 ||
+        pt.dy > canvasSize.height) {
+      continue; // front-facing but projected off-screen
+    }
+    final dist = (pt - center).distanceSquared;
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = locations[i];
+    }
+  }
+  return nearest;
+}
+
 /// The pin's visual column — thumbnail, tail, anchor dot — shared by both
 /// [PhotoPinLayer] and [GlobeHeroPin].
 Widget _pinColumn(String assetId) {
   return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      _PinThumbnail(
-        key: ValueKey(assetId),
-        assetId: assetId,
-        size: _kPinSize,
-        ringWidth: _kPinRingWidth,
+      // Cross-fades between hero photos (AnimatedSwitcher's default
+      // transition is a pure FadeTransition) instead of the hard pop you'd
+      // get from the assetId-keyed _PinThumbnail swapping instantly — the
+      // ring/tail/anchor below stay stable so only the photo itself dissolves.
+      AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        child: _PinThumbnail(
+          key: ValueKey(assetId),
+          assetId: assetId,
+          size: _kPinSize,
+          ringWidth: _kPinRingWidth,
+        ),
       ),
       // Tail connecting the pin to the anchor dot.
       Container(width: 2.5, height: _kPinTailHeight, color: Colors.white),

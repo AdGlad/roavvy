@@ -1328,12 +1328,26 @@ class _ActionBtn extends StatelessWidget {
 
 // ── Globe + hero pin wrapper ─────────────────────────────────────────────────
 
+/// How often the globe's hero pin is re-evaluated against whatever photo is
+/// currently nearest the screen centre. Chosen as a "slideshow" pace —
+/// long enough to actually register each photo, short enough that the globe
+/// feels like it's continuously surfacing new ones as it turns (not every
+/// candidate under the centre needs a turn; this samples periodically
+/// rather than tracking every frame).
+const _kHeroCycleInterval = Duration(seconds: 3);
+
 /// Hosts [GlobeMapWidget] plus [GlobeHeroPin] (the globe's equivalent of the
 /// flat map's [PhotoPinLayer]), fed by the globe's per-frame projection via
 /// `onProjectionUpdated`. Kept in a small stateful wrapper — rather than
 /// setState-ing the whole (stateless) MapScreen every frame — so only the
 /// pin itself rebuilds as the globe rotates/zooms.
-class _GlobeWithHeroPin extends StatefulWidget {
+///
+/// Also cycles the hero pin to whatever photo is nearest the screen centre
+/// every [_kHeroCycleInterval] while the globe is turning — a periodic
+/// sample rather than a per-frame check, since "nearest to centre" only
+/// needs to update a few times a minute to read as a continuous flow, and
+/// recomputing it 60x/sec would be pure waste.
+class _GlobeWithHeroPin extends ConsumerStatefulWidget {
   const _GlobeWithHeroPin({
     required this.onCountryTap,
     required this.showHeroPin,
@@ -1343,18 +1357,49 @@ class _GlobeWithHeroPin extends StatefulWidget {
   final bool showHeroPin;
 
   @override
-  State<_GlobeWithHeroPin> createState() => _GlobeWithHeroPinState();
+  ConsumerState<_GlobeWithHeroPin> createState() => _GlobeWithHeroPinState();
 }
 
-class _GlobeWithHeroPinState extends State<_GlobeWithHeroPin> {
+class _GlobeWithHeroPinState extends ConsumerState<_GlobeWithHeroPin> {
   final _projectionNotifier = ValueNotifier<(GlobeProjection, Size)>(
     (const GlobeProjection(), Size.zero),
   );
+  Timer? _heroCycleTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _heroCycleTimer = Timer.periodic(
+      _kHeroCycleInterval,
+      (_) => _maybeCycleHero(),
+    );
+  }
 
   @override
   void dispose() {
+    _heroCycleTimer?.cancel();
     _projectionNotifier.dispose();
     super.dispose();
+  }
+
+  /// Re-picks the hero photo from whatever is nearest the screen centre
+  /// right now. No-ops while heritage mode is showing (no pin to move) or
+  /// while rotation is explicitly paused — nothing is "turning" for the pin
+  /// to follow, so leave it on the photo the user was already looking at.
+  void _maybeCycleHero() {
+    if (!mounted || !widget.showHeroPin) return;
+    if (ref.read(globeRotationPausedProvider)) return;
+    final locations = ref.read(photoLocationsProvider).valueOrNull;
+    if (locations == null || locations.isEmpty) return;
+    final (projection, canvasSize) = _projectionNotifier.value;
+    final next = findCenterMostPhoto(
+      locations: locations,
+      projection: projection,
+      canvasSize: canvasSize,
+    );
+    if (next == null) return;
+    if (ref.read(selectedMapPhotoProvider)?.assetId == next.assetId) return;
+    ref.read(selectedMapPhotoProvider.notifier).state = next;
   }
 
   @override
