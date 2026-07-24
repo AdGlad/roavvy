@@ -1071,6 +1071,17 @@ class _LocalMockupPreviewScreenState
     setState(() => _variantLoading = true);
     try {
       if (!context.mounted) return;
+      // The currently active per-template text colour (already suggested to
+      // match the shirt colour — see _suggestGridTextColor et al). Used for
+      // the "original" variant below so re-rendering after a title edit or
+      // stamp-variant swipe doesn't discard it and fall back to the card
+      // renderer's default gold, which reads wrong on a t-shirt.
+      final currentTemplateTextColor = switch (_template) {
+        CardTemplateType.grid || CardTemplateType.heart => _gridTextColor,
+        CardTemplateType.timeline => _timelineTextColor,
+        CardTemplateType.wordCloud => _wordCloudTextColor,
+        _ => null,
+      };
       // For t-shirts all variants are transparent (no parchment border on fabric).
       // Index 2 (white) must pass Colors.white explicitly — null falls back to
       // the original stamp colours, not white.
@@ -1087,7 +1098,7 @@ class _LocalMockupPreviewScreenState
         2 => (Colors.white, Colors.white, true), // white stamps + white text
         _ => (
           widget.stampColor,
-          null,
+          currentTemplateTextColor,
           _isTshirt || widget.transparentBackground,
         ), // multicolor/default
       };

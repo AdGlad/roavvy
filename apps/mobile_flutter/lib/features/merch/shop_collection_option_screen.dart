@@ -3,6 +3,7 @@ import 'package:shared_models/shared_models.dart';
 
 import 'merch_option_list_widgets.dart';
 import 'merch_template_ranker.dart';
+import 'merch_title_wordbank.dart';
 import 'pulse_merch_option.dart';
 
 const _kLabelToContinent = {
@@ -43,11 +44,21 @@ class ShopCollectionOptionScreen extends StatelessWidget {
 
     final continentKey = _kLabelToContinent[label];
 
+    // "$label" is used verbatim as the design's on-shirt title text
+    // (threaded through as titleOverride all the way to the printed mockup).
+    // For collections with a meaningful label (Europe, 2026 Travels, an
+    // achievement name) that reads fine, but "My Design" — the generic
+    // label from the manual country picker — is a placeholder, not a
+    // title. Swap it for the same wordbank-generated suggestion the
+    // "New suggestion" button on the next screen offers, so the first
+    // thing a player sees already reads like a real title.
     final options = ranks
         .map(
           (r) => PulseMerchOption(
             id: 'shop_${r.template.name}',
-            title: '$label · ${r.label}',
+            title: label == 'My Design'
+                ? MerchTitleWordbank.pickGeneric(codes.length, r.template.index)
+                : '$label · ${r.label}',
             description: r.label,
             scope: PulseMerchScope.allTime,
             template: r.template,

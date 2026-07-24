@@ -114,8 +114,17 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
       if (idx >= 0) _currentPage = idx;
     }
     _pageCtrl = PageController(initialPage: _currentPage);
-    // Default rows: 3 for small sets, 2 for medium, 1 for large.
-    _rowCount = widget.codes.length <= 3 ? 3 : widget.codes.length <= 8 ? 2 : 1;
+    // Default rows: a single country repeats its one flag into a full
+    // mosaic, so it reads best packed at the slider's max (10) rather than
+    // the sparse 3 rows used for a handful of distinct flags. 3 for small
+    // sets, 2 for medium, 1 for large otherwise.
+    _rowCount = widget.codes.length == 1
+        ? 10
+        : widget.codes.length <= 3
+            ? 3
+            : widget.codes.length <= 8
+                ? 2
+                : 1;
     // Preload outline paths in background.
     _preloadOutlinePaths();
     // Load animal + plant + landmark names for single-country designs to show as page labels.

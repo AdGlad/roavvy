@@ -915,7 +915,14 @@ class _GridPainter extends CustomPainter {
         transparentBackground
             ? Colors.transparent
             : CardTextRenderer.defaultStripColor;
-    final effectiveTextColor = textColor ?? CardTextRenderer.defaultTextColor;
+    // The gold default below is only right for the card's own dark-navy
+    // background. On a transparent (t-shirt) background the caller should
+    // always pass an explicit colour matching the garment — but if one
+    // slips through as null, fall back to white rather than gold, which
+    // reads as a design defect on a printed shirt.
+    final effectiveTextColor =
+        textColor ??
+        (transparentBackground ? Colors.white : CardTextRenderer.defaultTextColor);
     CardTextRenderer.drawTitle(
       canvas,
       size,
