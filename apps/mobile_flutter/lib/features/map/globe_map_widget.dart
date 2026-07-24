@@ -139,7 +139,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final enabled =
-          ref.read(globeOverlayModeProvider) == GlobeOverlayMode.heritage;
+          ref.read(mapOverlayModeProvider) == MapOverlayMode.heritage;
       final visited = ref.read(visitedHeritageProvider).valueOrNull ?? const [];
       _rebuildHeritageLists(enabled, visited);
     });
@@ -322,9 +322,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   void _onScaleUpdate(ScaleUpdateDetails d) {
     setState(() {
       if (d.pointerCount >= 2) {
-        _projection = _projection.copyWith(
-          scale: (_baseScale * d.scale).clamp(0.8, 8.0),
-        );
+        // copyWith already clamps to [GlobeProjection.minScale, maxScale].
+        _projection = _projection.copyWith(scale: _baseScale * d.scale);
       } else {
         final delta = d.focalPoint - _lastFocalPoint;
         _projection = _projection.copyWith(
@@ -360,10 +359,10 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
   void _onTapUp(TapUpDetails d) {
     if (_canvasSize == Size.zero) return;
     // Heritage and photo-heatmap taps are mutually exclusive — only the
-    // active overlay's tap targets are checked (see GlobeOverlayMode). Taps
+    // active overlay's tap targets are checked (see MapOverlayMode). Taps
     // near a heritage dot used to intercept photo-heatmap taps and vice
     // versa whenever both overlays happened to render together.
-    if (ref.read(globeOverlayModeProvider) == GlobeOverlayMode.heritage) {
+    if (ref.read(mapOverlayModeProvider) == MapOverlayMode.heritage) {
       // Visited heritage site tap — has full visit data.
       final visitedSite = _findNearestVisitedSite(d.localPosition);
       if (visitedSite != null) {
@@ -503,14 +502,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         ref.watch(countryTripCountsProvider).valueOrNull ??
         const <String, int>{};
 
-    final overlayMode = ref.watch(globeOverlayModeProvider);
-    final heritageEnabled = overlayMode == GlobeOverlayMode.heritage;
+    final overlayMode = ref.watch(mapOverlayModeProvider);
+    final heritageEnabled = overlayMode == MapOverlayMode.heritage;
     final visitedHeritage =
         ref.watch(visitedHeritageProvider).valueOrNull ??
         const <VisitedHeritageSite>[];
 
-    ref.listen<GlobeOverlayMode>(globeOverlayModeProvider, (_, mode) {
-      _rebuildHeritageLists(mode == GlobeOverlayMode.heritage, visitedHeritage);
+    ref.listen<MapOverlayMode>(mapOverlayModeProvider, (_, mode) {
+      _rebuildHeritageLists(mode == MapOverlayMode.heritage, visitedHeritage);
     });
 
     ref.listen<AsyncValue<List<VisitedHeritageSite>>>(visitedHeritageProvider, (
@@ -518,7 +517,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
       next,
     ) {
       _rebuildHeritageLists(
-        ref.read(globeOverlayModeProvider) == GlobeOverlayMode.heritage,
+        ref.read(mapOverlayModeProvider) == MapOverlayMode.heritage,
         next.valueOrNull ?? const [],
       );
     });
@@ -567,7 +566,7 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
     // Photo heatmap (mutually exclusive with heritage dots); hidden during
     // replay/scan animations.
-    final heatmapEnabled = overlayMode == GlobeOverlayMode.heatmap &&
+    final heatmapEnabled = overlayMode == MapOverlayMode.heatmap &&
         ref.watch(showPhotoThumbnailsProvider) &&
         frame == null;
     final photoLocations =

@@ -8,8 +8,67 @@ import 'package:latlong2/latlong.dart';
 import '../../core/providers.dart';
 import '../../data/photo_gps_repository.dart';
 import '../shared/thumbnail_channel.dart';
+import 'globe_projection.dart';
 import 'map_photo_viewer.dart';
 import 'thumbnail_lru_cache.dart';
+
+/// Pin visual constants shared by [PhotoPinLayer] (flat map) and
+/// [GlobeHeroPin] (3D globe) so the two render identically.
+const _kPinSize = 64.0;
+const _kPinRingWidth = 4.0;
+const _kPinTailHeight = 8.0;
+const _kPinAnchorSize = 12.0;
+
+/// Opens the full-screen viewer on [selected], positioned within the current
+/// [computeMapGalleryPhotos] sequence — shared by the flat map's
+/// [PhotoPinLayer] and the globe's [GlobeHeroPin] so tapping the pin behaves
+/// identically on both views.
+void openMapPhotoViewer(BuildContext context, WidgetRef ref, PhotoLocation selected) {
+  final locations = ref.read(photoLocationsProvider).valueOrNull ?? const [];
+  final sortAnchor = ref.read(mapGallerySortAnchorProvider);
+  final viewport = sortAnchor == null ? ref.read(mapViewportProvider) : null;
+  final gallery = computeMapGalleryPhotos(
+    locations: locations,
+    sortAnchor: sortAnchor,
+    viewport: viewport,
+  );
+  final assetIds = gallery.photos.map((p) => p.assetId).toList();
+  final idx = assetIds.indexOf(selected.assetId);
+  Navigator.of(context).push(
+    MapPhotoViewer.route(
+      assetIds: idx >= 0 ? assetIds : [selected.assetId],
+      initialIndex: idx >= 0 ? idx : 0,
+    ),
+  );
+}
+
+/// The pin's visual column — thumbnail, tail, anchor dot — shared by both
+/// [PhotoPinLayer] and [GlobeHeroPin].
+Widget _pinColumn(String assetId) {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _PinThumbnail(
+        key: ValueKey(assetId),
+        assetId: assetId,
+        size: _kPinSize,
+        ringWidth: _kPinRingWidth,
+      ),
+      // Tail connecting the pin to the anchor dot.
+      Container(width: 2.5, height: _kPinTailHeight, color: Colors.white),
+      // Dark anchor dot with a white halo ring.
+      Container(
+        width: _kPinAnchorSize,
+        height: _kPinAnchorSize,
+        decoration: BoxDecoration(
+          color: const Color(0xFF3E3F4A),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+      ),
+    ],
+  );
+}
 
 /// Google Photos-style current-photo pin: a circular thumbnail inside a thick
 /// white ring with a short tail down to a small dark anchor dot at the exact
@@ -20,76 +79,63 @@ import 'thumbnail_lru_cache.dart';
 class PhotoPinLayer extends ConsumerWidget {
   const PhotoPinLayer({super.key});
 
-  static const double _pinSize = 64.0;
-  static const double _ringWidth = 4.0;
-  static const double _tailHeight = 8.0;
-  static const double _anchorSize = 12.0;
-
-  void _openViewer(BuildContext context, WidgetRef ref, PhotoLocation selected) {
-    final locations = ref.read(photoLocationsProvider).valueOrNull ?? const [];
-    final sortAnchor = ref.read(mapGallerySortAnchorProvider);
-    final viewport = sortAnchor == null ? ref.read(mapViewportProvider) : null;
-    final gallery = computeMapGalleryPhotos(
-      locations: locations,
-      sortAnchor: sortAnchor,
-      viewport: viewport,
-    );
-    final assetIds = gallery.photos.map((p) => p.assetId).toList();
-    final idx = assetIds.indexOf(selected.assetId);
-    Navigator.of(context).push(
-      MapPhotoViewer.route(
-        assetIds: idx >= 0 ? assetIds : [selected.assetId],
-        initialIndex: idx >= 0 ? idx : 0,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(selectedMapPhotoProvider);
     if (selected == null) return const SizedBox.shrink();
 
-    const totalH = _pinSize + _tailHeight + _anchorSize;
+    const totalH = _kPinSize + _kPinTailHeight + _kPinAnchorSize;
     return MarkerLayer(
       markers: [
         Marker(
           point: LatLng(selected.lat, selected.lng),
-          width: _pinSize + _ringWidth * 2,
+          width: _kPinSize + _kPinRingWidth * 2,
           height: totalH,
           // Anchor dot (bottom of the column) sits on the coordinate.
           alignment: Alignment.topCenter,
           child: GestureDetector(
-            onTap: () => _openViewer(context, ref, selected),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _PinThumbnail(
-                  key: ValueKey(selected.assetId),
-                  assetId: selected.assetId,
-                  size: _pinSize,
-                  ringWidth: _ringWidth,
-                ),
-                // Tail connecting the pin to the anchor dot.
-                Container(
-                  width: 2.5,
-                  height: _tailHeight,
-                  color: Colors.white,
-                ),
-                // Dark anchor dot with a white halo ring.
-                Container(
-                  width: _anchorSize,
-                  height: _anchorSize,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3E3F4A),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ],
-            ),
+            onTap: () => openMapPhotoViewer(context, ref, selected),
+            child: _pinColumn(selected.assetId),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The globe equivalent of [PhotoPinLayer] — same look, same tap behaviour —
+/// projected onto the globe's screen coordinates instead of a flutter_map
+/// [Marker] (the globe is a custom canvas, not a flutter_map instance).
+/// [projection]/[canvasSize] are refreshed every frame by [GlobeMapWidget]'s
+/// `onProjectionUpdated` callback.
+class GlobeHeroPin extends ConsumerWidget {
+  const GlobeHeroPin({
+    super.key,
+    required this.projection,
+    required this.canvasSize,
+  });
+
+  final GlobeProjection projection;
+  final Size canvasSize;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(selectedMapPhotoProvider);
+    if (selected == null || canvasSize == Size.zero) {
+      return const SizedBox.shrink();
+    }
+    final pt = projection.project(selected.lat, selected.lng, canvasSize);
+    if (pt == null) return const SizedBox.shrink(); // behind the globe
+
+    const totalW = _kPinSize + _kPinRingWidth * 2;
+    const totalH = _kPinSize + _kPinTailHeight + _kPinAnchorSize;
+    return Positioned(
+      left: pt.dx - totalW / 2,
+      top: pt.dy - totalH, // anchor dot sits exactly on the projected point
+      child: GestureDetector(
+        onTap: () => openMapPhotoViewer(context, ref, selected),
+        child: _pinColumn(selected.assetId),
+      ),
     );
   }
 }

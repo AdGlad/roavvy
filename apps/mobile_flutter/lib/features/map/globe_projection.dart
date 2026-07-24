@@ -21,14 +21,21 @@ class GlobeProjection {
   /// Longitude rotation of the camera in radians.
   final double rotLng;
 
-  /// Zoom scale. 1.0 = globe fills the shorter canvas dimension. Range [0.8, 8.0].
+  /// Zoom scale. 1.0 = globe fills the shorter canvas dimension.
+  /// Range [minScale, maxScale] — wide enough to be "fully zoomable" (out
+  /// past a small dot with room for the starfield, in past any single
+  /// country) while still bounded so a wild pinch gesture can't reach a
+  /// degenerate value.
   final double scale;
+
+  static const double minScale = 0.5;
+  static const double maxScale = 50.0;
 
   GlobeProjection copyWith({double? rotLat, double? rotLng, double? scale}) =>
       GlobeProjection(
         rotLat: (rotLat ?? this.rotLat).clamp(-math.pi / 2, math.pi / 2),
         rotLng: rotLng ?? this.rotLng,
-        scale: (scale ?? this.scale).clamp(0.8, 8.0),
+        scale: (scale ?? this.scale).clamp(minScale, maxScale),
       );
 
   // ── Coordinate helpers ──────────────────────────────────────────────────────

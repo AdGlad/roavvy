@@ -31,6 +31,7 @@ import 'space_background.dart';
 import '../globe_replay/replay_entry_sheet.dart';
 import 'country_centroids.dart';
 import 'globe_map_widget.dart';
+import 'globe_projection.dart';
 import '../challenge/challenge_stats_screen.dart';
 import '../challenge/daily_challenge_screen.dart';
 import '../heritage/unesco_nearby_explorer_screen.dart';
@@ -321,11 +322,11 @@ class MapScreen extends ConsumerWidget {
     });
 
     final globeMode = ref.watch(globeModeProvider);
-    final globeOverlayMode = ref.watch(globeOverlayModeProvider);
-    // The photo gallery panel shows on the flat map always, and on the globe
-    // only in heatmap mode (heritage mode shows the visited-flag strip
-    // instead — see the body Stack below).
-    final showPhotoGrid = !globeMode || globeOverlayMode == GlobeOverlayMode.heatmap;
+    final overlayMode = ref.watch(mapOverlayModeProvider);
+    // The photo gallery panel shows in heatmap mode on EITHER view; heritage
+    // mode shows the visited-flag strip instead — see the body Stack below.
+    // Shared mode so switching between globe and flat map keeps your choice.
+    final showPhotoGrid = overlayMode == MapOverlayMode.heatmap;
     final photoPanelExpanded = ref.watch(mapPhotoPanelExpandedProvider);
     final photoGridH = showPhotoGrid
         ? MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded)
@@ -352,9 +353,10 @@ class MapScreen extends ConsumerWidget {
           if (mapIsDark) const StarfieldBackground(),
 
           if (globeMode)
-            GlobeMapWidget(
+            _GlobeWithHeroPin(
               onCountryTap:
                   (code) => _onGlobeTap(context, ref, code, visitedByCode),
+              showHeroPin: overlayMode == MapOverlayMode.heatmap,
             )
           else
             FlutterMap(
@@ -368,6 +370,14 @@ class MapScreen extends ConsumerWidget {
                     mapIsDark
                         ? const Color(0xFF0D2137) // dark ocean blue
                         : const Color(0xFFB8D4E8), // light ocean blue
+                // Rotation left out deliberately — a two-finger twist gesture
+                // could otherwise skew the map off the horizontal with no way
+                // back to level short of restarting the gesture. Every other
+                // default interaction (drag, pinch-zoom, fling, double-tap
+                // zoom) is preserved.
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
                 onTap:
                     (pos, latlng) =>
                         _onMapTap(context, ref, visitedByCode, pos, latlng),
@@ -381,16 +391,22 @@ class MapScreen extends ConsumerWidget {
                   );
                 },
               ),
-              children: const [
-                CountryPolygonLayer(),
-                TargetCountryLayer(),
-                RegionChipsMarkerLayer(),
-                WorldHeritageMarkerLayer(),
-                PhotoHeatmapLayer(),
-                // Google Photos-style: no thumbnail clusters — a heatmap at
-                // every zoom plus anchor dots and a single photo pin.
-                PhotoAnchorDotsLayer(),
-                PhotoPinLayer(),
+              children: [
+                const CountryPolygonLayer(),
+                const TargetCountryLayer(),
+                const RegionChipsMarkerLayer(),
+                // Heritage markers and the photo heatmap compete for the same
+                // visual space and tap targets — mutually exclusive, same as
+                // the globe (see MapOverlayMode).
+                if (overlayMode == MapOverlayMode.heritage)
+                  const WorldHeritageMarkerLayer()
+                else ...[
+                  const PhotoHeatmapLayer(),
+                  // Google Photos-style: no thumbnail clusters — a heatmap at
+                  // every zoom plus anchor dots and a single photo pin.
+                  const PhotoAnchorDotsLayer(),
+                  const PhotoPinLayer(),
+                ],
               ],
             ),
 
@@ -435,7 +451,7 @@ class MapScreen extends ConsumerWidget {
                   ),
                   if (showPhotoGrid)
                     const MapPhotoStrip()
-                  else if (globeMode && visitedByCode.isNotEmpty)
+                  else if (visitedByCode.isNotEmpty)
                     _VisitedCountryFlagStrip(visits: filteredVisits),
                   const TimelineScrubberBar(),
                 ],
@@ -481,13 +497,14 @@ class MapScreen extends ConsumerWidget {
                 final baseBottom = isLandscape ? 100.0 : photoGridH + 56;
                 return Stack(
                   children: [
-                    // Top→bottom in globe mode: heatmap, view toggle, rotation.
-                    if (globeMode)
-                      Positioned(
-                        bottom: baseBottom + 104,
-                        right: 12,
-                        child: const _GlobeHeatmapToggle(),
-                      ),
+                    // Heatmap/heritage overlay toggle — available on both
+                    // views (see MapOverlayMode). Top→bottom in globe mode:
+                    // overlay toggle, view toggle, rotation.
+                    Positioned(
+                      bottom: globeMode ? baseBottom + 104 : baseBottom + 52,
+                      right: 12,
+                      child: const _MapOverlayModeToggle(),
+                    ),
                     Positioned(
                       bottom: globeMode ? baseBottom + 52 : baseBottom,
                       right: 12,
@@ -1309,6 +1326,58 @@ class _ActionBtn extends StatelessWidget {
 
 // ── Daily Challenge chip ───────────────────────────────────────────────────────
 
+// ── Globe + hero pin wrapper ─────────────────────────────────────────────────
+
+/// Hosts [GlobeMapWidget] plus [GlobeHeroPin] (the globe's equivalent of the
+/// flat map's [PhotoPinLayer]), fed by the globe's per-frame projection via
+/// `onProjectionUpdated`. Kept in a small stateful wrapper — rather than
+/// setState-ing the whole (stateless) MapScreen every frame — so only the
+/// pin itself rebuilds as the globe rotates/zooms.
+class _GlobeWithHeroPin extends StatefulWidget {
+  const _GlobeWithHeroPin({
+    required this.onCountryTap,
+    required this.showHeroPin,
+  });
+
+  final void Function(String isoCode) onCountryTap;
+  final bool showHeroPin;
+
+  @override
+  State<_GlobeWithHeroPin> createState() => _GlobeWithHeroPinState();
+}
+
+class _GlobeWithHeroPinState extends State<_GlobeWithHeroPin> {
+  final _projectionNotifier = ValueNotifier<(GlobeProjection, Size)>(
+    (const GlobeProjection(), Size.zero),
+  );
+
+  @override
+  void dispose() {
+    _projectionNotifier.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        GlobeMapWidget(
+          onCountryTap: widget.onCountryTap,
+          onProjectionUpdated: (projection, canvasSize) {
+            _projectionNotifier.value = (projection, canvasSize);
+          },
+        ),
+        if (widget.showHeroPin)
+          ValueListenableBuilder<(GlobeProjection, Size)>(
+            valueListenable: _projectionNotifier,
+            builder: (context, value, _) =>
+                GlobeHeroPin(projection: value.$1, canvasSize: value.$2),
+          ),
+      ],
+    );
+  }
+}
+
 // ── Globe rotation toggle ─────────────────────────────────────────────────────
 
 /// Small pause / play button in the top-left corner of the globe.
@@ -1336,16 +1405,17 @@ class _GlobeRotationToggle extends ConsumerWidget {
   }
 }
 
-/// Cycles the globe's optional overlay between the Google Photos-style photo
-/// heatmap and UNESCO heritage site dots (mutually exclusive — see
-/// [GlobeOverlayMode]). Gold when the heatmap is active.
-class _GlobeHeatmapToggle extends ConsumerWidget {
-  const _GlobeHeatmapToggle();
+/// Cycles the map's optional overlay between the Google Photos-style photo
+/// heatmap and UNESCO heritage site markers (mutually exclusive — see
+/// [MapOverlayMode]). Shared between the globe and the flat map, so
+/// switching views keeps the same choice. Gold when the heatmap is active.
+class _MapOverlayModeToggle extends ConsumerWidget {
+  const _MapOverlayModeToggle();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(globeOverlayModeProvider);
-    final isHeatmap = mode == GlobeOverlayMode.heatmap;
+    final mode = ref.watch(mapOverlayModeProvider);
+    final isHeatmap = mode == MapOverlayMode.heatmap;
     return Material(
       color: Colors.black45,
       shape: const CircleBorder(),
@@ -1358,8 +1428,8 @@ class _GlobeHeatmapToggle extends ConsumerWidget {
         tooltip: isHeatmap
             ? 'Showing photo heatmap — tap for UNESCO sites'
             : 'Showing UNESCO sites — tap for photo heatmap',
-        onPressed: () => ref.read(globeOverlayModeProvider.notifier).state =
-            isHeatmap ? GlobeOverlayMode.heritage : GlobeOverlayMode.heatmap,
+        onPressed: () => ref.read(mapOverlayModeProvider.notifier).state =
+            isHeatmap ? MapOverlayMode.heritage : MapOverlayMode.heatmap,
       ),
     );
   }

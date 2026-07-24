@@ -166,10 +166,16 @@ void main() {
       expect(updated.rotLat, closeTo(math.pi / 2, 0.001));
     });
 
-    test('scale is clamped to [0.8, 8.0]', () {
+    test('scale is clamped to [minScale, maxScale]', () {
       const proj = GlobeProjection();
-      expect(proj.copyWith(scale: 0.1).scale, closeTo(0.8, 0.001));
-      expect(proj.copyWith(scale: 100.0).scale, closeTo(8.0, 0.001));
+      expect(
+        proj.copyWith(scale: 0.1).scale,
+        closeTo(GlobeProjection.minScale, 0.001),
+      );
+      expect(
+        proj.copyWith(scale: 1000.0).scale,
+        closeTo(GlobeProjection.maxScale, 0.001),
+      );
     });
   });
 }
