@@ -2,12 +2,18 @@
 // SlingshotWidget's actual gesture handling with a real WorldLeapController
 // (fake daily service + repository, no network/Firestore needed):
 //
-//   1. Drag, release → aim FREEZES (does not fire, does not snap to zero).
+//   1. Drag, release → aim FREEZES (does not fire, does not snap to zero),
+//      and hasConfirmedAim (which drives the FIRE button) becomes true.
 //   2. Drag again (a second, independent touch) → the frozen aim is ADJUSTED
 //      (baseline + new segment), not restarted from zero.
 //   3. Release again → still frozen, ready-to-fire state reflects the
 //      adjusted aim.
-//   4. Classic mode (beginnerMode: false), for contrast, fires immediately on
+//   4. hasConfirmedAim survives the countdown timer's per-second
+//      notifyListeners() tick — regression test for a bug where the FIRE
+//      button (and the map's trajectory preview) flickered because
+//      WorldLeapMapWidget's Aiming-branch reset re-ran on every notify, not
+//      just on a real transition into Aiming.
+//   5. Classic mode (beginnerMode: false), for contrast, fires immediately on
 //      release with no persisted aim.
 
 import 'package:flutter/material.dart';
@@ -114,17 +120,28 @@ void main() {
       await gesture1.up();
       await tester.pump();
 
-      // Beginner mode must NOT have fired — still aiming, with a real aim.
+      // Beginner mode must NOT have fired — still aiming, with a real aim,
+      // and the FIRE button's affordance is now up.
       final firstAim = _aim(controller);
       expect(firstAim.bearingDeg, isNotNull);
       expect(firstAim.power, isNotNull);
       expect(firstAim.power, greaterThan(0));
+      expect(controller.hasConfirmedAim, isTrue);
 
       // The frozen pull must still be visible (not snapped back to zero) —
       // the painter reads this via the widget's own state, so drive another
       // frame and confirm the widget is still rendering the aiming UI at all
       // (build() only renders while state is Aiming).
       expect(find.byType(SlingshotWidget), findsOneWidget);
+
+      // Regression check: the countdown timer ticks every second and calls
+      // notifyListeners() without ever leaving Aiming. hasConfirmedAim (and
+      // the FIRE button it drives) must survive that — it previously did
+      // not, because WorldLeapMapWidget's Aiming-branch reset re-ran on
+      // every such notify.
+      await tester.pump(const Duration(seconds: 2));
+      expect(controller.hasConfirmedAim, isTrue);
+      expect(controller.state, isA<WorldLeapStateAiming>());
 
       // 2. Second, independent drag (simulates releasing and touching down
       // again to nudge the aim) — must ADJUST the frozen baseline, not
@@ -143,8 +160,9 @@ void main() {
       // frozen baseline instead of restarting a fresh (20, 0) pull.
       expect(secondAim.power!, greaterThan(firstAim.power!));
 
-      // Still aiming (never fired) — ready for an explicit FIRE action.
+      // Still aiming (never fired), FIRE button still up.
       expect(controller.state, isA<WorldLeapStateAiming>());
+      expect(controller.hasConfirmedAim, isTrue);
 
       // Dispose synchronously (cancels the countdown timer) — addTearDown
       // callbacks run after Flutter's pending-timer check, too late to help.

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_flutter/features/world_leap/application/world_leap_providers.dart';
 import 'package:mobile_flutter/features/world_leap/application/world_leap_state.dart';
 import 'package:mobile_flutter/features/world_leap/domain/models/world_leap_camera_mode.dart';
-import 'package:mobile_flutter/features/world_leap/world_leap_config.dart';
 import 'package:mobile_flutter/features/world_leap/domain/services/world_leap_geo_service.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_map_widget.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/slingshot_widget.dart';
@@ -670,13 +669,15 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                       ),
                     ),
 
-                    // FIRE button (beginner mode only) — appears once a
-                    // release has frozen an aim; confirms and fires the shot.
+                    // FIRE button (beginner mode only) — appears once the
+                    // first aim is confirmed and stays up through any number
+                    // of re-aim adjustments until the shot is actually fired.
+                    // Driven by the explicit hasConfirmedAim flag rather than
+                    // live bearing/power, which dip transiently mid-adjustment
+                    // and would otherwise make the button flicker.
                     if (controller.beginnerMode &&
                         currentState is WorldLeapStateAiming &&
-                        currentState.bearingDeg != null &&
-                        (currentState.power ?? 0) >=
-                            WorldLeapConfig.minLaunchPower)
+                        controller.hasConfirmedAim)
                       Positioned(
                         bottom: isLandscape ? 16 : 130,
                         left: 0,

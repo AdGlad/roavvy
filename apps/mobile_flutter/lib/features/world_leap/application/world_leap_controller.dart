@@ -177,6 +177,16 @@ class WorldLeapController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// True once the player has released at least one aim in beginner mode
+  /// (via [confirmAim]) and it hasn't been fired yet. Drives the FIRE
+  /// button's visibility directly and explicitly — deliberately NOT inferred
+  /// from bearing/power thresholds, which dip transiently while the player is
+  /// mid-drag adjusting an already-confirmed aim and would otherwise make the
+  /// button flicker. Persists across any number of re-aim drags until
+  /// [launch] fires or a fresh turn begins.
+  bool _hasConfirmedAim = false;
+  bool get hasConfirmedAim => _hasConfirmedAim;
+
   /// Notifier for aim-only updates (bearing/power) that fire at pointer-move
   /// frequency (~60Hz). Widgets that only care about game state transitions
   /// should listen to this controller via [addListener]; widgets that need
@@ -522,6 +532,7 @@ class WorldLeapController extends ChangeNotifier {
   /// game state — [launch] is still required to actually fire.
   void confirmAim() {
     if (_state is! WorldLeapStateAiming) return;
+    _hasConfirmedAim = true;
     notifyListeners();
   }
 
@@ -530,6 +541,7 @@ class WorldLeapController extends ChangeNotifier {
     final current = _state;
     if (current is! WorldLeapStateAiming) return;
 
+    _hasConfirmedAim = false;
     _cancelCountdown();
     aimNotifier.value = null;
 
@@ -699,6 +711,7 @@ class WorldLeapController extends ChangeNotifier {
   Future<void> resetRun() async {
     _cancelCountdown();
     _comboStreak = 0;
+    _hasConfirmedAim = false;
     try {
       await _repository.deleteRun(_userId, _date);
     } catch (_) {

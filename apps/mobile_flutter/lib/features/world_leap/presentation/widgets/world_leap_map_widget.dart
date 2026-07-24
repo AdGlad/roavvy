@@ -124,6 +124,15 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   List<LatLng> _missLine = [];
   bool _hasFlownToOrigin = false;
 
+  // Tracks the controller's PREVIOUS state so _onStateChanged can tell a real
+  // transition into Aiming apart from a same-state notify (the countdown
+  // timer ticks every second, and confirmAim() in beginner mode also
+  // notifies, without the state ever leaving Aiming). Without this guard the
+  // Aiming branch's reset — in particular _trajectoryNotifier.value = [] —
+  // re-ran on every such notify, wiping the aim/trajectory preview seconds
+  // (or, for confirmAim, instantly) after the player released it.
+  WorldLeapState? _prevControllerState;
+
   // ── Public API (called from screen) ─────────────────────────────────────────
 
   void zoomIn() {
@@ -315,6 +324,12 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   void _onStateChanged() {
     if (!mounted) return;
     final state = widget.controller.state;
+    // Countdown ticks and confirmAim() (beginner mode) call notifyListeners()
+    // without ever leaving Aiming — only run the "fresh turn" reset below on
+    // an actual transition INTO Aiming, not every notify while already there.
+    final justEnteredAiming =
+        state is WorldLeapStateAiming && _prevControllerState is! WorldLeapStateAiming;
+    _prevControllerState = state;
 
     // Rebuild polygon caches whenever state (and thus run) changes.
     final run = _runFromState(state);
@@ -329,12 +344,14 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
         _hasFlownToOrigin = true;
         _flyToShowBoth();
       }
-      _flightController.stop();
-      setState(() {
-        _isLaunching = false;
-        _missLine = [];
-      });
-      _trajectoryNotifier.value = [];
+      if (justEnteredAiming) {
+        _flightController.stop();
+        setState(() {
+          _isLaunching = false;
+          _missLine = [];
+        });
+        _trajectoryNotifier.value = [];
+      }
     } else if (state is WorldLeapStateLaunching) {
       _updateTrajectoryFromLaunching(state);
       setState(() {
