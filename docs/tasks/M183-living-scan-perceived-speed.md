@@ -1,6 +1,6 @@
 # M183 — Living Scan: Perceived Speed
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-25
 **Updated:** 2026-07-25
 **Depends on:** none (native change in T1 unblocks the rest)
