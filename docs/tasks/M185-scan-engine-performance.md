@@ -1,6 +1,6 @@
 # M185 — Scan Engine Performance
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-25
 **Updated:** 2026-07-25
 **Depends on:** none (pure engine; no UI coupling)
