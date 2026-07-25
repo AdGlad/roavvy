@@ -377,6 +377,13 @@ private extension AppDelegate {
             let inspected = assets.count
             var withLocation = 0
 
+            // M183 T1: emit the (already sinceDate-filtered) estimated total
+            // up-front so the Dart layer can show determinate progress
+            // ("reading N of M memories") instead of an indeterminate spinner.
+            DispatchQueue.main.async {
+                sink(["type": "started", "estimatedTotal": inspected] as [String: Any])
+            }
+
             // Collect GPS records, flushing in batches to keep memory bounded.
             let batchSize = 50
             let isoFormatter = ISO8601DateFormatter()

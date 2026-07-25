@@ -811,6 +811,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final allPhotoDates = <PhotoDateRecord>[];
       final allPhotoGps = <PhotoGpsRecord>[];
       var totalProcessed = 0;
+      // M183: estimated total from ScanStartedEvent, once it arrives. Stays
+      // null (indeterminate-bar fallback) if the event never comes.
+      int? estimatedTotal;
 
       // M185 T3: incremental trip-inference state — see extendOpenTripRun /
       // tripsIncludingOpenTail. Replaces repeated full-history inferTrips
@@ -831,7 +834,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _crumb('native-scan-stream-opened');
       await for (final event in scanStream) {
         if (_cancelled) break;
-        if (event is ScanBatchEvent) {
+        if (event is ScanStartedEvent) {
+          // M183 T2: arrives before any batch — seed the estimate so the
+          // very first progress render already knows the total, rather than
+          // waiting for batch 1 to also carry it.
+          estimatedTotal = event.estimatedTotal;
+          if (mounted) {
+            setState(() {
+              _scanProgress = _ScanProgress(
+                processed: totalProcessed,
+                countriesFound: _liveNewEntries.length,
+                estimatedTotal: estimatedTotal,
+              );
+            });
+          }
+        } else if (event is ScanBatchEvent) {
           // T3 (ADR-129) + M185 T2: resolve the whole batch once. Photos
           // already recorded by assetId are excluded from accum/photoDates
           // inside resolveBatch (knownAssetIds), but GPS is still collected
@@ -947,6 +964,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               _scanProgress = _ScanProgress(
                 processed: totalProcessed,
                 countriesFound: _liveNewEntries.length,
+                estimatedTotal: estimatedTotal,
               );
               // _liveNewEntries is updated in-place; setState triggers rebuild.
               // Update live heritage count from whsAccum (T2, M123).
@@ -1703,9 +1721,18 @@ class _WebFallbackView extends StatelessWidget {
 // ── Progress ───────────────────────────────────────────────────────────────────
 
 class _ScanProgress {
-  const _ScanProgress({required this.processed, this.countriesFound = 0});
+  const _ScanProgress({
+    required this.processed,
+    this.countriesFound = 0,
+    this.estimatedTotal,
+  });
   final int processed;
   final int countriesFound;
+
+  /// Estimated total photo count from [ScanStartedEvent], or null before it
+  /// arrives / when the native layer doesn't emit one (M183). Drives the
+  /// determinate progress bar and "N of M memories" counter when known.
+  final int? estimatedTotal;
 }
 
 // ── Discovery entry ────────────────────────────────────────────────────────────
@@ -2041,10 +2068,34 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
     final progress = widget.progress;
     final processed = progress?.processed ?? 0;
     final countriesFound = progress?.countriesFound ?? 0;
+    final estimatedTotal = progress?.estimatedTotal;
+
+    // M183 T3: determinate once the estimate arrives; graceful indeterminate
+    // fallback (value: null) otherwise. Capped at 99% until the scan
+    // actually finishes \u2014 the estimate can slightly undercount if photos
+    // are added mid-scan, and the header disappears entirely on completion
+    // (isScanning flips false) so there's no "stuck bar" moment to bridge.
+    final hasEstimate = estimatedTotal != null && estimatedTotal > 0;
+    final fraction =
+        hasEstimate ? (processed / estimatedTotal).clamp(0.0, 0.99) : null;
+    final percentComplete = hasEstimate ? processed / estimatedTotal : null;
 
     String headline;
     if (processed == 0) {
-      headline = 'Discovering your world\u2026';
+      // M183 T4: distinct warm-up copy for the pre-first-batch gap \u2014 reads
+      // as "getting ready" rather than a dead spinner.
+      headline = 'Warming up your travel story\u2026';
+    } else if (percentComplete != null) {
+      // M183 T5: phase thresholds driven by % complete when the estimate is
+      // known, so headline pacing scales with library size instead of
+      // fixed raw-count thresholds tuned for one typical size.
+      if (percentComplete < 0.33) {
+        headline = 'Discovering your world\u2026';
+      } else if (percentComplete < 0.80) {
+        headline = 'Building your travel story\u2026';
+      } else {
+        headline = 'Almost there\u2026';
+      }
     } else if (countriesFound < 3 && processed < 5000) {
       headline = 'Discovering your world\u2026';
     } else if (processed < 15000) {
@@ -2054,6 +2105,13 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
     }
 
     final subtitleParts = <String>[];
+    if (hasEstimate && processed > 0) {
+      // M183 T3: live "N of M memories" counter, comma-formatted.
+      subtitleParts.add(
+        'Reading ${_ScanStatsBar._fmtN(processed)} of '
+        '${_ScanStatsBar._fmtN(estimatedTotal)} memories',
+      );
+    }
     if (countriesFound > 0) {
       subtitleParts.add(
         '$countriesFound ${countriesFound == 1 ? 'country' : 'countries'} found',
@@ -2066,7 +2124,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
         SizedBox(
           height: 2,
           child: LinearProgressIndicator(
-            value: null,
+            value: fraction,
             color: theme.colorScheme.primary,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
           ),

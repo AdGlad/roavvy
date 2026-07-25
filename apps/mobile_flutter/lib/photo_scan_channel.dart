@@ -70,11 +70,29 @@ sealed class ScanEvent {
 
   factory ScanEvent.fromMap(Map<String, dynamic> m) {
     return switch (m['type'] as String?) {
+      'started' => ScanStartedEvent.fromMap(m),
       'batch' => ScanBatchEvent.fromMap(m),
       'done' => ScanDoneEvent.fromMap(m),
       final t => throw ArgumentError('Unknown scan event type: $t'),
     };
   }
+}
+
+/// Emitted once, before any [ScanBatchEvent], carrying the estimated total
+/// photo count — the (already `sinceDate`-filtered) `PHFetchResult.count` —
+/// so the Dart layer can show determinate progress instead of an
+/// indeterminate spinner (M183).
+///
+/// Optional by design: older/mocked event streams that never emit this are
+/// tolerated gracefully — [_ScanProgress.estimatedTotal] simply stays null
+/// and the UI falls back to an indeterminate bar.
+class ScanStartedEvent extends ScanEvent {
+  const ScanStartedEvent({required this.estimatedTotal});
+
+  factory ScanStartedEvent.fromMap(Map<String, dynamic> m) =>
+      ScanStartedEvent(estimatedTotal: m['estimatedTotal'] as int? ?? 0);
+
+  final int estimatedTotal;
 }
 
 /// A batch of raw per-photo GPS records streamed from Swift.
