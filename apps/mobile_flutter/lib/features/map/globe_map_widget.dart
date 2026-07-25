@@ -582,9 +582,16 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
         _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
 
         // Notify sibling overlay of the current projection after each frame
-        // so it can position photo thumbnails accurately (M169).
+        // so it can position photo thumbnails accurately (M169). Must match
+        // whatever GlobePainter below is actually painted with — during a
+        // replay/scan that's frame.projection, not the widget's own
+        // interactively-driven _projection (which keeps idle-spinning in
+        // the background via _onRotationTick regardless of whether a
+        // replay is active). Reporting plain _projection here left the
+        // hero pin tracking a value completely decoupled from the globe's
+        // real on-screen rotation during scans.
         if (widget.onProjectionUpdated != null) {
-          final snap = _projection;
+          final snap = frame?.projection ?? _projection;
           final size = _canvasSize;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) widget.onProjectionUpdated!(snap, size);
