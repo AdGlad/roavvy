@@ -407,6 +407,21 @@ def serve_file(source_key: str, filepath: str):
     return Response(path.read_bytes(), media_type=mt)
 
 
+@app.get("/api/factory_file/{kind}/{id_}")
+def serve_factory_file(kind: str, id_: str):
+    """Serves the factory PNG/SVG for id_ directly, resolved from its own
+    category -- independent of whichever source is currently selected in the
+    sidebar. See _build_single_record for why this exists.
+    """
+    if kind not in ("png", "svg"):
+        raise HTTPException(415, "Only png and svg supported")
+    path = _factory_png(id_) if kind == "png" else _factory_svg(id_)
+    if not path.exists():
+        raise HTTPException(404, "File not found")
+    mt = "image/png" if kind == "png" else "image/svg+xml"
+    return Response(path.read_bytes(), media_type=mt)
+
+
 # ── List / filter ─────────────────────────────────────────────────────────────
 
 @app.get("/api/silhouettes")
@@ -462,7 +477,7 @@ def list_countries():
 
 @app.get("/api/silhouette/{id_}")
 def get_silhouette(id_: str):
-    m = _by_id.get(id_)
+    m = _by_id.get(id_) or _build_single_record(id_)
     if not m:
         raise HTTPException(404, "Not found")
     return JSONResponse(m)
@@ -509,6 +524,38 @@ def _id_is_known(id_: str) -> bool:
     """True if id_ is either a file-backed record or a registered-but-not-
     yet-uploaded option in animal_slugs.json."""
     return id_ in _by_id or _category_for_id(id_) is not None
+
+
+def _build_single_record(id_: str) -> dict | None:
+    """Resolves a full record for id_ directly from its own category and
+    factory files -- independent of _current_source. _by_id only reflects
+    whichever source is currently selected in the sidebar, so acting on an
+    item whose category that source doesn't cover (e.g. adding a landmark
+    while browsing "Live app — Animals") would otherwise 404 here even
+    though the upload/regenerate itself succeeded. Returns None if id_ isn't
+    a registered option at all.
+    """
+    category = _category_for_id(id_)
+    if category is None:
+        return None
+    cc, slug = _split_id(id_)
+    name = _name_maps.get(category, {}).get(id_) or _display_name(slug)
+    png = _factory_png(id_)
+    svg = _factory_svg(id_)
+    has_png = png.exists()
+    has_svg = svg.exists()
+    return {
+        "id": id_,
+        "display_name": name,
+        "country": _country_name(cc),
+        "iso_code": cc,
+        "category": category,
+        "in_app": True,
+        "has_svg": has_svg,
+        "has_png": has_png,
+        "svg_url": f"/api/factory_file/svg/{id_}" if has_svg else None,
+        "png_url": f"/api/factory_file/png/{id_}" if has_png else None,
+    }
 
 
 def _category_dirs(id_: str) -> tuple[str, str, str]:
@@ -590,19 +637,8 @@ def add_option(
     _rebuild()
 
     id_ = f"{cc.lower()}_{slug}"
-    placeholder = {
-        "id": id_,
-        "display_name": name,
-        "country": _country_name(cc),
-        "iso_code": cc,
-        "category": category,
-        "in_app": True,
-        "has_svg": False,
-        "has_png": False,
-        "svg_url": None,
-        "png_url": None,
-    }
-    return JSONResponse({"ok": True, **placeholder, **_by_id.get(id_, {})})
+    record = _by_id.get(id_) or _build_single_record(id_) or {}
+    return JSONResponse({"ok": True, **record})
 
 
 @app.post("/api/regenerate/{id_}")
@@ -627,7 +663,7 @@ def regenerate(
         raise HTTPException(500, f"Vectorisation failed: {exc}")
     _refresh_local_cache(id_, svg)
     _rebuild()
-    return JSONResponse({"ok": True, **_by_id.get(id_, {})})
+    return JSONResponse({"ok": True, **(_by_id.get(id_) or _build_single_record(id_) or {})})
 
 
 @app.post("/api/upload_png/{id_}")
@@ -643,7 +679,7 @@ async def upload_png(id_: str, file: UploadFile):
         raise HTTPException(422, "Not a valid image file")
     png.write_bytes(data)
     _rebuild()
-    return JSONResponse({"ok": True, **_by_id.get(id_, {})})
+    return JSONResponse({"ok": True, **(_by_id.get(id_) or _build_single_record(id_) or {})})
 
 
 @app.post("/api/upload_photo/{id_}")
@@ -668,7 +704,7 @@ async def upload_photo(id_: str, file: UploadFile):
     png.parent.mkdir(parents=True, exist_ok=True)
     png.write_bytes(mask_png_bytes)
     _rebuild()
-    return JSONResponse({"ok": True, **_by_id.get(id_, {})})
+    return JSONResponse({"ok": True, **(_by_id.get(id_) or _build_single_record(id_) or {})})
 
 
 @app.post("/api/publish/{id_}")
@@ -699,7 +735,8 @@ def publish(id_: str):
     _refresh_local_cache(id_, svg)
 
     _rebuild()
-    return JSONResponse({"ok": True, "bucket_path": bucket_path, **_by_id.get(id_, {})})
+    record = _by_id.get(id_) or _build_single_record(id_) or {}
+    return JSONResponse({"ok": True, "bucket_path": bucket_path, **record})
 
 
 @app.post("/api/rotate/{id_}")

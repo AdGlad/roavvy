@@ -2866,6 +2866,10 @@
       {
         "name": "Anse Source d'Argent granite boulders",
         "slug": "anse_source_d_argent_granite_boulders"
+      },
+      {
+        "name": "clock tower",
+        "slug": "clock_tower"
       }
     ]
   },
