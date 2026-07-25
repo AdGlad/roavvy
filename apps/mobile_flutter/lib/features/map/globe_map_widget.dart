@@ -564,13 +564,18 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     final overlayActive = ref.watch(globeOverlayProvider).isActive;
     final frame = overlayActive ? ref.watch(replayGlobeFrameProvider) : null;
 
-    // Photo heatmap (mutually exclusive with heritage dots); hidden during
-    // replay/scan animations.
+    // Photo heatmap (mutually exclusive with heritage dots). During a live
+    // scan (M182 T5), the frame carries its own live-accumulated heat
+    // points instead of the resting persisted-data provider — historical
+    // replay's frame.photoLocations is always empty, so this naturally
+    // shows no heat there, unchanged from before.
     final heatmapEnabled = overlayMode == MapOverlayMode.heatmap &&
-        ref.watch(showPhotoThumbnailsProvider) &&
-        frame == null;
-    final photoLocations =
-        heatmapEnabled ? ref.watch(photoLocationsProvider).valueOrNull : null;
+        ref.watch(showPhotoThumbnailsProvider);
+    final photoLocations = !heatmapEnabled
+        ? null
+        : frame != null
+            ? (frame.photoLocations.isEmpty ? null : frame.photoLocations)
+            : ref.watch(photoLocationsProvider).valueOrNull;
 
     return LayoutBuilder(
       builder: (context, constraints) {

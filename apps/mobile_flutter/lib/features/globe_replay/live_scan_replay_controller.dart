@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../data/photo_gps_repository.dart' show PhotoLocation;
 import '../map/globe_projection.dart';
 import 'replay_audio_controller.dart';
 import 'replay_data_source.dart';
@@ -82,6 +83,25 @@ class LiveScanReplayController extends ChangeNotifier {
 
   /// Approximate number of [CountryDiscoveredEvent]s waiting in the queue.
   int get queuedLegCount => _pendingLegCount;
+
+  /// Live-accumulated GPS points for the overlay's heat map (M182 T5) — one
+  /// per non-null leg endpoint as [CountryDiscoveredEvent]s arrive. A coarser
+  /// signal than the in-screen [_ScanningView]'s per-photo accumulation
+  /// (only leg endpoints are available here, not every photo), but reuses
+  /// the same [GlobeHeatmapData] pathway so the overlay globe heats up too.
+  ///
+  /// Mutated in place — consumers that need [GlobeHeatmapData]'s
+  /// identity-keyed cache to behave correctly (only recompute when there's
+  /// genuinely new data, not every animation frame) should snapshot this
+  /// list into a new reference only when [heatPointsVersion] changes, not
+  /// read it directly every build.
+  final List<PhotoLocation> heatPoints = [];
+
+  /// Incremented every time [heatPoints] gains a new point. Lets consumers
+  /// detect "did the data actually change" without comparing list identity
+  /// (which never changes here) or contents (which would be O(n) every
+  /// frame).
+  int heatPointsVersion = 0;
 
   /// Year currently shown on the year-banner overlay (null when not showing).
   int? activeYearBanner;
@@ -165,6 +185,17 @@ class LiveScanReplayController extends ChangeNotifier {
         _showYearBanner(e.year);
       case CountryDiscoveredEvent e:
         _pendingLegCount = (_pendingLegCount - 1).clamp(0, 9999);
+        // M182 T5: accumulate leg endpoints for the overlay heat map.
+        var heatPointAdded = false;
+        if (e.fromLat != null && e.fromLng != null) {
+          heatPoints.add(PhotoLocation('', e.fromLat!, e.fromLng!));
+          heatPointAdded = true;
+        }
+        if (e.toLat != null && e.toLng != null) {
+          heatPoints.add(PhotoLocation('', e.toLat!, e.toLng!));
+          heatPointAdded = true;
+        }
+        if (heatPointAdded) heatPointsVersion++;
         _runLeg(
           TravelLeg(
             fromCode: e.fromCode,

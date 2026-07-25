@@ -18,6 +18,7 @@ import '../../core/providers.dart';
 import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
+import '../map/globe_photo_heatmap.dart';
 import '../map/globe_projection.dart';
 import '../xp/xp_event.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +27,7 @@ import '../../core/notification_service.dart';
 import '../../data/achievement_repository.dart';
 import '../../data/firestore_sync_service.dart';
 import '../../data/heritage_repository.dart';
+import '../../data/photo_gps_repository.dart' show PhotoLocation;
 import '../../data/region_repository.dart';
 import '../../data/trip_repository.dart';
 import '../../data/visit_repository.dart';
@@ -547,6 +549,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// colour-coding (cultural=amber, natural=green) and tap-tooltip (M128).
   List<VisitedHeritageSite> _liveHeritageSites = const [];
 
+  /// Live-accumulated photo GPS points for the scan globe's heat map (M182).
+  /// Replaced (new list reference) once per batch, never mutated in place —
+  /// see [_ScanGlobeWidget.photoLocations] for why identity matters here.
+  List<PhotoLocation> _liveHeatPoints = const [];
+
   /// Persistent resolver isolate for the current scan (M185). Spawned in
   /// [_scan] before the batch loop starts; null when [widget.batchResolver]
   /// is supplied (widget tests bypass the isolate entirely) or when no scan
@@ -727,6 +734,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _achievementsUnlockedInOrder.clear();
       _liveTripCount = 0;
       _liveHeritageSites = const [];
+      _liveHeatPoints = const [];
       // Pre-populate with thresholds already satisfied by existing countries
       // so we only toast achievements that are NEW during this scan (T1, M125).
       _achievementsToastedThisScan
@@ -1017,6 +1025,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               _liveTripCount = batchTrips.length;
               // T1, M126/M128: thread heritage sites for colour-coded globe dots.
               _liveHeritageSites = whsAccum.values.toList();
+              // M182 T2: heat data — new list reference once per batch (not
+              // mutated in place) so GlobeHeatmapData's identity-keyed cache
+              // recomputes exactly when there's actually new data, and the
+              // expensive KDE pass itself is already capped regardless of
+              // input size (GlobeHeatmapData._maxDensityPts).
+              _liveHeatPoints =
+                  allPhotoGps
+                      .map((g) => PhotoLocation('', g.lat, g.lng))
+                      .toList();
             });
           }
 
@@ -1458,6 +1475,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _liveHeritageCount = 0;
           _liveTripCount = 0;
           _liveHeritageSites = const [];
+          _liveHeatPoints = const [];
           _achievementsUnlockedInOrder.clear();
           _achievementsToastedThisScan.clear();
         });
@@ -1687,6 +1705,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                   ),
                                   liveTripCount: _liveTripCount,
                                   liveHeritageSites: _liveHeritageSites,
+                                  liveHeatPoints: _liveHeatPoints,
                                 ),
                               )
                             // No data yet paths:
@@ -1949,6 +1968,7 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.achievementsUnlocked = const [],
     this.liveTripCount = 0,
     this.liveHeritageSites = const [],
+    this.liveHeatPoints = const [],
   });
 
   final _ScanProgress? progress;
@@ -1978,6 +1998,9 @@ class _ScanningView extends ConsumerStatefulWidget {
   /// UNESCO heritage sites discovered so far — full objects for colour-coded
   /// globe dots (cultural=amber, natural=green) and tap-tooltip (M128).
   final List<VisitedHeritageSite> liveHeritageSites;
+
+  /// Live-accumulated photo GPS points for the scan globe's heat map (M182).
+  final List<PhotoLocation> liveHeatPoints;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -2228,6 +2251,7 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
                 liveNewCodes: liveNewCodes,
                 existingCodes: existingCodes,
                 heritageSites: widget.liveHeritageSites,
+                photoLocations: widget.liveHeatPoints,
               ),
             ),
             const SizedBox(height: 8),
@@ -2476,6 +2500,7 @@ class _ScanGlobeWidget extends ConsumerStatefulWidget {
     required this.liveNewCodes,
     this.existingCodes = const [],
     this.heritageSites = const [],
+    this.photoLocations = const [],
   });
   final List<String> liveNewCodes;
 
@@ -2486,6 +2511,12 @@ class _ScanGlobeWidget extends ConsumerStatefulWidget {
   /// UNESCO sites discovered this scan — used for colour-coded dots and
   /// tap-to-tooltip (M126/M128).
   final List<VisitedHeritageSite> heritageSites;
+
+  /// Live-accumulated photo GPS points for the heat map (M182). A stable
+  /// list reference across animation-only rebuilds — only replaced when a
+  /// new batch actually adds points — so [GlobeHeatmapData]'s identity-keyed
+  /// cache isn't defeated by the idle-spin/pulse repaint cadence.
+  final List<PhotoLocation> photoLocations;
 
   @override
   ConsumerState<_ScanGlobeWidget> createState() => _ScanGlobeWidgetState();
@@ -2700,61 +2731,92 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
       }
     }
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([_spinCtrl, _pulseCtrl, _heritagePulseCtrl]),
-      builder: (context, _) {
-        final isIdle =
-            (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
-            (_zoomOutCtrl == null || !_zoomOutCtrl!.isAnimating);
-        final displayProjection =
-            (isIdle && !reduceMotion)
-                ? GlobeProjection(
-                  rotLat: _projection.rotLat,
-                  rotLng: _projection.rotLng + _spinCtrl.value * 0.3,
-                  scale: _projection.scale,
-                )
-                : _projection;
-        final pulseValue = reduceMotion ? 0.0 : _pulseCtrl.value;
-        final heritagePulseValue =
-            reduceMotion ? 0.0 : _heritagePulseCtrl.value;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
 
-        return Stack(
-          children: [
-            GestureDetector(
-              onTapUp:
-                  (details) =>
-                      _handleGlobeTap(details.localPosition, displayProjection),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CustomPaint(
-                  painter: GlobePainter(
-                    polygons: polygons,
-                    visualStates: visualStates,
-                    tripCounts: const {},
-                    projection: displayProjection,
-                    highlightedCode: _highlightedCode,
-                    pulseValue: pulseValue,
-                    culturalSiteCoords: culturalCoords,
-                    naturalSiteCoords: naturalCoords,
-                    heritagePulseValue: heritagePulseValue,
+        // M182: computed once per widget rebuild (i.e. once per batch, via
+        // the parent's setState) — not on every idle-spin/pulse animation
+        // tick below, since _projection.scale (unlike displayProjection,
+        // computed per-frame in the AnimatedBuilder) only changes on real
+        // zoom. GlobeHeatmapData.of also has its own single-entry cache
+        // keyed on list identity + zoom bucket + radius, so even a cheap
+        // per-frame call would just hit that cache — this placement simply
+        // avoids paying for the lookup at all on every tick.
+        final heatmap =
+            widget.photoLocations.isEmpty
+                ? null
+                : GlobeHeatmapData.of(
+                  widget.photoLocations,
+                  _projection.scale,
+                  canvasSize.shortestSide / 2,
+                );
+
+        return AnimatedBuilder(
+          animation: Listenable.merge([_spinCtrl, _pulseCtrl, _heritagePulseCtrl]),
+          builder: (context, _) {
+            final isIdle =
+                (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
+                (_zoomOutCtrl == null || !_zoomOutCtrl!.isAnimating);
+            final displayProjection =
+                (isIdle && !reduceMotion)
+                    ? GlobeProjection(
+                      rotLat: _projection.rotLat,
+                      rotLng: _projection.rotLng + _spinCtrl.value * 0.3,
+                      scale: _projection.scale,
+                    )
+                    : _projection;
+            final pulseValue = reduceMotion ? 0.0 : _pulseCtrl.value;
+            final heritagePulseValue =
+                reduceMotion ? 0.0 : _heritagePulseCtrl.value;
+
+            return Stack(
+              children: [
+                GestureDetector(
+                  onTapUp:
+                      (details) => _handleGlobeTap(
+                        details.localPosition,
+                        displayProjection,
+                      ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CustomPaint(
+                      painter: GlobePainter(
+                        polygons: polygons,
+                        visualStates: visualStates,
+                        tripCounts: const {},
+                        projection: displayProjection,
+                        highlightedCode: _highlightedCode,
+                        pulseValue: pulseValue,
+                        culturalSiteCoords: culturalCoords,
+                        naturalSiteCoords: naturalCoords,
+                        heritagePulseValue: heritagePulseValue,
+                        // Reduce-motion: heat still renders (it's already a
+                        // static layer under the gold fills, no pulsing/ramp
+                        // of its own — the "smooth ramp" is just the normal
+                        // repaint cadence, which reduce-motion already
+                        // suppresses via isIdle/spin above).
+                        photoHeatmap: heatmap,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                  child: const SizedBox.expand(),
                 ),
-              ),
-            ),
-            if (_tooltipName != null)
-              Positioned(
-                bottom: 8,
-                left: 8,
-                right: 8,
-                child: IgnorePointer(
-                  child: _HeritageTooltip(
-                    name: _tooltipName!,
-                    category: _tooltipCategory ?? '',
+                if (_tooltipName != null)
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    right: 8,
+                    child: IgnorePointer(
+                      child: _HeritageTooltip(
+                        name: _tooltipName!,
+                        category: _tooltipCategory ?? '',
+                      ),
+                    ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

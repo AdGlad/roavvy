@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/photo_gps_repository.dart' show PhotoLocation;
 import 'country_visual_state.dart';
 import 'globe_projection.dart';
 
@@ -21,6 +22,7 @@ class ReplayGlobeFrame {
     this.pulseValue = 0.0,
     this.heritageSiteCoords = const [],
     this.opacity = 1.0,
+    this.photoLocations = const [],
   });
 
   final GlobeProjection projection;
@@ -40,6 +42,12 @@ class ReplayGlobeFrame {
 
   /// Globe opacity — fades to 0.15 when replay completes (summary backdrop).
   final double opacity;
+
+  /// Live-accumulated photo GPS points for the heat map during a live scan
+  /// (M182 T5) — empty for historical replay, which has no live photo data.
+  /// [GlobeMapWidget] turns this into a [GlobeHeatmapData] using its own
+  /// canvas size, same as it already does for the resting Map-tab heatmap.
+  final List<PhotoLocation> photoLocations;
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
