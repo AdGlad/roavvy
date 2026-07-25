@@ -31,6 +31,7 @@ class CountryDiscoveredEvent extends ReplayEvent {
     this.toLat,
     this.toLng,
     this.isFirstVisit = false,
+    this.toRepresentativeAssetId,
   });
   final String fromCode;
   final String toCode;
@@ -40,6 +41,12 @@ class CountryDiscoveredEvent extends ReplayEvent {
   /// True when this is the first time [toCode] is visited in this replay.
   /// Drives the flag-reveal + confetti discovery animation (M133).
   final bool isFirstVisit;
+
+  /// PHAsset.localIdentifier of the first geotagged photo seen for [toCode]
+  /// during a live scan (M181) — null for historical replay, which has no
+  /// live photo data. Lets the M134 overlay surface render a postcard photo
+  /// alongside the discovery, matching the in-screen discovery feed.
+  final String? toRepresentativeAssetId;
 }
 
 /// A UNESCO heritage site discovered in the currently active country.

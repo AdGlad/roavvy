@@ -8,6 +8,7 @@ import 'package:region_lookup/region_lookup.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
@@ -363,6 +364,22 @@ List<TripRecord> tripsIncludingOpenTail(
 ) {
   if (openRunDates.isEmpty) return List.unmodifiable(stableTrips);
   return List.unmodifiable([...stableTrips, inferTrips(openRunDates).single]);
+}
+
+// ── Postcard photo selection (M181 T1) ──────────────────────────────────────────
+
+/// Returns the `assetId` of the first record in [photoDates] whose
+/// `countryCode` matches [code] and has a non-null `assetId`, or null if
+/// none — the "postcard" photo used for a newly discovered country's
+/// discovery-feed chip and first-country cinematic backdrop.
+String? firstRepresentativeAssetId(
+  List<PhotoDateRecord> photoDates,
+  String code,
+) {
+  for (final p in photoDates) {
+    if (p.countryCode == code && p.assetId != null) return p.assetId;
+  }
+  return null;
 }
 
 // ── Trip GPS enrichment (M109, ADR-157) ────────────────────────────────────────
@@ -821,6 +838,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final stableTrips = <TripRecord>[];
       final openRunDates = <PhotoDateRecord>[];
 
+      // M181 T5: looks up the postcard photo captured for a newly
+      // discovered country so it can ride along on the CountryDiscoveredEvent
+      // emitted to the M134 overlay surface, not just the in-screen feed.
+      String? repAssetIdFor(String code) {
+        for (final e in _liveNewEntries) {
+          if (e.isoCode == code) return e.representativeAssetId;
+        }
+        return null;
+      }
+
       // M119: WHS accumulator keyed by siteId; merged across all batches.
       final whsAccum = <String, VisitedHeritageSite>{};
       // Snapshot of already-visited siteIds for new-discovery detection.
@@ -943,6 +970,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   isoCode: code,
                   photoCount: entry.value.photoCount,
                   firstSeenYear: entry.value.firstSeen?.year,
+                  // M181 T1: first geotagged photo for this newly-discovered
+                  // country in this batch becomes its "postcard" photo.
+                  representativeAssetId: firstRepresentativeAssetId(
+                    batchResult.photoDates,
+                    code,
+                  ),
                   heritageSiteNames:
                       whsAccum.values
                           .where((s) => s.countryCode == code)
@@ -1032,6 +1065,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   toLat: toGps.isNotEmpty ? toGps.first.lat : null,
                   toLng: toGps.isNotEmpty ? toGps.first.lng : null,
                   isFirstVisit: liveFirstVisitCodes.add(toCode),
+                  toRepresentativeAssetId: repAssetIdFor(toCode),
                 ),
               );
             }
@@ -1351,6 +1385,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               toLat: toGps.isNotEmpty ? toGps.first.lat : null,
               toLng: toGps.isNotEmpty ? toGps.first.lng : null,
               isFirstVisit: liveFirstVisitCodes.add(toCode),
+              toRepresentativeAssetId: repAssetIdFor(toCode),
             ),
           );
         }
@@ -1748,6 +1783,7 @@ class _DiscoveryEntry {
     required this.photoCount,
     this.firstSeenYear,
     this.heritageSiteNames = const [],
+    this.representativeAssetId,
   });
 
   final String isoCode;
@@ -1758,6 +1794,13 @@ class _DiscoveryEntry {
 
   /// Names of newly discovered World Heritage Sites in this country (empty for pre-scan entries).
   final List<String> heritageSiteNames;
+
+  /// PHAsset.localIdentifier of the first geotagged photo seen for this
+  /// country during the current scan (M181) — used as the "postcard" photo
+  /// for the discovery feed chip and the first-country cinematic backdrop.
+  /// Null for pre-scan entries (existing countries never carry one) or when
+  /// no photo in this scan for the country had an assetId.
+  final String? representativeAssetId;
 }
 
 // ── Sub-widgets ────────────────────────────────────────────────────────────────
@@ -2916,6 +2959,128 @@ class _DiscoveryFeedState extends State<_DiscoveryFeed> {
   }
 }
 
+// ── Throttled photo thumbnail loading (M181 T2) ────────────────────────────────
+
+/// Caps concurrent thumbnail loads across the scan screen so PhotoKit I/O
+/// never contends with the scan isolate. A single batch can discover many
+/// countries at once — their postcard photos load through this shared queue
+/// rather than all firing simultaneously.
+class _ThumbnailLoadQueue {
+  _ThumbnailLoadQueue._();
+  static final instance = _ThumbnailLoadQueue._();
+
+  static const int _maxConcurrent = 3;
+  int _active = 0;
+  final List<Completer<void>> _waiting = [];
+
+  Future<T> run<T>(Future<T> Function() task) async {
+    if (_active >= _maxConcurrent) {
+      final completer = Completer<void>();
+      _waiting.add(completer);
+      await completer.future;
+    }
+    _active++;
+    try {
+      return await task();
+    } finally {
+      _active--;
+      if (_waiting.isNotEmpty) {
+        _waiting.removeAt(0).complete();
+      }
+    }
+  }
+}
+
+/// Small photo thumbnail loaded on demand from a local PHAsset, throttled via
+/// [_ThumbnailLoadQueue]. Shows [fallback] (typically the flag emoji or a
+/// transparent placeholder) while loading and on any failure — iCloud-only,
+/// deleted, or permission-denied assets all degrade gracefully, matching the
+/// existing [HeroImageView] fallback contract (M181, ADR-135).
+class _ScanPhotoThumbnail extends StatefulWidget {
+  const _ScanPhotoThumbnail({
+    required this.assetId,
+    required this.fallback,
+    this.fetchSize = 84,
+    this.width = 28.0,
+    this.height = 28.0,
+    this.borderRadius = 6.0,
+    this.fit = BoxFit.cover,
+  });
+
+  /// PHAsset.localIdentifier. Null → shows [fallback] immediately, no load.
+  final String? assetId;
+
+  final Widget fallback;
+
+  /// Requested PhotoKit thumbnail resolution in pixels (square) — independent
+  /// of the rendered [width]/[height] so a full-bleed backdrop can request a
+  /// much larger decode than a small chip without distorting either.
+  final int fetchSize;
+  final double width;
+  final double height;
+  final double borderRadius;
+  final BoxFit fit;
+
+  @override
+  State<_ScanPhotoThumbnail> createState() => _ScanPhotoThumbnailState();
+}
+
+class _ScanPhotoThumbnailState extends State<_ScanPhotoThumbnail> {
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_ScanPhotoThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.assetId != widget.assetId) {
+      _bytes = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final assetId = widget.assetId;
+    if (assetId == null) return;
+    try {
+      final bytes = await _ThumbnailLoadQueue.instance.run(() async {
+        final entity = await AssetEntity.fromId(assetId);
+        return entity?.thumbnailDataWithOption(
+          ThumbnailOption.ios(
+            size: ThumbnailSize.square(widget.fetchSize),
+            deliveryMode: DeliveryMode.opportunistic,
+            resizeMode: ResizeMode.exact,
+            resizeContentMode: ResizeContentMode.fill,
+          ),
+        );
+      });
+      if (!mounted) return;
+      setState(() => _bytes = bytes);
+    } catch (_) {
+      // Swallow — _bytes stays null, fallback renders (iCloud-only, deleted,
+      // or permission-denied assets all resolve here).
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.borderRadius),
+      child: SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: _bytes != null
+            ? Image.memory(_bytes!, fit: widget.fit, gaplessPlayback: true)
+            : widget.fallback,
+      ),
+    );
+  }
+}
+
 // ── Discovery chip (M122 — compact row replacing M121 card) ───────────────────
 
 class _DiscoveryChip extends StatefulWidget {
@@ -2993,8 +3158,17 @@ class _DiscoveryChipState extends State<_DiscoveryChip>
           )
         else
           const SizedBox(width: 8),
-        // Flag.
-        Text(flag, style: const TextStyle(fontSize: 18)),
+        // Postcard thumbnail — flag emoji fallback while loading/failed
+        // (M181 T3).
+        _ScanPhotoThumbnail(
+          assetId: entry.representativeAssetId,
+          width: 26,
+          height: 26,
+          borderRadius: 5,
+          fallback: Center(
+            child: Text(flag, style: const TextStyle(fontSize: 16)),
+          ),
+        ),
         const SizedBox(width: 8),
         // Country name.
         Expanded(
@@ -3065,35 +3239,64 @@ class _FirstCountryCinematic extends StatelessWidget {
     final theme = Theme.of(context);
     final flag = _flagEmoji(entry.isoCode);
     final name = kCountryNames[entry.isoCode] ?? entry.isoCode;
+    final assetId = entry.representativeAssetId;
 
-    return Container(
-      color: Colors.black.withValues(alpha: 0.75),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Welcome to your world.',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w300,
-              letterSpacing: 0.5,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Photo backdrop (M181 T4) — falls back to a plain dark tile when no
+        // photo was captured for this country in the scan. Reduce-motion
+        // needs no special handling here: the image renders statically
+        // either way, only the surrounding entrance transition animates.
+        if (assetId != null)
+          Opacity(
+            opacity: 0.85,
+            child: _ScanPhotoThumbnail(
+              assetId: assetId,
+              fetchSize: 1200,
+              width: double.infinity,
+              height: double.infinity,
+              borderRadius: 0,
+              fit: BoxFit.cover,
+              fallback: const SizedBox.shrink(),
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
-          Text(flag, style: const TextStyle(fontSize: 56)),
-          const SizedBox(height: 12),
-          Text(
-            name,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
+        // Dark scrim so the headline stays legible over a photo backdrop —
+        // heavier when there's no photo (matches the original solid look).
+        IgnorePointer(
+          child: Container(
+            color: Colors.black.withValues(alpha: assetId != null ? 0.55 : 0.75),
           ),
-        ],
-      ),
+        ),
+        Container(
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Welcome to your world.',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Text(flag, style: const TextStyle(fontSize: 56)),
+              const SizedBox(height: 12),
+              Text(
+                name,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
