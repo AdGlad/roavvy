@@ -1,6 +1,6 @@
 # M182 — Living Scan: Globe Heat Map
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-25
 **Updated:** 2026-07-25
 **Depends on:** none (independent; reuses existing `GlobeHeatmapData`)
