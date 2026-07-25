@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import '../../data/photo_gps_repository.dart' show PhotoLocation;
 import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
 import '../map/globe_painter.dart';
+import '../map/globe_photo_heatmap.dart';
 import '../map/globe_projection.dart';
 import '../map/replay_globe_frame.dart';
 import 'globe_replay_painter.dart';
@@ -83,6 +85,24 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   bool _isMuted = false;
   double _speedMultiplier = 1.0;
   bool _scanCompleteCalled = false;
+
+  // ── Heat map snapshot (M182 T5) ─────────────────────────────────────────────
+  // A stable list reference across per-frame rebuilds, only replaced when
+  // _liveCtrl.heatPointsVersion actually changes — see
+  // LiveScanReplayController.heatPoints for why a fresh copy every build
+  // would defeat GlobeHeatmapData's identity-keyed cache.
+  List<PhotoLocation> _heatSnapshot = const [];
+  int _lastHeatVersion = -1;
+
+  List<PhotoLocation> get _currentHeatPoints {
+    final ctrl = _liveCtrl;
+    if (ctrl == null) return const [];
+    if (ctrl.heatPointsVersion != _lastHeatVersion) {
+      _heatSnapshot = List.of(ctrl.heatPoints);
+      _lastHeatVersion = ctrl.heatPointsVersion;
+    }
+    return _heatSnapshot;
+  }
 
   // ── First-visit discovery (M133) ───────────────────────────────────────────
   late final ConfettiController _confettiCtrl;
@@ -188,6 +208,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
       pulseValue: _pulseValue,
       heritageSiteCoords: _heritageSiteCoords,
       opacity: isDone ? 0.15 : 1.0,
+      // M182 T5: only live scans accumulate heat points; historical replay
+      // stays empty (no heat shown), matching prior behaviour for that path.
+      photoLocations: _isLiveMode ? _currentHeatPoints : const [],
     );
   }
 
@@ -406,6 +429,9 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
                   pulseValue: _pulseValue,
                   heritageSiteCoords: _heritageSiteCoords,
                   heritagePulseValue: _heritagePulseCtrl.value,
+                  // M182 T5: full-screen (non-embedded) live-scan replay
+                  // also heats up; empty for historical replay.
+                  photoLocations: _isLiveMode ? _currentHeatPoints : const [],
                   replayPainter: GlobeReplayPainter(
                     projection: _projection,
                     script: painterScript,
@@ -625,6 +651,7 @@ class _CombinedGlobePainter extends CustomPainter {
     this.pulseValue = 0.0,
     this.heritageSiteCoords = const [],
     this.heritagePulseValue = 0.0,
+    this.photoLocations = const [],
   });
 
   final List<CountryPolygon> polygons;
@@ -637,8 +664,18 @@ class _CombinedGlobePainter extends CustomPainter {
   final List<(double lat, double lng)> heritageSiteCoords;
   final double heritagePulseValue;
 
+  /// Live-accumulated heat points (M182 T5) — empty for historical replay.
+  final List<PhotoLocation> photoLocations;
+
   @override
   void paint(canvas, size) {
+    final heatmap = photoLocations.isEmpty
+        ? null
+        : GlobeHeatmapData.of(
+            photoLocations,
+            projection.scale,
+            size.shortestSide / 2,
+          );
     GlobePainter(
       polygons: polygons,
       visualStates: visualStates,
@@ -648,6 +685,7 @@ class _CombinedGlobePainter extends CustomPainter {
       pulseValue: pulseValue,
       culturalSiteCoords: heritageSiteCoords,
       heritagePulseValue: heritagePulseValue,
+      photoHeatmap: heatmap,
     ).paint(canvas, size);
     replayPainter.paint(canvas, size);
   }
@@ -662,6 +700,7 @@ class _CombinedGlobePainter extends CustomPainter {
       pulseValue != old.pulseValue ||
       !identical(heritageSiteCoords, old.heritageSiteCoords) ||
       heritagePulseValue != old.heritagePulseValue ||
+      !identical(photoLocations, old.photoLocations) ||
       !identical(replayPainter.script, old.replayPainter.script) ||
       replayPainter.currentLegIndex != old.replayPainter.currentLegIndex ||
       replayPainter.arcProgress != old.replayPainter.arcProgress ||
