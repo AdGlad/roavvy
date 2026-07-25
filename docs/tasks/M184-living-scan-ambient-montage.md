@@ -1,6 +1,6 @@
 # M184 — Living Scan: Ambient Photo Montage
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-25
 **Updated:** 2026-07-25
 **Depends on:** M181 (representative-assetId threading + throttled thumbnail infra)
