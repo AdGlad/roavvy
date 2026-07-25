@@ -1,6 +1,6 @@
 # M186 — Living Scan: Hero Reuse & Narrative Beats
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-25
 **Updated:** 2026-07-25
 **Depends on:** M181 (photo threading), M183 (year/phase pacing hooks)
