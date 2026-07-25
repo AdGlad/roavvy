@@ -411,6 +411,27 @@ String? firstRepresentativeAssetId(
   return null;
 }
 
+// ── Hero reuse on re-scan (M186 T1) ─────────────────────────────────────────────
+
+/// Builds a country → assetId lookup from existing rank-1 [HeroImage]s (from
+/// prior scans' background analysis), preferring the most recently captured
+/// hero when a country has several (multiple trips).
+///
+/// On a re-scan, a country that already has a curated hero should show that
+/// immediately instead of a raw first-glimpse photo — this is queried once
+/// at scan start (existing heroes can't change mid-scan) and consulted ahead
+/// of [firstRepresentativeAssetId] when building each new [_DiscoveryEntry].
+Map<String, String> heroAssetIdsByCountry(List<HeroImage> heroes) {
+  final best = <String, HeroImage>{};
+  for (final h in heroes) {
+    final existing = best[h.countryCode];
+    if (existing == null || h.capturedAt.isAfter(existing.capturedAt)) {
+      best[h.countryCode] = h;
+    }
+  }
+  return best.map((code, h) => MapEntry(code, h.assetId));
+}
+
 // ── Trip GPS enrichment (M109, ADR-157) ────────────────────────────────────────
 
 /// Applies GPS endpoints from [photoGps] to each trip in [trips].
@@ -591,9 +612,25 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// has run yet.
   ScanResolverIsolate? _resolverIsolate;
 
+  /// Year currently shown on the in-screen year chapter card, or null when
+  /// hidden (M186 T3) — mirrors the M134 overlay's YearStartedEvent banner.
+  int? _liveYearBanner;
+  Timer? _yearBannerTimer;
+
+  /// Heritage site currently shown on the landmark name-drop ribbon, or null
+  /// when hidden (M186 T4).
+  VisitedHeritageSite? _liveLandmarkRibbon;
+  Timer? _landmarkRibbonTimer;
+
+  /// Heritage site IDs already ribboned this scan — dedup guard so the same
+  /// site doesn't re-trigger the ribbon across later batches.
+  final Set<String> _ribbonedHeritageSiteIds = {};
+
   @override
   void dispose() {
     _cancelled = true;
+    _yearBannerTimer?.cancel();
+    _landmarkRibbonTimer?.cancel();
     _resolverIsolate?.dispose();
     super.dispose();
   }
@@ -615,6 +652,29 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   static void _crumb(String msg) {
     // ignore: avoid_print
     print('[roavvy-scan] $msg');
+  }
+
+  /// Shows the in-screen year chapter card for [year], auto-dismissing after
+  /// ~1.2s (M186 T3). Mirrors the M134 overlay's YearStartedEvent banner.
+  void _showYearChapterCard(int year) {
+    if (!mounted) return;
+    _yearBannerTimer?.cancel();
+    setState(() => _liveYearBanner = year);
+    _yearBannerTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) setState(() => _liveYearBanner = null);
+    });
+  }
+
+  /// Shows the landmark name-drop ribbon for [site], auto-dismissing after a
+  /// few seconds (M186 T4). Deduplicated per scan via
+  /// [_ribbonedHeritageSiteIds] so the same site never re-triggers it.
+  void _showLandmarkRibbon(VisitedHeritageSite site) {
+    if (!mounted || !_ribbonedHeritageSiteIds.add(site.siteId)) return;
+    _landmarkRibbonTimer?.cancel();
+    setState(() => _liveLandmarkRibbon = site);
+    _landmarkRibbonTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _liveLandmarkRibbon = null);
+    });
   }
 
   Future<void> _loadPersisted() async {
@@ -894,6 +954,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final preScanHeritageSiteIds =
           (await _heritageRepo.loadAll()).map((s) => s.siteId).toSet();
 
+      // M186 T1: existing curated heroes from prior scans, snapshotted once
+      // — a re-scan's newly-discovered countries (already visited before,
+      // now just gaining new photos) can show these immediately instead of
+      // a raw first-glimpse photo.
+      final existingHeroesByCountry = heroAssetIdsByCountry(
+        await HeroImageRepository(
+          ref.read(roavvyDatabaseProvider),
+        ).getHeroesForRank1(),
+      );
+
       final scanStream =
           widget.scanStarter != null
               ? widget.scanStarter!(limit: 100000)
@@ -1012,12 +1082,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   isoCode: code,
                   photoCount: entry.value.photoCount,
                   firstSeenYear: entry.value.firstSeen?.year,
-                  // M181 T1: first geotagged photo for this newly-discovered
-                  // country in this batch becomes its "postcard" photo.
-                  representativeAssetId: firstRepresentativeAssetId(
-                    batchResult.photoDates,
-                    code,
-                  ),
+                  // M181 T1 / M186 T1: prefer an existing curated hero for
+                  // this country (from a prior scan) over the raw
+                  // first-glimpse photo captured in this batch.
+                  representativeAssetId:
+                      existingHeroesByCountry[code] ??
+                      firstRepresentativeAssetId(batchResult.photoDates, code),
                   heritageSiteNames:
                       whsAccum.values
                           .where((s) => s.countryCode == code)
@@ -1090,6 +1160,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             // Year banner when the year changes.
             if (liveEmittedYears.add(trip.startedOn.year)) {
               liveSource.addEvent(YearStartedEvent(year: trip.startedOn.year));
+              // M186 T3: equivalent in-screen year chapter card.
+              _showYearChapterCard(trip.startedOn.year);
             }
 
             // Leg: previous country → this country (skip self-loops).
@@ -1134,6 +1206,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     siteType: entry.value.category,
                   ),
                 );
+                // M186 T4: equivalent in-screen landmark name-drop ribbon.
+                _showLandmarkRibbon(entry.value);
               }
             }
 
@@ -1742,6 +1816,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                   liveHeritageSites: _liveHeritageSites,
                                   liveHeatPoints: _liveHeatPoints,
                                   liveMontageAssetIds: _liveMontageQueue,
+                                  liveYearBanner: _liveYearBanner,
+                                  liveLandmarkRibbon: _liveLandmarkRibbon,
                                 ),
                               )
                             // No data yet paths:
@@ -2006,6 +2082,8 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.liveHeritageSites = const [],
     this.liveHeatPoints = const [],
     this.liveMontageAssetIds = const [],
+    this.liveYearBanner,
+    this.liveLandmarkRibbon,
   });
 
   final _ScanProgress? progress;
@@ -2042,6 +2120,14 @@ class _ScanningView extends ConsumerStatefulWidget {
   /// Bounded FIFO of recently-seen geotagged assetIds for the ambient photo
   /// montage (M184).
   final List<String> liveMontageAssetIds;
+
+  /// Year to show on the transient year chapter card, or null when hidden
+  /// (M186 T3).
+  final int? liveYearBanner;
+
+  /// Heritage site to show on the transient landmark name-drop ribbon, or
+  /// null when hidden (M186 T4).
+  final VisitedHeritageSite? liveLandmarkRibbon;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -2372,7 +2458,82 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
               child: _FirstCountryCinematic(entry: _cinematicEntry!),
             ),
           ),
+        // Year chapter card — brief, low-key, centred (M186 T3).
+        if (widget.liveYearBanner != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: _YearChapterCard(
+                  year: widget.liveYearBanner!,
+                  reduceMotion: reduceMotion,
+                ),
+              ),
+            ),
+          ),
+        // Landmark name-drop ribbon (M186 T4).
+        if (widget.liveLandmarkRibbon != null)
+          Positioned(
+            bottom: 8,
+            left: 8,
+            right: 8,
+            child: IgnorePointer(
+              child: _HeritageTooltip(
+                name: "You've been to ${widget.liveLandmarkRibbon!.name}",
+                category: widget.liveLandmarkRibbon!.category,
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+// ── Year chapter card (M186 T3) ─────────────────────────────────────────────────
+
+class _YearChapterCard extends StatelessWidget {
+  const _YearChapterCard({required this.year, required this.reduceMotion});
+
+  final int year;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('✈️', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Text(
+            '$year',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w300,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Reduce-motion: instant text, no fade transition (still auto-dismisses
+    // after the same duration via _showYearChapterCard's timer).
+    if (reduceMotion) return card;
+
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(year),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      builder: (context, opacity, child) =>
+          Opacity(opacity: opacity, child: child),
+      child: card,
     );
   }
 }
