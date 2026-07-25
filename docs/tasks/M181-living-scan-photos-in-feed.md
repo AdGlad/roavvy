@@ -1,6 +1,6 @@
 # M181 — Living Scan: Real Photos in the Discovery Feed
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-25
 **Updated:** 2026-07-25
 **Depends on:** none (foundation for M184, M186)
