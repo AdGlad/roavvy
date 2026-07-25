@@ -132,6 +132,7 @@ BatchResult resolveBatch(
   List<PhotoRecord> photos,
   String? Function(double lat, double lng) countryResolver, [
   String? Function(double lat, double lng)? regionResolver,
+  Set<String>? knownAssetIds,
 ]) {
   final accum = <String, CountryAccum>{};
   final photoDates = <PhotoDateRecord>[];
@@ -161,30 +162,46 @@ BatchResult resolveBatch(
     // country records (visited with 0 trips / 0 photos in the profile).
     if (photo.capturedAt == null) continue;
 
-    final a = CountryAccum(
-      photoCount: 1,
-      firstSeen: photo.capturedAt,
-      lastSeen: photo.capturedAt,
-    );
-    final existing = accum[code];
-    accum[code] = existing == null ? a : existing.merge(a);
+    // T3 (ADR-129): photos already recorded by assetId are excluded from
+    // accum/photoDates (they'd double-count history the caller already has)
+    // but NOT from GPS collection below — GPS is exempt from this filter so
+    // trip endpoints reflect actual photo coordinates even on incremental
+    // scans (ADR-157). Folding the filter in here (M185 T2) replaces the
+    // previous approach of resolving the batch twice — once pre-filtered for
+    // accum/photoDates, once unfiltered again just to recover GPS.
+    final isKnown =
+        knownAssetIds != null &&
+        photo.assetId != null &&
+        knownAssetIds.contains(photo.assetId);
 
-    final regionCode =
-        regionResolver != null
-            ? regionBucketCache.putIfAbsent(
-              key,
-              () => regionResolver(bucketLat, bucketLng),
-            )
-            : null;
-    photoDates.add(
-      PhotoDateRecord(
-        countryCode: code,
-        capturedAt: photo.capturedAt!,
-        regionCode: regionCode,
-        assetId: photo.assetId,
-      ),
-    );
-    // Track raw GPS for trip endpoint extraction (ADR-157).
+    if (!isKnown) {
+      final a = CountryAccum(
+        photoCount: 1,
+        firstSeen: photo.capturedAt,
+        lastSeen: photo.capturedAt,
+      );
+      final existing = accum[code];
+      accum[code] = existing == null ? a : existing.merge(a);
+
+      final regionCode =
+          regionResolver != null
+              ? regionBucketCache.putIfAbsent(
+                key,
+                () => regionResolver(bucketLat, bucketLng),
+              )
+              : null;
+      photoDates.add(
+        PhotoDateRecord(
+          countryCode: code,
+          capturedAt: photo.capturedAt!,
+          regionCode: regionCode,
+          assetId: photo.assetId,
+        ),
+      );
+    }
+
+    // Track raw GPS for trip endpoint extraction (ADR-157) — for every
+    // resolved photo, known or not.
     photoGps.add(
       PhotoGpsRecord(
         countryCode: code,
@@ -198,18 +215,154 @@ BatchResult resolveBatch(
   return BatchResult(accum: accum, photoDates: photoDates, photoGps: photoGps);
 }
 
-/// Top-level function — safe to pass to [Isolate.run].
+// ── Persistent resolver isolate (M185 T1) ──────────────────────────────────────
+//
+// Previously each batch called `Isolate.run(() => _resolvePhotos(...))`,
+// which spawns a brand-new isolate AND re-initialises country + region
+// geodata from scratch every time. On a scan with many batches this repeats
+// a fixed, non-trivial init cost once per batch instead of once per scan.
+// ScanResolverIsolate spawns a single long-lived isolate at scan start,
+// initialises geodata once inside it, then streams batches to it over a
+// port for the rest of the scan.
+
+/// Message sent once to bootstrap the resolver isolate with geodata bytes
+/// and a port to report its request [SendPort] back on.
+class _ResolverBootstrap {
+  const _ResolverBootstrap(this.countryBytes, this.regionBytes, this.replyTo);
+  final Uint8List countryBytes;
+  final Uint8List regionBytes;
+  final SendPort replyTo;
+}
+
+/// A single resolve request sent to the running resolver isolate.
+class _ResolverRequest {
+  const _ResolverRequest(this.photos, this.knownAssetIds, this.replyTo);
+  final List<PhotoRecord> photos;
+  final Set<String>? knownAssetIds;
+  final SendPort replyTo;
+}
+
+/// Entry point run inside the persistent resolver isolate (top-level/static,
+/// as required by [Isolate.spawn]). Initialises country + region geodata
+/// ONCE, then loops resolving batches sent over the bootstrap reply port
+/// until the isolate is killed by [ScanResolverIsolate.dispose].
+void _resolverIsolateMain(_ResolverBootstrap bootstrap) {
+  initCountryLookup(bootstrap.countryBytes);
+  initRegionLookup(bootstrap.regionBytes);
+
+  final receivePort = ReceivePort();
+  bootstrap.replyTo.send(receivePort.sendPort);
+
+  receivePort.listen((message) {
+    if (message is _ResolverRequest) {
+      final result = resolveBatch(
+        message.photos,
+        resolveCountry,
+        resolveRegion,
+        message.knownAssetIds,
+      );
+      message.replyTo.send(result);
+    }
+  });
+}
+
+/// Long-lived background isolate that resolves photo batches to
+/// [BatchResult]s for the duration of one scan (M185).
 ///
-/// Initialises [country_lookup] and [region_lookup] in the background isolate
-/// (each isolate has independent global state) then delegates to [resolveBatch].
-BatchResult _resolvePhotos(
-  Uint8List countryBytes,
-  Uint8List regionBytes,
-  List<PhotoRecord> photos,
+/// Spawn once per scan via [spawn]; call [resolve] per batch; call [dispose]
+/// when the scan ends or is cancelled — an un-disposed isolate would leak
+/// for the lifetime of the app.
+class ScanResolverIsolate {
+  ScanResolverIsolate._(this._isolate, this._sendPort);
+
+  final Isolate _isolate;
+  final SendPort _sendPort;
+
+  static Future<ScanResolverIsolate> spawn(
+    Uint8List countryBytes,
+    Uint8List regionBytes,
+  ) async {
+    final bootstrapPort = ReceivePort();
+    final isolate = await Isolate.spawn(
+      _resolverIsolateMain,
+      _ResolverBootstrap(countryBytes, regionBytes, bootstrapPort.sendPort),
+    );
+    final sendPort = await bootstrapPort.first as SendPort;
+    bootstrapPort.close();
+    return ScanResolverIsolate._(isolate, sendPort);
+  }
+
+  /// Resolves [photos] on the persistent isolate. [knownAssetIds], when
+  /// supplied, excludes already-recorded photos from `accum`/`photoDates`
+  /// while still collecting their GPS (see [resolveBatch]).
+  Future<BatchResult> resolve(
+    List<PhotoRecord> photos, {
+    Set<String>? knownAssetIds,
+  }) async {
+    final replyPort = ReceivePort();
+    _sendPort.send(
+      _ResolverRequest(photos, knownAssetIds, replyPort.sendPort),
+    );
+    final result = await replyPort.first as BatchResult;
+    replyPort.close();
+    return result;
+  }
+
+  /// Terminates the isolate immediately. Safe to call more than once.
+  void dispose() {
+    _isolate.kill(priority: Isolate.immediate);
+  }
+}
+
+// ── Incremental trip inference (M185 T3) ───────────────────────────────────────
+//
+// inferTrips(allPhotoDates) was previously called on the FULL accumulated
+// history on every batch (~O(n) work per batch, ~O(n²) across the whole
+// scan) purely to (a) get a live trip count and (b) find which trips are
+// now "stable" (all but the last — the native scan stream emits photos
+// oldest-first, so once a batch moves on to a new country every prior trip
+// is done growing). Since only the currently-open (last) trip can still
+// change, extending it incrementally costs O(batch size) instead of
+// O(total photos so far).
+
+/// Extends the incremental trip state ([stableTrips] + [openRunDates], both
+/// mutated in place) with [newDates] — already in chronological arrival
+/// order, since the scan stream emits photos oldest-first and each new
+/// batch is entirely newer than everything already processed.
+///
+/// Produces the exact same trips [inferTrips] would from the full history:
+/// a run of consecutive same-country dates always yields (via `inferTrips`
+/// on just that run) the identical [TripRecord] it would as part of a full
+/// re-sort, since `inferTrips` only ever splits on a country-code change —
+/// this just performs that same split incrementally instead of re-scanning
+/// dates already accounted for.
+void extendOpenTripRun(
+  List<PhotoDateRecord> newDates,
+  List<TripRecord> stableTrips,
+  List<PhotoDateRecord> openRunDates,
 ) {
-  initCountryLookup(countryBytes);
-  initRegionLookup(regionBytes);
-  return resolveBatch(photos, resolveCountry, resolveRegion);
+  for (final r in newDates) {
+    if (openRunDates.isNotEmpty &&
+        r.countryCode != openRunDates.first.countryCode) {
+      // Country changed — the run that just ended is now stable and will
+      // never be revisited.
+      stableTrips.add(inferTrips(openRunDates).single);
+      openRunDates.clear();
+    }
+    openRunDates.add(r);
+  }
+}
+
+/// All trips inferred so far — stable trips plus the still-open (last,
+/// possibly still-growing) run — equivalent to calling
+/// `inferTrips(allDatesSoFar)` but computed from the incremental state
+/// [extendOpenTripRun] maintains, without re-walking the full history.
+List<TripRecord> tripsIncludingOpenTail(
+  List<TripRecord> stableTrips,
+  List<PhotoDateRecord> openRunDates,
+) {
+  if (openRunDates.isEmpty) return List.unmodifiable(stableTrips);
+  return List.unmodifiable([...stableTrips, inferTrips(openRunDates).single]);
 }
 
 // ── Trip GPS enrichment (M109, ADR-157) ────────────────────────────────────────
@@ -377,9 +530,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// colour-coding (cultural=amber, natural=green) and tap-tooltip (M128).
   List<VisitedHeritageSite> _liveHeritageSites = const [];
 
+  /// Persistent resolver isolate for the current scan (M185). Spawned in
+  /// [_scan] before the batch loop starts; null when [widget.batchResolver]
+  /// is supplied (widget tests bypass the isolate entirely) or when no scan
+  /// has run yet.
+  ScanResolverIsolate? _resolverIsolate;
+
   @override
   void dispose() {
     _cancelled = true;
+    _resolverIsolate?.dispose();
     super.dispose();
   }
 
@@ -508,13 +668,16 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
   /// Resolves [photos] to a country accumulator map.
   ///
-  /// Uses the injected [batchResolver] when available (widget tests).
-  /// Otherwise runs [_resolvePhotos] on a background isolate.
-  Future<BatchResult> _resolveBatch(List<PhotoRecord> photos) {
+  /// Uses the injected [batchResolver] when available (widget tests) — a
+  /// fixed-output test seam, so [knownAssetIds] is irrelevant there.
+  /// Otherwise delegates to the persistent [_resolverIsolate] spawned once
+  /// at scan start (M185 T1).
+  Future<BatchResult> _resolveBatch(
+    List<PhotoRecord> photos, {
+    Set<String>? knownAssetIds,
+  }) {
     if (widget.batchResolver != null) return widget.batchResolver!(photos);
-    final countryBytes = ref.read(geodataBytesProvider);
-    final regionBytes = ref.read(regionGeodataBytesProvider);
-    return Isolate.run(() => _resolvePhotos(countryBytes, regionBytes, photos));
+    return _resolverIsolate!.resolve(photos, knownAssetIds: knownAssetIds);
   }
 
   Future<void> _scan() async {
@@ -613,6 +776,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       // incremental scans robust to restored backups and iCloud imports.
       final knownAssetIds = await _repo.loadAllKnownAssetIds();
 
+      // M185 T1: spawn the persistent resolver isolate once for this scan —
+      // country/region geodata is initialised inside it a single time,
+      // instead of on every batch via a fresh Isolate.run. Skipped entirely
+      // when a test-injected batchResolver is present.
+      if (widget.batchResolver == null) {
+        final countryBytes = ref.read(geodataBytesProvider);
+        final regionBytes = ref.read(regionGeodataBytesProvider);
+        _resolverIsolate = await ScanResolverIsolate.spawn(
+          countryBytes,
+          regionBytes,
+        );
+      }
+
       // Read persisted timestamp for incremental scan (ADR-022, ADR-110).
       // null → full scan (first launch or after clearAll).
       final lastScanAt = await _repo.loadLastScanAt();
@@ -636,6 +812,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final allPhotoGps = <PhotoGpsRecord>[];
       var totalProcessed = 0;
 
+      // M185 T3: incremental trip-inference state — see extendOpenTripRun /
+      // tripsIncludingOpenTail. Replaces repeated full-history inferTrips
+      // recomputation per batch.
+      final stableTrips = <TripRecord>[];
+      final openRunDates = <PhotoDateRecord>[];
+
       // M119: WHS accumulator keyed by siteId; merged across all batches.
       final whsAccum = <String, VisitedHeritageSite>{};
       // Snapshot of already-visited siteIds for new-discovery detection.
@@ -650,43 +832,40 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       await for (final event in scanStream) {
         if (_cancelled) break;
         if (event is ScanBatchEvent) {
-          // T3 (ADR-129): filter out photos already recorded by assetId.
-          // Photos with null assetId always pass through (no data loss).
-          final filteredPhotos =
-              event.photos
-                  .where(
-                    (p) =>
-                        p.assetId == null || !knownAssetIds.contains(p.assetId),
-                  )
-                  .toList();
-          final batchResult = await _resolveBatch(filteredPhotos);
+          // T3 (ADR-129) + M185 T2: resolve the whole batch once. Photos
+          // already recorded by assetId are excluded from accum/photoDates
+          // inside resolveBatch (knownAssetIds), but GPS is still collected
+          // for every resolved photo — GPS is exempt from the "already
+          // known" filter (ADR-157) so trip endpoints reflect actual photo
+          // coordinates even on incremental scans. This replaces the
+          // previous two-call pattern (once pre-filtered, once unfiltered
+          // again just for GPS) with a single resolve per batch.
+          final batchResult = await _resolveBatch(
+            event.photos,
+            knownAssetIds: knownAssetIds,
+          );
           for (final entry in batchResult.accum.entries) {
             final existing = accum[entry.key];
             accum[entry.key] =
                 existing == null ? entry.value : existing.merge(entry.value);
           }
           allPhotoDates.addAll(batchResult.photoDates);
-          // ADR-157 fix: GPS must cover ALL photos in the batch (including
-          // previously-known ones filtered by T3) so that trip endpoints use
-          // actual photo coordinates rather than country centroids. The T3
-          // filter guards accum and photoDates only — GPS collection is exempt.
-          final gpsSource =
-              filteredPhotos.length < event.photos.length
-                  ? await _resolveBatch(event.photos)
-                  : batchResult;
-          allPhotoGps.addAll(gpsSource.photoGps);
+          allPhotoGps.addAll(batchResult.photoGps);
+          // M185 T3: extend incremental trip state with this batch's new
+          // dates (already in arrival/chronological order).
+          extendOpenTripRun(batchResult.photoDates, stableTrips, openRunDates);
 
           // M119: WHS lookup — fast in-memory, no isolate needed (ADR-163).
-          if (gpsSource.photoGps.isNotEmpty) {
+          if (batchResult.photoGps.isNotEmpty) {
             final gpsRecords =
-                gpsSource.photoGps
+                batchResult.photoGps
                     .map((r) => (r.lat, r.lng, r.countryCode))
                     .toList();
             final whsMatches = WorldHeritageLookupService.findBatch(gpsRecords);
             for (int i = 0; i < whsMatches.length; i++) {
               final match = whsMatches[i];
               if (match == null) continue;
-              final gps = gpsSource.photoGps[i];
+              final gps = batchResult.photoGps[i];
               final siteId = match.site.siteId;
               final existing = whsAccum[siteId];
               if (existing == null) {
@@ -757,6 +936,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             }
           }
 
+          // M185 T3: computed once per batch from the incremental state
+          // (O(batch size), not O(total photos so far) — see
+          // tripsIncludingOpenTail) and reused below for both the live count
+          // and the stable-trip replay-event logic.
+          final batchTrips = tripsIncludingOpenTail(stableTrips, openRunDates);
+
           if (mounted) {
             setState(() {
               _scanProgress = _ScanProgress(
@@ -778,7 +963,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                 }
               }
               // T2, M125: live trip count from in-memory inference.
-              _liveTripCount = inferTrips(allPhotoDates).length;
+              _liveTripCount = batchTrips.length;
               // T1, M126/M128: thread heritage sites for colour-coded globe dots.
               _liveHeritageSites = whsAccum.values.toList();
             });
@@ -789,10 +974,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           // every trip in chronological order, not just new countries.
           //
           // Since photos arrive oldest-first (ascending: true in Swift), all
-          // trips in inferTrips(allPhotoDates) except the last are "stable"
-          // (the scan has moved past them and they won't grow further).
-          // The last trip is still open — more photos might extend it.
-          final batchTrips = inferTrips(allPhotoDates);
+          // trips in batchTrips except the last are "stable" (the scan has
+          // moved past them and they won't grow further). The last trip is
+          // still open — more photos might extend it.
           final newStableCount =
               batchTrips.length > 1 ? batchTrips.length - 1 : 0;
 
@@ -1114,7 +1298,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
       // M132: emit any trips that were still "open" (the last trip) when the
       // scan loop finished. Now that scanning is done, all trips are stable.
-      final finalTrips = inferTrips(allPhotoDates);
+      // M185 T3: incremental state already reflects the full history — no
+      // new dates to extend, just read it one more time.
+      final finalTrips = tripsIncludingOpenTail(stableTrips, openRunDates);
       for (var i = liveStableTripCount; i < finalTrips.length; i++) {
         final trip = finalTrips[i];
         final toCode = trip.countryCode;
