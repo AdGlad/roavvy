@@ -307,4 +307,52 @@ void main() {
       expect(find.text('Approve & Preview'), findsOneWidget);
     });
   });
+
+  group('M180 — Back Title uses location-aware generation', () {
+    // titleGenerationServiceProvider falls back to RuleBasedTitleGenerator
+    // off-iOS (no AI plugin available on the test platform) — still
+    // location-aware, and for a single country fully deterministic (returns
+    // the country's name directly), so this locks in real behaviour without
+    // needing to mock the AI channel.
+    testWidgets(
+      'tapping "New suggestion" replaces the title with the country name',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(400, 1000));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final db = _makeDb();
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              currentUidProvider.overrideWith((ref) => 'test-uid'),
+              roavvyDatabaseProvider.overrideWithValue(db),
+            ],
+            child: MaterialApp(
+              home: LocalMockupPreviewScreen(
+                selectedCodes: const ['JP'],
+                allCodes: const ['JP'],
+                trips: const [],
+                artworkImageBytes: _kFakeArtwork,
+                artworkConfirmationId: 'ac-test-002',
+                initialTemplate: CardTemplateType.heart,
+                confirmedAspectRatio: 3.0 / 2.0,
+              ),
+            ),
+          ),
+        );
+        tester.takeException();
+        await tester.pump();
+        tester.takeException();
+
+        await tester.tap(find.byIcon(Icons.refresh_rounded));
+        await tester.pump(); // start the async title request
+        tester.takeException();
+        await tester.pump(); // let it resolve
+        tester.takeException(); // absorb CardImageRenderer render errors
+
+        final field = tester.widget<TextField>(find.byType(TextField).first);
+        expect(field.controller!.text, 'Japan');
+      },
+    );
+  });
 }

@@ -10,17 +10,19 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
+import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
 import '../cards/flag_grid_layout_engine.dart';
+import '../cards/title_generation/title_generation_models.dart';
+import '../cards/title_generation/title_generation_provider.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
 import 'merch_cart_screen.dart';
-import 'merch_title_wordbank.dart';
 import 'merch_order_confirmation_screen.dart';
 import 'merch_post_purchase_screen.dart';
 import 'merch_share_exporter.dart';
@@ -306,9 +308,12 @@ class _LocalMockupPreviewScreenState
 
   // ── Back artwork title editing ─────────────────────────────────────────────
   late String? _titleOverride;
-  int _titleSeed = 0;
   late TextEditingController _titleController;
   Timer? _titleDebounce;
+
+  /// True while an AI title request is in flight — disables "New suggestion"
+  /// and shows a spinner in its place (M180).
+  bool _isTitleGenerating = false;
 
   // ── Passport stamp size + scatter controls ────────────────────────────────
   // Adjusted live via sliders; fed into every _generateFromPreset call.
@@ -1210,16 +1215,60 @@ class _LocalMockupPreviewScreenState
   /// the first grid render, so a shape-specific design (e.g. a kangaroo
   /// silhouette) starts in whichever orientation actually fills the print
   /// area, instead of always defaulting to the template's landscape default.
+  /// Also upgrades the placeholder title to a real AI-generated one — see
+  /// [_resolveInitialAiTitle] — before that same first render.
   Future<void> _initGridOrientationAndRender() async {
-    final isPortrait = await isPortraitForClipShape(
+    final orientationFuture = isPortraitForClipShape(
       widget.clipShape,
       widget.clipCode,
     );
+    final titleFuture = _resolveInitialAiTitle();
+    final isPortrait = await orientationFuture;
+    await titleFuture;
     if (!mounted) return;
     if (isPortrait != null && isPortrait != _isPortrait) {
       setState(() => _isPortrait = isPortrait);
     }
     await _setGridTextColor(_gridTextColor ?? Colors.white);
+  }
+
+  /// Upgrades the placeholder title (an offline wordbank phrase chosen back
+  /// on the Shop's design carousel, before real country/continent data was
+  /// worth an AI round trip for every thumbnail) to a real AI-generated one
+  /// before the first render, so the artwork the player actually sees
+  /// already reflects it.
+  ///
+  /// Only called from the [_initGridOrientationAndRender] path — reached
+  /// exclusively via [FlagShapeCustomiseScreen], where the incoming title is
+  /// always just that placeholder default, never a choice the user (or a
+  /// different screen, e.g. the Travel Card editor) already made
+  /// deliberately, so it's always safe to overwrite here.
+  Future<void> _resolveInitialAiTitle() async {
+    final codes = widget.selectedCodes;
+    final request = TitleGenerationRequest(
+      countryCodes: codes,
+      countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
+      regionNames: codes
+          .map((c) => kCountryContinent[c])
+          .whereType<String>()
+          .toSet()
+          .toList(),
+      cardType: _template,
+    );
+    try {
+      final result = await ref
+          .read(titleGenerationServiceProvider)
+          .generate(request);
+      debugPrint(
+        '[TitleGen] merch initial source=${result.source} '
+        'title="${result.title}"',
+      );
+      if (!mounted) return;
+      _titleOverride = result.title;
+      _titleController.text = result.title;
+    } catch (_) {
+      // Keep the wordbank placeholder on failure.
+    }
   }
 
   // ── Grid text colour selection (M107) ─────────────────────────────────────
@@ -1290,15 +1339,44 @@ class _LocalMockupPreviewScreenState
 
   // ── Back title cycling / editing ───────────────────────────────────────────
 
-  void _cycleTitle() {
-    _titleSeed++;
-    final next = MerchTitleWordbank.pickGeneric(
-      widget.selectedCodes.length,
-      _titleSeed,
+  /// Requests a fresh title from [titleGenerationServiceProvider] — real
+  /// on-device AI on iOS (via the Swift AiTitlePlugin), seeded with the
+  /// design's actual countries/continents, falling back to the offline
+  /// rule-based generator (still location-aware — country name, sub-region
+  /// cluster, or dominant continent) when the model is unavailable (M180).
+  Future<void> _cycleTitle() async {
+    if (_isTitleGenerating) return;
+    setState(() => _isTitleGenerating = true);
+
+    final codes = widget.selectedCodes;
+    final request = TitleGenerationRequest(
+      countryCodes: codes,
+      countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
+      regionNames: codes
+          .map((c) => kCountryContinent[c])
+          .whereType<String>()
+          .toSet()
+          .toList(),
+      cardType: _template,
     );
-    _titleController.text = next;
-    setState(() => _titleOverride = next);
-    unawaited(_renderVariant(_artworkVariantIndex));
+
+    try {
+      final result = await ref
+          .read(titleGenerationServiceProvider)
+          .generate(request);
+      debugPrint(
+        '[TitleGen] merch source=${result.source} title="${result.title}"',
+      );
+      if (!mounted) return;
+      _titleController.text = result.title;
+      setState(() {
+        _titleOverride = result.title;
+        _isTitleGenerating = false;
+      });
+      unawaited(_renderVariant(_artworkVariantIndex));
+    } catch (_) {
+      if (mounted) setState(() => _isTitleGenerating = false);
+    }
   }
 
   void _onTitleChanged(String text) {
@@ -2433,9 +2511,12 @@ class _LocalMockupPreviewScreenState
             Tooltip(
               message: 'New suggestion',
               child: IconButton(
-                onPressed: _variantLoading ? null : _cycleTitle,
+                onPressed:
+                    (_variantLoading || _isTitleGenerating)
+                        ? null
+                        : _cycleTitle,
                 icon:
-                    _variantLoading
+                    (_variantLoading || _isTitleGenerating)
                         ? const SizedBox(
                           width: 16,
                           height: 16,
