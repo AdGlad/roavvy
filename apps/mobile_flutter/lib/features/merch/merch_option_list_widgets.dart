@@ -14,6 +14,7 @@ import '../cards/card_image_renderer.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
+import 'animal_silhouette_service.dart';
 import 'flag_shape_customise_screen.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_preview_screen.dart';
@@ -762,6 +763,13 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     try {
       final isSoloGrid =
           opt.template == CardTemplateType.grid && opt.codes.length == 1;
+      final defaultAnimalClipCode = isSoloGrid
+          ? await AnimalSilhouetteService.defaultClipCodeFor(
+              opt.codes.first,
+              'animal',
+            )
+          : null;
+      if (!mounted) return;
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -777,10 +785,10 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
-        clipShape: isSoloGrid
+        clipShape: defaultAnimalClipCode != null
             ? GridClipShape.animalSilhouette
             : GridClipShape.none,
-        clipCode: isSoloGrid ? opt.codes.first.toUpperCase() : null,
+        clipCode: defaultAnimalClipCode,
       );
       if (!mounted) return;
 
@@ -1590,9 +1598,15 @@ class _DesignCardState extends State<_DesignCard> {
     try {
       final isSoloGrid =
           opt.template == CardTemplateType.grid && opt.codes.length == 1;
+      final clipCode = isSoloGrid
+          ? await AnimalSilhouetteService.defaultClipCodeFor(
+              opt.codes.first,
+              'animal',
+            )
+          : null;
+      if (!mounted) return;
       final clipShape =
-          isSoloGrid ? GridClipShape.animalSilhouette : GridClipShape.none;
-      final clipCode = isSoloGrid ? opt.codes.first.toUpperCase() : null;
+          clipCode != null ? GridClipShape.animalSilhouette : GridClipShape.none;
       // A single-country design's shape (e.g. a kangaroo) may fill more of
       // the print area in portrait or landscape depending on its own
       // proportions — fall back to the template default otherwise.

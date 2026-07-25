@@ -560,19 +560,19 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
           _onOutlineLoaded();
         });
       case GridClipShape.animalSilhouette:
-        AnimalSilhouetteService.pathFor(code).then((path) {
+        AnimalSilhouetteService.pathForClipCode('animal', code).then((path) {
           if (!mounted) return;
           if (path != null) setState(() => _outlinePath = path);
           _onOutlineLoaded();
         });
       case GridClipShape.plantSilhouette:
-        AnimalSilhouetteService.plantPathFor(code).then((path) {
+        AnimalSilhouetteService.pathForClipCode('plant', code).then((path) {
           if (!mounted) return;
           if (path != null) setState(() => _outlinePath = path);
           _onOutlineLoaded();
         });
       case GridClipShape.landmarkSilhouette:
-        AnimalSilhouetteService.landmarkPathFor(code).then((path) {
+        AnimalSilhouetteService.pathForClipCode('landmark', code).then((path) {
           if (!mounted) return;
           if (path != null) setState(() => _outlinePath = path);
           _onOutlineLoaded();

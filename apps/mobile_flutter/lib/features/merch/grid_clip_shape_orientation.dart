@@ -33,15 +33,20 @@ Future<bool?> isPortraitForClipShape(
   ui.Rect? bounds;
   switch (shape) {
     case GridClipShape.animalSilhouette:
-      bounds = (await AnimalSilhouetteService.pathFor(clipCode))?.getBounds();
+      bounds = (await AnimalSilhouetteService.pathForClipCode(
+        'animal',
+        clipCode,
+      ))?.getBounds();
     case GridClipShape.plantSilhouette:
-      bounds =
-          (await AnimalSilhouetteService.plantPathFor(clipCode))?.getBounds();
+      bounds = (await AnimalSilhouetteService.pathForClipCode(
+        'plant',
+        clipCode,
+      ))?.getBounds();
     case GridClipShape.landmarkSilhouette:
-      bounds =
-          (await AnimalSilhouetteService.landmarkPathFor(
-            clipCode,
-          ))?.getBounds();
+      bounds = (await AnimalSilhouetteService.pathForClipCode(
+        'landmark',
+        clipCode,
+      ))?.getBounds();
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
       bounds =

@@ -49,6 +49,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 .cat-other  { background: #3a3060; color: #b39ddb; }
 #list-count { padding: 6px 14px; font-size: 11px; color: #666; border-top: 1px solid #1e2240; }
 
+#btn-add-option-toggle { width: 100%; }
+#add-option-form { display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
+                   padding: 10px; background: #0d0f1e; border: 1px solid #2e3150; border-radius: 6px; }
+#add-option-form label { display: flex; flex-direction: column; gap: 3px;
+                         font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
+#add-option-form input, #add-option-form select {
+  background: #1e2240; border: 1px solid #3a3f6e; border-radius: 5px;
+  color: #e0e0e0; padding: 6px 8px; font-size: 12px; text-transform: none; letter-spacing: normal;
+}
+#add-option-form input:focus, #add-option-form select:focus { outline: none; border-color: #6c8eff; }
+.add-option-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px; }
+
 /* ── Main area ── */
 #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 #toolbar { padding: 8px 14px; background: #12152a; border-bottom: 1px solid #2e3150;
@@ -130,6 +142,26 @@ button.danger:hover { background: #2d1a1a; }
       <span class="chip" id="chip-files">Has files</span>
       <span class="chip" id="chip-missing">No files</span>
     </div>
+    <button id="btn-add-option-toggle">+ Add option</button>
+    <div id="add-option-form" style="display:none;">
+      <label>Country
+        <select id="ao-country"></select>
+      </label>
+      <label>Category
+        <input id="ao-category" list="ao-category-list" placeholder="animal, plant, landmark, …">
+        <datalist id="ao-category-list"></datalist>
+      </label>
+      <label>Name
+        <input id="ao-name" placeholder="e.g. Aldabra Giant Tortoise">
+      </label>
+      <label>Slug
+        <input id="ao-slug" placeholder="auto-filled from name">
+      </label>
+      <div class="add-option-actions">
+        <button id="ao-cancel">Cancel</button>
+        <button id="ao-submit">Add</button>
+      </div>
+    </div>
   </div>
   <div id="list"></div>
   <div id="list-count"></div>
@@ -158,11 +190,17 @@ button.danger:hover { background: #2d1a1a; }
     <div class="toolbar-group">
       <button id="btn-upload">Upload PNG</button>
       <input type="file" id="file-input" accept="image/*" style="display:none">
+      <button id="btn-upload-photo" title="Upload any photo — background is removed and the subject flattened to a black silhouette automatically">Upload Photo → Silhouette</button>
+      <input type="file" id="photo-file-input" accept="image/*" style="display:none">
     </div>
     <div class="toolbar-sep"></div>
     <div class="toolbar-group">
       <button id="btn-rot-ccw" title="Rotate 90° counter-clockwise">↺ CCW</button>
       <button id="btn-rot-cw"  title="Rotate 90° clockwise">↻ CW</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button id="btn-publish" title="Uploads the factory SVG to Firebase Storage (roavvy-prod) — live in the app">Publish to Firebase ⬆</button>
     </div>
   </div>
 
@@ -227,6 +265,7 @@ let svgPaths = [];
 let svgTransform = null;
 let flagImgCache = {};
 let vectoriseAvailable = false;
+let photoToSilhouetteAvailable = false;
 
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
@@ -237,11 +276,18 @@ async function init() {
     document.getElementById('btn-regen').title = 'vectorise.py not found';
   }
 
+  photoToSilhouetteAvailable = statusData.photo_to_silhouette_available;
+  document.getElementById('btn-upload-photo').disabled = !photoToSilhouetteAvailable;
+  if (!photoToSilhouetteAvailable) {
+    document.getElementById('btn-upload-photo').title = 'photo_to_mask.py / rembg not available: ' + statusData.photo_to_silhouette_error;
+  }
+
   await initSources();
   await reinitFilters();
   setupChips();
   setupFilters();
   setupToolbar();
+  setupAddOptionForm();
   await loadList();
 }
 
@@ -308,6 +354,21 @@ async function reinitFilters() {
     o.value = c.iso; o.textContent = `${c.name} (${c.iso})`;
     countrySel.appendChild(o);
   });
+
+  // Same data, reused for the "+ Add option" form.
+  const aoCountrySel = document.getElementById('ao-country');
+  aoCountrySel.innerHTML = '';
+  countries.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.iso; o.textContent = `${c.name} (${c.iso})`;
+    aoCountrySel.appendChild(o);
+  });
+  const aoCatList = document.getElementById('ao-category-list');
+  aoCatList.innerHTML = '';
+  cats.forEach(c => {
+    const o = document.createElement('option'); o.value = c;
+    aoCatList.appendChild(o);
+  });
 }
 
 // ── Chips ──────────────────────────────────────────────────────────────────
@@ -329,6 +390,80 @@ function setupFilters() {
   document.getElementById('search').addEventListener('input', () => loadList());
   document.getElementById('cat-filter').addEventListener('change', () => loadList());
   document.getElementById('country-filter').addEventListener('change', () => loadList());
+}
+
+// ── Add option ─────────────────────────────────────────────────────────────
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function setupAddOptionForm() {
+  const form = document.getElementById('add-option-form');
+  const nameInput = document.getElementById('ao-name');
+  const slugInput = document.getElementById('ao-slug');
+  let slugTouched = false;
+
+  document.getElementById('btn-add-option-toggle').addEventListener('click', () => {
+    const showing = form.style.display !== 'none';
+    form.style.display = showing ? 'none' : 'flex';
+  });
+
+  document.getElementById('ao-cancel').addEventListener('click', () => {
+    form.style.display = 'none';
+    nameInput.value = '';
+    slugInput.value = '';
+    document.getElementById('ao-category').value = '';
+    slugTouched = false;
+  });
+
+  nameInput.addEventListener('input', () => {
+    if (!slugTouched) slugInput.value = slugify(nameInput.value);
+  });
+  slugInput.addEventListener('input', () => { slugTouched = true; });
+
+  document.getElementById('ao-submit').addEventListener('click', async () => {
+    const cc = document.getElementById('ao-country').value;
+    const category = document.getElementById('ao-category').value.trim().toLowerCase();
+    const name = nameInput.value.trim();
+    const slug = slugInput.value.trim().toLowerCase();
+
+    if (!cc || !category || !name || !slug) {
+      toast('Country, category, name, and slug are all required', true);
+      return;
+    }
+
+    const btn = document.getElementById('ao-submit');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+      const body = new FormData();
+      body.append('cc', cc);
+      body.append('category', category);
+      body.append('name', name);
+      body.append('slug', slug);
+      const res = await fetch('/api/add_option', { method: 'POST', body });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || res.statusText); }
+      const item = await res.json();
+
+      form.style.display = 'none';
+      nameInput.value = '';
+      slugInput.value = '';
+      document.getElementById('ao-category').value = '';
+      slugTouched = false;
+
+      await reinitFilters();
+      await loadList();
+      selectItem(item);
+      toast(`Added ${item.display_name} — now upload a PNG or photo for it`);
+    } catch (err) {
+      toast('Add failed: ' + err.message, true);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Add';
+    }
+  });
 }
 
 // ── Load list ──────────────────────────────────────────────────────────────
@@ -558,37 +693,9 @@ async function renderPreview() {
 }
 
 function drawShirtBackground(ctx, w, h) {
-  const bx = w * 0.12, bw = w * 0.76, bh = h * 0.70, by = h * 0.30;
-  const sw = w * 0.30, sh = h * 0.28, sleeveTop = h * 0.04;
-  const neckW = w * 0.22, neckH = h * 0.10;
-
   ctx.save();
-  ctx.fillStyle = '#f5f0ea';
-  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  // Left sleeve
-  ctx.moveTo(0, sleeveTop + sh);
-  ctx.lineTo(0, sleeveTop);
-  ctx.lineTo(bx + sw * 0.4, sleeveTop);
-  // Left shoulder to collar
-  ctx.lineTo(bx, by);
-  // Collar left arc
-  ctx.bezierCurveTo(bx + w*0.05, by - neckH, w/2 - neckW/2, by - neckH*0.5, w/2, by - neckH*0.3);
-  // Collar right arc
-  ctx.bezierCurveTo(w/2 + neckW/2, by - neckH*0.5, bx + bw - w*0.05, by - neckH, bx + bw, by);
-  // Right shoulder to sleeve
-  ctx.lineTo(w - bx - sw * 0.4, sleeveTop);
-  ctx.lineTo(w, sleeveTop);
-  ctx.lineTo(w, sleeveTop + sh);
-  ctx.lineTo(w - bx, by + sh * 0.5);
-  // Body right
-  ctx.lineTo(bx + bw, by + bh);
-  ctx.lineTo(bx, by + bh);
-  ctx.lineTo(bx, by + sh * 0.5);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
   ctx.restore();
 }
 
@@ -610,8 +717,12 @@ function setupToolbar() {
   document.getElementById('btn-upload').addEventListener('click', () =>
     document.getElementById('file-input').click());
   document.getElementById('file-input').addEventListener('change', uploadPng);
+  document.getElementById('btn-upload-photo').addEventListener('click', () =>
+    document.getElementById('photo-file-input').click());
+  document.getElementById('photo-file-input').addEventListener('change', uploadPhoto);
   document.getElementById('btn-rot-ccw').addEventListener('click', () => rotateItem(-90));
   document.getElementById('btn-rot-cw').addEventListener('click', () => rotateItem(90));
+  document.getElementById('btn-publish').addEventListener('click', publish);
   document.getElementById('preview-flag').addEventListener('input', e => {
     e.target.dataset.auto = 'false';
     flagImgCache = {};
@@ -666,6 +777,28 @@ async function exportPng() {
   }
 }
 
+async function publish() {
+  if (!currentItem) return;
+  if (!currentItem.has_svg) { toast('No factory SVG yet — regenerate first', true); return; }
+  if (!confirm(`Upload ${currentItem.display_name} (${currentItem.iso_code}) to Firebase Storage (roavvy-prod)?\n\nThis goes live in the app immediately.`)) return;
+  const btn = document.getElementById('btn-publish');
+  btn.disabled = true; btn.textContent = 'Publishing…';
+  try {
+    const res = await fetch(`/api/publish/${currentItem.id}`, { method: 'POST' });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || res.statusText); }
+    const data = await res.json();
+    const item = await fetch(`/api/silhouette/${currentItem.id}`).then(r => r.json());
+    currentItem = item;
+    loadItem(item);
+    refreshListItem(item);
+    toast(`Published to ${data.bucket_path}`);
+  } catch (err) {
+    toast('Publish failed: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Publish to Firebase ⬆';
+  }
+}
+
 async function uploadPng(e) {
   if (!currentItem || !e.target.files[0]) return;
   const file = e.target.files[0];
@@ -682,6 +815,30 @@ async function uploadPng(e) {
     toast('PNG uploaded');
   } catch (err) {
     toast('Upload failed: ' + err.message, true);
+  }
+}
+
+async function uploadPhoto(e) {
+  if (!currentItem || !e.target.files[0]) return;
+  const file = e.target.files[0];
+  e.target.value = '';
+  const body = new FormData();
+  body.append('file', file);
+  const btn = document.getElementById('btn-upload-photo');
+  btn.disabled = true; btn.textContent = 'Removing background…';
+  try {
+    const res = await fetch(`/api/upload_photo/${currentItem.id}`, { method: 'POST', body });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.detail || res.statusText); }
+    const item = await fetch(`/api/silhouette/${currentItem.id}`).then(r => r.json());
+    currentItem = item;
+    loadItem(item);
+    refreshListItem(item);
+    toast('Silhouette generated from photo — check it, then Regenerate SVG');
+  } catch (err) {
+    toast('Photo processing failed: ' + err.message, true);
+  } finally {
+    btn.disabled = !photoToSilhouetteAvailable;
+    btn.textContent = 'Upload Photo → Silhouette';
   }
 }
 

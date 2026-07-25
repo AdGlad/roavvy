@@ -113,8 +113,11 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
   @override
   void initState() {
     super.initState();
-    _pages = _buildPages(animalName: null, plantName: null, landmarkName: null);
-    // Jump to the requested shape page if provided.
+    _pages = _buildPages();
+    // Jump to the requested shape page if it's already available. Silhouette
+    // categories (animal/plant/landmark) load their option pages async below,
+    // so if initialShape points at one of those, this only takes effect once
+    // that load completes (see the .then() below).
     if (widget.initialShape != null) {
       final idx = _pages.indexWhere((p) => p.shape == widget.initialShape);
       if (idx >= 0) _currentPage = idx;
@@ -133,29 +136,42 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                 : 1;
     // Preload outline paths in background.
     _preloadOutlinePaths();
-    // Load animal + plant + landmark names for single-country designs to show as page labels.
+    // Load every available animal/plant/landmark option for single-country
+    // designs — each one becomes its own carousel page, so a country with
+    // e.g. two candidate animals offers both as separate swipeable choices.
     if (widget.codes.length == 1) {
       final cc = widget.codes.first.toUpperCase();
       Future.wait([
-        AnimalSilhouetteService.animalNameFor(cc),
-        AnimalSilhouetteService.plantNameFor(cc),
-        AnimalSilhouetteService.landmarkNameFor(cc),
-      ]).then((names) {
-        if (mounted) {
-          setState(() => _pages = _buildPages(
-            animalName: names[0],
-            plantName: names[1],
-            landmarkName: names[2],
-          ));
+        AnimalSilhouetteService.optionsFor(cc, 'animal'),
+        AnimalSilhouetteService.optionsFor(cc, 'plant'),
+        AnimalSilhouetteService.optionsFor(cc, 'landmark'),
+      ]).then((results) {
+        if (!mounted) return;
+        setState(() {
+          _pages = _buildPages(
+            animalOptions: results[0],
+            plantOptions: results[1],
+            landmarkOptions: results[2],
+          );
+        });
+        // The requested shape's page(s) didn't exist until just now (there
+        // was nothing to jump to at the initState check above) — jump there.
+        final targetShape = widget.initialShape;
+        if (targetShape != null) {
+          final idx = _pages.indexWhere((p) => p.shape == targetShape);
+          if (idx >= 0 && idx != _currentPage) {
+            _currentPage = idx;
+            _pageCtrl.jumpToPage(idx);
+          }
         }
       });
     }
   }
 
   List<_PageDef> _buildPages({
-    required String? animalName,
-    String? plantName,
-    String? landmarkName,
+    List<SilhouetteOption> animalOptions = const [],
+    List<SilhouetteOption> plantOptions = const [],
+    List<SilhouetteOption> landmarkOptions = const [],
   }) {
     final pages = <_PageDef>[
       (shape: GridClipShape.none, label: 'Grid', clipCode: null),
@@ -171,24 +187,29 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
         label: countryName,
         clipCode: widget.codes.first.toLowerCase(),
       ));
-      // Animal silhouette
-      pages.add((
-        shape: GridClipShape.animalSilhouette,
-        label: animalName ?? 'Animal',
-        clipCode: code,
-      ));
-      // Plant silhouette
-      pages.add((
-        shape: GridClipShape.plantSilhouette,
-        label: plantName ?? 'Plant',
-        clipCode: code,
-      ));
-      // Landmark silhouette
-      pages.add((
-        shape: GridClipShape.landmarkSilhouette,
-        label: landmarkName ?? 'Landmark',
-        clipCode: code,
-      ));
+      // One page per available option, per category — a country with
+      // multiple candidate animals offers each as its own swipeable choice.
+      for (final o in animalOptions) {
+        pages.add((
+          shape: GridClipShape.animalSilhouette,
+          label: o.name,
+          clipCode: AnimalSilhouetteService.encodeClipCode(code, o.slug),
+        ));
+      }
+      for (final o in plantOptions) {
+        pages.add((
+          shape: GridClipShape.plantSilhouette,
+          label: o.name,
+          clipCode: AnimalSilhouetteService.encodeClipCode(code, o.slug),
+        ));
+      }
+      for (final o in landmarkOptions) {
+        pages.add((
+          shape: GridClipShape.landmarkSilhouette,
+          label: o.name,
+          clipCode: AnimalSilhouetteService.encodeClipCode(code, o.slug),
+        ));
+      }
     }
     // Continent outline — only when a continent key is provided.
     if (widget.continentKey != null) {
@@ -278,7 +299,7 @@ class _FlagShapeCustomiseScreenState extends State<FlagShapeCustomiseScreen> {
                   final page = _pages[i];
                   return _ClipVariantCard(
                     key: ValueKey(
-                      '${page.shape.name}_${_rowCount}_${widget.codes.hashCode}_${widget.initialColour}',
+                      '${page.shape.name}_${page.clipCode}_${_rowCount}_${widget.codes.hashCode}_${widget.initialColour}',
                     ),
                     codes: widget.codes,
                     trips: widget.trips,

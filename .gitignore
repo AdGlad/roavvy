@@ -131,3 +131,7 @@ docs/screenshots/discovery.MP4
 /mascot/
 
 __pycache__/
+
+# Local read-only mirror of Firebase Storage for the silhouette review tool
+# (synced on demand, not a source of truth — see tools/silhouette_review/server.py)
+/tools/silhouette_review/.storage_cache/
