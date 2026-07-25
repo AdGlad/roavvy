@@ -368,6 +368,33 @@ List<TripRecord> tripsIncludingOpenTail(
   return List.unmodifiable([...stableTrips, inferTrips(openRunDates).single]);
 }
 
+// ── Ambient montage FIFO (M184 T1) ──────────────────────────────────────────────
+
+/// Default cap for [extendMontageQueue]'s rolling window of recent
+/// geotagged assetIds.
+const int kMontageQueueCap = 30;
+
+/// Appends every non-null assetId from [photoDates] to [queue] (mutated in
+/// place, oldest-to-newest order), then trims to the most recent [cap]
+/// entries — a bounded FIFO of recently-seen geotagged photos for the
+/// ambient montage (M184). Distinct from M181's [firstRepresentativeAssetId],
+/// which only tracks one photo per newly-discovered country; this tracks
+/// every geotagged photo seen, capped, so the montage has a continuous
+/// stream to cycle through rather than one photo per country.
+void extendMontageQueue(
+  List<PhotoDateRecord> photoDates,
+  List<String> queue, {
+  int cap = kMontageQueueCap,
+}) {
+  for (final p in photoDates) {
+    final assetId = p.assetId;
+    if (assetId != null) queue.add(assetId);
+  }
+  if (queue.length > cap) {
+    queue.removeRange(0, queue.length - cap);
+  }
+}
+
 // ── Postcard photo selection (M181 T1) ──────────────────────────────────────────
 
 /// Returns the `assetId` of the first record in [photoDates] whose
@@ -554,6 +581,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   /// see [_ScanGlobeWidget.photoLocations] for why identity matters here.
   List<PhotoLocation> _liveHeatPoints = const [];
 
+  /// Bounded FIFO of recently-seen geotagged assetIds for the ambient photo
+  /// montage (M184). Mutated in place by [extendMontageQueue] each batch.
+  final List<String> _liveMontageQueue = [];
+
   /// Persistent resolver isolate for the current scan (M185). Spawned in
   /// [_scan] before the batch loop starts; null when [widget.batchResolver]
   /// is supplied (widget tests bypass the isolate entirely) or when no scan
@@ -735,6 +766,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       _liveTripCount = 0;
       _liveHeritageSites = const [];
       _liveHeatPoints = const [];
+      _liveMontageQueue.clear();
       // Pre-populate with thresholds already satisfied by existing countries
       // so we only toast achievements that are NEW during this scan (T1, M125).
       _achievementsToastedThisScan
@@ -906,6 +938,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           // M185 T3: extend incremental trip state with this batch's new
           // dates (already in arrival/chronological order).
           extendOpenTripRun(batchResult.photoDates, stableTrips, openRunDates);
+          // M184 T1: extend the ambient montage's bounded FIFO.
+          extendMontageQueue(batchResult.photoDates, _liveMontageQueue);
 
           // M119: WHS lookup — fast in-memory, no isolate needed (ADR-163).
           if (batchResult.photoGps.isNotEmpty) {
@@ -1476,6 +1510,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           _liveTripCount = 0;
           _liveHeritageSites = const [];
           _liveHeatPoints = const [];
+          _liveMontageQueue.clear();
           _achievementsUnlockedInOrder.clear();
           _achievementsToastedThisScan.clear();
         });
@@ -1706,6 +1741,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                                   liveTripCount: _liveTripCount,
                                   liveHeritageSites: _liveHeritageSites,
                                   liveHeatPoints: _liveHeatPoints,
+                                  liveMontageAssetIds: _liveMontageQueue,
                                 ),
                               )
                             // No data yet paths:
@@ -1969,6 +2005,7 @@ class _ScanningView extends ConsumerStatefulWidget {
     this.liveTripCount = 0,
     this.liveHeritageSites = const [],
     this.liveHeatPoints = const [],
+    this.liveMontageAssetIds = const [],
   });
 
   final _ScanProgress? progress;
@@ -2001,6 +2038,10 @@ class _ScanningView extends ConsumerStatefulWidget {
 
   /// Live-accumulated photo GPS points for the scan globe's heat map (M182).
   final List<PhotoLocation> liveHeatPoints;
+
+  /// Bounded FIFO of recently-seen geotagged assetIds for the ambient photo
+  /// montage (M184).
+  final List<String> liveMontageAssetIds;
 
   @override
   ConsumerState<_ScanningView> createState() => _ScanningViewState();
@@ -2243,6 +2284,16 @@ class _ScanningViewState extends ConsumerState<_ScanningView>
               liveTripCount: widget.liveTripCount,
               visible: widget.isScanning,
             ),
+            // Ambient photo montage — subtle band, mood not information
+            // (M184). Only during active scanning; below the sparse-library
+            // threshold or with nothing collected yet it renders nothing.
+            if (widget.isScanning) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _ScanMontage(assetIds: widget.liveMontageAssetIds),
+              ),
+              const SizedBox(height: 8),
+            ],
             // Globe — flexible hero (T2, M121).
             Flexible(
               flex: 55,
@@ -3138,6 +3189,138 @@ class _ScanPhotoThumbnailState extends State<_ScanPhotoThumbnail> {
         child: _bytes != null
             ? Image.memory(_bytes!, fit: widget.fit, gaplessPlayback: true)
             : widget.fallback,
+      ),
+    );
+  }
+}
+
+// ── Ambient photo montage (M184) ────────────────────────────────────────────────
+
+/// Slow ambient crossfade of recently-seen photos as the scan streams past —
+/// a low-opacity band that gives the wait a "these are the memories we're
+/// reading" mood, distinct from the per-country postcards in the discovery
+/// feed. Shares [_ScanPhotoThumbnail]'s throttled load queue.
+class _ScanMontage extends StatefulWidget {
+  const _ScanMontage({required this.assetIds});
+
+  /// Bounded FIFO of recent geotagged assetIds (see [extendMontageQueue]) —
+  /// the montage cycles through these at roughly 1/second.
+  final List<String> assetIds;
+
+  @override
+  State<_ScanMontage> createState() => _ScanMontageState();
+}
+
+class _ScanMontageState extends State<_ScanMontage>
+    with SingleTickerProviderStateMixin {
+  /// Below this many collected photos, a cycling montage would just repeat
+  /// the same 1-2 images in a loop — reads as broken, not ambient (T3).
+  static const int _sparseThreshold = 3;
+  static const Duration _advanceInterval = Duration(seconds: 1);
+
+  // Captured once at mount — reduce-motion toggling mid-scan isn't handled
+  // live, matching this file's existing convention (e.g. GlobeReplayWidget).
+  late final bool _reduceMotion;
+  Timer? _advanceTimer;
+  int _index = 0;
+  AnimationController? _kenBurnsCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _reduceMotion =
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .accessibilityFeatures
+            .reduceMotion;
+    if (!_reduceMotion) {
+      // Slow continuous drift rather than restarting per-image — a ~1s hold
+      // is too short for its own noticeable Ken-Burns arc.
+      _kenBurnsCtrl = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 8),
+      )..repeat(reverse: true);
+      _maybeStartTimer();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ScanMontage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_reduceMotion) _maybeStartTimer();
+    // The FIFO trims from the front as new photos arrive — keep the index
+    // in range rather than pointing past the end.
+    if (_index >= widget.assetIds.length) {
+      _index = widget.assetIds.isEmpty ? 0 : widget.assetIds.length - 1;
+    }
+  }
+
+  void _maybeStartTimer() {
+    if (_advanceTimer != null) return;
+    if (widget.assetIds.length < _sparseThreshold) return;
+    _advanceTimer = Timer.periodic(_advanceInterval, (_) {
+      if (!mounted || widget.assetIds.isEmpty) return;
+      setState(() => _index = (_index + 1) % widget.assetIds.length);
+    });
+  }
+
+  @override
+  void dispose() {
+    _advanceTimer?.cancel();
+    _kenBurnsCtrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.assetIds.length < _sparseThreshold) {
+      return const SizedBox.shrink();
+    }
+
+    final assetId =
+        widget.assetIds[_index.clamp(0, widget.assetIds.length - 1)];
+
+    Widget image = _ScanPhotoThumbnail(
+      assetId: assetId,
+      fetchSize: 400,
+      width: double.infinity,
+      height: double.infinity,
+      borderRadius: 0,
+      fit: BoxFit.cover,
+      fallback: const SizedBox.shrink(),
+    );
+
+    final kenBurnsCtrl = _kenBurnsCtrl;
+    if (kenBurnsCtrl != null) {
+      image = AnimatedBuilder(
+        animation: kenBurnsCtrl,
+        builder:
+            (context, child) =>
+                Transform.scale(scale: 1.0 + kenBurnsCtrl.value * 0.04, child: child),
+        child: image,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 64,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _reduceMotion
+                ? image
+                : AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 600),
+                  child: KeyedSubtree(key: ValueKey(assetId), child: image),
+                ),
+            // Dark scrim — ambient mood, never competes with the globe or
+            // headline copy above it.
+            const ColoredBox(color: Color(0x73000000)),
+          ],
+        ),
       ),
     );
   }
