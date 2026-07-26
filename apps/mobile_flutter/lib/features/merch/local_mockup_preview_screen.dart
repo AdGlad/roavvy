@@ -17,6 +17,7 @@ import '../cards/card_image_renderer.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import '../cards/title_generation/title_generation_models.dart';
 import '../cards/title_generation/title_generation_provider.dart';
+import 'flag_clip_options.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
@@ -97,6 +98,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.flagRepeatCount = 1,
     this.clipCode,
     this.rowCount,
+    this.continentKey,
   });
 
   final List<String> selectedCodes;
@@ -166,6 +168,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// When non-null, forces the packed-row layout to use exactly this many rows.
   final int? rowCount;
 
+  /// Continent key for continent-scoped collections (M171). Enables the
+  /// "continent outline" clip option in the configurator (M187).
+  final String? continentKey;
+
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
       _LocalMockupPreviewScreenState();
@@ -202,6 +208,20 @@ class _LocalMockupPreviewScreenState
   late FlagGridLayoutMode _gridLayoutMode;
   bool _isPortrait = true;
   int _shuffleSeed = 0; // 0 = use widget.stampLayoutSeed (deterministic)
+
+  // ── Flag-grid clip / rows (M187) ───────────────────────────────────────────
+  // Live-editable on this screen. Seeded from widget.* in initState; every
+  // artwork render path reads THESE fields, never widget.*, so changing the
+  // clip shape or row count re-renders the mockup in place (no back-navigation).
+  late GridClipShape _clipShape;
+  String? _clipCode;
+  late int _flagRepeatCount;
+  int? _rowCount;
+
+  /// Selectable clip-shape options for the grid style strip. Base set is ready
+  /// synchronously; single-country silhouette options are appended when the
+  /// async load completes ([_loadClipOptions]).
+  List<FlagClipOption> _clipOptions = const [];
 
   // nullable until first generation (ADR-147: preset-driven entry).
   Uint8List? _artworkBytes;
@@ -321,6 +341,10 @@ class _LocalMockupPreviewScreenState
   double _stampJitterFactor = 0.4;
   Timer? _stampControlDebounce;
 
+  /// Debounces the flag-grid row slider so the expensive re-render fires only
+  /// once the user pauses (M187).
+  Timer? _gridControlDebounce;
+
   // ── Artwork stamp variants ─────────────────────────────────────────────────
   // 0 = original (widget.stampColor), 1 = black stamps, 2 = white/transparent
 
@@ -432,6 +456,20 @@ class _LocalMockupPreviewScreenState
     super.initState();
     _template = widget.initialTemplate;
     _gridLayoutMode = widget.gridLayoutMode;
+    // Flag-grid clip / rows are live-editable on this screen (M187). Seed from
+    // the incoming widget values; the base clip-option strip is available
+    // immediately, silhouette options stream in via _loadClipOptions().
+    _clipShape = widget.clipShape;
+    _clipCode = widget.clipCode;
+    _flagRepeatCount = widget.flagRepeatCount;
+    _rowCount = widget.rowCount;
+    _clipOptions = buildFlagClipOptions(
+      codes: widget.selectedCodes,
+      continentKey: widget.continentKey,
+    );
+    if (widget.initialTemplate == CardTemplateType.grid) {
+      unawaited(_loadClipOptions());
+    }
     // Flag grid defaults to landscape; all other templates default to portrait.
     _isPortrait = widget.initialTemplate != CardTemplateType.grid;
     _artworkConfirmationId = widget.artworkConfirmationId;
@@ -526,6 +564,7 @@ class _LocalMockupPreviewScreenState
     _giftMessageCtrl.dispose();
     _titleDebounce?.cancel();
     _stampControlDebounce?.cancel();
+    _gridControlDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
     _mockupSubscription?.cancel();
@@ -702,10 +741,10 @@ class _LocalMockupPreviewScreenState
         stampJitterFactor: _stampJitterFactor,
         stampSizeMultiplier: _stampSizeMultiplier,
         gridLayoutMode: _gridLayoutMode,
-        clipShape: widget.clipShape,
-        flagRepeatCount: widget.flagRepeatCount,
-        clipCode: widget.clipCode,
-        rowCount: widget.rowCount,
+        clipShape: _clipShape,
+        flagRepeatCount: _flagRepeatCount,
+        clipCode: _clipCode,
+        rowCount: _rowCount,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
@@ -781,6 +820,73 @@ class _LocalMockupPreviewScreenState
     });
     await _generateFromPreset(config);
   }
+
+  // ── Flag-grid clip shape / rows (M187) ─────────────────────────────────────
+
+  /// Loads the full clip-option list (incl. single-country silhouettes) and
+  /// appends them to the strip without disturbing the current selection.
+  Future<void> _loadClipOptions() async {
+    final opts = await loadFlagClipOptions(
+      codes: widget.selectedCodes,
+      continentKey: widget.continentKey,
+    );
+    if (!mounted) return;
+    setState(() => _clipOptions = opts);
+  }
+
+  /// Re-renders the grid artwork after a clip/rows change, using whichever
+  /// render path is active for this entry (preset-driven vs. from-scratch).
+  Future<void> _regenerateGridArtwork() async {
+    if (_presetConfig != null) {
+      await _generateFromPreset(_presetConfig!);
+    } else {
+      await _setGridTextColor(_gridTextColor ?? Colors.white);
+    }
+  }
+
+  /// Applies a new clip shape: updates state, recomputes the shape's natural
+  /// orientation and a sensible default row count, then re-renders.
+  Future<void> _onClipOptionSelected(FlagClipOption option) async {
+    if (option.shape == _clipShape && option.clipCode == _clipCode) return;
+    final defaultRepeat = merchDefaultRepeatCount(
+      widget.selectedCodes.length,
+      option.shape,
+    );
+    setState(() {
+      _clipShape = option.shape;
+      _clipCode = option.clipCode;
+      _rowCount = defaultRepeat;
+      _flagRepeatCount = defaultRepeat;
+    });
+    // Orient the canvas to the shape's natural proportions (e.g. a tall
+    // silhouette → portrait) before rendering.
+    final portrait = await isPortraitForClipShape(option.shape, option.clipCode);
+    if (!mounted) return;
+    if (portrait != null && portrait != _isPortrait) {
+      setState(() => _isPortrait = portrait);
+    }
+    await _regenerateGridArtwork();
+  }
+
+  /// Row slider handler — updates state immediately (smooth slider) and
+  /// debounces the re-render so it fires once the user pauses.
+  void _onRowCountChanged(double value) {
+    final rows = value.round();
+    setState(() {
+      _rowCount = rows;
+      _flagRepeatCount = rows;
+    });
+    _gridControlDebounce?.cancel();
+    _gridControlDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      unawaited(_regenerateGridArtwork());
+    });
+  }
+
+  /// True when the flag-grid Style controls (clip strip + rows) apply — i.e.
+  /// this is the flag-grid template. Repeat count stays meaningful for every
+  /// clip shape (it controls how densely flags tile inside the shape).
+  bool get _gridStyleApplies => _template == CardTemplateType.grid;
 
   // ── Passport stamp size / scatter ─────────────────────────────────────────
 
@@ -1137,10 +1243,10 @@ class _LocalMockupPreviewScreenState
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
         stampSizeMultiplier: _stampSizeMultiplier,
         stampJitterFactor: _stampJitterFactor,
-        clipShape: widget.clipShape,
-        flagRepeatCount: widget.flagRepeatCount,
-        clipCode: widget.clipCode,
-        rowCount: widget.rowCount,
+        clipShape: _clipShape,
+        flagRepeatCount: _flagRepeatCount,
+        clipCode: _clipCode,
+        rowCount: _rowCount,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1219,8 +1325,8 @@ class _LocalMockupPreviewScreenState
   /// [_resolveInitialAiTitle] — before that same first render.
   Future<void> _initGridOrientationAndRender() async {
     final orientationFuture = isPortraitForClipShape(
-      widget.clipShape,
-      widget.clipCode,
+      _clipShape,
+      _clipCode,
     );
     final titleFuture = _resolveInitialAiTitle();
     final isPortrait = await orientationFuture;
@@ -1292,10 +1398,10 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
-        clipShape: widget.clipShape,
-        flagRepeatCount: widget.flagRepeatCount,
-        clipCode: widget.clipCode,
-        rowCount: widget.rowCount,
+        clipShape: _clipShape,
+        flagRepeatCount: _flagRepeatCount,
+        clipCode: _clipCode,
+        rowCount: _rowCount,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);
@@ -2313,6 +2419,64 @@ class _LocalMockupPreviewScreenState
             ),
           ],
         ),
+        // ── Flag-grid style: clip shape + rows (M187) ────────────────────
+        // Previously chosen on a separate screen (FlagShapeCustomiseScreen);
+        // now fully editable here with a live mockup refresh.
+        if (_gridStyleApplies) ...[
+          const SizedBox(height: 12),
+          const _MiniLabel('Style'),
+          const SizedBox(height: 6),
+          _ClipShapeStrip(
+            options: _clipOptions,
+            selectedShape: _clipShape,
+            selectedClipCode: _clipCode,
+            enabled:
+                _state != _MockupState.rerendering &&
+                _state != _MockupState.approving,
+            onSelected: (opt) => unawaited(_onClipOptionSelected(opt)),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const _MiniLabel('Rows'),
+              const SizedBox(width: 8),
+              Text(
+                '${_rowCount ?? _flagRepeatCount}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 2,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 7,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 14,
+                    ),
+                  ),
+                  child: Slider(
+                    value: (_rowCount ?? _flagRepeatCount)
+                        .clamp(1, 10)
+                        .toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    onChanged:
+                        _state == _MockupState.rerendering ||
+                                _state == _MockupState.approving
+                            ? null
+                            : _onRowCountChanged,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+
         // ── Passport stamp controls (size + scatter) ─────────────────────
         if (_isTshirt && _template == CardTemplateType.passport) ...[
           const SizedBox(height: 10),
@@ -3587,6 +3751,108 @@ class _MiniLabel extends StatelessWidget {
         color: theme.colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+/// Horizontal strip of flag-grid clip-shape chips (M187).
+///
+/// Replaces the old [FlagShapeCustomiseScreen] page carousel: the user taps a
+/// chip (Grid / Heart / Circle / country outline / animal / plant / landmark)
+/// and the large mockup re-renders in place. Silhouette chips stream in as the
+/// async option load completes, so the strip starts with Grid/Heart/Circle and
+/// grows.
+class _ClipShapeStrip extends StatelessWidget {
+  const _ClipShapeStrip({
+    required this.options,
+    required this.selectedShape,
+    required this.selectedClipCode,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final List<FlagClipOption> options;
+  final GridClipShape selectedShape;
+  final String? selectedClipCode;
+  final bool enabled;
+  final ValueChanged<FlagClipOption> onSelected;
+
+  IconData _iconFor(GridClipShape shape) => switch (shape) {
+    GridClipShape.none => Icons.grid_view_rounded,
+    GridClipShape.heart => Icons.favorite_rounded,
+    GridClipShape.circle => Icons.circle_outlined,
+    GridClipShape.countryOutline => Icons.public_rounded,
+    GridClipShape.continentOutline => Icons.travel_explore_rounded,
+    GridClipShape.animalSilhouette => Icons.pets_rounded,
+    GridClipShape.plantSilhouette => Icons.local_florist_rounded,
+    GridClipShape.landmarkSilhouette => Icons.account_balance_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (options.isEmpty) {
+      return const SizedBox(height: 40);
+    }
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: options.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final opt = options[i];
+          final selected =
+              opt.shape == selectedShape && opt.clipCode == selectedClipCode;
+          return GestureDetector(
+            onTap: enabled && !selected ? () => onSelected(opt) : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color:
+                    selected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color:
+                      selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _iconFor(opt.shape),
+                    size: 14,
+                    color:
+                        selected
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    opt.label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color:
+                          selected
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.onSurface,
+                      fontWeight:
+                          selected ? FontWeight.bold : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

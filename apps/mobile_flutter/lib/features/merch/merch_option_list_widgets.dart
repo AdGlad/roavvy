@@ -15,7 +15,7 @@ import '../cards/flag_grid_layout_engine.dart';
 import '../cards/landmark_image_service.dart';
 import 'local_mockup_painter.dart';
 import 'animal_silhouette_service.dart';
-import 'flag_shape_customise_screen.dart';
+import 'flag_clip_options.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_share_exporter.dart';
@@ -368,22 +368,35 @@ class _MerchOptionCardState extends State<MerchOptionCard>
     final bytes = _artworkBytes;
     if (bytes == null) return;
 
-    // Grid template → FlagShapeCustomiseScreen (M170).
+    // Grid template → LocalMockupPreviewScreen configurator (M187).
+    // Clip shape + rows are now editable directly on the configurator, so we
+    // skip the old intermediate FlagShapeCustomiseScreen and land the user on
+    // the single-screen configurator with sensible grid defaults.
     if (widget.option.template == CardTemplateType.grid) {
+      final gridCodes = widget.option.codes;
+      final defaultRows = merchDefaultRepeatCount(
+        gridCodes.length,
+        GridClipShape.none,
+      );
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
-              (_) => FlagShapeCustomiseScreen(
-                codes: widget.option.codes,
+              (_) => LocalMockupPreviewScreen(
+                selectedCodes: gridCodes,
                 allCodes: widget.allCodes,
                 trips: widget.option.trips,
+                initialTemplate: CardTemplateType.grid,
+                confirmedAspectRatio: merchBackCardAspectRatio(
+                  CardTemplateType.grid,
+                ),
+                transparentBackground: true,
+                initialColour: widget.option.suggestedShirtColor,
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
-                initialColour: widget.option.suggestedShirtColor,
+                clipShape: GridClipShape.none,
+                flagRepeatCount: defaultRows,
+                rowCount: defaultRows,
                 continentKey: widget.option.continentKey,
-                initialShape: widget.option.codes.length == 1
-                    ? GridClipShape.animalSilhouette
-                    : null,
               ),
         ),
       );
@@ -845,22 +858,35 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     final bytes = _artworkBytes;
     if (bytes == null) return;
 
-    // Grid template → FlagShapeCustomiseScreen (M170).
+    // Grid template → LocalMockupPreviewScreen configurator (M187).
+    // Clip shape + rows are now editable directly on the configurator, so we
+    // skip the old intermediate FlagShapeCustomiseScreen and land the user on
+    // the single-screen configurator with sensible grid defaults.
     if (widget.option.template == CardTemplateType.grid) {
+      final gridCodes = widget.option.codes;
+      final defaultRows = merchDefaultRepeatCount(
+        gridCodes.length,
+        GridClipShape.none,
+      );
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
-              (_) => FlagShapeCustomiseScreen(
-                codes: widget.option.codes,
+              (_) => LocalMockupPreviewScreen(
+                selectedCodes: gridCodes,
                 allCodes: widget.allCodes,
                 trips: widget.option.trips,
+                initialTemplate: CardTemplateType.grid,
+                confirmedAspectRatio: merchBackCardAspectRatio(
+                  CardTemplateType.grid,
+                ),
+                transparentBackground: true,
+                initialColour: widget.option.suggestedShirtColor,
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
-                initialColour: widget.option.suggestedShirtColor,
+                clipShape: GridClipShape.none,
+                flagRepeatCount: defaultRows,
+                rowCount: defaultRows,
                 continentKey: widget.option.continentKey,
-                initialShape: widget.option.codes.length == 1
-                    ? GridClipShape.animalSilhouette
-                    : null,
               ),
         ),
       );
@@ -1332,22 +1358,35 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
     final bytes = _artworkBytes;
     if (bytes == null) return;
 
-    // Grid template → FlagShapeCustomiseScreen (M170).
+    // Grid template → LocalMockupPreviewScreen configurator (M187).
+    // Clip shape + rows are now editable directly on the configurator, so we
+    // skip the old intermediate FlagShapeCustomiseScreen and land the user on
+    // the single-screen configurator with sensible grid defaults.
     if (widget.option.template == CardTemplateType.grid) {
+      final gridCodes = widget.option.codes;
+      final defaultRows = merchDefaultRepeatCount(
+        gridCodes.length,
+        GridClipShape.none,
+      );
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
-              (_) => FlagShapeCustomiseScreen(
-                codes: widget.option.codes,
+              (_) => LocalMockupPreviewScreen(
+                selectedCodes: gridCodes,
                 allCodes: widget.allCodes,
                 trips: widget.option.trips,
+                initialTemplate: CardTemplateType.grid,
+                confirmedAspectRatio: merchBackCardAspectRatio(
+                  CardTemplateType.grid,
+                ),
+                transparentBackground: true,
+                initialColour: widget.option.suggestedShirtColor,
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
-                initialColour: widget.option.suggestedShirtColor,
+                clipShape: GridClipShape.none,
+                flagRepeatCount: defaultRows,
+                rowCount: defaultRows,
                 continentKey: widget.option.continentKey,
-                initialShape: widget.option.codes.length == 1
-                    ? GridClipShape.animalSilhouette
-                    : null,
               ),
         ),
       );
@@ -1691,22 +1730,35 @@ class _DesignCardState extends State<_DesignCard> {
     final bytes = _artworkBytes;
     if (bytes == null) return;
 
-    // Grid template → FlagShapeCustomiseScreen (M170).
+    // Grid template → LocalMockupPreviewScreen configurator (M187).
+    // Clip shape + rows are now editable directly on the configurator, so we
+    // skip the old intermediate FlagShapeCustomiseScreen and land the user on
+    // the single-screen configurator with sensible grid defaults.
     if (widget.option.template == CardTemplateType.grid) {
+      final gridCodes = widget.option.codes;
+      final defaultRows = merchDefaultRepeatCount(
+        gridCodes.length,
+        GridClipShape.none,
+      );
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder:
-              (_) => FlagShapeCustomiseScreen(
-                codes: widget.option.codes,
+              (_) => LocalMockupPreviewScreen(
+                selectedCodes: gridCodes,
                 allCodes: widget.allCodes,
                 trips: widget.option.trips,
+                initialTemplate: CardTemplateType.grid,
+                confirmedAspectRatio: merchBackCardAspectRatio(
+                  CardTemplateType.grid,
+                ),
+                transparentBackground: true,
+                initialColour: widget.option.suggestedShirtColor,
                 titleOverride: widget.option.title,
                 subtitleOverride: widget.option.artworkSubtitle,
-                initialColour: widget.option.suggestedShirtColor,
+                clipShape: GridClipShape.none,
+                flagRepeatCount: defaultRows,
+                rowCount: defaultRows,
                 continentKey: widget.option.continentKey,
-                initialShape: widget.option.codes.length == 1
-                    ? GridClipShape.animalSilhouette
-                    : null,
               ),
         ),
       );

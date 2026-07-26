@@ -6,8 +6,8 @@
 // shape-specific branches (animal/plant/landmark silhouette, country/
 // continent outline) hit Firebase Storage / bundled assets via
 // AnimalSilhouetteService / CountryPathService and aren't covered here —
-// see flag_shape_customise_screen_test.dart for the row-count default that
-// consumes this same module.
+// see flag_clip_options_test.dart for the row-count default
+// (merchDefaultRepeatCount) that consumes this same module.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/cards/flag_grid_layout_engine.dart';
