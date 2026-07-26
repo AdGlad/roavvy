@@ -188,6 +188,13 @@ class _LocalMockupPreviewScreenState
   // Print scale of the design on the garment (M189). Distinct from garment
   // size above: this grows/shrinks the artwork within its placement.
   ImageSize _imageSize = ImageSize.medium;
+
+  // Progressive disclosure (M187 UX review): the design already looks good with
+  // the defaults, so the detailed design controls (clip style, layout, rows,
+  // image size, placement, title, ribbon) stay collapsed behind a "Customise
+  // design" toggle. Colour + Size stay always-visible, and the Checkout CTA is
+  // pinned — so accepting the default is a single tap, with depth on demand.
+  bool _showAdvanced = false;
   String _posterPaper = posterPapers.first; // 'Enhanced Matte'
   String _posterSize = posterSizes.first; // '12x18in'
   // 'left_chest' | 'center' | 'right_chest' | 'none'
@@ -2433,6 +2440,112 @@ class _LocalMockupPreviewScreenState
             ),
           ],
         ),
+
+        const SizedBox(height: 12),
+        // ── Colour + Size — primary choices, always visible ──────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _MiniLabel('Colour'),
+                  const SizedBox(height: 4),
+                  _ColourSwatchRow(
+                    selected: _colour,
+                    onChanged: (c) => _onVariantOptionChanged(colour: c),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const _MiniLabel('Size'),
+                      Text(
+                        _tshirtSize,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 7,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 14,
+                      ),
+                      activeTrackColor: theme.colorScheme.primary,
+                      inactiveTrackColor: theme.colorScheme.outline.withValues(
+                        alpha: 0.25,
+                      ),
+                      thumbColor: theme.colorScheme.primary,
+                    ),
+                    child: Slider(
+                      value: tshirtSizes.indexOf(_tshirtSize).toDouble(),
+                      min: 0,
+                      max: (tshirtSizes.length - 1).toDouble(),
+                      divisions: tshirtSizes.length - 1,
+                      onChanged:
+                          (v) => setState(
+                            () => _tshirtSize = tshirtSizes[v.round()],
+                          ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (final s in tshirtSizes)
+                        Expanded(
+                          child: Text(
+                            s,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 9,
+                              color:
+                                  s == _tshirtSize
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurfaceVariant,
+                              fontWeight:
+                                  s == _tshirtSize
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // ── Customise design (progressive disclosure, M187 UX review) ────
+        // The design already looks good with the defaults; the detailed
+        // controls stay tucked away until the user chooses to open them, so
+        // accepting the default is a single tap (the Checkout CTA is pinned).
+        _CustomiseExpander(
+          expanded: _showAdvanced,
+          onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+        ),
+
+        if (_showAdvanced) ...[
+        const SizedBox(height: 4),
         // ── Flag-grid style: clip shape + rows (M187) ────────────────────
         // Previously chosen on a separate screen (FlagShapeCustomiseScreen);
         // now fully editable here with a live mockup refresh.
@@ -2541,101 +2654,6 @@ class _LocalMockupPreviewScreenState
             ],
           ),
         ],
-
-        const SizedBox(height: 12),
-
-        // ── Colour + Size (one row) ──────────────────────────────────────
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 5,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _MiniLabel('Colour'),
-                  const SizedBox(height: 4),
-                  _ColourSwatchRow(
-                    selected: _colour,
-                    onChanged: (c) => _onVariantOptionChanged(colour: c),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 5,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const _MiniLabel('Size'),
-                      Text(
-                        _tshirtSize,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 7,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 14,
-                      ),
-                      activeTrackColor: theme.colorScheme.primary,
-                      inactiveTrackColor: theme.colorScheme.outline.withValues(
-                        alpha: 0.25,
-                      ),
-                      thumbColor: theme.colorScheme.primary,
-                    ),
-                    child: Slider(
-                      value: tshirtSizes.indexOf(_tshirtSize).toDouble(),
-                      min: 0,
-                      max: (tshirtSizes.length - 1).toDouble(),
-                      divisions: tshirtSizes.length - 1,
-                      onChanged:
-                          (v) => setState(
-                            () => _tshirtSize = tshirtSizes[v.round()],
-                          ),
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (final s in tshirtSizes)
-                        Expanded(
-                          child: Text(
-                            s,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: 9,
-                              color:
-                                  s == _tshirtSize
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurfaceVariant,
-                              fontWeight:
-                                  s == _tshirtSize
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
 
         // ── Image size (print scale, M189) ───────────────────────────────
         // Distinct from garment "Size" above — scales the artwork on the shirt.
@@ -2828,6 +2846,7 @@ class _LocalMockupPreviewScreenState
             _buildTimelineColorPicker(),
           ],
         ],
+        ], // end "Customise design" (progressive disclosure)
       ],
     );
   }
@@ -3891,6 +3910,57 @@ class _ClipShapeStrip extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Tappable "Customise design" header that expands/collapses the detailed
+/// design controls (M187 UX review). Collapsed by default so the sheet stays
+/// simple — accepting the default needs no interaction at all.
+class _CustomiseExpander extends StatelessWidget {
+  const _CustomiseExpander({required this.expanded, required this.onTap});
+
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.tune_rounded, size: 16, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Customise design',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              expanded ? 'Hide' : 'Style, layout, size & more',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const Spacer(),
+            AnimatedRotation(
+              turns: expanded ? 0.5 : 0.0,
+              duration: const Duration(milliseconds: 180),
+              child: Icon(
+                Icons.expand_more_rounded,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

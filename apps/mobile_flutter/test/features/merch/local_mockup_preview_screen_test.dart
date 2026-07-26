@@ -344,8 +344,14 @@ void main() {
         await tester.pump();
         tester.takeException();
 
-        // The Back Title's "New suggestion" button sits below the fold in the
-        // richer M187+ config sheet — scroll it into view before tapping.
+        // The Back Title lives under the collapsed "Customise design" section
+        // (progressive disclosure) — expand it, then scroll the "New
+        // suggestion" button into view before tapping.
+        await tester.ensureVisible(find.text('Customise design'));
+        await tester.pump();
+        await tester.tap(find.text('Customise design'));
+        await tester.pump();
+        tester.takeException();
         await tester.ensureVisible(find.byIcon(Icons.refresh_rounded));
         await tester.pump();
         await tester.tap(find.byIcon(Icons.refresh_rounded));
