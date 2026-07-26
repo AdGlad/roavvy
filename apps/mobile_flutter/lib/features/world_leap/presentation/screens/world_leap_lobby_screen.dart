@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../widgets/world_leap_tutorial_overlay.dart';
 import 'world_leap_screen.dart';
 
 class WorldLeapLobbyScreen extends StatefulWidget {
@@ -23,6 +24,19 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
   bool _beginnerMode = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoShowTutorial());
+  }
+
+  Future<void> _maybeAutoShowTutorial() async {
+    final seen = await hasSeenWorldLeapTutorial();
+    if (!seen && mounted) {
+      await showWorldLeapTutorial(context, beginnerMode: _beginnerMode);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
     final isLandscape =
@@ -31,6 +45,16 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
     final modeToggle = _ModeToggle(
       beginnerMode: _beginnerMode,
       onChanged: (v) => setState(() => _beginnerMode = v),
+    );
+
+    final howToPlayButton = TextButton.icon(
+      onPressed: () =>
+          showWorldLeapTutorial(context, beginnerMode: _beginnerMode),
+      icon: const Icon(Icons.help_outline, color: Colors.white54, size: 18),
+      label: const Text(
+        'How to Play',
+        style: TextStyle(color: Colors.white54, fontSize: 13),
+      ),
     );
 
     final playButton = SizedBox(
@@ -66,9 +90,15 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
       body: SafeArea(
         child: isLandscape
             ? _LandscapeLayout(
-                today: today, modeToggle: modeToggle, playButton: playButton)
+                today: today,
+                modeToggle: modeToggle,
+                playButton: playButton,
+                howToPlayButton: howToPlayButton)
             : _PortraitLayout(
-                today: today, modeToggle: modeToggle, playButton: playButton),
+                today: today,
+                modeToggle: modeToggle,
+                playButton: playButton,
+                howToPlayButton: howToPlayButton),
       ),
     );
   }
@@ -91,19 +121,23 @@ class _ModeToggle extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         children: [
-          _ModeOption(
-            label: 'Beginner',
-            subtitle: 'Adjust aim, then fire',
-            selected: beginnerMode,
-            onTap: () => onChanged(true),
+          Expanded(
+            child: _ModeOption(
+              label: 'Beginner',
+              subtitle: 'Adjust aim, then fire',
+              selected: beginnerMode,
+              onTap: () => onChanged(true),
+            ),
           ),
-          _ModeOption(
-            label: 'Classic',
-            subtitle: 'Fires on release',
-            selected: !beginnerMode,
-            onTap: () => onChanged(false),
+          Expanded(
+            child: _ModeOption(
+              label: 'Classic',
+              subtitle: 'Fires on release',
+              selected: !beginnerMode,
+              onTap: () => onChanged(false),
+            ),
           ),
         ],
       ),
@@ -167,11 +201,13 @@ class _PortraitLayout extends StatelessWidget {
     required this.today,
     required this.modeToggle,
     required this.playButton,
+    required this.howToPlayButton,
   });
 
   final String today;
   final Widget modeToggle;
   final Widget playButton;
+  final Widget howToPlayButton;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +233,9 @@ class _PortraitLayout extends StatelessWidget {
               today,
               style: const TextStyle(color: Colors.white54, fontSize: 15),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            howToPlayButton,
+            const SizedBox(height: 12),
             const Text(
               'Launch your quokka across the globe!\nHit the target country before time runs out.',
               textAlign: TextAlign.center,
@@ -223,11 +261,13 @@ class _LandscapeLayout extends StatelessWidget {
     required this.today,
     required this.modeToggle,
     required this.playButton,
+    required this.howToPlayButton,
   });
 
   final String today;
   final Widget modeToggle;
   final Widget playButton;
+  final Widget howToPlayButton;
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +306,8 @@ class _LandscapeLayout extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                howToPlayButton,
+                const SizedBox(height: 8),
                 const Text(
                   'Launch your quokka across the globe!\nHit the target country before time runs out.',
                   textAlign: TextAlign.center,
