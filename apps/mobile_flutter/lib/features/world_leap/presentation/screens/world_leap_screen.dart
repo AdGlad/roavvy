@@ -14,6 +14,7 @@ import 'package:mobile_flutter/features/world_leap/presentation/widgets/slingsho
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/quokka_widget.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_hud.dart';
 import 'package:mobile_flutter/features/world_leap/presentation/widgets/world_leap_score_panel.dart';
+import 'package:mobile_flutter/features/world_leap/world_leap_config.dart';
 import 'world_leap_result_screen.dart';
 
 // ── Landing particle burst ────────────────────────────────────────────────────
@@ -365,6 +366,60 @@ class _FireButton extends StatelessWidget {
   }
 }
 
+// ── Difficulty button ─────────────────────────────────────────────────────────
+
+/// Cycles 1→2→3→1. Controls how close a landing must be to the target
+/// centroid to count as a hit (see WorldLeapConfig.difficultyToleranceKm) —
+/// separate from the progressive target-distance ramp, which controls how
+/// far away targets are picked from, not how precisely you must land.
+class _DifficultyButton extends StatelessWidget {
+  final int difficulty; // 1–3
+  final VoidCallback onTap;
+
+  const _DifficultyButton({required this.difficulty, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = WorldLeapConfig.difficultyLabels[difficulty - 1];
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Tooltip(
+          message: label,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'D',
+                style: TextStyle(color: Colors.white54, fontSize: 9, height: 1.1),
+              ),
+              Text(
+                '$difficulty',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Camera mode toggle button ─────────────────────────────────────────────────
 
 class _CameraToggleButton extends StatelessWidget {
@@ -663,6 +718,12 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                               beginnerMode: controller.beginnerMode,
                               onTap: () => controller
                                   .setBeginnerMode(!controller.beginnerMode),
+                            ),
+                            const SizedBox(height: 8),
+                            _DifficultyButton(
+                              difficulty: controller.difficulty,
+                              onTap: () => controller
+                                  .setDifficulty((controller.difficulty % 3) + 1),
                             ),
                           ],
                         ),

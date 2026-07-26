@@ -165,16 +165,21 @@ class WorldLeapConfig {
   /// G4→G3 descending minor scale — dignified 8-bit game-over melody.
   static const String soundGameOver = 'audio/wl_game_over.mp3';
 
-  // ── Landing Tolerance ──────────────────────────────────────────────────────
-  // Replaces the old manual 1–5 difficulty picker (usability rework): a
-  // single fixed forgiveness radius applies to everyone, and the game's
-  // actual difficulty curve comes from progressive target distance instead
-  // (see "Progressive Target Distance" below).
+  // ── Difficulty Grades ──────────────────────────────────────────────────────
+  // Player-selectable in-game (cycles 1→2→3→1). Controls how close a landing
+  // must be to the target centroid to count as a hit — separate from the
+  // progressive target DISTANCE ramp below, which controls how far away
+  // targets are picked from, not how precisely you must land on them.
 
-  /// Landing is accepted within this radius (km) of the target centroid, even
-  /// if the reverse-geocoded country differs (e.g. landing just over a
-  /// border). Roughly the old grade-2 "Normal" tolerance.
-  static const double landingToleranceKm = 250.0;
+  /// Tolerance radii (km) for difficulty grades 1–3. Grade 1 = easiest
+  /// (large margin); grade 3 = tightest (near-exact country required).
+  static const List<double> difficultyToleranceKm = [
+    500.0, // grade 1 — Easy: within 500 km of target centroid
+    200.0, // grade 2 — Normal: within 200 km
+    50.0, // grade 3 — Hard: within 50 km
+  ];
+
+  static const List<String> difficultyLabels = ['Easy', 'Normal', 'Hard'];
 
   // ── Progressive Target Distance ─────────────────────────────────────────────
 

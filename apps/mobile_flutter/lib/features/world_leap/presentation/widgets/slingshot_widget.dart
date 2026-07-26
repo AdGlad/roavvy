@@ -141,12 +141,26 @@ class SlingshotWidgetState extends State<SlingshotWidget>
   }
 
   void _onControllerStateChanged() {
+    // Also clears _trackingPointer — without this, a state transition away
+    // from Aiming that happens mid-drag (e.g. the countdown timing out while
+    // the player's finger is still down) leaves the RenderObject that would
+    // have delivered the eventual onPointerUp/onPointerCancel removed from
+    // the tree (build() returns SizedBox.shrink() outside Aiming), so those
+    // callbacks never fire. _trackingPointer would then stay permanently
+    // non-null, and every future onPointerDown's `if (_trackingPointer !=
+    // null) return;` guard would silently swallow all touches for the rest
+    // of the game — "tap to aim does nothing" with no way to recover short
+    // of restarting.
     if (widget.controller.state is! WorldLeapStateAiming &&
-        (_dragStart != null || _dragCurrent != null || _frozenDelta != null)) {
+        (_dragStart != null ||
+            _dragCurrent != null ||
+            _frozenDelta != null ||
+            _trackingPointer != null)) {
       setState(() {
         _dragStart = null;
         _dragCurrent = null;
         _frozenDelta = null;
+        _trackingPointer = null;
       });
     }
   }

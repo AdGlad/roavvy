@@ -49,7 +49,23 @@ const _kTrajectoryColor   = Color(0xFFFFFFFF);
 const _kFlightTrailColor  = Color(0xCCFFFFFF);
 const _kProjectileColor   = Color(0xFFFFD700);
 
-// ── Package-private helper (importable in tests) ──────────────────────────────
+/// Screen-space forgiveness radius (logical px) around the current-country
+/// origin marker for [WorldLeapMapWidgetState.isInCurrentCountry]'s tap
+/// fallback — generous enough to cover a fat-finger tap near a tiny
+/// country's rendered footprint at low zoom.
+const _kOriginTapRadius = 40.0;
+
+// ── Package-private helpers (importable in tests) ─────────────────────────────
+
+/// Whether screen point [tap] falls within [radius] logical pixels of
+/// [origin] — the tap-tolerance fallback used by
+/// [WorldLeapMapWidgetState.isInCurrentCountry] when exact point-in-polygon
+/// containment misses (see that method's doc for why).
+bool isWithinTapRadius(Offset tap, math.Point<double> origin, double radius) {
+  final dx = tap.dx - origin.x;
+  final dy = tap.dy - origin.y;
+  return dx * dx + dy * dy <= radius * radius;
+}
 
 Color countryFillColor({
   required String isoCode,
@@ -149,10 +165,26 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     final latLng = _mapController.camera.pointToLatLng(
       math.Point<double>(screenPos.dx, screenPos.dy),
     );
-    return widget.controller.isInCurrentCountry(
+    if (widget.controller.isInCurrentCountry(
       latLng.latitude,
       latLng.longitude,
+    )) {
+      return true;
+    }
+    // Fallback: exact point-in-polygon can reject a tap that visually looks
+    // like it landed on the current country — e.g. a small country (Vatican,
+    // Singapore, Luxembourg) rendered only a few pixels wide because the
+    // camera is zoomed out to also frame a distant target. The pulsing
+    // origin ring drawn at the exact landing point (_buildPulseLayers) is
+    // the actual affordance the player sees and taps at, so accept touches
+    // within its visible radius even when they land just outside the
+    // country's precise polygon boundary. This was the "tap to aim does
+    // nothing, especially right after landing" responsiveness bug.
+    final origin = widget.controller.currentOrigin;
+    final originScreen = _mapController.camera.latLngToScreenPoint(
+      LatLng(origin.lat, origin.lon),
     );
+    return isWithinTapRadius(screenPos, originScreen, _kOriginTapRadius);
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────────

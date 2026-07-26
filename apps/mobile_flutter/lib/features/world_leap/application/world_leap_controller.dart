@@ -204,6 +204,24 @@ class WorldLeapController extends ChangeNotifier {
 
   WorldLeapState _state = WorldLeapStateIdle();
 
+  // ── Difficulty (1 = easiest, 3 = hardest) ────────────────────────────────
+
+  int _difficulty = 1;
+
+  /// Current difficulty grade (1–3). Controls how close a landing must be
+  /// to the target centroid to count as a hit (see
+  /// [WorldLeapConfig.difficultyToleranceKm]).
+  int get difficulty => _difficulty;
+
+  /// Updates difficulty for the current session. Safe to call at any time,
+  /// including mid-run between shots — only affects the NEXT landing check.
+  void setDifficulty(int level) {
+    final clamped = level.clamp(1, 3);
+    if (_difficulty == clamped) return;
+    _difficulty = clamped;
+    notifyListeners();
+  }
+
   // ── Countdown timer state ────────────────────────────────────────────────
 
   Timer? _countdownTimer;
@@ -409,18 +427,19 @@ class WorldLeapController extends ChangeNotifier {
     _emit(WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout));
   }
 
-  /// Returns true if [landing] is within [WorldLeapConfig.landingToleranceKm]
-  /// of [targetCode]'s centroid — accepted even when the reverse-geocoded
-  /// country differs (e.g. landing just over a border).
-  bool _isWithinLandingTolerance(
+  /// Returns true if [landing] is within the current difficulty grade's
+  /// tolerance radius of [targetCode]'s centroid — accepted even when the
+  /// reverse-geocoded country differs (e.g. landing just over a border).
+  bool _isWithinDifficultyTolerance(
       ({double lat, double lon}) landing, String targetCode) {
     final centroid = _countryData[targetCode];
     if (centroid == null) return false;
+    final toleranceKm = WorldLeapConfig.difficultyToleranceKm[_difficulty - 1];
     final dist = _geo.greatCircleDistanceKm(
       lat1: landing.lat, lon1: landing.lon,
       lat2: centroid.lat, lon2: centroid.lon,
     );
-    return dist <= WorldLeapConfig.landingToleranceKm;
+    return dist <= toleranceKm;
   }
 
   /// Looks up a country using injected [_countryLookup] (for tests) or the
@@ -624,7 +643,7 @@ class WorldLeapController extends ChangeNotifier {
     final targetCode = run.targetCountryCode;
     if (targetCode != null) {
       final bool isHit = destCountry.code == targetCode ||
-          _isWithinLandingTolerance(dest, targetCode);
+          _isWithinDifficultyTolerance(dest, targetCode);
       if (!isHit) {
         await failWith(WorldLeapFailureReason.wrongCountry);
         return;
