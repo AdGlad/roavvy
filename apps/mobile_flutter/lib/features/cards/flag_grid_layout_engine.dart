@@ -60,6 +60,14 @@ enum FlagGridLayoutMode {
   /// varying numbers of flags. Heights are scaled so the full canvas is used.
   /// Results in a more dynamic, editorial layout.
   treemap,
+
+  /// **Montage (M188).** Flags scattered on a jittered grid at varying scales
+  /// and deliberately overlapping, forming a collage rather than a tidy grid.
+  /// Every code is placed at least once (coverage guaranteed) and no flag is
+  /// fully occluded (base positions are cell-separated). Fully deterministic
+  /// for a given (codes, canvas, seed) so the preview matches the print; the
+  /// Shuffle control perturbs `seed` to re-roll the arrangement.
+  montage,
 }
 
 // ── FlagGridTile ──────────────────────────────────────────────────────────────
@@ -124,6 +132,7 @@ class FlagGridLayoutEngine {
     double padding = 4.0,
     int flagRepeatCount = 1,
     int? rowCount,
+    int seed = 0,
   }) {
     if (codes.isEmpty || canvasSize.width <= 0 || canvasSize.height <= 0) {
       return [];
@@ -193,6 +202,13 @@ class FlagGridLayoutEngine {
         originX,
         originY,
         gutter,
+      ),
+      FlagGridLayoutMode.montage => _montage(
+        expanded,
+        grid,
+        originX,
+        originY,
+        seed: seed,
       ),
     };
   }
@@ -334,6 +350,75 @@ class FlagGridLayoutEngine {
     if (current.isNotEmpty) rows.add(current);
 
     return _scaleRowsToFit(rows, grid, originX, originY, gutter);
+  }
+
+  // ── Montage (jittered overlapping collage, M188) ───────────────────────────
+
+  /// Scatters flags across a jittered coarse grid at varying scales, letting
+  /// them overlap into a collage. Design goals:
+  /// - **Coverage:** every element of [codes] is placed exactly once, so every
+  ///   selected country appears at least once.
+  /// - **No full occlusion:** base positions sit on separate grid cells, so
+  ///   even with generous overlap no flag is completely hidden.
+  /// - **Determinism:** all randomness comes from [seed] (mixed with the code
+  ///   list), so the same (codes, canvas, seed) always yields the same collage
+  ///   — the on-screen preview matches the printed artwork.
+  static List<FlagGridTile> _montage(
+    List<String> codes,
+    Size grid,
+    double originX,
+    double originY, {
+    required int seed,
+  }) {
+    final n = codes.length;
+    if (n == 0) return [];
+    final codesHash = codes.fold<int>(17, (h, c) => h * 31 + c.hashCode);
+    final rng = math.Random(seed ^ codesHash ^ (n * 0x9e3779b9));
+
+    // Coarse base grid roughly proportional to the canvas.
+    final cols = math.max(
+      1,
+      math.sqrt(n * grid.width / grid.height).round(),
+    );
+    final rows = (n / cols).ceil();
+    final cellW = grid.width / cols;
+    final cellH = grid.height / rows;
+
+    // Tiles are drawn larger than their cell so neighbours overlap (~collage).
+    const overlap = 1.35;
+
+    final tiles = <FlagGridTile>[];
+    for (int i = 0; i < n; i++) {
+      final code = codes[i];
+      final ar = _ar(code);
+      final r = i ~/ cols;
+      final c = i % cols;
+
+      // Cell centre + bounded jitter (< half a cell → cells stay separated).
+      final cx = originX + (c + 0.5) * cellW +
+          (rng.nextDouble() - 0.5) * cellW * 0.55;
+      final cy = originY + (r + 0.5) * cellH +
+          (rng.nextDouble() - 0.5) * cellH * 0.55;
+
+      // Height from the cell, scaled up for overlap plus per-tile variation.
+      final sizeVar = 0.8 + rng.nextDouble() * 0.5; // 0.80–1.30
+      double th = cellH * overlap * sizeVar;
+      double tw = th * ar;
+      // Keep a single tile from dominating the whole canvas.
+      tw = tw.clamp(1.0, grid.width);
+      th = th.clamp(1.0, grid.height);
+
+      // Centre the tile on (cx, cy), then clamp so it stays on-canvas.
+      double left = cx - tw / 2;
+      double top = cy - th / 2;
+      left = left.clamp(originX, originX + grid.width - tw);
+      top = top.clamp(originY, originY + grid.height - th);
+
+      tiles.add(
+        FlagGridTile(code: code, rect: Rect.fromLTWH(left, top, tw, th)),
+      );
+    }
+    return tiles;
   }
 
   // ── Shared helpers ─────────────────────────────────────────────────────────

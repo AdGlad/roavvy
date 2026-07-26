@@ -317,6 +317,7 @@ class CardImageRenderer {
           flagRepeatCount: flagRepeatCount,
           clipCode: clipCode,
           rowCount: rowCount,
+          seed: stampSeed,
         );
       // ignore: deprecated_member_use_from_same_package
       case CardTemplateType.heart:
@@ -334,6 +335,7 @@ class CardImageRenderer {
           layoutMode: gridLayoutMode,
           clipShape: GridClipShape.heart,
           flagRepeatCount: flagRepeatCount,
+          seed: stampSeed,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

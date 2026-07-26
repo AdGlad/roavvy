@@ -427,6 +427,7 @@ class GridFlagsCard extends StatefulWidget {
     this.flagRepeatCount = 1,
     this.clipCode,
     this.rowCount,
+    this.seed,
   });
 
   final List<String> countryCodes;
@@ -481,6 +482,11 @@ class GridFlagsCard extends StatefulWidget {
   /// many rows. Each row will contain [countryCodes.length] × [flagRepeatCount]
   /// / [rowCount] flags, giving uniform complete rows.
   final int? rowCount;
+
+  /// Randomisation seed for the [FlagGridLayoutMode.montage] layout (M188).
+  /// Perturbed by the Shuffle control to re-roll the collage; null/0 gives a
+  /// stable default arrangement. Ignored by the other layout modes.
+  final int? seed;
 
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
@@ -711,6 +717,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               flagRepeatCount: widget.flagRepeatCount,
               outlinePath: _outlinePath,
               rowCount: widget.rowCount,
+              seed: widget.seed ?? 0,
             ),
           );
         },
@@ -841,6 +848,7 @@ class _GridPainter extends CustomPainter {
     this.flagRepeatCount = 1,
     this.outlinePath,
     this.rowCount,
+    this.seed = 0,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -881,6 +889,9 @@ class _GridPainter extends CustomPainter {
 
   /// When non-null, forces the packed-row layout to use exactly this many rows.
   final int? rowCount;
+
+  /// Montage randomisation seed (M188); ignored by non-montage modes.
+  final int seed;
 
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
@@ -952,6 +963,7 @@ class _GridPainter extends CustomPainter {
       mode: layoutMode,
       flagRepeatCount: flagRepeatCount,
       rowCount: rowCount,
+      seed: seed,
     );
     if (tiles.isEmpty) return;
 
@@ -1014,7 +1026,8 @@ class _GridPainter extends CustomPainter {
       old.clipShape != clipShape ||
       old.flagRepeatCount != flagRepeatCount ||
       old.outlinePath != outlinePath ||
-      old.rowCount != rowCount;
+      old.rowCount != rowCount ||
+      old.seed != seed;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by

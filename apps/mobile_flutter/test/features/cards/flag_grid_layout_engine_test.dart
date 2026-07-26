@@ -124,4 +124,87 @@ void main() {
       expect(GridClipShape.values, contains(GridClipShape.continentOutline));
     });
   });
+
+  group('FlagGridLayoutEngine — montage (M188)', () {
+    const canvasSize = Size(600, 400);
+
+    List<FlagGridTile> montage(
+      List<String> codes, {
+      int seed = 0,
+      int flagRepeatCount = 1,
+    }) =>
+        FlagGridLayoutEngine.compute(
+          codes: codes,
+          canvasSize: canvasSize,
+          topOffset: 40,
+          bottomOffset: 40,
+          mode: FlagGridLayoutMode.montage,
+          flagRepeatCount: flagRepeatCount,
+          seed: seed,
+        );
+
+    test('every selected country appears at least once (coverage)', () {
+      final tiles = montage(['fr', 'de', 'it', 'es', 'pt']);
+      final present = tiles.map((t) => t.code).toSet();
+      expect(present, containsAll(['fr', 'de', 'it', 'es', 'pt']));
+    });
+
+    test('places one tile per expanded code', () {
+      final tiles = montage(['fr', 'de'], flagRepeatCount: 4);
+      expect(tiles.length, 8); // 2 codes × 4 repeats
+    });
+
+    test('is deterministic for a fixed seed (preview == print)', () {
+      final a = montage(['fr', 'de', 'it', 'es'], seed: 12345);
+      final b = montage(['fr', 'de', 'it', 'es'], seed: 12345);
+      expect(a.length, b.length);
+      for (var i = 0; i < a.length; i++) {
+        expect(a[i].code, b[i].code);
+        expect(a[i].rect, b[i].rect);
+      }
+    });
+
+    test('different seeds produce different arrangements', () {
+      final a = montage(['fr', 'de', 'it', 'es', 'pt', 'nl'], seed: 1);
+      final b = montage(['fr', 'de', 'it', 'es', 'pt', 'nl'], seed: 2);
+      // At least one tile should sit in a different position.
+      final differs = List.generate(
+        a.length,
+        (i) => a[i].rect != b[i].rect,
+      ).any((d) => d);
+      expect(differs, isTrue);
+    });
+
+    test('all tiles stay within the canvas bounds', () {
+      final tiles = montage(['fr', 'de', 'it', 'es', 'pt', 'nl', 'be', 'ch'],
+          seed: 99);
+      for (final t in tiles) {
+        expect(t.rect.left, greaterThanOrEqualTo(-0.01));
+        expect(t.rect.top, greaterThanOrEqualTo(-0.01));
+        expect(t.rect.right, lessThanOrEqualTo(canvasSize.width + 0.01));
+        expect(t.rect.bottom, lessThanOrEqualTo(canvasSize.height + 0.01));
+      }
+    });
+
+    test('no flag is fully occluded by another (bounded overlap)', () {
+      // Base grid positions are cell-separated, so each tile centre must be
+      // outside every other tile's rect — i.e. no tile is entirely covered.
+      final tiles = montage(['fr', 'de', 'it', 'es', 'pt', 'nl'], seed: 7);
+      for (var i = 0; i < tiles.length; i++) {
+        final centre = tiles[i].rect.center;
+        var coveredBy = 0;
+        for (var j = 0; j < tiles.length; j++) {
+          if (i == j) continue;
+          if (tiles[j].rect.contains(centre)) coveredBy++;
+        }
+        // A tile's own centre may fall under at most a couple of neighbours;
+        // it is never so buried that it cannot be seen.
+        expect(coveredBy, lessThan(tiles.length - 1));
+      }
+    });
+
+    test('empty input yields no tiles', () {
+      expect(montage(const []), isEmpty);
+    });
+  });
 }

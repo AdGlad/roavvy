@@ -871,6 +871,14 @@ class _LocalMockupPreviewScreenState
     await _regenerateGridArtwork();
   }
 
+  /// Switches between the uniform grid and the overlapping montage layout
+  /// (M188), then re-renders.
+  Future<void> _onLayoutModeChanged(FlagGridLayoutMode mode) async {
+    if (mode == _gridLayoutMode) return;
+    setState(() => _gridLayoutMode = mode);
+    await _regenerateGridArtwork();
+  }
+
   /// Row slider handler — updates state immediately (smooth slider) and
   /// debounces the re-render so it fires once the user pauses.
   void _onRowCountChanged(double value) {
@@ -1401,10 +1409,12 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
+        gridLayoutMode: _gridLayoutMode,
         clipShape: _clipShape,
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
         rowCount: _rowCount,
+        stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);
@@ -2438,6 +2448,17 @@ class _LocalMockupPreviewScreenState
                 _state != _MockupState.rerendering &&
                 _state != _MockupState.approving,
             onSelected: (opt) => unawaited(_onClipOptionSelected(opt)),
+          ),
+          const SizedBox(height: 10),
+          // ── Layout: uniform grid ↔ overlapping montage (M188) ──────────
+          const _MiniLabel('Layout'),
+          const SizedBox(height: 6),
+          _LayoutModeSelector(
+            selected: _gridLayoutMode,
+            enabled:
+                _state != _MockupState.rerendering &&
+                _state != _MockupState.approving,
+            onChanged: (m) => unawaited(_onLayoutModeChanged(m)),
           ),
           const SizedBox(height: 10),
           Row(
@@ -3871,6 +3892,95 @@ class _ClipShapeStrip extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Segmented Grid ↔ Montage control for the flag layout (M188). Grid is the
+/// uniform packed layout; Montage scatters flags into an overlapping collage.
+class _LayoutModeSelector extends StatelessWidget {
+  const _LayoutModeSelector({
+    required this.selected,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final FlagGridLayoutMode selected;
+  final bool enabled;
+  final ValueChanged<FlagGridLayoutMode> onChanged;
+
+  // Only these two are user-facing choices in the configurator.
+  static const _choices = <(FlagGridLayoutMode, String, IconData)>[
+    (FlagGridLayoutMode.packedRow, 'Grid', Icons.grid_view_rounded),
+    (FlagGridLayoutMode.montage, 'Montage', Icons.auto_awesome_mosaic_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // A layout mode outside the two choices (e.g. treemap) reads as "Grid".
+    final active =
+        selected == FlagGridLayoutMode.montage
+            ? FlagGridLayoutMode.montage
+            : FlagGridLayoutMode.packedRow;
+    return Row(
+      children: [
+        for (final (mode, label, icon) in _choices) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: enabled && mode != active ? () => onChanged(mode) : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      mode == active
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color:
+                        mode == active
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 14,
+                      color:
+                          mode == active
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color:
+                            mode == active
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurface,
+                        fontWeight:
+                            mode == active
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (mode != _choices.last.$1) const SizedBox(width: 8),
+        ],
+      ],
     );
   }
 }
