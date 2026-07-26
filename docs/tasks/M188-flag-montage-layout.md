@@ -1,6 +1,6 @@
 # M188 — Shop Configurator: Randomised Flag Montage Layout
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-26
 **Updated:** 2026-07-26
 **Depends on:** M187 for final UI wiring; engine work is independent

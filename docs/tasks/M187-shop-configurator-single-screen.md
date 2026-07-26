@@ -1,6 +1,6 @@
 # M187 — Shop Configurator: Single-Screen Live Configuration
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-26
 **Updated:** 2026-07-26
 **Depends on:** none (foundation for M188, M189)

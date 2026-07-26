@@ -1,6 +1,6 @@
 # M189 — Shop Configurator: Image Size (Small / Medium / Large)
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-26
 **Updated:** 2026-07-26
 **Depends on:** M187 for final UI wiring; pipeline work is independent
