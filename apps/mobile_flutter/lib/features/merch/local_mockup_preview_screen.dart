@@ -185,6 +185,9 @@ class _LocalMockupPreviewScreenState
   MerchProduct _product = MerchProduct.tshirt;
   String _colour = tshirtColors.first; // 'Black'
   String _tshirtSize = tshirtSizes[2]; // 'L'
+  // Print scale of the design on the garment (M189). Distinct from garment
+  // size above: this grows/shrinks the artwork within its placement.
+  ImageSize _imageSize = ImageSize.medium;
   String _posterPaper = posterPapers.first; // 'Enhanced Matte'
   String _posterSize = posterSizes.first; // '12x18in'
   // 'left_chest' | 'center' | 'right_chest' | 'none'
@@ -1631,6 +1634,7 @@ class _LocalMockupPreviewScreenState
         size: _isTshirt ? _tshirtSize : _posterSize,
         frontPosition: _frontPosition,
         backPosition: _backPosition,
+        imageSize: _imageSize,
         selectedCountryCodes: widget.selectedCodes,
         createdAt: now,
         updatedAt: now,
@@ -2612,6 +2616,18 @@ class _LocalMockupPreviewScreenState
         ),
         const SizedBox(height: 14),
 
+        // ── Image size (print scale, M189) ───────────────────────────────
+        // Distinct from garment "Size" above — scales the artwork on the shirt.
+        if (_isTshirt) ...[
+          const _MiniLabel('Image size'),
+          const SizedBox(height: 6),
+          _ImageSizeSelector(
+            selected: _imageSize,
+            onChanged: (s) => setState(() => _imageSize = s),
+          ),
+          const SizedBox(height: 14),
+        ],
+
         // ── Front placement ──────────────────────────────────────────────
         const _MiniLabel('Front'),
         const SizedBox(height: 6),
@@ -2894,6 +2910,7 @@ class _LocalMockupPreviewScreenState
         _product,
         colour: _colour,
         placement: 'back',
+        imageSize: _imageSize,
       );
 
       // _ShirtFlipView owns AnimationController + GestureDetector + zoom (M58-03/05).
@@ -2947,7 +2964,7 @@ class _LocalMockupPreviewScreenState
       );
     } else {
       // Poster: simple InteractiveViewer with edge-to-edge artwork.
-      final spec = ProductMockupSpecs.specsFor(_product);
+      final spec = ProductMockupSpecs.specsFor(_product, imageSize: _imageSize);
       area = InteractiveViewer(
         minScale: 1.0,
         maxScale: 4.0,
@@ -3854,6 +3871,70 @@ class _ClipShapeStrip extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Segmented Small / Medium / Large control for the design's print scale
+/// (M189). Labelled "Image size" — deliberately separate from the garment
+/// size slider so the two aren't confused.
+class _ImageSizeSelector extends StatelessWidget {
+  const _ImageSizeSelector({required this.selected, required this.onChanged});
+
+  final ImageSize selected;
+  final ValueChanged<ImageSize> onChanged;
+
+  static const _labels = {
+    ImageSize.small: 'Small',
+    ImageSize.medium: 'Medium',
+    ImageSize.large: 'Large',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        for (final size in ImageSize.values) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: size == selected ? null : () => onChanged(size),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      size == selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color:
+                        size == selected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  _labels[size]!,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color:
+                        size == selected
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.onSurface,
+                    fontWeight:
+                        size == selected ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (size != ImageSize.values.last) const SizedBox(width: 8),
+        ],
+      ],
     );
   }
 }
