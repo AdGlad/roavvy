@@ -344,6 +344,10 @@ void main() {
         await tester.pump();
         tester.takeException();
 
+        // The Back Title's "New suggestion" button sits below the fold in the
+        // richer M187+ config sheet — scroll it into view before tapping.
+        await tester.ensureVisible(find.byIcon(Icons.refresh_rounded));
+        await tester.pump();
         await tester.tap(find.byIcon(Icons.refresh_rounded));
         await tester.pump(); // start the async title request
         tester.takeException();

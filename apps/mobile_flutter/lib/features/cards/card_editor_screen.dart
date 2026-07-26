@@ -2048,6 +2048,7 @@ class _GridLayoutPicker extends StatelessWidget {
     FlagGridLayoutMode.packedRow: 'Packed',
     FlagGridLayoutMode.normalizedGrid: 'Grid',
     FlagGridLayoutMode.treemap: 'Mosaic',
+    FlagGridLayoutMode.montage: 'Montage',
   };
 
   @override
