@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'product_mockup_specs.dart' show ImageSize;
+
 /// Status of a client-side merch cart item (M120 / ADR-167).
 ///
 /// Lifecycle:
@@ -44,6 +46,7 @@ class MerchCartItem {
     required this.selectedCountryCodes,
     required this.createdAt,
     required this.updatedAt,
+    this.imageSize = ImageSize.medium,
     this.title,
     this.subtitle,
     this.cardId,
@@ -75,6 +78,11 @@ class MerchCartItem {
 
   /// `'center'` | `'none'`
   final String backPosition;
+
+  /// Curated print-scale preset for the composited artwork (M189). The scaled
+  /// print area is baked into the uploaded artwork bytes; this field persists
+  /// the user's choice for display and reorder. Defaults to [ImageSize.medium].
+  final ImageSize imageSize;
 
   final List<String> selectedCountryCodes;
 
@@ -129,6 +137,7 @@ class MerchCartItem {
       size: data['size'] as String? ?? 'L',
       frontPosition: data['frontPosition'] as String? ?? 'center',
       backPosition: data['backPosition'] as String? ?? 'center',
+      imageSize: ImageSize.fromName(data['imageSize'] as String?),
       selectedCountryCodes: parseCodes(data['selectedCountryCodes']),
       createdAt: parseTs(data['createdAt']),
       updatedAt: parseTs(data['updatedAt']),
@@ -153,6 +162,7 @@ class MerchCartItem {
     'size': size,
     'frontPosition': frontPosition,
     'backPosition': backPosition,
+    'imageSize': imageSize.name,
     'selectedCountryCodes': selectedCountryCodes,
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': Timestamp.fromDate(updatedAt),
@@ -170,6 +180,7 @@ class MerchCartItem {
 
   MerchCartItem copyWith({
     MerchCartItemStatus? status,
+    ImageSize? imageSize,
     String? frontMockupUrl,
     String? backMockupUrl,
     String? checkoutUrl,
@@ -187,6 +198,7 @@ class MerchCartItem {
       size: size,
       frontPosition: frontPosition,
       backPosition: backPosition,
+      imageSize: imageSize ?? this.imageSize,
       selectedCountryCodes: selectedCountryCodes,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now().toUtc(),
