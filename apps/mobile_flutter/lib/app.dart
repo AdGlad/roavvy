@@ -25,9 +25,16 @@ final _routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/',
+    // The web marketing LandingPage ('/') is web-only. On native, start at
+    // '/app' so that page never flashes during the auth-loading window before
+    // the redirect kicks in — native goes straight to the app (or sign-in).
+    initialLocation: kIsWeb ? '/' : '/app',
     refreshListenable: notifier,
     redirect: (context, state) {
+      // Native never shows the web marketing landing page ('/') — always enter
+      // the app, which itself gates to sign-in when needed. Prevents the web
+      // page flashing at launch or after sign-out.
+      if (!kIsWeb && state.uri.path == '/') return '/app';
       if (kDebugMode) {
         // temp: skip auth gate for visual review
         if (state.uri.path == '/') return '/app';
