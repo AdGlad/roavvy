@@ -1,6 +1,6 @@
 # M193 — Review & Improve the "Tour Dates" Option
 
-**Status:** `todo`
+**Status:** `done`
 **Depends on:** none (mostly isolated to timeline files — parallel-safe)
 **Created:** 2026-07-27
 **Program:** Purchase-Flow Tuning (M190–M193)

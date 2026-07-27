@@ -1,6 +1,6 @@
 # M191 — Country Outline Clip: Preserve True Aspect Ratio
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-27
 **Depends on:** none (coordinates with M190 on the preview screen)
 **Program:** Purchase-Flow Tuning (M190–M193)
