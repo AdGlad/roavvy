@@ -46,13 +46,6 @@ class MerchDrop {
 /// Currently active merch drops surfaced in the gallery.
 const List<MerchDrop> kCurrentMerchDrops = [
   MerchDrop(
-    id: 'explorer_badge_collection',
-    title: 'Explorer Badge Collection',
-    subtitle: 'Circular badge designs for every explorer',
-    badge: '✦ Collection',
-    templates: [CardTemplateType.badge],
-  ),
-  MerchDrop(
     id: 'passport_series',
     title: 'Passport Series',
     subtitle: 'Classic stamp designs, reimagined',

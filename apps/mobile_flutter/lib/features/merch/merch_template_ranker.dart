@@ -105,24 +105,24 @@ class MerchTemplateRanker {
         MerchDensityClass.solo => [
           _rank(CardTemplateType.grid, 1),
           _rank(CardTemplateType.passport, 2),
-          _rank(CardTemplateType.badge, 3),
           _rank(CardTemplateType.typography, 4),
           _rank(CardTemplateType.timeline, 5),
           _excluded(CardTemplateType.heart),
           _excluded(CardTemplateType.wordCloud),
           _excluded(CardTemplateType.frontRibbon),
           _excluded(CardTemplateType.landmark),
+          _excluded(CardTemplateType.badge),
         ],
         MerchDensityClass.small => [
           _rank(CardTemplateType.passport, 1),
           _rank(CardTemplateType.grid, 2),
-          _rank(CardTemplateType.badge, 3),
           _rank(CardTemplateType.typography, 4),
           _rank(CardTemplateType.timeline, 5),
           _excluded(CardTemplateType.heart),
           _excluded(CardTemplateType.wordCloud),
           _excluded(CardTemplateType.frontRibbon),
           _excluded(CardTemplateType.landmark),
+          _excluded(CardTemplateType.badge),
         ],
         MerchDensityClass.medium => [
           _rank(CardTemplateType.grid, 1),
@@ -131,7 +131,7 @@ class MerchTemplateRanker {
           _rank(CardTemplateType.landmark, 4),
           _rank(CardTemplateType.timeline, 5),
           _rank(CardTemplateType.typography, 6),
-          _rank(CardTemplateType.badge, 7),
+          _excluded(CardTemplateType.badge),
           _excluded(CardTemplateType.heart),
           _excluded(CardTemplateType.frontRibbon),
         ],
@@ -162,11 +162,8 @@ class MerchTemplateRanker {
   // ── Achievement-type-specific rankings ─────────────────────────────────────
 
   static List<MerchTemplateRank> _continentExplorerRanks(int codeCount) {
-    final badgeExcluded = codeCount > 15;
     return [
-      badgeExcluded
-          ? _excluded(CardTemplateType.badge)
-          : _rank(CardTemplateType.badge, 1),
+      _excluded(CardTemplateType.badge),
       _rank(CardTemplateType.grid, 2),
       _rank(CardTemplateType.wordCloud, 3),
       _rank(CardTemplateType.landmark, 4),
@@ -179,12 +176,9 @@ class MerchTemplateRanker {
   }
 
   static List<MerchTemplateRank> _regionRanks(int codeCount) {
-    final badgeExcluded = codeCount > 15;
     return [
       _rank(CardTemplateType.passport, 1),
-      badgeExcluded
-          ? _excluded(CardTemplateType.badge)
-          : _rank(CardTemplateType.badge, 2),
+      _excluded(CardTemplateType.badge),
       _rank(CardTemplateType.wordCloud, 3),
       _rank(CardTemplateType.landmark, 4),
       _rank(CardTemplateType.typography, 5),

@@ -189,7 +189,7 @@ void main() {
       continentScope: continent,
     );
 
-    test('badge is ranked first for continent achievement (≤15 countries)', () {
+    test('badge is excluded for continent achievement (≤15 countries)', () {
       final ranks = MerchTemplateRanker.rankFor(
         achievement: _continentAchievement('Europe'),
         codeCount: 8,
@@ -197,8 +197,7 @@ void main() {
       final badge = ranks.firstWhere(
         (r) => r.template == CardTemplateType.badge,
       );
-      expect(badge.priority, equals(1));
-      expect(badge.exclude, isFalse);
+      expect(badge.exclude, isTrue);
     });
 
     test('badge is excluded for continent achievement with >15 countries', () {
