@@ -103,10 +103,14 @@ const _kTshirtBack = <String, String>{
 const _kTshirtFrontLeftChestArea = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
 const _kTshirtFrontCenterArea = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
 const _kTshirtFrontRightChestArea = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
-// Back recalibrated (M190): 0.75 aspect (Printful 12in×16in DTG printfile),
-// centred and sized conservatively so the preview is never larger than what
-// Printful actually prints. (Front/chest areas left as pre-M190.)
-const _kTshirtBackPrintArea = Rect.fromLTWH(0.31, 0.235, 0.38, 0.507);
+// Back print area (M190) — calibrated against Printful's real DTG geometry.
+// Printful catalog product 12 (Gildan 64000), back placement: print area
+// 1014×1352 px on a 3000×3000 template (aspect 0.75 = 12in×16in). Mapped onto
+// our own back mockup photo via garment landmarks (print = 0.75 of torso width,
+// starting just below the collar): the design fills ~0.42 of the photo width,
+// centred, from ~0.10 to ~0.66 of its height. This is the FULL printable area
+// (Image Size Large); smaller sizes fill a centred fraction of it.
+const _kTshirtBackPrintArea = Rect.fromLTWH(0.29, 0.10, 0.42, 0.56);
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
 const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
