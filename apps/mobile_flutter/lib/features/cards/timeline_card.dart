@@ -5,26 +5,100 @@ import 'card_text_renderer.dart';
 import 'timeline_layout_engine.dart';
 
 // ── Colour palette (ink / amber) ──────────────────────────────────────────────
+//
+// The card is rendered in two contexts:
+//   • Poster mode  (transparentBackground == false): classic dark-ink-on-
+//     parchment "tour poster" look.
+//   • Shirt mode   (transparentBackground == true): the design is composited
+//     onto a garment whose colour we don't know directly. `textColor` is the
+//     plumbed hint from CardImageRenderer (merchDefaultTextColor → white for a
+//     dark shirt; the colour picker supplies black for a light shirt).
+// `_resolvePalette()` derives ink / muted / accent / fill from those two inputs
+// so Tour Dates stays legible on black, white and coloured shirts.
 
-const _kInk = Color(0xFF2C1810);
-const _kInkMuted = Color(0xFF6B5240);
-const _kAmber = Color(0xFFD4A017);
-const _kParchment = Color(0xFFF5F0E8);
+const _kInk = Color(0xFF2C1810); // poster: dark brown ink
+const _kInkMuted = Color(0xFF6B5240); // poster: muted brown (dates)
+const _kAmber = Color(0xFFD4A017); // gold accent (year labels / dividers)
+const _kAmberDeep = Color(0xFFB8860B); // deeper gold, legible on light garments
+const _kParchment = Color(0xFFF5F0E8); // poster: warm paper fill
+const _kLightInk = Color(0xFFF7F2E9); // shirt: warm off-white ink
+
+/// Graceful fallback glyph when a country code can't map to a flag emoji.
+/// A globe renders in colour on any garment (unlike a white flag).
+const _kFallbackFlag = '🌍';
+
+/// Resolved, context-aware colour set for the timeline card.
+///   ink   — country names
+///   muted — dates / "more" note
+///   accent— year labels + dividers
+///   fill  — opaque background fill; null = transparent
+typedef _Palette = ({Color ink, Color muted, Color accent, Color? fill});
+
+/// Chooses ink / muted / accent / fill for a render context so "Tour Dates" is
+/// legible on black, white and coloured shirts (M193). Pure — exposed for tests.
+///
+/// - Poster mode ([transparentBackground] == false): classic dark ink on
+///   parchment, regardless of [textColor].
+/// - Shirt mode ([transparentBackground] == true): derived from the [textColor]
+///   hint. A light hint (or none → assume a dark garment) → light ink + bright
+///   gold; a dark hint (light garment) → dark ink + a deeper gold accent.
+@visibleForTesting
+({Color ink, Color muted, Color accent, Color? fill}) resolveTimelinePalette({
+  required bool transparentBackground,
+  Color? textColor,
+}) {
+  if (!transparentBackground) {
+    return (ink: _kInk, muted: _kInkMuted, accent: _kAmber, fill: _kParchment);
+  }
+  final hint = textColor;
+  final onDarkGarment = hint == null || hint.computeLuminance() > 0.5;
+  if (onDarkGarment) {
+    final ink = hint ?? _kLightInk;
+    return (
+      ink: ink,
+      muted: ink.withValues(alpha: 0.65),
+      accent: _kAmber, // bright gold reads well on dark garments
+      fill: null,
+    );
+  }
+  // onDarkGarment is false here, so hint is guaranteed non-null.
+  return (
+    ink: hint,
+    muted: hint.withValues(alpha: 0.65),
+    accent: _kAmberDeep, // deeper gold for contrast on light garments
+    fill: null,
+  );
+}
 
 // ── Flag emoji helper ──────────────────────────────────────────────────────────
 
+/// Maps an ISO 3166-1 alpha-2 code (e.g. "GB") to its flag emoji.
+///
+/// Hardened: normalises case/whitespace and validates that both characters are
+/// A–Z before mapping to regional-indicator symbols. Lowercase or malformed
+/// codes previously produced garbage glyphs; anything invalid now falls back to
+/// [_kFallbackFlag] rather than silently returning an empty string.
 String _flag(String code) {
-  if (code.length != 2) return '';
-  const base = 0x1F1E6;
-  return String.fromCharCode(base + code.codeUnitAt(0) - 65) +
-      String.fromCharCode(base + code.codeUnitAt(1) - 65);
+  final c = code.trim().toUpperCase();
+  if (c.length != 2) return _kFallbackFlag;
+  final a = c.codeUnitAt(0);
+  final b = c.codeUnitAt(1);
+  const upperA = 65, upperZ = 90; // 'A'..'Z'
+  if (a < upperA || a > upperZ || b < upperA || b > upperZ) {
+    return _kFallbackFlag;
+  }
+  const base = 0x1F1E6; // regional indicator symbol 'A'
+  return String.fromCharCode(base + a - upperA) +
+      String.fromCharCode(base + b - upperA);
 }
 
 // ── TimelineCard ──────────────────────────────────────────────────────────────
 
-/// Travel card template: dated travel log rendered as a canvas-drawn image.
+/// Travel card template ("Tour Dates"): dated travel log rendered as a
+/// canvas-drawn image, styled like a concert-tour poster.
 ///
-/// Trips are listed chronologically (earliest→latest by default). Uses
+/// Trips default to **latest→earliest** ordering (M193): like a real tour
+/// poster the most recent / upcoming dates read best at the top. Uses
 /// [CardTextRenderer] for the shared title/branding zones (M86). Supports up
 /// to [TimelineLayoutEngine.kMaxEntries] = 25 trips with dynamic font scaling.
 class TimelineCard extends StatelessWidget {
@@ -36,7 +110,7 @@ class TimelineCard extends StatelessWidget {
     this.dateLabel = '',
     this.titleOverride,
     this.subtitleOverride,
-    this.newestFirst = false,
+    this.newestFirst = true,
     this.transparentBackground = true,
     this.textColor,
   });
@@ -53,16 +127,23 @@ class TimelineCard extends StatelessWidget {
   final String? subtitleOverride;
 
   /// When true, orders entries most-recent first (latest → earliest).
-  /// Default false = chronological (earliest → latest).
+  /// Default true (M193): a "tour" poster reads best latest-first — headline
+  /// dates on top — matching how concert tour posters are laid out. Set false
+  /// for a strictly chronological travel log.
   final bool newestFirst;
 
   /// When true, the card background is fully transparent (default true =
   /// transparent; set false to paint the parchment fill).
   final bool transparentBackground;
 
-  /// Optional override for country name and date text colour.
-  /// When null, defaults to [_kInk] / [_kInkMuted]. Set to [Colors.white]
-  /// for dark t-shirts or [Colors.black] for light t-shirts.
+  /// Optional colour hint for the design, plumbed from CardImageRenderer.
+  ///
+  /// Used to adapt the whole palette (see [_resolvePalette]), not just the
+  /// text: a light [textColor] (e.g. [Colors.white], for a dark shirt) yields
+  /// light ink + bright gold accent; a dark [textColor] (e.g. [Colors.black],
+  /// for a light shirt) yields dark ink + a deeper gold accent. When null and
+  /// [transparentBackground] is true we assume a dark garment and use light
+  /// ink; when null in poster mode we use the classic parchment palette.
   final Color? textColor;
 
   @override
@@ -123,8 +204,14 @@ class _TimelinePainter extends CustomPainter {
   final bool newestFirst;
   final Color? textColor;
 
-  Color get _inkColor => textColor ?? _kInk;
-  Color get _inkMutedColor => textColor?.withValues(alpha: 0.65) ?? _kInkMuted;
+  late final _Palette _palette = resolveTimelinePalette(
+    transparentBackground: transparentBackground,
+    textColor: textColor,
+  );
+  Color get _inkColor => _palette.ink;
+  Color get _inkMutedColor => _palette.muted;
+  Color get _accentColor => _palette.accent;
+  Color get _fillColor => _palette.fill ?? _kParchment;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -143,7 +230,7 @@ class _TimelinePainter extends CustomPainter {
     } else {
       canvas.drawRect(
         Rect.fromLTWH(0, 0, size.width, size.height),
-        Paint()..color = _kParchment,
+        Paint()..color = _fillColor,
       );
     }
 
@@ -348,7 +435,7 @@ class _TimelinePainter extends CustomPainter {
       text: TextSpan(
         text: '$year',
         style: TextStyle(
-          color: _kAmber,
+          color: _accentColor,
           fontSize: fontSize,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
@@ -365,7 +452,7 @@ class _TimelinePainter extends CustomPainter {
       Offset(hPad + tp.width + 4, midY),
       Offset(width - hPad, midY),
       Paint()
-        ..color = _kAmber.withValues(alpha: 0.45)
+        ..color = _accentColor.withValues(alpha: 0.45)
         ..strokeWidth = 0.5,
     );
   }
