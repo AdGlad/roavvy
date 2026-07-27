@@ -107,18 +107,25 @@ class MerchImageProcessor {
   }
 
   /// Processes back artwork into a full-resolution print file.
+  ///
+  /// [fillFraction] (0–1, from the chosen Image Size) is the fraction of the
+  /// printable area the artwork fills. The artwork is contain-fit into a centred
+  /// box of that fraction of the printfile, so the printed size matches the
+  /// preview (M190). `1.0` fills the whole printable area (previous behaviour).
   static Future<Uint8List?> processBack({
     required Uint8List sourceBytes,
     required int widthPx,
     required int heightPx,
     required bool transparentBackground,
+    double fillFraction = 1.0,
   }) async {
     if (sourceBytes.isEmpty) return null;
     final src = await _decode(sourceBytes);
-    final result = await _contain(
+    final result = await _containScaled(
       src: src,
-      targetW: widthPx,
-      targetH: heightPx,
+      canvasW: widthPx,
+      canvasH: heightPx,
+      fillFraction: fillFraction,
       bgColor: transparentBackground
           ? const ui.Color(0x00000000)
           : const ui.Color(0xFFFFFFFF),
@@ -155,6 +162,36 @@ class MerchImageProcessor {
       dstRect: ui.Rect.fromLTWH(left, top, rw, rh),
       canvasW: targetW,
       canvasH: targetH,
+      bgColor: bgColor,
+    );
+  }
+
+  /// Contain-fits [src] into a centred box that is [fillFraction] of the
+  /// [canvasW]×[canvasH] canvas, on a full-size canvas filled with [bgColor].
+  /// At `fillFraction == 1.0` this is identical to [_contain].
+  static Future<Uint8List> _containScaled({
+    required ui.Image src,
+    required int canvasW,
+    required int canvasH,
+    required double fillFraction,
+    required ui.Color bgColor,
+  }) {
+    final f = fillFraction.clamp(0.05, 1.0);
+    final srcW = src.width.toDouble();
+    final srcH = src.height.toDouble();
+    final boxW = canvasW * f;
+    final boxH = canvasH * f;
+    final scale = min(boxW / srcW, boxH / srcH);
+    final rw = srcW * scale;
+    final rh = srcH * scale;
+    final left = (canvasW - rw) / 2;
+    final top = (canvasH - rh) / 2;
+    return _renderToCanvas(
+      src: src,
+      srcRect: ui.Rect.fromLTWH(0, 0, srcW, srcH),
+      dstRect: ui.Rect.fromLTWH(left, top, rw, rh),
+      canvasW: canvasW,
+      canvasH: canvasH,
       bgColor: bgColor,
     );
   }

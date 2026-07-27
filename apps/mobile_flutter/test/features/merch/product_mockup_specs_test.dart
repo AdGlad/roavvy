@@ -64,8 +64,16 @@ void main() {
         placement: 'front',
       );
       expect(spec.assetPath, 'assets/mockups/Black-tshirt-front.jpeg');
+      // At Large the print area equals the placement's full printable rect.
+      final large = ProductMockupSpecs.specsFor(
+        MerchProduct.tshirt,
+        colour: 'Black',
+        placement: 'front',
+        frontPosition: 'left_chest',
+        imageSize: ImageSize.large,
+      );
       expect(
-        spec.printAreaNorm,
+        large.printAreaNorm,
         equals(const Rect.fromLTWH(0.55, 0.25, 0.18, 0.25)),
       );
       expect(spec.srcRectNorm, isNull);
@@ -108,16 +116,20 @@ void main() {
     });
   });
 
-  // ── M189 — Image Size (Small / Medium / Large) print scale ─────────────────
+  // ── M190 — Image Size as a fill fraction of a fixed printable area ─────────
 
-  group('M189 — ImageSize.scaleMultiplier', () {
-    test('medium is exactly the identity multiplier', () {
-      expect(ImageSize.medium.scaleMultiplier, 1.0);
+  group('M190 — ImageSize.fillFraction', () {
+    test('large fills the whole printable area (1.0)', () {
+      expect(ImageSize.large.fillFraction, 1.0);
     });
 
-    test('small shrinks and large grows relative to medium', () {
-      expect(ImageSize.small.scaleMultiplier, lessThan(1.0));
-      expect(ImageSize.large.scaleMultiplier, greaterThan(1.0));
+    test('small < medium < large, all within (0, 1]', () {
+      expect(ImageSize.small.fillFraction, lessThan(ImageSize.medium.fillFraction));
+      expect(ImageSize.medium.fillFraction, lessThan(ImageSize.large.fillFraction));
+      for (final s in ImageSize.values) {
+        expect(s.fillFraction, greaterThan(0.0));
+        expect(s.fillFraction, lessThanOrEqualTo(1.0));
+      }
     });
 
     test('fromName tolerates missing / unknown values → medium', () {
@@ -129,13 +141,7 @@ void main() {
     });
   });
 
-  group('M189 — specsFor imageSize scaling', () {
-    // Base constants (mirrors product_mockup_specs.dart).
-    const leftChest = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
-    const center = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
-    const rightChest = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
-    const back = Rect.fromLTWH(0.30, 0.22, 0.40, 0.50);
-
+  group('M190 — specsFor image size within a fixed printable area', () {
     Rect areaFor(
       String placement,
       String frontPosition,
@@ -155,83 +161,58 @@ void main() {
       expect(a.dy, closeTo(b.dy, 1e-9));
     }
 
-    test('(a) Medium == current constants exactly for every placement', () {
-      expect(areaFor('front', 'left_chest', ImageSize.medium), leftChest);
-      expect(areaFor('front', 'center', ImageSize.medium), center);
-      expect(areaFor('front', 'right_chest', ImageSize.medium), rightChest);
-      expect(areaFor('back', 'center', ImageSize.medium), back);
+    const placements = <(String, String)>[
+      ('front', 'left_chest'),
+      ('front', 'center'),
+      ('front', 'right_chest'),
+      ('back', 'center'),
+    ];
+
+    test('Large equals the full printable area; Medium/Small are smaller', () {
+      for (final p in placements) {
+        final large = areaFor(p.$1, p.$2, ImageSize.large);
+        final medium = areaFor(p.$1, p.$2, ImageSize.medium);
+        final small = areaFor(p.$1, p.$2, ImageSize.small);
+        expect(small.width, lessThan(medium.width), reason: '${p.$2} S<M');
+        expect(medium.width, lessThan(large.width), reason: '${p.$2} M<L');
+        // Never exceeds the printable (Large) area.
+        expect(medium.width, lessThanOrEqualTo(large.width));
+        expect(large.height, lessThanOrEqualTo(1.0));
+      }
     });
 
-    test('(a) Medium is the default when imageSize is omitted', () {
+    test('every size is centred on the same point (scaled about the centre)', () {
+      for (final p in placements) {
+        final large = areaFor(p.$1, p.$2, ImageSize.large);
+        for (final size in ImageSize.values) {
+          expectOffsetClose(centreOf(areaFor(p.$1, p.$2, size)), centreOf(large));
+        }
+      }
+    });
+
+    test('aspect ratio is preserved across sizes (uniform scaling)', () {
+      for (final p in placements) {
+        final large = areaFor(p.$1, p.$2, ImageSize.large);
+        final largeAr = large.width / large.height;
+        for (final size in ImageSize.values) {
+          final r = areaFor(p.$1, p.$2, size);
+          expect(r.width / r.height, closeTo(largeAr, 1e-9));
+        }
+      }
+    });
+
+    test('back printable area matches the Printful 12x16 aspect (0.75)', () {
+      final back = areaFor('back', 'center', ImageSize.large);
+      expect(back.width / back.height, closeTo(0.75, 1e-3));
+    });
+
+    test('Medium is the default when imageSize is omitted', () {
       final spec = ProductMockupSpecs.specsFor(
         MerchProduct.tshirt,
         colour: 'Black',
-        placement: 'front',
-        frontPosition: 'center',
+        placement: 'back',
       );
-      expect(spec.printAreaNorm, center);
-    });
-
-    test('(b) Small shrinks about the same centre', () {
-      for (final entry in <(String, String, Rect)>[
-        ('front', 'left_chest', leftChest),
-        ('front', 'center', center),
-        ('front', 'right_chest', rightChest),
-        ('back', 'center', back),
-      ]) {
-        final small = areaFor(entry.$1, entry.$2, ImageSize.small);
-        final base = entry.$3;
-        expect(
-          small.width,
-          lessThan(base.width),
-          reason: '${entry.$2} Small width should shrink',
-        );
-        expect(small.height, lessThan(base.height));
-        expectOffsetClose(centreOf(small), centreOf(base));
-      }
-    });
-
-    test('(c) Large grows about the same centre and stays in [0,1]', () {
-      for (final entry in <(String, String, Rect)>[
-        ('front', 'center', center),
-        ('back', 'center', back),
-      ]) {
-        final large = areaFor(entry.$1, entry.$2, ImageSize.large);
-        final base = entry.$3;
-        expect(large.width, greaterThan(base.width));
-        expect(large.height, greaterThan(base.height));
-        expectOffsetClose(centreOf(large), centreOf(base));
-        expect(large.left, greaterThanOrEqualTo(0.0));
-        expect(large.top, greaterThanOrEqualTo(0.0));
-        expect(large.right, lessThanOrEqualTo(1.0));
-        expect(large.bottom, lessThanOrEqualTo(1.0));
-      }
-    });
-
-    test('(d) left-chest Large is capped below the raw 1.3x and stays in [0,1]',
-        () {
-      final large = areaFor('front', 'left_chest', ImageSize.large);
-      // Raw 1.3x would be 0.234 x 0.325; the per-placement cap holds it smaller.
-      expect(large.width, lessThan(leftChest.width * 1.3));
-      expect(large.height, lessThan(leftChest.height * 1.3));
-      // Still bigger than Medium, and centred on the same point.
-      expect(large.width, greaterThan(leftChest.width));
-      expectOffsetClose(centreOf(large), centreOf(leftChest));
-      // On-garment: within the unit square.
-      expect(large.left, greaterThanOrEqualTo(0.0));
-      expect(large.top, greaterThanOrEqualTo(0.0));
-      expect(large.right, lessThanOrEqualTo(1.0));
-      expect(large.bottom, lessThanOrEqualTo(1.0));
-    });
-
-    test('right-chest Large is likewise capped and stays in [0,1]', () {
-      final large = areaFor('front', 'right_chest', ImageSize.large);
-      expect(large.width, lessThan(rightChest.width * 1.3));
-      expect(large.height, lessThan(rightChest.height * 1.3));
-      expectOffsetClose(centreOf(large), centreOf(rightChest));
-      expect(large.left, greaterThanOrEqualTo(0.0));
-      expect(large.right, lessThanOrEqualTo(1.0));
-      expect(large.bottom, lessThanOrEqualTo(1.0));
+      expect(spec.printAreaNorm, areaFor('back', 'center', ImageSize.medium));
     });
 
     test('every placement × size stays within the unit square', () {

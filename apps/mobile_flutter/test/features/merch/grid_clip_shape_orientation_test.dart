@@ -48,6 +48,18 @@ void main() {
     });
   });
 
+  group('aspectRatioForClipShape — true-ratio contract (M191)', () {
+    test('returns null for none/heart/circle and null clipCode', () async {
+      expect(await aspectRatioForClipShape(GridClipShape.none, 'AU'), isNull);
+      expect(await aspectRatioForClipShape(GridClipShape.heart, 'AU'), isNull);
+      expect(await aspectRatioForClipShape(GridClipShape.circle, 'AU'), isNull);
+      expect(
+        await aspectRatioForClipShape(GridClipShape.countryOutline, null),
+        isNull,
+      );
+    });
+  });
+
   group('kPortraitCardAspectRatio / kLandscapeCardAspectRatio', () {
     test('portrait is narrower than landscape', () {
       expect(kPortraitCardAspectRatio, lessThan(1.0));

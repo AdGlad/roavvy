@@ -1,28 +1,28 @@
-import 'dart:math' as math;
-
 import 'package:flutter/widgets.dart';
 
 import 'merch_variant_lookup.dart';
 
-/// Curated print-scale presets for the composited artwork (M189).
+/// Curated print-size presets for the composited artwork (M189/M190).
 ///
-/// The multiplier is applied to a placement's base [ProductMockupSpec.printAreaNorm]
-/// Rect *about its centre*, so the design grows or shrinks in place.
-///
-/// [medium] is the identity (×1.0): existing designs render byte-identically
-/// by default, so nothing changes unless the user explicitly picks another size.
+/// Each placement has a **fixed printable area** (the real Printful printable
+/// region — see the print-area constants below). [ImageSize] chooses how much
+/// of that fixed area the artwork fills, as a fraction of it. This keeps the
+/// preview honest: [ImageSize.large] fills the printable area exactly (never
+/// bleeds past it), and every size maps to something the printer can actually
+/// produce. The same fraction is applied to the print file sent to Printful, so
+/// the preview matches the print (M190).
 enum ImageSize {
   small,
   medium,
   large;
 
-  /// Factor applied to the base print-area Rect about its centre.
-  ///
-  /// Medium MUST stay exactly 1.0 (identity) so default output is unchanged.
-  double get scaleMultiplier => switch (this) {
-    ImageSize.small => 0.75,
-    ImageSize.medium => 1.0,
-    ImageSize.large => 1.3,
+  /// Fraction of the placement's printable area the artwork fills. Large fills
+  /// the whole printable area (1.0); it can never exceed it. Medium is the
+  /// sensible default; Small is a compact print.
+  double get fillFraction => switch (this) {
+    ImageSize.small => 0.65,
+    ImageSize.medium => 0.85,
+    ImageSize.large => 1.0,
   };
 
   /// Parses the stored enum name back to an [ImageSize], tolerating unknown /
@@ -85,64 +85,47 @@ const _kTshirtBack = <String, String>{
   'Red': 'assets/mockups/Red-tshirt-back.jpeg',
 };
 
-// ── Print area constants ──────────────────────────────────────────────────────
+// ── Printable-area constants ──────────────────────────────────────────────────
 //
-// T-shirt print areas are expressed relative to each image (800×1066 px).
-// Calibrated against the split shirt mockups (M59-01, ADR-115).
-//   Front left-chest  (wearer's left = viewer's right):
-//     left=0.55, top=0.25, width=0.18, height=0.25
-//   Front center:
-//     left=0.25, top=0.22, width=0.50, height=0.40
-//   Front right-chest (wearer's right = viewer's left):
-//     left=0.27, top=0.25, width=0.18, height=0.25
-//   Back: left=0.30, top=0.22, width=0.40, height=0.50
+// Each rect is the **full printable area** for a placement — the region a
+// design at [ImageSize.large] fills exactly. Expressed in normalised (0–1)
+// coordinates of the mockup image (800×1066 px). Smaller sizes fill a centred
+// fraction of it (see [ImageSize.fillFraction]).
+//
+// The back area matches Printful's DTG back printfile aspect (12in × 16in =
+// 0.75) and is sized/positioned to sit within the garment on the mockup photo,
+// deliberately conservative so the preview is never larger than what Printful
+// actually prints (M190). The chest badges keep their small footprint.
+//   Front left-chest  (wearer's left = viewer's right)
+//   Front center      (aspect 0.75, matches the DTG printfile)
+//   Front right-chest (wearer's right = viewer's left)
+//   Back              (aspect 0.75, matches the DTG printfile)
 const _kTshirtFrontLeftChestArea = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
 const _kTshirtFrontCenterArea = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
 const _kTshirtFrontRightChestArea = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
-const _kTshirtBackPrintArea = Rect.fromLTWH(0.30, 0.22, 0.40, 0.50);
+// Back recalibrated (M190): 0.75 aspect (Printful 12in×16in DTG printfile),
+// centred and sized conservatively so the preview is never larger than what
+// Printful actually prints. (Front/chest areas left as pre-M190.)
+const _kTshirtBackPrintArea = Rect.fromLTWH(0.31, 0.235, 0.38, 0.507);
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
 const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
 
-// ── Per-placement maximum print areas (M189 Image Size) ──────────────────────
-//
-// When [ImageSize.large] scales a base print area about its centre, the result
-// is clamped to fit inside these bounding boxes so the artwork never bleeds past
-// the printable area of the garment. Each box is centred on its base area.
-//
-// The full-front (center) and back placements may grow into the printable
-// garment area; the small left/right-chest badges are capped tighter so Large
-// stays a chest-sized badge on-garment rather than sprawling onto the shoulder.
-const _kTshirtFrontLeftChestMaxArea = Rect.fromLTWH(0.53, 0.225, 0.22, 0.30);
-const _kTshirtFrontRightChestMaxArea = Rect.fromLTWH(0.25, 0.225, 0.22, 0.30);
-const _kTshirtFrontCenterMaxArea = Rect.fromLTWH(0.15, 0.15, 0.70, 0.60);
-const _kTshirtBackMaxArea = Rect.fromLTWH(0.18, 0.12, 0.64, 0.72);
-
-/// Scales [base] about its centre by [k], then clamps the result to fit inside
-/// [maxArea] (and, implicitly, the unit square, since [maxArea] ⊆ [0,1]).
-///
-/// [ImageSize.medium] (k == 1.0) short-circuits to return [base] unchanged so
-/// default output is byte-identical to the pre-M189 constants.
-Rect _scaledPrintArea(Rect base, double k, Rect maxArea) {
-  if (k == 1.0) return base;
-
-  final cx = base.left + base.width / 2;
-  final cy = base.top + base.height / 2;
-
-  // Cap the scaled size to the placement's max box; keep the shared centre.
-  final w = math.min(base.width * k, maxArea.width);
-  final h = math.min(base.height * k, maxArea.height);
-
-  var left = cx - w / 2;
-  var top = cy - h / 2;
-
-  // Nudge back inside the bounding box if the centred rect overhangs an edge.
-  if (left < maxArea.left) left = maxArea.left;
-  if (top < maxArea.top) top = maxArea.top;
-  if (left + w > maxArea.right) left = maxArea.right - w;
-  if (top + h > maxArea.bottom) top = maxArea.bottom - h;
-
-  return Rect.fromLTWH(left, top, w, h);
+/// Returns the centred sub-rect of [area] scaled by [fraction] (0–1). At
+/// `fraction == 1.0` the printable area is returned unchanged; smaller values
+/// shrink the artwork bounding box about the centre so it always stays inside
+/// the printable area (it can never bleed past it).
+Rect scaledPrintArea(Rect area, double fraction) {
+  final f = fraction.clamp(0.05, 1.0);
+  if (f >= 1.0) return area;
+  final w = area.width * f;
+  final h = area.height * f;
+  return Rect.fromLTWH(
+    area.left + (area.width - w) / 2,
+    area.top + (area.height - h) / 2,
+    w,
+    h,
+  );
 }
 
 // ── Registry ─────────────────────────────────────────────────────────────────
@@ -170,10 +153,10 @@ abstract final class ProductMockupSpecs {
   /// [placement] is `'front'` or `'back'`.
   /// [frontPosition] controls the print area when [placement] is `'front'`:
   ///   `'left_chest'` (default), `'center'`, or `'right_chest'`.
-  /// [imageSize] scales the resolved print area about its centre (M189):
-  ///   Small shrinks it, [ImageSize.medium] (default) leaves it unchanged, and
-  ///   Large grows it — clamped so it never bleeds past the printable area.
-  ///   For [MerchProduct.poster] the size is ignored (posters are edge-to-edge).
+  /// [imageSize] chooses how much of the placement's fixed printable area the
+  ///   artwork fills (M190): Large fills it exactly (never exceeds it), Medium
+  ///   (default) fills most of it, Small is a compact print. For
+  ///   [MerchProduct.poster] the size is ignored (posters are edge-to-edge).
   ///
   /// Throws [ArgumentError] if no spec is registered for the combination.
   static ProductMockupSpec specsFor(
@@ -192,29 +175,17 @@ abstract final class ProductMockupSpecs {
         'product=$product colour=$colour placement=$placement',
       );
     }
-    final Rect baseArea;
-    final Rect maxArea;
+    final Rect printableArea;
     if (isFront) {
-      switch (frontPosition) {
-        case 'center':
-          baseArea = _kTshirtFrontCenterArea;
-          maxArea = _kTshirtFrontCenterMaxArea;
-        case 'right_chest':
-          baseArea = _kTshirtFrontRightChestArea;
-          maxArea = _kTshirtFrontRightChestMaxArea;
-        default: // 'left_chest' + default
-          baseArea = _kTshirtFrontLeftChestArea;
-          maxArea = _kTshirtFrontLeftChestMaxArea;
-      }
+      printableArea = switch (frontPosition) {
+        'center' => _kTshirtFrontCenterArea,
+        'right_chest' => _kTshirtFrontRightChestArea,
+        _ => _kTshirtFrontLeftChestArea, // 'left_chest' + default
+      };
     } else {
-      baseArea = _kTshirtBackPrintArea;
-      maxArea = _kTshirtBackMaxArea;
+      printableArea = _kTshirtBackPrintArea;
     }
-    final printArea = _scaledPrintArea(
-      baseArea,
-      imageSize.scaleMultiplier,
-      maxArea,
-    );
+    final printArea = scaledPrintArea(printableArea, imageSize.fillFraction);
     return ProductMockupSpec(assetPath: assetPath, printAreaNorm: printArea);
   }
 }

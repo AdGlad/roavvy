@@ -228,6 +228,12 @@ class _LocalMockupPreviewScreenState
   late int _flagRepeatCount;
   int? _rowCount;
 
+  /// Continuous aspect ratio (width/height) of the current outline/silhouette
+  /// clip, so the card matches the country's true proportions instead of a
+  /// coarse portrait/landscape snap (M191). Null for none/heart/circle and when
+  /// the user manually overrides orientation — then the binary toggle applies.
+  double? _clipAspectRatio;
+
   /// Selectable clip-shape options for the grid style strip. Base set is ready
   /// synchronously; single-country silhouette options are appended when the
   /// async load completes ([_loadClipOptions]).
@@ -309,7 +315,10 @@ class _LocalMockupPreviewScreenState
 
   // ── Which face is visible in the local mockup (configuring state only) ────
   // Driven by _onFlipped; reset when placement options change.
-  bool _showingFront = true;
+  // Open on the back: the main design is composited on the back of the shirt,
+  // so that's what the user should see first (M190). The flip toggle still
+  // works and re-derives from this on entry.
+  bool _showingFront = false;
 
   // ── Passport stamp colour mode (M64) ──────────────────────────────────────
 
@@ -382,6 +391,12 @@ class _LocalMockupPreviewScreenState
 
   /// Effective card aspect ratio, respecting portrait/landscape toggle.
   double get _currentAspectRatio {
+    // Outline/silhouette clips use the shape's true aspect ratio so the country
+    // isn't stretched into a coarse portrait/landscape card (M191).
+    final clipAr = _clipAspectRatio;
+    if (clipAr != null && _isTshirt && _template == CardTemplateType.grid) {
+      return clipAr;
+    }
     final portrait = _isTshirt ? 4.0 / 5.0 : widget.confirmedAspectRatio;
     final landscape =
         _isTshirt ? 5.0 / 4.0 : (1.0 / widget.confirmedAspectRatio);
@@ -826,6 +841,9 @@ class _LocalMockupPreviewScreenState
                   : MerchStampMode.entryExit,
         );
     setState(() {
+      // Manual override wins: drop the clip's auto aspect so the binary
+      // portrait/landscape toggle takes effect (M191).
+      _clipAspectRatio = null;
       _isPortrait = !_isPortrait;
     });
     await _generateFromPreset(config);
@@ -868,13 +886,16 @@ class _LocalMockupPreviewScreenState
       _rowCount = defaultRepeat;
       _flagRepeatCount = defaultRepeat;
     });
-    // Orient the canvas to the shape's natural proportions (e.g. a tall
-    // silhouette → portrait) before rendering.
-    final portrait = await isPortraitForClipShape(option.shape, option.clipCode);
+    // Match the card to the shape's TRUE aspect ratio so a country/silhouette
+    // outline isn't stretched into a coarse portrait/landscape card (M191).
+    // Non-outline shapes (none/heart/circle) return null → fall back to the
+    // binary portrait/landscape toggle.
+    final clipAr = await aspectRatioForClipShape(option.shape, option.clipCode);
     if (!mounted) return;
-    if (portrait != null && portrait != _isPortrait) {
-      setState(() => _isPortrait = portrait);
-    }
+    setState(() {
+      _clipAspectRatio = clipAr;
+      if (clipAr != null) _isPortrait = clipAr < 1.0;
+    });
     await _regenerateGridArtwork();
   }
 
@@ -1342,16 +1363,17 @@ class _LocalMockupPreviewScreenState
   /// Also upgrades the placeholder title to a real AI-generated one — see
   /// [_resolveInitialAiTitle] — before that same first render.
   Future<void> _initGridOrientationAndRender() async {
-    final orientationFuture = isPortraitForClipShape(
-      _clipShape,
-      _clipCode,
-    );
+    // Use the clip's TRUE aspect ratio so an outline isn't stretched (M191).
+    final aspectFuture = aspectRatioForClipShape(_clipShape, _clipCode);
     final titleFuture = _resolveInitialAiTitle();
-    final isPortrait = await orientationFuture;
+    final clipAr = await aspectFuture;
     await titleFuture;
     if (!mounted) return;
-    if (isPortrait != null && isPortrait != _isPortrait) {
-      setState(() => _isPortrait = isPortrait);
+    if (clipAr != null) {
+      setState(() {
+        _clipAspectRatio = clipAr;
+        _isPortrait = clipAr < 1.0;
+      });
     }
     await _setGridTextColor(_gridTextColor ?? Colors.white);
   }
@@ -1795,6 +1817,9 @@ class _LocalMockupPreviewScreenState
                 widthPx: printDims.widthPx,
                 heightPx: printDims.heightPx,
                 transparentBackground: printDims.transparent,
+                // Match the preview: the design fills the same fraction of the
+                // printable area that the chosen Image Size shows (M190).
+                fillFraction: _imageSize.fillFraction,
               )
             : null;
         processSw.stop();

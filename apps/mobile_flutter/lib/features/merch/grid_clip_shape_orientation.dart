@@ -28,6 +28,39 @@ Future<bool?> isPortraitForClipShape(
   GridClipShape shape,
   String? clipCode,
 ) async {
+  final bounds = await _boundsForClipShape(shape, clipCode);
+  if (bounds == null) return null;
+  return bounds.height > bounds.width;
+}
+
+/// The clip shape's **true aspect ratio** (width / height) from its outline
+/// bounding box, so the card can match the country/silhouette's real
+/// proportions instead of snapping to a coarse portrait/landscape default
+/// (M191). This is the fix for outline clips that looked horizontally stretched
+/// — the card now takes the outline's own ratio and the uniformly-scaled shape
+/// fills it without distortion.
+///
+/// Clamped to `[min, max]` so an extreme outline (a very tall or very wide
+/// country) can't produce an unusable card. Returns `null` for shapes with no
+/// outline ([none], [heart], [circle]) or when the asset hasn't loaded — callers
+/// fall back to their template default.
+Future<double?> aspectRatioForClipShape(
+  GridClipShape shape,
+  String? clipCode, {
+  double min = 0.5,
+  double max = 2.0,
+}) async {
+  final bounds = await _boundsForClipShape(shape, clipCode);
+  if (bounds == null) return null;
+  return (bounds.width / bounds.height).clamp(min, max);
+}
+
+/// Shared outline bounds probe for the clip-shape geometry helpers. Returns
+/// null for shapes with no outline, or when the asset hasn't loaded / is empty.
+Future<ui.Rect?> _boundsForClipShape(
+  GridClipShape shape,
+  String? clipCode,
+) async {
   if (clipCode == null) return null;
 
   ui.Rect? bounds;
@@ -66,5 +99,5 @@ Future<bool?> isPortraitForClipShape(
       bounds.height <= 0) {
     return null;
   }
-  return bounds.height > bounds.width;
+  return bounds;
 }
