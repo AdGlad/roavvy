@@ -55,6 +55,33 @@ void main() {
       },
     );
 
+    test('realistic 12-trip list is not truncated (M193 fit)', () {
+      // 8–15 trips is a realistic "tour"; it must fill the poster without
+      // premature truncation (truncation only kicks in at kMaxEntries = 25).
+      final trips = List.generate(12, (i) => _trip('IT', 2015 + i, 6, 7));
+      final result = TimelineLayoutEngine.layout(
+        trips: trips,
+        countryCodes: ['IT'],
+        canvasSize: landscape,
+      );
+      expect(result.entries.length, 12);
+      expect(result.truncatedCount, 0);
+    });
+
+    test('exactly kMaxEntries (25) trips → none truncated', () {
+      final trips = List.generate(
+        TimelineLayoutEngine.kMaxEntries,
+        (i) => _trip('DE', 1990 + i, 6, 7),
+      );
+      final result = TimelineLayoutEngine.layout(
+        trips: trips,
+        countryCodes: ['DE'],
+        canvasSize: landscape,
+      );
+      expect(result.entries.length, TimelineLayoutEngine.kMaxEntries);
+      expect(result.truncatedCount, 0);
+    });
+
     test('30 trips on landscape canvas → some truncated; invariant holds', () {
       final trips = List.generate(30, (i) => _trip('DE', 2000 + i, 6, 7));
       final result = TimelineLayoutEngine.layout(

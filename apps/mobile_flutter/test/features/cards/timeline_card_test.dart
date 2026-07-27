@@ -138,5 +138,78 @@ void main() {
       expect(find.byType(TimelineCard), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('renders on a dark shirt with white textColor without error', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          TimelineCard(
+            trips: [_trip('GB', 2023, 3, 5), _trip('FR', 2022, 6, 8)],
+            countryCodes: const ['GB', 'FR'],
+            transparentBackground: true,
+            textColor: Colors.white,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('TimelineCard ordering (M193)', () {
+    test('defaults to newest-first for a tour-poster feel', () {
+      // A concert-tour poster reads best with the latest dates on top.
+      const card = TimelineCard(trips: [], countryCodes: ['GB']);
+      expect(card.newestFirst, isTrue);
+    });
+  });
+
+  group('resolveTimelinePalette (M193 legibility)', () {
+    test('dark shirt (transparent, no textColor) → light ink, no fill', () {
+      final p = resolveTimelinePalette(transparentBackground: true);
+      expect(
+        p.ink.computeLuminance(),
+        greaterThan(0.5),
+        reason: 'light ink so names are legible on a dark garment',
+      );
+      expect(p.fill, isNull, reason: 'no opaque fill in shirt mode');
+      expect(p.muted.computeLuminance(), greaterThan(0.5));
+    });
+
+    test('dark shirt with white textColor → ink follows the hint', () {
+      final p = resolveTimelinePalette(
+        transparentBackground: true,
+        textColor: Colors.white,
+      );
+      expect(p.ink, Colors.white);
+      expect(p.fill, isNull);
+    });
+
+    test('light shirt (dark textColor) → dark ink, deeper accent', () {
+      final light = resolveTimelinePalette(
+        transparentBackground: true,
+        textColor: Colors.black,
+      );
+      final dark = resolveTimelinePalette(
+        transparentBackground: true,
+        textColor: Colors.white,
+      );
+      expect(light.ink.computeLuminance(), lessThan(0.5));
+      expect(light.fill, isNull);
+      // Deeper gold on a light garment differs from the bright gold on dark.
+      expect(light.accent, isNot(dark.accent));
+      expect(
+        light.accent.computeLuminance(),
+        lessThan(dark.accent.computeLuminance()),
+      );
+    });
+
+    test('poster mode (opaque) → classic dark ink on a parchment fill', () {
+      final p = resolveTimelinePalette(transparentBackground: false);
+      expect(p.ink.computeLuminance(), lessThan(0.5));
+      expect(p.fill, isNotNull, reason: 'parchment fill painted in poster mode');
+      expect(p.fill!.computeLuminance(), greaterThan(0.5));
+    });
   });
 }
