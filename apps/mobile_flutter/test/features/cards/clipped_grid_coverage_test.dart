@@ -71,13 +71,20 @@ void main() {
       bottomOffset: bottomOffset,
     );
 
-    List<FlagGridTile> tiles({required bool coverGrid}) =>
+    List<FlagGridTile> tiles({
+      required bool coverGrid,
+      FlagGridLayoutMode mode = FlagGridLayoutMode.packedRow,
+    }) =>
         FlagGridLayoutEngine.compute(
           codes: const ['au'],
           canvasSize: size,
           topOffset: topOffset,
           bottomOffset: bottomOffset,
           rowCount: 3,
+          // A realistic single-country repeat (the rows slider) — montage
+          // scatters this many tiles, which is where the gaps appeared.
+          flagRepeatCount: 9,
+          mode: mode,
           coverGrid: coverGrid,
         );
 
@@ -106,5 +113,18 @@ void main() {
     // bottom-right materially uncovered.
     expect(covFullBR, greaterThan(covOldBR),
         reason: 'coverGrid must improve coverage vs the old behaviour');
+
+    // ── Montage mode (the reported case) ─────────────────────────────────────
+    final montageFix = tiles(coverGrid: true, mode: FlagGridLayoutMode.montage);
+    final montageOld = tiles(coverGrid: false, mode: FlagGridLayoutMode.montage);
+    final montageCov = coverage(clip, montageFix);
+    final montageCovBR = coverage(clip, montageFix, region: bottomRight);
+    final montageOldBR = coverage(clip, montageOld, region: bottomRight);
+    expect(montageCov, greaterThan(0.98),
+        reason: 'montage must fully fill the outline under a clip');
+    expect(montageCovBR, greaterThan(0.98),
+        reason: 'montage bottom-right (the reported cut) must be filled');
+    expect(montageCovBR, greaterThan(montageOldBR),
+        reason: 'coverGrid montage must improve coverage vs the old scatter');
   });
 }

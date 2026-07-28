@@ -217,6 +217,7 @@ class FlagGridLayoutEngine {
         originX,
         originY,
         seed: seed,
+        coverGrid: coverGrid,
       ),
     };
   }
@@ -377,6 +378,7 @@ class FlagGridLayoutEngine {
     double originX,
     double originY, {
     required int seed,
+    bool coverGrid = false,
   }) {
     final n = codes.length;
     if (n == 0) return [];
@@ -388,10 +390,45 @@ class FlagGridLayoutEngine {
       1,
       math.sqrt(n * grid.width / grid.height).round(),
     );
-    final rows = (n / cols).ceil();
+    final rows = math.max(1, (n / cols).ceil());
     final cellW = grid.width / cols;
     final cellH = grid.height / rows;
 
+    if (coverGrid) {
+      // A clip mask is applied (e.g. a country outline): the collage must FULLY
+      // fill the clipped shape. Place an overlapping flag in EVERY cell plus one
+      // extra ring past each edge (the overflow is clipped away by the mask), so
+      // there are no interior gaps and the shape's border is fully covered — no
+      // straight-edge cut-off. Generous overlap + limited jitter guarantee no
+      // gaps; deterministic from [seed].
+      const overlap = 1.6;
+      final tiles = <FlagGridTile>[];
+      var k = 0;
+      for (int r = -1; r <= rows; r++) {
+        for (int c = -1; c <= cols; c++) {
+          final code = codes[k++ % n];
+          final ar = _ar(code);
+          final cx = originX +
+              (c + 0.5) * cellW +
+              (rng.nextDouble() - 0.5) * cellW * 0.4;
+          final cy = originY +
+              (r + 0.5) * cellH +
+              (rng.nextDouble() - 0.5) * cellH * 0.4;
+          final sizeVar = 0.9 + rng.nextDouble() * 0.4; // 0.90–1.30
+          final th = cellH * overlap * sizeVar;
+          final tw = th * ar;
+          tiles.add(
+            FlagGridTile(
+              code: code,
+              rect: Rect.fromLTWH(cx - tw / 2, cy - th / 2, tw, th),
+            ),
+          );
+        }
+      }
+      return tiles;
+    }
+
+    // Unclipped scatter: place each code once as a bounded, overlapping collage.
     // Tiles are drawn larger than their cell so neighbours overlap (~collage).
     const overlap = 1.35;
 
