@@ -262,6 +262,36 @@ void main() {
 
       expect(doc.data()!['status'], MerchCartItemStatus.checkoutStarted.value);
     });
+
+    test(
+      'markCheckoutAbandoned reverts checkoutStarted back to mockupReady',
+      () async {
+        final fs = FakeFirebaseFirestore();
+        final repo = MerchCartRepository(fs);
+
+        await repo.create(
+          _uid,
+          _item(id: 'item-7', status: MerchCartItemStatus.checkoutStarted),
+        );
+        await repo.markCheckoutAbandoned(_uid, 'item-7');
+
+        final doc =
+            await fs
+                .collection('users')
+                .doc(_uid)
+                .collection('cartItems')
+                .doc('item-7')
+                .get();
+
+        expect(doc.data()!['status'], MerchCartItemStatus.mockupReady.value);
+        // The item is once again active / recoverable.
+        final active = await repo.loadActive(_uid);
+        expect(
+          active.firstWhere((i) => i.id == 'item-7').status,
+          MerchCartItemStatus.mockupReady,
+        );
+      },
+    );
   });
 
   // ── update ─────────────────────────────────────────────────────────────────

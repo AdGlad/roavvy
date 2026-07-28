@@ -131,6 +131,22 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // A returning `checkoutStarted` item means a previous checkout was
+    // abandoned (purchased items are filtered out of the cart). Recover it:
+    // pre-confirm so "Proceed to Checkout" is enabled without forcing the user
+    // to re-tick the confirmation box, and revert the stuck status back to
+    // `mockupReady` so the item is not stranded forever (M194).
+    if (widget.item.status == MerchCartItemStatus.checkoutStarted) {
+      _confirmed = true;
+      final uid = ref.read(currentUidProvider);
+      if (uid != null) {
+        MerchCartRepository(FirebaseFirestore.instance)
+            .markCheckoutAbandoned(uid, widget.item.id)
+            .catchError(
+              (e) => debugPrint('[cart] markCheckoutAbandoned: $e'),
+            );
+      }
+    }
   }
 
   @override
@@ -151,10 +167,18 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
 
   Future<void> _launchCheckout() async {
     final url = widget.item.checkoutUrl;
-    if (url == null) return;
+    if (url == null) return; // Button is disabled in this case (see build).
     // Lock the UI immediately — navigate away from review and block back nav
     // before opening the browser so the user cannot return and double-order.
     setState(() => _checkoutStarted = true);
+    // Mark the item as checkout-started so it is tracked while the browser is
+    // open; it is reverted to mockupReady on return if no purchase is confirmed.
+    final uid = ref.read(currentUidProvider);
+    if (uid != null) {
+      MerchCartRepository(FirebaseFirestore.instance)
+          .markCheckoutStarted(uid, widget.item.id)
+          .catchError((e) => debugPrint('[cart] markCheckoutStarted: $e'));
+    }
     final base = Uri.parse(url);
     final uri = base.replace(
       queryParameters: {...base.queryParameters, 'return_to': 'roavvy://return'},
@@ -263,6 +287,7 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
   Widget build(BuildContext context) {
     final item = widget.item;
     final theme = Theme.of(context);
+    final canCheckout = item.checkoutUrl != null;
 
     if (_checkoutStarted) {
       return PopScope(
@@ -424,18 +449,36 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Go Back'),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _confirmed ? _launchCheckout : null,
-                      child: const Text('Proceed to Checkout'),
+                  if (!canCheckout) ...[
+                    Text(
+                      "This design isn't ready for checkout yet. "
+                      'Please regenerate it from your cart and try again.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Go Back'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: (_confirmed && canCheckout)
+                              ? _launchCheckout
+                              : null,
+                          child: const Text('Proceed to Checkout'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
