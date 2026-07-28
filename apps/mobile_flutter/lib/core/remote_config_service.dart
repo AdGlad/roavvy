@@ -39,6 +39,9 @@ class RemoteConfigService {
       'purchasing_enabled_badge': true,
       'purchasing_enabled_word_cloud': true,
       'purchasing_enabled_landmark': true,
+      // M202: cloud AI design critic — fail-CLOSED (off) until validated for
+      // cost/latency. When off, the "Design for me" gallery is heuristic-only.
+      'ai_design_critic_enabled': false,
     });
 
     // Background fetch — never blocks startup. Notify listeners when fresh

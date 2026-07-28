@@ -33,7 +33,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.printfulMockupWebhook = exports.shopifyOrderCreated = exports.createMerchCart = exports.getMerchPrices = exports.getDailyChallenge = exports.scheduleDailyChallenge = void 0;
+exports.printfulMockupWebhook = exports.shopifyOrderCreated = exports.createMerchCart = exports.getMerchPrices = exports.CART_CREATE_MUTATION = exports.critiqueDesigns = exports.getDailyChallenge = exports.scheduleDailyChallenge = void 0;
+exports.normalizeBuyerCountry = normalizeBuyerCountry;
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const app_1 = require("firebase-admin/app");
@@ -46,6 +47,8 @@ const printDimensions_1 = require("./printDimensions");
 var dailyChallenge_1 = require("./dailyChallenge");
 Object.defineProperty(exports, "scheduleDailyChallenge", { enumerable: true, get: function () { return dailyChallenge_1.scheduleDailyChallenge; } });
 Object.defineProperty(exports, "getDailyChallenge", { enumerable: true, get: function () { return dailyChallenge_1.getDailyChallenge; } });
+var aiCritic_1 = require("./aiCritic");
+Object.defineProperty(exports, "critiqueDesigns", { enumerable: true, get: function () { return aiCritic_1.critiqueDesigns; } });
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();
 // ── Printful Mockup Generator (ADR-089) ───────────────────────────────────────
@@ -144,9 +147,12 @@ async function submitPrintfulMockupTask(printfulVariantId, frontMockupFileUrl, b
     return { taskId };
 }
 // ── createMerchCart ───────────────────────────────────────────────────────────
-const CART_CREATE_MUTATION = `
-  mutation CreateCart($lines: [CartLineInput!]!, $attributes: [AttributeInput!]!) {
-    cartCreate(input: { lines: $lines, attributes: $attributes }) {
+// M195: `@inContext(country:)` + `buyerIdentity.countryCode` make the created
+// cart (and its checkoutUrl) present the buyer's currency instead of the store
+// default (GBP). Mirrors the MERCH_PRICES_QUERY @inContext style below.
+exports.CART_CREATE_MUTATION = `
+  mutation CreateCart($lines: [CartLineInput!]!, $attributes: [AttributeInput!]!, $country: CountryCode!) @inContext(country: $country) {
+    cartCreate(input: { lines: $lines, attributes: $attributes, buyerIdentity: { countryCode: $country } }) {
       cart {
         id
         checkoutUrl
@@ -158,6 +164,15 @@ const CART_CREATE_MUTATION = `
     }
   }
 `;
+/**
+ * Normalises a buyer country code to ISO 3166-1 alpha-2 uppercase, falling back
+ * to `fallback` when the input is absent or not a 2-letter alpha code. Used to
+ * pick the Shopify presentment currency (M195). Exported for unit testing.
+ */
+function normalizeBuyerCountry(raw, fallback = 'AU') {
+    const upper = (raw ?? '').toUpperCase();
+    return /^[A-Z]{2}$/.test(upper) ? upper : fallback;
+}
 // ── getMerchPrices ────────────────────────────────────────────────────────────
 const MERCH_PRICES_QUERY = `
   query GetMerchPrices($country: CountryCode) @inContext(country: $country) {
@@ -183,8 +198,7 @@ exports.getMerchPrices = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError('internal', 'Storefront configuration missing.');
     }
     // Validate and normalise the country code (must be 2-letter uppercase alpha).
-    const rawCountry = (request.data.countryCode ?? '').toUpperCase();
-    const country = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : 'GB';
+    const country = normalizeBuyerCountry(request.data.countryCode, 'GB');
     const shopifyRes = await fetch(`https://${storeDomain}/api/2025-01/graphql.json`, {
         method: 'POST',
         headers: {
@@ -235,7 +249,11 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
     const uid = request.auth.uid;
     console.log(`[cart] ${fnElapsed()} auth ok uid=${uid}`);
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition, giftSubject, giftMessage, clientConfigId } = request.data;
+    const { variantId, buyerCountry, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition, giftSubject, giftMessage, clientConfigId } = request.data;
+    // M195: buyer's country → Shopify presentment currency. Defaults to 'AU'
+    // (not the store default GBP). Distinct from selectedCountryCodes, which are
+    // the design's travel countries and must NOT drive currency.
+    const effectiveBuyerCountry = normalizeBuyerCountry(buyerCountry);
     // 'left_chest' | 'center' | 'right_chest' | 'none' — defaults to 'center'
     const effectiveFrontPosition = (typeof frontPosition === 'string' && frontPosition.length > 0) ? frontPosition : 'center';
     // 'center' | 'none' — defaults to 'center'
@@ -517,14 +535,17 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
     const variables = {
         lines: [{ merchandiseId: variantId, quantity }],
         attributes: [{ key: 'merchConfigId', value: configId }],
+        // M195: presents the buyer's currency on the checkout page.
+        country: effectiveBuyerCountry,
     };
+    console.log(`[cart] ${fnElapsed()} buyerCountry=${effectiveBuyerCountry}`);
     const shopifyRes = await fetch(`https://${storeDomain}/api/2025-01/graphql.json`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-Shopify-Storefront-Access-Token': storefrontToken,
         },
-        body: JSON.stringify({ query: CART_CREATE_MUTATION, variables }),
+        body: JSON.stringify({ query: exports.CART_CREATE_MUTATION, variables }),
     });
     if (!shopifyRes.ok) {
         throw new https_1.HttpsError('internal', `Shopify request failed: ${shopifyRes.status}`);

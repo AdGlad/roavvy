@@ -15,6 +15,7 @@ import type {
 import { generateFlagGrid } from './imageGen';
 import { PRINT_DIMENSIONS, PRINTFUL_VARIANT_IDS } from './printDimensions';
 export { scheduleDailyChallenge, getDailyChallenge } from './dailyChallenge';
+export { critiqueDesigns } from './aiCritic';
 
 initializeApp();
 const db = getFirestore();
