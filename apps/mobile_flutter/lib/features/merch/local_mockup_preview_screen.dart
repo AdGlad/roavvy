@@ -2277,12 +2277,13 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildDraggableConfigTray(ThemeData theme) {
     return DraggableScrollableSheet(
-      // Taller now that the Customize controls are always shown (M196): open a
-      // bit higher so the "Customize your design" header is visible, and allow
-      // dragging up to reveal all controls; still collapsible to see the mockup.
-      initialChildSize: 0.44,
+      // Cap the tray at 50% so the t-shirt is always visible for real-time
+      // preview; the Customize controls scroll WITHIN the tray (the body is a
+      // SingleChildScrollView on the sheet's scrollController), so everything
+      // stays reachable without the tray covering the mockup (M196 follow-up).
+      initialChildSize: 0.42,
       minChildSize: 0.08,
-      maxChildSize: 0.88,
+      maxChildSize: 0.50,
       snap: true,
       builder: (context, scrollController) {
         return ClipRRect(
