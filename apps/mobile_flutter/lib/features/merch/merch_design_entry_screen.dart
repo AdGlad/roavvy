@@ -4,6 +4,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
+import 'design_engine/design_for_me_screen.dart';
 import 'merch_template_ranker.dart';
 import 'shop_collection_option_screen.dart';
 
@@ -245,7 +246,34 @@ class _MerchDesignEntryScreenState
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── AI "Design for me" — alongside the manual flow (M201) ──────
+              OutlinedButton.icon(
+                onPressed: _selectedCodes.isEmpty
+                    ? null
+                    : () {
+                        final trips = tripsAsync.valueOrNull ?? const [];
+                        final allCodes = visitsAsync.valueOrNull
+                                ?.map((v) => v.countryCode)
+                                .toList() ??
+                            const [];
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => DesignForMeScreen(
+                              codes: _selectedCodes.toList(),
+                              allCodes: allCodes,
+                              trips: trips,
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: const Text('Design for me'),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
             onPressed:
                 _selectedCodes.isEmpty
                     ? null
@@ -287,6 +315,8 @@ class _MerchDesignEntryScreenState
               'Design with ${_selectedCodes.length} '
               '${_selectedCodes.length == 1 ? "country" : "countries"} →',
             ),
+          ),
+            ],
           ),
         ),
       ),
