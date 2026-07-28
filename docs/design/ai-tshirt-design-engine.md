@@ -1,6 +1,6 @@
 # Architecture — AI-Assisted T-Shirt Design Engine
 
-**Status:** `proposed — awaiting review (do not implement yet)`
+**Status:** `APPROVED 2026-07-28 — Phase 1 + AI critic cleared for implementation`
 **Created:** 2026-07-28
 **Owner:** merch / cards
 **Related:** M187–M196 (configurator, print fidelity), `MerchTemplateRanker`, `CardImageRenderer`, `ProductMockupSpecs`
@@ -427,5 +427,29 @@ Each phase is independently shippable and behind a flag.
 5. **Telemetry:** OK to log (anonymised) chosen/purchased `DesignParams` to tune scoring?
 6. **AI critic model** choice + data policy (thumbnail-only, no photos) — confirm acceptable.
 
-**→ Please review §0 (thesis), §2 (integration boundary), §6 (scoring), §7 (loop),
-and §15. No code will be written until this is approved.**
+## 16. Decisions (approved 2026-07-28)
+
+1. **AI critic IS in v1** — but reconciled with the ≤5 s budget below.
+2. **Hard budget: present designs in ≤ 5 seconds.** Because the AI critic is a
+   network call, the flow is: run the on-device heuristic loop fast (target
+   ~2–3 s) to produce 3 finalists → fire a **single batched critic call on the 3
+   thumbnails** with a **strict timeout inside the remaining budget** → present.
+   If the critic returns in time, it re-ranks/refines the 3; **if it exceeds the
+   budget, the heuristic top-3 are shown immediately and the critic refines the
+   gallery progressively** (silent upgrade). The critic can **never** push
+   time-to-first-result past 5 s.
+3. **Present exactly 3 designs. Magical — no score badges / no "why".** Show 3
+   great designs, best-first, that silently upgrade if the critic improves them.
+4. **Add ALONGSIDE** the existing template carousel — new "Design for me" entry;
+   do not replace the current flow.
+5. **Telemetry approved** — log anonymised chosen/purchased `DesignParams`
+   (no photos, no PII) to tune scoring weights.
+6. **AI-critic data policy confirmed** — thumbnail images only; **no photos ever
+   leave the device**; critique cached per params-hash.
+
+These tighten §6.4 (critic on the 3 finalists, strict timeout), §7 (finalists =
+3, diversity-enforced), §9 (5 s hard cap, progressive upgrade), and §2 (new
+entry point added alongside).
+
+**→ APPROVED. Proceeding to Phase 1 milestones + AI critic. Purchase flow stays
+untouched (§2).**
