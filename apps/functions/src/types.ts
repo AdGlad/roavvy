@@ -226,3 +226,44 @@ export interface ShopifyCartCreateResponse {
   };
   errors?: Array<{ message: string }>;
 }
+
+// ── AI Design Critic — critiqueDesigns (M202) ─────────────────────────────────
+
+/**
+ * One design submitted to `critiqueDesigns`. Carries a low-res thumbnail plus
+ * minimal genome metadata ONLY — never a user photo, GPS point, or any PII.
+ * This is the enforced data policy for the AI art director (architecture §16.6:
+ * "thumbnail images only; no photos ever leave the device").
+ */
+export interface DesignCritiqueInput {
+  /** Stable `DesignParams.contentHash` — the per-design cache key. */
+  paramsHash: string;
+  /** Base64-encoded low-resolution PNG thumbnail of the rendered design. */
+  thumbnailBase64: string;
+  /** Template genome (e.g. 'grid', 'passport') — metadata for the prompt. */
+  template: string;
+  /** Number of countries in the design (a density hint for the critic). */
+  countryCount: number;
+  /** Shirt colour the design is composited on (e.g. 'Black'). */
+  shirtColour: string;
+}
+
+/** Request payload for the `critiqueDesigns` onCall function (≤ 3 designs). */
+export interface CritiqueDesignsRequest {
+  designs: DesignCritiqueInput[];
+}
+
+/** The critic's verdict for a single design. */
+export interface DesignCritiqueResult {
+  /** Index into the request `designs` array. */
+  index: number;
+  /** Aesthetic score in [0, 1] (higher = better). 0.5 = neutral fallback. */
+  aestheticScore: number;
+  /** Optional short genome-level nudges (e.g. 'more whitespace'). */
+  hints: string[];
+}
+
+/** Response payload from `critiqueDesigns`. */
+export interface CritiqueDesignsResponse {
+  results: DesignCritiqueResult[];
+}

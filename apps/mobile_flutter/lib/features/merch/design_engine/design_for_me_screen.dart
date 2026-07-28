@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
@@ -8,9 +8,11 @@ import 'package:shared_models/shared_models.dart';
 import '../local_mockup_preview_screen.dart';
 import '../merch_option_list_widgets.dart';
 import '../merch_preset.dart';
+import 'ai_critic.dart';
 import 'analytic_scorers.dart';
 import 'candidate_generator.dart';
 import 'card_render_thumbnailer.dart';
+import 'design_engine_telemetry.dart';
 import 'genome_mutator.dart';
 import 'optimization_loop.dart';
 import 'pixel_scorers.dart';
@@ -50,8 +52,20 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
     topK: 6,
   );
 
+  /// Hard product cap on time-to-first-result (architecture §16.2). The AI
+  /// critic may only run within whatever slice of this remains after the
+  /// on-device loop finishes — it can never push presentation past this.
+  static const _productCap = Duration(milliseconds: 5000);
+
+  /// Minimum leftover budget worth spending on a critic round-trip.
+  static const _minCriticBudget = Duration(milliseconds: 400);
+
+  final AiCritic _critic = AiCritic();
+  final DesignEngineTelemetry _telemetry = DesignEngineTelemetry();
+
   List<DesignCandidate> _designs = const [];
   bool _running = true;
+  bool _criticUsed = false;
   CancellationToken? _cancel;
   int _seed = 7;
 
@@ -80,7 +94,11 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
   Future<void> _run() async {
     _cancel?.cancel();
     final cancel = _cancel = CancellationToken();
-    setState(() => _running = true);
+    final budgetClock = Stopwatch()..start();
+    setState(() {
+      _running = true;
+      _criticUsed = false;
+    });
 
     final profile = TravelProfileAnalyzer.analyze(_scopedTrips);
     if (profile.isEmpty || !mounted) {
@@ -110,6 +128,39 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
       _designs = results;
       _running = false;
     });
+
+    // ── Optional AI art-director refinement (M202) ───────────────────────────
+    // The heuristic top-3 are ALREADY shown above. If the critic is enabled and
+    // there is budget left in the 5 s cap, ask it to re-rank the finalists and
+    // silently upgrade the gallery. Never blocks the first result; never throws.
+    await _refineWithCritic(results, budgetClock, cancel);
+  }
+
+  Future<void> _refineWithCritic(
+    List<DesignCandidate> heuristics,
+    Stopwatch budgetClock,
+    CancellationToken cancel,
+  ) async {
+    if (heuristics.isEmpty || !_critic.isEnabled) return;
+    final remaining = _productCap - budgetClock.elapsed;
+    if (remaining < _minCriticBudget) return;
+
+    _criticUsed = true;
+    final refined = await _critic.refine(heuristics, timeout: remaining);
+    if (!mounted || cancel.isCancelled) return;
+
+    // Silent progressive upgrade: only redraw if the ordering actually improved.
+    if (!_sameOrder(refined, _designs)) {
+      setState(() => _designs = refined);
+    }
+  }
+
+  static bool _sameOrder(List<DesignCandidate> a, List<DesignCandidate> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].params.contentHash != b[i].params.contentHash) return false;
+    }
+    return true;
   }
 
   void _regenerate() {
@@ -122,10 +173,13 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
 
   void _openDesign(DesignCandidate candidate) {
     final p = candidate.profileParams(widget.allCodes, _scopedTrips);
-    if (kDebugMode) {
-      // Telemetry seam (M202): the chosen genome, anonymised (no photos/PII).
-      debugPrint('[design-engine] chosen ${candidate.params.contentHash}');
-    }
+    // Telemetry (M202): the chosen genome, anonymised (contentHash + template +
+    // whether the critic was used — no photos/PII). Fire-and-forget, never blocks.
+    unawaited(_telemetry.logDesignChosen(
+      contentHash: candidate.params.contentHash,
+      template: candidate.params.template.name,
+      criticUsed: _criticUsed,
+    ));
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LocalMockupPreviewScreen(
