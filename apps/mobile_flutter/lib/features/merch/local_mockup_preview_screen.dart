@@ -2180,6 +2180,9 @@ class _LocalMockupPreviewScreenState
               backPosition: _backPosition,
               templateType: _template,
               checkoutUrl: url,
+              // Enables the post-checkout verification poll so success is only
+              // shown after the order is really paid/ordered (M194).
+              merchConfigId: _merchConfigId,
               isTshirt: _isTshirt,
               onCheckoutLaunched: () {
                 _checkoutLaunched = true;
