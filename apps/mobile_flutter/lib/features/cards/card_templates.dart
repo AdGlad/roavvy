@@ -964,6 +964,9 @@ class _GridPainter extends CustomPainter {
       flagRepeatCount: flagRepeatCount,
       rowCount: rowCount,
       seed: seed,
+      // When a clip mask is applied, the flags must fully cover the grid zone so
+      // the clipped shape is never cut off by the flag block's edge (M-fix).
+      coverGrid: clipShape != GridClipShape.none,
     );
     if (tiles.isEmpty) return;
 

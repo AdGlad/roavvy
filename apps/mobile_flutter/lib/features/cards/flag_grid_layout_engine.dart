@@ -133,6 +133,7 @@ class FlagGridLayoutEngine {
     int flagRepeatCount = 1,
     int? rowCount,
     int seed = 0,
+    bool coverGrid = false,
   }) {
     if (codes.isEmpty || canvasSize.width <= 0 || canvasSize.height <= 0) {
       return [];
@@ -158,18 +159,25 @@ class FlagGridLayoutEngine {
       final rowH = (gridH - gutter * (R - 1)) / R;
       if (rowH > 0) {
         final flagAR = _ar(codes[0]);
-        // Pack as many flags per row as fit while staying inside gridW.
-        // Each flag cell is flagAR × rowH wide (the gutter is baked into the
-        // cell so the last column's trailing gap is counted as +gutter in the
-        // numerator when testing fit).
-        final colsPerRow = math.max(
-          1,
-          ((gridW + gutter) / (flagAR * rowH)).floor(),
-        );
-        effectiveRepeat = R * colsPerRow;
-        // Centre: remaining whitespace split equally on left and right.
-        final usedW = colsPerRow * flagAR * rowH - gutter;
-        originX = padding + (gridW - usedW) / 2;
+        // How many flag cells fit across the grid width (flagAR × rowH each).
+        final fit = (gridW + gutter) / (flagAR * rowH);
+        if (coverGrid) {
+          // A clip mask is applied (e.g. a country outline). The flag block
+          // MUST fully cover the grid zone so the clipped shape is never left
+          // with empty, straight-edged gaps at the boundary. Over-fill the
+          // width (ceil) and anchor at the left; the overflow is clipped away
+          // by the mask, guaranteeing flags under every part of the shape.
+          final colsPerRow = math.max(1, fit.ceil());
+          effectiveRepeat = R * colsPerRow;
+          originX = padding;
+        } else {
+          // Unclipped: pack as many whole flags as fit and centre the block so
+          // the trailing whitespace is split evenly on left and right.
+          final colsPerRow = math.max(1, fit.floor());
+          effectiveRepeat = R * colsPerRow;
+          final usedW = colsPerRow * flagAR * rowH - gutter;
+          originX = padding + (gridW - usedW) / 2;
+        }
       }
     }
 

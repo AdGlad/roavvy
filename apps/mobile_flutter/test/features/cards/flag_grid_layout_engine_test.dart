@@ -125,6 +125,60 @@ void main() {
     });
   });
 
+  group('FlagGridLayoutEngine — coverGrid (clip mask coverage)', () {
+    // Landscape grid zone (the reported cut-off case): a single-country design
+    // clipped to a country outline must have flags under the WHOLE grid zone so
+    // the outline is never sheared by the flag block's edge.
+    const canvas = Size(600, 320);
+    const top = 40.0, bot = 40.0, pad = 4.0, gutter = 2.0;
+    final gridRight = canvas.width - pad;
+    final gridBottom = canvas.height - bot - pad;
+    final gridTop = top + pad;
+
+    Rect bounds(List<FlagGridTile> tiles) {
+      var l = double.infinity, t = double.infinity, r = -1e9, b = -1e9;
+      for (final tile in tiles) {
+        l = tile.rect.left < l ? tile.rect.left : l;
+        t = tile.rect.top < t ? tile.rect.top : t;
+        r = tile.rect.right > r ? tile.rect.right : r;
+        b = tile.rect.bottom > b ? tile.rect.bottom : b;
+      }
+      return Rect.fromLTRB(l, t, r, b);
+    }
+
+    test('coverGrid fully covers the grid zone (no straight-edge gaps)', () {
+      final tiles = FlagGridLayoutEngine.compute(
+        codes: ['au'],
+        canvasSize: canvas,
+        topOffset: top,
+        bottomOffset: bot,
+        rowCount: 3,
+        coverGrid: true,
+      );
+      final bb = bounds(tiles);
+      // Flags reach every edge of the grid zone (right edge is over-filled);
+      // the bottom reaches within one inter-row gutter of the grid zone bottom.
+      expect(bb.left, lessThanOrEqualTo(pad + 1));
+      expect(bb.top, lessThanOrEqualTo(gridTop + 1));
+      expect(bb.right, greaterThanOrEqualTo(gridRight - 1));
+      expect(bb.bottom, greaterThanOrEqualTo(gridBottom - gutter - 1));
+    });
+
+    test('without coverGrid the single-country block is centred (has a margin)',
+        () {
+      final tiles = FlagGridLayoutEngine.compute(
+        codes: ['au'],
+        canvasSize: canvas,
+        topOffset: top,
+        bottomOffset: bot,
+        rowCount: 3,
+      );
+      // Default (unclipped) keeps the tidy centred behaviour — not full width.
+      final bb = bounds(tiles);
+      expect(bb.right, lessThanOrEqualTo(gridRight + 1));
+    });
+  });
+
   group('FlagGridLayoutEngine — montage (M188)', () {
     const canvasSize = Size(600, 400);
 
