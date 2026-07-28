@@ -14,9 +14,12 @@ class MerchPrices {
   final String tshirtFromPrice;
   final String posterFromPrice;
 
+  // Placeholder shown only while the live Shopify price loads or on error. Uses
+  // the default market (AU$) rather than a hardcoded £ so the purchase flow
+  // never flashes the wrong currency; the live per-buyer price overrides it.
   static const _fallback = MerchPrices(
-    tshirtFromPrice: '£29.99',
-    posterFromPrice: '£24.99',
+    tshirtFromPrice: 'AU\$59.99',
+    posterFromPrice: 'AU\$49.99',
   );
 
   static MerchPrices? _fromJson(Map<String, dynamic> data) {
@@ -56,16 +59,18 @@ class MerchPrices {
   }
 }
 
-/// Extracts the ISO 3166-1 alpha-2 country code from the device locale.
-/// e.g. "en_AU" → "AU", "en-US" → "US". Falls back to "GB".
-String _deviceCountryCode() {
+/// The buyer's ISO 3166-1 alpha-2 country code from the device locale, used to
+/// present prices and the Shopify checkout in the buyer's currency (M195).
+/// e.g. "en_AU" → "AU", "en-US" → "US". Falls back to "AU" (the default
+/// market) when the locale has no region; the backend applies the same default.
+String buyerCountryCode() {
   final locale = Platform.localeName; // e.g. "en_AU" or "en-AU"
   final parts = locale.split(RegExp(r'[_\-]'));
   if (parts.length >= 2) {
     final code = parts.last.toUpperCase();
     if (RegExp(r'^[A-Z]{2}$').hasMatch(code)) return code;
   }
-  return 'GB';
+  return 'AU';
 }
 
 /// Fetches live product prices from Shopify via the `getMerchPrices` Cloud
@@ -80,7 +85,7 @@ final shopifyPricingProvider = FutureProvider<MerchPrices>((ref) async {
       options: HttpsCallableOptions(timeout: const Duration(seconds: 10)),
     );
     final result = await callable.call<Map<String, dynamic>>({
-      'countryCode': _deviceCountryCode(),
+      'countryCode': buyerCountryCode(),
     });
     return MerchPrices._fromJson(result.data) ?? MerchPrices._fallback;
   } catch (_) {

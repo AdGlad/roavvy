@@ -35,6 +35,7 @@ import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
 import 'printful_placement_mapper.dart';
 import 'product_mockup_specs.dart';
+import 'shopify_pricing_repository.dart';
 
 // ── State enum ────────────────────────────────────────────────────────────────
 
@@ -189,12 +190,6 @@ class _LocalMockupPreviewScreenState
   // size above: this grows/shrinks the artwork within its placement.
   ImageSize _imageSize = ImageSize.medium;
 
-  // Progressive disclosure (M187 UX review): the design already looks good with
-  // the defaults, so the detailed design controls (clip style, layout, rows,
-  // image size, placement, title, ribbon) stay collapsed behind a "Customise
-  // design" toggle. Colour + Size stay always-visible, and the Checkout CTA is
-  // pinned — so accepting the default is a single tap, with depth on demand.
-  bool _showAdvanced = false;
   String _posterPaper = posterPapers.first; // 'Enhanced Matte'
   String _posterSize = posterSizes.first; // '12x18in'
   // 'left_chest' | 'center' | 'right_chest' | 'none'
@@ -1907,6 +1902,10 @@ class _LocalMockupPreviewScreenState
               .call<Map<String, dynamic>>({
                 'variantId': _resolvedVariantGid,
                 'selectedCountryCodes': widget.selectedCodes,
+                // Buyer's country so Shopify presents the checkout in their
+                // currency (M195). Distinct from selectedCountryCodes (the
+                // design's travel countries).
+                'buyerCountry': buyerCountryCode(),
                 'quantity': 1,
                 if (widget.cardId != null) 'cardId': widget.cardId,
                 'artworkConfirmationId': confirmationId,
@@ -2153,7 +2152,15 @@ class _LocalMockupPreviewScreenState
   Future<void> _shareDesign() async {
     final bytes = _artworkBytes;
     if (bytes == null) return;
-    await MerchShareExporter.share(bytes, title: 'My Travel Design');
+    final title = _titleOverride?.trim();
+    await MerchShareExporter.share(
+      bytes,
+      title: (title != null && title.isNotEmpty) ? title : 'My Travel Design',
+      shareText:
+          (title != null && title.isNotEmpty)
+              ? '$title — my travel design, made with Roavvy 🌍'
+              : 'My travel design, made with Roavvy 🌍',
+    );
   }
 
   void _openConfirmationScreen() {
@@ -2199,7 +2206,7 @@ class _LocalMockupPreviewScreenState
   void _saveToCartAndNavigate() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Design saved to your cart.'),
+        content: Text('Saved for later — find it in your cart.'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -2267,9 +2274,12 @@ class _LocalMockupPreviewScreenState
 
   Widget _buildDraggableConfigTray(ThemeData theme) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.38,
+      // Taller now that the Customize controls are always shown (M196): open a
+      // bit higher so the "Customize your design" header is visible, and allow
+      // dragging up to reveal all controls; still collapsible to see the mockup.
+      initialChildSize: 0.44,
       minChildSize: 0.08,
-      maxChildSize: 0.50,
+      maxChildSize: 0.88,
       snap: true,
       builder: (context, scrollController) {
         return ClipRRect(
@@ -2558,18 +2568,30 @@ class _LocalMockupPreviewScreenState
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
-        // ── Customise design (progressive disclosure, M187 UX review) ────
-        // The design already looks good with the defaults; the detailed
-        // controls stay tucked away until the user chooses to open them, so
-        // accepting the default is a single tap (the Checkout CTA is pinned).
-        _CustomiseExpander(
-          expanded: _showAdvanced,
-          onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+        // ── Customize your design (M196) ─────────────────────────────────
+        // Always visible now — the controls simply scroll below. A clear
+        // header + chevron signals that there's more to customise.
+        Row(
+          children: [
+            Icon(Icons.tune_rounded, size: 16, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Customize your design',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
         ),
-
-        if (_showAdvanced) ...[
         const SizedBox(height: 4),
         // ── Flag-grid style: clip shape + rows (M187) ────────────────────
         // Previously chosen on a separate screen (FlagShapeCustomiseScreen);
@@ -2871,7 +2893,6 @@ class _LocalMockupPreviewScreenState
             _buildTimelineColorPicker(),
           ],
         ],
-        ], // end "Customise design" (progressive disclosure)
       ],
     );
   }
@@ -3331,7 +3352,7 @@ class _LocalMockupPreviewScreenState
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Save to Cart'),
+              child: const Text('Save for later'),
             ),
           ),
         ],
@@ -3935,57 +3956,6 @@ class _ClipShapeStrip extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// Tappable "Customise design" header that expands/collapses the detailed
-/// design controls (M187 UX review). Collapsed by default so the sheet stays
-/// simple — accepting the default needs no interaction at all.
-class _CustomiseExpander extends StatelessWidget {
-  const _CustomiseExpander({required this.expanded, required this.onTap});
-
-  final bool expanded;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.tune_rounded, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              'Customise design',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              expanded ? 'Hide' : 'Style, layout, size & more',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const Spacer(),
-            AnimatedRotation(
-              turns: expanded ? 0.5 : 0.0,
-              duration: const Duration(milliseconds: 180),
-              child: Icon(
-                Icons.expand_more_rounded,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

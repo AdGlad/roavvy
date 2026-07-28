@@ -16,13 +16,15 @@ enum MerchProduct {
   tshirt(
     name: 'Roavvy Test Tee',
     tagline: 'Wear your world',
-    fromPrice: '£29.99',
+    // Placeholder shown only until the live per-buyer Shopify price loads
+    // (M195) — default market AU$, never a hardcoded £.
+    fromPrice: 'AU\$59.99',
     gid: 'gid://shopify/Product/8357194694843',
   ),
   poster(
     name: 'Roavvy Travel Poster',
     tagline: 'Frame the journey',
-    fromPrice: '£24.99',
+    fromPrice: 'AU\$49.99',
     gid: 'gid://shopify/Product/8357218353339',
   );
 
