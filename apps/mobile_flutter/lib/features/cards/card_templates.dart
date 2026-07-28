@@ -728,6 +728,22 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 
 // ── Clip path helper (M170/M171) ─────────────────────────────────────────────
 
+/// Test-only access to [_clipPathFor] so clip coverage can be verified against
+/// the flag layout without a full raster (used to prove the M-fix: a clipped
+/// outline is fully within the flag grid zone and never sheared).
+@visibleForTesting
+Path clipPathForTesting(
+  Size size,
+  GridClipShape shape, {
+  ui.Path? outlinePath,
+  double topOffset = 0.0,
+  double bottomOffset = 0.0,
+}) =>
+    _clipPathFor(size, shape,
+        outlinePath: outlinePath,
+        topOffset: topOffset,
+        bottomOffset: bottomOffset);
+
 /// Returns the clip [Path] for [shape] on a canvas of [size].
 ///
 /// [outlinePath] is a pre-scaled path from [CountryPathService] (M171).
