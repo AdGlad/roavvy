@@ -137,9 +137,12 @@ async function submitPrintfulMockupTask(
 
 // ── createMerchCart ───────────────────────────────────────────────────────────
 
-const CART_CREATE_MUTATION = `
-  mutation CreateCart($lines: [CartLineInput!]!, $attributes: [AttributeInput!]!) {
-    cartCreate(input: { lines: $lines, attributes: $attributes }) {
+// M195: `@inContext(country:)` + `buyerIdentity.countryCode` make the created
+// cart (and its checkoutUrl) present the buyer's currency instead of the store
+// default (GBP). Mirrors the MERCH_PRICES_QUERY @inContext style below.
+export const CART_CREATE_MUTATION = `
+  mutation CreateCart($lines: [CartLineInput!]!, $attributes: [AttributeInput!]!, $country: CountryCode!) @inContext(country: $country) {
+    cartCreate(input: { lines: $lines, attributes: $attributes, buyerIdentity: { countryCode: $country } }) {
       cart {
         id
         checkoutUrl
@@ -151,6 +154,16 @@ const CART_CREATE_MUTATION = `
     }
   }
 `;
+
+/**
+ * Normalises a buyer country code to ISO 3166-1 alpha-2 uppercase, falling back
+ * to `fallback` when the input is absent or not a 2-letter alpha code. Used to
+ * pick the Shopify presentment currency (M195). Exported for unit testing.
+ */
+export function normalizeBuyerCountry(raw: string | undefined, fallback = 'AU'): string {
+  const upper = (raw ?? '').toUpperCase();
+  return /^[A-Z]{2}$/.test(upper) ? upper : fallback;
+}
 
 // ── getMerchPrices ────────────────────────────────────────────────────────────
 
@@ -192,8 +205,7 @@ export const getMerchPrices = onCall<
   }
 
   // Validate and normalise the country code (must be 2-letter uppercase alpha).
-  const rawCountry = (request.data.countryCode ?? '').toUpperCase();
-  const country = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : 'GB';
+  const country = normalizeBuyerCountry(request.data.countryCode, 'GB');
 
   const shopifyRes = await fetch(
     `https://${storeDomain}/api/2025-01/graphql.json`,
@@ -261,7 +273,11 @@ export const createMerchCart = onCall<
     console.log(`[cart] ${fnElapsed()} auth ok uid=${uid}`);
 
     // Input validation
-    const { variantId, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition, giftSubject, giftMessage, clientConfigId } = request.data;
+    const { variantId, buyerCountry, selectedCountryCodes, quantity, cardId, clientCardBase64, frontImageBase64, backImageBase64, artworkConfirmationId, mockupApprovalId, frontPosition, backPosition, giftSubject, giftMessage, clientConfigId } = request.data;
+    // M195: buyer's country → Shopify presentment currency. Defaults to 'AU'
+    // (not the store default GBP). Distinct from selectedCountryCodes, which are
+    // the design's travel countries and must NOT drive currency.
+    const effectiveBuyerCountry = normalizeBuyerCountry(buyerCountry);
     // 'left_chest' | 'center' | 'right_chest' | 'none' — defaults to 'center'
     const effectiveFrontPosition: string = (typeof frontPosition === 'string' && frontPosition.length > 0) ? frontPosition : 'center';
     // 'center' | 'none' — defaults to 'center'
@@ -574,7 +590,10 @@ export const createMerchCart = onCall<
     const variables = {
       lines: [{ merchandiseId: variantId, quantity }],
       attributes: [{ key: 'merchConfigId', value: configId }],
+      // M195: presents the buyer's currency on the checkout page.
+      country: effectiveBuyerCountry,
     };
+    console.log(`[cart] ${fnElapsed()} buyerCountry=${effectiveBuyerCountry}`);
 
     const shopifyRes = await fetch(
       `https://${storeDomain}/api/2025-01/graphql.json`,

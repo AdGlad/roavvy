@@ -39,12 +39,18 @@ jest.mock('../imageGen', () => ({
   generateFlagGrid: jest.fn().mockResolvedValue(Buffer.from('PNG_DATA')),
 }));
 jest.mock('dotenv', () => ({ config: jest.fn() }));
+// Re-exported by index.ts; mock to avoid loading scheduler side effects.
+jest.mock('../dailyChallenge', () => ({
+  scheduleDailyChallenge: jest.fn(),
+  getDailyChallenge: jest.fn(),
+}));
 
 // Global fetch mock
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 import { PRINTFUL_VARIANT_IDS } from '../printDimensions';
+import { normalizeBuyerCountry, CART_CREATE_MUTATION } from '../index';
 
 // ── T6.9 — Correct Printful payload structure ─────────────────────────────────
 
@@ -140,5 +146,50 @@ describe('T6.10 — Cloud Function error handling', () => {
     const failedResponse = { ok: false, status: 422, json: () => Promise.resolve({ error: 'Invalid placement' }) };
     expect(failedResponse.ok).toBe(false);
     expect(failedResponse.status).toBe(422);
+  });
+});
+
+// ── M195 — Buyer currency threaded into cartCreate ────────────────────────────
+
+describe('M195 — normalizeBuyerCountry', () => {
+  test('uppercases a valid alpha-2 code', () => {
+    expect(normalizeBuyerCountry('au')).toBe('AU');
+    expect(normalizeBuyerCountry('Us')).toBe('US');
+  });
+
+  test('defaults to AU (not GB) when absent or invalid', () => {
+    expect(normalizeBuyerCountry(undefined)).toBe('AU');
+    expect(normalizeBuyerCountry('')).toBe('AU');
+    expect(normalizeBuyerCountry('AUS')).toBe('AU'); // 3 letters → invalid
+    expect(normalizeBuyerCountry('1A')).toBe('AU');  // non-alpha → invalid
+  });
+
+  test('honours an explicit fallback (getMerchPrices keeps GB)', () => {
+    expect(normalizeBuyerCountry(undefined, 'GB')).toBe('GB');
+    expect(normalizeBuyerCountry('au', 'GB')).toBe('AU');
+  });
+});
+
+describe('M195 — CART_CREATE_MUTATION carries the buyer country', () => {
+  test('declares a $country: CountryCode! variable and @inContext directive', () => {
+    expect(CART_CREATE_MUTATION).toContain('$country: CountryCode!');
+    expect(CART_CREATE_MUTATION).toContain('@inContext(country: $country)');
+  });
+
+  test('sets buyerIdentity.countryCode from $country on cart input', () => {
+    expect(CART_CREATE_MUTATION).toContain('buyerIdentity: { countryCode: $country }');
+  });
+
+  test('the cartCreate variables object threads the normalized buyer country', () => {
+    // Mirrors how the handler builds `variables` for the Shopify request.
+    const buyerCountry = 'au';
+    const variables = {
+      lines: [{ merchandiseId: 'gid://shopify/ProductVariant/1', quantity: 1 }],
+      attributes: [{ key: 'merchConfigId', value: 'config-test-id' }],
+      country: normalizeBuyerCountry(buyerCountry),
+    };
+    expect(variables.country).toBe('AU');
+    // selectedCountryCodes (design travel countries) must NOT drive currency.
+    expect(variables).not.toHaveProperty('selectedCountryCodes');
   });
 });

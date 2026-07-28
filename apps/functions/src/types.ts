@@ -122,6 +122,14 @@ export interface CreateMerchCartRequest {
   variantId: string;
   selectedCountryCodes: string[];
   quantity: number;
+  /**
+   * Buyer's country as ISO 3166-1 alpha-2 (e.g. 'AU') (M195). Determines the
+   * presentment currency of the Shopify checkout page via
+   * `buyerIdentity.countryCode` / `@inContext`. Uppercased and validated
+   * server-side; defaults to 'AU' when absent or invalid. NOT the design's
+   * travel countries (`selectedCountryCodes`).
+   */
+  buyerCountry?: string;
   /** Optional: links this cart to a TravelCard (ADR-093) */
   cardId?: string;
   /**
