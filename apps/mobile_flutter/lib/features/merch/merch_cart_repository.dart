@@ -80,6 +80,16 @@ class MerchCartRepository {
     {'status': MerchCartItemStatus.checkoutStarted.value},
   );
 
+  /// Convenience: revert an abandoned checkout back to
+  /// [MerchCartItemStatus.mockupReady] so the item is not stuck at
+  /// [MerchCartItemStatus.checkoutStarted] forever (M194). Called when the user
+  /// returns to the cart / checkout without a confirmed purchase.
+  Future<void> markCheckoutAbandoned(String uid, String itemId) => update(
+    uid,
+    itemId,
+    {'status': MerchCartItemStatus.mockupReady.value},
+  );
+
   // ── Read ────────────────────────────────────────────────────────────────────
 
   /// Returns all active cart items ordered newest-first.

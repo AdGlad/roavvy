@@ -94,6 +94,9 @@ dev_dependencies:
   firebase_auth_mocks: ^0.14.2
   fake_cloud_firestore: ^3.0.4
   mocktail: ^0.3.0
+  # Used only in tests to fake the url_launcher platform (M194).
+  url_launcher_platform_interface: ^2.3.0
+  plugin_platform_interface: ^2.1.0
   integration_test:
     sdk: flutter
 

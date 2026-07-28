@@ -19,6 +19,7 @@ MerchCartItem _item({
   MerchCartItemStatus status = MerchCartItemStatus.mockupReady,
   String productType = 'tshirt',
   String? title,
+  String? checkoutUrl,
   List<String> selectedCountryCodes = const ['GB', 'FR'],
 }) => MerchCartItem(
   id: id,
@@ -34,6 +35,7 @@ MerchCartItem _item({
   createdAt: _now,
   updatedAt: _now,
   title: title,
+  checkoutUrl: checkoutUrl,
 );
 
 // ── Pump helpers ───────────────────────────────────────────────────────────────
@@ -164,5 +166,80 @@ void main() {
 
       expect(find.textContaining('Could not load cart'), findsOneWidget);
     });
+  });
+
+  // ── CartItemCheckoutScreen — Proceed gating (M194) ──────────────────────────
+  group('CartItemCheckoutScreen — Proceed gating (M194)', () {
+    // uid is null so initState's Firestore recovery write is skipped (guarded by
+    // uid != null); the _confirmed pre-set still runs.
+    Widget pumpCheckout(MerchCartItem item) => ProviderScope(
+      overrides: [currentUidProvider.overrideWithValue(null)],
+      child: MaterialApp(home: CartItemCheckoutScreen(item: item)),
+    );
+
+    FilledButton proceedButton(WidgetTester tester) =>
+        tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Proceed to Checkout'),
+        );
+
+    testWidgets(
+      'Proceed is enabled for a returning checkoutStarted item (pre-confirmed)',
+      (tester) async {
+        await tester.pumpWidget(
+          pumpCheckout(
+            _item(
+              status: MerchCartItemStatus.checkoutStarted,
+              checkoutUrl: 'https://shop.example.com/checkout',
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(proceedButton(tester).onPressed, isNotNull);
+      },
+    );
+
+    testWidgets(
+      'Proceed is disabled for a fresh mockupReady item until confirmed',
+      (tester) async {
+        await tester.pumpWidget(
+          pumpCheckout(
+            _item(
+              status: MerchCartItemStatus.mockupReady,
+              checkoutUrl: 'https://shop.example.com/checkout',
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(proceedButton(tester).onPressed, isNull);
+
+        // Ticking the confirmation checkbox enables it.
+        await tester.ensureVisible(find.byType(CheckboxListTile));
+        await tester.pump();
+        await tester.tap(find.byType(CheckboxListTile));
+        await tester.pump();
+
+        expect(proceedButton(tester).onPressed, isNotNull);
+      },
+    );
+
+    testWidgets(
+      'Proceed is disabled with a message when checkoutUrl is null',
+      (tester) async {
+        await tester.pumpWidget(
+          pumpCheckout(
+            _item(
+              status: MerchCartItemStatus.checkoutStarted,
+              checkoutUrl: null,
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(proceedButton(tester).onPressed, isNull);
+        expect(find.textContaining("isn't ready for checkout"), findsOneWidget);
+      },
+    );
   });
 }

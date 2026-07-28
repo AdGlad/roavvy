@@ -3,8 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/merch/merch_order_confirmation_screen.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_models/shared_models.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 // 1×1 transparent PNG — avoids real image decoding in tests.
 final Uint8List _fakeBytes = Uint8List.fromList([
@@ -99,7 +103,56 @@ MerchOrderConfirmationScreen _defaultScreen({
   onCheckoutLaunched: onCheckoutLaunched,
 );
 
-Widget _wrap(Widget child) => ProviderScope(child: MaterialApp(home: child));
+Widget _wrap(Widget child) => ProviderScope(
+  overrides: [currentUidProvider.overrideWithValue(null)],
+  child: MaterialApp(home: child),
+);
+
+/// Fake url_launcher platform so [launchUrl] can be driven in widget tests
+/// without a real plugin. Returns [result] from launchUrl and records calls.
+class _FakeUrlLauncher extends UrlLauncherPlatform
+    with MockPlatformInterfaceMixin {
+  _FakeUrlLauncher(this.result);
+
+  final bool result;
+  int launchCount = 0;
+
+  @override
+  final LinkDelegate? linkDelegate = null;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launchCount++;
+    return result;
+  }
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  @override
+  Future<bool> supportsMode(PreferredLaunchMode mode) async => true;
+
+  @override
+  Future<bool> supportsCloseForMode(PreferredLaunchMode mode) async => true;
+}
+
+/// Completes the swipe-to-confirm gesture and pumps until the checkout
+/// processing screen has finished opening the (mocked) browser.
+Future<void> _completeCheckout(WidgetTester tester) async {
+  // The swipe widget sits below the fold in the test viewport — reveal it first.
+  await tester.ensureVisible(find.text('Swipe to confirm order'));
+  await tester.pump();
+  await tester.drag(
+    find.text('Swipe to confirm order'),
+    const Offset(1000, 0),
+  );
+  // Swipe fires onComplete after a 300 ms delay → pushReplacement to the
+  // processing screen, whose initState awaits the (mocked) launchUrl.
+  await tester.pump(const Duration(milliseconds: 400));
+  for (int i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}
 
 void main() {
   group('MerchOrderConfirmationScreen', () {
@@ -206,6 +259,63 @@ void main() {
       );
 
       expect(called, isFalse);
+    });
+  });
+
+  // ── Checkout processing / verification (M194) ────────────────────────────────
+  group('Checkout processing screen (M194)', () {
+    tearDown(() {
+      // Restore the real platform implementation after each test.
+      UrlLauncherPlatform.instance = _FakeUrlLauncher(true);
+    });
+
+    testWidgets(
+      'returning from browser shows neutral prompt — NOT "Order placed!"',
+      (tester) async {
+        UrlLauncherPlatform.instance = _FakeUrlLauncher(true);
+        await tester.pumpWidget(_wrap(_defaultScreen()));
+
+        await _completeCheckout(tester);
+
+        // Presenting the browser must NOT be treated as a completed purchase.
+        expect(find.text('Order placed!'), findsNothing);
+        expect(find.text('Did you complete your purchase?'), findsOneWidget);
+        expect(find.text("I've paid"), findsOneWidget);
+        expect(find.text('Not yet / Return to cart'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '"I\'ve paid" without a confirmable order shows honest fallback, not success',
+      (tester) async {
+        UrlLauncherPlatform.instance = _FakeUrlLauncher(true);
+        // No merchConfigId → payment cannot be auto-confirmed.
+        await tester.pumpWidget(_wrap(_defaultScreen()));
+        await _completeCheckout(tester);
+
+        await tester.tap(find.text("I've paid"));
+        // No config id → jumps straight to the unconfirmed fallback.
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('Order placed!'), findsNothing);
+        expect(
+          find.text("We couldn't confirm your payment yet"),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('failed launch shows "Could not open checkout"', (
+      tester,
+    ) async {
+      UrlLauncherPlatform.instance = _FakeUrlLauncher(false);
+      await tester.pumpWidget(_wrap(_defaultScreen()));
+
+      await _completeCheckout(tester);
+
+      expect(find.text('Could not open checkout'), findsOneWidget);
+      expect(find.text('Order placed!'), findsNothing);
     });
   });
 }

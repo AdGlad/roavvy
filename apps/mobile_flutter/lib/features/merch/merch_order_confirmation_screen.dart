@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/providers.dart';
 import 'merch_variant_lookup.dart';
 import 'shopify_pricing_repository.dart';
 
@@ -40,6 +42,7 @@ class MerchOrderConfirmationScreen extends ConsumerStatefulWidget {
     required this.checkoutUrl,
     required this.isTshirt,
     this.onCheckoutLaunched,
+    this.merchConfigId,
   });
 
   /// Printful front mockup URL. May be null if still generating.
@@ -80,6 +83,13 @@ class MerchOrderConfirmationScreen extends ConsumerStatefulWidget {
   /// set its `_checkoutLaunched` flag and trigger the post-purchase poll.
   final VoidCallback? onCheckoutLaunched;
 
+  /// Firestore `merch_configs` document ID for this order. When provided, the
+  /// post-browser processing screen polls it for `status == 'ordered'` so real
+  /// success is only shown after a webhook-confirmed payment (M194). When null,
+  /// success cannot be auto-confirmed and the honest "couldn't confirm" fallback
+  /// is shown instead — never a false "Order placed".
+  final String? merchConfigId;
+
   @override
   ConsumerState<MerchOrderConfirmationScreen> createState() =>
       _MerchOrderConfirmationScreenState();
@@ -96,7 +106,10 @@ class _MerchOrderConfirmationScreenState
     widget.onCheckoutLaunched?.call();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => _CheckoutProcessingScreen(checkoutUrl: widget.checkoutUrl),
+        builder: (_) => _CheckoutProcessingScreen(
+          checkoutUrl: widget.checkoutUrl,
+          merchConfigId: widget.merchConfigId,
+        ),
       ),
     );
   }
@@ -503,26 +516,46 @@ class MerchCustomProductWarning extends StatelessWidget {
 /// Non-poppable screen shown immediately after "Proceed to Checkout" is tapped.
 ///
 /// With [LaunchMode.inAppBrowserView] (SFSafariViewController), [launchUrl]
-/// returns as soon as the in-app browser is presented — not when the user
-/// closes it. Two states are shown:
+/// returns as soon as the in-app browser is *presented* — not when the user
+/// pays. Presentation therefore MUST NOT be treated as success (M194): a user
+/// who cancels the Shopify page would otherwise still see "Order placed".
 ///
-/// - [_launching]: brief spinner while the browser is being opened.
-/// - [_returned]: shown when the user closes the in-app browser; provides a
-///   clear "View my orders" forward path so they are not left stranded on a
-///   processing screen with no way to proceed.
-class _CheckoutProcessingScreen extends StatefulWidget {
-  const _CheckoutProcessingScreen({required this.checkoutUrl});
+/// States:
+/// - [_CheckoutState.launching]: brief spinner while the browser is opening.
+/// - [_CheckoutState.returned]: neutral "Did you complete your purchase?" —
+///   the user chooses "I've paid" (→ verify) or "Not yet".
+/// - [_CheckoutState.verifying]: polling Firestore for a webhook-confirmed
+///   `status == 'ordered'`.
+/// - [_CheckoutState.success]: real success — only reachable after confirmation.
+/// - [_CheckoutState.unconfirmed]: honest "couldn't confirm payment" fallback
+///   after the poll times out (or when there is no config id to poll).
+/// - [_CheckoutState.failed]: the browser could not be opened.
+class _CheckoutProcessingScreen extends ConsumerStatefulWidget {
+  const _CheckoutProcessingScreen({
+    required this.checkoutUrl,
+    this.merchConfigId,
+  });
+
   final String checkoutUrl;
 
+  /// `merch_configs` doc ID to poll for `status == 'ordered'`. Null when the
+  /// caller cannot supply it — success is then not auto-confirmable.
+  final String? merchConfigId;
+
   @override
-  State<_CheckoutProcessingScreen> createState() =>
+  ConsumerState<_CheckoutProcessingScreen> createState() =>
       _CheckoutProcessingScreenState();
 }
 
-enum _CheckoutState { launching, returned, failed }
+enum _CheckoutState { launching, returned, verifying, success, unconfirmed, failed }
 
-class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
+class _CheckoutProcessingScreenState
+    extends ConsumerState<_CheckoutProcessingScreen> {
   _CheckoutState _state = _CheckoutState.launching;
+  bool _polling = false;
+
+  static const int _pollIntervalSeconds = 5;
+  static const int _pollMaxAttempts = 20; // ~100 s total
 
   @override
   void initState() {
@@ -541,11 +574,56 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
     if (!mounted) return;
     final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
     if (!mounted) return;
-    // launchUrl returns once SFSafariViewController is presented. Switch to
-    // _returned so that when the user closes the in-app browser they see a
-    // clear "View my orders" CTA rather than a spinner.
+    // launchUrl returns once SFSafariViewController is presented — this is NOT
+    // proof of payment. Show a neutral "did you complete your purchase?" prompt
+    // rather than claiming success (M194).
     setState(() => _state = launched ? _CheckoutState.returned : _CheckoutState.failed);
   }
+
+  /// User asserts they paid — begin polling Firestore for real confirmation.
+  Future<void> _startVerifying() async {
+    if (_polling) return;
+    _polling = true;
+    setState(() => _state = _CheckoutState.verifying);
+
+    final configId = widget.merchConfigId;
+    final uid = ref.read(currentUidProvider);
+    if (configId == null || uid == null) {
+      // Nothing to poll — we cannot confirm, so show the honest fallback rather
+      // than a false success.
+      _polling = false;
+      if (mounted) setState(() => _state = _CheckoutState.unconfirmed);
+      return;
+    }
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('merch_configs')
+        .doc(configId);
+
+    for (int attempt = 0; attempt < _pollMaxAttempts; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: _pollIntervalSeconds));
+      if (!mounted) return;
+      try {
+        final snap = await docRef.get();
+        if (snap.data()?['status'] == 'ordered') {
+          _polling = false;
+          if (!mounted) return;
+          setState(() => _state = _CheckoutState.success);
+          return;
+        }
+      } catch (_) {
+        // Network error mid-poll — keep trying.
+      }
+    }
+
+    _polling = false;
+    if (mounted) setState(() => _state = _CheckoutState.unconfirmed);
+  }
+
+  void _backToRoot() =>
+      Navigator.of(context).popUntil((route) => route.isFirst);
 
   @override
   Widget build(BuildContext context) {
@@ -558,8 +636,7 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: switch (_state) {
-                _CheckoutState.launching => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                _CheckoutState.launching => _CenterColumn(
                   children: [
                     const CircularProgressIndicator(),
                     const SizedBox(height: 28),
@@ -570,8 +647,59 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
                     ),
                   ],
                 ),
-                _CheckoutState.returned => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                _CheckoutState.returned => _CenterColumn(
+                  children: [
+                    Icon(
+                      Icons.help_outline_rounded,
+                      size: 56,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Did you complete your purchase?',
+                      style: theme.textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "We'll confirm your order once payment goes through.",
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton(
+                      onPressed: _startVerifying,
+                      child: const Text("I've paid"),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _backToRoot,
+                      child: const Text('Not yet / Return to cart'),
+                    ),
+                  ],
+                ),
+                _CheckoutState.verifying => _CenterColumn(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 28),
+                    Text(
+                      'Confirming your payment…',
+                      style: theme.textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "This can take a few moments. Please keep the app open.",
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                _CheckoutState.success => _CenterColumn(
                   children: [
                     const Icon(Icons.check_circle_outline_rounded, size: 56, color: Color(0xFFFFD700)),
                     const SizedBox(height: 20),
@@ -591,31 +719,62 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
                     ),
                     const SizedBox(height: 32),
                     FilledButton(
-                      onPressed: () {
-                        // Pop back to root (past the confirmation flow).
-                        Navigator.of(context).popUntil((route) => route.isFirst);
-                      },
+                      onPressed: _backToRoot,
                       child: const Text('Back to Roavvy'),
                     ),
                   ],
                 ),
-                _CheckoutState.failed => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                _CheckoutState.unconfirmed => _CenterColumn(
+                  children: [
+                    Icon(
+                      Icons.schedule_rounded,
+                      size: 48,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "We couldn't confirm your payment yet",
+                      style: theme.textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'If you completed payment, your order will appear shortly '
+                      "and we'll email you. You can retry confirmation or check "
+                      'your cart.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton(
+                      onPressed: _startVerifying,
+                      child: const Text('Retry confirmation'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _backToRoot,
+                      child: const Text('Back to cart'),
+                    ),
+                  ],
+                ),
+                _CheckoutState.failed => _CenterColumn(
                   children: [
                     Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.error),
                     const SizedBox(height: 20),
                     Text('Could not open checkout', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 16),
                     FilledButton(
-                      onPressed: () => setState(() {
-                        _state = _CheckoutState.launching;
+                      onPressed: () {
+                        setState(() => _state = _CheckoutState.launching);
                         Future.microtask(_openBrowser);
-                      }),
+                      },
                       child: const Text('Try again'),
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                      onPressed: _backToRoot,
                       child: const Text('Back to Roavvy'),
                     ),
                   ],
@@ -627,6 +786,19 @@ class _CheckoutProcessingScreenState extends State<_CheckoutProcessingScreen> {
       ),
     );
   }
+}
+
+/// Vertically-centred column used by the checkout processing states.
+class _CenterColumn extends StatelessWidget {
+  const _CenterColumn({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: children,
+  );
 }
 
 // ── Swipe-to-confirm widget (M168) ────────────────────────────────────────────
