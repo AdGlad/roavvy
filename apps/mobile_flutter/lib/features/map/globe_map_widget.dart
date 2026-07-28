@@ -614,30 +614,35 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
           onScaleUpdate: frame != null ? null : _onScaleUpdate,
           onScaleEnd: frame != null ? null : _onScaleEnd,
           onTapUp: frame != null ? null : _onTapUp,
-          child: CustomPaint(
-            size: _canvasSize,
-            painter: GlobePainter(
-              polygons: polygons,
-              isDark: isDark,
-              visualStates: frame?.visualStates ?? visualStates,
-              tripCounts: frame != null ? const {} : tripCounts,
-              projection: frame?.projection ?? _projection,
-              highlightedCode: frame?.highlightedCode,
-              pulseValue: frame?.pulseValue ?? 0.0,
-              culturalSiteCoords:
-                  frame != null ? frame.heritageSiteCoords : _culturalCoords,
-              naturalSiteCoords: frame != null ? const [] : _naturalCoords,
-              unvisitedHeritageSiteCoords:
-                  frame != null ? const [] : _unvisitedCoords,
-              heritagePulseValue:
-                  frame != null
-                      ? 0.0
-                      : (heritageEnabled ? _heritagePulseCtrl.value : 0.0),
-              challengeHighlightCoord:
-                  frame != null ? null : _challengeHighlightCoord,
-              challengeHighlightPulse: _challengeHighlightCtrl.value,
-              photoHeatmap: heatmap,
-              afterPainter: frame?.afterPainter,
+          // Isolates the globe's ~60fps repaints (auto-rotation, pulses) from
+          // sibling layers in the surrounding Stack (e.g. GlobeHeroPin),
+          // which would otherwise be forced to re-rasterize on every tick too.
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: _canvasSize,
+              painter: GlobePainter(
+                polygons: polygons,
+                isDark: isDark,
+                visualStates: frame?.visualStates ?? visualStates,
+                tripCounts: frame != null ? const {} : tripCounts,
+                projection: frame?.projection ?? _projection,
+                highlightedCode: frame?.highlightedCode,
+                pulseValue: frame?.pulseValue ?? 0.0,
+                culturalSiteCoords:
+                    frame != null ? frame.heritageSiteCoords : _culturalCoords,
+                naturalSiteCoords: frame != null ? const [] : _naturalCoords,
+                unvisitedHeritageSiteCoords:
+                    frame != null ? const [] : _unvisitedCoords,
+                heritagePulseValue:
+                    frame != null
+                        ? 0.0
+                        : (heritageEnabled ? _heritagePulseCtrl.value : 0.0),
+                challengeHighlightCoord:
+                    frame != null ? null : _challengeHighlightCoord,
+                challengeHighlightPulse: _challengeHighlightCtrl.value,
+                photoHeatmap: heatmap,
+                afterPainter: frame?.afterPainter,
+              ),
             ),
           ),
         );

@@ -17,6 +17,13 @@ import UIKit
     private let heroAnalyzer = HeroImageAnalyzer()
     private let thumbnailPlugin = ThumbnailPlugin()
 
+    // Set when the Dart side cancels the scan stream (user backs out of
+    // ScanScreen or backgrounds the app mid-scan). Without this, the
+    // enumerateObjects walk below previously always ran to completion
+    // regardless of cancellation — wasted CPU/battery on a large library
+    // with nothing left listening for the result.
+    private var scanCancelled = false
+
     override func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -325,6 +332,7 @@ extension AppDelegate: FlutterStreamHandler {
     }
 
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        scanCancelled = true
         return nil
     }
 }
@@ -354,7 +362,12 @@ private extension AppDelegate {
             return
         }
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        // Reset for this scan — the previous scan (if any) may have set this
+        // via onCancel, and this AppDelegate instance is reused for the
+        // app's whole lifetime.
+        scanCancelled = false
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let options = PHFetchOptions()
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
             options.includeHiddenAssets = false
@@ -389,7 +402,16 @@ private extension AppDelegate {
             let isoFormatter = ISO8601DateFormatter()
             var batch: [[String: Any]] = []
 
-            assets.enumerateObjects { asset, _, _ in
+            assets.enumerateObjects { asset, _, stop in
+                // The Dart side stopped listening (user backed out of the
+                // scan screen, or backgrounded the app mid-scan) — halt the
+                // walk immediately instead of reading the rest of a
+                // possibly-huge library for a result nothing will receive.
+                if self?.scanCancelled == true {
+                    stop.pointee = true
+                    return
+                }
+
                 guard let location = asset.location else { return }
                 withLocation += 1
 
@@ -411,6 +433,8 @@ private extension AppDelegate {
                     }
                 }
             }
+
+            guard self?.scanCancelled != true else { return }
 
             // Flush remainder and send the terminal done event.
             let remaining = batch

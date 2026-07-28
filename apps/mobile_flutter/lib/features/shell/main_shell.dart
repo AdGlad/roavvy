@@ -284,21 +284,38 @@ class _MainShellState extends ConsumerState<MainShell> {
       children: [
         IndexedStack(
           index: _selectedIndex,
+          // IndexedStack keeps every tab mounted (see class doc), so any
+          // AnimationController/Ticker in an inactive tab (e.g. the Map
+          // tab's globe auto-rotation) would otherwise keep ticking and
+          // repainting at full frame rate forever, even while a completely
+          // different tab is showing — a real, continuous CPU/battery cost.
+          // TickerMode(enabled: false) is Flutter's built-in mechanism for
+          // exactly this: every Ticker created via TickerProviderStateMixin
+          // automatically mutes itself under a disabled TickerMode ancestor
+          // and resumes unchanged when re-enabled, with no changes needed
+          // inside the tab screens themselves.
           children: [
-            MapScreen(
-              onNavigateToScan:
-                  () => _goToScan(autoStart: true, forceFullScan: true),
-              onNavigateToScanFull:
-                  () => _goToScan(autoStart: true, forceFullScan: true),
-              onNavigateToScanPartial:
-                  () => _goToScan(autoStart: true, forceFullScan: false),
-            ),
-            // Journal — kept for possible reinstatement:
-            // JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
-            const TravelTimelineScreen(),
-            const StatsScreen(),
-            const MerchShopScreen(),
-            const WorldLeapLobbyScreen(),
+            for (var i = 0; i < 5; i++)
+              TickerMode(
+                enabled: _selectedIndex == i,
+                child: switch (i) {
+                  0 => MapScreen(
+                    onNavigateToScan:
+                        () => _goToScan(autoStart: true, forceFullScan: true),
+                    onNavigateToScanFull:
+                        () => _goToScan(autoStart: true, forceFullScan: true),
+                    onNavigateToScanPartial:
+                        () =>
+                            _goToScan(autoStart: true, forceFullScan: false),
+                  ),
+                  // Journal — kept for possible reinstatement:
+                  // 1 => JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
+                  1 => const TravelTimelineScreen(),
+                  2 => const StatsScreen(),
+                  3 => const MerchShopScreen(),
+                  _ => const WorldLeapLobbyScreen(),
+                },
+              ),
           ],
         ),
         // M134: Globe animation overlay — shown in-place so replay and scan
