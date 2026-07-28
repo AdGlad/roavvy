@@ -1,6 +1,6 @@
 # M195 — Currency Follows the Buyer (not hardcoded £/GBP)
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-28
 **Program:** Purchase-Flow Fixes (M194–M196)
 

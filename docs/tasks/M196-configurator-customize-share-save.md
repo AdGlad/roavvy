@@ -1,6 +1,6 @@
 # M196 — Configurator: Always-Visible Customize + Share + Save for Later
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-28
 **Program:** Purchase-Flow Fixes (M194–M196)
 

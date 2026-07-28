@@ -1,6 +1,6 @@
 # M194 — Checkout Success Must Be Verified (no false "Order placed")
 
-**Status:** `todo`
+**Status:** `done`
 **Created:** 2026-07-28
 **Program:** Purchase-Flow Fixes (M194–M196)
 
