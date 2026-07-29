@@ -38,4 +38,14 @@ void main() {
     expect(ar!, lessThan(1.5));
     expect(ar, greaterThan(0.6));
   });
+
+  test('europe outline has recognizable proportions (regenerated data)',
+      () async {
+    // Was ~2.5–4.5 (mis-projected flat sliver); the regenerated Mercator
+    // outline is ~1.1, so it fills the print area like a country outline.
+    final ar = await aspectOf('europe');
+    expect(ar, isNotNull);
+    expect(ar!, lessThan(1.5));
+    expect(ar, greaterThan(0.8));
+  });
 }
