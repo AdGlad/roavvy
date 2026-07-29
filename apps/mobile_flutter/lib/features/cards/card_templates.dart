@@ -17,6 +17,7 @@ import 'heart_layout_engine.dart';
 import 'paper_texture_painter.dart';
 import 'passport_layout_engine.dart';
 import 'passport_stamp_model.dart';
+import 'region_map_service.dart';
 import 'stamp_asset_loader.dart';
 import 'stamp_painter.dart';
 
@@ -508,6 +509,11 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
   // Outline path loaded from CountryPathService for countryOutline/continentOutline (M171).
   ui.Path? _outlinePath;
 
+  // Region map (per-country paths + merged outline) for continentOutline. When
+  // present, the painter draws a per-country flag MAP instead of a clipped grid
+  // (M204/M205).
+  RegionMap? _regionMap;
+
   bool get _needsOutlinePath =>
       widget.clipShape == GridClipShape.countryOutline ||
       widget.clipShape == GridClipShape.continentOutline ||
@@ -523,6 +529,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
       _decodeBackgroundImage(widget.backgroundImageBytes!);
     }
     _loadOutlinePath();
+    _loadRegionMap();
   }
 
   @override
@@ -546,9 +553,23 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
     if (oldWidget.clipCode != widget.clipCode ||
         oldWidget.clipShape != widget.clipShape) {
       _outlinePath = null;
+      _regionMap = null;
       _outlinePathLoaded = !_needsOutlinePath;
       _loadOutlinePath();
+      _loadRegionMap();
     }
+  }
+
+  /// Loads the per-country [RegionMap] for [GridClipShape.continentOutline] so
+  /// the painter can draw each visited country filled with its own flag (M204).
+  void _loadRegionMap() {
+    if (widget.clipShape != GridClipShape.continentOutline) return;
+    final code = widget.clipCode;
+    if (code == null) return;
+    RegionMapService.mapFor(code).then((map) {
+      if (!mounted) return;
+      if (map != null) setState(() => _regionMap = map);
+    });
   }
 
   void _loadOutlinePath() {
@@ -716,6 +737,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               clipShape: widget.clipShape,
               flagRepeatCount: widget.flagRepeatCount,
               outlinePath: _outlinePath,
+              regionMap: _regionMap,
               rowCount: widget.rowCount,
               seed: widget.seed ?? 0,
             ),
@@ -863,6 +885,7 @@ class _GridPainter extends CustomPainter {
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
     this.outlinePath,
+    this.regionMap,
     this.rowCount,
     this.seed = 0,
   }) : super(repaint: repaintNotifier);
@@ -902,6 +925,11 @@ class _GridPainter extends CustomPainter {
 
   /// Pre-loaded country/continent outline path from [CountryPathService] (M171).
   final ui.Path? outlinePath;
+
+  /// Per-country region map used by [GridClipShape.continentOutline] to draw a
+  /// flag MAP (each visited country filled with its own flag) instead of a
+  /// clipped grid montage (M204/M205). Null until loaded / for other shapes.
+  final RegionMap? regionMap;
 
   /// When non-null, forces the packed-row layout to use exactly this many rows.
   final int? rowCount;
@@ -971,6 +999,17 @@ class _GridPainter extends CustomPainter {
     if (countryCodes.isEmpty) return;
     if (size.width <= 0 || size.height <= 0) return;
 
+    // Region flag-map: for continent designs, draw every country's border,
+    // fill each visited country with its OWN flag, and stroke the region
+    // boundary bolder — instead of a grid of all flags clipped to the outline
+    // (M204/M205). Skips the flag-grid path entirely.
+    if (clipShape == GridClipShape.continentOutline &&
+        regionMap != null &&
+        regionMap!.countries.isNotEmpty) {
+      _paintRegionMap(canvas, size);
+      return;
+    }
+
     final tiles = FlagGridLayoutEngine.compute(
       codes: countryCodes,
       canvasSize: size,
@@ -1030,6 +1069,71 @@ class _GridPainter extends CustomPainter {
     }
   }
 
+  /// Draws the region flag-map (M204/M205): every country border, each visited
+  /// country filled with its own flag, unvisited countries outlined-only, and
+  /// the merged region boundary stroked bolder on top.
+  ///
+  /// All geometry is drawn in the shared frame coords ([0, w] × [0, h]) under a
+  /// single fit transform, so countries and the outline stay aligned.
+  void _paintRegionMap(Canvas canvas, Size size) {
+    final map = regionMap!;
+    const padding = 4.0;
+    final gridZoneH =
+        (size.height - _topH - _botH - padding * 2).clamp(1.0, double.infinity);
+    final gridW = size.width;
+    if (map.w <= 0 || map.h <= 0) return;
+
+    // Fit the frame into the grid zone, aspect preserved, centred.
+    final scale = math.min(gridW / map.w, gridZoneH / map.h);
+    if (scale <= 0) return;
+    final ox = (size.width - map.w * scale) / 2;
+    final oy = _topH + padding + (gridZoneH - map.h * scale) / 2;
+
+    final effectiveTextColor =
+        textColor ??
+        (transparentBackground ? Colors.white : CardTextRenderer.defaultTextColor);
+
+    canvas.save();
+    canvas.translate(ox, oy);
+    canvas.scale(scale);
+
+    final visited = {for (final c in countryCodes) c.toUpperCase()};
+
+    // 1. Fill each visited country with its own flag, clipped to its border.
+    for (final entry in map.countries.entries) {
+      if (!visited.contains(entry.key)) continue;
+      final image = _sharedCache.get(entry.key.toLowerCase(), reprWidth);
+      if (image == null) continue; // Border still drawn below.
+      final bounds = entry.value.getBounds();
+      if (bounds.isEmpty) continue;
+      canvas.save();
+      canvas.clipPath(entry.value);
+      // Cover-fit the flag into the country bounds; the clip crops overflow.
+      FlagTileRenderer.drawImage(canvas, image, bounds, cornerRadius: 0.0);
+      canvas.restore();
+    }
+
+    // 2. Thin border for EVERY country (visited + unvisited).
+    final thinPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0 / scale
+      ..strokeJoin = StrokeJoin.round
+      ..color = (effectiveTextColor).withValues(alpha: 0.5);
+    for (final path in map.countries.values) {
+      canvas.drawPath(path, thinPaint);
+    }
+
+    // 3. Bolder merged region outline on top.
+    final boldPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.75 / scale
+      ..strokeJoin = StrokeJoin.round
+      ..color = effectiveTextColor;
+    canvas.drawPath(map.outline, boldPaint);
+
+    canvas.restore();
+  }
+
   @override
   bool shouldRepaint(_GridPainter old) =>
       old.countryCodes != countryCodes ||
@@ -1045,6 +1149,7 @@ class _GridPainter extends CustomPainter {
       old.clipShape != clipShape ||
       old.flagRepeatCount != flagRepeatCount ||
       old.outlinePath != outlinePath ||
+      old.regionMap != regionMap ||
       old.rowCount != rowCount ||
       old.seed != seed;
 }
