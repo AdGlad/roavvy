@@ -429,6 +429,7 @@ class GridFlagsCard extends StatefulWidget {
     this.clipCode,
     this.rowCount,
     this.seed,
+    this.regionSolidFill = false,
   });
 
   final List<String> countryCodes;
@@ -483,6 +484,10 @@ class GridFlagsCard extends StatefulWidget {
   /// many rows. Each row will contain [countryCodes.length] × [flagRepeatCount]
   /// / [rowCount] flags, giving uniform complete rows.
   final int? rowCount;
+
+  /// Region fill mode for continent designs (M-fix): true = solid region
+  /// silhouette (no internal borders); false = per-country flag fills.
+  final bool regionSolidFill;
 
   /// Randomisation seed for the [FlagGridLayoutMode.montage] layout (M188).
   /// Perturbed by the Shuffle control to re-roll the collage; null/0 gives a
@@ -738,6 +743,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               flagRepeatCount: widget.flagRepeatCount,
               outlinePath: _outlinePath,
               regionMap: _regionMap,
+              regionSolidFill: widget.regionSolidFill,
               rowCount: widget.rowCount,
               seed: widget.seed ?? 0,
             ),
@@ -886,6 +892,7 @@ class _GridPainter extends CustomPainter {
     this.flagRepeatCount = 1,
     this.outlinePath,
     this.regionMap,
+    this.regionSolidFill = false,
     this.rowCount,
     this.seed = 0,
   }) : super(repaint: repaintNotifier);
@@ -930,6 +937,11 @@ class _GridPainter extends CustomPainter {
   /// flag MAP (each visited country filled with its own flag) instead of a
   /// clipped grid montage (M204/M205). Null until loaded / for other shapes.
   final RegionMap? regionMap;
+
+  /// Region fill mode (continent designs): when true, fill the whole region as
+  /// a single solid silhouette with no internal country borders; when false,
+  /// draw per-country flag fills with country borders.
+  final bool regionSolidFill;
 
   /// When non-null, forces the packed-row layout to use exactly this many rows.
   final int? rowCount;
@@ -1089,7 +1101,7 @@ class _GridPainter extends CustomPainter {
     final ox = (size.width - map.w * scale) / 2;
     final oy = _topH + padding + (gridZoneH - map.h * scale) / 2;
 
-    final effectiveTextColor =
+    final ink =
         textColor ??
         (transparentBackground ? Colors.white : CardTextRenderer.defaultTextColor);
 
@@ -1097,9 +1109,35 @@ class _GridPainter extends CustomPainter {
     canvas.translate(ox, oy);
     canvas.scale(scale);
 
-    final visited = {for (final c in countryCodes) c.toUpperCase()};
+    // Stroke widths are given in device px (÷scale cancels the transform).
+    // Thinner than before per feedback; the bold outer is only modestly bolder.
+    final thin = 0.4 / scale;
+    final bold = 1.1 / scale;
 
-    // 1. Fill each visited country with its own flag, clipped to its border.
+    if (regionSolidFill) {
+      // ── Region mode: highlight the whole region in one colour, no internal
+      // country borders — just the filled silhouette + a bold outer edge. ─────
+      canvas.drawPath(
+        map.outline,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..color = ink,
+      );
+      canvas.drawPath(
+        map.outline,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = bold
+          ..strokeJoin = StrokeJoin.round
+          ..color = ink,
+      );
+      canvas.restore();
+      return;
+    }
+
+    // ── Countries mode: fill each visited country with a grid of its own flag.
+    final visited = {for (final c in countryCodes) c.toUpperCase()};
+    final rows = (rowCount ?? 1).clamp(1, 12);
     for (final entry in map.countries.entries) {
       if (!visited.contains(entry.key)) continue;
       final image = _sharedCache.get(entry.key.toLowerCase(), reprWidth);
@@ -1108,30 +1146,60 @@ class _GridPainter extends CustomPainter {
       if (bounds.isEmpty) continue;
       canvas.save();
       canvas.clipPath(entry.value);
-      // Cover-fit the flag into the country bounds; the clip crops overflow.
-      FlagTileRenderer.drawImage(canvas, image, bounds, cornerRadius: 0.0);
+      _fillWithFlagGrid(canvas, image, bounds, rows);
       canvas.restore();
     }
 
-    // 2. Thin border for EVERY country (visited + unvisited).
+    // Thin border for EVERY country (visited + unvisited → unvisited outlined).
     final thinPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0 / scale
+      ..strokeWidth = thin
       ..strokeJoin = StrokeJoin.round
-      ..color = (effectiveTextColor).withValues(alpha: 0.5);
+      ..color = ink.withValues(alpha: 0.4);
     for (final path in map.countries.values) {
       canvas.drawPath(path, thinPaint);
     }
 
-    // 3. Bolder merged region outline on top.
-    final boldPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.75 / scale
-      ..strokeJoin = StrokeJoin.round
-      ..color = effectiveTextColor;
-    canvas.drawPath(map.outline, boldPaint);
+    // Bolder merged region outline on top.
+    canvas.drawPath(
+      map.outline,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = bold
+        ..strokeJoin = StrokeJoin.round
+        ..color = ink,
+    );
 
     canvas.restore();
+  }
+
+  /// Tiles [image] as a [rows]×cols grid across [bounds] (the caller has clipped
+  /// to the country shape). Each tile keeps the flag's aspect; `rows == 1` gives
+  /// a coarse fill, higher rows a more granular grid of the country's flag.
+  void _fillWithFlagGrid(Canvas canvas, ui.Image image, Rect bounds, int rows) {
+    final imgAr = image.width / image.height;
+    final rowH = bounds.height / rows;
+    final tileW = rowH * imgAr;
+    if (tileW <= 0) return;
+    final cols = math.max(1, (bounds.width / tileW).ceil());
+    final src =
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        canvas.drawImageRect(
+          image,
+          src,
+          Rect.fromLTWH(
+            bounds.left + c * tileW,
+            bounds.top + r * rowH,
+            tileW,
+            rowH,
+          ),
+          paint,
+        );
+      }
+    }
   }
 
   @override
@@ -1150,6 +1218,7 @@ class _GridPainter extends CustomPainter {
       old.flagRepeatCount != flagRepeatCount ||
       old.outlinePath != outlinePath ||
       old.regionMap != regionMap ||
+      old.regionSolidFill != regionSolidFill ||
       old.rowCount != rowCount ||
       old.seed != seed;
 }

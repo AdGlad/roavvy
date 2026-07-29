@@ -223,6 +223,10 @@ class _LocalMockupPreviewScreenState
   late int _flagRepeatCount;
   int? _rowCount;
 
+  /// Region fill mode for continent-outline designs: false = per-country flag
+  /// fills; true = the whole region highlighted as one solid silhouette.
+  bool _regionSolidFill = false;
+
   /// Continuous aspect ratio (width/height) of the current outline/silhouette
   /// clip, so the card matches the country's true proportions instead of a
   /// coarse portrait/landscape snap (M191). Null for none/heart/circle and when
@@ -765,6 +769,7 @@ class _LocalMockupPreviewScreenState
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
         rowCount: _rowCount,
+        regionSolidFill: _regionSolidFill,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
@@ -899,6 +904,14 @@ class _LocalMockupPreviewScreenState
   Future<void> _onLayoutModeChanged(FlagGridLayoutMode mode) async {
     if (mode == _gridLayoutMode) return;
     setState(() => _gridLayoutMode = mode);
+    await _regenerateGridArtwork();
+  }
+
+  /// Toggles a continent design between per-country flag fills and a solid
+  /// region silhouette, then re-renders.
+  Future<void> _onRegionFillChanged(bool solid) async {
+    if (solid == _regionSolidFill) return;
+    setState(() => _regionSolidFill = solid);
     await _regenerateGridArtwork();
   }
 
@@ -1281,6 +1294,7 @@ class _LocalMockupPreviewScreenState
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
         rowCount: _rowCount,
+        regionSolidFill: _regionSolidFill,
       );
       if (!mounted) return;
       _artworkVariants[index] = result.bytes;
@@ -1438,6 +1452,7 @@ class _LocalMockupPreviewScreenState
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
         rowCount: _rowCount,
+        regionSolidFill: _regionSolidFill,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
       if (!mounted) return;
@@ -2614,17 +2629,31 @@ class _LocalMockupPreviewScreenState
             onSelected: (opt) => unawaited(_onClipOptionSelected(opt)),
           ),
           const SizedBox(height: 10),
-          // ── Layout: uniform grid ↔ overlapping montage (M188) ──────────
-          const _MiniLabel('Layout'),
-          const SizedBox(height: 6),
-          _LayoutModeSelector(
-            selected: _gridLayoutMode,
-            enabled:
-                _state != _MockupState.rerendering &&
-                _state != _MockupState.approving,
-            onChanged: (m) => unawaited(_onLayoutModeChanged(m)),
-          ),
-          const SizedBox(height: 10),
+          // Region designs pick per-country flags vs a solid region; other
+          // clips pick the flag layout (grid ↔ montage).
+          if (_clipShape == GridClipShape.continentOutline) ...[
+            const _MiniLabel('Region fill'),
+            const SizedBox(height: 6),
+            _RegionFillSelector(
+              solid: _regionSolidFill,
+              enabled:
+                  _state != _MockupState.rerendering &&
+                  _state != _MockupState.approving,
+              onChanged: (v) => unawaited(_onRegionFillChanged(v)),
+            ),
+            const SizedBox(height: 10),
+          ] else ...[
+            const _MiniLabel('Layout'),
+            const SizedBox(height: 6),
+            _LayoutModeSelector(
+              selected: _gridLayoutMode,
+              enabled:
+                  _state != _MockupState.rerendering &&
+                  _state != _MockupState.approving,
+              onChanged: (m) => unawaited(_onLayoutModeChanged(m)),
+            ),
+            const SizedBox(height: 10),
+          ],
           Row(
             children: [
               const _MiniLabel('Rows'),
@@ -3961,6 +3990,85 @@ class _ClipShapeStrip extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Segmented Countries ↔ Region control for continent designs: fill each
+/// visited country with its own flag, or highlight the whole region solid.
+class _RegionFillSelector extends StatelessWidget {
+  const _RegionFillSelector({
+    required this.solid,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool solid;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget pill(bool value, String label, IconData icon) {
+      final sel = value == solid;
+      return Expanded(
+        child: GestureDetector(
+          onTap: enabled && !sel ? () => onChanged(value) : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color:
+                  sel
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color:
+                    sel
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color:
+                      sel
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color:
+                        sel
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.onSurface,
+                    fontWeight: sel ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        pill(false, 'Countries', Icons.flag_outlined),
+        const SizedBox(width: 8),
+        pill(true, 'Region', Icons.public_rounded),
+      ],
     );
   }
 }

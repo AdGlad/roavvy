@@ -91,6 +91,7 @@ class CardImageRenderer {
     int flagRepeatCount = 1,
     String? clipCode,
     int? rowCount,
+    bool regionSolidFill = false,
 
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
@@ -215,6 +216,7 @@ class CardImageRenderer {
       flagRepeatCount: flagRepeatCount,
       clipCode: clipCode,
       rowCount: rowCount,
+      regionSolidFill: regionSolidFill,
       onAssetsLoaded:
           assetsCompleter != null
               ? () {
@@ -293,6 +295,7 @@ class CardImageRenderer {
     int flagRepeatCount = 1,
     String? clipCode,
     int? rowCount,
+    bool regionSolidFill = false,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -317,6 +320,7 @@ class CardImageRenderer {
           flagRepeatCount: flagRepeatCount,
           clipCode: clipCode,
           rowCount: rowCount,
+          regionSolidFill: regionSolidFill,
           seed: stampSeed,
         );
       // ignore: deprecated_member_use_from_same_package
