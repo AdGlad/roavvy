@@ -2642,6 +2642,19 @@ class _LocalMockupPreviewScreenState
               onChanged: (v) => unawaited(_onRegionFillChanged(v)),
             ),
             const SizedBox(height: 10),
+            // In Countries mode, the per-country fill can be a grid or a montage.
+            if (!_regionSolidFill) ...[
+              const _MiniLabel('Layout'),
+              const SizedBox(height: 6),
+              _LayoutModeSelector(
+                selected: _gridLayoutMode,
+                enabled:
+                    _state != _MockupState.rerendering &&
+                    _state != _MockupState.approving,
+                onChanged: (m) => unawaited(_onLayoutModeChanged(m)),
+              ),
+              const SizedBox(height: 10),
+            ],
           ] else ...[
             const _MiniLabel('Layout'),
             const SizedBox(height: 6),

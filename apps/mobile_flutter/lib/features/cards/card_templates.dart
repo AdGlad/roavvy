@@ -651,6 +651,13 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
                   _GridPainter._sharedCache.get(code, reprWidth) == null,
             )
             .toList();
+    // Also preload the region flag (e.g. EU) for continent "Region" mode.
+    final regionFlag = regionFlagCode(widget.clipShape, widget.clipCode);
+    if (regionFlag != null &&
+        FlagTileRenderer.hasSvg(regionFlag) &&
+        _GridPainter._sharedCache.get(regionFlag, reprWidth) == null) {
+      toLoad.add(regionFlag);
+    }
 
     if (toLoad.isEmpty) {
       _svgsLoaded = true;
@@ -744,6 +751,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               outlinePath: _outlinePath,
               regionMap: _regionMap,
               regionSolidFill: widget.regionSolidFill,
+              regionFlagCode:
+                  regionFlagCode(widget.clipShape, widget.clipCode),
               rowCount: widget.rowCount,
               seed: widget.seed ?? 0,
             ),
@@ -755,6 +764,21 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
 }
 
 // ── Clip path helper (M170/M171) ─────────────────────────────────────────────
+
+/// The flag code representing a whole region, used when a continent design is
+/// shown in solid "Region" mode (e.g. Europe → the EU flag). Null when the
+/// region has no representative flag (falls back to a solid colour).
+String? regionFlagCode(GridClipShape shape, String? clipCode) {
+  if (shape != GridClipShape.continentOutline || clipCode == null) return null;
+  switch (clipCode) {
+    case 'europe':
+      return 'eu';
+    case 'africa':
+      return 'au'; // African Union
+    default:
+      return null;
+  }
+}
 
 /// Test-only access to [_clipPathFor] so clip coverage can be verified against
 /// the flag layout without a full raster (used to prove the M-fix: a clipped
@@ -893,6 +917,7 @@ class _GridPainter extends CustomPainter {
     this.outlinePath,
     this.regionMap,
     this.regionSolidFill = false,
+    this.regionFlagCode,
     this.rowCount,
     this.seed = 0,
   }) : super(repaint: repaintNotifier);
@@ -942,6 +967,9 @@ class _GridPainter extends CustomPainter {
   /// a single solid silhouette with no internal country borders; when false,
   /// draw per-country flag fills with country borders.
   final bool regionSolidFill;
+
+  /// Flag code for the whole-region fill in solid "Region" mode (e.g. 'eu').
+  final String? regionFlagCode;
 
   /// When non-null, forces the packed-row layout to use exactly this many rows.
   final int? rowCount;
@@ -1115,14 +1143,25 @@ class _GridPainter extends CustomPainter {
     final bold = 1.1 / scale;
 
     if (regionSolidFill) {
-      // ── Region mode: highlight the whole region in one colour, no internal
-      // country borders — just the filled silhouette + a bold outer edge. ─────
-      canvas.drawPath(
-        map.outline,
-        Paint()
-          ..style = PaintingStyle.fill
-          ..color = ink,
-      );
+      // ── Region mode: fill the whole region with its flag (e.g. the EU flag)
+      // when available, else a solid colour — no internal country borders. ────
+      final flag =
+          regionFlagCode == null
+              ? null
+              : _sharedCache.get(regionFlagCode!.toLowerCase(), reprWidth);
+      if (flag != null) {
+        canvas.save();
+        canvas.clipPath(map.outline);
+        _fillWithFlagCover(canvas, flag, map.outline.getBounds());
+        canvas.restore();
+      } else {
+        canvas.drawPath(
+          map.outline,
+          Paint()
+            ..style = PaintingStyle.fill
+            ..color = ink,
+        );
+      }
       canvas.drawPath(
         map.outline,
         Paint()
@@ -1146,7 +1185,11 @@ class _GridPainter extends CustomPainter {
       if (bounds.isEmpty) continue;
       canvas.save();
       canvas.clipPath(entry.value);
-      _fillWithFlagGrid(canvas, image, bounds, rows);
+      if (layoutMode == FlagGridLayoutMode.montage) {
+        _fillWithFlagMontage(canvas, image, bounds, rows);
+      } else {
+        _fillWithFlagGrid(canvas, image, bounds, rows);
+      }
       canvas.restore();
     }
 
@@ -1202,6 +1245,72 @@ class _GridPainter extends CustomPainter {
     }
   }
 
+  /// Cover-fits a single [image] over [bounds] (aspect preserved, overflow
+  /// cropped by the caller's clip). Used for the region flag in solid mode.
+  void _fillWithFlagCover(Canvas canvas, ui.Image image, Rect bounds) {
+    final iw = image.width.toDouble(), ih = image.height.toDouble();
+    if (iw <= 0 || ih <= 0) return;
+    final s = math.max(bounds.width / iw, bounds.height / ih);
+    final w = iw * s, h = ih * s;
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, iw, ih),
+      Rect.fromLTWH(
+        bounds.center.dx - w / 2,
+        bounds.center.dy - h / 2,
+        w,
+        h,
+      ),
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+  }
+
+  /// Scatters overlapping, slightly-rotated copies of [image] across [bounds]
+  /// (clipped by the caller to the country) — a montage collage of the
+  /// country's flag. [rows] sets the density; deterministic per country.
+  void _fillWithFlagMontage(
+    Canvas canvas,
+    ui.Image image,
+    Rect bounds,
+    int rows,
+  ) {
+    final imgAr = image.width / image.height;
+    final cellH = bounds.height / rows;
+    final cellW = math.max(1.0, cellH * imgAr);
+    final cols = math.max(1, (bounds.width / cellW).ceil());
+    final rng = math.Random(
+      seed ^ bounds.left.toInt() ^ (bounds.top.toInt() << 8) ^ (rows * 131),
+    );
+    final src =
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    for (var r = -1; r <= rows; r++) {
+      for (var c = -1; c <= cols; c++) {
+        final sizeVar = 0.9 + rng.nextDouble() * 0.5; // 0.90–1.40
+        final th = cellH * 1.4 * sizeVar;
+        final tw = th * imgAr;
+        final cx =
+            bounds.left +
+            (c + 0.5) * cellW +
+            (rng.nextDouble() - 0.5) * cellW * 0.5;
+        final cy =
+            bounds.top +
+            (r + 0.5) * cellH +
+            (rng.nextDouble() - 0.5) * cellH * 0.5;
+        canvas.save();
+        canvas.translate(cx, cy);
+        canvas.rotate((rng.nextDouble() - 0.5) * 0.3); // ±~9°
+        canvas.drawImageRect(
+          image,
+          src,
+          Rect.fromLTWH(-tw / 2, -th / 2, tw, th),
+          paint,
+        );
+        canvas.restore();
+      }
+    }
+  }
+
   @override
   bool shouldRepaint(_GridPainter old) =>
       old.countryCodes != countryCodes ||
@@ -1219,6 +1328,7 @@ class _GridPainter extends CustomPainter {
       old.outlinePath != outlinePath ||
       old.regionMap != regionMap ||
       old.regionSolidFill != regionSolidFill ||
+      old.regionFlagCode != regionFlagCode ||
       old.rowCount != rowCount ||
       old.seed != seed;
 }
