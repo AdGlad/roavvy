@@ -41,7 +41,9 @@ type V2LayerPosition = { top: number; left: number; width: number; height: numbe
  *
  * left_chest  (wearer's left = viewer's right): top=3.0, left=8.25 (center at 10")
  * right_chest (wearer's right = viewer's left): top=3.0, left=0.25 (center at 2")
- * center: undefined → Printful auto-centres (fills the 12"×16" print area)
+ * center ('front'): top=3.0, left=4.25 (center at 6") — a centred chest logo, NOT
+ *   the full print area. Auto-centring here stretched the ribbon (or duplicated
+ *   the back design) across the whole front → "double backside" mockups.
  */
 function frontLayerPosition(frontPosition: string): V2LayerPosition | undefined {
   if (frontPosition === 'left_chest' || frontPosition === 'front_left') {
@@ -52,7 +54,8 @@ function frontLayerPosition(frontPosition: string): V2LayerPosition | undefined 
     // Wearer's right (viewer's left): logo center at 2" from canvas left, 3" from top.
     return { top: 3.0, left: 0.25, width: 3.5, height: 3.5 };
   }
-  return undefined; // center: auto
+  // center: chest-sized ribbon centred on the 12" width (mid-point 6").
+  return { top: 3.0, left: 4.25, width: 3.5, height: 3.5 };
 }
 
 /**
@@ -432,8 +435,12 @@ export const createMerchCart = onCall<
               .toFormat('png')
               .toBuffer();
 
+            // 'front' is the mapped value for the app's 'center' front placement.
+            const isCenterPosition = effectiveFrontPosition === 'center'
+              || effectiveFrontPosition === 'front_center' || effectiveFrontPosition === 'front';
             const isChestPosition = effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'front_left'
-              || effectiveFrontPosition === 'right_chest' || effectiveFrontPosition === 'front_right';
+              || effectiveFrontPosition === 'right_chest' || effectiveFrontPosition === 'front_right'
+              || isCenterPosition;
             const chestPx = Math.round(3.5 * printDims.dpi);
             const mockupBuf = isChestPosition
               ? await sharp(clientBuf)
@@ -487,6 +494,25 @@ export const createMerchCart = onCall<
                 .png()
                 .toBuffer();
               console.log(`[print] right_chest composited at top=${top}px (${top/printDims.dpi}") left=${left}px (${left/printDims.dpi}")`);
+              return { printBuf, mockupBuf };
+            }
+            if (isCenterPosition) {
+              const canvasW = printDims.widthPx;
+              const canvasH = printDims.heightPx;
+              // Logo: 3.5"×3.5". Centre on the 12" width (mid-point 6"). Top 3".
+              const sizePx = Math.round(3.5 * printDims.dpi); // 525px
+              const top = Math.round(3.0 * printDims.dpi);    // 450px
+              const centerX = Math.round(6.0 * printDims.dpi); // 900px
+              const left = centerX - Math.round(sizePx / 2);  // 637px
+              const resized = await sharp(designBuf).resize(sizePx, sizePx, { fit: 'inside' }).toBuffer();
+              const { width: rw = sizePx } = await sharp(resized).metadata();
+              const printBuf = await sharp({
+                create: { width: canvasW, height: canvasH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+              })
+                .composite([{ input: resized, top, left: left + Math.round((sizePx - rw) / 2) }])
+                .png()
+                .toBuffer();
+              console.log(`[print] center composited at top=${top}px (${top/printDims.dpi}") left=${left}px (${left/printDims.dpi}")`);
               return { printBuf, mockupBuf };
             }
             return { printBuf: designBuf, mockupBuf };

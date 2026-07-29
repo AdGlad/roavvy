@@ -1782,13 +1782,12 @@ class _LocalMockupPreviewScreenState
       if (!mounted) return;
 
       // ── Step 3: process images on device, upload to GCS, call createMerchCart ─
-      // Chest positions use the ribbon design; center uses the main artwork.
-      final isChestPosition =
-          _frontPosition == 'left_chest' || _frontPosition == 'right_chest';
+      // The front print is ALWAYS the small chest ribbon — Left/Centre/Right only
+      // change where it sits. It must never be the full back artwork, or the
+      // Printful collage shows the same design on both sides ("double backside").
       // Explicit Uint8List? so the null guard in sendFrontImage is meaningful
-      // (when isChestPosition && _frontRibbonBytes == null, frontSourceBytes is null).
-      final Uint8List? frontSourceBytes =
-          isChestPosition ? _frontRibbonBytes : artworkBytes;
+      // (when _frontRibbonBytes == null, frontSourceBytes is null → no front print).
+      final Uint8List? frontSourceBytes = _frontRibbonBytes;
       final sendFrontImage =
           _isTshirt &&
           PrintfulPlacementMapper.sendsArtwork(_frontPosition) &&

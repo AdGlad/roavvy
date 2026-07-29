@@ -34,10 +34,15 @@ class MerchImageProcessor {
     final Uint8List printBytes;
     final Uint8List mockupBytes;
 
-    final isChest = frontPosition == 'left_chest' ||
-        frontPosition == 'front_left' ||
-        frontPosition == 'right_chest' ||
-        frontPosition == 'front_right';
+    final isLeft =
+        frontPosition == 'left_chest' || frontPosition == 'front_left';
+    final isRight =
+        frontPosition == 'right_chest' || frontPosition == 'front_right';
+    // 'front' is the mapped value for the app's 'center' front placement.
+    final isCenter = frontPosition == 'center' ||
+        frontPosition == 'front_center' ||
+        frontPosition == 'front';
+    final isChest = isLeft || isRight || isCenter;
 
     if (isChest) {
       // Positioning matches M167 server-side constants (index.ts):
@@ -45,13 +50,16 @@ class MerchImageProcessor {
       //   top:  3.0" below top of print area
       //   left_chest centre: 10.0" from canvas left → left edge at 8.25"
       //   right_chest centre:  2.0" from canvas left → left edge at 0.25"
+      //   centre:              6.0" from canvas left (mid of 12") → edge at 4.25"
       final sizePx = (3.5 * dpi).round().toDouble(); // 525 px at 150 DPI
       final maxW = sizePx;
       final maxH = sizePx;
       final topOffset = (3.0 * dpi).round().toDouble(); // 450 px at 150 DPI
-      final isLeft =
-          frontPosition == 'left_chest' || frontPosition == 'front_left';
-      final centerIn = isLeft ? 10.0 : 2.0;
+      final centerIn = isLeft
+          ? 10.0
+          : isRight
+              ? 2.0
+              : 6.0;
       // Left edge = centre − half logo width (mirrors Math.round(sizePx/2) in TS)
       final leftOffset =
           ((centerIn * dpi).round() - (sizePx / 2).round()).toDouble();
