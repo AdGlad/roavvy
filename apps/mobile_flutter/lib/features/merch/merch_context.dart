@@ -342,6 +342,7 @@ class MerchContext {
     const groups = [
       (label: 'Passport', template: CardTemplateType.passport),
       (label: 'Flags', template: CardTemplateType.grid),
+      (label: 'Journey', template: CardTemplateType.journeys),
       (label: 'Heart Flags', template: CardTemplateType.heart),
       (label: 'Tour Dates', template: CardTemplateType.timeline),
     ];

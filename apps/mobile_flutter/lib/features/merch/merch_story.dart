@@ -105,6 +105,10 @@ class MerchStory {
 
     return switch (template) {
       CardTemplateType.grid => MerchStory(title: wordTitle, subtitle: subtitle),
+      CardTemplateType.journeys => MerchStory(
+        title: wordTitle,
+        subtitle: 'Every stop on your route',
+      ),
       CardTemplateType.passport => MerchStory(
         title: n == 50 ? 'Half the World' : wordTitle,
         subtitle: subtitle,

@@ -105,6 +105,7 @@ class MerchTemplateRanker {
         MerchDensityClass.solo => [
           _rank(CardTemplateType.grid, 1),
           _rank(CardTemplateType.passport, 2),
+          _rank(CardTemplateType.journeys, 2),
           _rank(CardTemplateType.typography, 4),
           _rank(CardTemplateType.timeline, 5),
           _excluded(CardTemplateType.heart),
@@ -116,6 +117,7 @@ class MerchTemplateRanker {
         MerchDensityClass.small => [
           _rank(CardTemplateType.passport, 1),
           _rank(CardTemplateType.grid, 2),
+          _rank(CardTemplateType.journeys, 2),
           _rank(CardTemplateType.typography, 4),
           _rank(CardTemplateType.timeline, 5),
           _excluded(CardTemplateType.heart),
@@ -127,6 +129,7 @@ class MerchTemplateRanker {
         MerchDensityClass.medium => [
           _rank(CardTemplateType.grid, 1),
           _rank(CardTemplateType.passport, 2),
+          _rank(CardTemplateType.journeys, 2),
           _rank(CardTemplateType.wordCloud, 3),
           _rank(CardTemplateType.landmark, 4),
           _rank(CardTemplateType.timeline, 5),
@@ -138,6 +141,7 @@ class MerchTemplateRanker {
         MerchDensityClass.large => [
           _rank(CardTemplateType.grid, 1),
           _rank(CardTemplateType.wordCloud, 2),
+          _rank(CardTemplateType.journeys, 2),
           _rank(CardTemplateType.landmark, 3),
           _rank(CardTemplateType.timeline, 4),
           _rank(CardTemplateType.typography, 5),
@@ -149,6 +153,7 @@ class MerchTemplateRanker {
         MerchDensityClass.massive => [
           _rank(CardTemplateType.wordCloud, 1),
           _rank(CardTemplateType.grid, 2),
+          _rank(CardTemplateType.journeys, 2),
           _rank(CardTemplateType.landmark, 3),
           _rank(CardTemplateType.typography, 4),
           _rank(CardTemplateType.timeline, 5),
