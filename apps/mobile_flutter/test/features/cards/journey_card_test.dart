@@ -70,6 +70,42 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('scales to fit a large trip history without exception',
+        (tester) async {
+      // 80 trips spanning 2010–2026 — previously truncated at 30 (oldest first).
+      final many = [
+        for (var i = 0; i < 80; i++)
+          _trip(['US', 'FR', 'JP', 'KE', 'AU', 'BR'][i % 6], 2010 + i % 17),
+      ];
+      await tester.pumpWidget(
+        _wrap(
+          JourneyCard(
+            countryCodes: const ['US', 'FR'],
+            trips: many,
+            style: JourneyStyle.trips,
+          ),
+        ),
+      );
+      expect(find.byType(CustomPaint), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('caps an extreme trip history (150) without exception',
+        (tester) async {
+      final huge = [
+        for (var i = 0; i < 150; i++)
+          _trip(['US', 'FR', 'JP'][i % 3], 2005 + i % 22),
+      ];
+      await tester.pumpWidget(
+        _wrap(JourneyCard(
+          countryCodes: const ['US'],
+          trips: huge,
+          style: JourneyStyle.trips,
+        )),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('renders with a single stop', (tester) async {
       await tester.pumpWidget(_wrap(const JourneyCard(countryCodes: ['JP'])));
       expect(tester.takeException(), isNull);

@@ -85,8 +85,9 @@ class _JourneyCardState extends State<JourneyCard> {
   // Flag width the painter renders at (and the cache key). Fixed so preload and
   // paint agree; cover-fit into small discs so this is plenty of resolution.
   static const double _flagWidth = 128.0;
-  // Cap on stops so the route stays legible on a shirt.
-  static const int _maxStops = 30;
+  // Hard cap on stops so a very long history still fits and stays legible; the
+  // serpentine layout scales the flag discs down to fit whatever count remains.
+  static const int _maxStops = 100;
 
   final FlagImageCache _cache = FlagImageCache(maxEntries: 120);
   final ValueNotifier<int> _repaint = ValueNotifier<int>(0);
@@ -129,7 +130,12 @@ class _JourneyCardState extends State<JourneyCard> {
               .where((t) =>
                   t.startedOn.year >= range.$1 && t.startedOn.year <= range.$2)
               .toList();
-      final capped = filtered.take(_maxStops);
+      // Cap the number of stops so a very long history still fits; keep the
+      // MOST RECENT [_maxStops] (drop the oldest) rather than truncating the
+      // recent years, which read as "cut off at 20xx".
+      final capped = filtered.length > _maxStops
+          ? filtered.sublist(filtered.length - _maxStops)
+          : filtered;
       return [
         for (final t in capped)
           _Stop(
@@ -277,12 +283,19 @@ class _JourneyPainter extends CustomPainter {
     final cellW = zoneW / cols;
     final cellH = zoneH / rows;
 
-    // Reserve room for the label(s) beneath each flag node.
-    final labelH =
-        (cellH * (hasSub ? 0.34 : 0.24)).clamp(hasSub ? 14.0 : 8.0, 34.0);
+    // Label density: as the stop count grows the cells shrink, so drop the
+    // country name (keep just the year), then all text — letting the flag discs
+    // scale down to fit instead of colliding with the row below. Only reserve
+    // vertical space for the labels actually shown.
+    final showName = cellH >= 42;
+    final showYear = hasSub && cellH >= 26;
+    final labelLines = (showName ? 1 : 0) + (showYear ? 1 : 0);
+    final labelH = labelLines == 0
+        ? 0.0
+        : (cellH * (labelLines == 2 ? 0.34 : 0.20)).clamp(8.0, 34.0);
     final radius =
-        (math.min(cellW, cellH - labelH) * 0.5 * 0.74).clamp(6.0, 90.0);
-    final ring = math.max(1.4, radius * 0.10);
+        (math.min(cellW, cellH - labelH) * 0.5 * 0.74).clamp(4.0, 90.0);
+    final ring = math.max(1.2, radius * 0.10);
 
     final centers = <Offset>[];
     for (var i = 0; i < n; i++) {
@@ -352,17 +365,19 @@ class _JourneyPainter extends CustomPainter {
       );
 
       var labelY = center.dy + radius + ring + labelH * 0.10;
-      labelY = _drawLabel(
-        canvas,
-        stop.label,
-        center.dx,
-        labelY,
-        cellW * 0.96,
-        (radius * 0.40).clamp(7.0, 15.0),
-        FontWeight.w600,
-        ink,
-      );
-      if (stop.sub != null) {
+      if (showName) {
+        labelY = _drawLabel(
+          canvas,
+          stop.label,
+          center.dx,
+          labelY,
+          cellW * 0.96,
+          (radius * 0.40).clamp(7.0, 15.0),
+          FontWeight.w600,
+          ink,
+        );
+      }
+      if (showYear && stop.sub != null) {
         _drawLabel(
           canvas,
           stop.sub!,
