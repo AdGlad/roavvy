@@ -2659,6 +2659,9 @@ class _LocalMockupPreviewScreenState
             const SizedBox(height: 6),
             _LayoutModeSelector(
               selected: _gridLayoutMode,
+              // Journey draws its own full-canvas route, so it only makes sense
+              // when no silhouette clip is applied.
+              includeJourney: _clipShape == GridClipShape.none,
               enabled:
                   _state != _MockupState.rerendering &&
                   _state != _MockupState.approving,
@@ -4092,29 +4095,36 @@ class _LayoutModeSelector extends StatelessWidget {
     required this.selected,
     required this.enabled,
     required this.onChanged,
+    this.includeJourney = false,
   });
 
   final FlagGridLayoutMode selected;
   final bool enabled;
   final ValueChanged<FlagGridLayoutMode> onChanged;
 
-  // Only these two are user-facing choices in the configurator.
-  static const _choices = <(FlagGridLayoutMode, String, IconData)>[
+  /// When true, a third "Journey" choice (dotted travel route) is offered.
+  /// Only meaningful for unclipped, non-region flag collections.
+  final bool includeJourney;
+
+  static const _base = <(FlagGridLayoutMode, String, IconData)>[
     (FlagGridLayoutMode.packedRow, 'Grid', Icons.grid_view_rounded),
     (FlagGridLayoutMode.montage, 'Montage', Icons.auto_awesome_mosaic_rounded),
   ];
+  static const _journey =
+      (FlagGridLayoutMode.journeyPath, 'Journey', Icons.route_rounded);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // A layout mode outside the two choices (e.g. treemap) reads as "Grid".
+    final choices = [..._base, if (includeJourney) _journey];
+    // A layout mode outside the offered choices (e.g. treemap) reads as "Grid".
     final active =
-        selected == FlagGridLayoutMode.montage
-            ? FlagGridLayoutMode.montage
+        choices.any((c) => c.$1 == selected)
+            ? selected
             : FlagGridLayoutMode.packedRow;
     return Row(
       children: [
-        for (final (mode, label, icon) in _choices) ...[
+        for (final (mode, label, icon) in choices) ...[
           Expanded(
             child: GestureDetector(
               onTap: enabled && mode != active ? () => onChanged(mode) : null,
@@ -4167,7 +4177,7 @@ class _LayoutModeSelector extends StatelessWidget {
               ),
             ),
           ),
-          if (mode != _choices.last.$1) const SizedBox(width: 8),
+          if (mode != choices.last.$1) const SizedBox(width: 8),
         ],
       ],
     );

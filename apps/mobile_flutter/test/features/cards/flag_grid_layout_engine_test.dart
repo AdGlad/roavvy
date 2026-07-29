@@ -74,7 +74,7 @@ void main() {
       expect(tiles.first.code, 'gb');
     });
 
-    test('non-adjacency holds for all three FlagGridLayoutMode values', () {
+    test('non-adjacency holds for every FlagGridLayoutMode value', () {
       for (final mode in FlagGridLayoutMode.values) {
         final tiles = FlagGridLayoutEngine.compute(
           codes: ['us', 'ca'],
@@ -259,6 +259,48 @@ void main() {
 
     test('empty input yields no tiles', () {
       expect(montage(const []), isEmpty);
+    });
+  });
+
+  group('FlagGridLayoutEngine — journeyPath', () {
+    const canvasSize = Size(400, 600);
+
+    // Journey is painted directly by the card painter; compute() only needs to
+    // return a sensible fallback (packed grid) so any tile-based caller works.
+    test('falls back to packedRow tiles (same rects)', () {
+      final journey = FlagGridLayoutEngine.compute(
+        codes: ['us', 'fr', 'ke', 'au'],
+        canvasSize: canvasSize,
+        topOffset: 40,
+        bottomOffset: 40,
+        mode: FlagGridLayoutMode.journeyPath,
+      );
+      final packed = FlagGridLayoutEngine.compute(
+        codes: ['us', 'fr', 'ke', 'au'],
+        canvasSize: canvasSize,
+        topOffset: 40,
+        bottomOffset: 40,
+        mode: FlagGridLayoutMode.packedRow,
+      );
+      expect(journey.length, packed.length);
+      expect(journey.isNotEmpty, isTrue);
+      for (var i = 0; i < journey.length; i++) {
+        expect(journey[i].code, packed[i].code);
+        expect(journey[i].rect, packed[i].rect);
+      }
+    });
+
+    test('empty input yields no tiles', () {
+      expect(
+        FlagGridLayoutEngine.compute(
+          codes: const [],
+          canvasSize: canvasSize,
+          topOffset: 40,
+          bottomOffset: 40,
+          mode: FlagGridLayoutMode.journeyPath,
+        ),
+        isEmpty,
+      );
     });
   });
 }

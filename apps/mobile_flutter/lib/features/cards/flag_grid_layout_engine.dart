@@ -68,6 +68,14 @@ enum FlagGridLayoutMode {
   /// for a given (codes, canvas, seed) so the preview matches the print; the
   /// Shuffle control perturbs `seed` to re-roll the arrangement.
   montage,
+
+  /// **Journey Path.** Countries are placed as flag "stops" along a subtle
+  /// dotted travel route that winds (serpentine) across the canvas in visit
+  /// order, each labelled with its country name and bracketed by hollow
+  /// origin/destination pins. Rendered directly by the painter
+  /// ([_GridPainter._paintJourneyPath]) — it does not produce packed tile
+  /// rects, so [FlagGridLayoutEngine.compute] falls back to [packedRow] for it.
+  journeyPath,
 }
 
 // ── FlagGridTile ──────────────────────────────────────────────────────────────
@@ -218,6 +226,16 @@ class FlagGridLayoutEngine {
         originY,
         seed: seed,
         coverGrid: coverGrid,
+      ),
+      // Journey is painted directly (route + nodes); if compute() is ever asked
+      // for tile rects in this mode, fall back to a sensible packed grid.
+      FlagGridLayoutMode.journeyPath => _packedRow(
+        expanded,
+        grid,
+        originX,
+        originY,
+        gutter,
+        rowCount: rowCount,
       ),
     };
   }

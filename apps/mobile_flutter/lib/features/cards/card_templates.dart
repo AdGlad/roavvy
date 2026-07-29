@@ -1050,6 +1050,15 @@ class _GridPainter extends CustomPainter {
       return;
     }
 
+    // Journey Path: flag "stops" along a dotted winding route in visit order.
+    // Its own full-zone layout; only when no silhouette clip is applied (a clip
+    // + route makes no sense), otherwise fall through to the normal clipped grid.
+    if (layoutMode == FlagGridLayoutMode.journeyPath &&
+        clipShape == GridClipShape.none) {
+      _paintJourneyPath(canvas, size);
+      return;
+    }
+
     final tiles = FlagGridLayoutEngine.compute(
       codes: countryCodes,
       canvasSize: size,
@@ -1307,6 +1316,190 @@ class _GridPainter extends CustomPainter {
           paint,
         );
         canvas.restore();
+      }
+    }
+  }
+
+  /// Journey Path layout: draws each visited country as a flag "stop" along a
+  /// subtle dotted route that winds (serpentine) across the grid zone in visit
+  /// order, each labelled with its country name, with hollow origin/destination
+  /// pins bracketing the first and last stops. Ignores the clip shape.
+  void _paintJourneyPath(Canvas canvas, Size size) {
+    final codes = countryCodes;
+    final n = codes.length;
+    if (n == 0) return;
+
+    final ink = textColor ??
+        (transparentBackground
+            ? Colors.white
+            : CardTextRenderer.defaultTextColor);
+
+    const pad = 12.0;
+    final zoneLeft = pad;
+    final zoneRight = size.width - pad;
+    final zoneTop = _topH + pad;
+    final zoneBottom = size.height - _botH - pad;
+    final zoneW = zoneRight - zoneLeft;
+    final zoneH = zoneBottom - zoneTop;
+    if (zoneW <= 0 || zoneH <= 0) return;
+
+    // Serpentine node grid: cols chosen for roughly square cells; rows fill
+    // downward. Even rows run left→right, odd rows right→left so the connecting
+    // route is one continuous winding line.
+    final cols = math.max(1, math.min(n, math.sqrt(n * zoneW / zoneH).round()));
+    final rows = (n / cols).ceil();
+    final cellW = zoneW / cols;
+    final cellH = zoneH / rows;
+
+    // Reserve room in each cell for the label beneath the flag node.
+    final labelH = (cellH * 0.24).clamp(8.0, 22.0);
+    final radius =
+        (math.min(cellW, cellH - labelH) * 0.5 * 0.74).clamp(6.0, 90.0);
+    final ring = math.max(1.4, radius * 0.10);
+
+    final centers = <Offset>[];
+    for (var i = 0; i < n; i++) {
+      final r = i ~/ cols;
+      var c = i % cols;
+      if (r.isOdd) c = cols - 1 - c; // serpentine
+      final cx = zoneLeft + (c + 0.5) * cellW;
+      final cy = zoneTop + r * cellH + (cellH - labelH) * 0.5;
+      centers.add(Offset(cx, cy));
+    }
+
+    // 1. Dotted winding route behind the nodes.
+    if (n >= 2) {
+      final route = _smoothPathThrough(centers);
+      final routePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.2, radius * 0.09)
+        ..strokeCap = StrokeCap.round
+        ..color = ink.withValues(alpha: 0.55);
+      final dash = math.max(3.0, radius * 0.14);
+      _drawDashedPath(canvas, route, routePaint, dash: dash, gap: dash * 0.9);
+
+      // Hollow origin / destination pins just beyond the first and last stops,
+      // along the route direction.
+      final pinR = math.max(3.0, radius * 0.28);
+      final pinPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.2, radius * 0.08)
+        ..color = ink.withValues(alpha: 0.7);
+      final startDir = _dir(centers[1], centers[0]);
+      final endDir = _dir(centers[n - 2], centers[n - 1]);
+      canvas.drawCircle(
+          centers.first + startDir * (radius + ring + pinR + 3), pinR, pinPaint);
+      canvas.drawCircle(
+          centers.last + endDir * (radius + ring + pinR + 3), pinR, pinPaint);
+    }
+
+    // 2. Flag stops + labels, in visit order.
+    for (var i = 0; i < n; i++) {
+      final center = centers[i];
+      final code = codes[i];
+      final rect = Rect.fromCircle(center: center, radius: radius);
+
+      // Subtle backing halo so the flag disc reads on a photo background.
+      canvas.drawCircle(
+        center,
+        radius + ring,
+        Paint()
+          ..color = (transparentBackground ? Colors.white : ink)
+              .withValues(alpha: 0.12),
+      );
+
+      final image = _sharedCache.get(code.toLowerCase(), reprWidth);
+      canvas.save();
+      canvas.clipPath(Path()..addOval(rect));
+      if (image != null) {
+        _fillWithFlagCover(canvas, image, rect);
+      } else {
+        canvas.drawCircle(center, radius, _placeholderPaint);
+      }
+      canvas.restore();
+
+      // Ring around the flag disc.
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ring
+          ..color = ink.withValues(alpha: 0.85),
+      );
+
+      // Country-name label centred beneath the stop.
+      final name = kCountryNames[code.toUpperCase()] ?? code.toUpperCase();
+      final tp = TextPainter(
+        text: TextSpan(
+          text: name,
+          style: TextStyle(
+            color: ink,
+            fontSize: (radius * 0.40).clamp(7.0, 15.0),
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: cellW * 0.96);
+      tp.paint(
+        canvas,
+        Offset(
+          center.dx - tp.width / 2,
+          center.dy + radius + ring + labelH * 0.12,
+        ),
+      );
+    }
+  }
+
+  /// Unit vector from [a] to [b] (zero-safe).
+  static Offset _dir(Offset a, Offset b) {
+    final d = b - a;
+    final len = d.distance;
+    return len == 0 ? const Offset(1, 0) : d / len;
+  }
+
+  /// Builds a smooth Catmull-Rom spline through [pts] as a cubic Bézier path.
+  static Path _smoothPathThrough(List<Offset> pts) {
+    final path = Path();
+    if (pts.isEmpty) return path;
+    path.moveTo(pts.first.dx, pts.first.dy);
+    if (pts.length == 1) return path;
+    if (pts.length == 2) {
+      path.lineTo(pts[1].dx, pts[1].dy);
+      return path;
+    }
+    for (var i = 0; i < pts.length - 1; i++) {
+      final p0 = pts[i == 0 ? 0 : i - 1];
+      final p1 = pts[i];
+      final p2 = pts[i + 1];
+      final p3 = pts[i + 2 >= pts.length ? pts.length - 1 : i + 2];
+      final c1 =
+          Offset(p1.dx + (p2.dx - p0.dx) / 6, p1.dy + (p2.dy - p0.dy) / 6);
+      final c2 =
+          Offset(p2.dx - (p3.dx - p1.dx) / 6, p2.dy - (p3.dy - p1.dy) / 6);
+      path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
+    }
+    return path;
+  }
+
+  /// Strokes [path] as a dashed line ([dash] on, [gap] off).
+  static void _drawDashedPath(
+    Canvas canvas,
+    Path path,
+    Paint paint, {
+    required double dash,
+    required double gap,
+  }) {
+    for (final metric in path.computeMetrics()) {
+      var dist = 0.0;
+      while (dist < metric.length) {
+        final end = math.min(dist + dash, metric.length);
+        canvas.drawPath(metric.extractPath(dist, end), paint);
+        dist += dash + gap;
       }
     }
   }

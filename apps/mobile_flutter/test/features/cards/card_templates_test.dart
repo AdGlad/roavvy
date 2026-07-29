@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mobile_flutter/features/cards/card_branding_footer.dart';
 import 'package:mobile_flutter/features/cards/card_templates.dart';
+import 'package:mobile_flutter/features/cards/flag_grid_layout_engine.dart';
 import 'package:mobile_flutter/features/cards/timeline_card.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -27,6 +28,32 @@ void main() {
       // CustomPainter on a canvas — there are no Text widgets in the tree.
       // Verify the painter is present and no exception occurred.
       expect(find.byType(CustomPaint), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders journeyPath layout without exception', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const GridFlagsCard(
+            countryCodes: ['US', 'FR', 'KE', 'AU'],
+            layoutMode: FlagGridLayoutMode.journeyPath,
+          ),
+        ),
+      );
+      // The journey route + flag stops + labels are painted on the canvas.
+      expect(find.byType(CustomPaint), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('journeyPath renders with a single country', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const GridFlagsCard(
+            countryCodes: ['JP'],
+            layoutMode: FlagGridLayoutMode.journeyPath,
+          ),
+        ),
+      );
       expect(tester.takeException(), isNull);
     });
 
