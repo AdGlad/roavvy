@@ -27,6 +27,15 @@ for m in re.finditer(r"'([A-Z]{2})'\s*:\s*'([^']+)'", open(CMAP).read()):
 
 feats = json.load(open(GEO))['features']
 
+# Natural Earth leaves ISO_A2 = '-99' for a few countries — map by NAME so they
+# aren't silently dropped (France, Norway, Kosovo are visited-country outlines).
+NAME_ISO = {'France': 'FR', 'Norway': 'NO', 'Kosovo': 'XK'}
+def iso_of(props):
+    iso = props.get('ISO_A2')
+    if iso in (None, '-99', ''):
+        return NAME_ISO.get(props.get('NAME'))
+    return iso
+
 def merc(lon, lat):
     lat = max(-85.0, min(85.0, lat))
     return lon, -math.degrees(math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)))
@@ -84,7 +93,7 @@ for cont_name, key in CONT_KEY.items():
     xmin, xmax, ymin, ymax = WINDOW[key]
     rings_ll = []  # (iso, ring_lonlat)
     for f in feats:
-        iso = f['properties'].get('ISO_A2')
+        iso = iso_of(f['properties'])
         if iso not in members: continue
         g = f['geometry']
         raw = g['coordinates'] if g['type'] == 'MultiPolygon' else [g['coordinates']]
