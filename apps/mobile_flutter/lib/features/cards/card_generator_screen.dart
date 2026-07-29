@@ -19,6 +19,7 @@ import 'artwork_confirmation_screen.dart';
 import 'artwork_confirmation_service.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
+import 'journey_card.dart';
 import 'front_ribbon_card.dart';
 import 'word_cloud_card.dart';
 import 'heart_layout_engine.dart';
@@ -515,6 +516,14 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
           titleOverride: _titleOverride,
+        );
+      case CardTemplateType.journeys:
+        return JourneyCard(
+          countryCodes: codes,
+          trips: trips,
+          aspectRatio: _aspectRatio,
+          dateLabel: dateLabel,
+          title: _titleOverride,
         );
       case CardTemplateType.heart:
         return HeartFlagsCard(

@@ -32,6 +32,11 @@ enum CardTemplateType {
   /// Stylized line-art landmark icons (e.g. Eiffel Tower, Big Ben) representing
   /// visited countries, arranged in a grid (M113).
   landmark,
+
+  /// Countries (or dated trips) rendered as flag "stops" along a subtle dotted
+  /// winding travel route. Has two styles (flags / trips) and, for trips, a
+  /// year-range filter. Rendered by `JourneyCard`.
+  journeys,
 }
 
 /// A user-generated travel card capturing a snapshot of visited countries

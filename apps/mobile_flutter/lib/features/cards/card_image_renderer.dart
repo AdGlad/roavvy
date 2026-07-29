@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'card_templates.dart';
+import 'journey_card.dart';
 import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
@@ -92,6 +93,8 @@ class CardImageRenderer {
     String? clipCode,
     int? rowCount,
     bool regionSolidFill = false,
+    JourneyStyle journeyStyle = JourneyStyle.flags,
+    (int, int)? journeyYearRange,
 
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
@@ -124,7 +127,8 @@ class CardImageRenderer {
                 template == CardTemplateType.heart ||
                 template == CardTemplateType.badge ||
                 template == CardTemplateType.wordCloud ||
-                template == CardTemplateType.landmark)
+                template == CardTemplateType.landmark ||
+                template == CardTemplateType.journeys)
             ? Completer<void>()
             : null;
 
@@ -217,6 +221,8 @@ class CardImageRenderer {
       clipCode: clipCode,
       rowCount: rowCount,
       regionSolidFill: regionSolidFill,
+      journeyStyle: journeyStyle,
+      journeyYearRange: journeyYearRange,
       onAssetsLoaded:
           assetsCompleter != null
               ? () {
@@ -296,6 +302,8 @@ class CardImageRenderer {
     String? clipCode,
     int? rowCount,
     bool regionSolidFill = false,
+    JourneyStyle journeyStyle = JourneyStyle.flags,
+    (int, int)? journeyYearRange,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -411,6 +419,21 @@ class CardImageRenderer {
           textColor: textColor,
           onAssetsLoaded: onAssetsLoaded,
           layoutMode: gridLayoutMode,
+        );
+
+      case CardTemplateType.journeys:
+        return JourneyCard(
+          countryCodes: codes,
+          trips: trips,
+          style: journeyStyle,
+          yearRange: journeyYearRange,
+          aspectRatio: cardAspectRatio,
+          title: titleOverride,
+          subtitleOverride: subtitleOverride,
+          dateLabel: dateLabel,
+          textColor: textColor,
+          transparentBackground: transparentBackground,
+          onAssetsLoaded: onAssetsLoaded,
         );
     }
   }

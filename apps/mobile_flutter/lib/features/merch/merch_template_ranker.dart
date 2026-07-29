@@ -238,6 +238,7 @@ class MerchTemplateRanker {
   static String _labelFor(CardTemplateType template) => switch (template) {
     CardTemplateType.passport => 'Passport',
     CardTemplateType.grid => 'Flags',
+    CardTemplateType.journeys => 'Journey',
     CardTemplateType.timeline => 'Tour Dates',
     CardTemplateType.heart => 'Heart Flags',
     CardTemplateType.frontRibbon => 'Ribbon',

@@ -56,9 +56,10 @@ void main() {
 
       // The horizontal carousel shows tiles lazily. The first 3 are visible
       // in the default test viewport (800px wide, tiles ~280px each).
+      // Order: Flag Grid, Journey, Heart, Passport, Timeline, …
       expect(find.text('Flag Grid'), findsOneWidget);
+      expect(find.text('Journey'), findsOneWidget);
       expect(find.text('Heart'), findsOneWidget);
-      expect(find.text('Passport'), findsOneWidget);
     });
 
     testWidgets('Timeline tile becomes visible after scrolling', (
@@ -73,11 +74,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      // Scroll the carousel to reveal the Timeline tile (index 3).
-      // Use a smaller drag distance to avoid scrolling into the word_cloud tile
-      // (index 4), which triggers a negative-fontSize assertion in the test
-      // environment when rendered at zero width.
-      await tester.drag(find.byType(ListView), const Offset(-400, 0));
+      // Scroll the carousel to reveal the Timeline tile (index 4 now that
+      // Journey sits at index 1). Larger drag than before to reach it; the
+      // word_cloud tile (index 5) may render at zero width and trigger a
+      // negative-fontSize assertion, which is absorbed below.
+      await tester.drag(find.byType(ListView), const Offset(-700, 0));
       await tester.pump();
       // The word_cloud tile may render at zero width in tests, causing an
       // internal fontSize assertion. Absorb it — the Timeline tile is still

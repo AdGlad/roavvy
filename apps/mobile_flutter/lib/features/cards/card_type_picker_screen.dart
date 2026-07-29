@@ -7,6 +7,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/providers.dart';
 import 'card_editor_screen.dart';
 import 'card_templates.dart';
+import 'journey_card.dart';
 import 'front_ribbon_card.dart';
 import 'timeline_card.dart';
 import 'word_cloud_card.dart';
@@ -21,6 +22,7 @@ class CardTypePickerScreen extends ConsumerWidget {
 
   static const _allTypes = [
     CardTemplateType.grid,
+    CardTemplateType.journeys,
     CardTemplateType.heart,
     CardTemplateType.passport,
     CardTemplateType.timeline,
@@ -30,6 +32,7 @@ class CardTypePickerScreen extends ConsumerWidget {
 
   static const _labels = {
     CardTemplateType.grid: 'Flag Grid',
+    CardTemplateType.journeys: 'Journey',
     CardTemplateType.heart: 'Heart',
     CardTemplateType.passport: 'Passport',
     CardTemplateType.timeline: 'Timeline',
@@ -39,6 +42,7 @@ class CardTypePickerScreen extends ConsumerWidget {
 
   static const _taglines = {
     CardTemplateType.grid: 'All your flags, side by side',
+    CardTemplateType.journeys: 'Your route, stop by stop',
     CardTemplateType.heart: 'Your travels, made with love',
     CardTemplateType.passport: 'Authentic stamp collection',
     CardTemplateType.timeline: 'Your journey through time',
@@ -245,6 +249,13 @@ class _CardTypeTile extends StatelessWidget {
       case CardTemplateType.grid:
         return GridFlagsCard(
           countryCodes: countryCodes,
+          aspectRatio: aspectRatio,
+          dateLabel: '',
+        );
+      case CardTemplateType.journeys:
+        return JourneyCard(
+          countryCodes: countryCodes,
+          trips: trips,
           aspectRatio: aspectRatio,
           dateLabel: '',
         );

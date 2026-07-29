@@ -509,6 +509,8 @@ final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
 String remoteConfigKeyForTemplate(CardTemplateType t) => switch (t) {
       CardTemplateType.passport => 'purchasing_enabled_passport',
       CardTemplateType.grid => 'purchasing_enabled_flags',
+      // Journeys are a flag-based design — share the flags purchasing gate.
+      CardTemplateType.journeys => 'purchasing_enabled_flags',
       CardTemplateType.timeline => 'purchasing_enabled_tour_dates',
       CardTemplateType.heart => 'purchasing_enabled_heart_flags',
       CardTemplateType.frontRibbon => 'purchasing_enabled_ribbon',

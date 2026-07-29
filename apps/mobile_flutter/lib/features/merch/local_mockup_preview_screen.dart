@@ -14,6 +14,7 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/journey_card.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import '../cards/title_generation/title_generation_models.dart';
 import '../cards/title_generation/title_generation_provider.dart';
@@ -211,6 +212,9 @@ class _LocalMockupPreviewScreenState
 
   late CardTemplateType _template;
   late FlagGridLayoutMode _gridLayoutMode;
+  // Journeys type (CardTemplateType.journeys): style + optional trip year filter.
+  JourneyStyle _journeyStyle = JourneyStyle.flags;
+  (int, int)? _journeyYearRange;
   bool _isPortrait = true;
   int _shuffleSeed = 0; // 0 = use widget.stampLayoutSeed (deterministic)
 
@@ -456,6 +460,7 @@ class _LocalMockupPreviewScreenState
 
   static String _templateDisplayLabel(CardTemplateType t) => switch (t) {
     CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.journeys => 'Journey',
     CardTemplateType.heart => 'Heart Flags',
     CardTemplateType.passport => 'Passport Stamps',
     CardTemplateType.timeline => 'Travel Log',
@@ -589,6 +594,7 @@ class _LocalMockupPreviewScreenState
     _titleDebounce?.cancel();
     _stampControlDebounce?.cancel();
     _gridControlDebounce?.cancel();
+    _journeyYearDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _mockupListenerTimer?.cancel();
     _mockupSubscription?.cancel();
@@ -758,6 +764,8 @@ class _LocalMockupPreviewScreenState
         trips: scopedTrips,
         forPrint: false,
         entryOnly: config.entryOnly,
+        journeyStyle: _journeyStyle,
+        journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 12.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
@@ -913,6 +921,32 @@ class _LocalMockupPreviewScreenState
     if (solid == _regionSolidFill) return;
     setState(() => _regionSolidFill = solid);
     await _regenerateGridArtwork();
+  }
+
+  /// Switches the Journeys design between the flags and trips styles.
+  Future<void> _onJourneyStyleChanged(JourneyStyle style) async {
+    if (style == _journeyStyle) return;
+    setState(() {
+      _journeyStyle = style;
+      // Default the trips filter to the full available range on first switch.
+      if (style == JourneyStyle.trips && _journeyYearRange == null) {
+        final years = JourneyCard.tripYears(widget.trips);
+        if (years.length >= 2) _journeyYearRange = (years.first, years.last);
+      }
+    });
+    await _regenerateGridArtwork();
+  }
+
+  Timer? _journeyYearDebounce;
+
+  /// Year-range slider handler — updates state immediately (smooth slider) and
+  /// debounces the re-render so it fires once the user pauses.
+  void _onJourneyYearRangeChanged((int, int) range) {
+    setState(() => _journeyYearRange = range);
+    _journeyYearDebounce?.cancel();
+    _journeyYearDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) unawaited(_regenerateGridArtwork());
+    });
   }
 
   /// Row slider handler — updates state immediately (smooth slider) and
@@ -1277,6 +1311,8 @@ class _LocalMockupPreviewScreenState
         forPrint: false,
         // T-shirts always show entry + exit stamps regardless of card-editor setting.
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
+        journeyStyle: _journeyStyle,
+        journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 12.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
@@ -1344,6 +1380,8 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
+        journeyStyle: _journeyStyle,
+        journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 12.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
@@ -1440,6 +1478,8 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
+        journeyStyle: _journeyStyle,
+        journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 12.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
@@ -1478,6 +1518,8 @@ class _LocalMockupPreviewScreenState
         _template,
         codes: widget.selectedCodes,
         trips: widget.trips,
+        journeyStyle: _journeyStyle,
+        journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
         pixelRatio: _isTshirt ? 12.0 : 3.0,
         topPaddingFraction: _isTshirt ? 1.0 / 16.0 : 0.0,
@@ -2611,6 +2653,31 @@ class _LocalMockupPreviewScreenState
           ],
         ),
         const SizedBox(height: 4),
+        // ── Journeys type: style (flags / trips) + trip year filter ──────
+        if (_template == CardTemplateType.journeys) ...[
+          const SizedBox(height: 12),
+          const _MiniLabel('Journey style'),
+          const SizedBox(height: 6),
+          _JourneyStyleSelector(
+            selected: _journeyStyle,
+            enabled:
+                _state != _MockupState.rerendering &&
+                _state != _MockupState.approving,
+            onChanged: (s) => unawaited(_onJourneyStyleChanged(s)),
+          ),
+          if (_journeyStyle == JourneyStyle.trips) ...[
+            const SizedBox(height: 12),
+            _JourneyYearFilter(
+              years: JourneyCard.tripYears(widget.trips),
+              range: _journeyYearRange,
+              enabled:
+                  _state != _MockupState.rerendering &&
+                  _state != _MockupState.approving,
+              onChanged: _onJourneyYearRangeChanged,
+            ),
+          ],
+          const SizedBox(height: 4),
+        ],
         // ── Flag-grid style: clip shape + rows (M187) ────────────────────
         // Previously chosen on a separate screen (FlagShapeCustomiseScreen);
         // now fully editable here with a live mockup refresh.
@@ -2659,9 +2726,6 @@ class _LocalMockupPreviewScreenState
             const SizedBox(height: 6),
             _LayoutModeSelector(
               selected: _gridLayoutMode,
-              // Journey draws its own full-canvas route, so it only makes sense
-              // when no silhouette clip is applied.
-              includeJourney: _clipShape == GridClipShape.none,
               enabled:
                   _state != _MockupState.rerendering &&
                   _state != _MockupState.approving,
@@ -4095,28 +4159,21 @@ class _LayoutModeSelector extends StatelessWidget {
     required this.selected,
     required this.enabled,
     required this.onChanged,
-    this.includeJourney = false,
   });
 
   final FlagGridLayoutMode selected;
   final bool enabled;
   final ValueChanged<FlagGridLayoutMode> onChanged;
 
-  /// When true, a third "Journey" choice (dotted travel route) is offered.
-  /// Only meaningful for unclipped, non-region flag collections.
-  final bool includeJourney;
-
-  static const _base = <(FlagGridLayoutMode, String, IconData)>[
+  static const _choices = <(FlagGridLayoutMode, String, IconData)>[
     (FlagGridLayoutMode.packedRow, 'Grid', Icons.grid_view_rounded),
     (FlagGridLayoutMode.montage, 'Montage', Icons.auto_awesome_mosaic_rounded),
   ];
-  static const _journey =
-      (FlagGridLayoutMode.journeyPath, 'Journey', Icons.route_rounded);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final choices = [..._base, if (includeJourney) _journey];
+    final choices = _choices;
     // A layout mode outside the offered choices (e.g. treemap) reads as "Grid".
     final active =
         choices.any((c) => c.$1 == selected)
@@ -4179,6 +4236,152 @@ class _LayoutModeSelector extends StatelessWidget {
           ),
           if (mode != choices.last.$1) const SizedBox(width: 8),
         ],
+      ],
+    );
+  }
+}
+
+/// Segmented Flags ↔ Trips control for the Journeys design type. Flags places
+/// the visited-country flags as stops (selection order); Trips uses dated trips
+/// as stops (chronological), each labelled with its year.
+class _JourneyStyleSelector extends StatelessWidget {
+  const _JourneyStyleSelector({
+    required this.selected,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final JourneyStyle selected;
+  final bool enabled;
+  final ValueChanged<JourneyStyle> onChanged;
+
+  static const _choices = <(JourneyStyle, String, IconData)>[
+    (JourneyStyle.flags, 'Flags', Icons.flag_rounded),
+    (JourneyStyle.trips, 'Trips', Icons.event_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        for (final (style, label, icon) in _choices) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap:
+                  enabled && style != selected ? () => onChanged(style) : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: style == selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: style == selected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 14,
+                      color: style == selected
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: style == selected
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.onSurface,
+                        fontWeight: style == selected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (style != _choices.last.$1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+/// Year-range filter (RangeSlider) for the Journeys "Trips" style. Falls back to
+/// an informational note when the trips span fewer than two distinct years.
+class _JourneyYearFilter extends StatelessWidget {
+  const _JourneyYearFilter({
+    required this.years,
+    required this.range,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final List<int> years;
+  final (int, int)? range;
+  final bool enabled;
+  final ValueChanged<(int, int)> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (years.length < 2) {
+      final only = years.isEmpty ? null : years.first;
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          only == null
+              ? 'No dated trips to filter'
+              : 'All trips are from $only',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+    final minY = years.first;
+    final maxY = years.last;
+    final start = (range?.$1 ?? minY).clamp(minY, maxY);
+    final end = (range?.$2 ?? maxY).clamp(minY, maxY);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _MiniLabel('Years'),
+            Text(
+              start == end ? '$start' : '$start – $end',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        RangeSlider(
+          min: minY.toDouble(),
+          max: maxY.toDouble(),
+          divisions: maxY - minY,
+          labels: RangeLabels('$start', '$end'),
+          values: RangeValues(start.toDouble(), end.toDouble()),
+          onChanged: enabled
+              ? (v) => onChanged((v.start.round(), v.end.round()))
+              : null,
+        ),
       ],
     );
   }

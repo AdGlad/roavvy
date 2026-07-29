@@ -443,6 +443,8 @@ class _ArtworkConfirmationScreenState
     switch (type) {
       case CardTemplateType.grid:
         return 'Flag grid';
+      case CardTemplateType.journeys:
+        return 'Journey';
       case CardTemplateType.heart:
         return 'Heart flags';
       case CardTemplateType.passport:

@@ -141,6 +141,8 @@ class FocalHierarchyScorer implements DesignScorer {
         return 0.50;
       case CardTemplateType.timeline:
         return 0.55; // headline entry reads first
+      case CardTemplateType.journeys:
+        return 0.60; // origin→destination route gives directional hierarchy
       case CardTemplateType.heart:
       case CardTemplateType.frontRibbon:
       case CardTemplateType.badge:
@@ -187,6 +189,7 @@ class AspectFitScorer implements DesignScorer {
       CardTemplateType.wordCloud => false,
       CardTemplateType.landmark => false,
       CardTemplateType.grid => null,
+      CardTemplateType.journeys => null, // serpentine route adapts to either
       CardTemplateType.heart => null,
       CardTemplateType.frontRibbon => false,
       CardTemplateType.badge => null,

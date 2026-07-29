@@ -22,6 +22,7 @@ import 'card_background_picker.dart';
 import 'passport_book_screen.dart';
 import 'card_image_renderer.dart';
 import 'card_templates.dart';
+import 'journey_card.dart';
 import 'flag_grid_layout_engine.dart';
 import 'front_ribbon_card.dart';
 import 'heart_layout_engine.dart';
@@ -179,6 +180,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   String _typeName(CardTemplateType type) => switch (type) {
     CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.journeys => 'Journey',
     CardTemplateType.heart => 'Heart',
     CardTemplateType.passport => 'Passport',
     CardTemplateType.timeline => 'Timeline',
@@ -793,6 +795,17 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           subtitleOverride: _subtitleOverride,
           backgroundImageBytes: backgroundImageBytes,
           layoutMode: _gridLayoutMode,
+          transparentBackground: true,
+          textColor: Colors.black,
+        );
+      case CardTemplateType.journeys:
+        return JourneyCard(
+          countryCodes: codes,
+          trips: trips,
+          aspectRatio: _aspectRatio,
+          title: _titleOverride,
+          subtitleOverride: _subtitleOverride,
+          dateLabel: dateLabel,
           transparentBackground: true,
           textColor: Colors.black,
         );

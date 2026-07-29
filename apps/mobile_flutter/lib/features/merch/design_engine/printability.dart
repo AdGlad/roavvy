@@ -117,6 +117,8 @@ double estimateInkCoverage(DesignParams params) {
       cov = 0.22 + 0.030 * n;
     case CardTemplateType.landmark:
       cov = 0.08 * n;
+    case CardTemplateType.journeys:
+      cov = 0.10 + 0.03 * n; // flag discs + dotted route
     case CardTemplateType.heart:
       cov = 0.35 + 0.030 * n;
     case CardTemplateType.frontRibbon:

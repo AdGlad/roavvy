@@ -60,6 +60,7 @@ class MerchOptionFeaturedEntry extends MerchOptionListItem {
 String merchTemplateLabel(CardTemplateType t) => switch (t) {
   CardTemplateType.passport => 'Passport',
   CardTemplateType.grid => 'Flags',
+  CardTemplateType.journeys => 'Journey',
   CardTemplateType.timeline => 'Tour Dates',
   CardTemplateType.heart => 'Heart Flags',
   CardTemplateType.frontRibbon => 'Ribbon',

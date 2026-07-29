@@ -80,6 +80,7 @@ class PulseMerchOption {
   String get templateLabel => switch (template) {
     CardTemplateType.passport => 'Passport stamps',
     CardTemplateType.grid => 'Flag grid',
+    CardTemplateType.journeys => 'Journey',
     CardTemplateType.heart => 'Heart flags',
     CardTemplateType.timeline => 'Timeline',
     CardTemplateType.frontRibbon => 'Ribbon',

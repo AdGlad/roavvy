@@ -412,6 +412,7 @@ class _OrderSummaryCard extends StatelessWidget {
   static String _templateLabel(CardTemplateType type) => switch (type) {
     CardTemplateType.passport => 'Passport Stamps',
     CardTemplateType.grid => 'Flag Grid',
+    CardTemplateType.journeys => 'Journey',
     CardTemplateType.heart => 'Heart Flags',
     CardTemplateType.timeline => 'Travel Log',
     CardTemplateType.frontRibbon => 'Front Ribbon',

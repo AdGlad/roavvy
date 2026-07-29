@@ -148,6 +148,7 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
 
   static String _templateLabel(CardTemplateType t) => switch (t) {
     CardTemplateType.grid => 'Grid',
+    CardTemplateType.journeys => 'Journey',
     CardTemplateType.heart => 'Heart',
     CardTemplateType.passport => 'Passport',
     CardTemplateType.timeline => 'Timeline',
