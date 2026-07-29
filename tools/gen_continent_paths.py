@@ -82,40 +82,50 @@ def dp(points, eps):
 for cont_name, key in CONT_KEY.items():
     members = {iso for iso, c in iso2cont.items() if c == cont_name}
     xmin, xmax, ymin, ymax = WINDOW[key]
-    rings_ll = []
+    rings_ll = []  # (iso, ring_lonlat)
     for f in feats:
-        if f['properties'].get('ISO_A2') not in members: continue
+        iso = f['properties'].get('ISO_A2')
+        if iso not in members: continue
         g = f['geometry']
-        polys = g['coordinates'] if g['type'] == 'MultiPolygon' else [g['coordinates']]
-        for poly in polys:
+        raw = g['coordinates'] if g['type'] == 'MultiPolygon' else [g['coordinates']]
+        for poly in raw:
             ring = [[lon, lat] for lon, lat in poly[0]]
             if key == 'oceania':
                 ring = [[lon + 360 if lon < -25 else lon, lat] for lon, lat in ring]
             ring = clip(ring, xmin, ymin, xmax, ymax)
             if len(ring) >= 3:
-                rings_ll.append(ring)
+                rings_ll.append((iso, ring))
 
-    rings = [[merc(lon, lat) for lon, lat in r] for r in rings_ll]
-    areas = [ring_area(r) for r in rings]
+    proj = [(iso, [merc(lon, lat) for lon, lat in r]) for iso, r in rings_ll]
+    areas = [ring_area(r) for _, r in proj]
     total = sum(areas) or 1
-    rings = [r for r, a in zip(rings, areas) if a >= 0.0003 * total]
+    proj = [(iso, r) for (iso, r), a in zip(proj, areas) if a >= 0.0003 * total]
 
-    xs = [p[0] for r in rings for p in r]; ys = [p[1] for r in rings for p in r]
+    xs = [p[0] for _, r in proj for p in r]; ys = [p[1] for _, r in proj for p in r]
     minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
-    w, h = maxx - minx, maxy - miny
-    scale = 1000.0 / w
-    normH = round(h * scale, 1)
+    scale = 1000.0 / (maxx - minx)
+    normH = round((maxy - miny) * scale, 1)
     eps = 1.3 / scale
 
-    polys = []
-    for r in rings:
+    def norm(r):
         if r[0] == r[-1]: r = r[:-1]         # drop closing dup (DP needs distinct ends)
         simp = dp(r, eps)
-        if len(simp) < 3: continue
-        polys.append([[round((x - minx) * scale, 1), round((y - miny) * scale, 1)]
-                      for x, y in simp])
+        if len(simp) < 3: return None
+        return [[round((x - minx) * scale, 1), round((y - miny) * scale, 1)]
+                for x, y in simp]
 
+    polys = []
+    countries = {}
+    for iso, r in proj:
+        n = norm(r)
+        if n is None: continue
+        polys.append(n)
+        countries.setdefault(iso, []).append(n)
+
+    # Merged outer boundary (bold region border) + per-country map (fills).
     json.dump({'w': 1000.0, 'h': normH, 'polys': polys},
               open(f'{OUT}/{key}.json', 'w'), separators=(',', ':'))
-    print(f'{key}: {len(members)} countries -> {len(polys)} polys, AR {1000/normH:.2f}, '
-          f'{os.path.getsize(f"{OUT}/{key}.json")//1024}KB')
+    json.dump({'w': 1000.0, 'h': normH, 'countries': countries},
+              open(f'{OUT}/{key}_countries.json', 'w'), separators=(',', ':'))
+    print(f'{key}: {len(members)} members, {len(countries)} countries, {len(polys)} polys, '
+          f'AR {1000/normH:.2f}, {os.path.getsize(f"{OUT}/{key}_countries.json")//1024}KB')
