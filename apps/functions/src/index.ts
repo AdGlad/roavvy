@@ -175,23 +175,35 @@ export function normalizeBuyerCountry(raw: string | undefined, fallback = 'AU'):
 
 // ── getMerchPrices ────────────────────────────────────────────────────────────
 
+// Representative Storefront ProductVariant GIDs used only to fetch a live
+// "from" price. These are the SAME known-good variant IDs the cart uses (see
+// printDimensions.ts), so the query resolves reliably — unlike a hardcoded
+// product ID, which silently returns null if the product is recreated or not
+// published to the Storefront sales channel (the cause of the stale-fallback
+// price bug).
+const TSHIRT_PRICE_VARIANT_GID = 'gid://shopify/ProductVariant/47577103466683';
+const POSTER_PRICE_VARIANT_GID = 'gid://shopify/ProductVariant/47577104318651';
+
 const MERCH_PRICES_QUERY = `
-  query GetMerchPrices($country: CountryCode) @inContext(country: $country) {
-    tshirt: product(id: "gid://shopify/Product/8357194694843") {
-      priceRange { minVariantPrice { amount currencyCode } }
-    }
-    poster: product(id: "gid://shopify/Product/8357218353339") {
-      priceRange { minVariantPrice { amount currencyCode } }
+  query GetMerchPrices($ids: [ID!]!, $country: CountryCode) @inContext(country: $country) {
+    nodes(ids: $ids) {
+      ... on ProductVariant {
+        id
+        price { amount currencyCode }
+        product { priceRange { minVariantPrice { amount currencyCode } } }
+      }
     }
   }
 `;
 
 interface ShopifyMoneyV2 { amount: string; currencyCode: string }
+interface ShopifyVariantNode {
+  id?: string;
+  price?: ShopifyMoneyV2;
+  product?: { priceRange?: { minVariantPrice?: ShopifyMoneyV2 } };
+}
 interface ShopifyPricesResponse {
-  data?: {
-    tshirt?: { priceRange?: { minVariantPrice?: ShopifyMoneyV2 } };
-    poster?: { priceRange?: { minVariantPrice?: ShopifyMoneyV2 } };
-  };
+  data?: { nodes?: Array<ShopifyVariantNode | null> };
   errors?: Array<{ message: string }>;
 }
 
@@ -223,7 +235,13 @@ export const getMerchPrices = onCall<
         'Content-Type': 'application/json',
         'X-Shopify-Storefront-Access-Token': storefrontToken,
       },
-      body: JSON.stringify({ query: MERCH_PRICES_QUERY, variables: { country } }),
+      body: JSON.stringify({
+        query: MERCH_PRICES_QUERY,
+        variables: {
+          ids: [TSHIRT_PRICE_VARIANT_GID, POSTER_PRICE_VARIANT_GID],
+          country,
+        },
+      }),
     }
   );
 
@@ -233,13 +251,26 @@ export const getMerchPrices = onCall<
 
   const shopifyData = (await shopifyRes.json()) as ShopifyPricesResponse;
   if (shopifyData.errors && shopifyData.errors.length > 0) {
+    console.error('[getMerchPrices] Shopify errors:', JSON.stringify(shopifyData.errors));
     throw new HttpsError('internal', shopifyData.errors[0].message);
   }
 
-  const tshirt = shopifyData.data?.tshirt?.priceRange?.minVariantPrice;
-  const poster = shopifyData.data?.poster?.priceRange?.minVariantPrice;
+  // Prefer the product's true "from" (min variant) price; fall back to the
+  // representative variant's own price. Match by id (nodes order should mirror
+  // the ids array, but be defensive).
+  const nodes = shopifyData.data?.nodes ?? [];
+  const priceOf = (gid: string, fallbackIndex: number): ShopifyMoneyV2 | undefined => {
+    const node = nodes.find((n) => n?.id === gid) ?? nodes[fallbackIndex];
+    return node?.product?.priceRange?.minVariantPrice ?? node?.price;
+  };
+  const tshirt = priceOf(TSHIRT_PRICE_VARIANT_GID, 0);
+  const poster = priceOf(POSTER_PRICE_VARIANT_GID, 1);
 
   if (!tshirt || !poster) {
+    console.error(
+      '[getMerchPrices] incomplete price data — raw response:',
+      JSON.stringify(shopifyData)
+    );
     throw new HttpsError('internal', 'Shopify returned incomplete price data.');
   }
 
