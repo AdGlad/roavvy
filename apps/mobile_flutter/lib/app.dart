@@ -203,17 +203,29 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
   bool _showRestoreIndicator = false;
   Timer? _restoreTimer;
 
+  // Offline-first safety net: never sit on the startup spinner indefinitely. If
+  // a startup provider hasn't resolved after this window (e.g. a stuck network
+  // read that somehow escapes its own timeout), force the app into the shell —
+  // the app is fully usable offline and background sync catches up later.
+  static const _startupWatchdog = Duration(seconds: 10);
+  bool _forceProceed = false;
+  Timer? _watchdogTimer;
+
   @override
   void initState() {
     super.initState();
     _restoreTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _showRestoreIndicator = true);
     });
+    _watchdogTimer = Timer(_startupWatchdog, () {
+      if (mounted && !_forceProceed) setState(() => _forceProceed = true);
+    });
   }
 
   @override
   void dispose() {
     _restoreTimer?.cancel();
+    _watchdogTimer?.cancel();
     super.dispose();
   }
 
@@ -245,8 +257,12 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
     // Cancel the restore indicator timer once startup finishes.
     if (!startupAsync.isLoading) _restoreTimer?.cancel();
 
-    // Show loading until startup and initial checks are resolved.
-    if (startupAsync.isLoading || termsAsync.isLoading || onboardingAsync.isLoading) {
+    // Show loading until startup and initial checks are resolved — unless the
+    // watchdog has fired, in which case proceed regardless (offline-first).
+    final stillLoading = startupAsync.isLoading ||
+        termsAsync.isLoading ||
+        onboardingAsync.isLoading;
+    if (stillLoading && !_forceProceed) {
       return Scaffold(
         body: Center(
           child: Column(
@@ -273,16 +289,15 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return onboardingAsync.when(
-      data:
-          (complete) =>
-              complete
-                  ? MainShell(openScanOnLoad: _openScanOnLoad)
-                  : OnboardingFlow(onComplete: _completeOnboarding),
-      loading:
-          () =>
-              const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (_, __) => const MainShell(),
-    );
+    // If the watchdog forced us past a stalled onboarding read, default to the
+    // shell (a returning user's normal state) rather than falling back into a
+    // spinner. Errors already fall through to the shell too.
+    final onboardingComplete = onboardingAsync.valueOrNull;
+    if (onboardingComplete == null && !_forceProceed) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return (onboardingComplete ?? true)
+        ? MainShell(openScanOnLoad: _openScanOnLoad)
+        : OnboardingFlow(onComplete: _completeOnboarding);
   }
 }
