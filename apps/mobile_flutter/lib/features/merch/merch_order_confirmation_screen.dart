@@ -1,11 +1,15 @@
+import 'dart:ui' as ui;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers.dart';
+import 'merch_share_exporter.dart';
 import 'merch_variant_lookup.dart';
 import 'shopify_pricing_repository.dart';
 
@@ -97,6 +101,61 @@ class MerchOrderConfirmationScreen extends ConsumerStatefulWidget {
 
 class _MerchOrderConfirmationScreenState
     extends ConsumerState<MerchOrderConfirmationScreen> {
+  // Boundary around the mockup so the Share button can capture exactly what the
+  // user sees (the Printful mockup).
+  final GlobalKey _mockupKey = GlobalKey();
+
+  /// The design is already persisted to the cart (created at approve time), so
+  /// "Save to Cart" just confirms it and leaves the checkout flow — the item
+  /// stays in the cart for later.
+  void _saveToCart() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Saved to your cart — check out any time.'),
+      ),
+    );
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  Future<void> _shareMockup() async {
+    final bytes = await _captureMockup() ?? widget.artworkBytes;
+    if (!mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    final ok = await MerchShareExporter.share(
+      bytes,
+      title: 'My Roavvy Design',
+      shareText: 'My travel design, made with Roavvy 🌍',
+      sharePositionOrigin: origin,
+      fileName: 'roavvy_mockup.png',
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t open the share sheet. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  /// Rasterises the mockup boundary to PNG bytes; null if not yet renderable.
+  Future<Uint8List?> _captureMockup() async {
+    try {
+      final boundary =
+          _mockupKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      return data?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _launchCheckout() async {
     if (!mounted) return;
     // Notify parent immediately (starts polling / marks cart started), then
@@ -121,7 +180,16 @@ class _MerchOrderConfirmationScreenState
         MerchProduct.tshirt.fromPrice;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Review Your Order')),
+      appBar: AppBar(
+        title: const Text('Review Your Order'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share Mockup',
+            onPressed: _shareMockup,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -130,11 +198,14 @@ class _MerchOrderConfirmationScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _MockupSection(
-                    frontMockupUrl: widget.frontMockupUrl,
-                    backMockupUrl: widget.backMockupUrl,
-                    frontArtworkBytes: widget.frontArtworkBytes,
-                    artworkBytes: widget.artworkBytes,
+                  RepaintBoundary(
+                    key: _mockupKey,
+                    child: _MockupSection(
+                      frontMockupUrl: widget.frontMockupUrl,
+                      backMockupUrl: widget.backMockupUrl,
+                      frontArtworkBytes: widget.frontArtworkBytes,
+                      artworkBytes: widget.artworkBytes,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   _OrderSummaryCard(
@@ -171,9 +242,22 @@ class _MerchOrderConfirmationScreenState
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Go Back'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _saveToCart,
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                    label: const Text('Save to Cart'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Go Back'),
+                  ),
+                ],
               ),
             ),
           ),
