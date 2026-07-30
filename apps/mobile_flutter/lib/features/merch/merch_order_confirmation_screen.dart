@@ -10,7 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers.dart';
 import 'merch_share_exporter.dart';
-import 'merch_variant_lookup.dart';
 import 'shopify_pricing_repository.dart';
 
 // Colour swatches — mirrors _kSwatchColours in local_mockup_preview_screen.dart.
@@ -181,15 +180,10 @@ class _MerchOrderConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Prefer the exact cart total returned by createMerchCart (matches the
-    // Shopify checkout); fall back to the product "from" estimate only when it
-    // isn't available.
-    final prices = ref.watch(shopifyPricingProvider);
-    final exact = widget.exactPrice;
-    final priceStr = exact ??
-        (prices.whenOrNull(data: (p) => p.tshirtFromPrice) ??
-            MerchProduct.tshirt.fromPrice);
-    final priceLabel = exact != null ? priceStr : 'from $priceStr';
+    // Show the exact cart total returned by createMerchCart (matches the Shopify
+    // checkout). If it isn't available we do NOT guess or fall back to an
+    // estimate — we say the price is confirmed at checkout.
+    final priceLabel = widget.exactPrice ?? kPriceConfirmedAtCheckout;
 
     return Scaffold(
       appBar: AppBar(

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'merch_option_list_widgets.dart' show MerchFromPriceText;
 import 'merch_variant_lookup.dart';
 import 'merch_variant_screen.dart';
 
@@ -165,11 +166,10 @@ class _ProductCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Text(
-                    'From ${product.fromPrice}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                  MerchFromPriceText(
+                    fontSize: theme.textTheme.bodyMedium?.fontSize ?? 14,
+                    fontWeight: FontWeight.w600,
+                    color: theme.textTheme.bodyMedium?.color,
                   ),
                 ],
               ),

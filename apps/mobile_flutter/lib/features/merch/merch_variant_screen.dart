@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../cards/card_image_renderer.dart';
 import 'flag_grid_preview.dart';
+import 'merch_option_list_widgets.dart' show MerchFromPriceText;
 import 'merch_post_purchase_screen.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_screen.dart';
@@ -645,11 +646,10 @@ class _MerchVariantScreenState extends State<MerchVariantScreen>
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'From ${widget.product.fromPrice}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                MerchFromPriceText(
+                  fontSize: theme.textTheme.bodyMedium?.fontSize ?? 14,
+                  fontWeight: FontWeight.w600,
+                  color: theme.textTheme.bodyMedium?.color,
                 ),
               ],
             ),

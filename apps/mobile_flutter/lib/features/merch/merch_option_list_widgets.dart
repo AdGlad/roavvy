@@ -708,7 +708,7 @@ class _MerchOptionCardState extends State<MerchOptionCard>
           ],
         ),
         const SizedBox(height: 4),
-        const _MerchFromPriceText(fontSize: 10),
+        const MerchFromPriceText(fontSize: 10),
       ],
     );
   }
@@ -1008,7 +1008,7 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
-                          const _MerchFromPriceText(fontSize: 11),
+                          const MerchFromPriceText(fontSize: 11),
                           const SizedBox(height: 10),
                           Row(
                             children: [
@@ -2044,22 +2044,31 @@ class MerchLockedDesignCard extends StatelessWidget {
 
 /// Displays the "from `price`" label for the t-shirt in the buyer's currency.
 ///
-/// Fetches live pricing from Shopify via [shopifyPricingProvider] and falls
-/// back to the hardcoded GBP price while loading or on error.
-class _MerchFromPriceText extends ConsumerWidget {
-  const _MerchFromPriceText({required this.fontSize});
+/// Live Shopify "from" price for a t-shirt via [shopifyPricingProvider]. Shows
+/// [kPriceConfirmedAtCheckout] when the price isn't known — never a hardcoded
+/// or defaulted amount.
+class MerchFromPriceText extends ConsumerWidget {
+  const MerchFromPriceText({
+    super.key,
+    required this.fontSize,
+    this.fontWeight,
+    this.color,
+  });
   final double fontSize;
+  final FontWeight? fontWeight;
+  final Color? color;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prices = ref.watch(shopifyPricingProvider);
-    final priceStr = prices.whenOrNull(data: (p) => p.tshirtFromPrice) ??
-        MerchProduct.tshirt.fromPrice;
+    final priceStr = prices.whenOrNull(data: (p) => p.tshirtFromPrice);
     return Text(
-      'from $priceStr',
+      priceStr != null ? 'from $priceStr' : kPriceConfirmedAtCheckout,
       style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+        color: color ??
+            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
         fontSize: fontSize,
+        fontWeight: fontWeight,
       ),
     );
   }

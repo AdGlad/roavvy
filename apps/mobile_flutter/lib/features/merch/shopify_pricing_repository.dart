@@ -3,37 +3,29 @@ import 'dart:io';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Shown wherever a real Shopify price isn't available. We never invent or
+/// default an amount that could disagree with the Shopify checkout — the exact
+/// total is confirmed there.
+const String kPriceConfirmedAtCheckout = 'Price confirmed at checkout';
+
 /// Prices returned by the `getMerchPrices` Firebase function.
 class MerchPrices {
-  const MerchPrices({
-    required this.tshirtFromPrice,
-    required this.posterFromPrice,
-  });
+  const MerchPrices({this.tshirtFromPrice, this.posterFromPrice});
 
-  /// Formatted price string with currency symbol, e.g. "AU$59.99".
-  final String tshirtFromPrice;
-  final String posterFromPrice;
+  /// Live Shopify "from" price (buyer currency), e.g. "AU$29.99", or **null**
+  /// when unknown — callers must show [kPriceConfirmedAtCheckout], never a
+  /// hardcoded amount.
+  final String? tshirtFromPrice;
+  final String? posterFromPrice;
 
-  // Placeholder shown only while the live Shopify price loads or on error. Uses
-  // the default market (AU$) rather than a hardcoded £ so the purchase flow
-  // never flashes the wrong currency; the live per-buyer price overrides it.
-  static const _fallback = MerchPrices(
-    tshirtFromPrice: 'AU\$59.99',
-    posterFromPrice: 'AU\$49.99',
-  );
+  /// Unknown prices — while loading or when the Shopify fetch fails. Deliberately
+  /// carries no amount so nothing is ever guessed.
+  static const unknown = MerchPrices();
 
-  static MerchPrices? _fromJson(Map<String, dynamic> data) {
-    try {
-      final tshirt = data['tshirtPrice'] as Map<String, dynamic>;
-      final poster = data['posterPrice'] as Map<String, dynamic>;
-      return MerchPrices(
-        tshirtFromPrice: _format(tshirt),
-        posterFromPrice: _format(poster),
+  static MerchPrices _fromJson(Map<String, dynamic> data) => MerchPrices(
+        tshirtFromPrice: formatMoney(data['tshirtPrice']),
+        posterFromPrice: formatMoney(data['posterPrice']),
       );
-    } catch (_) {
-      return null;
-    }
-  }
 
   /// Formats a Shopify Money map (`{amount, currencyCode}`) into a display
   /// string like "AU$29.99". Returns null when the map is missing/malformed.
@@ -43,15 +35,6 @@ class MerchPrices {
     if (amount == null) return null;
     final currency = money['currencyCode']?.toString() ?? 'GBP';
     return '${_symbol(currency)}${amount.toStringAsFixed(2)}';
-  }
-
-  static String _format(Map<String, dynamic> money) {
-    final amount = double.tryParse(money['amount'] as String? ?? '') ?? 0.0;
-    final currency = money['currencyCode'] as String? ?? 'GBP';
-    // Use the currency code as prefix for non-GBP/EUR/USD currencies so the
-    // user sees e.g. "AU$59.99" rather than just "$59.99".
-    final symbol = _symbol(currency);
-    return '$symbol${amount.toStringAsFixed(2)}';
   }
 
   static String _symbol(String currencyCode) {
@@ -97,8 +80,8 @@ final shopifyPricingProvider = FutureProvider<MerchPrices>((ref) async {
     final result = await callable.call<Map<String, dynamic>>({
       'countryCode': buyerCountryCode(),
     });
-    return MerchPrices._fromJson(result.data) ?? MerchPrices._fallback;
+    return MerchPrices._fromJson(result.data);
   } catch (_) {
-    return MerchPrices._fallback;
+    return MerchPrices.unknown;
   }
 });

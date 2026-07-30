@@ -87,6 +87,7 @@ MerchOrderConfirmationScreen _defaultScreen({
   String? frontMockupUrl,
   String? backMockupUrl,
   Uint8List? frontArtworkBytes,
+  String? exactPrice,
   VoidCallback? onCheckoutLaunched,
 }) => MerchOrderConfirmationScreen(
   frontMockupUrl: frontMockupUrl,
@@ -100,6 +101,7 @@ MerchOrderConfirmationScreen _defaultScreen({
   templateType: CardTemplateType.passport,
   checkoutUrl: 'https://example.com/checkout',
   isTshirt: true,
+  exactPrice: exactPrice,
   onCheckoutLaunched: onCheckoutLaunched,
 );
 
@@ -166,6 +168,23 @@ void main() {
       await tester.pumpWidget(_wrap(_defaultScreen()));
 
       expect(find.text('Review Your Order'), findsOneWidget);
+    });
+
+    testWidgets('shows the exact price when provided', (tester) async {
+      await tester.pumpWidget(_wrap(_defaultScreen(exactPrice: 'AU\$29.99')));
+      await tester.pump();
+      expect(find.text('AU\$29.99'), findsOneWidget);
+      expect(find.textContaining('confirmed at checkout'), findsNothing);
+    });
+
+    testWidgets('says price confirmed at checkout when exact price is null',
+        (tester) async {
+      await tester.pumpWidget(_wrap(_defaultScreen()));
+      await tester.pump();
+      // No invented/defaulted amount is shown.
+      expect(find.text('Price confirmed at checkout'), findsOneWidget);
+      expect(find.textContaining('\$59.99'), findsNothing);
+      expect(find.textContaining('from'), findsNothing);
     });
 
     testWidgets('Go Back pops the navigator', (tester) async {
