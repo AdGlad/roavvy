@@ -150,6 +150,10 @@ export const CART_CREATE_MUTATION = `
       cart {
         id
         checkoutUrl
+        cost {
+          totalAmount { amount currencyCode }
+          subtotalAmount { amount currencyCode }
+        }
       }
       userErrors {
         field
@@ -691,6 +695,9 @@ export const createMerchCart = onCall<
       checkoutUrl: cart.checkoutUrl,
       cartId: cart.id,
       merchConfigId: configId,
+      // Exact cart total (buyer currency) so the Review screen matches the
+      // Shopify checkout price rather than a product-level "from" estimate.
+      totalPrice: cart.cost?.totalAmount ?? cart.cost?.subtotalAmount ?? null,
       frontMockupUrl: null,
       backMockupUrl: null,
     };

@@ -35,6 +35,16 @@ class MerchPrices {
     }
   }
 
+  /// Formats a Shopify Money map (`{amount, currencyCode}`) into a display
+  /// string like "AU$29.99". Returns null when the map is missing/malformed.
+  static String? formatMoney(Object? money) {
+    if (money is! Map) return null;
+    final amount = double.tryParse(money['amount']?.toString() ?? '');
+    if (amount == null) return null;
+    final currency = money['currencyCode']?.toString() ?? 'GBP';
+    return '${_symbol(currency)}${amount.toStringAsFixed(2)}';
+  }
+
   static String _format(Map<String, dynamic> money) {
     final amount = double.tryParse(money['amount'] as String? ?? '') ?? 0.0;
     final currency = money['currencyCode'] as String? ?? 'GBP';

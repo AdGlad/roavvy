@@ -306,6 +306,9 @@ class _LocalMockupPreviewScreenState
   /// Back mockup URL from Printful (back placement view — separate from front).
   String? _backMockupUrl;
   String? _merchConfigId;
+  // Exact Shopify cart total (buyer currency) returned by createMerchCart, so
+  // the Review screen shows the real checkout price, not a "from" estimate.
+  String? _exactPrice;
   bool _checkoutLaunched = false;
 
   /// Guards against starting a second Firestore poll while one is already
@@ -2014,7 +2017,9 @@ class _LocalMockupPreviewScreenState
           final mockupUrl = result.data['frontMockupUrl'] as String?;
           final backMockupUrl = result.data['backMockupUrl'] as String?;
           final merchConfigId = result.data['merchConfigId'] as String?;
+          final exactPrice = MerchPrices.formatMoney(result.data['totalPrice']);
           debugPrint('[mockup] step 4: response received');
+          debugPrint('[mockup]   totalPrice=${exactPrice ?? "✗ null"}');
           debugPrint(
             '[mockup]   checkoutUrl=${checkoutUrl != null ? "✓ present" : "✗ null"}',
           );
@@ -2044,6 +2049,7 @@ class _LocalMockupPreviewScreenState
           // the photorealistic preview in the background.
           _checkoutUrl = checkoutUrl;
           _merchConfigId = merchConfigId;
+          _exactPrice = exactPrice;
           _mockupUrl = mockupUrl;
           _backMockupUrl = backMockupUrl;
 
@@ -2298,6 +2304,8 @@ class _LocalMockupPreviewScreenState
               backPosition: _backPosition,
               templateType: _template,
               checkoutUrl: url,
+              // Exact Shopify total so the Review price matches checkout.
+              exactPrice: _exactPrice,
               // Enables the post-checkout verification poll so success is only
               // shown after the order is really paid/ordered (M194).
               merchConfigId: _merchConfigId,

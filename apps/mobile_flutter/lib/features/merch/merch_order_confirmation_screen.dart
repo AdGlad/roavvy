@@ -45,9 +45,15 @@ class MerchOrderConfirmationScreen extends ConsumerStatefulWidget {
     required this.templateType,
     required this.checkoutUrl,
     required this.isTshirt,
+    this.exactPrice,
     this.onCheckoutLaunched,
     this.merchConfigId,
   });
+
+  /// Exact Shopify cart total (already formatted, buyer currency) — shown as the
+  /// price so it matches the checkout. Falls back to the product "from" estimate
+  /// when null.
+  final String? exactPrice;
 
   /// Printful front mockup URL. May be null if still generating.
   final String? frontMockupUrl;
@@ -175,9 +181,15 @@ class _MerchOrderConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Prefer the exact cart total returned by createMerchCart (matches the
+    // Shopify checkout); fall back to the product "from" estimate only when it
+    // isn't available.
     final prices = ref.watch(shopifyPricingProvider);
-    final priceStr = prices.whenOrNull(data: (p) => p.tshirtFromPrice) ??
-        MerchProduct.tshirt.fromPrice;
+    final exact = widget.exactPrice;
+    final priceStr = exact ??
+        (prices.whenOrNull(data: (p) => p.tshirtFromPrice) ??
+            MerchProduct.tshirt.fromPrice);
+    final priceLabel = exact != null ? priceStr : 'from $priceStr';
 
     return Scaffold(
       appBar: AppBar(
@@ -222,7 +234,7 @@ class _MerchOrderConfirmationScreenState
                   // Price display (M168)
                   Center(
                     child: Text(
-                      'from $priceStr',
+                      priceLabel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),

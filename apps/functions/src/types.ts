@@ -220,6 +220,10 @@ export interface ShopifyCartCreateResponse {
       cart?: {
         id: string;
         checkoutUrl: string;
+        cost?: {
+          totalAmount?: { amount: string; currencyCode: string };
+          subtotalAmount?: { amount: string; currencyCode: string };
+        };
       };
       userErrors: Array<{ field: string[]; message: string }>;
     };
