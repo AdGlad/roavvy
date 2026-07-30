@@ -120,6 +120,8 @@ class CardGeneratorScreen extends ConsumerStatefulWidget {
 class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
   CardTemplateType _selected = CardTemplateType.grid;
   HeartFlagOrder _heartOrder = HeartFlagOrder.randomized;
+  // Journeys type: flags vs trips stops (year slider filters the trips shown).
+  JourneyStyle _journeyStyle = JourneyStyle.flags;
   bool _entryOnly = false;
   bool _portrait = true; // Default to Portrait (ADR-117)
   RangeValues? _yearSelection; // null = full range
@@ -310,6 +312,25 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                               label: 'Newest first',
                               selected: _newestFirst,
                               onTap: () => setState(() => _newestFirst = true),
+                            ),
+                          ],
+                        ),
+                      if (_selected == CardTemplateType.journeys)
+                        _ChipRow(
+                          children: [
+                            _OptionChip(
+                              label: 'Flags',
+                              selected: _journeyStyle == JourneyStyle.flags,
+                              onTap: () => setState(
+                                () => _journeyStyle = JourneyStyle.flags,
+                              ),
+                            ),
+                            _OptionChip(
+                              label: 'Trips',
+                              selected: _journeyStyle == JourneyStyle.trips,
+                              onTap: () => setState(
+                                () => _journeyStyle = JourneyStyle.trips,
+                              ),
                             ),
                           ],
                         ),
@@ -521,6 +542,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
         return JourneyCard(
           countryCodes: codes,
           trips: trips,
+          style: _journeyStyle,
           aspectRatio: _aspectRatio,
           dateLabel: dateLabel,
           title: _titleOverride,
@@ -832,6 +854,7 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
               artworkImageBytes: _artworkImageBytes!,
               artworkConfirmationId: _artworkConfirmationId!,
               initialTemplate: _selected,
+              initialJourneyStyle: _journeyStyle,
               confirmedAspectRatio: _aspectRatio,
               confirmedEntryOnly: _entryOnly,
               cardId: cardId,

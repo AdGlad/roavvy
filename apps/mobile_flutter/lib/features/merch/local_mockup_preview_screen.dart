@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
@@ -95,6 +96,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.stampLayoutSeed,
     this.initialColour,
     this.subtitleOverride,
+    this.initialJourneyStyle = JourneyStyle.flags,
     this.gridLayoutMode = FlagGridLayoutMode.packedRow,
     this.clipShape = GridClipShape.none,
     this.flagRepeatCount = 1,
@@ -122,6 +124,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   final MerchPreset? initialPreset;
   final String? artworkConfirmationId;
   final CardTemplateType initialTemplate;
+
+  /// Initial Journey style when [initialTemplate] is `journeys` (carried over
+  /// from the card editor/generator so the merch preview matches).
+  final JourneyStyle initialJourneyStyle;
 
   /// Aspect ratio of the confirmed artwork (ADR-112). Used when re-rendering
   /// after a template change so the new render matches the original dimensions.
@@ -213,7 +219,7 @@ class _LocalMockupPreviewScreenState
   late CardTemplateType _template;
   late FlagGridLayoutMode _gridLayoutMode;
   // Journeys type (CardTemplateType.journeys): style + optional trip year filter.
-  JourneyStyle _journeyStyle = JourneyStyle.flags;
+  late JourneyStyle _journeyStyle;
   (int, int)? _journeyYearRange;
   bool _isPortrait = true;
   int _shuffleSeed = 0; // 0 = use widget.stampLayoutSeed (deterministic)
@@ -289,6 +295,10 @@ class _LocalMockupPreviewScreenState
   // ── Ready-state checkout data ──────────────────────────────────────────────
 
   String? _checkoutUrl;
+
+  /// Boundary around the mockup canvas so the Share button can capture exactly
+  /// what the user sees (the Printful mockup, or the local shirt preview).
+  final GlobalKey _mockupShareKey = GlobalKey();
 
   /// Front mockup URL from Printful (front or chest placement view).
   String? _mockupUrl;
@@ -484,6 +494,13 @@ class _LocalMockupPreviewScreenState
   void initState() {
     super.initState();
     _template = widget.initialTemplate;
+    _journeyStyle = widget.initialJourneyStyle;
+    // When arriving already on the trips style, default the year filter to the
+    // full available range so every trip shows until the user narrows it.
+    if (_journeyStyle == JourneyStyle.trips) {
+      final years = JourneyCard.tripYears(widget.trips);
+      if (years.length >= 2) _journeyYearRange = (years.first, years.last);
+    }
     _gridLayoutMode = widget.gridLayoutMode;
     // Flag-grid clip / rows are live-editable on this screen (M187). Seed from
     // the incoming widget values; the base clip-option strip is available
@@ -2206,17 +2223,62 @@ class _LocalMockupPreviewScreenState
   }
 
   Future<void> _shareDesign() async {
-    final bytes = _artworkBytes;
-    if (bytes == null) return;
+    // Share the SHIRT MOCKUP the user is looking at (Printful photorealistic
+    // mockup or the local shirt preview) — not the flat artwork. Capture the
+    // mockup canvas; fall back to the flat artwork only if capture fails.
+    final mockupBytes = await _captureMockup();
+    final bytes = mockupBytes ?? _artworkBytes;
+    if (bytes == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nothing to share yet.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+
     final title = _titleOverride?.trim();
-    await MerchShareExporter.share(
+    // iPad needs a non-zero anchor rect or the share sheet silently no-ops.
+    final box = context.findRenderObject() as RenderBox?;
+    final origin =
+        (box != null && box.hasSize)
+            ? box.localToGlobal(Offset.zero) & box.size
+            : null;
+
+    final ok = await MerchShareExporter.share(
       bytes,
       title: (title != null && title.isNotEmpty) ? title : 'My Travel Design',
       shareText:
           (title != null && title.isNotEmpty)
               ? '$title — my travel design, made with Roavvy 🌍'
               : 'My travel design, made with Roavvy 🌍',
+      sharePositionOrigin: origin,
+      fileName: 'roavvy_mockup.png',
     );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t open the share sheet. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  /// Rasterises the mockup canvas ([RepaintBoundary]) to PNG bytes so the
+  /// on-screen shirt preview can be shared. Returns null if not yet renderable.
+  Future<Uint8List?> _captureMockup() async {
+    try {
+      final ctx = _mockupShareKey.currentContext;
+      final boundary = ctx?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      return data?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
   }
 
   void _openConfirmationScreen() {
@@ -2313,7 +2375,10 @@ class _LocalMockupPreviewScreenState
             // ── Background Mockup Canvas (Full Screen) ──────────────────────
             Positioned.fill(
               bottom: 80, // Leave some space for the floating bottom bar
-              child: _buildMockupArea(theme),
+              child: RepaintBoundary(
+                key: _mockupShareKey,
+                child: _buildMockupArea(theme),
+              ),
             ),
 
             // ── Immersive Config Tray (Draggable) ───────────────────────────

@@ -124,6 +124,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   HeartFlagOrder _order = HeartFlagOrder.randomized;
   int _gridShuffleSeed = 0;
   FlagGridLayoutMode _gridLayoutMode = FlagGridLayoutMode.packedRow;
+  // Journeys type: flags (countries) vs trips (dated stops). The year slider
+  // (shown whenever there are ≥2 trip years) filters the trips fed to the card.
+  JourneyStyle _journeyStyle = JourneyStyle.flags;
   bool _entryOnly = false;
   bool _portrait = true;
   int? _stampLayoutSeed; // null = deterministic hash default (passport only)
@@ -565,6 +568,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   onToggle: onCountryToggle,
                 ),
               ],
+              // ── Journey style (flags vs trips) ───────────────────────
+              if (widget.templateType == CardTemplateType.journeys) ...[
+                const SizedBox(height: 4),
+                _JourneyStylePicker(
+                  style: _journeyStyle,
+                  onChanged: (s) => setState(() => _journeyStyle = s),
+                ),
+              ],
               // ── Photo background (grid only) ─────────────────────────
               if (widget.templateType == CardTemplateType.grid) ...[
                 const SizedBox(height: 4),
@@ -802,6 +813,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         return JourneyCard(
           countryCodes: codes,
           trips: trips,
+          style: _journeyStyle,
           aspectRatio: _aspectRatio,
           title: _titleOverride,
           subtitleOverride: _subtitleOverride,
@@ -1131,6 +1143,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
               artworkImageBytes: _artworkImageBytes!,
               artworkConfirmationId: null,
               initialTemplate: widget.templateType,
+              initialJourneyStyle: _journeyStyle,
               confirmedAspectRatio: _aspectRatio,
               confirmedEntryOnly: _entryOnly,
               cardId: cardId,
@@ -2092,6 +2105,56 @@ class _GridLayoutPicker extends StatelessWidget {
                       )
                       .toList(),
               selected: {mode},
+              onSelectionChanged: (s) => onChanged(s.first),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Flags ↔ Trips toggle for the Journeys card type. Trips places dated stops in
+/// chronological order (year-labelled); the year slider filters which appear.
+class _JourneyStylePicker extends StatelessWidget {
+  const _JourneyStylePicker({required this.style, required this.onChanged});
+
+  final JourneyStyle style;
+  final ValueChanged<JourneyStyle> onChanged;
+
+  static const _labels = {
+    JourneyStyle.flags: 'Flags',
+    JourneyStyle.trips: 'Trips',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          const Text(
+            'Stops',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SegmentedButton<JourneyStyle>(
+              style: SegmentedButton.styleFrom(
+                textStyle: const TextStyle(fontSize: 11),
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 30),
+              ),
+              segments:
+                  JourneyStyle.values
+                      .map(
+                        (s) => ButtonSegment<JourneyStyle>(
+                          value: s,
+                          label: Text(_labels[s]!),
+                        ),
+                      )
+                      .toList(),
+              selected: {style},
               onSelectionChanged: (s) => onChanged(s.first),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,20 +19,26 @@ class MerchShareExporter {
   /// only image sharing is supported.
   ///
   /// Returns true if the share sheet was presented successfully.
+  /// [sharePositionOrigin] anchors the share popover on iPad (required there, or
+  /// the sheet silently fails to present); ignored on other platforms.
+  /// [fileName] lets callers distinguish a shirt mockup from the flat artwork.
   static Future<bool> share(
     Uint8List artworkBytes, {
     String title = 'My Travel Design',
     String? shareText,
+    Rect? sharePositionOrigin,
+    String fileName = 'roavvy_design.png',
   }) async {
     try {
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/roavvy_design.png');
+      final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(artworkBytes);
 
       final result = await Share.shareXFiles(
         [XFile(file.path, mimeType: 'image/png')],
         subject: title,
         text: shareText,
+        sharePositionOrigin: sharePositionOrigin,
       );
 
       return result.status == ShareResultStatus.success ||
