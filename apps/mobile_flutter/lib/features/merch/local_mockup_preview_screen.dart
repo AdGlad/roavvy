@@ -15,6 +15,7 @@ import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../cards/artwork_confirmation_service.dart';
 import '../cards/card_image_renderer.dart';
+import '../cards/card_templates.dart' show GridFlagsCard;
 import '../cards/journey_card.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import '../cards/title_generation/title_generation_models.dart';
@@ -2807,12 +2808,16 @@ class _LocalMockupPreviewScreenState
         // now fully editable here with a live mockup refresh.
         if (_gridStyleApplies) ...[
           const SizedBox(height: 12),
-          const _MiniLabel('Style'),
+          const _MiniLabel('Style — swipe to preview'),
           const SizedBox(height: 6),
-          _ClipShapeStrip(
+          _ClipShapeCarousel(
             options: _clipOptions,
             selectedShape: _clipShape,
             selectedClipCode: _clipCode,
+            codes: _gridCodes,
+            flagRepeatCount: _flagRepeatCount,
+            textColor: _gridTextColor,
+            shirtColour: _kSwatchColours[_colour] ?? Colors.black,
             enabled:
                 _state != _MockupState.rerendering &&
                 _state != _MockupState.approving,
@@ -4119,11 +4124,19 @@ class _MiniLabel extends StatelessWidget {
 /// and the large mockup re-renders in place. Silhouette chips stream in as the
 /// async option load completes, so the strip starts with Grid/Heart/Circle and
 /// grows.
-class _ClipShapeStrip extends StatelessWidget {
-  const _ClipShapeStrip({
+/// Swipeable carousel of clip-shape options rendered as live t-shirt design
+/// previews. Swiping right→left browses the shapes (heart, circle, country /
+/// continent outline, animal / plant / landmark silhouettes); the centred card
+/// is the selection, applied to the design as you land on it (M-swipe-clips).
+class _ClipShapeCarousel extends StatefulWidget {
+  const _ClipShapeCarousel({
     required this.options,
     required this.selectedShape,
     required this.selectedClipCode,
+    required this.codes,
+    required this.flagRepeatCount,
+    required this.textColor,
+    required this.shirtColour,
     required this.enabled,
     required this.onSelected,
   });
@@ -4131,85 +4144,136 @@ class _ClipShapeStrip extends StatelessWidget {
   final List<FlagClipOption> options;
   final GridClipShape selectedShape;
   final String? selectedClipCode;
+  final List<String> codes;
+  final int flagRepeatCount;
+  final Color? textColor;
+  final Color shirtColour;
   final bool enabled;
   final ValueChanged<FlagClipOption> onSelected;
 
-  IconData _iconFor(GridClipShape shape) => switch (shape) {
-    GridClipShape.none => Icons.grid_view_rounded,
-    GridClipShape.heart => Icons.favorite_rounded,
-    GridClipShape.circle => Icons.circle_outlined,
-    GridClipShape.countryOutline => Icons.public_rounded,
-    GridClipShape.continentOutline => Icons.travel_explore_rounded,
-    GridClipShape.animalSilhouette => Icons.pets_rounded,
-    GridClipShape.plantSilhouette => Icons.local_florist_rounded,
-    GridClipShape.landmarkSilhouette => Icons.account_balance_rounded,
-  };
+  @override
+  State<_ClipShapeCarousel> createState() => _ClipShapeCarouselState();
+}
+
+class _ClipShapeCarouselState extends State<_ClipShapeCarousel> {
+  late PageController _controller;
+  late int _current;
+
+  int get _selectedIndex {
+    final i = widget.options.indexWhere(
+      (o) =>
+          o.shape == widget.selectedShape &&
+          o.clipCode == widget.selectedClipCode,
+    );
+    return i < 0 ? 0 : i;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _current = _selectedIndex;
+    _controller = PageController(viewportFraction: 0.58, initialPage: _current);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (options.isEmpty) {
-      return const SizedBox(height: 40);
-    }
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: options.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final opt = options[i];
-          final selected =
-              opt.shape == selectedShape && opt.clipCode == selectedClipCode;
-          return GestureDetector(
-            onTap: enabled && !selected ? () => onSelected(opt) : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color:
-                    selected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.3,
-                        ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color:
-                      selected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _iconFor(opt.shape),
-                    size: 14,
-                    color:
-                        selected
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    opt.label,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color:
-                          selected
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.onSurface,
-                      fontWeight:
-                          selected ? FontWeight.bold : FontWeight.w500,
+    if (widget.options.isEmpty) return const SizedBox(height: 40);
+    final current = _current.clamp(0, widget.options.length - 1);
+    return Column(
+      children: [
+        SizedBox(
+          height: 132,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.options.length,
+            physics: widget.enabled
+                ? const BouncingScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            onPageChanged: (i) {
+              setState(() => _current = i);
+              if (widget.enabled) widget.onSelected(widget.options[i]);
+            },
+            itemBuilder: (context, i) {
+              final opt = widget.options[i];
+              final selected = i == current;
+              return AnimatedScale(
+                scale: selected ? 1.0 : 0.88,
+                duration: const Duration(milliseconds: 150),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: widget.shirtColour,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline.withValues(alpha: 0.2),
+                        width: selected ? 2 : 1,
+                      ),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: GridFlagsCard(
+                        countryCodes: widget.codes,
+                        clipShape: opt.shape,
+                        clipCode: opt.clipCode,
+                        flagRepeatCount: widget.flagRepeatCount,
+                        transparentBackground: true,
+                        textColor: widget.textColor,
+                        aspectRatio: 1.0,
+                      ),
                     ),
                   ),
-                ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.options[current].label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (int i = 0; i < widget.options.length; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: i == current ? 16 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: i == current
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
-            ),
-          );
-        },
-      ),
+          ],
+        ),
+      ],
     );
   }
 }
