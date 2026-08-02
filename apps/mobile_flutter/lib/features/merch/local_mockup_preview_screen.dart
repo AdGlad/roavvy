@@ -908,6 +908,19 @@ class _LocalMockupPreviewScreenState
   }
 
   /// Applies a new clip shape: updates state, recomputes the shape's natural
+  /// Moves the clip selection by [delta] (wrapping) — used by swiping the
+  /// mockup. +1 = next shape, -1 = previous.
+  void _cycleClip(int delta) {
+    if (_clipOptions.length < 2) return;
+    final cur = _clipOptions.indexWhere(
+      (o) => o.shape == _clipShape && o.clipCode == _clipCode,
+    );
+    final base = cur < 0 ? 0 : cur;
+    final n = _clipOptions.length;
+    final next = ((base + delta) % n + n) % n;
+    unawaited(_onClipOptionSelected(_clipOptions[next]));
+  }
+
   /// orientation and a sensible default row count, then re-renders.
   Future<void> _onClipOptionSelected(FlagClipOption option) async {
     if (option.shape == _clipShape && option.clipCode == _clipCode) return;
@@ -2432,7 +2445,25 @@ class _LocalMockupPreviewScreenState
               bottom: 80, // Leave some space for the floating bottom bar
               child: RepaintBoundary(
                 key: _mockupShareKey,
-                child: _buildMockupArea(theme),
+                // On the flag grid, swipe the mockup left/right to cycle clip
+                // shapes (mirrors the carousel). Only while configuring — the
+                // inner InteractiveViewer has pan disabled so drags reach here.
+                child:
+                    (_gridStyleApplies &&
+                            _clipOptions.length > 1 &&
+                            _state == _MockupState.configuring)
+                        ? GestureDetector(
+                          onHorizontalDragEnd: (d) {
+                            final v = d.primaryVelocity ?? 0;
+                            if (v < -120) {
+                              _cycleClip(1);
+                            } else if (v > 120) {
+                              _cycleClip(-1);
+                            }
+                          },
+                          child: _buildMockupArea(theme),
+                        )
+                        : _buildMockupArea(theme),
               ),
             ),
 
@@ -3776,6 +3807,9 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
           transformationController: _transformationController,
           minScale: 1.0,
           maxScale: 4.0,
+          // Pan disabled so a single-finger horizontal drag reaches the
+          // clip-swipe handler on the parent; pinch-to-zoom still works.
+          panEnabled: false,
           child: _buildCurrentFace(),
         ),
       ),
