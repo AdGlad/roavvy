@@ -232,6 +232,9 @@ class _LocalMockupPreviewScreenState
   String? _clipCode;
   late int _flagRepeatCount;
   int? _rowCount;
+  // Flag grid source: false = one flag per distinct country; true = one flag per
+  // trip (a country visited N times appears N times, in visit order).
+  bool _flagPerTrip = false;
 
   /// Region fill mode for continent-outline designs: false = per-country flag
   /// fills; true = the whole region highlighted as one solid silhouette.
@@ -769,9 +772,9 @@ class _LocalMockupPreviewScreenState
       // Shuffle flag order when a shuffle seed is active (grid/landmark templates).
       final codes =
           _shuffleSeed != 0
-              ? (List<String>.from(widget.selectedCodes)
+              ? (List<String>.from(_gridCodes)
                 ..shuffle(math.Random(_shuffleSeed)))
-              : widget.selectedCodes;
+              : _gridCodes;
       // Only pass trips for the countries being designed — prevents stamps from
       // unrelated countries appearing when widget.trips is the full history.
       final codeSet = Set<String>.from(codes);
@@ -796,7 +799,10 @@ class _LocalMockupPreviewScreenState
         clipShape: _clipShape,
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
-        rowCount: _rowCount,
+        // Plain flag grid auto-packs (null) so every flag shows; only the
+        // continent region uses a fixed per-country row density.
+        rowCount:
+            _clipShape == GridClipShape.continentOutline ? _rowCount : null,
         regionSolidFill: _regionSolidFill,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
@@ -943,6 +949,13 @@ class _LocalMockupPreviewScreenState
     await _regenerateGridArtwork();
   }
 
+  /// Switches the flag grid between one flag per country and one flag per trip.
+  Future<void> _onFlagSourceChanged(bool perTrip) async {
+    if (perTrip == _flagPerTrip) return;
+    setState(() => _flagPerTrip = perTrip);
+    await _regenerateGridArtwork();
+  }
+
   /// Switches the Journeys design between the flags and trips styles.
   Future<void> _onJourneyStyleChanged(JourneyStyle style) async {
     if (style == _journeyStyle) return;
@@ -972,10 +985,12 @@ class _LocalMockupPreviewScreenState
   /// Row slider handler — updates state immediately (smooth slider) and
   /// debounces the re-render so it fires once the user pauses.
   void _onRowCountChanged(double value) {
-    final rows = value.round();
+    final n = value.round();
     setState(() {
-      _rowCount = rows;
-      _flagRepeatCount = rows;
+      // Plain flag grid: this is the repeat "Count" (rows auto-pack). Continent
+      // region designs still read _rowCount as the per-country flag density.
+      _flagRepeatCount = n;
+      _rowCount = n;
     });
     _gridControlDebounce?.cancel();
     _gridControlDebounce = Timer(const Duration(milliseconds: 400), () {
@@ -988,6 +1003,31 @@ class _LocalMockupPreviewScreenState
   /// this is the flag-grid template. Repeat count stays meaningful for every
   /// clip shape (it controls how densely flags tile inside the shape).
   bool get _gridStyleApplies => _template == CardTemplateType.grid;
+
+  /// Whether the current design has repeat visits to at least one country, so a
+  /// Countries↔Trips toggle is meaningful.
+  bool get _hasRepeatTrips {
+    final counts = <String, int>{};
+    for (final t in widget.trips) {
+      counts[t.countryCode] = (counts[t.countryCode] ?? 0) + 1;
+    }
+    return counts.values.any((c) => c > 1);
+  }
+
+  /// Base flag codes for the grid: distinct countries, or one entry per trip
+  /// (chronological) when [_flagPerTrip] is on. The engine then repeats each
+  /// entry [_flagRepeatCount] times.
+  List<String> get _gridCodes {
+    if (_template != CardTemplateType.grid || !_flagPerTrip) {
+      return widget.selectedCodes;
+    }
+    final sel = widget.selectedCodes.toSet();
+    final trips = [
+      ...widget.trips.where((t) => sel.contains(t.countryCode)),
+    ]..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+    if (trips.isEmpty) return widget.selectedCodes;
+    return [for (final t in trips) t.countryCode];
+  }
 
   // ── Passport stamp size / scatter ─────────────────────────────────────────
 
@@ -1322,7 +1362,7 @@ class _LocalMockupPreviewScreenState
       final result = await CardImageRenderer.render(
         context,
         _template,
-        codes: widget.selectedCodes,
+        codes: _gridCodes,
         trips: scopedTrips,
         // Passport uses forPrint=false so re-renders for stamp colour changes
         // use the same screen-layout (margins, sizeMultiplier, jitter) as the
@@ -1349,7 +1389,10 @@ class _LocalMockupPreviewScreenState
         clipShape: _clipShape,
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
-        rowCount: _rowCount,
+        // Plain flag grid auto-packs (null) so every flag shows; only the
+        // continent region uses a fixed per-country row density.
+        rowCount:
+            _clipShape == GridClipShape.continentOutline ? _rowCount : null,
         regionSolidFill: _regionSolidFill,
       );
       if (!mounted) return;
@@ -1398,7 +1441,7 @@ class _LocalMockupPreviewScreenState
       final result = await CardImageRenderer.render(
         context,
         _template,
-        codes: widget.selectedCodes,
+        codes: _gridCodes,
         trips: widget.trips,
         journeyStyle: _journeyStyle,
         journeyYearRange: _journeyYearRange,
@@ -1496,7 +1539,7 @@ class _LocalMockupPreviewScreenState
       final result = await CardImageRenderer.render(
         context,
         _template,
-        codes: widget.selectedCodes,
+        codes: _gridCodes,
         trips: widget.trips,
         journeyStyle: _journeyStyle,
         journeyYearRange: _journeyYearRange,
@@ -1511,7 +1554,10 @@ class _LocalMockupPreviewScreenState
         clipShape: _clipShape,
         flagRepeatCount: _flagRepeatCount,
         clipCode: _clipCode,
-        rowCount: _rowCount,
+        // Plain flag grid auto-packs (null) so every flag shows; only the
+        // continent region uses a fixed per-country row density.
+        rowCount:
+            _clipShape == GridClipShape.continentOutline ? _rowCount : null,
         regionSolidFill: _regionSolidFill,
         stampSeed: _shuffleSeed != 0 ? _shuffleSeed : widget.stampLayoutSeed,
       );
@@ -1536,7 +1582,7 @@ class _LocalMockupPreviewScreenState
       final result = await CardImageRenderer.render(
         context,
         _template,
-        codes: widget.selectedCodes,
+        codes: _gridCodes,
         trips: widget.trips,
         journeyStyle: _journeyStyle,
         journeyYearRange: _journeyYearRange,
@@ -2800,6 +2846,21 @@ class _LocalMockupPreviewScreenState
               const SizedBox(height: 10),
             ],
           ] else ...[
+            // Countries ↔ Trips: one flag per country, or one per trip (repeat
+            // visits repeat the flag). Only offered when a country was visited
+            // more than once.
+            if (_hasRepeatTrips) ...[
+              const _MiniLabel('Flags'),
+              const SizedBox(height: 6),
+              _FlagSourceSelector(
+                perTrip: _flagPerTrip,
+                enabled:
+                    _state != _MockupState.rerendering &&
+                    _state != _MockupState.approving,
+                onChanged: (v) => unawaited(_onFlagSourceChanged(v)),
+              ),
+              const SizedBox(height: 10),
+            ],
             const _MiniLabel('Layout'),
             const SizedBox(height: 6),
             _LayoutModeSelector(
@@ -2813,7 +2874,9 @@ class _LocalMockupPreviewScreenState
           ],
           Row(
             children: [
-              const _MiniLabel('Rows'),
+              _MiniLabel(
+                _clipShape == GridClipShape.continentOutline ? 'Rows' : 'Count',
+              ),
               const SizedBox(width: 8),
               Text(
                 '${_rowCount ?? _flagRepeatCount}',
@@ -4313,6 +4376,84 @@ class _LayoutModeSelector extends StatelessWidget {
             ),
           ),
           if (mode != choices.last.$1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+/// Segmented Countries ↔ Trips control for the flag grid. Countries shows one
+/// flag per distinct country; Trips shows one flag per trip (repeat visits
+/// repeat the flag), in visit order.
+class _FlagSourceSelector extends StatelessWidget {
+  const _FlagSourceSelector({
+    required this.perTrip,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool perTrip;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  static const _choices = <(bool, String, IconData)>[
+    (false, 'Countries', Icons.flag_rounded),
+    (true, 'Trips', Icons.event_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        for (final (value, label, icon) in _choices) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap:
+                  enabled && value != perTrip ? () => onChanged(value) : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: value == perTrip
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: value == perTrip
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 14,
+                      color: value == perTrip
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: value == perTrip
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.onSurface,
+                        fontWeight:
+                            value == perTrip ? FontWeight.bold : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (value != _choices.last.$1) const SizedBox(width: 8),
         ],
       ],
     );
