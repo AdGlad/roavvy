@@ -236,6 +236,9 @@ class _LocalMockupPreviewScreenState
   // Flag grid source: false = one flag per distinct country; true = one flag per
   // trip (a country visited N times appears N times, in visit order).
   bool _flagPerTrip = false;
+  // Direction the mockup slides when the clip/colour changes: true = new mockup
+  // flies in from the right (swipe left / next), false = from the left.
+  bool _slideFromRight = true;
 
   /// Region fill mode for continent-outline designs: false = per-country flag
   /// fills; true = the whole region highlighted as one solid silhouette.
@@ -918,6 +921,8 @@ class _LocalMockupPreviewScreenState
     final base = cur < 0 ? 0 : cur;
     final n = _clipOptions.length;
     final next = ((base + delta) % n + n) % n;
+    // Swipe left (delta > 0) → next mockup flies in from the right, and back.
+    _slideFromRight = delta > 0;
     unawaited(_onClipOptionSelected(_clipOptions[next]));
   }
 
@@ -2446,24 +2451,27 @@ class _LocalMockupPreviewScreenState
               child: RepaintBoundary(
                 key: _mockupShareKey,
                 // On the flag grid, swipe the mockup left/right to cycle clip
-                // shapes (mirrors the carousel). Only while configuring — the
-                // inner InteractiveViewer has pan disabled so drags reach here.
-                child:
-                    (_gridStyleApplies &&
-                            _clipOptions.length > 1 &&
-                            _state == _MockupState.configuring)
-                        ? GestureDetector(
-                          onHorizontalDragEnd: (d) {
+                // shapes (mirrors the carousel); the new clip's mockup slides in
+                // via the AnimatedSwitcher below. The GestureDetector is always
+                // present (handler nulled when inactive) so the tree — and the
+                // slide animation — stays stable across state changes. The inner
+                // InteractiveViewer has pan disabled so drags reach here.
+                child: GestureDetector(
+                  onHorizontalDragEnd:
+                      (_gridStyleApplies &&
+                              _clipOptions.length > 1 &&
+                              _state == _MockupState.configuring)
+                          ? (d) {
                             final v = d.primaryVelocity ?? 0;
                             if (v < -120) {
                               _cycleClip(1);
                             } else if (v > 120) {
                               _cycleClip(-1);
                             }
-                          },
-                          child: _buildMockupArea(theme),
-                        )
-                        : _buildMockupArea(theme),
+                          }
+                          : null,
+                  child: _buildMockupArea(theme),
+                ),
               ),
             ),
 
@@ -3296,7 +3304,7 @@ class _LocalMockupPreviewScreenState
             (child, animation) => ClipRect(
               child: SlideTransition(
                 position: Tween<Offset>(
-                  begin: const Offset(1.0, 0.0),
+                  begin: Offset(_slideFromRight ? 1.0 : -1.0, 0.0),
                   end: Offset.zero,
                 ).animate(
                   CurvedAnimation(parent: animation, curve: Curves.easeOut),
@@ -3313,7 +3321,8 @@ class _LocalMockupPreviewScreenState
               ],
             ),
         child: SizedBox.expand(
-          key: ValueKey(_colour),
+          // Key on colour AND clip so BOTH changes trigger the slide-in.
+          key: ValueKey('${_colour}_${_clipShape.name}_${_clipCode ?? ''}'),
           child: _ShirtFlipView(
             key: ValueKey('${_flipViewKey}_$showFront'),
             frontArtwork: _frontPosition != 'none' ? _frontRibbonImage : null,
