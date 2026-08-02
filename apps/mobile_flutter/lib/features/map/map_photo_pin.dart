@@ -157,7 +157,11 @@ class PhotoPinLayer extends ConsumerWidget {
     final selected = ref.watch(selectedMapPhotoProvider);
     if (selected == null) return const SizedBox.shrink();
 
-    const totalH = _kPinSize + _kPinTailHeight + _kPinAnchorSize;
+    // Include the ring (like totalW) — the thumbnail is _kPinSize + ring*2 tall,
+    // so omitting it made the marker box shorter than the pin column and the
+    // column overflowed the bottom.
+    const totalH =
+        _kPinSize + _kPinRingWidth * 2 + _kPinTailHeight + _kPinAnchorSize;
     return MarkerLayer(
       markers: [
         Marker(
@@ -201,7 +205,11 @@ class GlobeHeroPin extends ConsumerWidget {
     if (pt == null) return const SizedBox.shrink(); // behind the globe
 
     const totalW = _kPinSize + _kPinRingWidth * 2;
-    const totalH = _kPinSize + _kPinTailHeight + _kPinAnchorSize;
+    // Include the ring (like totalW) — the thumbnail is _kPinSize + ring*2 tall,
+    // so omitting it made the marker box shorter than the pin column and the
+    // column overflowed the bottom.
+    const totalH =
+        _kPinSize + _kPinRingWidth * 2 + _kPinTailHeight + _kPinAnchorSize;
     return Positioned(
       left: pt.dx - totalW / 2,
       top: pt.dy - totalH, // anchor dot sits exactly on the projected point
