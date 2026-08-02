@@ -2483,11 +2483,17 @@ class _LocalMockupPreviewScreenState
                 letterSpacing: 0.3,
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Shuffle button
-                GestureDetector(
+            // Wrap so the pills flow to a second line on narrow phones instead
+            // of overflowing the row on the right.
+            Flexible(
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  // Shuffle button
+                  GestureDetector(
                   onTap:
                       _state == _MockupState.rerendering ||
                               _state == _MockupState.approving
@@ -2524,7 +2530,6 @@ class _LocalMockupPreviewScreenState
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
                 // Orientation toggle
                 GestureDetector(
                   onTap:
@@ -2565,7 +2570,6 @@ class _LocalMockupPreviewScreenState
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
                 // Flip front/back
                 GestureDetector(
                   onTap:
@@ -2604,7 +2608,8 @@ class _LocalMockupPreviewScreenState
                     ),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
