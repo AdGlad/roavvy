@@ -166,10 +166,12 @@ class _ProductCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  MerchFromPriceText(
-                    fontSize: theme.textTheme.bodyMedium?.fontSize ?? 14,
-                    fontWeight: FontWeight.w600,
-                    color: theme.textTheme.bodyMedium?.color,
+                  Flexible(
+                    child: MerchFromPriceText(
+                      fontSize: theme.textTheme.bodyMedium?.fontSize ?? 14,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyMedium?.color,
+                    ),
                   ),
                 ],
               ),

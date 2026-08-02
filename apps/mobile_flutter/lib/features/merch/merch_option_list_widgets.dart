@@ -2064,6 +2064,10 @@ class MerchFromPriceText extends ConsumerWidget {
     final priceStr = prices.whenOrNull(data: (p) => p.tshirtFromPrice);
     return Text(
       priceStr != null ? 'from $priceStr' : kPriceConfirmedAtCheckout,
+      // The "…confirmed at checkout" fallback is much longer than a price, so
+      // ellipsise rather than overflow tight price slots (chips, list rows).
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: color ??
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
