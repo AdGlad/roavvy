@@ -281,6 +281,72 @@ void main() {
     });
   });
 
+  group('edge tear', () {
+    test('frays the boundary: outer ring loses more ink than the centre',
+        () async {
+      const size = 80;
+      final img = await solid(size, size, 200, 40, 40);
+      final params = kPrintStylePresets[PrintStyleId.edgeTear]!
+          .copyWith(seed: 21)
+          .resolvedFor(ArtworkDetail.none);
+      final after = await rgbaOf(await pipeline.apply(img, params));
+
+      // Mean alpha in a 4px outer ring vs a central block.
+      var ringSum = 0, ringN = 0, coreSum = 0, coreN = 0;
+      const band = 4;
+      final lo = size ~/ 2 - 6, hi = size ~/ 2 + 6;
+      for (var y = 0; y < size; y++) {
+        for (var x = 0; x < size; x++) {
+          final a = after[(y * size + x) * 4 + 3];
+          final onRing =
+              x < band || x >= size - band || y < band || y >= size - band;
+          if (onRing) {
+            ringSum += a;
+            ringN++;
+          } else if (x >= lo && x < hi && y >= lo && y < hi) {
+            coreSum += a;
+            coreN++;
+          }
+        }
+      }
+      final ringMean = ringSum / ringN;
+      final coreMean = coreSum / coreN;
+      // The torn border erodes; the interior stays largely inked.
+      expect(ringMean, lessThan(coreMean));
+      expect(coreMean, greaterThan(180));
+    });
+  });
+
+  group('acid wash', () {
+    test('bleaches ink lighter while preserving alpha', () async {
+      final img = await solid(48, 48, 60, 60, 60); // dark ink
+      final before = await rgbaOf(img);
+      // Isolate the wash pass (no colour treatment / fade).
+      final params = const PrintStyleParams(
+        id: PrintStyleId.acidWash,
+        acidWash: 0.9,
+      ).copyWith(seed: 5).resolvedFor(ArtworkDetail.none);
+      final after = await rgbaOf(await pipeline.apply(img, params));
+
+      double meanLuma(Uint8List px) {
+        var sum = 0.0;
+        final n = px.length ~/ 4;
+        for (var i = 0; i < n; i++) {
+          final o = i * 4;
+          sum += 0.299 * px[o] + 0.587 * px[o + 1] + 0.114 * px[o + 2];
+        }
+        return sum / n;
+      }
+
+      // Cloudy bleach lifts the ink toward white.
+      expect(meanLuma(after), greaterThan(meanLuma(before)));
+      // Alpha untouched (bleach lightens, it doesn't erase).
+      for (var i = 0; i < 48 * 48; i++) {
+        expect(after[i * 4 + 3], before[i * 4 + 3]);
+      }
+    });
+  });
+
   group('colour treatment', () {
     test('fade-only changes colour but preserves alpha', () async {
       final img = await solid(16, 16, 200, 40, 40);

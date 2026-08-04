@@ -23,6 +23,8 @@ enum PrintStyleId {
   newsprint,
   sunFaded,
   photocopy,
+  edgeTear,
+  acidWash,
 }
 
 /// Colour grading applied before texture effects.
@@ -67,6 +69,7 @@ class PrintStyleParams {
     this.roughEdges = 0,
     this.cracks = 0,
     this.distressHardness = 0.5,
+    this.acidWash = 0,
     this.halftone = 0,
     this.halftoneScale = 0.02,
     this.halftoneAngle = 0.7853981633974483, // 45°, the classic AM screen angle
@@ -101,6 +104,10 @@ class PrintStyleParams {
   /// How sharply distress/rough-edge ink loss transitions. `0` = soft, cloudy
   /// fade (many washes); `1` = hard-edged worn chunks (heavy grunge / stamp).
   final double distressHardness;
+
+  /// Cloudy acid-wash bleach: lightens the ink in soft low-frequency patches
+  /// (masked to the artwork so the garment stays clean). `0..1`.
+  final double acidWash;
 
   /// Halftone dot-treatment intensity. `0..1`.
   final double halftone;
@@ -158,6 +165,7 @@ class PrintStyleParams {
     double? roughEdges,
     double? cracks,
     double? distressHardness,
+    double? acidWash,
     double? halftone,
     double? halftoneScale,
     double? halftoneAngle,
@@ -176,6 +184,7 @@ class PrintStyleParams {
       roughEdges: roughEdges ?? this.roughEdges,
       cracks: cracks ?? this.cracks,
       distressHardness: distressHardness ?? this.distressHardness,
+      acidWash: acidWash ?? this.acidWash,
       halftone: halftone ?? this.halftone,
       halftoneScale: halftoneScale ?? this.halftoneScale,
       halftoneAngle: halftoneAngle ?? this.halftoneAngle,
@@ -210,6 +219,7 @@ class PrintStyleParams {
       other.roughEdges == roughEdges &&
       other.cracks == cracks &&
       other.distressHardness == distressHardness &&
+      other.acidWash == acidWash &&
       other.halftone == halftone &&
       other.halftoneScale == halftoneScale &&
       other.halftoneAngle == halftoneAngle &&
@@ -227,6 +237,7 @@ class PrintStyleParams {
         fade,
         roughEdges,
         cracks,
+        acidWash,
         halftone,
         halftoneScale,
         colorTreatment,
@@ -338,6 +349,28 @@ const Map<PrintStyleId, PrintStyleParams> kPrintStylePresets = {
     roughEdges: 0.32,
     colorTreatment: ColorTreatment.monoInk,
   ),
+  // Edge Tear: a ripped-sticker / torn-poster boundary that frays deep into the
+  // garment, over a lightly worn, clean interior.
+  PrintStyleId.edgeTear: PrintStyleParams(
+    id: PrintStyleId.edgeTear,
+    distress: 0.16,
+    distressHardness: 0.30,
+    grain: 0.22,
+    fade: 0.14,
+    roughEdges: 0.92,
+    colorTreatment: ColorTreatment.none,
+  ),
+  // Acid Wash: cloudy bleached patches lift the ink over a muted, faded palette
+  // — the Y2K/washed streetwear look.
+  PrintStyleId.acidWash: PrintStyleParams(
+    id: PrintStyleId.acidWash,
+    acidWash: 0.75,
+    grain: 0.28,
+    fade: 0.42,
+    distress: 0.14,
+    distressHardness: 0.20,
+    colorTreatment: ColorTreatment.muted,
+  ),
 };
 
 /// Human-readable label for the style picker.
@@ -352,6 +385,8 @@ String printStyleLabel(PrintStyleId id) => switch (id) {
       PrintStyleId.newsprint => 'Newsprint',
       PrintStyleId.sunFaded => 'Sun-Faded',
       PrintStyleId.photocopy => 'Photocopy',
+      PrintStyleId.edgeTear => 'Edge Tear',
+      PrintStyleId.acidWash => 'Acid Wash',
     };
 
 /// Parses a persisted [PrintStyleId] name, tolerating unknown/missing values by

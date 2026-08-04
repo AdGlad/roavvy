@@ -304,11 +304,11 @@ Uint8List generateTornEdgeBytes({
   double strength = 1.0,
 }) {
   final out = Uint8List(w * h * 4);
-  // Coarse value along each border controls how deep the tear reaches there;
-  // a finer value breaks the tear line up into tongues/specks.
-  double borderDepth(double t, int salt) {
-    // t in 0..1 around a border; sample a smooth 1-D value noise.
-    final p = t * 11.0;
+  // Value along each border controls how deep the tear reaches there. Two
+  // frequencies combine so the tear line has both broad bays and fine tongues —
+  // a ragged paper rip, not a smooth wave.
+  double octave(double t, int cells, int salt) {
+    final p = t * cells;
     final i0 = p.floor();
     final f = p - i0;
     final a = _hash01(i0 * 374761393 ^ (seed + salt) * 668265263);
@@ -316,6 +316,10 @@ Uint8List generateTornEdgeBytes({
     final s = f * f * (3 - 2 * f);
     return a + (b - a) * s; // 0..1
   }
+
+  double borderDepth(double t, int salt) =>
+      (0.62 * octave(t, 11, salt) + 0.38 * octave(t, 37, salt + 101))
+          .clamp(0.0, 1.0);
 
   for (var y = 0; y < h; y++) {
     final ny = y / (h - 1);
@@ -359,7 +363,7 @@ Uint8List generateTornEdgeBytes({
 /// [stampInk] is a finer, higher-contrast blotch used for the uneven ink and
 /// rough edges of the Passport Stamp style. [mottle] is a dense fine blotch for
 /// grungy ink breakup; [crack] is the Voronoi crack network.
-enum PrintTextureKind { grain, blotch, scratch, stampInk, mottle, crack }
+enum PrintTextureKind { grain, blotch, scratch, stampInk, mottle, crack, wash }
 
 /// Caches decoded [ui.Image] textures keyed by `(kind, seed, size)`. A handful
 /// of small tileable images serve every design (tiled via
@@ -396,6 +400,9 @@ class PrintStyleTextures {
       PrintTextureKind.mottle => generateBlotchBytes(
           seed: seed, size: size, cells: 22, octaves: 3, contrast: 1.25),
       PrintTextureKind.crack => generateCrackBytes(seed: seed, size: size),
+      // Big, soft, low-contrast cloud for the acid-wash bleach patches.
+      PrintTextureKind.wash => generateBlotchBytes(
+          seed: seed, size: size, cells: 4, octaves: 4, contrast: 0.9),
     };
 
     final image = await _decode(bytes, size);

@@ -50,3 +50,18 @@ unchanged). This is a **quality** pass on the effects themselves + new styles.
 
 Determinism, `clean` pass-through, protection mask, and the purchase flow are
 unchanged throughout.
+
+## Follow-up styles (post-v2)
+
+- ✅ **Edge Tear.** A ripped-sticker / torn-poster boundary that frays deep into
+  the garment. Reuses the torn-edge mask, now with a two-frequency ragged border
+  and a strength-scaled depth (`margin = 0.10 + 0.16·strength`) so it tears
+  further than the incidental fray on grunge/vintage.
+- ✅ **Acid Wash** (researched — trending Y2K/streetwear bleach). A new
+  `acidWash` param drives a soft low-frequency `wash` cloud screened over the
+  ink (masked to alpha) to lift it toward white in cloudy patches, over a muted,
+  faded palette. Lightens ink without erasing it (alpha preserved).
+
+Both added as `PrintStyleId` values + presets + labels; the picker auto-includes
+them. Covered by dedicated pipeline tests (edge-tear ring erosion, acid-wash
+bleach lift) — 36 print_style tests green.

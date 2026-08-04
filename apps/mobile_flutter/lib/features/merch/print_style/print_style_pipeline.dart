@@ -87,6 +87,11 @@ class PrintStylePipeline {
         ? await PrintStyleTextures.instance.get(PrintTextureKind.crack,
             params.seed ^ 0x165667b1, size: 256)
         : null;
+    // Soft cloud for acid-wash bleach patches.
+    final washImg = params.acidWash > 0
+        ? await PrintStyleTextures.instance.get(PrintTextureKind.wash,
+            params.seed ^ 0x2545f491, size: 256)
+        : null;
     // Ragged torn outer edge (design frays into the garment).
     final tornEdgeImg =
         params.effectiveRoughEdges > 0 && _usesTornEdges(params)
@@ -149,6 +154,13 @@ class PrintStylePipeline {
         ui.Paint()..blendMode = ui.BlendMode.dstIn,
       );
       canvas.restore();
+    }
+
+    // 2b. Acid wash — cloudy bleach that lightens the ink in soft patches. A
+    //     screen layer (bright cloud → lift toward white) masked to the artwork
+    //     alpha, so the garment fabric between/around the ink is untouched.
+    if (washImg != null && params.acidWash > 0) {
+      _applyAcidWash(canvas, rect, source, srcRect, washImg, params.acidWash);
     }
 
     // 3. Distress → transparency. Dark blotches erase ink (dstOut), scaled by
@@ -219,7 +231,8 @@ class PrintStylePipeline {
   bool _usesTornEdges(PrintStyleParams p) =>
       p.id == PrintStyleId.grunge ||
       p.id == PrintStyleId.vintage ||
-      p.id == PrintStyleId.stamp;
+      p.id == PrintStyleId.stamp ||
+      p.id == PrintStyleId.edgeTear;
 
   /// Builds a torn-edge erase mask ([ui.Image], alpha = erase) sized to the
   /// artwork but capped for cost — the tear is low-frequency, so upscaling from
@@ -231,8 +244,15 @@ class PrintStylePipeline {
     final scale = longSide > cap ? cap / longSide : 1.0;
     final tw = (w * scale).round().clamp(2, cap);
     final th = (h * scale).round().clamp(2, cap);
+    // Deeper tears for stronger rough-edge styles (Edge Tear reaches furthest
+    // into the garment; grunge/vintage stay a subtler fray).
+    final margin = (0.10 + 0.16 * strength.clamp(0.0, 1.0)).clamp(0.10, 0.26);
     final bytes = generateTornEdgeBytes(
-        seed: seed ^ 0xa5a5f00d, w: tw, h: th, strength: strength);
+        seed: seed ^ 0xa5a5f00d,
+        w: tw,
+        h: th,
+        margin: margin,
+        strength: strength);
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
         bytes, tw, th, ui.PixelFormat.rgba8888, completer.complete);
@@ -311,6 +331,47 @@ class PrintStylePipeline {
       ui.Paint()
         ..blendMode = ui.BlendMode.dstOut
         ..filterQuality = ui.FilterQuality.low,
+    );
+    canvas.restore();
+  }
+
+  /// Lifts the ink toward white in soft cloudy patches (acid-wash bleach).
+  ///
+  /// The grayscale [wash] cloud is tiled and screened over the current canvas
+  /// (bright cloud → bleach, dark cloud → untouched), scaled by [intensity], and
+  /// masked to the artwork's own alpha so only inked pixels bleach — the garment
+  /// fabric stays clean.
+  void _applyAcidWash(
+    ui.Canvas canvas,
+    ui.Rect rect,
+    ui.Image source,
+    ui.Rect srcRect,
+    ui.Image wash,
+    double intensity,
+  ) {
+    final s = intensity.clamp(0.0, 1.0);
+    if (s <= 0) return;
+    canvas.saveLayer(rect, ui.Paint()..blendMode = ui.BlendMode.screen);
+    // Tile the cloud, scaling brightness by intensity so the bleach lift is
+    // controlled (RGB × s; full alpha inside the masked region).
+    canvas.drawRect(
+      rect,
+      ui.Paint()
+        ..colorFilter = ui.ColorFilter.matrix(<double>[
+          s, 0, 0, 0, 0, //
+          0, s, 0, 0, 0, //
+          0, 0, s, 0, 0, //
+          0, 0, 0, 0, 255, //
+        ])
+        ..shader = ui.ImageShader(wash, ui.TileMode.repeated,
+            ui.TileMode.repeated, _tileMatrix(rect, wash)),
+    );
+    // Confine the bleach to inked pixels.
+    canvas.drawImageRect(
+      source,
+      srcRect,
+      rect,
+      ui.Paint()..blendMode = ui.BlendMode.dstIn,
     );
     canvas.restore();
   }
