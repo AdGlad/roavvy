@@ -19,6 +19,10 @@ enum PrintStyleId {
   halftone,
   stamp,
   grunge,
+  riso,
+  newsprint,
+  sunFaded,
+  photocopy,
 }
 
 /// Colour grading applied before texture effects.
@@ -62,8 +66,10 @@ class PrintStyleParams {
     this.fade = 0,
     this.roughEdges = 0,
     this.cracks = 0,
+    this.distressHardness = 0.5,
     this.halftone = 0,
     this.halftoneScale = 0.02,
+    this.halftoneAngle = 0.7853981633974483, // 45°, the classic AM screen angle
     this.colorTreatment = ColorTreatment.none,
     this.duotoneA,
     this.duotoneB,
@@ -92,12 +98,20 @@ class PrintStyleParams {
   /// `0..1`.
   final double cracks;
 
+  /// How sharply distress/rough-edge ink loss transitions. `0` = soft, cloudy
+  /// fade (many washes); `1` = hard-edged worn chunks (heavy grunge / stamp).
+  final double distressHardness;
+
   /// Halftone dot-treatment intensity. `0..1`.
   final double halftone;
 
   /// Halftone dot cell size in artwork-normalised units (fraction of the
   /// artwork's shorter side). Resolution-independent.
   final double halftoneScale;
+
+  /// Angle (radians) of the AM halftone dot screen. Defaults to 45° — the angle
+  /// the eye reads least as a grid; riso/newsprint can offset it.
+  final double halftoneAngle;
 
   final ColorTreatment colorTreatment;
 
@@ -143,8 +157,10 @@ class PrintStyleParams {
     double? fade,
     double? roughEdges,
     double? cracks,
+    double? distressHardness,
     double? halftone,
     double? halftoneScale,
+    double? halftoneAngle,
     ColorTreatment? colorTreatment,
     Color? duotoneA,
     Color? duotoneB,
@@ -159,8 +175,10 @@ class PrintStyleParams {
       fade: fade ?? this.fade,
       roughEdges: roughEdges ?? this.roughEdges,
       cracks: cracks ?? this.cracks,
+      distressHardness: distressHardness ?? this.distressHardness,
       halftone: halftone ?? this.halftone,
       halftoneScale: halftoneScale ?? this.halftoneScale,
+      halftoneAngle: halftoneAngle ?? this.halftoneAngle,
       colorTreatment: colorTreatment ?? this.colorTreatment,
       duotoneA: duotoneA ?? this.duotoneA,
       duotoneB: duotoneB ?? this.duotoneB,
@@ -191,8 +209,10 @@ class PrintStyleParams {
       other.fade == fade &&
       other.roughEdges == roughEdges &&
       other.cracks == cracks &&
+      other.distressHardness == distressHardness &&
       other.halftone == halftone &&
       other.halftoneScale == halftoneScale &&
+      other.halftoneAngle == halftoneAngle &&
       other.colorTreatment == colorTreatment &&
       other.duotoneA == duotoneA &&
       other.duotoneB == duotoneB &&
@@ -222,50 +242,101 @@ class PrintStyleParams {
 /// design so each generated shirt is unique yet reproducible.
 const Map<PrintStyleId, PrintStyleParams> kPrintStylePresets = {
   PrintStyleId.clean: PrintStyleParams(id: PrintStyleId.clean),
-  // "Distressed" garment-dye look: heavy mottled ink breakup + cracks + warm
-  // faded palette (ref: distressed.jpeg).
+  // "Distressed" garment-dye look: soft, cloudy many-washes fade + warm aged
+  // palette. Low hardness keeps the ink loss gentle (ref: distressed.jpeg).
   PrintStyleId.vintage: PrintStyleParams(
     id: PrintStyleId.vintage,
-    distress: 0.60,
-    grain: 0.40,
+    distress: 0.58,
+    distressHardness: 0.30,
+    grain: 0.42,
     fade: 0.55,
-    roughEdges: 0.35,
-    cracks: 0.35,
+    roughEdges: 0.32,
+    cracks: 0.28,
     colorTreatment: ColorTreatment.vintageWarm,
   ),
+  // Screen-print retro: a visible 45° dot screen over a muted, lightly worn
+  // fill.
   PrintStyleId.retro: PrintStyleParams(
     id: PrintStyleId.retro,
-    distress: 0.30,
-    grain: 0.35,
-    fade: 0.40,
-    halftone: 0.45,
-    halftoneScale: 0.03,
+    distress: 0.28,
+    distressHardness: 0.45,
+    grain: 0.32,
+    fade: 0.38,
+    halftone: 0.55,
+    halftoneScale: 0.030,
     colorTreatment: ColorTreatment.muted,
   ),
+  // Pure comic/zine halftone: a strong 45° AM dot screen, minimal grain.
   PrintStyleId.halftone: PrintStyleParams(
     id: PrintStyleId.halftone,
     grain: 0.10,
     halftone: 1.0,
-    halftoneScale: 0.032,
+    halftoneScale: 0.034,
     colorTreatment: ColorTreatment.none,
   ),
+  // Rubber-stamp: crisp single-ink, uneven coverage + hard rough edges.
   PrintStyleId.stamp: PrintStyleParams(
     id: PrintStyleId.stamp,
-    distress: 0.55,
-    grain: 0.25,
+    distress: 0.50,
+    distressHardness: 0.72,
+    grain: 0.22,
     roughEdges: 0.85,
     colorTreatment: ColorTreatment.monoInk,
   ),
-  // Heavy cracked-paint grunge: strong cracks, dense breakup, torn edges
-  // (ref: grunge.jpeg).
+  // Heavy cracked-paint grunge: hard-edged chunky breakup, strong cracks, torn
+  // edges (ref: grunge.jpeg).
   PrintStyleId.grunge: PrintStyleParams(
     id: PrintStyleId.grunge,
-    distress: 0.80,
+    distress: 0.72,
+    distressHardness: 0.70,
     grain: 0.45,
     fade: 0.20,
-    roughEdges: 0.70,
-    cracks: 0.85,
+    roughEdges: 0.66,
+    cracks: 0.82,
     colorTreatment: ColorTreatment.muted,
+  ),
+  // Risograph: two flat spot inks (deep blue → fluoro pink) under an angled AM
+  // dot screen with grain — the tell-tale riso zine look.
+  PrintStyleId.riso: PrintStyleParams(
+    id: PrintStyleId.riso,
+    grain: 0.30,
+    halftone: 0.60,
+    halftoneScale: 0.030,
+    halftoneAngle: 0.5235987755982988, // 30° — offset from the classic 45°
+    colorTreatment: ColorTreatment.duotone,
+    duotoneA: Color(0xFF2B2B8C), // ink shadow — riso federal blue
+    duotoneB: Color(0xFFF7A9C4), // highlight — fluoro pink
+  ),
+  // Newsprint: grayscale single ink under a strong, coarse dot screen with paper
+  // grain and a slight fade — a halftoned newspaper photo.
+  PrintStyleId.newsprint: PrintStyleParams(
+    id: PrintStyleId.newsprint,
+    grain: 0.35,
+    fade: 0.22,
+    halftone: 0.85,
+    halftoneScale: 0.026,
+    colorTreatment: ColorTreatment.monoInk,
+  ),
+  // Sun-faded: heavily bleached, warm, low-saturation with the softest ink loss
+  // — a shirt left in a shop window.
+  PrintStyleId.sunFaded: PrintStyleParams(
+    id: PrintStyleId.sunFaded,
+    distress: 0.22,
+    distressHardness: 0.18,
+    grain: 0.20,
+    fade: 0.80,
+    roughEdges: 0.15,
+    colorTreatment: ColorTreatment.vintageWarm,
+  ),
+  // Photocopy / xerox: harsh single-ink toner with heavy grain and hard-edged,
+  // chipped ink loss.
+  PrintStyleId.photocopy: PrintStyleParams(
+    id: PrintStyleId.photocopy,
+    distress: 0.34,
+    distressHardness: 0.88,
+    grain: 0.50,
+    roughEdges: 0.32,
+    colorTreatment: ColorTreatment.monoInk,
   ),
 };
 
@@ -277,6 +348,10 @@ String printStyleLabel(PrintStyleId id) => switch (id) {
       PrintStyleId.halftone => 'Halftone',
       PrintStyleId.stamp => 'Stamp',
       PrintStyleId.grunge => 'Grunge',
+      PrintStyleId.riso => 'Riso',
+      PrintStyleId.newsprint => 'Newsprint',
+      PrintStyleId.sunFaded => 'Sun-Faded',
+      PrintStyleId.photocopy => 'Photocopy',
     };
 
 /// Parses a persisted [PrintStyleId] name, tolerating unknown/missing values by

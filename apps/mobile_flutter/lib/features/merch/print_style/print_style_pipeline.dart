@@ -156,32 +156,35 @@ class PrintStylePipeline {
     //    spared where the protection mask marks emblems/text.
     if (distressImg != null) {
       _erase(canvas, rect, distressImg, params.effectiveDistress,
-          protection: protectionImg);
+          protection: protectionImg, hardness: params.distressHardness);
     }
 
     // 3b. Fine mottle — dense grungy breakup layered over the coarse blotch.
     if (mottleImg != null) {
       _erase(canvas, rect, mottleImg, params.effectiveDistress * 0.7,
-          protection: protectionImg);
+          protection: protectionImg, hardness: params.distressHardness);
     }
 
     // 3c. Cracks — thin transparent fissures through the ink. Not protected, so
     //     cracks read clearly even across emblems (matches cracked-paint refs).
+    //     Always crisp regardless of the style's overall hardness.
     if (crackImg != null) {
-      _erase(canvas, rect, crackImg, params.effectiveCracks);
+      _erase(canvas, rect, crackImg, params.effectiveCracks, hardness: 0.85);
     }
 
     // 4. Scratches / ink chips (grunge-style ink loss), stronger streaks.
     if (scratchImg != null) {
       _erase(canvas, rect, scratchImg, params.effectiveRoughEdges,
-          protection: protectionImg);
+          protection: protectionImg, hardness: params.distressHardness);
     }
 
     // 5. Stamp uneven ink + rough edges — finer, higher-contrast erosion that
     //    breaks up solid fills and roughens boundaries like a rubber stamp.
+    //    Stamp ink reads crisp, so bias hardness up.
     if (stampInkImg != null) {
       _erase(canvas, rect, stampInkImg, params.effectiveRoughEdges,
-          protection: protectionImg);
+          protection: protectionImg,
+          hardness: math.max(params.distressHardness, 0.7));
     }
 
     // 6. Torn outer edge — frays the design boundary into the garment. Alpha of
@@ -252,17 +255,29 @@ class PrintStylePipeline {
     ui.Image tex,
     double strength, {
     ui.Image? protection,
+    double hardness = 0.5,
   }) {
     final s = strength.clamp(0.0, 1.0);
     if (s <= 0) return;
     // Map luminance→alpha (dark texture → high erase alpha), scaled by strength,
     // and zero the RGB so only alpha matters.
+    //
+    // [hardness] steepens the luminance→alpha ramp with a contrast gain about
+    // the midpoint: low hardness → soft, cloudy fade; high hardness → the ramp
+    // clips to 0/255 quickly, giving sharp worn chunks (real distress / stamp).
+    //   e   = 255 - lum                       (linear eraser)
+    //   e'  = 128 + gain·(e - 128)  clamped    (contrast about mid)
+    //   A'  = strength · e'
+    // With R=G=B=lum: coefficient = -s·gain/3 per channel; the clamp is applied
+    // by the alpha channel itself (0..255).
+    final gain = 1.0 + hardness.clamp(0.0, 1.0) * 3.0; // 1 (soft) … 4 (hard)
+    final coef = -s * gain / 3.0;
+    final constA = s * (128.0 + 127.0 * gain);
     final matrix = <double>[
       0, 0, 0, 0, 0, // R' = 0
       0, 0, 0, 0, 0, // G' = 0
       0, 0, 0, 0, 0, // B' = 0
-      // A' = strength * (255 - luminance); with R=G=B=lum, coefficient -s/3 each.
-      -s / 3, -s / 3, -s / 3, 0, 255 * s,
+      coef, coef, coef, 0, constA, // A'
     ];
 
     if (protection == null) {
@@ -364,16 +379,47 @@ class PrintStylePipeline {
       ui.Paint()..color = ui.Color.fromRGBO(255, 255, 255, 1 - intensity),
     );
     final dot = ui.Paint()..color = const ui.Color(0xFFFFFFFF);
-    for (var ry = 0; ry < rows; ry++) {
-      for (var cx = 0; cx < cols; cx++) {
-        final cov = grid[ry * cols + cx];
+
+    // Rotate the dot lattice to [halftoneAngle] (classic AM screens sit at 45°,
+    // where the eye least reads the grid) and offset alternate rows by half a
+    // cell (brick packing) so it reads as a screen, not a square dot matrix.
+    // Coverage is sampled from the axis-aligned [grid] at each dot's centre.
+    final angle = p.halftoneAngle;
+    final ca = math.cos(angle);
+    final sa = math.sin(angle);
+    final cx0 = rect.center.dx;
+    final cy0 = rect.center.dy;
+    // Lattice must cover the rect after rotation → span its diagonal.
+    final diag =
+        math.sqrt(rect.width * rect.width + rect.height * rect.height);
+    final n = (diag / cell).ceil() + 2;
+    for (var j = -n; j <= n; j++) {
+      final rowOffset = (j & 1) == 0 ? 0.0 : 0.5; // brick offset
+      final ly = j * cell;
+      for (var i = -n; i <= n; i++) {
+        final lx = (i + rowOffset) * cell;
+        // Rotate the lattice point about the artwork centre.
+        final px = cx0 + lx * ca - ly * sa;
+        final py = cy0 + lx * sa + ly * ca;
+        if (px < rect.left - cell ||
+            px > rect.right + cell ||
+            py < rect.top - cell ||
+            py > rect.bottom + cell) {
+          continue;
+        }
+        // Sample coverage at this centre (nearest cell in the axis-aligned grid).
+        final gx = ((px - rect.left) / rect.width * cols)
+            .floor()
+            .clamp(0, cols - 1);
+        final gy = ((py - rect.top) / rect.height * rows)
+            .floor()
+            .clamp(0, rows - 1);
+        final cov = grid[gy * cols + gx];
         if (cov <= 0.02) continue;
         // Area ∝ coverage → radius ∝ sqrt(coverage).
         final r = maxRadius * math.sqrt(cov.clamp(0.0, 1.0));
         if (r < 0.3) continue;
-        final centreX = rect.left + (cx + 0.5) * cellW;
-        final centreY = rect.top + (ry + 0.5) * cellH;
-        canvas.drawCircle(ui.Offset(centreX, centreY), r, dot);
+        canvas.drawCircle(ui.Offset(px, py), r, dot);
       }
     }
     canvas.restore();

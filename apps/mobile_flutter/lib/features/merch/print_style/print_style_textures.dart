@@ -36,6 +36,55 @@ double _hash01(int x) {
 double _hash2(int x, int y, int seed) =>
     _hash01((x * 73856093) ^ (y * 19349663) ^ (seed * 83492791));
 
+// ── Tileable value noise + fBm ─────────────────────────────────────────────────
+
+double _smooth(double t) => t * t * (3 - 2 * t);
+
+/// One octave of tileable value noise sampled at normalised `(nx, ny)` in 0..1
+/// over a `cells×cells` lattice (wraps seamlessly). Bilinear + smoothstep.
+double _valueNoise(double nx, double ny, int cells, int seed) {
+  final fx = nx * cells;
+  final fy = ny * cells;
+  final x0 = fx.floor();
+  final y0 = fy.floor();
+  final tx = _smooth(fx - x0);
+  final ty = _smooth(fy - y0);
+  double lat(int cx, int cy) =>
+      _hash2(((cx % cells) + cells) % cells, ((cy % cells) + cells) % cells, seed);
+  final v00 = lat(x0, y0);
+  final v10 = lat(x0 + 1, y0);
+  final v01 = lat(x0, y0 + 1);
+  final v11 = lat(x0 + 1, y0 + 1);
+  final top = v00 + (v10 - v00) * tx;
+  final bot = v01 + (v11 - v01) * tx;
+  return top + (bot - top) * ty;
+}
+
+/// Fractal Brownian motion: sums [octaves] of [_valueNoise] at doubling
+/// frequency and [persistence]-scaled amplitude, starting from [baseCells].
+/// Tileable (every octave wraps), normalised to 0..1. This is what gives the
+/// textures natural, multi-scale worn detail instead of soft single-octave blobs.
+double _fbm(
+  double nx,
+  double ny,
+  int baseCells,
+  int octaves,
+  double persistence,
+  int seed,
+) {
+  var sum = 0.0;
+  var amp = 1.0;
+  var ampSum = 0.0;
+  var cells = baseCells;
+  for (var o = 0; o < octaves; o++) {
+    sum += amp * _valueNoise(nx, ny, cells, seed + o * 1013904223);
+    ampSum += amp;
+    amp *= persistence;
+    cells *= 2;
+  }
+  return ampSum <= 0 ? 0.5 : (sum / ampSum).clamp(0.0, 1.0);
+}
+
 int _packGray(int v) {
   final g = v.clamp(0, 255);
   return (0xFF << 24) | (g << 16) | (g << 8) | g;
@@ -58,15 +107,20 @@ Uint8List _toRgba(Int32List argb) {
 
 // ── White-noise grain ─────────────────────────────────────────────────────────
 
-/// Per-pixel white-noise grain, mean ~128. Deterministic in `(seed, size)`.
-/// Used with [ui.BlendMode.overlay]/`softLight` for film grain.
+/// Clumped film grain, mean ~128. Per-pixel white noise **modulated by a
+/// low-frequency fBm envelope** so the grain clusters into patches (like real
+/// film / heavy-ink screen print) instead of uniform TV static. Deterministic
+/// in `(seed, size)`. Used with [ui.BlendMode.softLight]/`overlay`.
 Uint8List generateGrainBytes({required int seed, int size = 256}) {
   final argb = Int32List(size * size);
+  final inv = 1.0 / size;
   for (var y = 0; y < size; y++) {
+    final ny = y * inv;
     for (var x = 0; x < size; x++) {
-      final n = _hash2(x, y, seed);
-      // Centre around 128 with full spread.
-      final v = (n * 255).round();
+      final wn = _hash2(x, y, seed); // white noise 0..1
+      // Envelope 0.35..1.0: grain is stronger in some patches, faint in others.
+      final env = 0.35 + 0.65 * _fbm(x * inv, ny, 20, 2, 0.6, seed ^ 0x51ed270b);
+      final v = (128 + (wn - 0.5) * 235 * env).round().clamp(0, 255);
       argb[y * size + x] = _packGray(v);
     }
   }
@@ -75,41 +129,32 @@ Uint8List generateGrainBytes({required int seed, int size = 256}) {
 
 // ── Low-frequency blotch (value noise) ────────────────────────────────────────
 
-/// Smooth tileable value noise built from a coarse [cells]×[cells] lattice with
-/// bilinear interpolation and wrap-around. Bright = keep ink, dark = ink loss.
-/// Used to drive **distress → transparency** and uneven stamp ink.
+/// Tileable **fractal** value noise ([_fbm]) over a `cells`-cell base lattice.
+/// Bright = keep ink, dark = ink loss. Used to drive **distress → transparency**
+/// and uneven stamp ink. Multiple octaves give worn ink its natural, multi-scale
+/// grain instead of soft uniform blobs.
+///
+/// [octaves]/[persistence] set the fractal detail; [contrast] (>1) pushes values
+/// toward black/white around the midpoint, turning a soft fade into sharp worn
+/// chunks. Deterministic in every argument.
 Uint8List generateBlotchBytes({
   required int seed,
   int size = 256,
-  int cells = 8,
+  int cells = 6,
+  int octaves = 5,
+  double persistence = 0.62,
+  double contrast = 1.0,
 }) {
-  // Precompute lattice values (wrap on [cells]).
-  final lattice = List<double>.generate(
-    cells * cells,
-    (i) => _hash2(i % cells, i ~/ cells, seed),
-  );
-  double latticeAt(int cx, int cy) =>
-      lattice[(cy % cells) * cells + (cx % cells)];
-
   final argb = Int32List(size * size);
-  final cellSize = size / cells;
+  final inv = 1.0 / size;
   for (var y = 0; y < size; y++) {
-    final fy = y / cellSize;
-    final y0 = fy.floor();
-    final ty = fy - y0;
-    final wy = ty * ty * (3 - 2 * ty); // smoothstep
+    final ny = y * inv;
     for (var x = 0; x < size; x++) {
-      final fx = x / cellSize;
-      final x0 = fx.floor();
-      final tx = fx - x0;
-      final wx = tx * tx * (3 - 2 * tx);
-      final v00 = latticeAt(x0, y0);
-      final v10 = latticeAt(x0 + 1, y0);
-      final v01 = latticeAt(x0, y0 + 1);
-      final v11 = latticeAt(x0 + 1, y0 + 1);
-      final top = v00 + (v10 - v00) * wx;
-      final bot = v01 + (v11 - v01) * wx;
-      final v = top + (bot - top) * wy;
+      var v = _fbm(x * inv, ny, cells, octaves, persistence, seed);
+      if (contrast != 1.0) {
+        // Steepen around 0.5 → sharper light/dark separation (worn chunks).
+        v = (0.5 + (v - 0.5) * contrast).clamp(0.0, 1.0);
+      }
       argb[y * size + x] = _packGray((v * 255).round());
     }
   }
@@ -135,18 +180,26 @@ Uint8List generateScratchBytes({
     final r0 = _hash01(seed * 6151 + s * 3);
     final r1 = _hash01(seed * 6151 + s * 3 + 1);
     final r2 = _hash01(seed * 6151 + s * 3 + 2);
-    var x = (r0 * size).floor();
-    var y = (r1 * size).floor();
-    final len = (r2 * size * 0.6).round() + 4;
-    // Mostly-horizontal drift with slight vertical wander.
+    final r3 = _hash01(seed * 6151 + s * 3 + 7);
+    var x = r0 * size;
+    var y = r1 * size;
+    final len = (r2 * size * 0.55).round() + 4;
+    // Each streak runs at its own angle (not all horizontal), so the ink loss
+    // looks scratched/scuffed from every direction. Slightly biased horizontal.
+    final angle = (r3 - 0.5) * 2.4; // ~ -1.2..1.2 rad off horizontal
+    final dx = math.cos(angle);
+    final dy = math.sin(angle);
+    // Darkness varies per streak: some faint scuffs, some deep gouges.
+    final keep = 0.08 + _hash01(seed * 40961 + s) * 0.45;
     for (var i = 0; i < len; i++) {
-      final wander = _hash01(seed * 131 + s * 977 + i);
-      x = (x + 1) % size;
-      if (wander > 0.82) y = (y + 1) % size;
-      if (wander < 0.10) y = (y + size - 1) % size;
-      final idx = y * size + x;
+      final jitter = _hash01(seed * 131 + s * 977 + i) - 0.5;
+      x = (x + dx + jitter * 0.5) % size;
+      y = (y + dy + jitter * 0.5) % size;
+      final ix = ((x % size) + size).floor() % size;
+      final iy = ((y % size) + size).floor() % size;
+      final idx = iy * size + ix;
       // Darken (multiplicative so overlaps deepen).
-      gray[idx] = (gray[idx] * 0.15).round();
+      gray[idx] = (gray[idx] * keep).round();
     }
   }
 
@@ -332,12 +385,16 @@ class PrintStyleTextures {
 
     final bytes = switch (kind) {
       PrintTextureKind.grain => generateGrainBytes(seed: seed, size: size),
-      PrintTextureKind.blotch => generateBlotchBytes(seed: seed, size: size),
+      // Coarse worn breakup with fractal detail + contrast → chunky ink loss.
+      PrintTextureKind.blotch => generateBlotchBytes(
+          seed: seed, size: size, cells: 5, octaves: 5, contrast: 1.35),
       PrintTextureKind.scratch => generateScratchBytes(seed: seed, size: size),
-      PrintTextureKind.stampInk =>
-        generateBlotchBytes(seed: seed, size: size, cells: 18),
-      PrintTextureKind.mottle =>
-        generateBlotchBytes(seed: seed, size: size, cells: 34),
+      // Fine, high-contrast uneven ink for the rubber-stamp look.
+      PrintTextureKind.stampInk => generateBlotchBytes(
+          seed: seed, size: size, cells: 12, octaves: 4, contrast: 1.55),
+      // Dense fine mottle layered over the coarse blotch.
+      PrintTextureKind.mottle => generateBlotchBytes(
+          seed: seed, size: size, cells: 22, octaves: 3, contrast: 1.25),
       PrintTextureKind.crack => generateCrackBytes(seed: seed, size: size),
     };
 
