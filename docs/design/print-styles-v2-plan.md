@@ -54,9 +54,13 @@ unchanged throughout.
 ## Follow-up styles (post-v2)
 
 - ✅ **Edge Tear.** A ripped-sticker / torn-poster boundary that frays deep into
-  the garment. Reuses the torn-edge mask, now with a two-frequency ragged border
-  and a strength-scaled depth (`margin = 0.10 + 0.16·strength`) so it tears
-  further than the incidental fray on grunge/vintage.
+  the garment. The v1 mask feathered the alpha (a soft gradient the eye barely
+  read on a garment) and was then drawn bilinear (blurring it further). Rebuilt
+  as a **hard binary rip**: everything past an irregular three-octave tear line
+  (broad bays + tongues + fibre edge, guaranteed minimum bite) is removed
+  outright, with a 1px AA shoulder, stray attached fibre flecks, a higher-res
+  mask cap (1024) and nearest-neighbour draw so the cut stays crisp. Depth
+  scales with strength (`margin = 0.06 + 0.13·strength`).
 - ✅ **Acid Wash** (researched — trending Y2K/streetwear bleach). A new
   `acidWash` param drives a soft low-frequency `wash` cloud screened over the
   ink (masked to alpha) to lift it toward white in cloudy patches, over a muted,

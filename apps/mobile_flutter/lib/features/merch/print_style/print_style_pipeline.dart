@@ -209,7 +209,9 @@ class PrintStylePipeline {
         rect,
         ui.Paint()
           ..blendMode = ui.BlendMode.dstOut
-          ..filterQuality = ui.FilterQuality.low,
+          // Nearest-neighbour keeps the rip a hard, jagged cut; bilinear would
+          // blur the binary tear back into a soft feather.
+          ..filterQuality = ui.FilterQuality.none,
       );
     }
 
@@ -235,18 +237,20 @@ class PrintStylePipeline {
       p.id == PrintStyleId.edgeTear;
 
   /// Builds a torn-edge erase mask ([ui.Image], alpha = erase) sized to the
-  /// artwork but capped for cost — the tear is low-frequency, so upscaling from
-  /// the cap is imperceptible while keeping print-resolution renders cheap.
+  /// artwork but capped for cost. The rip line carries fine detail (tongues /
+  /// fibres), so the cap is generous and the mask is drawn with nearest-neighbour
+  /// filtering (see the torn-edge pass) to keep the cut crisp rather than blurred
+  /// back into a soft feather.
   Future<ui.Image> _buildTornEdgeImage(
       int seed, int w, int h, double strength) {
-    const cap = 512;
+    const cap = 1024;
     final longSide = w > h ? w : h;
     final scale = longSide > cap ? cap / longSide : 1.0;
     final tw = (w * scale).round().clamp(2, cap);
     final th = (h * scale).round().clamp(2, cap);
     // Deeper tears for stronger rough-edge styles (Edge Tear reaches furthest
     // into the garment; grunge/vintage stay a subtler fray).
-    final margin = (0.10 + 0.16 * strength.clamp(0.0, 1.0)).clamp(0.10, 0.26);
+    final margin = (0.06 + 0.13 * strength.clamp(0.0, 1.0)).clamp(0.06, 0.20);
     final bytes = generateTornEdgeBytes(
         seed: seed ^ 0xa5a5f00d,
         w: tw,

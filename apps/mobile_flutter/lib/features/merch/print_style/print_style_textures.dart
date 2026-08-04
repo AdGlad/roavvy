@@ -288,14 +288,17 @@ Uint8List generateCrackBytes({
 
 // ── Torn edges ────────────────────────────────────────────────────────────────
 
-/// A ragged brush-stroke edge mask sized to the artwork ([w]×[h]). Alpha
-/// encodes how much ink to **erase** (rgb=0), so it can be applied directly with
-/// [ui.BlendMode.dstOut]. The erosion is concentrated near the rectangle border
-/// with a jagged, noise-varied depth so the design frays into the garment
-/// instead of ending on a clean rectangle (refs: distressed.jpeg / grunge.jpeg).
+/// A **hard, ripped-paper edge mask** sized to the artwork ([w]×[h]). Alpha
+/// encodes how much ink to **erase** (rgb=0), so it applies directly with
+/// [ui.BlendMode.dstOut]. Unlike a soft feather, everything past an irregular
+/// multi-octave tear line is removed outright (alpha 255), leaving a clearly
+/// torn boundary with bays, peninsulas and a few detached fibre flecks — the
+/// design reads as ripped off a sheet, not softly faded (refs: torn sticker /
+/// ripped poster).
 ///
-/// [margin] is the max torn depth as a fraction of the shorter side; [strength]
-/// scales the erase amount (0..1). Deterministic in `(seed, w, h, …)`.
+/// [margin] is the deepest torn bite as a fraction of the relevant side.
+/// [strength] biases the *minimum* bite so lower-strength styles tear shallower
+/// (0..1). Deterministic in `(seed, w, h, …)`.
 Uint8List generateTornEdgeBytes({
   required int seed,
   required int w,
@@ -304,9 +307,7 @@ Uint8List generateTornEdgeBytes({
   double strength = 1.0,
 }) {
   final out = Uint8List(w * h * 4);
-  // Value along each border controls how deep the tear reaches there. Two
-  // frequencies combine so the tear line has both broad bays and fine tongues —
-  // a ragged paper rip, not a smooth wave.
+  // 1-D value-noise octave sampled along an edge (wraps at the lattice cell).
   double octave(double t, int cells, int salt) {
     final p = t * cells;
     final i0 = p.floor();
@@ -317,38 +318,60 @@ Uint8List generateTornEdgeBytes({
     return a + (b - a) * s; // 0..1
   }
 
-  double borderDepth(double t, int salt) =>
-      (0.62 * octave(t, 11, salt) + 0.38 * octave(t, 37, salt + 101))
-          .clamp(0.0, 1.0);
+  // The tear boundary depth (0..1 of the side) along one edge. Three octaves:
+  // broad bays, mid tongues, and a fine ragged fibre edge. A guaranteed minimum
+  // bite keeps the whole edge visibly torn; deep bays cut much further in.
+  final minBite = 0.28 + 0.22 * strength.clamp(0.0, 1.0); // fraction of margin
+  double tearBound(double t, int salt) {
+    final coarse = octave(t, 6, salt);
+    final mid = octave(t, 19, salt + 31);
+    final fine = octave(t, 63, salt + 59);
+    final v = (0.55 * coarse + 0.30 * mid + 0.15 * fine).clamp(0.0, 1.0);
+    return margin * (minBite + (1.0 - minBite) * v);
+  }
+
+  // Pixel-sized soft shoulder just inside the rip (anti-alias) and a band just
+  // outside it where stray fibres can survive.
+  final shoulderX = 1.6 / (w - 1);
+  final shoulderY = 1.6 / (h - 1);
+  final fiberBandX = 6.0 / (w - 1);
+  final fiberBandY = 6.0 / (h - 1);
 
   for (var y = 0; y < h; y++) {
     final ny = y / (h - 1);
     for (var x = 0; x < w; x++) {
       final nx = x / (w - 1);
-      // Normalised distance to each edge.
       final dl = nx, dr = 1 - nx, dt = ny, db = 1 - ny;
-      // Per-edge torn depth (varies along the edge), then erosion if inside it.
+
       double erode = 0;
-      void consider(double dist, double along, int salt) {
-        final depth = margin * (0.25 + 1.5 * borderDepth(along, salt));
-        if (dist < depth) {
-          final e = 1 - dist / depth; // 1 at the very edge → 0 at depth
-          if (e > erode) erode = e;
+      void consider(
+          double dist, double along, int salt, double shoulder, double fiber) {
+        final bound = tearBound(along, salt);
+        double e;
+        if (dist < bound) {
+          // Outside the paper → fully torn away, except stray fibres clinging
+          // just inside the rip line that stay attached (small tongues).
+          if (bound - dist < fiber &&
+              _hash2(x, y, seed ^ 0x7ed9e) < 0.16) {
+            e = 0; // fibre survives (paper still present here)
+          } else {
+            e = 1; // torn out
+          }
+        } else if (dist - bound < shoulder) {
+          e = 1 - (dist - bound) / shoulder; // 1px anti-alias shoulder
+        } else {
+          e = 0;
         }
+        if (e > erode) erode = e;
       }
 
-      consider(dl, ny, 1);
-      consider(dr, ny, 2);
-      consider(dt, nx, 3);
-      consider(db, nx, 4);
+      consider(dl, ny, 1, shoulderX, fiberBandX);
+      consider(dr, ny, 2, shoulderX, fiberBandX);
+      consider(dt, nx, 3, shoulderY, fiberBandY);
+      consider(db, nx, 4, shoulderY, fiberBandY);
 
       if (erode > 0) {
-        // Break the tear up with fine speckle so it isn't a smooth ramp.
-        final speck = _hash2(x, y, seed ^ 0x1234);
-        final a = (erode * strength * (0.6 + 0.4 * speck) * 255)
-            .round()
-            .clamp(0, 255);
-        out[(y * w + x) * 4 + 3] = a;
+        out[(y * w + x) * 4 + 3] = (erode * 255).round().clamp(0, 255);
       }
     }
   }
