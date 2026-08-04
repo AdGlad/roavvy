@@ -25,7 +25,9 @@ class MapPhotoStrip extends ConsumerStatefulWidget {
   const MapPhotoStrip({super.key});
 
   /// Header block height (drag handle + count label) — the collapsed height.
-  static const double _headerHeight = 36.0;
+  // A little slack over the exact content height so the count label doesn't
+  // overflow the collapsed panel when the system text size is enlarged.
+  static const double _headerHeight = 44.0;
 
   /// Panel height for [screenWidth] — used by MapScreen to offset the UI
   /// stacked above the panel.

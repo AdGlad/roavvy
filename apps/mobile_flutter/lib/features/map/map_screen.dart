@@ -848,7 +848,12 @@ class _VisitedCountryFlagStrip extends ConsumerWidget {
                           ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: Text(_flag(code), style: const TextStyle(fontSize: 22)),
+                // height: 1.0 tightens the emoji's tall default line box so it
+                // fits the fixed-height strip instead of overflowing the bottom.
+                child: Text(
+                  _flag(code),
+                  style: const TextStyle(fontSize: 22, height: 1.0),
+                ),
               ),
             ),
           );
