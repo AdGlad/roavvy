@@ -148,6 +148,39 @@ class FlagGridLayoutEngine {
 
     if (gridW <= 0 || gridH <= 0) return [];
 
+    // Single flag (one tile, no repeat, no forced rows, no clip cover): fit it
+    // entirely within the grid zone at its natural aspect ratio, centred.
+    //
+    // Without this, the row-packing path (_scaleRowsToFit) scales the single
+    // row to fill the grid HEIGHT, making the flag's width = ar × gridH. In a
+    // portrait grid zone that width exceeds gridW, so the left-anchored flag
+    // overflows the right edge and is clipped by the canvas — the flag looks
+    // cut off on the right and squarer than it is. Contain-fitting one flag is
+    // both the correct visual and the fix for that clipping.
+    if (codes.length == 1 &&
+        flagRepeatCount <= 1 &&
+        rowCount == null &&
+        !coverGrid &&
+        (mode == FlagGridLayoutMode.packedRow ||
+            mode == FlagGridLayoutMode.treemap)) {
+      final ar = _ar(codes.first);
+      // Largest w×h with w/h == ar that fits inside gridW×gridH.
+      double w = gridW;
+      double h = w / ar;
+      if (h > gridH) {
+        h = gridH;
+        w = h * ar;
+      }
+      final left = padding + (gridW - w) / 2;
+      final top = originY + (gridH - h) / 2;
+      return [
+        FlagGridTile(
+          code: codes.first,
+          rect: Rect.fromLTWH(left, top, w, h),
+        ),
+      ];
+    }
+
     // For single-country row-based mode: compute colsPerRow from geometry so
     // every row is complete and flags render at their natural aspect ratio.
     // Then centre the flag block horizontally.

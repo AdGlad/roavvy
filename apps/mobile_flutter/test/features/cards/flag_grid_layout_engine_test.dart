@@ -74,6 +74,31 @@ void main() {
       expect(tiles.first.code, 'gb');
     });
 
+    // Regression: a single flag in a PORTRAIT grid zone must fit entirely
+    // within the grid width — it must not overflow the right edge (where the
+    // canvas clips it, making the flag look cut off on the right and squarer).
+    test('single flag fits within grid width in a portrait canvas', () {
+      const portrait = Size(400, 600); // taller than wide (2:3 card)
+      const top = 40.0, bot = 40.0, pad = 4.0;
+      final tiles = FlagGridLayoutEngine.compute(
+        codes: ['au'],
+        canvasSize: portrait,
+        topOffset: top,
+        bottomOffset: bot,
+        flagRepeatCount: 1,
+      );
+      expect(tiles.length, 1);
+      final r = tiles.first.rect;
+      // Stays inside the grid zone horizontally (no right-edge overflow) …
+      expect(r.left, greaterThanOrEqualTo(pad - 0.01));
+      expect(r.right, lessThanOrEqualTo(portrait.width - pad + 0.01));
+      // … and vertically, and preserves the flag's aspect ratio (≈ 4:3).
+      expect(r.top, greaterThanOrEqualTo(top + pad - 0.01));
+      expect(r.bottom,
+          lessThanOrEqualTo(portrait.height - bot - pad + 0.01));
+      expect(r.width / r.height, closeTo(4 / 3, 0.02));
+    });
+
     test('non-adjacency holds for every FlagGridLayoutMode value', () {
       for (final mode in FlagGridLayoutMode.values) {
         final tiles = FlagGridLayoutEngine.compute(
