@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -161,14 +162,151 @@ Uint8List generateScratchBytes({
   return out;
 }
 
+// ── Cracks (Voronoi cell edges) ───────────────────────────────────────────────
+
+/// A branching crack network built from the boundaries of a jittered Voronoi
+/// lattice (where the two nearest feature points are ~equidistant). Bright
+/// (255) = intact, dark (0) = crack — used to erase thin transparent fissures
+/// through the ink (grunge / cracked-ink look). Tileable via toroidal wrap.
+///
+/// [cells] controls crack spacing (more cells → finer, denser cracks);
+/// [thickness] is the crack width as a fraction of a cell.
+Uint8List generateCrackBytes({
+  required int seed,
+  int size = 256,
+  int cells = 7,
+  double thickness = 0.09,
+}) {
+  final cellSize = size / cells;
+  // Jittered feature point per lattice cell, in pixel space.
+  final px = List<double>.filled(cells * cells, 0);
+  final py = List<double>.filled(cells * cells, 0);
+  for (var gy = 0; gy < cells; gy++) {
+    for (var gx = 0; gx < cells; gx++) {
+      final i = gy * cells + gx;
+      px[i] = (gx + _hash2(gx, gy, seed)) * cellSize;
+      py[i] = (gy + _hash2(gx, gy, seed * 2654435761)) * cellSize;
+    }
+  }
+
+  double wrapDelta(double d) {
+    if (d > size / 2) return d - size;
+    if (d < -size / 2) return d + size;
+    return d;
+  }
+
+  final band = thickness * cellSize;
+  final out = Uint8List(size * size * 4);
+  for (var y = 0; y < size; y++) {
+    final cyi = (y / cellSize).floor();
+    for (var x = 0; x < size; x++) {
+      final cxi = (x / cellSize).floor();
+      var d1 = double.infinity, d2 = double.infinity;
+      // Search the 3×3 neighbouring lattice cells (with wrap).
+      for (var oy = -1; oy <= 1; oy++) {
+        for (var ox = -1; ox <= 1; ox++) {
+          final gx = (cxi + ox + cells) % cells;
+          final gy = (cyi + oy + cells) % cells;
+          final i = gy * cells + gx;
+          final dx = wrapDelta(x - px[i]);
+          final dy = wrapDelta(y - py[i]);
+          final d = dx * dx + dy * dy;
+          if (d < d1) {
+            d2 = d1;
+            d1 = d;
+          } else if (d < d2) {
+            d2 = d;
+          }
+        }
+      }
+      final edge = math.sqrt(d2) - math.sqrt(d1); // 0 on a cell boundary
+      // crack = 1 near a boundary, fading out over `band`.
+      final crack = (1 - (edge / band)).clamp(0.0, 1.0);
+      final v = (255 * (1 - crack)).round();
+      final o = (y * size + x) * 4;
+      out[o] = v;
+      out[o + 1] = v;
+      out[o + 2] = v;
+      out[o + 3] = 0xFF;
+    }
+  }
+  return out;
+}
+
+// ── Torn edges ────────────────────────────────────────────────────────────────
+
+/// A ragged brush-stroke edge mask sized to the artwork ([w]×[h]). Alpha
+/// encodes how much ink to **erase** (rgb=0), so it can be applied directly with
+/// [ui.BlendMode.dstOut]. The erosion is concentrated near the rectangle border
+/// with a jagged, noise-varied depth so the design frays into the garment
+/// instead of ending on a clean rectangle (refs: distressed.jpeg / grunge.jpeg).
+///
+/// [margin] is the max torn depth as a fraction of the shorter side; [strength]
+/// scales the erase amount (0..1). Deterministic in `(seed, w, h, …)`.
+Uint8List generateTornEdgeBytes({
+  required int seed,
+  required int w,
+  required int h,
+  double margin = 0.14,
+  double strength = 1.0,
+}) {
+  final out = Uint8List(w * h * 4);
+  // Coarse value along each border controls how deep the tear reaches there;
+  // a finer value breaks the tear line up into tongues/specks.
+  double borderDepth(double t, int salt) {
+    // t in 0..1 around a border; sample a smooth 1-D value noise.
+    final p = t * 11.0;
+    final i0 = p.floor();
+    final f = p - i0;
+    final a = _hash01(i0 * 374761393 ^ (seed + salt) * 668265263);
+    final b = _hash01((i0 + 1) * 374761393 ^ (seed + salt) * 668265263);
+    final s = f * f * (3 - 2 * f);
+    return a + (b - a) * s; // 0..1
+  }
+
+  for (var y = 0; y < h; y++) {
+    final ny = y / (h - 1);
+    for (var x = 0; x < w; x++) {
+      final nx = x / (w - 1);
+      // Normalised distance to each edge.
+      final dl = nx, dr = 1 - nx, dt = ny, db = 1 - ny;
+      // Per-edge torn depth (varies along the edge), then erosion if inside it.
+      double erode = 0;
+      void consider(double dist, double along, int salt) {
+        final depth = margin * (0.25 + 1.5 * borderDepth(along, salt));
+        if (dist < depth) {
+          final e = 1 - dist / depth; // 1 at the very edge → 0 at depth
+          if (e > erode) erode = e;
+        }
+      }
+
+      consider(dl, ny, 1);
+      consider(dr, ny, 2);
+      consider(dt, nx, 3);
+      consider(db, nx, 4);
+
+      if (erode > 0) {
+        // Break the tear up with fine speckle so it isn't a smooth ramp.
+        final speck = _hash2(x, y, seed ^ 0x1234);
+        final a = (erode * strength * (0.6 + 0.4 * speck) * 255)
+            .round()
+            .clamp(0, 255);
+        out[(y * w + x) * 4 + 3] = a;
+      }
+    }
+  }
+  return out;
+}
+
 // ── ui.Image cache ────────────────────────────────────────────────────────────
 
 /// Kinds of cached base texture. Halftone dots are generated by the pipeline
 /// per artwork (not here) because their cell size is artwork-normalised.
 ///
 /// [stampInk] is a finer, higher-contrast blotch used for the uneven ink and
-/// rough edges of the Passport Stamp style.
-enum PrintTextureKind { grain, blotch, scratch, stampInk }
+/// rough edges of the Passport Stamp style. [mottle] is a dense fine blotch for
+/// grungy ink breakup; [crack] is the Voronoi crack network.
+enum PrintTextureKind { grain, blotch, scratch, stampInk, mottle, crack }
 
 /// Caches decoded [ui.Image] textures keyed by `(kind, seed, size)`. A handful
 /// of small tileable images serve every design (tiled via
@@ -198,6 +336,9 @@ class PrintStyleTextures {
       PrintTextureKind.scratch => generateScratchBytes(seed: seed, size: size),
       PrintTextureKind.stampInk =>
         generateBlotchBytes(seed: seed, size: size, cells: 18),
+      PrintTextureKind.mottle =>
+        generateBlotchBytes(seed: seed, size: size, cells: 34),
+      PrintTextureKind.crack => generateCrackBytes(seed: seed, size: size),
     };
 
     final image = await _decode(bytes, size);

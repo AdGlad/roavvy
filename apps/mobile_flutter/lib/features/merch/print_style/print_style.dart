@@ -61,6 +61,7 @@ class PrintStyleParams {
     this.grain = 0,
     this.fade = 0,
     this.roughEdges = 0,
+    this.cracks = 0,
     this.halftone = 0,
     this.halftoneScale = 0.02,
     this.colorTreatment = ColorTreatment.none,
@@ -86,6 +87,10 @@ class PrintStyleParams {
 
   /// Edge erosion / irregularity (rough screen-print / stamp edges). `0..1`.
   final double roughEdges;
+
+  /// Branching crack network cut through the ink (cracked-paint / grunge).
+  /// `0..1`.
+  final double cracks;
 
   /// Halftone dot-treatment intensity. `0..1`.
   final double halftone;
@@ -128,12 +133,16 @@ class PrintStyleParams {
   /// Effective halftone intensity after per-artwork detail protection.
   double get effectiveHalftone => halftone * detailFactor;
 
+  /// Effective crack intensity after per-artwork detail protection.
+  double get effectiveCracks => cracks * detailFactor;
+
   PrintStyleParams copyWith({
     PrintStyleId? id,
     double? distress,
     double? grain,
     double? fade,
     double? roughEdges,
+    double? cracks,
     double? halftone,
     double? halftoneScale,
     ColorTreatment? colorTreatment,
@@ -149,6 +158,7 @@ class PrintStyleParams {
       grain: grain ?? this.grain,
       fade: fade ?? this.fade,
       roughEdges: roughEdges ?? this.roughEdges,
+      cracks: cracks ?? this.cracks,
       halftone: halftone ?? this.halftone,
       halftoneScale: halftoneScale ?? this.halftoneScale,
       colorTreatment: colorTreatment ?? this.colorTreatment,
@@ -180,6 +190,7 @@ class PrintStyleParams {
       other.grain == grain &&
       other.fade == fade &&
       other.roughEdges == roughEdges &&
+      other.cracks == cracks &&
       other.halftone == halftone &&
       other.halftoneScale == halftoneScale &&
       other.colorTreatment == colorTreatment &&
@@ -195,6 +206,7 @@ class PrintStyleParams {
         grain,
         fade,
         roughEdges,
+        cracks,
         halftone,
         halftoneScale,
         colorTreatment,
@@ -210,43 +222,49 @@ class PrintStyleParams {
 /// design so each generated shirt is unique yet reproducible.
 const Map<PrintStyleId, PrintStyleParams> kPrintStylePresets = {
   PrintStyleId.clean: PrintStyleParams(id: PrintStyleId.clean),
+  // "Distressed" garment-dye look: heavy mottled ink breakup + cracks + warm
+  // faded palette (ref: distressed.jpeg).
   PrintStyleId.vintage: PrintStyleParams(
     id: PrintStyleId.vintage,
-    distress: 0.30,
-    grain: 0.35,
-    fade: 0.45,
-    roughEdges: 0.20,
+    distress: 0.60,
+    grain: 0.40,
+    fade: 0.55,
+    roughEdges: 0.35,
+    cracks: 0.35,
     colorTreatment: ColorTreatment.vintageWarm,
   ),
   PrintStyleId.retro: PrintStyleParams(
     id: PrintStyleId.retro,
-    distress: 0.15,
-    grain: 0.30,
-    fade: 0.35,
-    halftone: 0.25,
-    halftoneScale: 0.025,
+    distress: 0.30,
+    grain: 0.35,
+    fade: 0.40,
+    halftone: 0.45,
+    halftoneScale: 0.03,
     colorTreatment: ColorTreatment.muted,
   ),
   PrintStyleId.halftone: PrintStyleParams(
     id: PrintStyleId.halftone,
     grain: 0.10,
-    halftone: 0.85,
-    halftoneScale: 0.018,
+    halftone: 1.0,
+    halftoneScale: 0.032,
     colorTreatment: ColorTreatment.none,
   ),
   PrintStyleId.stamp: PrintStyleParams(
     id: PrintStyleId.stamp,
-    distress: 0.45,
+    distress: 0.55,
     grain: 0.25,
-    roughEdges: 0.75,
+    roughEdges: 0.85,
     colorTreatment: ColorTreatment.monoInk,
   ),
+  // Heavy cracked-paint grunge: strong cracks, dense breakup, torn edges
+  // (ref: grunge.jpeg).
   PrintStyleId.grunge: PrintStyleParams(
     id: PrintStyleId.grunge,
-    distress: 0.65,
+    distress: 0.80,
     grain: 0.45,
     fade: 0.20,
-    roughEdges: 0.55,
+    roughEdges: 0.70,
+    cracks: 0.85,
     colorTreatment: ColorTreatment.muted,
   ),
 };

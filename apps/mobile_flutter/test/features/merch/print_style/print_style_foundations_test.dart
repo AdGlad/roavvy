@@ -163,6 +163,31 @@ void main() {
       expect(a, isNot(equals(c)));
     });
 
+    test('crack: deterministic; different seed differs', () {
+      final a = generateCrackBytes(seed: 9, size: 48);
+      final b = generateCrackBytes(seed: 9, size: 48);
+      final c = generateCrackBytes(seed: 10, size: 48);
+      expect(a, equals(b));
+      expect(a, isNot(equals(c)));
+      // Cracks are sparse: most of the field is intact (bright).
+      var bright = 0;
+      for (var i = 0; i < 48 * 48; i++) {
+        if (a[i * 4] > 200) bright++;
+      }
+      expect(bright, greaterThan(48 * 48 ~/ 2));
+    });
+
+    test('torn edge: deterministic; erodes borders not the centre', () {
+      final a = generateTornEdgeBytes(seed: 4, w: 64, h: 48);
+      final b = generateTornEdgeBytes(seed: 4, w: 64, h: 48);
+      expect(a, equals(b));
+      // Centre pixel: no erosion (alpha 0). A corner: some erosion.
+      final centre = a[((24 * 64) + 32) * 4 + 3];
+      expect(centre, 0);
+      final corner = a[0 * 4 + 3];
+      expect(corner, greaterThan(0));
+    });
+
     test('all texture bytes are opaque grayscale (R==G==B, A==255)', () {
       final g = generateGrainBytes(seed: 1, size: 8);
       for (var i = 0; i < 8 * 8; i++) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -75,12 +76,42 @@ class PrintStylePipeline {
             ? await PrintStyleTextures.instance.get(PrintTextureKind.stampInk,
                 params.seed ^ 0x27d4eb2f, size: 256)
             : null;
+    // Fine mottled breakup, layered on top of the coarse blotch so distress
+    // reads as dense grungy ink loss rather than a few soft blobs.
+    final mottleImg = params.effectiveDistress > 0.25
+        ? await PrintStyleTextures.instance.get(PrintTextureKind.mottle,
+            params.seed ^ 0x9e3779b1, size: 256)
+        : null;
+    // Branching crack network (cracked-paint / grunge).
+    final crackImg = params.effectiveCracks > 0
+        ? await PrintStyleTextures.instance.get(PrintTextureKind.crack,
+            params.seed ^ 0x165667b1, size: 256)
+        : null;
+    // Ragged torn outer edge (design frays into the garment).
+    final tornEdgeImg =
+        params.effectiveRoughEdges > 0 && _usesTornEdges(params)
+            ? await _buildTornEdgeImage(
+                params.seed, w, h, params.effectiveRoughEdges)
+            : null;
     // Local protection mask (keeps emblems/text inked). Only needed when an
     // ink-removing pass runs.
     final needsErase = distressImg != null || scratchImg != null ||
-        stampInkImg != null;
+        stampInkImg != null || mottleImg != null || crackImg != null;
     final protectionImg =
         needsErase ? await _buildProtectionImage(params.detail) : null;
+
+    // Halftone coverage grid (sampled before the canvas pass).
+    List<double>? halftoneGrid;
+    int halftoneCols = 0, halftoneRows = 0;
+    if (params.effectiveHalftone > 0) {
+      halftoneCols = _halftoneCols(rect, params);
+      if (halftoneCols >= 2) {
+        halftoneRows =
+            (halftoneCols * rect.height / rect.width).round().clamp(2, 400);
+        halftoneGrid =
+            await _coverageGrid(source, halftoneCols, halftoneRows);
+      }
+    }
 
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
@@ -95,8 +126,9 @@ class PrintStylePipeline {
     //     thins it between them (partial transparency), so solid fills read as
     //     a dot screen. Dot geometry is in artwork-normalised space so preview
     //     and print match.
-    if (params.effectiveHalftone > 0) {
-      _applyHalftone(canvas, rect, params);
+    if (params.effectiveHalftone > 0 && halftoneGrid != null) {
+      _applyHalftone(
+          canvas, rect, params, halftoneGrid, halftoneCols, halftoneRows);
     }
 
     // 2. Grain — masked to the artwork's alpha, composited with soft light so it
@@ -127,6 +159,18 @@ class PrintStylePipeline {
           protection: protectionImg);
     }
 
+    // 3b. Fine mottle — dense grungy breakup layered over the coarse blotch.
+    if (mottleImg != null) {
+      _erase(canvas, rect, mottleImg, params.effectiveDistress * 0.7,
+          protection: protectionImg);
+    }
+
+    // 3c. Cracks — thin transparent fissures through the ink. Not protected, so
+    //     cracks read clearly even across emblems (matches cracked-paint refs).
+    if (crackImg != null) {
+      _erase(canvas, rect, crackImg, params.effectiveCracks);
+    }
+
     // 4. Scratches / ink chips (grunge-style ink loss), stronger streaks.
     if (scratchImg != null) {
       _erase(canvas, rect, scratchImg, params.effectiveRoughEdges,
@@ -140,10 +184,25 @@ class PrintStylePipeline {
           protection: protectionImg);
     }
 
+    // 6. Torn outer edge — frays the design boundary into the garment. Alpha of
+    //    the mask already encodes the erase amount, so dstOut directly.
+    if (tornEdgeImg != null) {
+      canvas.drawImageRect(
+        tornEdgeImg,
+        ui.Rect.fromLTWH(
+            0, 0, tornEdgeImg.width.toDouble(), tornEdgeImg.height.toDouble()),
+        rect,
+        ui.Paint()
+          ..blendMode = ui.BlendMode.dstOut
+          ..filterQuality = ui.FilterQuality.low,
+      );
+    }
+
     final picture = recorder.endRecording();
     final out = await picture.toImage(w, h);
     picture.dispose();
     protectionImg?.dispose();
+    tornEdgeImg?.dispose();
     return out;
   }
 
@@ -152,6 +211,30 @@ class PrintStylePipeline {
   /// dedicated edge treatment in a later milestone.
   bool _usesScratches(PrintStyleParams p) =>
       p.id == PrintStyleId.grunge || p.id == PrintStyleId.vintage;
+
+  /// Styles whose boundary should fray into the garment.
+  bool _usesTornEdges(PrintStyleParams p) =>
+      p.id == PrintStyleId.grunge ||
+      p.id == PrintStyleId.vintage ||
+      p.id == PrintStyleId.stamp;
+
+  /// Builds a torn-edge erase mask ([ui.Image], alpha = erase) sized to the
+  /// artwork but capped for cost — the tear is low-frequency, so upscaling from
+  /// the cap is imperceptible while keeping print-resolution renders cheap.
+  Future<ui.Image> _buildTornEdgeImage(
+      int seed, int w, int h, double strength) {
+    const cap = 512;
+    final longSide = w > h ? w : h;
+    final scale = longSide > cap ? cap / longSide : 1.0;
+    final tw = (w * scale).round().clamp(2, cap);
+    final th = (h * scale).round().clamp(2, cap);
+    final bytes = generateTornEdgeBytes(
+        seed: seed ^ 0xa5a5f00d, w: tw, h: th, strength: strength);
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+        bytes, tw, th, ui.PixelFormat.rgba8888, completer.complete);
+    return completer.future;
+  }
 
   /// Erases ink from the current canvas using [tex]'s luminance as the erase
   /// shape (dark = erase), scaled by [strength] (0..1), so distressed ink turns
@@ -241,36 +324,116 @@ class PrintStylePipeline {
     return completer.future;
   }
 
-  /// Applies a halftone dot screen to the current canvas contents. Builds an
-  /// alpha mask (dots = keep ink, gaps = keep `1 - intensity` of ink) and
-  /// composites it onto the artwork with [BlendMode.dstIn], so between-dot
-  /// areas become partially transparent — a screen-print look that still shows
-  /// the garment through the gaps.
-  ///
-  /// The cell size is [PrintStyleParams.halftoneScale] × the artwork's shorter
-  /// side, so the dot frequency is identical in preview and print.
-  void _applyHalftone(ui.Canvas canvas, ui.Rect rect, PrintStyleParams p) {
-    final intensity = p.effectiveHalftone.clamp(0.0, 1.0);
-    if (intensity <= 0) return;
+  /// Number of dot cells across the artwork's shorter side for a given style.
+  int _halftoneCols(ui.Rect rect, PrintStyleParams p) {
     final shortSide = rect.width < rect.height ? rect.width : rect.height;
     final cell = (p.halftoneScale.clamp(0.004, 0.2)) * shortSide;
-    if (cell < 1) return;
-    final radius = cell * 0.42;
+    if (cell < 1) return 0;
+    return (shortSide / cell).round().clamp(2, 400);
+  }
+
+  /// Applies a halftone dot screen whose dot size follows the artwork's local
+  /// ink coverage ([grid]: `cols × rows`, values 0..1). Denser/darker ink → big
+  /// dots (near-solid); faint/edge ink → small dots that dissolve into a burst —
+  /// matching classic screen-print halftone. Composited with [BlendMode.dstIn]
+  /// so between-dot areas become transparent (garment shows through).
+  ///
+  /// The grid is sampled in artwork-normalised space, so the dot geometry is
+  /// identical in preview and print.
+  void _applyHalftone(
+    ui.Canvas canvas,
+    ui.Rect rect,
+    PrintStyleParams p,
+    List<double> grid,
+    int cols,
+    int rows,
+  ) {
+    final intensity = p.effectiveHalftone.clamp(0.0, 1.0);
+    if (intensity <= 0 || cols < 2 || rows < 2) return;
+    final cellW = rect.width / cols;
+    final cellH = rect.height / rows;
+    final cell = cellW < cellH ? cellW : cellH;
+    // Large enough that full-coverage cells fill solid (no interior gaps); lower
+    // coverage shrinks the dot, so only faint/edge areas dissolve into a burst.
+    final maxRadius = cell * 0.95;
 
     canvas.saveLayer(rect, ui.Paint()..blendMode = ui.BlendMode.dstIn);
-    // Baseline: gaps retain (1 - intensity) of the ink.
+    // Baseline: gaps retain (1 - intensity) of the ink (0 for pure Halftone).
     canvas.drawRect(
       rect,
       ui.Paint()..color = ui.Color.fromRGBO(255, 255, 255, 1 - intensity),
     );
-    // Dots retain full ink.
     final dot = ui.Paint()..color = const ui.Color(0xFFFFFFFF);
-    for (var cy = rect.top + cell / 2; cy < rect.bottom; cy += cell) {
-      for (var cx = rect.left + cell / 2; cx < rect.right; cx += cell) {
-        canvas.drawCircle(ui.Offset(cx, cy), radius, dot);
+    for (var ry = 0; ry < rows; ry++) {
+      for (var cx = 0; cx < cols; cx++) {
+        final cov = grid[ry * cols + cx];
+        if (cov <= 0.02) continue;
+        // Area ∝ coverage → radius ∝ sqrt(coverage).
+        final r = maxRadius * math.sqrt(cov.clamp(0.0, 1.0));
+        if (r < 0.3) continue;
+        final centreX = rect.left + (cx + 0.5) * cellW;
+        final centreY = rect.top + (ry + 0.5) * cellH;
+        canvas.drawCircle(ui.Offset(centreX, centreY), r, dot);
       }
     }
     canvas.restore();
+  }
+
+  /// Downsamples [source] to a `cols × rows` coverage grid (0..1) for halftone
+  /// dot sizing. Coverage combines ink presence (alpha) with a darkness boost so
+  /// darker ink produces larger dots. Small readback (cols×rows), cheap even at
+  /// print resolution.
+  Future<List<double>> _coverageGrid(
+    ui.Image source,
+    int cols,
+    int rows,
+  ) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawImageRect(
+      source,
+      ui.Rect.fromLTWH(0, 0, source.width.toDouble(), source.height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, cols.toDouble(), rows.toDouble()),
+      ui.Paint()..filterQuality = ui.FilterQuality.medium,
+    );
+    final picture = recorder.endRecording();
+    final small = await picture.toImage(cols, rows);
+    picture.dispose();
+    final data = await small.toByteData(format: ui.ImageByteFormat.rawRgba);
+    small.dispose();
+    final grid = List<double>.filled(cols * rows, 0);
+    if (data == null) return grid;
+    final bytes = data.buffer.asUint8List();
+    // Edge feather: fade coverage toward the artwork border so the outer band
+    // dissolves into a graduated dot burst (centre stays solid) — the classic
+    // halftone look (ref: halftone.jpeg). Margin as a fraction of each axis.
+    const feather = 0.16;
+    for (var ry = 0; ry < rows; ry++) {
+      final ny = rows > 1 ? ry / (rows - 1) : 0.5;
+      final vY = _smoothEdge(ny, feather);
+      for (var cx = 0; cx < cols; cx++) {
+        final nx = cols > 1 ? cx / (cols - 1) : 0.5;
+        final vignette = math.min(_smoothEdge(nx, feather), vY);
+        final o = (ry * cols + cx) * 4;
+        final a = bytes[o + 3] / 255.0;
+        final lum =
+            (bytes[o] * 0.299 + bytes[o + 1] * 0.587 + bytes[o + 2] * 0.114) /
+                255.0;
+        final darkness = 1.0 - lum;
+        grid[ry * cols + cx] =
+            (a * (0.82 + 0.18 * darkness) * vignette).clamp(0.0, 1.0);
+      }
+    }
+    return grid;
+  }
+
+  /// Smoothstep ramp that is 1 in the interior and falls to 0 within [margin]
+  /// of either edge (position [t] in 0..1).
+  double _smoothEdge(double t, double margin) {
+    final d = t < 0.5 ? t : 1 - t;
+    if (d >= margin) return 1.0;
+    final x = (d / margin).clamp(0.0, 1.0);
+    return x * x * (3 - 2 * x);
   }
 
   /// Fills [rect] by tiling [tex] with the given [blendMode].
