@@ -36,6 +36,10 @@ import 'merch_image_processor.dart';
 import 'merch_storage_uploader.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
+import 'print_style/artwork_detail_analyzer.dart';
+import 'print_style/print_style.dart';
+import 'print_style/print_style_pipeline.dart';
+import 'print_style/print_style_preview_cache.dart';
 import 'printful_placement_mapper.dart';
 import 'product_mockup_specs.dart';
 import 'shopify_pricing_repository.dart';
@@ -257,6 +261,18 @@ class _LocalMockupPreviewScreenState
 
   // nullable until first generation (ADR-147: preset-driven entry).
   Uint8List? _artworkBytes;
+
+  // ── Print style (M-D) ──────────────────────────────────────────────────────
+  // The active print style transforms the *finished* artwork into a
+  // professional-apparel look. [_cleanArtworkBytes] is the un-styled render
+  // (the base every style is applied to); [_artworkBytes] holds the styled
+  // result that becomes both the preview source and the Printful print file, so
+  // styling flows to print automatically. Default [PrintStyleId.clean] is a
+  // byte-perfect pass-through — the pre-style experience is unchanged.
+  PrintStyleId _printStyleId = PrintStyleId.clean;
+  int _printStyleSeed = 0;
+  Uint8List? _cleanArtworkBytes;
+  final PrintStylePreviewCache _styleCache = PrintStylePreviewCache();
 
   /// Current active preset config (may be updated by Layer 2 customisation).
   MerchPresetConfig? _presetConfig;
@@ -529,6 +545,9 @@ class _LocalMockupPreviewScreenState
     // Flag grid defaults to landscape; all other templates default to portrait.
     _isPortrait = widget.initialTemplate != CardTemplateType.grid;
     _artworkConfirmationId = widget.artworkConfirmationId;
+    // Deterministic per-design seed so the styled artwork is reproducible.
+    final seed = widget.stampLayoutSeed;
+    _printStyleSeed = (seed != null && seed != 0) ? seed : 0x51ed;
     if (widget.initialColour != null &&
         tshirtColors.contains(widget.initialColour)) {
       _colour = widget.initialColour!;
@@ -537,6 +556,7 @@ class _LocalMockupPreviewScreenState
     if (providedBytes != null) {
       // Existing path: caller supplied pre-rendered artwork bytes (ADR-147).
       _artworkBytes = providedBytes;
+      _cleanArtworkBytes = providedBytes;
       _artworkVariants[0] = providedBytes;
       // T-shirts always composite artwork transparently onto fabric. If the
       // confirmed artwork was rendered with a background (transparentBackground=false),
@@ -647,6 +667,91 @@ class _LocalMockupPreviewScreenState
       _artworkImage?.dispose();
       _artworkImage = frame.image;
     });
+  }
+
+  // ── Print style application (M-D) ────────────────────────────────────────
+  //
+  // Every artwork (re)render produces *clean* bytes. [_afterArtworkCommitted]
+  // records them as the style base and, when a non-clean style is active,
+  // re-applies the style so [_artworkBytes] (preview + print source) stays
+  // styled. With the default [PrintStyleId.clean] this is a no-op, so existing
+  // flows are byte-identical.
+
+  /// Records [cleanBytes] as the base artwork and re-applies the active style.
+  void _afterArtworkCommitted(Uint8List cleanBytes) {
+    _cleanArtworkBytes = cleanBytes;
+    if (_printStyleId != PrintStyleId.clean) unawaited(_restyle());
+  }
+
+  /// Applies the active print style to [cleanBytes], returning styled PNG bytes
+  /// (or [cleanBytes] unchanged when the style is clean). Cached per
+  /// `(artworkHash, styleId, seed)` so re-selecting a style is instant.
+  Future<Uint8List> _stylise(Uint8List cleanBytes) async {
+    if (_printStyleId == PrintStyleId.clean) return cleanBytes;
+    final hash = sha256.convert(cleanBytes).toString();
+    final key = PrintStylePreviewCache.keyFor(
+      artworkHash: hash,
+      styleId: _printStyleId.name,
+      seed: _printStyleSeed,
+    );
+    final cached = _styleCache.get(key);
+    if (cached != null) return cached;
+
+    // Analyse the clean artwork once to auto-protect detailed designs.
+    ArtworkDetail detail = ArtworkDetail.none;
+    try {
+      final codec = await ui.instantiateImageCodec(cleanBytes);
+      final frame = await codec.getNextFrame();
+      detail = await ArtworkDetailAnalyzer.analyze(frame.image);
+      frame.image.dispose();
+    } catch (_) {
+      // Fall back to no-protection analysis.
+    }
+
+    final params = kPrintStylePresets[_printStyleId]!
+        .copyWith(seed: _printStyleSeed)
+        .resolvedFor(detail);
+    final styled =
+        await PrintStylePipeline.instance.applyToBytes(cleanBytes, params);
+    _styleCache.put(key, styled);
+    return styled;
+  }
+
+  /// Re-applies the active style to the current [_cleanArtworkBytes] and updates
+  /// the preview image + [_artworkBytes] (the print source).
+  Future<void> _restyle() async {
+    final clean = _cleanArtworkBytes;
+    if (clean == null) return;
+    final styled = await _stylise(clean);
+    if (!mounted) return;
+    await _decodeArtwork(styled);
+    if (!mounted) return;
+    setState(() {
+      _artworkBytes = styled;
+      // Styled pixels differ from any prior confirmation.
+      _artworkConfirmationId = null;
+    });
+  }
+
+  /// Handles a print-style selection from the picker strip. Clean restores the
+  /// un-styled base; any other style is applied (from cache when available).
+  Future<void> _onPrintStyleSelected(PrintStyleId id) async {
+    if (id == _printStyleId) return;
+    setState(() => _printStyleId = id);
+    final clean = _cleanArtworkBytes ?? _artworkBytes;
+    if (clean == null) return;
+    if (id == PrintStyleId.clean) {
+      _cleanArtworkBytes = clean;
+      await _decodeArtwork(clean);
+      if (!mounted) return;
+      setState(() {
+        _artworkBytes = clean;
+        _artworkConfirmationId = null;
+      });
+      return;
+    }
+    _cleanArtworkBytes = clean;
+    await _restyle();
   }
 
   /// Loads the shirt mockup image (M59: single JPG shared for front and back).
@@ -822,6 +927,7 @@ class _LocalMockupPreviewScreenState
         _artworkConfirmationId = null; // reset — new image, no confirmation yet
         _state = _MockupState.configuring;
       });
+      _afterArtworkCommitted(result.bytes);
       // Apply suggested stamp/text colour for the newly generated image.
       if (_isTshirt && config.layout == CardTemplateType.passport) {
         unawaited(_setPassportColorMode(_passportColorMode));
@@ -1430,6 +1536,7 @@ class _LocalMockupPreviewScreenState
       _artworkVariantIndex = index;
       _artworkBytes = bytes;
     });
+    _afterArtworkCommitted(bytes);
   }
 
   // ── Passport stamp colour selection (M64) ──────────────────────────────────
@@ -1476,6 +1583,7 @@ class _LocalMockupPreviewScreenState
       await _decodeArtwork(result.bytes);
       if (!mounted) return;
       setState(() => _artworkBytes = result.bytes);
+      _afterArtworkCommitted(result.bytes);
       // Re-render front ribbon to match the chosen text color.
       await _loadFrontRibbonImage();
     } finally {
@@ -1584,6 +1692,7 @@ class _LocalMockupPreviewScreenState
       await _decodeArtwork(result.bytes);
       if (!mounted) return;
       setState(() => _artworkBytes = result.bytes);
+      _afterArtworkCommitted(result.bytes);
     } finally {
       if (mounted) setState(() => _variantLoading = false);
     }
@@ -1617,6 +1726,7 @@ class _LocalMockupPreviewScreenState
       await _decodeArtwork(result.bytes);
       if (!mounted) return;
       setState(() => _artworkBytes = result.bytes);
+      _afterArtworkCommitted(result.bytes);
     } finally {
       if (mounted) setState(() => _variantLoading = false);
     }
@@ -2700,6 +2810,15 @@ class _LocalMockupPreviewScreenState
           ],
         ),
 
+        const SizedBox(height: 12),
+        // ── Print style — applies a professional-apparel finish (M-D) ─────
+        const _MiniLabel('Print style'),
+        const SizedBox(height: 4),
+        _PrintStyleStrip(
+          selected: _printStyleId,
+          enabled: _artworkBytes != null && !_variantLoading,
+          onSelected: _onPrintStyleSelected,
+        ),
         const SizedBox(height: 12),
         // ── Colour + Size — primary choices, always visible ──────────────
         Row(
@@ -4155,6 +4274,52 @@ class _MiniLabel extends StatelessWidget {
         color: theme.colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+/// Horizontal strip of print-style chips (Clean / Vintage / Retro / Halftone /
+/// Stamp / Grunge). Tapping a chip applies the style to the finished artwork in
+/// place — the styled bytes become both the preview and the Printful print file.
+class _PrintStyleStrip extends StatelessWidget {
+  const _PrintStyleStrip({
+    required this.selected,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final PrintStyleId selected;
+  final bool enabled;
+  final ValueChanged<PrintStyleId> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: PrintStyleId.values.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final id = PrintStyleId.values[i];
+          final isSel = id == selected;
+          return ChoiceChip(
+            label: Text(printStyleLabel(id)),
+            selected: isSel,
+            onSelected: enabled ? (_) => onSelected(id) : null,
+            labelStyle: theme.textTheme.labelMedium?.copyWith(
+              color: isSel
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurface,
+              fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+            ),
+            selectedColor: theme.colorScheme.primary,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          );
+        },
       ),
     );
   }
