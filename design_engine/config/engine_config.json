@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "configVersion": 1,
+  "description": "Declarative configuration for the procedural design engine. Values mirror the current Dart defaults (printability.dart consts, kDefault*Scorers weights, DesignEngineBudget) so this file documents the source of truth without yet driving it. When wired, the runtime should load these instead of hard-coded constants.",
+
+  "printability": {
+    "_comment": "Hard gate — a design failing any of these is never scored/rendered. Mirrors printability.dart (verified 2026-08).",
+    "minFeaturePx": 90,
+    "minCoverage": 0.12,
+    "maxCoverage": 0.98,
+    "printfileWidthPx": 1800,
+    "printfileHeightPx": 2400,
+    "printDpi": 150,
+    "titleReserveFrac": 0.10,
+    "brandingReserveFrac": 0.05,
+    "garmentLuminanceContrastMin": 0.30
+  },
+
+  "budget": {
+    "_comment": "OptimizationLoop budget. Tuned for real-time on-device generation (see architecture §Risks).",
+    "populationSize": 48,
+    "generations": 3,
+    "analyticTopK": 12,
+    "pixelTopK": 6,
+    "elitism": 2,
+    "diversityInjectPerGen": 4,
+    "thumbnailPx": 256,
+    "maxWallClockMs": 1200,
+    "maxThumbnailRenders": 18
+  },
+
+  "mutation": {
+    "mutationRate": 0.25,
+    "crossoverRate": 0.5,
+    "perGeneFlipProbability": 0.15,
+    "diversityDistanceMin": 2
+  },
+
+  "scoreWeights": {
+    "_comment": "Aggregate DesignScore.total() weights (verified: wAesthetic 0.7, wFit 0.3). printabilityMargin is a gate-margin field, not part of the default total.",
+    "aesthetic": 0.7,
+    "profileFit": 0.3
+  },
+
+  "analyticScorers": {
+    "_comment": "Tier 1 — no raster. kDefaultAnalyticScorers + kDefaultProfileScorer.",
+    "coverageBalance": 1.0,
+    "whitespace": 1.0,
+    "focalHierarchy": 1.0,
+    "aspectFit": 1.0,
+    "profileFit": 1.0
+  },
+
+  "pixelScorers": {
+    "_comment": "Tier 2 — thumbnail raster. kDefaultPixelScorers.",
+    "contrastLegibility": 1.0,
+    "colorHarmony": 1.0,
+    "edgeDensity": 1.0
+  },
+
+  "aiCritic": {
+    "_comment": "Tier 3 — optional cloud vision re-rank. Remote-flag gated, non-blocking, never on the print path. Off by default; the engine is fully functional without it.",
+    "enabled": false,
+    "remoteFlagKey": "design_engine_ai_critic",
+    "maxCandidates": 3
+  },
+
+  "preferenceLearning": {
+    "_comment": "Stage 5. All on-device.",
+    "enabled": true,
+    "coldStartSampleThreshold": 5,
+    "weightLearningRate": 0.15,
+    "weightClamp": [0.25, 4.0],
+    "explorationRateInitial": 0.2,
+    "explorationRateFloor": 0.05,
+    "explorationHalfLifeSamples": 40,
+    "recentSignalWindow": 200
+  },
+
+  "determinism": {
+    "_comment": "Named RNG sub-streams derived from DesignRecipe.seed so unrelated choices don't alias.",
+    "seedStreams": ["population", "layout", "motif", "palette", "jitter", "diversity"]
+  },
+
+  "featureFlags": {
+    "paletteEngine": false,
+    "motifEngine": false,
+    "typographyTreatment": false,
+    "preferenceReRank": false
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/studio/reference_record.schema.json",
+  "title": "ReferenceRecord",
+  "description": "Development-only analysis of one reference image. Maps a picture into DesignRecipe-space features + a verdict, with provenance/rights. Never bundled.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "imageStem", "verdict", "provenance"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "imageStem": {
+      "type": "string",
+      "description": "Filename stem of the sibling image (e.g. 'grid-montage-europe-vintage-01')."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["liked", "disliked"],
+      "description": "Which reference bucket this belongs to."
+    },
+    "reasons": {
+      "type": "array",
+      "description": "Why we like/dislike it — the calibration signal.",
+      "items": { "type": "string" }
+    },
+    "features": {
+      "type": ["object", "null"],
+      "description": "Closest DesignRecipe-space description of the image. Any subset; use the same enums as design_recipe.schema.json.",
+      "additionalProperties": false,
+      "properties": {
+        "template": { "type": "string" },
+        "layoutMode": { "type": "string" },
+        "density": { "type": "string" },
+        "clipShape": { "type": "string" },
+        "printStyleFeel": { "type": "string" },
+        "dominantColors": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+          "maxItems": 6
+        },
+        "focalHierarchy": { "type": "string", "enum": ["strong", "medium", "flat"] },
+        "legibility": { "type": "string", "enum": ["high", "medium", "low"] },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "nearestRecipeId": {
+      "type": ["string", "null"],
+      "description": "If a generated design matches this reference, its DesignRecipe.recipeId — links the bar to producible output."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "rightsCleared"],
+      "properties": {
+        "source": { "type": "string", "description": "'own-render' | url | dataset | 'hand-mock'." },
+        "rightsCleared": {
+          "type": "boolean",
+          "description": "True only if we may store/use this image. Third-party images default false and must not be committed."
+        },
+        "capturedAtEpochMs": { "type": ["integer", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

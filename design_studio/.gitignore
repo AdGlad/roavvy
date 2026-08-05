@@ -1,0 +1,25 @@
+# design_studio is development-only and must never be bundled.
+# Keep the structure and the machine-readable artifacts in git; keep bulky/
+# rights-encumbered binaries OUT by default. Commit specific images deliberately
+# with `git add -f` once provenance/rights are recorded in reference_analysis.
+
+# Binary reference + generated artwork (large / potentially rights-encumbered)
+reference_images/**/*.png
+reference_images/**/*.jpg
+reference_images/**/*.jpeg
+reference_images/**/*.webp
+reference_images/**/*.heic
+
+# Generated batch archives are development-only output (regenerate any time via
+# batch_generate.dart). Keep the folder + its README; ignore produced batches.
+generated_batches/*/
+generated_batches/**/*.png
+generated_batches/**/*.jpg
+
+# Ad-hoc scratch
+**/_scratch/
+**/*.tmp
+
+# Keep: all .md, all .json (recipes, analysis, critiques, feedback, reports),
+# and .gitkeep placeholders.
+!**/.gitkeep

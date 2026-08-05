@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/studio/feedback_record.schema.json",
+  "title": "FeedbackRecord",
+  "description": "One human (or implicit) reaction to a specific reproducible design. Shared by studio and app so both feed the same preference learner.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recipeId", "signal", "atEpochMs"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "recipeId": {
+      "type": "string",
+      "description": "DesignRecipe.recipeId this reaction is about — ties feedback to an exact, re-renderable design."
+    },
+    "signal": {
+      "type": "string",
+      "enum": ["like", "dislike", "chosen", "purchased", "dismissed"],
+      "description": "Explicit (like/dislike) or implicit (chosen/purchased/dismissed) taste signal."
+    },
+    "atEpochMs": { "type": "integer" },
+    "userId": {
+      "type": "string",
+      "description": "Real user id, or 'studio:<reviewer>' for bench feedback that biases global priors.",
+      "default": "studio:anon"
+    },
+    "context": {
+      "type": ["object", "null"],
+      "description": "Optional scope the design was shown for (helps attribute taste per scope).",
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "type": "string" },
+        "batchId": { "type": ["string", "null"] }
+      }
+    },
+    "notes": { "type": ["string", "null"] },
+    "weight": {
+      "type": "number",
+      "description": "Optional confidence/strength multiplier for this event (default 1.0).",
+      "minimum": 0,
+      "maximum": 5,
+      "default": 1.0
+    }
+  }
+}

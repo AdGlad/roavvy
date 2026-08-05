@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/design_recipe.schema.json",
+  "title": "DesignRecipe",
+  "description": "A deterministic, PARAMETRIC description of one T-shirt design — a reproducible recipe generated from rules + parameters + a seed, never a stored raster. Given the same (schemaVersion, engineVersion, grammarVersion, seed, resolved inputs) it must render byte-identically. Superset of the existing Dart DesignParams genome; the mapped subset MUST collapse to a legal DesignParams that the current renderer/print pipeline can already produce (see schemas/README.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recipeId", "seed", "composition", "content"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "recipeId": {
+      "type": "string",
+      "description": "Stable content hash of the design. For the DesignParams-mapped subset this MUST equal DesignParams.contentHash so caches/telemetry/goldens align across the boundary."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "The deterministic driver. Every stochastic grammar choice (layout shuffle, motif pick, jitter) derives from a named sub-stream of this seed. Persisted so print == preview.",
+      "minimum": 0
+    },
+    "contextScopeKey": {
+      "type": ["string", "null"],
+      "description": "Opaque key identifying the DesignContext this was generated for (e.g. 'region:europe:2024'). Lets a recipe be re-resolved without embedding the whole context."
+    },
+    "engineVersion": {
+      "type": "string",
+      "description": "Semantic version of the runtime engine that produced/validates this recipe."
+    },
+    "grammarVersion": {
+      "type": "string",
+      "description": "Version of the design grammar (design_engine/grammar) used. Changing the grammar can change the meaning of a seed, so this is part of reproducibility."
+    },
+    "composition": {
+      "type": "object",
+      "description": "The macro layout skeleton. Maps to the core DesignParams genes.",
+      "additionalProperties": false,
+      "required": ["template"],
+      "properties": {
+        "template": {
+          "type": "string",
+          "description": "CardTemplateType — which existing card renderer draws this.",
+          "enum": ["grid", "passport", "timeline", "frontRibbon", "typography", "badge", "wordCloud", "landmark", "journeys"]
+        },
+        "layoutMode": {
+          "type": "string",
+          "description": "FlagGridLayoutMode (grid template only).",
+          "enum": ["packedRow", "normalizedGrid", "treemap", "montage"]
+        },
+        "rowCount": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "density": { "type": "string", "enum": ["sparse", "balanced", "dense"] },
+        "jitter": { "type": "number", "minimum": 0, "maximum": 1 },
+        "orientation": { "type": "string", "enum": ["portrait", "landscape"] },
+        "imageSize": { "type": "string", "enum": ["small", "medium", "large"] }
+      }
+    },
+    "clip": {
+      "type": ["object", "null"],
+      "description": "Optional clip/mask shape for the composition (grid template). Silhouette/outline clips are single-country only (enforced by DesignParams.normalize).",
+      "additionalProperties": false,
+      "required": ["shape"],
+      "properties": {
+        "shape": {
+          "type": "string",
+          "enum": ["none", "heart", "circle", "countryOutline", "continentOutline", "animalSilhouette", "plantSilhouette", "landmarkSilhouette"]
+        },
+        "code": {
+          "type": ["string", "null"],
+          "description": "ISO-2 (country/continent outline) or silhouette slug (assets/symbols/animal_slugs.json). Required for outline/silhouette/continent shapes."
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "description": "The concrete travel content drawn.",
+      "additionalProperties": false,
+      "required": ["countryCodes"],
+      "properties": {
+        "countryCodes": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z]{2}$" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "source": {
+          "type": "string",
+          "description": "MerchCountrySource — semantic provenance of the set.",
+          "enum": ["recentTrip", "thisYear", "allTime", "singleCountry"]
+        },
+        "stampMode": { "type": "string", "enum": ["entryOnly", "entryExit"] }
+      }
+    },
+    "palette": {
+      "type": ["object", "null"],
+      "description": "Colour strategy. garmentColour maps to DesignParams.shirtColour today; the rest is forward-looking (currently derived inside card widgets / flag_colours).",
+      "additionalProperties": false,
+      "properties": {
+        "garmentColour": { "type": "string", "description": "Named tshirtColors variant (e.g. 'Black')." },
+        "strategy": { "type": "string", "enum": ["flagDerived", "brand", "garmentAware", "duotone", "monochrome"] },
+        "accents": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+          "maxItems": 6
+        }
+      }
+    },
+    "typography": {
+      "type": ["object", "null"],
+      "description": "Title/subtitle treatment. Forward-looking: the printed STRING is generated downstream by TitleGen and is NOT part of the reproducible genome; only the treatment (style/case/placement) is.",
+      "additionalProperties": false,
+      "properties": {
+        "titleStyle": { "type": "string" },
+        "case": { "type": "string", "enum": ["upper", "title", "lower", "as-is"] },
+        "placement": { "type": "string", "enum": ["top", "bottom", "none"] }
+      }
+    },
+    "motifs": {
+      "type": "array",
+      "description": "Optional decorative silhouettes/landmarks/symbols layered into the composition. Forward-looking; resolved against bundled silhouette/landmark assets.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "slug"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["animal", "plant", "landmark", "symbol"] },
+          "slug": { "type": "string" },
+          "countryCode": { "type": ["string", "null"], "pattern": "^[a-z]{2}$" }
+        }
+      }
+    },
+    "printStyle": {
+      "type": ["object", "null"],
+      "description": "The print filter applied AFTER rendering by PrintStylePipeline (downstream of the genome). Recorded here for reproducibility only.",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["clean", "vintage", "retro", "halftone", "stamp", "grunge", "riso", "newsprint", "sunFaded", "photocopy", "edgeTear", "acidWash"]
+        }
+      }
+    },
+    "provenance": {
+      "type": ["object", "null"],
+      "description": "How this recipe came to exist (for studio batches, telemetry, regression). Never feeds the seed.",
+      "additionalProperties": false,
+      "properties": {
+        "generator": { "type": "string", "enum": ["rankerSeeded", "mutation", "crossover", "diversityInject", "studioManual", "preferenceBiased"] },
+        "parentRecipeIds": { "type": "array", "items": { "type": "string" } },
+        "batchId": { "type": ["string", "null"] },
+        "createdAtEpochMs": { "type": ["integer", "null"] }
+      }
+    }
+  }
+}

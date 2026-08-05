@@ -1,0 +1,120 @@
+{
+  "engineVersion": "0.1.0",
+  "grammarVersion": "0.1.0",
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "perContext": {
+    "one-country-dark": {
+      "meanQuality": 0.858,
+      "topQuality": 0.911,
+      "rejectionRate": 0.0,
+      "familyDiversity": 4,
+      "familyCounts": {
+        "negativeSpaceCutout": 6,
+        "radialEmblem": 7,
+        "singleHero": 6,
+        "typographicIntegration": 5
+      }
+    },
+    "one-country-light": {
+      "meanQuality": 0.864,
+      "topQuality": 0.912,
+      "rejectionRate": 0.0,
+      "familyDiversity": 4,
+      "familyCounts": {
+        "negativeSpaceCutout": 7,
+        "radialEmblem": 5,
+        "singleHero": 7,
+        "typographicIntegration": 5
+      }
+    },
+    "two-countries": {
+      "meanQuality": 0.793,
+      "topQuality": 0.848,
+      "rejectionRate": 0.007,
+      "familyDiversity": 7,
+      "familyCounts": {
+        "chronoSequence": 2,
+        "dominantAccent": 5,
+        "negativeSpaceCutout": 5,
+        "radialEmblem": 3,
+        "singleHero": 2,
+        "splitField": 4,
+        "typographicIntegration": 3
+      }
+    },
+    "several-countries": {
+      "meanQuality": 0.782,
+      "topQuality": 0.854,
+      "rejectionRate": 0.007,
+      "familyDiversity": 7,
+      "familyCounts": {
+        "chronoSequence": 2,
+        "dominantAccent": 4,
+        "negativeSpaceCutout": 5,
+        "radialEmblem": 2,
+        "repetitionField": 3,
+        "splitField": 3,
+        "typographicIntegration": 5
+      }
+    },
+    "year": {
+      "meanQuality": 0.779,
+      "topQuality": 0.825,
+      "rejectionRate": 0.0,
+      "familyDiversity": 6,
+      "familyCounts": {
+        "chronoSequence": 3,
+        "dominantAccent": 5,
+        "negativeSpaceCutout": 5,
+        "radialEmblem": 4,
+        "splitField": 4,
+        "typographicIntegration": 3
+      }
+    },
+    "region-europe": {
+      "meanQuality": 0.762,
+      "topQuality": 0.879,
+      "rejectionRate": 0.09,
+      "familyDiversity": 7,
+      "familyCounts": {
+        "chronoSequence": 2,
+        "dominantAccent": 3,
+        "negativeSpaceCutout": 7,
+        "radialEmblem": 3,
+        "repetitionField": 3,
+        "splitField": 3,
+        "typographicIntegration": 3
+      }
+    },
+    "lifetime": {
+      "meanQuality": 0.737,
+      "topQuality": 0.776,
+      "rejectionRate": 0.583,
+      "familyDiversity": 4,
+      "familyCounts": {
+        "negativeSpaceCutout": 9,
+        "repetitionField": 6,
+        "splitField": 2,
+        "typographicIntegration": 7
+      }
+    },
+    "massive-light": {
+      "meanQuality": 0.697,
+      "topQuality": 0.73,
+      "rejectionRate": 0.715,
+      "familyDiversity": 3,
+      "familyCounts": {
+        "negativeSpaceCutout": 7,
+        "repetitionField": 8,
+        "typographicIntegration": 9
+      }
+    }
+  },
+  "aggregate": {
+    "meanQuality": 0.784
+  }
+}

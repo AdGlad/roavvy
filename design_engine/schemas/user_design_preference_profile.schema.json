@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/user_design_preference_profile.schema.json",
+  "title": "UserDesignPreferenceProfile",
+  "description": "Learned, per-user design taste. Stage 5 of the pipeline (preference learning). Biases candidate generation and re-ranks scored candidates so results converge toward what THIS user tends to like — without any remote model. Built from implicit signals (chosen/purchased), explicit signals (like/dislike), and studio-labelled references. Stored per user (Drift locally, optionally mirrored to Firestore as derived metadata).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "userId", "updatedAtEpochMs"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "userId": { "type": "string" },
+    "updatedAtEpochMs": { "type": "integer" },
+    "sampleCount": {
+      "type": "integer",
+      "description": "How many feedback events have shaped this profile. Low counts → fall back to persona/global priors (cold start).",
+      "minimum": 0
+    },
+    "featureWeights": {
+      "type": "object",
+      "description": "Learned multiplicative biases over categorical genes, in roughly [0.25, 4.0] (1.0 = neutral). Applied as priors in candidate generation and as a re-rank term after scoring. Keys mirror the grammar's gene space; absent keys are neutral.",
+      "additionalProperties": false,
+      "properties": {
+        "template": { "$ref": "#/$defs/weightMap" },
+        "layoutMode": { "$ref": "#/$defs/weightMap" },
+        "clipShape": { "$ref": "#/$defs/weightMap" },
+        "density": { "$ref": "#/$defs/weightMap" },
+        "printStyle": { "$ref": "#/$defs/weightMap" },
+        "palette": { "$ref": "#/$defs/weightMap" },
+        "orientation": { "$ref": "#/$defs/weightMap" }
+      }
+    },
+    "scorerWeightOverrides": {
+      "type": ["object", "null"],
+      "description": "Optional per-user overrides of the DesignScore aggregate weights (aesthetic / profileFit / printabilityMargin). Clamped and normalised at load; defaults come from config/engine_config.json.",
+      "additionalProperties": false,
+      "properties": {
+        "aesthetic": { "type": "number", "minimum": 0, "maximum": 1 },
+        "profileFit": { "type": "number", "minimum": 0, "maximum": 1 },
+        "printabilityMargin": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "personaAffinity": {
+      "type": ["object", "null"],
+      "description": "Soft affinity toward each TravelPersona's design priors, learned from behaviour and blended with the analysed persona.",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "explorationRate": {
+      "type": "number",
+      "description": "Epsilon: probability the engine deliberately shows an off-profile design to keep discovering taste and avoid collapse. Decays as sampleCount grows.",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.2
+    },
+    "signals": {
+      "type": ["object", "null"],
+      "description": "Rolling recent feedback the weights were derived from. Bounded lists (keep newest N); recipeIds reference DesignRecipe.recipeId.",
+      "additionalProperties": false,
+      "properties": {
+        "liked": { "$ref": "#/$defs/recipeIdList" },
+        "disliked": { "$ref": "#/$defs/recipeIdList" },
+        "chosen": {
+          "$ref": "#/$defs/recipeIdList",
+          "description": "Implicit positive: taken into the editor / saved to cart."
+        },
+        "purchased": {
+          "$ref": "#/$defs/recipeIdList",
+          "description": "Strongest implicit positive."
+        },
+        "dismissed": {
+          "$ref": "#/$defs/recipeIdList",
+          "description": "Implicit weak negative: shown then skipped."
+        }
+      }
+    },
+    "provenance": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "learnerVersion": { "type": "string" },
+        "source": { "type": "string", "enum": ["implicit", "explicit", "studio", "blended"] }
+      }
+    }
+  },
+  "$defs": {
+    "weightMap": {
+      "type": "object",
+      "description": "gene-value → learned weight (~0.25..4.0, 1.0 neutral).",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 8 }
+    },
+    "recipeIdList": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "maxItems": 200
+    }
+  }
+}

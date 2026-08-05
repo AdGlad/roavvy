@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/design_context.schema.json",
+  "title": "DesignContext",
+  "description": "The travel/filter input to the design engine: what a design should be ABOUT. Derived deterministically from the user's travel data by TravelProfileAnalyzer. Stage 1 of the pipeline (see design_engine/docs/architecture.md). Never contains rendering or aesthetic decisions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scope", "countryCodes"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Bump on any breaking change to this schema."
+    },
+    "scope": {
+      "type": "string",
+      "description": "The travel filter this design is built for. Maps onto CountrySetOption.source plus region/trip/random extensions.",
+      "enum": [
+        "random",
+        "lifetime",
+        "year",
+        "region",
+        "singleCountry",
+        "multiCountry",
+        "trip"
+      ]
+    },
+    "countryCodes": {
+      "type": "array",
+      "description": "The resolved ISO 3166-1 alpha-2 country set this design draws (lowercase). Order-insensitive; de-duplicated. For 'random' this is a seeded sample of allCountryCodes.",
+      "items": { "type": "string", "pattern": "^[a-z]{2}$" },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "allCountryCodes": {
+      "type": "array",
+      "description": "The user's full lifetime visited set — context for relative rarity/persona even when scope narrows the visible set.",
+      "items": { "type": "string", "pattern": "^[a-z]{2}$" },
+      "uniqueItems": true
+    },
+    "year": {
+      "type": ["integer", "null"],
+      "description": "Required when scope == 'year'. The calendar year the visible set is filtered to.",
+      "minimum": 1900,
+      "maximum": 3000
+    },
+    "region": {
+      "type": ["object", "null"],
+      "description": "Required when scope == 'region'. A continent, sub-region, or custom polygon selection.",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["continent", "subregion", "custom"] },
+        "id": {
+          "type": "string",
+          "description": "Continent name (kCountryContinent value), subregion id (continent_subregion_map), or custom key."
+        },
+        "label": { "type": "string" }
+      }
+    },
+    "trip": {
+      "type": ["object", "null"],
+      "description": "Required when scope == 'trip'. References a TripRecord (single-country visit window).",
+      "additionalProperties": false,
+      "required": ["tripId", "countryCode"],
+      "properties": {
+        "tripId": { "type": "string" },
+        "countryCode": { "type": "string", "pattern": "^[a-z]{2}$" },
+        "startedOnEpochMs": { "type": ["integer", "null"] },
+        "endedOnEpochMs": { "type": ["integer", "null"] },
+        "photoCount": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "continents": {
+      "type": "array",
+      "description": "Distinct continents represented by countryCodes (derived from kCountryContinent).",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "dominantContinent": {
+      "type": ["string", "null"],
+      "description": "Most-represented continent in the visible set — a layout/palette bias hint."
+    },
+    "signatureCountries": {
+      "type": "array",
+      "description": "Rare/standout countries in the set worth featuring (from TravelProfile.signatureCountries).",
+      "items": { "type": "string", "pattern": "^[a-z]{2}$" },
+      "uniqueItems": true
+    },
+    "density": {
+      "type": "string",
+      "description": "Coarse size bucket of the visible set. Mirrors MerchDensityClass; drives template priors via MerchTemplateRanker.",
+      "enum": ["solo", "small", "medium", "large", "massive"]
+    },
+    "persona": {
+      "type": ["string", "null"],
+      "description": "Travel persona classification (TravelPersona) — a soft prior over templates/palettes, not a hard constraint."
+    },
+    "scopeTitle": {
+      "type": ["string", "null"],
+      "description": "Human label for the scope (e.g. 'Europe 2024', 'Japan'). Presentation only — the printed title is generated downstream by TitleGen."
+    },
+    "scopeDescription": { "type": ["string", "null"] },
+    "locale": {
+      "type": ["string", "null"],
+      "description": "BCP-47 locale for any locale-sensitive downstream text."
+    },
+    "generatedAtEpochMs": {
+      "type": ["integer", "null"],
+      "description": "When this context was analysed. Provenance only; MUST NOT feed the design seed (would break reproducibility)."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "scope": { "const": "year" } } },
+      "then": { "required": ["year"] }
+    },
+    {
+      "if": { "properties": { "scope": { "const": "region" } } },
+      "then": { "required": ["region"] }
+    },
+    {
+      "if": { "properties": { "scope": { "const": "trip" } } },
+      "then": { "required": ["trip"] }
+    }
+  ]
+}
