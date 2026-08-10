@@ -176,11 +176,11 @@ class _ProceduralDesignScreenState
     ref
         .read(preferenceProfileProvider.notifier)
         .record(it.design.recipe, PreferenceSignal.selectedForMockup);
-    // Merged (two-flag) designs render via the shader, which the print/checkout
-    // path is not yet merge-aware for. Show a full preview instead of routing to
-    // checkout so nothing is mis-sold (see rendering-technology.md roadmap).
+    // Merged (two-flag) designs: render the merged artwork at print resolution
+    // and hand it to the EXISTING preview as pre-rendered artwork (ADR-147), so
+    // it flows to checkout / the Printful print file unchanged.
     if (it.design.recipe.isMerged) {
-      _openMergedPreview(it);
+      unawaited(_openMerged(it));
       return;
     }
     Navigator.of(context).push(
@@ -206,6 +206,40 @@ class _ProceduralDesignScreenState
               : null,
           flagRepeatCount: params.rowCount,
           rowCount: params.rowCount,
+        ),
+      ),
+    );
+  }
+
+  /// Render the merged flag at print resolution (+ treatment) and open the
+  /// existing preview with it as pre-rendered artwork, so merged designs are
+  /// fully orderable. Falls back to the preview dialog if the shader is off.
+  Future<void> _openMerged(_ProcItem it) async {
+    final r = it.design.recipe;
+    Uint8List? art;
+    if (_merged != null) {
+      art = await _merged!.renderPng(r, size: 1024);
+      if (art != null && r.hasTreatment) {
+        art = await PrintStylePipeline.instance
+            .applyToBytes(art, r.toPrintStyleParams());
+      }
+    }
+    if (!mounted) return;
+    if (art == null) {
+      _openMergedPreview(it); // couldn't render → non-purchasable preview
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LocalMockupPreviewScreen(
+          selectedCodes: r.countryCodes,
+          allCodes: widget.allCodes,
+          trips: _tripsFor(r.countryCodes),
+          artworkImageBytes: art, // pre-rendered merged artwork (print source)
+          initialTemplate: CardTemplateType.grid,
+          confirmedAspectRatio: 1.0, // square merged flag
+          transparentBackground: true,
+          initialColour: r.garmentColour,
         ),
       ),
     );
@@ -238,8 +272,8 @@ class _ProceduralDesignScreenState
                     child: Center(child: CircularProgressIndicator())),
               const SizedBox(height: 12),
               Text(
-                'Merged-flag designs are a preview — ordering them is coming '
-                'soon. Tap ♥ to help tune the blends you like.',
+                'This blend couldn’t be prepared for ordering on this device. '
+                'Tap ♥ to help tune the blends you like.',
                 style: Theme.of(ctx)
                     .textTheme
                     .bodySmall
