@@ -10,6 +10,7 @@ import '../local_mockup_preview_screen.dart';
 import '../merch_option_list_widgets.dart' show merchBackCardAspectRatio;
 import '../merch_preset.dart';
 import 'card_render_thumbnailer.dart';
+import '../print_style/print_style_pipeline.dart';
 import 'preference_store.dart';
 import 'procedural/procedural.dart';
 import 'procedural_design_service.dart';
@@ -139,6 +140,12 @@ class _ProceduralDesignScreenState
         // the merge couldn't render).
         bytes ??= await _thumbnailer!.renderThumbnail(
             it.design.params, _tripsFor(it.design.recipe.countryCodes));
+        // Apply the recipe's continuous treatment genes (distress/grain/
+        // halftone/fade) so the feed shows the actual look.
+        if (it.design.recipe.hasTreatment) {
+          bytes = await PrintStylePipeline.instance
+              .applyToBytes(bytes, it.design.recipe.toPrintStyleParams());
+        }
         if (!mounted || token != _runToken) return;
         setState(() => it.thumb = bytes);
       } catch (_) {

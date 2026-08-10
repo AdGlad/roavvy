@@ -4,7 +4,8 @@ import 'package:shared_models/shared_models.dart' show CardTemplateType;
 
 import '../../../cards/flag_grid_layout_engine.dart'
     show FlagGridLayoutMode, GridClipShape;
-import '../../print_style/print_style.dart' show ColorTreatment, PrintStyleId;
+import '../../print_style/print_style.dart'
+    show ColorTreatment, PrintStyleId, PrintStyleParams;
 import '../../product_mockup_specs.dart' show ImageSize;
 import '../design_params.dart';
 import '../../merch_preset.dart'
@@ -78,6 +79,12 @@ class ProceduralDesignRecipe {
     this.weightA = 0.5,
     this.rippleAmp = 0.0,
     this.rippleFreq = 3.0,
+    // Continuous treatment genes (0..1) — independently mutable/learnable,
+    // applied via PrintStylePipeline. Default 0 = untreated.
+    this.distress = 0.0,
+    this.grain = 0.0,
+    this.halftone = 0.0,
+    this.fade = 0.0,
   });
 
   // Provenance / determinism
@@ -127,6 +134,34 @@ class ProceduralDesignRecipe {
   final double weightA;
   final double rippleAmp;
   final double rippleFreq;
+
+  // Continuous treatment genes (applied by PrintStylePipeline).
+  final double distress;
+  final double grain;
+  final double halftone;
+  final double fade;
+
+  /// Whether any treatment gene is active (else the recipe renders untreated).
+  bool get hasTreatment =>
+      distress > 0.02 || grain > 0.02 || halftone > 0.02 || fade > 0.02;
+
+  /// Build the [PrintStyleParams] the pipeline applies for this recipe's
+  /// treatment. Uses a non-`clean` id whenever treatment is active (the pipeline
+  /// short-circuits `clean`), carrying the recipe's own continuous gene values.
+  PrintStyleParams toPrintStyleParams() {
+    if (!hasTreatment) return PrintStyleParams(id: PrintStyleId.clean);
+    final carrierId =
+        printStyle == PrintStyleId.clean ? PrintStyleId.retro : printStyle;
+    return PrintStyleParams(
+      id: carrierId,
+      distress: distress,
+      grain: grain,
+      fade: fade,
+      halftone: halftone,
+      colorTreatment: colourTreatment,
+      seed: seed,
+    );
+  }
 
   /// Whether this recipe merges two flags into a single graphic.
   bool get isMerged =>
@@ -199,6 +234,10 @@ class ProceduralDesignRecipe {
         weightA.toStringAsFixed(3),
         rippleAmp.toStringAsFixed(3),
         rippleFreq.toStringAsFixed(2),
+        distress.toStringAsFixed(3),
+        grain.toStringAsFixed(3),
+        halftone.toStringAsFixed(3),
+        fade.toStringAsFixed(3),
         seed,
       ].join('|');
 
@@ -208,7 +247,7 @@ class ProceduralDesignRecipe {
   Map<DesignPrinciple, double> estimatePrinciples() {
     final n = countryCount;
     final logN = math.log(n + 1) / math.log(60); // 0..~1 across 1..60 countries
-    final ps = _printCharOf(printStyle);
+    final ps = printStyleFacets(printStyle);
 
     // Hierarchy: strong when a single element dominates; weak for uniform fields.
     final hierarchyBase = switch (hierarchy) {
@@ -301,15 +340,18 @@ class ProceduralDesignRecipe {
       DesignPrinciple.layout: v(layout),
       DesignPrinciple.geometry: v(geometry),
       DesignPrinciple.repetition: v(repetition),
-      DesignPrinciple.texture: v(ps.texture),
-      DesignPrinciple.distress: v(ps.distress),
+      // Treatment principles now read the first-class continuous genes (seeded
+      // from the style's facets, so on-DNA quality is preserved).
+      DesignPrinciple.texture: v(grain > 0 ? grain : ps.texture),
+      DesignPrinciple.distress: v(distress > 0 ? distress : ps.distress),
       DesignPrinciple.typography: v(typography),
       DesignPrinciple.colourRelationships: v(colourRel),
       DesignPrinciple.layering: v(layerMode == LayerMode.layered
           ? 0.6 + (_isCutout ? 0.1 : 0)
           : 0.15 + (_isCutout ? 0.15 : 0)),
       DesignPrinciple.edgeTreatment: v(ps.edge),
-      DesignPrinciple.printCharacter: v(ps.printChar),
+      DesignPrinciple.printCharacter:
+          v(halftone > 0 ? (0.7 * halftone + 0.3 * ps.printChar) : ps.printChar),
       DesignPrinciple.visualDensity: visualDensity,
     };
   }
@@ -363,6 +405,10 @@ class ProceduralDesignRecipe {
         weightA: weightA,
         rippleAmp: rippleAmp,
         rippleFreq: rippleFreq,
+        distress: distress,
+        grain: grain,
+        halftone: halftone,
+        fade: fade,
       );
 
   /// Compact JSON for batch archives / regression goldens (no rendered image).
@@ -401,31 +447,37 @@ class ProceduralDesignRecipe {
         'weightA': weightA,
         'rippleAmp': rippleAmp,
         'rippleFreq': rippleFreq,
+        'distress': distress,
+        'grain': grain,
+        'halftone': halftone,
+        'fade': fade,
         'recipeId': recipeId,
       };
 }
 
 /// Print-character facets derived from a print style (texture/distress/edge/
-/// printChar), used by principle estimation.
-class _PrintFacets {
-  const _PrintFacets(this.texture, this.distress, this.edge, this.printChar);
+/// printChar). Used to seed the continuous treatment genes and estimate
+/// principles.
+class PrintFacets {
+  const PrintFacets(this.texture, this.distress, this.edge, this.printChar);
   final double texture;
   final double distress;
   final double edge;
   final double printChar;
 }
 
-_PrintFacets _printCharOf(PrintStyleId s) => switch (s) {
-      PrintStyleId.clean => const _PrintFacets(0.05, 0.0, 0.05, 0.05),
-      PrintStyleId.vintage => const _PrintFacets(0.5, 0.55, 0.35, 0.4),
-      PrintStyleId.retro => const _PrintFacets(0.4, 0.35, 0.2, 0.55),
-      PrintStyleId.halftone => const _PrintFacets(0.4, 0.1, 0.15, 0.9),
-      PrintStyleId.stamp => const _PrintFacets(0.35, 0.5, 0.55, 0.55),
-      PrintStyleId.grunge => const _PrintFacets(0.8, 0.85, 0.6, 0.5),
-      PrintStyleId.riso => const _PrintFacets(0.45, 0.3, 0.25, 0.85),
-      PrintStyleId.newsprint => const _PrintFacets(0.5, 0.35, 0.25, 0.85),
-      PrintStyleId.sunFaded => const _PrintFacets(0.3, 0.4, 0.2, 0.3),
-      PrintStyleId.photocopy => const _PrintFacets(0.55, 0.5, 0.4, 0.7),
-      PrintStyleId.edgeTear => const _PrintFacets(0.3, 0.5, 0.85, 0.35),
-      PrintStyleId.acidWash => const _PrintFacets(0.45, 0.45, 0.25, 0.4),
+/// Typical treatment character of each print style, in 0..1.
+PrintFacets printStyleFacets(PrintStyleId s) => switch (s) {
+      PrintStyleId.clean => const PrintFacets(0.05, 0.0, 0.05, 0.05),
+      PrintStyleId.vintage => const PrintFacets(0.5, 0.55, 0.35, 0.4),
+      PrintStyleId.retro => const PrintFacets(0.4, 0.35, 0.2, 0.55),
+      PrintStyleId.halftone => const PrintFacets(0.4, 0.1, 0.15, 0.9),
+      PrintStyleId.stamp => const PrintFacets(0.35, 0.5, 0.55, 0.55),
+      PrintStyleId.grunge => const PrintFacets(0.8, 0.85, 0.6, 0.5),
+      PrintStyleId.riso => const PrintFacets(0.45, 0.3, 0.25, 0.85),
+      PrintStyleId.newsprint => const PrintFacets(0.5, 0.35, 0.25, 0.85),
+      PrintStyleId.sunFaded => const PrintFacets(0.3, 0.4, 0.2, 0.3),
+      PrintStyleId.photocopy => const PrintFacets(0.55, 0.5, 0.4, 0.7),
+      PrintStyleId.edgeTear => const PrintFacets(0.3, 0.5, 0.85, 0.35),
+      PrintStyleId.acidWash => const PrintFacets(0.45, 0.45, 0.25, 0.4),
     };

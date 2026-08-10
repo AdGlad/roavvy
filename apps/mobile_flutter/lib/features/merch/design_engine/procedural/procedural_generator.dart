@@ -259,6 +259,19 @@ class ProceduralDesignGenerator {
     // Treatment: choose a coherent print style (texture+colour+edge together).
     final printStyle = _pickPrintStyle(ctx, rng.stream('print'));
     final colourTreatment = _colourFor(printStyle);
+
+    // Continuous treatment genes, seeded from the style's typical character +
+    // jitter, so they're coherent but now first-class + learnable.
+    final f = printStyleFacets(printStyle);
+    final distress =
+        (f.distress * rng.stream('trD').nextRange(0.7, 1.05)).clamp(0.0, 0.85);
+    final grain =
+        (f.texture * 0.7 * rng.stream('trG').nextRange(0.6, 1.1)).clamp(0.0, 0.6);
+    final halftone = f.printChar > 0.6
+        ? rng.stream('trH').nextRange(0.3, 0.7)
+        : rng.stream('trH').nextRange(0.0, 0.12);
+    final fade =
+        (f.distress * 0.5 * rng.stream('trF').nextRange(0.4, 1.0)).clamp(0.0, 0.5);
     final flagTreatment = template == CardTemplateType.typography &&
             rng.stream('flag').chance(0.3)
         ? FlagTreatment.monochrome
@@ -327,6 +340,10 @@ class ProceduralDesignGenerator {
       weightA: weightA,
       rippleAmp: rippleAmp,
       rippleFreq: rippleFreq,
+      distress: distress,
+      grain: grain,
+      halftone: halftone,
+      fade: fade,
     );
   }
 
