@@ -5,7 +5,7 @@ import 'package:shared_models/shared_models.dart' show CardTemplateType;
 import '../../../cards/flag_grid_layout_engine.dart'
     show FlagGridLayoutMode, GridClipShape;
 import '../../print_style/print_style.dart'
-    show ColorTreatment, PrintStyleId, PrintStyleParams;
+    show ColorTreatment, PrintStyleId, PrintStyleParams, kPrintStylePresets;
 import '../../product_mockup_specs.dart' show ImageSize;
 import '../design_params.dart';
 import '../../merch_preset.dart'
@@ -160,15 +160,22 @@ class ProceduralDesignRecipe {
   /// treatment. Uses a non-`clean` id whenever treatment is active (the pipeline
   /// short-circuits `clean`), carrying the recipe's own continuous gene values.
   PrintStyleParams toPrintStyleParams() {
-    if (!hasTreatment) return PrintStyleParams(id: PrintStyleId.clean);
-    final carrierId =
-        printStyle == PrintStyleId.clean ? PrintStyleId.retro : printStyle;
-    return PrintStyleParams(
-      id: carrierId,
-      distress: distress,
-      grain: grain,
-      fade: fade,
-      halftone: halftone,
+    // Start from the style's preset so its STRUCTURAL character carries through
+    // (edgeTear's torn edges, grunge's cracks, halftone's screen, mono ink…);
+    // the continuous genes then tune the amounts. A clean base with no treatment
+    // is a byte-perfect no-op; a clean style with treatment uses a neutral
+    // carrier so the genes still apply.
+    final id = (!hasTreatment)
+        ? printStyle
+        : (printStyle == PrintStyleId.clean ? PrintStyleId.retro : printStyle);
+    final base = kPrintStylePresets[id] ??
+        const PrintStyleParams(id: PrintStyleId.clean);
+    if (base.isClean) return const PrintStyleParams(id: PrintStyleId.clean);
+    return base.copyWith(
+      distress: distress > 0 ? distress : base.distress,
+      grain: grain > 0 ? grain : base.grain,
+      halftone: halftone > 0 ? halftone : base.halftone,
+      fade: fade > 0 ? fade : base.fade,
       colorTreatment: colourTreatment,
       seed: seed,
     );

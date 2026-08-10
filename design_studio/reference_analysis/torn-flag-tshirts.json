@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "imageStem": "torn-flag-tshirts",
+  "verdict": "liked",
+  "reasons": [
+    "single national flag IS the whole graphic (strong single focal point)",
+    "ragged / torn / clawed edges are the defining trait",
+    "distressed, worn, weathered texture over the flag",
+    "bold scale, centred, generous negative space on the garment",
+    "reads at a glance; flag stays recognisable despite the wear"
+  ],
+  "features": {
+    "template": "grid",
+    "layoutMode": "packedRow",
+    "density": "sparse",
+    "clipShape": "none",
+    "printStyleFeel": "edgeTear + distress",
+    "dominantColors": ["#B22234", "#3C3B6E", "#FFFFFF"],
+    "focalHierarchy": "strong",
+    "legibility": "high",
+    "tags": [
+      "torn", "ripped", "tattered", "distressed", "flag", "patriotic",
+      "single-country", "grunge", "vintage"
+    ]
+  },
+  "nearestRecipeId": "curated:torn_flag_usa",
+  "provenance": {
+    "source": "reference-images (design_studio/reference_images/liked/tshirts)",
+    "rightsCleared": false,
+    "notes": "Two sub-styles observed: (1) full-colour flag with brush/torn edges (achievable: edgeTear + distress); (2) mono tattered flag (achievable: edgeTear + monoInk + heavy distress). A THIRD 'ripped-through-fabric' look (flag visible through a claw gash in the shirt) needs a fabric-tear mask the renderer does not have yet."
+  },
+  "analysis": {
+    "analyzerVersion": "human",
+    "focalConcentration": 0.85,
+    "visualDensityHint": 0.35,
+    "colourfulness": 0.6,
+    "source": "host-dart-ui"
+  }
+}
