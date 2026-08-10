@@ -108,6 +108,7 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.clipCode,
     this.rowCount,
     this.continentKey,
+    this.fixedArtwork = false,
   });
 
   final List<String> selectedCodes;
@@ -123,6 +124,13 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// [initialPreset] on mount (ADR-147). Existing callers that pass bytes
   /// continue to work unchanged.
   final Uint8List? artworkImageBytes;
+
+  /// When true, [artworkImageBytes] is treated as immutable: colour/variant/
+  /// title changes never re-render it from a template (they'd otherwise
+  /// regenerate and discard non-template artwork, e.g. a GPU flag-blend). The
+  /// artwork stays the print source across every shirt colour. Fabric colour
+  /// still changes behind it.
+  final bool fixedArtwork;
 
   /// Preset to use for auto-generating artwork when [artworkImageBytes] is
   /// null. Ignored if [artworkImageBytes] is provided.
@@ -1446,6 +1454,16 @@ class _LocalMockupPreviewScreenState
   ];
 
   Future<void> _renderVariant(int index) async {
+    // Fixed artwork (e.g. a GPU flag-blend): never regenerate from a template —
+    // reuse the provided bytes for every variant so the design is preserved.
+    if (widget.fixedArtwork) {
+      final fixed = _cleanArtworkBytes ?? _artworkBytes;
+      if (fixed != null) {
+        _artworkVariants[index] = fixed;
+        await _switchToVariant(index);
+      }
+      return;
+    }
     setState(() => _variantLoading = true);
     try {
       if (!context.mounted) return;
@@ -1809,17 +1827,21 @@ class _LocalMockupPreviewScreenState
       _loadShirtImages();
       _loadFrontRibbonImage();
     }
-    if (colourChanged && _isTshirt && _template == CardTemplateType.passport) {
-      unawaited(_setPassportColorMode(_suggestStampColor(colour)));
-    }
-    if (colourChanged && _isTshirt && _template == CardTemplateType.timeline) {
-      unawaited(_setTimelineTextColor(_suggestTimelineTextColor(colour)));
-    }
-    if (colourChanged && _isTshirt && _template == CardTemplateType.grid) {
-      unawaited(_setGridTextColor(_suggestGridTextColor(colour)));
-    }
-    if (colourChanged && _isTshirt && _template == CardTemplateType.wordCloud) {
-      unawaited(_setWordCloudTextColor(_suggestWordCloudTextColor(colour)));
+    // Fixed artwork never re-renders from a template on a colour change — only
+    // the fabric behind it changes.
+    if (colourChanged && _isTshirt && !widget.fixedArtwork) {
+      switch (_template) {
+        case CardTemplateType.passport:
+          unawaited(_setPassportColorMode(_suggestStampColor(colour)));
+        case CardTemplateType.timeline:
+          unawaited(_setTimelineTextColor(_suggestTimelineTextColor(colour)));
+        case CardTemplateType.grid:
+          unawaited(_setGridTextColor(_suggestGridTextColor(colour)));
+        case CardTemplateType.wordCloud:
+          unawaited(_setWordCloudTextColor(_suggestWordCloudTextColor(colour)));
+        default:
+          break;
+      }
     }
   }
 

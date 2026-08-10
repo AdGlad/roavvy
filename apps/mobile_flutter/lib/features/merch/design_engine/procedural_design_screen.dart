@@ -236,6 +236,7 @@ class _ProceduralDesignScreenState
           allCodes: widget.allCodes,
           trips: _tripsFor(r.countryCodes),
           artworkImageBytes: art, // pre-rendered merged artwork (print source)
+          fixedArtwork: true, // never regenerate from a template on colour change
           initialTemplate: CardTemplateType.grid,
           confirmedAspectRatio: 1.0, // square merged flag
           transparentBackground: true,
