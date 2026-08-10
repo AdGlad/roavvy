@@ -172,17 +172,22 @@ class _ProceduralDesignScreenState
   }
 
   void _openDesign(_ProcItem it) {
-    final params = it.design.params;
     ref
         .read(preferenceProfileProvider.notifier)
         .record(it.design.recipe, PreferenceSignal.selectedForMockup);
-    // Merged (two-flag) designs: render the merged artwork at print resolution
-    // and hand it to the EXISTING preview as pre-rendered artwork (ADR-147), so
-    // it flows to checkout / the Printful print file unchanged.
+    // Merged (two-flag) designs render their artwork on the GPU first; every
+    // other design (and any merge that can't render) opens the standard preview.
     if (it.design.recipe.isMerged) {
       unawaited(_openMerged(it));
-      return;
+    } else {
+      _openStandardPreview(it);
     }
+  }
+
+  /// Open the EXISTING preview for a design using its composition genome.
+  void _openStandardPreview(_ProcItem it) {
+    if (!mounted) return;
+    final params = it.design.params;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LocalMockupPreviewScreen(
@@ -213,20 +218,24 @@ class _ProceduralDesignScreenState
 
   /// Render the merged flag at print resolution (+ treatment) and open the
   /// existing preview with it as pre-rendered artwork, so merged designs are
-  /// fully orderable. Falls back to the preview dialog if the shader is off.
+  /// fully orderable. If the GPU render is unavailable for ANY reason, fall
+  /// back to the standard preview so a tap always reaches the T-shirt screen.
   Future<void> _openMerged(_ProcItem it) async {
     final r = it.design.recipe;
     Uint8List? art;
-    if (_merged != null) {
+    try {
+      _merged ??= await MergedFlagRenderer.load();
       art = await _merged!.renderPng(r, size: 1024);
       if (art != null && r.hasTreatment) {
         art = await PrintStylePipeline.instance
             .applyToBytes(art, r.toPrintStyleParams());
       }
+    } catch (_) {
+      art = null;
     }
     if (!mounted) return;
     if (art == null) {
-      _openMergedPreview(it); // couldn't render → non-purchasable preview
+      _openStandardPreview(it); // couldn't render the merge → normal preview
       return;
     }
     Navigator.of(context).push(
@@ -241,53 +250,6 @@ class _ProceduralDesignScreenState
           confirmedAspectRatio: 1.0, // square merged flag
           transparentBackground: true,
           initialColour: r.garmentColour,
-        ),
-      ),
-    );
-  }
-
-  void _openMergedPreview(_ProcItem it) {
-    final r = it.design.recipe;
-    final codes = r.countryCodes.take(2).join(' + ').toUpperCase();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$codes · ${r.combination.name} blend',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      color: Colors.white)),
-              const SizedBox(height: 12),
-              if (it.thumb != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(it.thumb!, fit: BoxFit.contain),
-                )
-              else
-                const SizedBox(
-                    height: 120,
-                    child: Center(child: CircularProgressIndicator())),
-              const SizedBox(height: 12),
-              Text(
-                'This blend couldn’t be prepared for ordering on this device. '
-                'Tap ♥ to help tune the blends you like.',
-                style: Theme.of(ctx)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
         ),
       ),
     );
