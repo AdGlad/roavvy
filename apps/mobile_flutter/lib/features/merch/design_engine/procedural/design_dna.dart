@@ -278,6 +278,7 @@ const RoavvyDesignDna kRoavvyDesignDnaDefault = RoavvyDesignDna(
     CompositionFamily.typographicIntegration: 0.7,
     CompositionFamily.chronoSequence: 0.6,
     CompositionFamily.splitField: 0.6,
+    CompositionFamily.duoBlend: 0.8,
   },
   printStyleAffinity: {
     PrintStyleId.clean: 0.9,

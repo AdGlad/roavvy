@@ -12,6 +12,11 @@ import '../../merch_preset.dart'
 import 'composition_family.dart';
 import 'design_dna.dart';
 
+/// How two flags are merged into one graphic (drives `flag_blend.frag`). Order
+/// matters: `mix..wavy` are shader mode indices 0..3; `none` (last) means "don't
+/// merge — render as an ordinary composition".
+enum FlagCombination { mix, diagonal, noiseMask, wavy, none }
+
 /// How a flag's own artwork is treated (a composable dimension). Most map to
 /// full colour on today's renderer; the rest are forward-looking.
 enum FlagTreatment { fullColour, tinted, monochrome, outline }
@@ -67,6 +72,12 @@ class ProceduralDesignRecipe {
     required this.rotationDeg,
     required this.layerMode,
     this.generator = 'grammar',
+    // Flag-merge genes (only meaningful for 2-country "duo blend" designs;
+    // [combination] == none for every other recipe).
+    this.combination = FlagCombination.none,
+    this.weightA = 0.5,
+    this.rippleAmp = 0.0,
+    this.rippleFreq = 3.0,
   });
 
   // Provenance / determinism
@@ -110,6 +121,16 @@ class ProceduralDesignRecipe {
   final FlagTreatment flagTreatment;
   final ColorTreatment colourTreatment;
   final PrintStyleId printStyle;
+
+  // Flag-merge genes.
+  final FlagCombination combination;
+  final double weightA;
+  final double rippleAmp;
+  final double rippleFreq;
+
+  /// Whether this recipe merges two flags into a single graphic.
+  bool get isMerged =>
+      combination != FlagCombination.none && countryCodes.length >= 2;
 
   int get countryCount => countryCodes.length;
 
@@ -174,6 +195,10 @@ class ProceduralDesignRecipe {
         cropMode.name,
         rotationDeg.toStringAsFixed(2),
         layerMode.name,
+        combination.name,
+        weightA.toStringAsFixed(3),
+        rippleAmp.toStringAsFixed(3),
+        rippleFreq.toStringAsFixed(2),
         seed,
       ].join('|');
 
@@ -334,6 +359,10 @@ class ProceduralDesignRecipe {
         rotationDeg: rotationDeg,
         layerMode: layerMode,
         generator: generator,
+        combination: combination,
+        weightA: weightA,
+        rippleAmp: rippleAmp,
+        rippleFreq: rippleFreq,
       );
 
   /// Compact JSON for batch archives / regression goldens (no rendered image).
@@ -368,6 +397,10 @@ class ProceduralDesignRecipe {
         'cropMode': cropMode.name,
         'rotationDeg': rotationDeg,
         'layerMode': layerMode.name,
+        'combination': combination.name,
+        'weightA': weightA,
+        'rippleAmp': rippleAmp,
+        'rippleFreq': rippleFreq,
         'recipeId': recipeId,
       };
 }

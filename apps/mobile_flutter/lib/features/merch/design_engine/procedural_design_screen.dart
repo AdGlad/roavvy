@@ -14,6 +14,7 @@ import 'preference_store.dart';
 import 'procedural/procedural.dart';
 import 'procedural_design_service.dart';
 import 'reference/design_dna_loader.dart';
+import 'rendering/merged_flag_renderer.dart';
 
 /// "Auto designs" — the procedural design engine's user surface. Builds a
 /// [DesignContext] from the user's travel selection, asks the procedural
@@ -57,6 +58,7 @@ class _ProceduralDesignScreenState
   bool _loading = true;
   int _seed = 1;
   CardRenderThumbnailer? _thumbnailer;
+  MergedFlagRenderer? _merged;
   int _runToken = 0;
 
   @override
@@ -121,11 +123,22 @@ class _ProceduralDesignScreenState
 
     // Render thumbnails one at a time (the thumbnailer is concurrency-1).
     _thumbnailer ??= CardRenderThumbnailer.forContext(context);
+    try {
+      _merged ??= await MergedFlagRenderer.load(); // GPU flag-blend renderer
+    } catch (_) {
+      _merged = null; // fall back to the card thumbnailer if the shader is off
+    }
     for (final it in _items) {
       if (!mounted || token != _runToken) return;
       try {
-        final bytes = await _thumbnailer!
-            .renderThumbnail(it.design.params, _tripsFor(it.design.recipe.countryCodes));
+        Uint8List? bytes;
+        if (it.design.recipe.isMerged && _merged != null) {
+          bytes = await _merged!.renderPng(it.design.recipe, size: 512);
+        }
+        // Fall back to the normal composition thumbnail if not a merge (or if
+        // the merge couldn't render).
+        bytes ??= await _thumbnailer!.renderThumbnail(
+            it.design.params, _tripsFor(it.design.recipe.countryCodes));
         if (!mounted || token != _runToken) return;
         setState(() => it.thumb = bytes);
       } catch (_) {
@@ -156,6 +169,13 @@ class _ProceduralDesignScreenState
     ref
         .read(preferenceProfileProvider.notifier)
         .record(it.design.recipe, PreferenceSignal.selectedForMockup);
+    // Merged (two-flag) designs render via the shader, which the print/checkout
+    // path is not yet merge-aware for. Show a full preview instead of routing to
+    // checkout so nothing is mis-sold (see rendering-technology.md roadmap).
+    if (it.design.recipe.isMerged) {
+      _openMergedPreview(it);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LocalMockupPreviewScreen(
@@ -179,6 +199,53 @@ class _ProceduralDesignScreenState
               : null,
           flagRepeatCount: params.rowCount,
           rowCount: params.rowCount,
+        ),
+      ),
+    );
+  }
+
+  void _openMergedPreview(_ProcItem it) {
+    final r = it.design.recipe;
+    final codes = r.countryCodes.take(2).join(' + ').toUpperCase();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('$codes · ${r.combination.name} blend',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      color: Colors.white)),
+              const SizedBox(height: 12),
+              if (it.thumb != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(it.thumb!, fit: BoxFit.contain),
+                )
+              else
+                const SizedBox(
+                    height: 120,
+                    child: Center(child: CircularProgressIndicator())),
+              const SizedBox(height: 12),
+              Text(
+                'Merged-flag designs are a preview — ordering them is coming '
+                'soon. Tap ♥ to help tune the blends you like.',
+                style: Theme.of(ctx)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
         ),
       ),
     );

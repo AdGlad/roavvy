@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
-/// How two flags are merged into one graphic (mirrors `flag_blend.frag`).
-enum FlagBlendMode { mix, diagonal, noiseMask, wavy }
+import '../procedural/procedural_recipe.dart' show FlagCombination;
 
 /// Abstraction over the GPU effect layer, so the rendering *technology* is
 /// swappable behind one seam (see design_engine/docs/rendering-technology.md).
@@ -24,7 +23,7 @@ abstract class EffectRenderer {
     required ui.Image flagB,
     required int size,
     double weightA,
-    FlagBlendMode mode,
+    FlagCombination mode,
     double rippleAmp,
     double rippleFreq,
     int seed,
@@ -53,7 +52,7 @@ class SkiaEffectRenderer implements EffectRenderer {
     required ui.Image flagB,
     required int size,
     double weightA = 0.5,
-    FlagBlendMode mode = FlagBlendMode.mix,
+    FlagCombination mode = FlagCombination.mix,
     double rippleAmp = 0.0,
     double rippleFreq = 3.0,
     int seed = 0,
@@ -64,7 +63,7 @@ class SkiaEffectRenderer implements EffectRenderer {
       ..setFloat(0, size.toDouble()) // uSize.x
       ..setFloat(1, size.toDouble()) // uSize.y
       ..setFloat(2, weightA.clamp(0.0, 1.0))
-      ..setFloat(3, mode.index.toDouble())
+      ..setFloat(3, mode.index.clamp(0, 3).toDouble())
       ..setFloat(4, rippleAmp)
       ..setFloat(5, rippleFreq)
       ..setFloat(6, (seed & 0xffff) / 65535.0)

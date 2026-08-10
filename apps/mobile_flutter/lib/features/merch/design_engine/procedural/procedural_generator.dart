@@ -279,6 +279,20 @@ class ProceduralDesignGenerator {
         ? LayerMode.layered
         : LayerMode.flat;
 
+    // Flag-merge genes — only for the duoBlend family (exactly two flags).
+    final isDuo = spec.family == CompositionFamily.duoBlend;
+    final combination = isDuo
+        ? rng.stream('combo').pick(const [
+            FlagCombination.mix,
+            FlagCombination.diagonal,
+            FlagCombination.noiseMask,
+            FlagCombination.wavy,
+          ])
+        : FlagCombination.none;
+    final weightA = isDuo ? rng.stream('wa').nextRange(0.35, 0.65) : 0.5;
+    final rippleAmp = isDuo ? rng.stream('ramp').nextRange(0.0, 0.06) : 0.0;
+    final rippleFreq = isDuo ? rng.stream('rfreq').nextRange(2.0, 5.0) : 3.0;
+
     return ProceduralDesignRecipe(
       engineVersion: engineVersion,
       grammarVersion: grammarVersion,
@@ -309,6 +323,10 @@ class ProceduralDesignGenerator {
       cropMode: cropMode,
       rotationDeg: rotationDeg,
       layerMode: layerMode,
+      combination: combination,
+      weightA: weightA,
+      rippleAmp: rippleAmp,
+      rippleFreq: rippleFreq,
     );
   }
 

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/features/merch/design_engine/procedural/procedural.dart';
 import 'package:mobile_flutter/features/merch/design_engine/rendering/effect_renderer.dart';
 
 Future<ui.Image> _solid(int size, int r, int g, int b) {
@@ -37,7 +38,7 @@ void main() {
         flagB: b,
         size: 32,
         weightA: 1.0, // all flag A
-        mode: FlagBlendMode.mix,
+        mode: FlagCombination.mix,
       );
       expect(out.width, 32);
       final data = await out.toByteData(format: ui.ImageByteFormat.rawRgba);

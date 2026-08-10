@@ -110,6 +110,9 @@ enum CompositionFamily {
 
   /// Two asymmetric zones — e.g. a ribbon/title band against a flag field.
   splitField,
+
+  /// Exactly two flags merged into one graphic on the GPU (blend + ripple).
+  duoBlend,
 }
 
 /// Registry of family specs. Country ranges + density/scope weights are the
@@ -319,6 +322,23 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
       DesignScope.multiCountry: 0.8,
       DesignScope.trip: 0.7,
       DesignScope.year: 0.6,
+      DesignScope.random: 0.6,
+    },
+  ),
+  CompositionFamily.duoBlend: CompositionFamilySpec(
+    family: CompositionFamily.duoBlend,
+    hierarchy: HierarchyMode.dualZone,
+    minCountries: 2,
+    maxCountries: 2,
+    templates: [CardTemplateType.grid], // placeholder; rendered by the shader
+    masks: [GridClipShape.none],
+    layoutModes: [FlagGridLayoutMode.packedRow],
+    heroRequiredWhenMulti: false,
+    heroScaleRange: (0.0, 0.0),
+    densitySuitability: {DesignDensityClass.small: 0.9},
+    scopeAffinity: {
+      DesignScope.multiCountry: 0.9,
+      DesignScope.trip: 0.7,
       DesignScope.random: 0.6,
     },
   ),
