@@ -22,6 +22,11 @@ import 'quality_model.dart';
 const String kProceduralEngineVersion = '0.1.0';
 const String kProceduralGrammarVersion = '0.1.0';
 
+/// All two-flag blend patterns (every [FlagCombination] except `none`).
+final List<FlagCombination> _kBlendModes = FlagCombination.values
+    .where((c) => c != FlagCombination.none)
+    .toList(growable: false);
+
 /// A generated design plus its intrinsic quality. The renderable genome is
 /// available lazily via [params]; no raster happens until someone asks to draw.
 class GeneratedDesign {
@@ -292,19 +297,15 @@ class ProceduralDesignGenerator {
         ? LayerMode.layered
         : LayerMode.flat;
 
-    // Flag-merge genes — only for the duoBlend family (exactly two flags).
+    // Flag-merge genes — only for the duoBlend family (exactly two flags). Picks
+    // from the full palette of blend patterns for variety.
     final isDuo = spec.family == CompositionFamily.duoBlend;
     final combination = isDuo
-        ? rng.stream('combo').pick(const [
-            FlagCombination.mix,
-            FlagCombination.diagonal,
-            FlagCombination.noiseMask,
-            FlagCombination.wavy,
-          ])
+        ? rng.stream('combo').pick(_kBlendModes)
         : FlagCombination.none;
     final weightA = isDuo ? rng.stream('wa').nextRange(0.35, 0.65) : 0.5;
-    final rippleAmp = isDuo ? rng.stream('ramp').nextRange(0.0, 0.06) : 0.0;
-    final rippleFreq = isDuo ? rng.stream('rfreq').nextRange(2.0, 5.0) : 3.0;
+    final rippleAmp = isDuo ? rng.stream('ramp').nextRange(0.0, 0.08) : 0.0;
+    final rippleFreq = isDuo ? rng.stream('rfreq').nextRange(2.0, 6.0) : 3.0;
 
     return ProceduralDesignRecipe(
       engineVersion: engineVersion,

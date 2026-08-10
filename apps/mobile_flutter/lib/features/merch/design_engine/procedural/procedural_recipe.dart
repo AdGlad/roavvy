@@ -14,9 +14,20 @@ import 'composition_family.dart';
 import 'design_dna.dart';
 
 /// How two flags are merged into one graphic (drives `flag_blend.frag`). Order
-/// matters: `mix..wavy` are shader mode indices 0..3; `none` (last) means "don't
-/// merge — render as an ordinary composition".
-enum FlagCombination { mix, diagonal, noiseMask, wavy, none }
+/// matters: the values map to shader mode indices 0..8; `none` (last) means
+/// "don't merge — render as an ordinary composition".
+enum FlagCombination {
+  mix,
+  diagonal,
+  noiseMask,
+  wavy,
+  verticalSplit,
+  horizontalSplit,
+  stripes,
+  checker,
+  radial,
+  none,
+}
 
 /// How a flag's own artwork is treated (a composable dimension). Most map to
 /// full colour on today's renderer; the rest are forward-looking.

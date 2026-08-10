@@ -63,7 +63,8 @@ class SkiaEffectRenderer implements EffectRenderer {
       ..setFloat(0, size.toDouble()) // uSize.x
       ..setFloat(1, size.toDouble()) // uSize.y
       ..setFloat(2, weightA.clamp(0.0, 1.0))
-      ..setFloat(3, mode.index.clamp(0, 3).toDouble())
+      ..setFloat(3,
+          mode.index.clamp(0, FlagCombination.none.index - 1).toDouble())
       ..setFloat(4, rippleAmp)
       ..setFloat(5, rippleFreq)
       ..setFloat(6, (seed & 0xffff) / 65535.0)

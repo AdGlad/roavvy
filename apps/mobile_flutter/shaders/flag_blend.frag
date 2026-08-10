@@ -57,23 +57,40 @@ void main() {
   vec4 a = texture(uFlagA, suv);
   vec4 b = texture(uFlagB, suv);
 
-  // t is the share of flag B at this pixel.
+  // t is the share of flag B at this pixel. uBlendMode selects the pattern.
   float t;
   if (uBlendMode < 0.5) {
-    // Weighted cross-fade.
+    // 0 mix — weighted cross-fade.
     t = 1.0 - clamp(uWeightA, 0.0, 1.0);
   } else if (uBlendMode < 1.5) {
-    // Diagonal split, position set by the A/B weight.
-    float d = (uv.x + uv.y) * 0.5;
-    t = step(uWeightA, d);
+    // 1 diagonal split.
+    t = step(uWeightA, (uv.x + uv.y) * 0.5);
   } else if (uBlendMode < 2.5) {
-    // Torn noise-mask boundary.
+    // 2 torn noise-mask boundary.
     float n = valueNoise(uv * (3.0 + uRippleFreq) + uSeed * 17.0);
     t = step(uWeightA, n);
-  } else {
-    // Wavy split.
+  } else if (uBlendMode < 3.5) {
+    // 3 wavy split.
     float w = 0.5 + 0.5 * sin((uv.x + uv.y) * uRippleFreq * TAU + phase);
     t = step(uWeightA, w);
+  } else if (uBlendMode < 4.5) {
+    // 4 vertical split (left A / right B).
+    t = step(uWeightA, uv.x);
+  } else if (uBlendMode < 5.5) {
+    // 5 horizontal split (top A / bottom B).
+    t = step(uWeightA, uv.y);
+  } else if (uBlendMode < 6.5) {
+    // 6 stripes — alternating horizontal bands.
+    float bands = max(2.0, floor(uRippleFreq * 2.0));
+    t = mod(floor(uv.y * bands), 2.0);
+  } else if (uBlendMode < 7.5) {
+    // 7 checkerboard.
+    float n = max(2.0, floor(uRippleFreq + 1.0));
+    t = mod(floor(uv.x * n) + floor(uv.y * n), 2.0);
+  } else {
+    // 8 radial — flag A in a centre disc, flag B around it.
+    float d = distance(uv, vec2(0.5)) * 1.6;
+    t = step(0.35 + uWeightA * 0.4, d);
   }
 
   fragColor = mix(a, b, clamp(t, 0.0, 1.0));
