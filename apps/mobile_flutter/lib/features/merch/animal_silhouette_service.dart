@@ -10,6 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'bundled_silhouette_manifest.dart';
+
 /// One selectable option within a category — e.g. one of several candidate
 /// animals for a country. [slug] identifies the Storage object; [name] is
 /// what's shown to the user (in [FlagShapeCustomiseScreen]'s shape carousel).
@@ -149,6 +151,24 @@ class AnimalSilhouetteService {
       final hit = _pathCache.remove(key)!;
       _pathCache[key] = hit;
       return hit;
+    }
+
+    // Offline-first: if this (cc, slug) is a bundled silhouette, clip straight
+    // from the bundled asset — no network, deterministic. The bundled file is
+    // category-agnostic (assets/silhouettes/{cc}_{slug}.svg).
+    if (kBundledSilhouetteSlugs[cc] == slug) {
+      try {
+        final data = await rootBundle
+            .load('assets/silhouettes/${cc.toLowerCase()}_$slug.svg');
+        final path = _parseSvg(data.buffer.asUint8List());
+        _pathCache[key] = path;
+        if (_pathCache.length > _maxEntries) {
+          _pathCache.remove(_pathCache.keys.first);
+        }
+        return path;
+      } catch (_) {
+        // Fall through to disk/Storage on any bundled-load failure.
+      }
     }
 
     Uint8List? svgBytes = await _readDiskCache(category, cc, slug);

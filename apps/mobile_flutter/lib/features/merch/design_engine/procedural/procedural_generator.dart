@@ -4,6 +4,7 @@ import 'package:shared_models/shared_models.dart' show CardTemplateType;
 
 import '../../../cards/flag_grid_layout_engine.dart'
     show FlagGridLayoutMode, GridClipShape;
+import '../../bundled_silhouette_manifest.dart';
 import '../../print_style/print_style.dart' show ColorTreatment, PrintStyleId;
 import '../../product_mockup_specs.dart' show ImageSize;
 import '../design_params.dart';
@@ -354,14 +355,16 @@ class ProceduralDesignGenerator {
     String? hero,
     DeterministicRng rng,
   ) {
-    // v1: silhouette masks need a Storage-fetched slug we can't resolve here, so
-    // restrict to shapes resolvable from ISO codes / geometry. (Noted as a gap.)
+    // Shapes we can resolve 100% locally. `animalSilhouette` is backed by the
+    // bundled silhouette manifest (offline); plant/landmark silhouettes still
+    // need Storage, so they stay excluded.
     const resolvable = {
       GridClipShape.none,
       GridClipShape.circle,
       GridClipShape.heart,
       GridClipShape.countryOutline,
       GridClipShape.continentOutline,
+      GridClipShape.animalSilhouette,
     };
     final legal = <GridClipShape>[
       for (final m in spec.masks)
@@ -385,9 +388,13 @@ class ProceduralDesignGenerator {
       case GridClipShape.continentOutline:
         return continent != null;
       case GridClipShape.animalSilhouette:
+        // Single-country only, and only when a BUNDLED silhouette exists (local).
+        return n == 1 &&
+            hero != null &&
+            kBundledSilhouetteSlugs.containsKey(hero.toUpperCase());
       case GridClipShape.plantSilhouette:
       case GridClipShape.landmarkSilhouette:
-        return false; // v1 gap
+        return false; // still Storage-only
       default:
         return true;
     }
@@ -398,6 +405,10 @@ class ProceduralDesignGenerator {
         GridClipShape.countryOutline => hero ?? ctx.countryCodes.first,
         GridClipShape.continentOutline =>
           ctx.dominantContinent?.toLowerCase().replaceAll(' ', '_'),
+        // Composite "CC|slug" clipCode for the bundled silhouette.
+        GridClipShape.animalSilhouette => hero == null
+            ? null
+            : '${hero.toUpperCase()}|${kBundledSilhouetteSlugs[hero.toUpperCase()]}',
         _ => null,
       };
 
