@@ -57,8 +57,10 @@ class _ProceduralDesignScreenState
     extends ConsumerState<ProceduralDesignScreen> {
   List<_ProcItem> _items = const [];
   bool _loading = true;
+  bool _opening = false; // guards against double-open while rendering print art
   int _seed = 1;
   CardRenderThumbnailer? _thumbnailer;
+  CardRenderThumbnailer? _printRenderer; // higher-res, for the exact print source
   MergedFlagRenderer? _merged;
   int _runToken = 0;
 
@@ -172,6 +174,7 @@ class _ProceduralDesignScreenState
   }
 
   void _openDesign(_ProcItem it) {
+    if (_opening) return; // ignore taps while a print render is in flight
     ref
         .read(preferenceProfileProvider.notifier)
         .record(it.design.recipe, PreferenceSignal.selectedForMockup);
@@ -180,14 +183,52 @@ class _ProceduralDesignScreenState
     if (it.design.recipe.isMerged) {
       unawaited(_openMerged(it));
     } else {
-      _openStandardPreview(it);
+      unawaited(_openStandardPreview(it));
     }
   }
 
-  /// Open the EXISTING preview for a design using its composition genome.
-  void _openStandardPreview(_ProcItem it) {
-    if (!mounted) return;
+  /// Open the preview showing the EXACT design from the feed: re-render the
+  /// composition deterministically at print resolution (same seed ⇒ same
+  /// arrangement) + the same treatment, and hand it over as fixed artwork so the
+  /// preview/print reproduce the feed pixel-for-pixel (not a fresh regeneration).
+  Future<void> _openStandardPreview(_ProcItem it) async {
     final params = it.design.params;
+    Uint8List? art;
+    setState(() => _opening = true);
+    try {
+      _printRenderer ??= CardRenderThumbnailer.forContext(context,
+          pixelRatio: 5.0, cacheCapacity: 8);
+      art = await _printRenderer!
+          .renderThumbnail(params, _tripsFor(params.countryCodes));
+      if (it.design.recipe.hasTreatment) {
+        art = await PrintStylePipeline.instance
+            .applyToBytes(art, it.design.recipe.toPrintStyleParams());
+      }
+    } catch (_) {
+      art = null;
+    }
+    if (!mounted) return;
+    setState(() => _opening = false);
+
+    if (art != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LocalMockupPreviewScreen(
+            selectedCodes: params.countryCodes,
+            allCodes: widget.allCodes,
+            trips: _tripsFor(params.countryCodes),
+            artworkImageBytes: art, // the exact feed image = the print source
+            fixedArtwork: true,
+            initialTemplate: params.template,
+            confirmedAspectRatio: params.isPortrait ? 4 / 5 : 5 / 4,
+            transparentBackground: true,
+            initialColour: params.shirtColour,
+          ),
+        ),
+      );
+      return;
+    }
+    // Fallback: preset-driven generation (opens even if the exact render fails).
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LocalMockupPreviewScreen(
@@ -223,6 +264,7 @@ class _ProceduralDesignScreenState
   Future<void> _openMerged(_ProcItem it) async {
     final r = it.design.recipe;
     Uint8List? art;
+    setState(() => _opening = true);
     try {
       _merged ??= await MergedFlagRenderer.load();
       art = await _merged!.renderPng(r, size: 1024);
@@ -235,9 +277,11 @@ class _ProceduralDesignScreenState
     }
     if (!mounted) return;
     if (art == null) {
-      _openStandardPreview(it); // couldn't render the merge → normal preview
+      // couldn't render the merge → normal preview (manages _opening itself)
+      unawaited(_openStandardPreview(it));
       return;
     }
+    setState(() => _opening = false);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LocalMockupPreviewScreen(
@@ -258,36 +302,48 @@ class _ProceduralDesignScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Auto designs'),
-        actions: [
-          if (!_loading)
-            IconButton(
-              tooltip: 'Shuffle',
-              icon: const Icon(Icons.auto_awesome_rounded),
-              onPressed: _regenerate,
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _loading && _items.isEmpty
-                    ? 'Composing designs from your travels…'
-                    : 'Tap to customise & order · ♥ to teach your taste',
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
-              Expanded(child: _buildBody(theme)),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Auto designs'),
+            actions: [
+              if (!_loading)
+                IconButton(
+                  tooltip: 'Shuffle',
+                  icon: const Icon(Icons.auto_awesome_rounded),
+                  onPressed: _regenerate,
+                ),
             ],
           ),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _loading && _items.isEmpty
+                        ? 'Composing designs from your travels…'
+                        : 'Tap to customise & order · ♥ to teach your taste',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(child: _buildBody(theme)),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+        // Preparing the exact print-resolution artwork for the preview.
+        if (_opening)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Color(0x88000000),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+      ],
     );
   }
 
