@@ -46,6 +46,38 @@
       "type": ["string", "null"],
       "description": "If a generated design matches this reference, its DesignRecipe.recipeId — links the bar to producible output."
     },
+    "analysis": {
+      "type": ["object", "null"],
+      "description": "Machine-computed objective analysis, written by the reference analyzer (scaffold_references / analyze_references). Safe to overwrite on re-run; subjective fields (verdict, tags, printStyleFeel…) stay human-authored.",
+      "additionalProperties": false,
+      "properties": {
+        "analyzerVersion": { "type": "string" },
+        "computedAtEpochMs": { "type": ["integer", "null"] },
+        "aspectRatio": { "type": ["number", "null"] },
+        "focalConcentration": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Share of saliency held by the busiest ~10% of the frame (higher ⇒ stronger single focal point)."
+        },
+        "visualDensityHint": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "colourfulness": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Mean saturation of opaque pixels."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["host-dart-ui", "native-vision-coreimage"],
+          "description": "Which analyzer produced these numbers (host decode vs on-device Vision/CoreImage)."
+        }
+      }
+    },
     "provenance": {
       "type": "object",
       "additionalProperties": false,

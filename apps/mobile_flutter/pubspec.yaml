@@ -128,6 +128,11 @@ flutter:
     - assets/silhouettes/
     - assets/lottie/
     - assets/mascot/
+    - assets/design_engine/roavvy_design_dna.json
+
+  # GPU fragment shaders (Impeller: Metal on iOS, Vulkan/GLES on Android).
+  shaders:
+    - shaders/flag_blend.frag
 
   # To add assets to your application, add an assets section, like this:
   # assets:

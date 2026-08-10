@@ -124,6 +124,75 @@ class RoavvyDesignDna {
   double familyWeight(CompositionFamily f) => familyAffinity[f] ?? 0.5;
   double printStyleWeight(PrintStyleId s) => printStyleAffinity[s] ?? 0.5;
 
+  /// Serialise for the bundled DNA asset (so references can improve the house
+  /// style without a code change — regenerate the asset, ship it).
+  Map<String, dynamic> toJson() => {
+        'sampleCount': sampleCount,
+        'explorationBias': explorationBias,
+        'targets': {
+          for (final e in targets.entries)
+            e.key.name: {
+              'min': e.value.min,
+              'max': e.value.max,
+              'weight': e.value.weight,
+            },
+        },
+        'familyAffinity': {
+          for (final e in familyAffinity.entries) e.key.name: e.value,
+        },
+        'printStyleAffinity': {
+          for (final e in printStyleAffinity.entries) e.key.name: e.value,
+        },
+      };
+
+  /// Parse a DNA asset, starting from [base] so any missing/renamed keys keep a
+  /// sane default (forward/backward compatible).
+  factory RoavvyDesignDna.fromJson(
+    Map<String, dynamic> j, {
+    RoavvyDesignDna base = kRoavvyDesignDnaDefault,
+  }) {
+    T? byName<T>(List<T> values, String name, String Function(T) nameOf) {
+      for (final v in values) {
+        if (nameOf(v) == name) return v;
+      }
+      return null;
+    }
+
+    final targets = Map<DesignPrinciple, PrincipleTarget>.of(base.targets);
+    final rawT = (j['targets'] as Map?)?.cast<String, dynamic>() ?? {};
+    rawT.forEach((k, v) {
+      final p = byName(DesignPrinciple.values, k, (e) => e.name);
+      final m = (v as Map).cast<String, dynamic>();
+      if (p != null) {
+        targets[p] = PrincipleTarget((m['min'] as num).toDouble(),
+            (m['max'] as num).toDouble(), (m['weight'] as num).toDouble());
+      }
+    });
+
+    final fam = Map<CompositionFamily, double>.of(base.familyAffinity);
+    ((j['familyAffinity'] as Map?)?.cast<String, dynamic>() ?? {})
+        .forEach((k, v) {
+      final f = byName(CompositionFamily.values, k, (e) => e.name);
+      if (f != null) fam[f] = (v as num).toDouble();
+    });
+
+    final ps = Map<PrintStyleId, double>.of(base.printStyleAffinity);
+    ((j['printStyleAffinity'] as Map?)?.cast<String, dynamic>() ?? {})
+        .forEach((k, v) {
+      final s = byName(PrintStyleId.values, k, (e) => e.name);
+      if (s != null) ps[s] = (v as num).toDouble();
+    });
+
+    return RoavvyDesignDna(
+      targets: targets,
+      familyAffinity: fam,
+      printStyleAffinity: ps,
+      explorationBias:
+          (j['explorationBias'] as num?)?.toDouble() ?? base.explorationBias,
+      sampleCount: (j['sampleCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   /// Weighted alignment of a principle vector with the DNA, in 0..1. Used by
   /// the quality model to reward on-DNA designs without forbidding off-DNA ones.
   double alignment(Map<DesignPrinciple, double> vec) {

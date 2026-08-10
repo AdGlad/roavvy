@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import 'design_engine/design_for_me_screen.dart';
+import 'design_engine/procedural_design_screen.dart';
 import 'merch_template_ranker.dart';
 import 'shop_collection_option_screen.dart';
 
@@ -271,6 +272,31 @@ class _MerchDesignEntryScreenState
                       },
                 icon: const Icon(Icons.auto_awesome_rounded, size: 18),
                 label: const Text('Design for me'),
+              ),
+              const SizedBox(height: 8),
+              // ── Procedural "Auto designs" — combined/merged-flag compositions,
+              //    improves with use + the reference library.
+              OutlinedButton.icon(
+                onPressed: _selectedCodes.isEmpty
+                    ? null
+                    : () {
+                        final trips = tripsAsync.valueOrNull ?? const [];
+                        final allCodes = visitsAsync.valueOrNull
+                                ?.map((v) => v.countryCode)
+                                .toList() ??
+                            const [];
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ProceduralDesignScreen(
+                              codes: _selectedCodes.toList(),
+                              allCodes: allCodes,
+                              trips: trips,
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.grid_view_rounded, size: 18),
+                label: const Text('Auto designs (beta)'),
               ),
               const SizedBox(height: 8),
               FilledButton(

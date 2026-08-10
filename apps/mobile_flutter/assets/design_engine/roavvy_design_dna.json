@@ -1,0 +1,110 @@
+{
+  "sampleCount": 0,
+  "explorationBias": 0.5,
+  "targets": {
+    "visualHierarchy": {
+      "min": 0.55,
+      "max": 0.95,
+      "weight": 1.0
+    },
+    "negativeSpace": {
+      "min": 0.3,
+      "max": 0.65,
+      "weight": 0.9
+    },
+    "visualDensity": {
+      "min": 0.25,
+      "max": 0.7,
+      "weight": 0.9
+    },
+    "scale": {
+      "min": 0.45,
+      "max": 0.9,
+      "weight": 0.7
+    },
+    "cropping": {
+      "min": 0.0,
+      "max": 0.45,
+      "weight": 0.6
+    },
+    "colourRelationships": {
+      "min": 0.35,
+      "max": 0.9,
+      "weight": 0.5
+    },
+    "printCharacter": {
+      "min": 0.2,
+      "max": 0.8,
+      "weight": 0.6
+    },
+    "texture": {
+      "min": 0.1,
+      "max": 0.6,
+      "weight": 0.4
+    },
+    "distress": {
+      "min": 0.0,
+      "max": 0.55,
+      "weight": 0.4
+    },
+    "typography": {
+      "min": 0.15,
+      "max": 0.75,
+      "weight": 0.5
+    },
+    "geometry": {
+      "min": 0.4,
+      "max": 0.9,
+      "weight": 0.4
+    },
+    "symmetry": {
+      "min": 0.2,
+      "max": 0.8,
+      "weight": 0.3
+    },
+    "edgeTreatment": {
+      "min": 0.0,
+      "max": 0.6,
+      "weight": 0.3
+    },
+    "layering": {
+      "min": 0.0,
+      "max": 0.6,
+      "weight": 0.3
+    },
+    "layout": {
+      "min": 0.2,
+      "max": 0.8,
+      "weight": 0.2
+    },
+    "repetition": {
+      "min": 0.0,
+      "max": 1.0,
+      "weight": 0.2
+    }
+  },
+  "familyAffinity": {
+    "singleHero": 0.9,
+    "dominantAccent": 0.85,
+    "negativeSpaceCutout": 0.9,
+    "repetitionField": 0.7,
+    "radialEmblem": 0.65,
+    "typographicIntegration": 0.7,
+    "chronoSequence": 0.6,
+    "splitField": 0.6
+  },
+  "printStyleAffinity": {
+    "clean": 0.9,
+    "vintage": 0.8,
+    "retro": 0.75,
+    "halftone": 0.7,
+    "stamp": 0.65,
+    "edgeTear": 0.6,
+    "grunge": 0.5,
+    "riso": 0.6,
+    "sunFaded": 0.6,
+    "acidWash": 0.5,
+    "newsprint": 0.45,
+    "photocopy": 0.4
+  }
+}
