@@ -263,7 +263,7 @@ class ProceduralDesignGenerator {
     final imageSize = _pickImageSize(rng.stream('size'));
 
     // Treatment: choose a coherent print style (texture+colour+edge together).
-    final printStyle = _pickPrintStyle(ctx, rng.stream('print'));
+    final printStyle = _pickPrintStyle(ctx, mask, rng.stream('print'));
     final colourTreatment = _colourFor(printStyle);
 
     // Continuous treatment genes, seeded from the style's typical character +
@@ -437,11 +437,27 @@ class ProceduralDesignGenerator {
         const [0.15, 0.6, 0.25],
       );
 
-  PrintStyleId _pickPrintStyle(DesignContext ctx, DeterministicRng rng) {
+  PrintStyleId _pickPrintStyle(
+      DesignContext ctx, GridClipShape mask, DeterministicRng rng) {
     const styles = PrintStyleId.values;
-    final weights = [for (final s in styles) dna.printStyleWeight(s)];
+    // A single-country FULL-flag design (no clip) leans into the torn /
+    // distressed "flag tee" look — Edge Tear especially — while staying varied.
+    final tornFlag = ctx.countryCount == 1 && mask == GridClipShape.none;
+    final weights = [
+      for (final s in styles)
+        dna.printStyleWeight(s) * (tornFlag ? _tornFlagBoost(s) : 1.0),
+    ];
     return rng.pickWeighted(styles, weights);
   }
+
+  static double _tornFlagBoost(PrintStyleId s) => switch (s) {
+        PrintStyleId.edgeTear => 3.2,
+        PrintStyleId.grunge => 1.8,
+        PrintStyleId.vintage => 1.6,
+        PrintStyleId.stamp => 1.4,
+        PrintStyleId.clean => 0.4, // fewer plain, untreated flags
+        _ => 1.0,
+      };
 
   ColorTreatment _colourFor(PrintStyleId s) => switch (s) {
         PrintStyleId.clean => ColorTreatment.none,
