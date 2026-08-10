@@ -178,11 +178,13 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
     minCountries: 4,
     maxCountries: 240,
     templates: [CardTemplateType.grid],
-    masks: [GridClipShape.none],
+    // A field of flags can also be cut into a heart/circle for variety.
+    masks: [GridClipShape.none, GridClipShape.heart, GridClipShape.circle],
     layoutModes: [
       FlagGridLayoutMode.packedRow,
       FlagGridLayoutMode.normalizedGrid,
       FlagGridLayoutMode.montage,
+      FlagGridLayoutMode.treemap,
     ],
     heroRequiredWhenMulti: false,
     heroScaleRange: (0.0, 0.0),

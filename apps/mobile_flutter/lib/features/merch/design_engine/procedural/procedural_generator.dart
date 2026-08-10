@@ -370,9 +370,10 @@ class ProceduralDesignGenerator {
           m,
     ];
     if (legal.isEmpty) return GridClipShape.none;
-    // Bias slightly toward `none` so cutouts don't dominate every design.
+    // Slight bias toward `none`, but low enough that shaped cut-outs (heart/
+    // circle/outline) surface regularly for variety.
     final weights = [
-      for (final m in legal) m == GridClipShape.none ? 1.4 : 1.0,
+      for (final m in legal) m == GridClipShape.none ? 1.05 : 1.0,
     ];
     return rng.pickWeighted(legal, weights);
   }
