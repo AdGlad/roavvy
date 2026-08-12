@@ -40,10 +40,12 @@ void main() {
     expect(treated, isNotNull);
     final p = treated!.toPrintStyleParams();
     expect(p.isClean, isFalse); // pipeline will actually apply it
-    expect(p.distress, treated.distress);
-    expect(p.grain, treated.grain);
-    expect(p.halftone, treated.halftone);
-    expect(p.fade, treated.fade);
+    // Active genes (>0) override the preset amounts; a 0 gene keeps the preset's
+    // structural value (so styles like edgeTear keep their torn edges).
+    if (treated.distress > 0) expect(p.distress, treated.distress);
+    if (treated.grain > 0) expect(p.grain, treated.grain);
+    if (treated.halftone > 0) expect(p.halftone, treated.halftone);
+    if (treated.fade > 0) expect(p.fade, treated.fade);
   });
 
   test('an untreated recipe maps to a clean (no-op) PrintStyleParams', () {

@@ -352,6 +352,11 @@ List<CompositionFamilySpec> eligibleFamilies(DesignContext context) {
   final n = context.countryCount;
   return [
     for (final spec in kCompositionFamilies.values)
-      if (spec.admitsCount(n) && spec.densityWeight(context.density) > 0) spec,
+      // radialEmblem (the centred circular "dial" badge) is retired from
+      // generation by product preference.
+      if (spec.family != CompositionFamily.radialEmblem &&
+          spec.admitsCount(n) &&
+          spec.densityWeight(context.density) > 0)
+        spec,
   ];
 }
