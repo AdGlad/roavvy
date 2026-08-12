@@ -11,6 +11,7 @@ import '../design_params.dart';
 import '../../merch_preset.dart'
     show MerchCountrySource, MerchDensity, MerchStampMode;
 import 'composition_family.dart';
+import 'curated_recipes.dart';
 import 'design_context.dart';
 import 'design_dna.dart';
 import 'deterministic_rng.dart';
@@ -148,6 +149,15 @@ class ProceduralDesignGenerator {
         continue;
       }
       scored.add(GeneratedDesign(recipe, quality.score(recipe, context)));
+    }
+
+    // Seed the pool with curated exemplars (proven looks, e.g. the torn-flag
+    // tee) so they compete with grammar-sampled designs on quality + diversity.
+    for (final ex in curatedExemplars(context, rootSeed,
+        engineVersion: engineVersion, grammarVersion: grammarVersion)) {
+      if (validateRecipe(ex, context, constraints: constraints) == null) {
+        scored.add(GeneratedDesign(ex, quality.score(ex, context)));
+      }
     }
 
     // Discard weak; relax the floor if too few survive so we always return work.
