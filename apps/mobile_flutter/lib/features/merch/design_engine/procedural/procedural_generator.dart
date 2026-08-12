@@ -23,9 +23,11 @@ import 'quality_model.dart';
 const String kProceduralEngineVersion = '0.1.0';
 const String kProceduralGrammarVersion = '0.1.0';
 
-/// All two-flag blend patterns (every [FlagCombination] except `none`).
+/// Two-flag blend patterns used by the generator. Excludes `none` and `radial`
+/// (the concentric-ring "dial" look, dropped by product preference).
 final List<FlagCombination> _kBlendModes = FlagCombination.values
-    .where((c) => c != FlagCombination.none)
+    .where((c) =>
+        c != FlagCombination.none && c != FlagCombination.radial)
     .toList(growable: false);
 
 /// A generated design plus its intrinsic quality. The renderable genome is
@@ -263,7 +265,7 @@ class ProceduralDesignGenerator {
     final imageSize = _pickImageSize(rng.stream('size'));
 
     // Treatment: choose a coherent print style (texture+colour+edge together).
-    final printStyle = _pickPrintStyle(ctx, mask, rng.stream('print'));
+    final printStyle = _pickPrintStyle(ctx, rng.stream('print'));
     final colourTreatment = _colourFor(printStyle);
 
     // Continuous treatment genes, seeded from the style's typical character +
@@ -437,12 +439,11 @@ class ProceduralDesignGenerator {
         const [0.15, 0.6, 0.25],
       );
 
-  PrintStyleId _pickPrintStyle(
-      DesignContext ctx, GridClipShape mask, DeterministicRng rng) {
+  PrintStyleId _pickPrintStyle(DesignContext ctx, DeterministicRng rng) {
     const styles = PrintStyleId.values;
-    // A single-country FULL-flag design (no clip) leans into the torn /
+    // Single-country designs (the flag is the hero) lean into the torn /
     // distressed "flag tee" look — Edge Tear especially — while staying varied.
-    final tornFlag = ctx.countryCount == 1 && mask == GridClipShape.none;
+    final tornFlag = ctx.countryCount == 1;
     final weights = [
       for (final s in styles)
         dna.printStyleWeight(s) * (tornFlag ? _tornFlagBoost(s) : 1.0),
@@ -451,11 +452,11 @@ class ProceduralDesignGenerator {
   }
 
   static double _tornFlagBoost(PrintStyleId s) => switch (s) {
-        PrintStyleId.edgeTear => 3.2,
+        PrintStyleId.edgeTear => 4.0,
         PrintStyleId.grunge => 1.8,
         PrintStyleId.vintage => 1.6,
         PrintStyleId.stamp => 1.4,
-        PrintStyleId.clean => 0.4, // fewer plain, untreated flags
+        PrintStyleId.clean => 0.35, // fewer plain, untreated flags
         _ => 1.0,
       };
 
