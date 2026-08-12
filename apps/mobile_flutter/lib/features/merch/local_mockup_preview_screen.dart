@@ -605,23 +605,29 @@ class _LocalMockupPreviewScreenState
       _loadFrontRibbonImage();
 
       if (_artworkBytes != null) {
+        // Fixed artwork (e.g. a procedural / merged design) is already final —
+        // never re-render it from a template on first entry, or it would replace
+        // the exact provided image with a plain regeneration.
+        if (widget.fixedArtwork) {
+          // nothing to do; the provided bytes stay as-is
+        }
         // Immediately render the suggested stamp color for the initial shirt
         // colour so the user sees the correct variant on first entry (e.g. white
         // stamps on a black shirt) without having to tap a color chip manually.
-        if (_isTshirt && _template == CardTemplateType.passport) {
+        else if (_isTshirt && _template == CardTemplateType.passport) {
           unawaited(_setPassportColorMode(_passportColorMode));
         }
         // Immediately render with the suggested text colour for timeline cards
         // so the artwork bytes are fresh + transparent on first entry.
-        if (_isTshirt && _template == CardTemplateType.timeline) {
+        else if (_isTshirt && _template == CardTemplateType.timeline) {
           unawaited(_setTimelineTextColor(_timelineTextColor ?? Colors.white));
         }
         // Same for grid cards.
-        if (_isTshirt && _template == CardTemplateType.grid) {
+        else if (_isTshirt && _template == CardTemplateType.grid) {
           unawaited(_setGridTextColor(_gridTextColor ?? Colors.white));
         }
         // Same for word cloud cards.
-        if (_isTshirt && _template == CardTemplateType.wordCloud) {
+        else if (_isTshirt && _template == CardTemplateType.wordCloud) {
           unawaited(
             _setWordCloudTextColor(_wordCloudTextColor ?? Colors.white),
           );
