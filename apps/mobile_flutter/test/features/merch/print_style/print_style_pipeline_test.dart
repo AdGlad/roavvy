@@ -373,4 +373,27 @@ void main() {
       expect(changed, isTrue);
     });
   });
+
+  group('ripped flag', () {
+    test('keeps a central vertical band and clears the sides (the gash)',
+        () async {
+      final img = await solid(64, 64, 200, 40, 40);
+      final params = kPrintStylePresets[PrintStyleId.rippedFlag]!
+          .copyWith(seed: 5)
+          .resolvedFor(ArtworkDetail.none);
+      final after = await rgbaOf(await pipeline.apply(img, params));
+      int alphaAt(int x, int y) => after[(y * 64 + x) * 4 + 3];
+
+      // The centre column keeps ink across most rows…
+      var centreInk = 0;
+      for (var y = 0; y < 64; y++) {
+        if (alphaAt(32, y) > 128) centreInk++;
+      }
+      expect(centreInk, greaterThan(20));
+
+      // …and the far edges are torn away (transparent — the garment shows).
+      expect(alphaAt(1, 32), 0);
+      expect(alphaAt(62, 32), 0);
+    });
+  });
 }

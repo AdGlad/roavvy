@@ -293,6 +293,7 @@ const RoavvyDesignDna kRoavvyDesignDnaDefault = RoavvyDesignDna(
     PrintStyleId.acidWash: 0.5,
     PrintStyleId.newsprint: 0.45,
     PrintStyleId.photocopy: 0.4,
+    PrintStyleId.rippedFlag: 0.6,
   },
   explorationBias: 0.5,
 );

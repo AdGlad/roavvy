@@ -483,6 +483,7 @@ class ProceduralDesignGenerator {
         PrintStyleId.photocopy => ColorTreatment.monoInk,
         PrintStyleId.edgeTear => ColorTreatment.none,
         PrintStyleId.acidWash => ColorTreatment.muted,
+        PrintStyleId.rippedFlag => ColorTreatment.none,
       };
 
   PlacementAnchor _pickPlacement(

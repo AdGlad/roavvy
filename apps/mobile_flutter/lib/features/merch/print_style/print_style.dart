@@ -25,6 +25,7 @@ enum PrintStyleId {
   photocopy,
   edgeTear,
   acidWash,
+  rippedFlag,
 }
 
 /// Colour grading applied before texture effects.
@@ -371,6 +372,16 @@ const Map<PrintStyleId, PrintStyleParams> kPrintStylePresets = {
     distressHardness: 0.20,
     colorTreatment: ColorTreatment.muted,
   ),
+  // Ripped Flag: the artwork shows through a ragged vertical "gash" (the rest
+  // goes transparent so the garment shows), weathered — the ripped-through-
+  // fabric flag tee. The gash itself is applied by the pipeline (id-gated).
+  PrintStyleId.rippedFlag: PrintStyleParams(
+    id: PrintStyleId.rippedFlag,
+    distress: 0.40,
+    grain: 0.25,
+    distressHardness: 0.45,
+    colorTreatment: ColorTreatment.none,
+  ),
 };
 
 /// Human-readable label for the style picker.
@@ -387,6 +398,7 @@ String printStyleLabel(PrintStyleId id) => switch (id) {
       PrintStyleId.photocopy => 'Photocopy',
       PrintStyleId.edgeTear => 'Edge Tear',
       PrintStyleId.acidWash => 'Acid Wash',
+      PrintStyleId.rippedFlag => 'Ripped Flag',
     };
 
 /// Parses a persisted [PrintStyleId] name, tolerating unknown/missing values by

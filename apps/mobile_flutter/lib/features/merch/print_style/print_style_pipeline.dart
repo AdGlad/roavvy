@@ -98,6 +98,10 @@ class PrintStylePipeline {
             ? await _buildTornEdgeImage(
                 params.seed, w, h, params.effectiveRoughEdges)
             : null;
+    // Central vertical "gash" mask — the ripped-through-fabric flag (id-gated).
+    final gashImg = params.id == PrintStyleId.rippedFlag
+        ? await _buildGashImage(params.seed, w, h)
+        : null;
     // Local protection mask (keeps emblems/text inked). Only needed when an
     // ink-removing pass runs.
     final needsErase = distressImg != null || scratchImg != null ||
@@ -215,11 +219,26 @@ class PrintStylePipeline {
       );
     }
 
+    // 7. Ripped-flag gash — keep the artwork ONLY inside the vertical rip so the
+    //    garment shows through around it (dstIn with the gash alpha).
+    if (gashImg != null) {
+      canvas.drawImageRect(
+        gashImg,
+        ui.Rect.fromLTWH(
+            0, 0, gashImg.width.toDouble(), gashImg.height.toDouble()),
+        rect,
+        ui.Paint()
+          ..blendMode = ui.BlendMode.dstIn
+          ..filterQuality = ui.FilterQuality.none,
+      );
+    }
+
     final picture = recorder.endRecording();
     final out = await picture.toImage(w, h);
     picture.dispose();
     protectionImg?.dispose();
     tornEdgeImg?.dispose();
+    gashImg?.dispose();
     return out;
   }
 
@@ -257,6 +276,22 @@ class PrintStylePipeline {
         h: th,
         margin: margin,
         strength: strength);
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+        bytes, tw, th, ui.PixelFormat.rgba8888, completer.complete);
+    return completer.future;
+  }
+
+  /// Builds the central "gash" mask ([ui.Image], alpha = keep) for the
+  /// ripped-through-fabric flag: opaque inside a ragged vertical rip band,
+  /// transparent outside. Applied with dstIn.
+  Future<ui.Image> _buildGashImage(int seed, int w, int h) {
+    const cap = 1024;
+    final longSide = w > h ? w : h;
+    final scale = longSide > cap ? cap / longSide : 1.0;
+    final tw = (w * scale).round().clamp(2, cap);
+    final th = (h * scale).round().clamp(2, cap);
+    final bytes = generateGashBytes(seed: seed ^ 0x3a5f, w: tw, h: th);
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
         bytes, tw, th, ui.PixelFormat.rgba8888, completer.complete);

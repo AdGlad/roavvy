@@ -498,4 +498,5 @@ PrintFacets printStyleFacets(PrintStyleId s) => switch (s) {
       PrintStyleId.photocopy => const PrintFacets(0.55, 0.5, 0.4, 0.7),
       PrintStyleId.edgeTear => const PrintFacets(0.3, 0.5, 0.85, 0.35),
       PrintStyleId.acidWash => const PrintFacets(0.45, 0.45, 0.25, 0.4),
+      PrintStyleId.rippedFlag => const PrintFacets(0.3, 0.5, 0.9, 0.35),
     };

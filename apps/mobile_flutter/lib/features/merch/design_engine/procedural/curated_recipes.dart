@@ -137,6 +137,18 @@ List<ProceduralDesignRecipe> curatedExemplars(
         grain: 0.18,
         fade: 0.3,
         salt: 0x7044));
+    // Ripped-through-fabric flag — the flag shows through a vertical torn gash
+    // (portrait), rest transparent so the garment shows around it.
+    out.add(build(
+        family: CompositionFamily.singleHero,
+        hierarchy: HierarchyMode.singleFocal,
+        hero: cc,
+        isPortrait: true,
+        heroScale: 0.9,
+        style: PrintStyleId.rippedFlag,
+        distress: 0.40,
+        grain: 0.25,
+        salt: 0x7099));
     // National-animal flag — only when a bundled silhouette exists (local).
     final slug = kBundledSilhouetteSlugs[cc.toUpperCase()];
     if (slug != null) {
