@@ -614,6 +614,15 @@ class PrintStylePipeline {
     ]);
   }
 
+  /// The non-destructive tone filter (colour treatment + fade) for a style.
+  ///
+  /// Used to tint an INDEPENDENT title/footer text layer so it matches the
+  /// design's print style without ever being eroded — the text overlay draws
+  /// through this filter after the destructive passes, so glyph pixels are only
+  /// re-coloured, never removed. Returns null for a clean/untinted style.
+  ui.ColorFilter? toneColorFilter(PrintStyleParams params) =>
+      _buildColorFilter(params);
+
   /// Builds the colour-grading filter from [colorTreatment] + [fade].
   /// Returns null when neither applies (base drawn untouched).
   ui.ColorFilter? _buildColorFilter(PrintStyleParams p) {

@@ -10,6 +10,8 @@ import '../local_mockup_preview_screen.dart';
 import '../merch_option_list_widgets.dart' show merchBackCardAspectRatio;
 import '../merch_preset.dart';
 import 'card_render_thumbnailer.dart';
+import 'design_params.dart';
+import '../print_style/card_text_layer.dart';
 import '../print_style/print_style_pipeline.dart';
 import 'preference_store.dart';
 import 'procedural/procedural.dart';
@@ -125,7 +127,11 @@ class _ProceduralDesignScreenState
     }
 
     // Render thumbnails one at a time (the thumbnailer is concurrency-1).
-    _thumbnailer ??= CardRenderThumbnailer.forContext(context);
+    // Render artwork WITHOUT the baked-in title/footer so the destructive
+    // print-style passes can never tear or clip the text; the label is
+    // composited back as a separate full layer below (see [_composeText]).
+    _thumbnailer ??=
+        CardRenderThumbnailer.forContext(context, suppressText: true);
     try {
       _merged ??= await MergedFlagRenderer.load(); // GPU flag-blend renderer
     } catch (_) {
@@ -147,6 +153,11 @@ class _ProceduralDesignScreenState
         if (it.design.recipe.hasTreatment) {
           bytes = await PrintStylePipeline.instance
               .applyToBytes(bytes, it.design.recipe.toPrintStyleParams());
+        }
+        // Composite the title/footer as a separate, un-clippable layer on top of
+        // the styled artwork (merged/GPU designs carry no card text, so skip).
+        if (!it.design.recipe.isMerged) {
+          bytes = await _composeText(bytes, it.design.params, it.design.recipe);
         }
         if (!mounted || token != _runToken) return;
         setState(() => it.thumb = bytes);
@@ -197,13 +208,16 @@ class _ProceduralDesignScreenState
     setState(() => _opening = true);
     try {
       _printRenderer ??= CardRenderThumbnailer.forContext(context,
-          pixelRatio: 5.0, cacheCapacity: 8);
+          pixelRatio: 5.0, cacheCapacity: 8, suppressText: true);
       art = await _printRenderer!
           .renderThumbnail(params, _tripsFor(params.countryCodes));
       if (it.design.recipe.hasTreatment) {
         art = await PrintStylePipeline.instance
             .applyToBytes(art, it.design.recipe.toPrintStyleParams());
       }
+      // Composite the title/footer on top of the styled print artwork so the
+      // preview/print reproduce the feed pixel-for-pixel, with legible text.
+      art = await _composeText(art, params, it.design.recipe);
     } catch (_) {
       art = null;
     }
@@ -296,6 +310,30 @@ class _ProceduralDesignScreenState
           initialColour: r.garmentColour,
         ),
       ),
+    );
+  }
+
+  /// Composites the design's title/footer onto [bytes] as a separate, always
+  /// full layer (never part of the destructive print-style pass). Honours the
+  /// recipe's independent [ProceduralDesignRecipe.showTitle] /
+  /// [ProceduralDesignRecipe.showFooter] toggles and tints the text to match the
+  /// print style. Returns [bytes] unchanged when both toggles are off.
+  Future<Uint8List> _composeText(
+    Uint8List bytes,
+    DesignParams params,
+    ProceduralDesignRecipe recipe,
+  ) {
+    if (!recipe.showTitle && !recipe.showFooter) return Future.value(bytes);
+    final n = params.countryCodes.length;
+    final title = '$n ${n == 1 ? 'Country' : 'Countries'}';
+    return CardTextLayer.compose(
+      bytes,
+      showTitle: recipe.showTitle,
+      showFooter: recipe.showFooter,
+      title: title,
+      countryCount: n,
+      textColor: CardRenderThumbnailer.inkColorFor(params.shirtColour),
+      tone: recipe.hasTreatment ? recipe.toPrintStyleParams() : null,
     );
   }
 

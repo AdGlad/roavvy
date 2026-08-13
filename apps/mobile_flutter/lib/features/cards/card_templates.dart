@@ -430,6 +430,8 @@ class GridFlagsCard extends StatefulWidget {
     this.rowCount,
     this.seed,
     this.regionSolidFill = false,
+    this.showTitle = true,
+    this.showFooter = true,
   });
 
   final List<String> countryCodes;
@@ -493,6 +495,14 @@ class GridFlagsCard extends StatefulWidget {
   /// Perturbed by the Shuffle control to re-roll the collage; null/0 gives a
   /// stable default arrangement. Ignored by the other layout modes.
   final int? seed;
+
+  /// When false the top title zone is left transparent (the Auto-designs
+  /// pipeline composites an un-clippable title layer after print styling).
+  final bool showTitle;
+
+  /// When false the bottom branding/footer zone is left transparent. Toggled
+  /// independently of [showTitle].
+  final bool showFooter;
 
   @override
   State<GridFlagsCard> createState() => _GridFlagsCardState();
@@ -755,6 +765,8 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
                   regionFlagCode(widget.clipShape, widget.clipCode),
               rowCount: widget.rowCount,
               seed: widget.seed ?? 0,
+              showTitle: widget.showTitle,
+              showFooter: widget.showFooter,
             ),
           );
         },
@@ -920,6 +932,8 @@ class _GridPainter extends CustomPainter {
     this.regionFlagCode,
     this.rowCount,
     this.seed = 0,
+    this.showTitle = true,
+    this.showFooter = true,
   }) : super(repaint: repaintNotifier);
 
   final List<String> countryCodes;
@@ -977,6 +991,15 @@ class _GridPainter extends CustomPainter {
   /// Montage randomisation seed (M188); ignored by non-montage modes.
   final int seed;
 
+  /// Whether the top title zone is drawn into the card. When false the zone is
+  /// left transparent — the Auto-designs pipeline renders the artwork text-free
+  /// and composites the title as a separate, un-clippable layer afterward.
+  final bool showTitle;
+
+  /// Whether the bottom branding/footer zone is drawn into the card. See
+  /// [showTitle]; toggled independently.
+  final bool showFooter;
+
   // Shared across all _GridPainter instances and accessible from
   // _GridFlagsCardState for SVG preloading (ADR-123).
   static final _sharedCache = FlagImageCache();
@@ -1018,22 +1041,26 @@ class _GridPainter extends CustomPainter {
     final effectiveTextColor =
         textColor ??
         (transparentBackground ? Colors.white : CardTextRenderer.defaultTextColor);
-    CardTextRenderer.drawTitle(
-      canvas,
-      size,
-      title,
-      textColor: effectiveTextColor,
-      stripColor: effectiveStripColor,
-    );
-    CardTextRenderer.drawBranding(
-      canvas,
-      size,
-      countryCount: countryCodes.length,
-      dateLabel: dateLabel,
-      subtitleLine: subtitleOverride,
-      textColor: effectiveTextColor,
-      stripColor: effectiveStripColor,
-    );
+    if (showTitle) {
+      CardTextRenderer.drawTitle(
+        canvas,
+        size,
+        title,
+        textColor: effectiveTextColor,
+        stripColor: effectiveStripColor,
+      );
+    }
+    if (showFooter) {
+      CardTextRenderer.drawBranding(
+        canvas,
+        size,
+        countryCount: countryCodes.length,
+        dateLabel: dateLabel,
+        subtitleLine: subtitleOverride,
+        textColor: effectiveTextColor,
+        stripColor: effectiveStripColor,
+      );
+    }
 
     // 2. Flag grid in the zone between title and branding strips (ADR-156).
     if (countryCodes.isEmpty) return;
@@ -1330,7 +1357,9 @@ class _GridPainter extends CustomPainter {
       old.regionSolidFill != regionSolidFill ||
       old.regionFlagCode != regionFlagCode ||
       old.rowCount != rowCount ||
-      old.seed != seed;
+      old.seed != seed ||
+      old.showTitle != showTitle ||
+      old.showFooter != showFooter;
 }
 
 /// Draws [image] cover-fitted to [size] at [opacity] (0.0–1.0). Shared by

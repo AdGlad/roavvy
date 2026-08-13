@@ -96,6 +96,12 @@ class ProceduralDesignRecipe {
     this.grain = 0.0,
     this.halftone = 0.0,
     this.fade = 0.0,
+    // Independent title/footer visibility. The title ("N COUNTRIES") and footer
+    // (ROAVVY branding line) are composited as a separate legible layer OUTSIDE
+    // the print-styled artwork, so torn/ripped/halftone masks can never clip
+    // them. Each toggles on/off independently. Default ON preserves the label.
+    this.showTitle = true,
+    this.showFooter = true,
   });
 
   // Provenance / determinism
@@ -151,6 +157,11 @@ class ProceduralDesignRecipe {
   final double grain;
   final double halftone;
   final double fade;
+
+  // Title/footer visibility (independent). Applied at the text-overlay stage,
+  // never as part of the destructive print-style pass.
+  final bool showTitle;
+  final bool showFooter;
 
   /// Whether any treatment gene is active (else the recipe renders untreated).
   bool get hasTreatment =>
@@ -256,6 +267,8 @@ class ProceduralDesignRecipe {
         grain.toStringAsFixed(3),
         halftone.toStringAsFixed(3),
         fade.toStringAsFixed(3),
+        showTitle ? 't' : '_',
+        showFooter ? 'f' : '_',
         seed,
       ].join('|');
 
@@ -387,6 +400,8 @@ class ProceduralDesignRecipe {
     ColorTreatment? colourTreatment,
     String? garmentColour,
     int? seed,
+    bool? showTitle,
+    bool? showFooter,
   }) =>
       ProceduralDesignRecipe(
         engineVersion: engineVersion,
@@ -427,6 +442,8 @@ class ProceduralDesignRecipe {
         grain: grain,
         halftone: halftone,
         fade: fade,
+        showTitle: showTitle ?? this.showTitle,
+        showFooter: showFooter ?? this.showFooter,
       );
 
   /// Compact JSON for batch archives / regression goldens (no rendered image).
@@ -469,6 +486,8 @@ class ProceduralDesignRecipe {
         'grain': grain,
         'halftone': halftone,
         'fade': fade,
+        'showTitle': showTitle,
+        'showFooter': showFooter,
         'recipeId': recipeId,
       };
 }

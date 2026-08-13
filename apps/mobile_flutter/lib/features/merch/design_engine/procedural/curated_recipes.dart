@@ -57,6 +57,8 @@ List<ProceduralDesignRecipe> curatedExemplars(
     double grain = 0,
     double halftone = 0,
     double fade = 0,
+    bool showTitle = true,
+    bool showFooter = true,
     required int salt,
   }) =>
       ProceduralDesignRecipe(
@@ -96,6 +98,8 @@ List<ProceduralDesignRecipe> curatedExemplars(
         grain: grain,
         halftone: halftone,
         fade: fade,
+        showTitle: showTitle,
+        showFooter: showFooter,
       );
 
   final out = <ProceduralDesignRecipe>[];
@@ -111,6 +115,9 @@ List<ProceduralDesignRecipe> curatedExemplars(
         style: PrintStyleId.edgeTear,
         distress: 0.45,
         grain: 0.22,
+        // Reference torn tees carry no text; keep the flag clean.
+        showTitle: false,
+        showFooter: false,
         salt: 0x7011));
     // Torn flag — mono tattered.
     out.add(build(
@@ -123,6 +130,8 @@ List<ProceduralDesignRecipe> curatedExemplars(
         style: PrintStyleId.edgeTear,
         distress: 0.62,
         grain: 0.30,
+        showTitle: false,
+        showFooter: false,
         salt: 0x7022));
     // Country-outline flag (souvenir look).
     out.add(build(
@@ -148,6 +157,8 @@ List<ProceduralDesignRecipe> curatedExemplars(
         style: PrintStyleId.rippedFlag,
         distress: 0.40,
         grain: 0.25,
+        showTitle: false,
+        showFooter: false,
         salt: 0x7099));
     // National-animal flag — only when a bundled silhouette exists (local).
     final slug = kBundledSilhouetteSlugs[cc.toUpperCase()];

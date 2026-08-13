@@ -50,6 +50,7 @@ class CardRenderThumbnailer implements DesignRenderer {
     this.pixelRatio = 2.0,
     int cacheCapacity = 64,
     this.assetsTimeout = const Duration(seconds: 10),
+    this.suppressText = false,
     Future<void> Function()? frameYield,
   })  : _cache = _LruByteCache(cacheCapacity),
         _frameYield =
@@ -61,6 +62,7 @@ class CardRenderThumbnailer implements DesignRenderer {
     double pixelRatio = 2.0,
     int cacheCapacity = 64,
     Duration assetsTimeout = const Duration(seconds: 10),
+    bool suppressText = false,
     Future<void> Function()? frameYield,
   }) =>
       CardRenderThumbnailer(
@@ -68,12 +70,19 @@ class CardRenderThumbnailer implements DesignRenderer {
         pixelRatio: pixelRatio,
         cacheCapacity: cacheCapacity,
         assetsTimeout: assetsTimeout,
+        suppressText: suppressText,
         frameYield: frameYield,
       );
 
   final BuildContext Function() contextProvider;
   final double pixelRatio;
   final Duration assetsTimeout;
+
+  /// When true, the rendered artwork omits the title / branding text zones (they
+  /// stay transparent). The Auto-designs pipeline sets this so the destructive
+  /// print-style passes never touch the text, then composites it back as a
+  /// separate full layer (see [CardTextLayer]).
+  final bool suppressText;
   final Future<void> Function() _frameYield;
   final _LruByteCache _cache;
 
@@ -152,7 +161,7 @@ class CardRenderThumbnailer implements DesignRenderer {
       pixelRatio: pixelRatio,
       transparentBackground: true,
       cardAspectRatio: aspect,
-      textColor: _inkColorFor(params.shirtColour),
+      textColor: inkColorFor(params.shirtColour),
       // Stamp genes via the preset (matches MerchPresetConfig getters).
       entryOnly: preset.entryOnly,
       stampSizeMultiplier: preset.stampSizeMultiplier,
@@ -164,6 +173,8 @@ class CardRenderThumbnailer implements DesignRenderer {
       rowCount: params.rowCount,
       stampSeed: params.seed,
       assetsTimeout: assetsTimeout,
+      showTitle: !suppressText,
+      showFooter: !suppressText,
     );
     return result.bytes;
   }
@@ -171,7 +182,7 @@ class CardRenderThumbnailer implements DesignRenderer {
   /// Adaptive ink colour — light ink on dark garments, dark ink on light ones
   /// (mirrors M193 / `merchDefaultTextColor` and `_suggestGridTextColor`), so
   /// the artwork always contrasts against the shirt.
-  static Color _inkColorFor(String shirtColour) => switch (shirtColour) {
+  static Color inkColorFor(String shirtColour) => switch (shirtColour) {
         'White' => const Color(0xFF000000),
         'Grey' => const Color(0xFF000000),
         'Heather Grey' => const Color(0xFF000000),

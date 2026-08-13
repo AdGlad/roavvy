@@ -96,6 +96,13 @@ class CardImageRenderer {
     JourneyStyle journeyStyle = JourneyStyle.flags,
     (int, int)? journeyYearRange,
 
+    /// When false, the grid template leaves its title / branding zones
+    /// transparent so the Auto-designs pipeline can composite an un-clippable
+    /// text layer after print styling. Independent toggles; default true keeps
+    /// the baked-in label for every other caller.
+    bool showTitle = true,
+    bool showFooter = true,
+
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
     /// fixed print area without changing the overall canvas aspect ratio.
@@ -223,6 +230,8 @@ class CardImageRenderer {
       regionSolidFill: regionSolidFill,
       journeyStyle: journeyStyle,
       journeyYearRange: journeyYearRange,
+      showTitle: showTitle,
+      showFooter: showFooter,
       onAssetsLoaded:
           assetsCompleter != null
               ? () {
@@ -304,6 +313,8 @@ class CardImageRenderer {
     bool regionSolidFill = false,
     JourneyStyle journeyStyle = JourneyStyle.flags,
     (int, int)? journeyYearRange,
+    bool showTitle = true,
+    bool showFooter = true,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -330,6 +341,8 @@ class CardImageRenderer {
           rowCount: rowCount,
           regionSolidFill: regionSolidFill,
           seed: stampSeed,
+          showTitle: showTitle,
+          showFooter: showFooter,
         );
       // ignore: deprecated_member_use_from_same_package
       case CardTemplateType.heart:
@@ -348,6 +361,8 @@ class CardImageRenderer {
           clipShape: GridClipShape.heart,
           flagRepeatCount: flagRepeatCount,
           seed: stampSeed,
+          showTitle: showTitle,
+          showFooter: showFooter,
         );
       case CardTemplateType.passport:
         return PassportStampsCard(

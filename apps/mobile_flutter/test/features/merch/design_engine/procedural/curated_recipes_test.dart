@@ -39,6 +39,36 @@ void main() {
     expect(ex.any((r) => r.mask == GridClipShape.countryOutline), isTrue);
   });
 
+  test('torn + ripped flag-hero exemplars default to text OFF', () {
+    final ex = _ex(single('us')).cast<ProceduralDesignRecipe>();
+    // Every torn/ripped flag-hero (edgeTear / rippedFlag) has no title/footer —
+    // the reference torn tees carry no text.
+    final tornOrRipped = ex.where((r) =>
+        r.printStyle.name == 'edgeTear' || r.printStyle.name == 'rippedFlag');
+    expect(tornOrRipped, isNotEmpty);
+    for (final r in tornOrRipped) {
+      expect(r.showTitle, isFalse, reason: '${r.printStyle.name} title');
+      expect(r.showFooter, isFalse, reason: '${r.printStyle.name} footer');
+    }
+    // The souvenir country-outline design keeps its label.
+    final outline =
+        ex.firstWhere((r) => r.mask == GridClipShape.countryOutline);
+    expect(outline.showTitle, isTrue);
+    expect(outline.showFooter, isTrue);
+  });
+
+  test('title/footer toggles survive copyWith, JSON and recipe identity', () {
+    final ex = _ex(single('us')).cast<ProceduralDesignRecipe>();
+    final torn = ex.firstWhere((r) => r.printStyle.name == 'edgeTear');
+    expect(torn.toJson()['showTitle'], false);
+    expect(torn.toJson()['showFooter'], false);
+    final shown = torn.copyWith(showTitle: true, showFooter: true);
+    expect(shown.showTitle, isTrue);
+    expect(shown.showFooter, isTrue);
+    // Visibility is part of the recipe identity (distinct rendered result).
+    expect(shown.recipeId, isNot(torn.recipeId));
+  });
+
   test('two-country offers a merged dual-heritage exemplar', () {
     final ex = _ex(multi(const ['au', 'jp'])).cast<ProceduralDesignRecipe>();
     expect(ex.any((r) => r.isMerged && r.countryCount == 2), isTrue);
