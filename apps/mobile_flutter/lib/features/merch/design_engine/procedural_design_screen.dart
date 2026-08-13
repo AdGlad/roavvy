@@ -231,12 +231,32 @@ class _ProceduralDesignScreenState
             selectedCodes: params.countryCodes,
             allCodes: widget.allCodes,
             trips: _tripsFor(params.countryCodes),
-            artworkImageBytes: art, // the exact feed image = the print source
-            fixedArtwork: true,
+            artworkImageBytes: art, // the exact feed image = the first frame
+            // NOT fixedArtwork: the card-rendered artwork can be re-generated, so
+            // re-configuring (orientation / flag count / colour / title) works.
+            // The recipe's STYLE recipe below is re-applied on every render so it
+            // never reverts to the plain template.
+            autoStyleParams: it.design.recipe.toPrintStyleParams(),
+            autoShowTitle: it.design.recipe.showTitle,
+            autoShowFooter: it.design.recipe.showFooter,
             initialTemplate: params.template,
+            // Layout genome — so a re-render regenerates the SAME composition.
+            initialPreset: MerchPreset(
+              id: 'proc_${it.design.recipe.recipeId.hashCode}',
+              label: 'Auto design',
+              config: params.toPresetConfig(),
+            ),
             confirmedAspectRatio: params.isPortrait ? 4 / 5 : 5 / 4,
             transparentBackground: true,
             initialColour: params.shirtColour,
+            gridLayoutMode: params.gridLayoutMode,
+            clipShape: params.clipShape,
+            clipCode: params.clipCode,
+            continentKey: params.clipShape == GridClipShape.continentOutline
+                ? params.clipCode
+                : null,
+            flagRepeatCount: params.rowCount,
+            rowCount: params.rowCount,
           ),
         ),
       );

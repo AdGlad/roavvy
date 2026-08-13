@@ -20,6 +20,7 @@ import '../cards/journey_card.dart';
 import '../cards/flag_grid_layout_engine.dart';
 import '../cards/title_generation/title_generation_models.dart';
 import '../cards/title_generation/title_generation_provider.dart';
+import 'design_engine/card_render_thumbnailer.dart' show CardRenderThumbnailer;
 import 'flag_clip_options.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_image_cache.dart';
@@ -37,12 +38,54 @@ import 'merch_storage_uploader.dart';
 import 'merch_variant_lookup.dart';
 import 'mockup_approval_service.dart';
 import 'print_style/artwork_detail_analyzer.dart';
+import 'print_style/card_text_layer.dart';
 import 'print_style/print_style.dart';
 import 'print_style/print_style_pipeline.dart';
 import 'print_style/print_style_preview_cache.dart';
 import 'printful_placement_mapper.dart';
 import 'product_mockup_specs.dart';
 import 'shopify_pricing_repository.dart';
+
+// ── Auto-design styling (shared, pure) ───────────────────────────────────────
+
+/// Applies an Auto design's style recipe to a *text-free* clean render:
+/// re-applies [params] (the recipe's print-style filter) via
+/// [PrintStylePipeline], then composites the title/footer on top via
+/// [CardTextLayer] (honouring [showTitle]/[showFooter]). This mirrors the
+/// Auto-designs feed pipeline exactly, so a design re-rendered on the preview
+/// screen keeps its filter/style instead of reverting to the plain template.
+///
+/// Deterministic and pure (no BuildContext): same inputs ⇒ same bytes. A clean
+/// [params] with both toggles off is a byte-perfect pass-through.
+Future<Uint8List> styleAutoDesignArtwork(
+  Uint8List cleanBytes, {
+  required PrintStyleParams params,
+  required bool showTitle,
+  required bool showFooter,
+  required String title,
+  required int countryCount,
+  required Color textColor,
+}) async {
+  var out = cleanBytes;
+  // 1. Re-apply the print-style filter to the text-free artwork (clean is a
+  //    no-op pass-through inside the pipeline).
+  if (!params.isClean) {
+    out = await PrintStylePipeline.instance.applyToBytes(out, params);
+  }
+  // 2. Composite the title/footer as a separate, un-clippable layer AFTER the
+  //    destructive filter so the text can never be torn/gashed/halftoned.
+  out = await CardTextLayer.compose(
+    out,
+    showTitle: showTitle,
+    showFooter: showFooter,
+    title: title,
+    countryCount: countryCount,
+    textColor: textColor,
+    // A colour-only tone tints the text to match the style (null when clean).
+    tone: params.isClean ? null : params,
+  );
+  return out;
+}
 
 // ── State enum ────────────────────────────────────────────────────────────────
 
@@ -109,6 +152,9 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.rowCount,
     this.continentKey,
     this.fixedArtwork = false,
+    this.autoStyleParams,
+    this.autoShowTitle = true,
+    this.autoShowFooter = true,
   });
 
   final List<String> selectedCodes;
@@ -192,6 +238,25 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// Continent key for continent-scoped collections (M171). Enables the
   /// "continent outline" clip option in the configurator (M187).
   final String? continentKey;
+
+  /// Auto-design style intent (Auto designs / ProceduralDesignScreen). When
+  /// non-null the screen is in "auto style" mode: EVERY artwork render is
+  /// produced text-free, this print-style filter is re-applied via
+  /// [PrintStylePipeline], and the title/footer are composited on top via
+  /// [CardTextLayer]. This lets the user re-configure an Auto design
+  /// (orientation, flag count, colour, title) while KEEPING its style recipe,
+  /// instead of reverting to the plain template. Null for every normal caller,
+  /// whose behaviour is byte-for-byte unchanged. Merged/GPU designs do NOT set
+  /// this — they stay locked via [fixedArtwork].
+  final PrintStyleParams? autoStyleParams;
+
+  /// Title-zone visibility for the auto-design text layer (recipe gene). Only
+  /// consulted when [autoStyleParams] is non-null.
+  final bool autoShowTitle;
+
+  /// Footer/branding-zone visibility for the auto-design text layer (recipe
+  /// gene). Only consulted when [autoStyleParams] is non-null.
+  final bool autoShowFooter;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -552,6 +617,12 @@ class _LocalMockupPreviewScreenState
     }
     // Flag grid defaults to landscape; all other templates default to portrait.
     _isPortrait = widget.initialTemplate != CardTemplateType.grid;
+    // Auto designs carry their own orientation gene (via confirmedAspectRatio:
+    // portrait ⇒ <1). Seed from it so a later flag-count change doesn't flip a
+    // portrait recipe into the grid's landscape default.
+    if (widget.autoStyleParams != null) {
+      _isPortrait = widget.confirmedAspectRatio < 1.0;
+    }
     _artworkConfirmationId = widget.artworkConfirmationId;
     // Deterministic per-design seed so the styled artwork is reproducible.
     final seed = widget.stampLayoutSeed;
@@ -566,6 +637,13 @@ class _LocalMockupPreviewScreenState
       _artworkBytes = providedBytes;
       _cleanArtworkBytes = providedBytes;
       _artworkVariants[0] = providedBytes;
+      // Auto designs (see [autoStyleParams]) also carry their layout genome via
+      // an [initialPreset], so re-config (orientation / flag count) regenerates
+      // from the CORRECT genome rather than the fallback defaults. The provided
+      // bytes remain the exact feed image shown on the first frame.
+      if (widget.initialPreset != null) {
+        _presetConfig = widget.initialPreset!.config;
+      }
       // T-shirts always composite artwork transparently onto fabric. If the
       // confirmed artwork was rendered with a background (transparentBackground=false),
       // the multicolor variant must be re-rendered with transparency. Clearing
@@ -608,7 +686,12 @@ class _LocalMockupPreviewScreenState
         // Fixed artwork (e.g. a procedural / merged design) is already final —
         // never re-render it from a template on first entry, or it would replace
         // the exact provided image with a plain regeneration.
-        if (widget.fixedArtwork) {
+        //
+        // Auto designs (autoStyleParams) also keep their provided bytes as the
+        // first frame so feed==preview holds pixel-for-pixel; re-config only
+        // happens on an explicit user change, which re-applies the style via
+        // [_afterArtworkCommitted] → [_restyleAuto].
+        if (widget.fixedArtwork || _autoStyle) {
           // nothing to do; the provided bytes stay as-is
         }
         // Immediately render the suggested stamp color for the initial shirt
@@ -691,10 +774,53 @@ class _LocalMockupPreviewScreenState
   // styled. With the default [PrintStyleId.clean] this is a no-op, so existing
   // flows are byte-identical.
 
+  /// True when this screen is showing an Auto design and must re-apply its
+  /// style recipe on every render (see [LocalMockupPreviewScreen.autoStyleParams]).
+  bool get _autoStyle => widget.autoStyleParams != null;
+
   /// Records [cleanBytes] as the base artwork and re-applies the active style.
   void _afterArtworkCommitted(Uint8List cleanBytes) {
     _cleanArtworkBytes = cleanBytes;
+    // Auto designs re-apply their recipe's print-style filter + text layer on
+    // EVERY render so re-configuring (orientation, flag count, colour, title)
+    // keeps the style instead of reverting to the plain template.
+    if (_autoStyle) {
+      unawaited(_restyleAuto());
+      return;
+    }
     if (_printStyleId != PrintStyleId.clean) unawaited(_restyle());
+  }
+
+  /// Applies the Auto design's style recipe to the current (text-free)
+  /// [_cleanArtworkBytes] and swaps in the styled result as the preview + print
+  /// source. No-op unless [_autoStyle].
+  Future<void> _restyleAuto() async {
+    final params = widget.autoStyleParams;
+    final clean = _cleanArtworkBytes;
+    if (params == null || clean == null) return;
+    final n = widget.selectedCodes.length;
+    final override = _titleOverride;
+    final title = (override != null && override.trim().isNotEmpty)
+        ? override
+        : '$n ${n == 1 ? 'Country' : 'Countries'}';
+    final styled = await styleAutoDesignArtwork(
+      clean,
+      params: params,
+      showTitle: widget.autoShowTitle,
+      showFooter: widget.autoShowFooter,
+      title: title,
+      countryCount: n,
+      // Garment-matched ink — recolours with the selected shirt colour.
+      textColor: CardRenderThumbnailer.inkColorFor(_colour),
+    );
+    if (!mounted) return;
+    await _decodeArtwork(styled);
+    if (!mounted) return;
+    setState(() {
+      _artworkBytes = styled;
+      // Styled pixels differ from any prior confirmation.
+      _artworkConfirmationId = null;
+    });
   }
 
   /// Applies the active print style to [cleanBytes], returning styled PNG bytes
@@ -910,6 +1036,10 @@ class _LocalMockupPreviewScreenState
         trips: scopedTrips,
         forPrint: false,
         entryOnly: config.entryOnly,
+        // Auto designs render text-free; the title/footer are composited AFTER
+        // the destructive print-style filter so they can never be torn.
+        showTitle: !_autoStyle,
+        showFooter: !_autoStyle,
         journeyStyle: _journeyStyle,
         journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
@@ -1520,6 +1650,9 @@ class _LocalMockupPreviewScreenState
         forPrint: false,
         // T-shirts always show entry + exit stamps regardless of card-editor setting.
         entryOnly: _isTshirt ? false : widget.confirmedEntryOnly,
+        // Auto designs render text-free; text is composited after the filter.
+        showTitle: !_autoStyle,
+        showFooter: !_autoStyle,
         journeyStyle: _journeyStyle,
         journeyYearRange: _journeyYearRange,
         cardAspectRatio: _currentAspectRatio,
@@ -1602,6 +1735,9 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
+        // Auto designs render text-free; text is composited after the filter.
+        showTitle: !_autoStyle,
+        showFooter: !_autoStyle,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);
@@ -1701,6 +1837,9 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
+        // Auto designs render text-free; text is composited after the filter.
+        showTitle: !_autoStyle,
+        showFooter: !_autoStyle,
         gridLayoutMode: _gridLayoutMode,
         clipShape: _clipShape,
         flagRepeatCount: _flagRepeatCount,
@@ -1745,6 +1884,9 @@ class _LocalMockupPreviewScreenState
         subtitleOverride: widget.subtitleOverride,
         transparentBackground: true,
         textColor: textColor,
+        // Auto designs render text-free; text is composited after the filter.
+        showTitle: !_autoStyle,
+        showFooter: !_autoStyle,
       );
       if (!mounted) return;
       await _decodeArtwork(result.bytes);
