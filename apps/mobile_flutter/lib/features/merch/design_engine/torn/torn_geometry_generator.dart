@@ -4,9 +4,15 @@ import 'dart:typed_data';
 import '../procedural/deterministic_rng.dart';
 import 'torn_recipe.dart';
 
+/// Hard cap on how far (as a fraction of the perpendicular dimension) any tear —
+/// including large sections and corner damage — may reach inward. Guarantees the
+/// central body of the flag is never breached: damage stays an edge phenomenon.
+const double kMaxPenetration = 0.30;
+
 /// A pure-Dart grayscale alpha mask: `alpha[y*width + x]`, 255 = kept cloth,
-/// 0 = torn away. Decoupled from `dart:ui` so it is cheap to generate and test;
-/// the renderer (M5) converts it to a `ui.Image` and applies it `dstIn`.
+/// 0 = torn away, intermediate = anti-aliased fibre edge. Decoupled from
+/// `dart:ui` so it is cheap to generate and test; the renderer (M5) converts it
+/// to a `ui.Image` and applies it `dstIn`.
 class TornMask {
   const TornMask(this.width, this.height, this.alpha);
 
@@ -28,23 +34,37 @@ class TornMask {
 
 /// Turns a [TornRecipe] into a [TornMask].
 ///
-/// **Milestone 3 — edge boundary + separated tapering fingers.** Each edge gets
-/// an independent gamma-biased 1-D fBm *boundary depth* (asymmetry via per-edge
-/// weight), and within that damaged band an **anisotropic strand field** decides
-/// what survives: a pixel is torn only where the (domain-warped, high-frequency)
-/// strand value falls below a **depth-keyed taper threshold** — which rises
-/// toward the outer edge. So strands are wide where they meet the intact body and
-/// taper to points at the edge, reading as separated hanging fingers/streamers
-/// that follow the grain (perpendicular-inward per edge). Large missing sections,
-/// corner damage and fibre roughening arrive in M4.
+/// **Milestone 4 — full edge geometry.** Builds on M2/M3 (per-edge gamma-biased
+/// fBm boundary depth + anisotropic tapering strand fingers) with:
+///  * **large missing sections** — a cellular field boosts depth in a few cells
+///    (`largeTearProbability`) into deep chunks;
+///  * **corner damage** — extra depth ramped in toward each edge's ends;
+///  * **fibre roughening** — a high-frequency, per-column strand jitter fuzzes
+///    the finger edges without breaking connectivity;
+///  * **connectivity** — the keep-test is monotone in penetration, so every kept
+///    pixel stays attached to the body (no floating islands);
+///  * **anti-aliasing** — optional supersample + box downsample for soft fibres.
+///
+/// All reach is clamped to [kMaxPenetration] so the interior never tears.
 class TornGeometryGenerator {
   const TornGeometryGenerator();
 
+  /// Generate the mask at [width]×[height]. [supersample] > 1 renders at that
+  /// linear multiple and box-downsamples for anti-aliased fibre edges (graded
+  /// alpha); the default of 1 yields a crisp binary mask (cheap + test-stable).
   TornMask generate(
     TornRecipe recipe, {
     required int width,
     required int height,
+    int supersample = 1,
   }) {
+    if (supersample <= 1) return _binary(recipe, width, height);
+    final ss = supersample;
+    final hi = _binary(recipe, width * ss, height * ss);
+    return _downsample(hi, width, height, ss);
+  }
+
+  TornMask _binary(TornRecipe recipe, int width, int height) {
     assert(width > 1 && height > 1);
     final w = width;
     final h = height;
@@ -92,37 +112,82 @@ class TornGeometryGenerator {
     }
     return TornMask(w, h, alpha);
   }
+
+  /// Box-average an `ss×ss` block of the high-res binary mask into one graded
+  /// alpha, giving anti-aliased fibre edges.
+  TornMask _downsample(TornMask hi, int w, int h, int ss) {
+    final out = Uint8List(w * h);
+    final area = ss * ss;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var kept = 0;
+        final x0 = x * ss;
+        final y0 = y * ss;
+        for (var dy = 0; dy < ss; dy++) {
+          final row = (y0 + dy) * hi.width + x0;
+          for (var dx = 0; dx < ss; dx++) {
+            if (hi.alpha[row + dx] != 0) kept++;
+          }
+        }
+        out[y * w + x] = (kept * 255 / area).round();
+      }
+    }
+    return TornMask(w, h, out);
+  }
 }
 
-/// Per-edge geometry: a gamma-biased fBm boundary depth plus an anisotropic
-/// strand field that carves the damaged band into separated tapering fingers.
+/// Per-edge geometry: gamma-biased fBm boundary depth + large cellular sections
+/// + corner ramps, carved into separated tapering fibres by an anisotropic,
+/// domain-warped, fibre-roughened strand field.
 class _EdgeProfile {
   const _EdgeProfile({
     required int depthBase,
     required double depthCycles,
     required double gamma,
     required double scale,
+    required int bigBase,
+    required int bigCells,
+    required double bigProb,
+    required double bigMult,
+    required double cornerBoost,
     required int strandBase,
     required double strandCycles,
     required int warpBase,
     required double warpAmp,
     required double warpCycles,
     required double taperPower,
+    required int fibreBase,
+    required double fibreCycles,
+    required double fibreAmp,
   })  : _depthBase = depthBase,
         _depthCycles = depthCycles,
         _gamma = gamma,
         _scale = scale,
+        _bigBase = bigBase,
+        _bigCells = bigCells,
+        _bigProb = bigProb,
+        _bigMult = bigMult,
+        _cornerBoost = cornerBoost,
         _strandBase = strandBase,
         _strandCycles = strandCycles,
         _warpBase = warpBase,
         _warpAmp = warpAmp,
         _warpCycles = warpCycles,
-        _taperPower = taperPower;
+        _taperPower = taperPower,
+        _fibreBase = fibreBase,
+        _fibreCycles = fibreCycles,
+        _fibreAmp = fibreAmp;
 
   final int _depthBase;
   final double _depthCycles;
   final double _gamma;
   final double _scale; // == maxTearDepth * edgeWeight * edgeDamageAmount
+
+  final int _bigBase;
+  final int _bigCells;
+  final double _bigProb; // chance a cell becomes a large missing section
+  final double _bigMult; // depth multiplier inside a big-tear cell (~2..3)
+  final double _cornerBoost; // extra depth ramped in toward the edge's ends
 
   final int _strandBase;
   final double _strandCycles; // fingers per edge length
@@ -130,6 +195,12 @@ class _EdgeProfile {
   final double _warpAmp; // domain-warp displacement (strand-widths)
   final double _warpCycles;
   final double _taperPower; // >1 sharpens the finger tips
+
+  final int _fibreBase;
+  final double _fibreCycles; // very-high-freq roughening of the finger edges
+  final double _fibreAmp;
+
+  static const double _cornerFrac = 0.16; // fraction of the edge near each end
 
   factory _EdgeProfile.forEdge(TornRecipe recipe, FlagEdge edge) {
     final rng = DeterministicRng.stream(
@@ -152,29 +223,56 @@ class _EdgeProfile {
     // High fray → longer, more separated streamers (sharper taper).
     final taperPower = 1.0 + recipe.frayAmount;
     final warpAmp = 0.10 + recipe.frayAmount * 0.18;
-    final warpCycles = cycles * 1.7;
 
     return _EdgeProfile(
       depthBase: rng.nextInt(1 << 30),
       depthCycles: cycles,
       gamma: gamma,
       scale: scale,
+      bigBase: rng.nextInt(1 << 30),
+      bigCells: rng.nextIntRange(3, 6),
+      bigProb: recipe.largeTearProbability,
+      bigMult: rng.nextRange(2.0, 3.0),
+      cornerBoost: recipe.cornerDamage * recipe.maxTearDepth,
       strandBase: rng.nextInt(1 << 30),
       strandCycles: strandCycles,
       warpBase: rng.nextInt(1 << 30),
       warpAmp: warpAmp,
-      warpCycles: warpCycles,
+      warpCycles: cycles * 1.7,
       taperPower: taperPower,
+      fibreBase: rng.nextInt(1 << 30),
+      fibreCycles: strandCycles * 3.5,
+      fibreAmp: 0.06 + recipe.frayAmount * 0.12,
     );
   }
 
-  /// Max inward reach of damage at along-edge position [t] (0 == intact).
+  /// Max inward reach of damage at along-edge position [t] (0 == intact),
+  /// clamped to [kMaxPenetration].
   double depthAt(double t) {
     if (_scale <= 0) return 0;
     var n = _fbm1(t * _depthCycles, _depthBase);
     n = math.pow(n, _gamma).toDouble(); // bias toward intact; occasional deep
-    final d = n * _scale;
-    return d > _scale ? _scale : d;
+    var d = n * _scale * _bigMultAt(t) + _cornerBoostAt(t);
+    return d > kMaxPenetration ? kMaxPenetration : d;
+  }
+
+  /// Cellular large-section multiplier: a few cells open into deep chunks.
+  double _bigMultAt(double t) {
+    if (_bigProb <= 0) return 1;
+    final cell = (t * _bigCells).floor();
+    if (_lattice(cell, _bigBase) >= _bigProb) return 1;
+    final local = t * _bigCells - cell; // 0..1 within the cell
+    final bump = math.sin(math.pi * local); // 0 at cell edges, 1 mid → a chunk
+    return 1 + (_bigMult - 1) * bump;
+  }
+
+  /// Additive corner ramp: extra depth toward each end of the edge.
+  double _cornerBoostAt(double t) {
+    if (_cornerBoost <= 0) return 0;
+    final nearStart = t < _cornerFrac ? 1 - t / _cornerFrac : 0.0;
+    final nearEnd = t > 1 - _cornerFrac ? (t - (1 - _cornerFrac)) / _cornerFrac : 0.0;
+    final ramp = nearStart > nearEnd ? nearStart : nearEnd;
+    return _cornerBoost * ramp * ramp; // eased so corners bite, edges taper off
   }
 
   /// True if the pixel at along-edge coord [t], inward penetration [pen]
@@ -185,7 +283,10 @@ class _EdgeProfile {
     // gently domain-warped so strands bend and split rather than comb straight.
     final warp = _warpAmp *
         (_fbm1(t * _warpCycles + pen * 3.0, _warpBase, octaves: 2) - 0.5);
-    final sf = _valueNoise1((t + warp) * _strandCycles, _strandBase);
+    var sf = _valueNoise1((t + warp) * _strandCycles, _strandBase);
+    // Fibre roughening: a per-column (t-only) high-freq jitter fuzzes the finger
+    // edges; being independent of pen it keeps the keep-test monotone in pen.
+    sf += _fibreAmp * (_valueNoise1(t * _fibreCycles, _fibreBase) - 0.5);
     // Depth-keyed taper: near the body (q→1) almost everything survives (wide
     // base); near the outer edge (q→0) only the strongest strands do (a point).
     final q = pen / dep;

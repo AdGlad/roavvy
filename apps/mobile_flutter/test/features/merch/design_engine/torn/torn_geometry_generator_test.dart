@@ -51,19 +51,23 @@ void main() {
   });
 
   test('damage stays on the outer edges — the centre is untouched', () {
-    // A light family (shallow depth) must leave the inner 60% fully intact.
-    final m = gen.generate(sampleTornRecipe(TearStyle.lightlyWorn, 4),
-        width: 200, height: 200);
-    expect(_tornIn(m, 0.2, 0.8, 0.2, 0.8), 0,
-        reason: 'no holes in the middle of the flag');
+    // No tear may reach past kMaxPenetration (0.30) from any edge, so the inner
+    // region [0.35, 0.65] is guaranteed clean for every family and seed.
+    for (final s in TearStyle.values) {
+      for (var seed = 0; seed < 4; seed++) {
+        final m = gen.generate(sampleTornRecipe(s, seed),
+            width: 200, height: 200);
+        expect(_tornIn(m, 0.35, 0.65, 0.35, 0.65), 0,
+            reason: 'no holes in the middle: ${s.name}@$seed');
+      }
+    }
   });
 
-  test('even a heavy family keeps the deep interior intact', () {
-    // maxTearDepth caps at ~0.38; the innermost 20% band must never be reached.
-    for (final s in TearStyle.values) {
-      final m = gen.generate(sampleTornRecipe(s, 5), width: 160, height: 160);
-      expect(_tornIn(m, 0.4, 0.6, 0.4, 0.6), 0, reason: s.name);
-    }
+  test('the penetration cap is never exceeded', () {
+    // Deep families must still not breach the central body.
+    final m = gen.generate(sampleTornRecipe(TearStyle.deepRips, 2),
+        width: 200, height: 200);
+    expect(_tornIn(m, 0.31, 0.69, 0.31, 0.69), 0);
   });
 
   test('asymmetricTear removes far more on the fly edge than the hoist', () {
@@ -123,5 +127,40 @@ void main() {
     }
     expect(keptInner, greaterThan(keptOuter),
         reason: 'bases wider than tips');
+  });
+
+  test('supersampling anti-aliases the fibre edges (graded alpha)', () {
+    final r = sampleTornRecipe(TearStyle.battleWorn, 4);
+    final crisp = gen.generate(r, width: 96, height: 96);
+    final aa = gen.generate(r, width: 96, height: 96, supersample: 3);
+    expect(crisp.alpha.every((a) => a == 0 || a == 255), isTrue);
+    final graded = aa.alpha.where((a) => a != 0 && a != 255).length;
+    expect(graded, greaterThan(50), reason: 'soft edges should appear');
+  });
+
+  test('deepRips opens larger missing sections than lightlyWorn', () {
+    // Large-section probability + depth should make deep rips remove much more.
+    final deep = gen.generate(sampleTornRecipe(TearStyle.deepRips, 6),
+        width: 160, height: 160);
+    final light = gen.generate(sampleTornRecipe(TearStyle.lightlyWorn, 6),
+        width: 160, height: 160);
+    expect(deep.removedFraction, greaterThan(light.removedFraction * 2));
+  });
+
+  test('tornCorners concentrates damage at the corners', () {
+    // The four corner boxes should lose far more than the edge midpoints.
+    final m = gen.generate(sampleTornRecipe(TearStyle.tornCorners, 5),
+        width: 200, height: 200);
+    final corners = _tornIn(m, 0.0, 0.18, 0.0, 0.18) +
+        _tornIn(m, 0.82, 1.0, 0.0, 0.18) +
+        _tornIn(m, 0.0, 0.18, 0.82, 1.0) +
+        _tornIn(m, 0.82, 1.0, 0.82, 1.0);
+    // Mid-edge boxes of the same size, away from the corners.
+    final mids = _tornIn(m, 0.41, 0.59, 0.0, 0.18) +
+        _tornIn(m, 0.41, 0.59, 0.82, 1.0) +
+        _tornIn(m, 0.0, 0.18, 0.41, 0.59) +
+        _tornIn(m, 0.82, 1.0, 0.41, 0.59);
+    expect(corners, greaterThan(mids),
+        reason: 'corners should be more damaged than edge midpoints');
   });
 }
