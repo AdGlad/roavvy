@@ -106,6 +106,7 @@
     "sunFaded": 0.6,
     "acidWash": 0.5,
     "newsprint": 0.45,
-    "photocopy": 0.4
+    "photocopy": 0.4,
+    "rippedFlag": 0.6
   }
 }
