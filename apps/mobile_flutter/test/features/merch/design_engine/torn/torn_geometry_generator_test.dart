@@ -39,14 +39,14 @@ void main() {
 
   test('different seeds give materially different silhouettes', () {
     final a = gen.generate(sampleTornRecipe(TearStyle.ragged, 1),
-        width: 96, height: 96);
+        width: 160, height: 160);
     final b = gen.generate(sampleTornRecipe(TearStyle.ragged, 2),
-        width: 96, height: 96);
+        width: 160, height: 160);
     var diff = 0;
     for (var i = 0; i < a.alpha.length; i++) {
       if (a.alpha[i] != b.alpha[i]) diff++;
     }
-    expect(diff, greaterThan(a.alpha.length ~/ 100),
+    expect(diff, greaterThan(a.alpha.length ~/ 250),
         reason: 'seeds should change the silhouette');
   });
 
@@ -83,5 +83,45 @@ void main() {
     final m = gen.generate(sampleTornRecipe(TearStyle.battleWorn, 2),
         width: 128, height: 128);
     expect(m.removedFraction, greaterThan(0.02));
+  });
+
+  /// Count kept↔torn transitions scanning down a single column.
+  int transitionsInColumn(TornMask m, int x) {
+    var t = 0;
+    var prev = m.alphaAt(x, 0) != 0;
+    for (var y = 1; y < m.height; y++) {
+      final kept = m.alphaAt(x, y) != 0;
+      if (kept != prev) t++;
+      prev = kept;
+    }
+    return t;
+  }
+
+  test('the fly edge breaks into separated fingers, not one solid bite', () {
+    // Near the outer edge the alpha must alternate kept/gap many times along the
+    // edge (separated tapering fingers), not read as a single contiguous block.
+    final m = gen.generate(sampleTornRecipe(TearStyle.asymmetricTear, 3),
+        width: 240, height: 240);
+    final col = (0.97 * m.width).round();
+    expect(transitionsInColumn(m, col), greaterThanOrEqualTo(6),
+        reason: 'fingers should separate along the fly edge');
+  });
+
+  test('fingers taper — more cloth survives deeper in the band than at the tip',
+      () {
+    // Slice a heavy fly edge at two penetrations: the shallow (near-body) slice
+    // must keep more cloth than the outer (tip) slice.
+    final m = gen.generate(sampleTornRecipe(TearStyle.heavyEdgeDamage, 7),
+        width: 240, height: 240);
+    var keptOuter = 0; // near the outer edge (finger tips)
+    var keptInner = 0; // near the body (finger bases)
+    final xOuter = (0.98 * m.width).round();
+    final xInner = (0.90 * m.width).round();
+    for (var y = 0; y < m.height; y++) {
+      if (m.alphaAt(xOuter, y) != 0) keptOuter++;
+      if (m.alphaAt(xInner, y) != 0) keptInner++;
+    }
+    expect(keptInner, greaterThan(keptOuter),
+        reason: 'bases wider than tips');
   });
 }

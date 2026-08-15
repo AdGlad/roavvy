@@ -141,9 +141,12 @@ class TornFamilySpec {
     final rng = DeterministicRng.stream(seed, 'torn:${style.name}');
     double r(Range g) => rng.nextRange(g.$1, g.$2);
     final asym = r(asymmetry);
+    // Non-primary edges fall off with the *square* of asymmetry so a strongly
+    // asymmetric recipe leaves the opposite edge (e.g. the hoist) near-intact,
+    // not merely lightly torn.
     final weights = <FlagEdge, double>{
       for (final e in FlagEdge.values)
-        e: ((primaryEdges.contains(e) ? 1.0 : (1.0 - asym)) *
+        e: ((primaryEdges.contains(e) ? 1.0 : (1.0 - asym) * (1.0 - asym)) *
                 (0.85 + rng.stream('w${e.name}').nextDouble() * 0.3))
             .clamp(0.0, 1.0),
     };
