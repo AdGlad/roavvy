@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import '../design_engine/torn/torn_mask_renderer.dart';
+import '../design_engine/torn/torn_recipe.dart';
 import 'artwork_detail_analyzer.dart';
 import 'print_style.dart';
 import 'print_style_textures.dart';
@@ -101,6 +103,13 @@ class PrintStylePipeline {
     // Central vertical "gash" mask — the ripped-through-fabric flag (id-gated).
     final gashImg = params.id == PrintStyleId.rippedFlag
         ? await _buildGashImage(params.seed, w, h)
+        : null;
+    // Torn-flag silhouette — the v2 torn engine (TornRecipe → geometry → mask).
+    // A cached keep-mask carves a curated torn perimeter into the whole design;
+    // owned by the renderer's cache, so it is NOT disposed here.
+    final tornKeepMask = params.id == PrintStyleId.edgeTear
+        ? await TornMaskRenderer.instance
+            .keepMask(_tornRecipeFor(params), width: w, height: h)
         : null;
     // Local protection mask (keeps emblems/text inked). Only needed when an
     // ink-removing pass runs.
@@ -233,13 +242,30 @@ class PrintStylePipeline {
       );
     }
 
+    // 8. Torn-flag silhouette — keep only the cloth inside the torn perimeter
+    //    (dstIn). Runs last so distress/grain/halftone act within the silhouette.
+    if (tornKeepMask != null) {
+      TornMaskRenderer.instance.compositeInto(canvas, rect, tornKeepMask);
+    }
+
     final picture = recorder.endRecording();
     final out = await picture.toImage(w, h);
     picture.dispose();
     protectionImg?.dispose();
     tornEdgeImg?.dispose();
     gashImg?.dispose();
+    // tornKeepMask is cache-owned; do not dispose.
     return out;
+  }
+
+  /// Maps a torn-flag [PrintStyleParams] to a curated [TornRecipe]. The family is
+  /// picked deterministically from the seed so generated designs span the whole
+  /// curated range (Lightly Worn … Heavy Edge Damage); the same seed reproduces
+  /// the same torn silhouette.
+  TornRecipe _tornRecipeFor(PrintStyleParams params) {
+    final styles = TearStyle.values;
+    final idx = (params.seed & 0x7fffffff) % styles.length;
+    return sampleTornRecipe(styles[idx], params.seed);
   }
 
   /// Whether the style uses the scratch texture for its rough-edge/ink-loss
@@ -248,12 +274,13 @@ class PrintStylePipeline {
   bool _usesScratches(PrintStyleParams p) =>
       p.id == PrintStyleId.grunge || p.id == PrintStyleId.vintage;
 
-  /// Styles whose boundary should fray into the garment.
+  /// Styles whose boundary should fray subtly into the garment (dstOut). Note
+  /// [PrintStyleId.edgeTear] is intentionally excluded: it now routes through the
+  /// v2 torn engine ([TornMaskRenderer]) for a full curated torn silhouette.
   bool _usesTornEdges(PrintStyleParams p) =>
       p.id == PrintStyleId.grunge ||
       p.id == PrintStyleId.vintage ||
-      p.id == PrintStyleId.stamp ||
-      p.id == PrintStyleId.edgeTear;
+      p.id == PrintStyleId.stamp;
 
   /// Builds a torn-edge erase mask ([ui.Image], alpha = erase) sized to the
   /// artwork but capped for cost. The rip line carries fine detail (tongues /
