@@ -1,6 +1,11 @@
 # Torn / Ripped Flag Engine v2 — design + plan
 
-**Status:** planned → implementing. Benchmark refs: `design_studio/reference_images/liked/torn/`
+**Status:** M1–M6 shipped (2026-08). Engine lives in
+`lib/features/merch/design_engine/torn/` (recipe, geometry generator, mask
+renderer, quality metrics); `PrintStyleId.edgeTear` routes through it. Studio
+batch: `TORN_STUDIO_BATCH=1 flutter test .../torn/torn_studio_batch_test.dart`
+(avg score ~0.90, all interior-clean + edge-concentrated). Benchmark refs:
+`design_studio/reference_images/liked/torn/`
 (torn-through-usa, torn-vertical-usa, usa-torn-color-bw). **Prime requirement:
 rips/tears/missing material ORIGINATE FROM and CONCENTRATE ON the outer edges of
 the flag** — never random centre holes (centre only very subtle secondary
