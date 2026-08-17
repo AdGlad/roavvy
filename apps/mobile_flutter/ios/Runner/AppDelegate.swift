@@ -1,4 +1,5 @@
 import AVFoundation
+import BackgroundTasks
 import CoreLocation
 import Firebase
 import Flutter
@@ -32,6 +33,7 @@ import UIKit
         GeneratedPluginRegistrant.register(with: self)
         configureAudioSession()
         setupChannels()
+        registerBackgroundTasks()
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
@@ -198,6 +200,66 @@ import UIKit
         }
     }
 
+    // MARK: - Background task
+
+    private static let kNotificationRefreshTaskId = "com.roavvy.app.notification-refresh"
+
+    /// Registers the BGAppRefreshTask that iOS uses to wake the app once a day
+    /// to refresh the memory pulse notification batch — even when the app has
+    /// not been opened. Without this, the 64-slot batch runs dry after ~2 months
+    /// if the user never opens the app.
+    private func registerBackgroundTasks() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: Self.kNotificationRefreshTaskId,
+            using: nil
+        ) { [weak self] task in
+            guard let self, let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handleNotificationRefresh(task: refreshTask)
+        }
+        // Schedule the first background refresh for ~24 hours from now.
+        scheduleNotificationRefresh()
+    }
+
+    /// Handles the background app refresh by notifying the Dart layer via a
+    /// method channel call, then immediately scheduling the next refresh.
+    private func handleNotificationRefresh(task: BGAppRefreshTask) {
+        // Schedule the next refresh before doing any work — iOS may
+        // terminate us at any time and we must not lose the chain.
+        scheduleNotificationRefresh()
+
+        // Ask Dart to rescan the photo library and rebuild the notification
+        // batch. The method returns as soon as scheduling is complete.
+        guard let channel = self.photoMethodChannel else {
+            task.setTaskCompleted(success: false)
+            return
+        }
+
+        task.expirationHandler = {
+            task.setTaskCompleted(success: false)
+        }
+
+        channel.invokeMethod("refreshMemoryPulseNotifications", arguments: nil) { result in
+            let success = (result as? FlutterError) == nil
+            task.setTaskCompleted(success: success)
+        }
+    }
+
+    /// Submits a BGAppRefreshTaskRequest with a 24-hour earliest begin date.
+    private func scheduleNotificationRefresh() {
+        let request = BGAppRefreshTaskRequest(
+            identifier: Self.kNotificationRefreshTaskId
+        )
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 24 * 60 * 60)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            // Non-critical — the pre-scheduled batch still covers ~2 months.
+        }
+    }
+
     // MARK: - Channel setup
 
     private func setupChannels() {
@@ -214,6 +276,12 @@ import UIKit
                 self?.requestPermission(result: result)
             } else if call.method == "openSettings" {
                 self?.openSettings(result: result)
+            } else if call.method == "refreshMemoryPulseNotifications" {
+                // Called by BGAppRefreshTask to trigger a Dart-side
+                // notification batch rebuild while the app is backgrounded.
+                // Dart's MethodChannel handler in PhotoScanMethodChannel
+                // calls scheduleAnniversaryNotifications and returns nil.
+                result(nil)
             } else {
                 result(FlutterMethodNotImplemented)
             }

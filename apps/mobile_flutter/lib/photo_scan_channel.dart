@@ -14,6 +14,16 @@ Future<void> openAppSettings() async {
   await _methodChannel.invokeMethod('openSettings');
 }
 
+/// Called by the iOS BGAppRefreshTask (via method channel) to signal that
+/// the app has been woken in the background and should reschedule the memory
+/// pulse notification batch. Returns immediately; the actual scheduling is
+/// handled by [MemoryPulseService.scheduleAnniversaryNotifications].
+///
+/// The method name must match the handler registered in [AppDelegate.swift].
+Future<void> refreshMemoryPulseNotifications() async {
+  await _methodChannel.invokeMethod('refreshMemoryPulseNotifications');
+}
+
 // ── Scan (event-channel streaming) ───────────────────────────────────────────
 
 /// Starts a photo scan and streams raw GPS records to the caller.
