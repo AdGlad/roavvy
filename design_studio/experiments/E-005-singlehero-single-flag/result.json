@@ -1,0 +1,11 @@
+{
+  "experimentId": "E-005", "slug": "singlehero-single-flag", "track": "optimisation", "status": "kept",
+  "createdAt": "2026-08-16", "decidedAt": "2026-08-16",
+  "hypothesis": "one-country singleHero with mask=none tiles the flag into a 3x3 grid (rowCount up to 3); analytic model blind to rowCount for single-country so it scored 0.85.",
+  "variables": [{"file": "lib/features/merch/design_engine/procedural/procedural_generator.dart", "knob": "rowCount guard", "from": "rowCount 1..3", "to": "n==1 && mask==none -> rowCount 1"}],
+  "before": {"render": "3x3 grid of 9 flags", "recipeRowCount": 3},
+  "after": {"render": "one bold hero flag (confirmed in pixels)", "recipeRowCount": 1, "regressionAllDelta": 0.0},
+  "observations": ["Analytic score unchanged (Δ0.000) — defect invisible to param scorer; only C-00 rendered evidence caught it.", "Silhouette-clipped single-country unaffected.", "Determinism preserved."],
+  "kbRules": ["R-VH-01", "R-NEG-01"], "decision": "keep",
+  "decisionReason": "Real rendering-correctness fix, tight deterministic guard, zero regressions, verified in pixels."
+}

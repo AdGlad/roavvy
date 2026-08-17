@@ -218,8 +218,11 @@ class _EdgeProfile {
     if (scale < 0.012) scale = 0;
 
     // Fine strands: fray drives density; more fray → more, finer fingers.
+    // E-T03: raised the base (12→15) so low-fray styles still break into several
+    // separated fingers rather than a near-solid bite; strong/high-fray styles are
+    // unaffected in score (finger metric saturates) — a distribution-floor lift.
     final strandCycles =
-        (12.0 + recipe.frayAmount * 44.0) * rng.nextRange(0.85, 1.15);
+        (15.0 + recipe.frayAmount * 44.0) * rng.nextRange(0.85, 1.15);
     // High fray → longer, more separated streamers (sharper taper).
     final taperPower = 1.0 + recipe.frayAmount;
     final warpAmp = 0.10 + recipe.frayAmount * 0.18;

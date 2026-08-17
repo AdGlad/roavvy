@@ -279,6 +279,9 @@ const RoavvyDesignDna kRoavvyDesignDnaDefault = RoavvyDesignDna(
     CompositionFamily.chronoSequence: 0.6,
     CompositionFamily.splitField: 0.6,
     CompositionFamily.duoBlend: 0.8,
+    // C-01: count/achievement-forward — strongly on-brand (identity claim,
+    // understated premium), so a healthy affinity.
+    CompositionFamily.statementCount: 0.8,
   },
   printStyleAffinity: {
     PrintStyleId.clean: 0.9,

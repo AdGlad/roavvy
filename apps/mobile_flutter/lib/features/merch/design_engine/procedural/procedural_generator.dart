@@ -255,6 +255,13 @@ class ProceduralDesignGenerator {
       rowCount = rng.stream('rows').nextIntRange(1, 4).clamp(1, 10);
     }
 
+    // E-005 (found via C-00 rendered evidence): a single country with NO clip
+    // must render as ONE bold hero flag — never a tiled N×N grid of the same
+    // flag (R-VH-01). Only a clip shape (outline/silhouette/circle) may host a
+    // single flag at rowCount > 1, because then the flag fills a hero shape.
+    final resolvedRowCount =
+        (n == 1 && mask == GridClipShape.none) ? 1 : rowCount;
+
     // Hero scale within the family's legal band.
     final (loScale, hiScale) = spec.heroScaleRange;
     final heroScale =
@@ -331,7 +338,7 @@ class ProceduralDesignGenerator {
       layoutMode: layoutMode,
       mask: mask,
       maskCode: maskCode,
-      rowCount: rowCount,
+      rowCount: resolvedRowCount,
       countryCodes: ctx.countryCodes,
       heroCode: hero,
       source: _sourceFor(ctx.scope),

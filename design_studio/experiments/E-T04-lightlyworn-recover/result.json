@@ -1,0 +1,12 @@
+{
+  "experimentId": "E-T04", "slug": "lightlyworn-recover", "family": "torn", "status": "kept",
+  "createdAt": "2026-08-16", "decidedAt": "2026-08-16",
+  "hypothesis": "E-T03's finer strands merged under lightlyWorn's shallow band (fingers 4.7->4.0, -0.014); deepening its band restores finger separation.",
+  "variables": [{"file": "lib/features/merch/design_engine/torn/torn_recipe.dart", "knob": "kTornFamilies[lightlyWorn].maxDepth", "from": "(0.09, 0.15)", "to": "(0.11, 0.17)"}],
+  "batchId": "torn_v2",
+  "before": {"batchAvg": 0.9439, "lightlyWornMean": 0.833}, "after": {"batchAvg": 0.9455, "lightlyWornMean": 0.847},
+  "observations": ["lightlyWorn 0.833->0.847 (fingers 4.0->4.7); every other style byte-identical; zero regressions vs E-T03.", "Resolves the E-T03 tradeoff: final state has no regressed family. Plateau reached."],
+  "kbRules": ["R-TEX-01", "R-VH-01"], "decision": "keep",
+  "decisionReason": "Recovered the only regressed family with no side effects; diversity + gates preserved.",
+  "baselineRegenerated": false
+}

@@ -27,6 +27,7 @@ class DesignParams {
     this.imageSize = ImageSize.medium,
     this.shirtColour = 'Black',
     this.seed = 0,
+    this.statementHero = false,
   });
 
   /// Which card template renders this design.
@@ -57,6 +58,14 @@ class DesignParams {
   /// design renders identically every time (print == preview).
   final int seed;
 
+  /// When true, the `typography` template leads with the traveller's COUNT as a
+  /// bold, large, centred hero ("28 COUNTRIES · 6 CONTINENTS") rather than a
+  /// list of country names with a tiny count footer. Set by the procedural
+  /// engine for the `statementCount` composition family (concept C-01); the
+  /// count string is derived from [countryCodes] at render time. No effect on
+  /// non-typography templates.
+  final bool statementHero;
+
   /// The design recipe consumed by the existing renderer/preview. Title/subtitle
   /// are applied downstream (AI title generation), not part of the search genome.
   MerchPresetConfig toPresetConfig() => MerchPresetConfig(
@@ -82,6 +91,7 @@ class DesignParams {
     ImageSize? imageSize,
     String? shirtColour,
     int? seed,
+    bool? statementHero,
   }) {
     return DesignParams(
       template: template ?? this.template,
@@ -98,6 +108,7 @@ class DesignParams {
       imageSize: imageSize ?? this.imageSize,
       shirtColour: shirtColour ?? this.shirtColour,
       seed: seed ?? this.seed,
+      statementHero: statementHero ?? this.statementHero,
     );
   }
 
@@ -193,6 +204,7 @@ class DesignParams {
       imageSize.name,
       shirtColour,
       seed,
+      if (statementHero) 'stmt',
     ].join('|');
   }
 

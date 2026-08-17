@@ -175,6 +175,7 @@ class CardRenderThumbnailer implements DesignRenderer {
       assetsTimeout: assetsTimeout,
       showTitle: !suppressText,
       showFooter: !suppressText,
+      statementHero: params.statementHero,
     );
     return result.bytes;
   }

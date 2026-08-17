@@ -1,0 +1,26 @@
+{
+  "experimentId": "E-T01",
+  "slug": "lightlyworn-damage-floor",
+  "family": "torn",
+  "status": "kept",
+  "createdAt": "2026-08-16",
+  "decidedAt": "2026-08-16",
+  "hypothesis": "lightlyWorn is the systematically weakest torn family (3 lowest scores all lightlyWorn, mean 0.674); its ranges yield scale~0.014, barely above the 0.012 snap-to-intact, so it removes ~0.48% (below the scorer amount floor) with ~1 finger and barely reads as torn.",
+  "variables": [
+    {"file": "lib/features/merch/design_engine/torn/torn_recipe.dart", "knob": "kTornFamilies[lightlyWorn].edgeDamage", "from": "(0.15, 0.30)", "to": "(0.28, 0.45)"},
+    {"file": "lib/features/merch/design_engine/torn/torn_recipe.dart", "knob": "kTornFamilies[lightlyWorn].maxDepth", "from": "(0.05, 0.10)", "to": "(0.09, 0.15)"}
+  ],
+  "batchId": "torn_v2",
+  "before": {"batchAvg": 0.9015, "lightlyWornMean": 0.674, "worstDesign": 0.635, "stylesPresent": 8},
+  "after":  {"batchAvg": 0.9215, "lightlyWornMean": 0.847, "worstDesign": 0.792, "stylesPresent": 8},
+  "observations": [
+    "lightlyWorn +0.173; removedFraction 0.0048->0.0151 (clears 0.01 floor); fingers 1.3->4.7.",
+    "Every other style byte-identical (deterministic); zero regressions.",
+    "interiorClean/edgeConcentration min 1.0; all torn regression tests green.",
+    "Diversity preserved: lightlyWorn still lightest family; 8 styles distinct."
+  ],
+  "kbRules": ["R-TEX-01", "R-TEX-03", "R-VH-01"],
+  "decision": "keep",
+  "decisionReason": "Target +0.173, batch avg +0.0199, floor +0.157, zero regressions, gates hold, diversity preserved.",
+  "baselineRegenerated": false
+}

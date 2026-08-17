@@ -8,113 +8,112 @@
   ],
   "perContext": {
     "one-country-dark": {
-      "meanQuality": 0.858,
-      "topQuality": 0.911,
+      "meanQuality": 0.862,
+      "topQuality": 0.915,
       "rejectionRate": 0.0,
-      "familyDiversity": 4,
+      "familyDiversity": 3,
       "familyCounts": {
-        "negativeSpaceCutout": 6,
-        "radialEmblem": 7,
-        "singleHero": 6,
-        "typographicIntegration": 5
+        "negativeSpaceCutout": 8,
+        "singleHero": 9,
+        "typographicIntegration": 7
       }
     },
     "one-country-light": {
-      "meanQuality": 0.864,
-      "topQuality": 0.912,
+      "meanQuality": 0.863,
+      "topQuality": 0.914,
       "rejectionRate": 0.0,
-      "familyDiversity": 4,
+      "familyDiversity": 3,
       "familyCounts": {
         "negativeSpaceCutout": 7,
-        "radialEmblem": 5,
-        "singleHero": 7,
-        "typographicIntegration": 5
+        "singleHero": 11,
+        "typographicIntegration": 6
       }
     },
     "two-countries": {
-      "meanQuality": 0.793,
-      "topQuality": 0.848,
+      "meanQuality": 0.797,
+      "topQuality": 0.847,
       "rejectionRate": 0.007,
       "familyDiversity": 7,
       "familyCounts": {
         "chronoSequence": 2,
         "dominantAccent": 5,
-        "negativeSpaceCutout": 5,
-        "radialEmblem": 3,
+        "duoBlend": 4,
+        "negativeSpaceCutout": 4,
         "singleHero": 2,
-        "splitField": 4,
-        "typographicIntegration": 3
+        "splitField": 3,
+        "typographicIntegration": 4
       }
     },
     "several-countries": {
-      "meanQuality": 0.782,
+      "meanQuality": 0.787,
       "topQuality": 0.854,
-      "rejectionRate": 0.007,
+      "rejectionRate": 0.0,
       "familyDiversity": 7,
       "familyCounts": {
         "chronoSequence": 2,
-        "dominantAccent": 4,
-        "negativeSpaceCutout": 5,
-        "radialEmblem": 2,
-        "repetitionField": 3,
-        "splitField": 3,
-        "typographicIntegration": 5
-      }
-    },
-    "year": {
-      "meanQuality": 0.779,
-      "topQuality": 0.825,
-      "rejectionRate": 0.0,
-      "familyDiversity": 6,
-      "familyCounts": {
-        "chronoSequence": 3,
         "dominantAccent": 5,
-        "negativeSpaceCutout": 5,
-        "radialEmblem": 4,
+        "negativeSpaceCutout": 4,
+        "repetitionField": 3,
         "splitField": 4,
+        "statementCount": 3,
         "typographicIntegration": 3
       }
     },
+    "year": {
+      "meanQuality": 0.784,
+      "topQuality": 0.827,
+      "rejectionRate": 0.0,
+      "familyDiversity": 5,
+      "familyCounts": {
+        "chronoSequence": 5,
+        "dominantAccent": 4,
+        "negativeSpaceCutout": 6,
+        "splitField": 4,
+        "typographicIntegration": 5
+      }
+    },
     "region-europe": {
-      "meanQuality": 0.762,
-      "topQuality": 0.879,
-      "rejectionRate": 0.09,
+      "meanQuality": 0.776,
+      "topQuality": 0.884,
+      "rejectionRate": 0.021,
       "familyDiversity": 7,
       "familyCounts": {
-        "chronoSequence": 2,
+        "chronoSequence": 3,
         "dominantAccent": 3,
-        "negativeSpaceCutout": 7,
-        "radialEmblem": 3,
-        "repetitionField": 3,
+        "negativeSpaceCutout": 5,
+        "repetitionField": 4,
         "splitField": 3,
+        "statementCount": 3,
         "typographicIntegration": 3
       }
     },
     "lifetime": {
-      "meanQuality": 0.737,
-      "topQuality": 0.776,
-      "rejectionRate": 0.583,
-      "familyDiversity": 4,
+      "meanQuality": 0.755,
+      "topQuality": 0.791,
+      "rejectionRate": 0.438,
+      "familyDiversity": 5,
       "familyCounts": {
-        "negativeSpaceCutout": 9,
-        "repetitionField": 6,
+        "negativeSpaceCutout": 6,
+        "repetitionField": 4,
         "splitField": 2,
-        "typographicIntegration": 7
+        "statementCount": 8,
+        "typographicIntegration": 4
       }
     },
     "massive-light": {
-      "meanQuality": 0.697,
-      "topQuality": 0.73,
-      "rejectionRate": 0.715,
-      "familyDiversity": 3,
+      "meanQuality": 0.723,
+      "topQuality": 0.763,
+      "rejectionRate": 0.625,
+      "familyDiversity": 4,
       "familyCounts": {
-        "negativeSpaceCutout": 7,
-        "repetitionField": 8,
-        "typographicIntegration": 9
+        "negativeSpaceCutout": 4,
+        "repetitionField": 6,
+        "statementCount": 8,
+        "typographicIntegration": 6
       }
     }
   },
   "aggregate": {
-    "meanQuality": 0.784
+    "meanQuality": 0.793
   }
 }

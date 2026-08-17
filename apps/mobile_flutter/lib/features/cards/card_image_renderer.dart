@@ -103,6 +103,12 @@ class CardImageRenderer {
     bool showTitle = true,
     bool showFooter = true,
 
+    /// When true, the `typography` template leads with the traveller's COUNT as
+    /// a bold, large, centred hero (composition family `statementCount`, C-01)
+    /// instead of a name list with a small count footer. No effect on other
+    /// templates.
+    bool statementHero = false,
+
     /// Fraction of the total canvas height reserved as a transparent gap at
     /// the top of the image. Use this to shift artwork downward within a
     /// fixed print area without changing the overall canvas aspect ratio.
@@ -232,6 +238,7 @@ class CardImageRenderer {
       journeyYearRange: journeyYearRange,
       showTitle: showTitle,
       showFooter: showFooter,
+      statementHero: statementHero,
       onAssetsLoaded:
           assetsCompleter != null
               ? () {
@@ -315,6 +322,7 @@ class CardImageRenderer {
     (int, int)? journeyYearRange,
     bool showTitle = true,
     bool showFooter = true,
+    bool statementHero = false,
   }) {
     switch (template) {
       case CardTemplateType.frontRibbon:
@@ -402,6 +410,8 @@ class CardImageRenderer {
           codes: codes,
           titleOverride: titleOverride,
           transparentBackground: transparentBackground,
+          textColor: textColor,
+          statementHero: statementHero,
         );
 
       case CardTemplateType.badge:

@@ -1,0 +1,53 @@
+{
+  "experimentId": "E-000",
+  "slug": "rebaseline-check",
+  "status": "kept",
+  "createdAt": "2026-08-16",
+  "decidedAt": "2026-08-16",
+  "hypothesis": "Confirm the committed regression baseline is a valid arbiter for the current generator before optimising (concern: baseline may be stale re: retired radialEmblem / missing duoBlend).",
+  "expectedOutcome": {
+    "improves": [],
+    "mustNotRegress": ["all contexts"],
+    "diversityGuard": "measurement-only; no generator change so diversity cannot move"
+  },
+  "variables": [],
+  "batchId": null,
+  "engineVersion": "0.1.0",
+  "grammarVersion": "0.1.0",
+  "before": {
+    "aggregateMeanQuality": 0.784,
+    "perContext": {
+      "one-country-dark": {"meanQuality": 0.858},
+      "one-country-light": {"meanQuality": 0.864},
+      "two-countries": {"meanQuality": 0.793},
+      "several-countries": {"meanQuality": 0.782},
+      "year": {"meanQuality": 0.779},
+      "region-europe": {"meanQuality": 0.762},
+      "lifetime": {"meanQuality": 0.737},
+      "massive-light": {"meanQuality": 0.697}
+    }
+  },
+  "after": {
+    "aggregateMeanQuality": 0.785,
+    "perContext": {
+      "one-country-dark": {"meanQuality": 0.862},
+      "one-country-light": {"meanQuality": 0.863},
+      "two-countries": {"meanQuality": 0.796},
+      "several-countries": {"meanQuality": 0.782},
+      "year": {"meanQuality": 0.780},
+      "region-europe": {"meanQuality": 0.767},
+      "lifetime": {"meanQuality": 0.735},
+      "massive-light": {"meanQuality": 0.699}
+    }
+  },
+  "observations": [
+    "Regression suite green (exit 0); all |Δ| <= 0.005, inside 0.03 tolerance.",
+    "Framework validated end-to-end in this environment.",
+    "Staleness hypothesis not borne out; baseline is a valid arbiter as-is."
+  ],
+  "criticRefs": [],
+  "kbRules": [],
+  "decision": "keep",
+  "decisionReason": "Baseline reproduces within noise; no re-baseline needed. Proceed to E-001.",
+  "baselineRegenerated": false
+}

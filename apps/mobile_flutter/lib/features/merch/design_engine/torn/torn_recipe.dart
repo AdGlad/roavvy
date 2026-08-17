@@ -171,9 +171,16 @@ class TornFamilySpec {
 const Map<TearStyle, TornFamilySpec> kTornFamilies = {
   TearStyle.lightlyWorn: TornFamilySpec(
     style: TearStyle.lightlyWorn,
+    // E-T01: raised the damage floor so this family actually reads as *worn*
+    // (was scale≈0.014, barely above the 0.012 snap-to-intact → ~0.5% removed,
+    // 1–2 fingers). Still the LIGHTEST family (below ragged's 0.35–0.55/0.12–0.20)
+    // so the light↔heavy diversity spread is preserved.
     primaryEdges: {FlagEdge.right, FlagEdge.bottom},
-    edgeDamage: (0.15, 0.30),
-    maxDepth: (0.05, 0.10),
+    edgeDamage: (0.28, 0.45),
+    // E-T04: after E-T03 raised global strand density, lightlyWorn's finer strands
+    // merged under its shallow band (fingers 4.7→4.0). Deepen the band slightly so
+    // strands separate again — still the lightest family (below ragged 0.12–0.20).
+    maxDepth: (0.11, 0.17),
     frequency: (4, 6),
     largeTearProb: (0.0, 0.05),
     notch: (0.3, 0.5),
@@ -233,7 +240,11 @@ const Map<TearStyle, TornFamilySpec> kTornFamilies = {
     style: TearStyle.frayed,
     primaryEdges: {FlagEdge.right, FlagEdge.bottom, FlagEdge.left},
     edgeDamage: (0.30, 0.45),
-    maxDepth: (0.10, 0.16),
+    // E-T02: frayed has the HIGHEST fray (0.80–1.00) yet produced the FEWEST
+    // finger transitions (~4.7) — the fine strands had too shallow a band to
+    // taper into separated, countable fingers. Deepen the band so high fray
+    // actually reads as many separated streamers (its whole identity).
+    maxDepth: (0.14, 0.22),
     frequency: (6, 9), // many fine strands
     largeTearProb: (0.05, 0.15),
     notch: (0.5, 0.8),

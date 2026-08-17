@@ -1,0 +1,12 @@
+{
+  "experimentId": "E-T03", "slug": "global-strand-density", "family": "torn", "status": "kept",
+  "createdAt": "2026-08-16", "decidedAt": "2026-08-16",
+  "hypothesis": "Raising the base strand density lifts low-finger styles broadly while saturated strong styles stay flat in score - a distribution-floor lift.",
+  "variables": [{"file": "lib/features/merch/design_engine/torn/torn_geometry_generator.dart", "knob": "strandCycles base", "from": "12.0", "to": "15.0"}],
+  "batchId": "torn_v2",
+  "before": {"batchAvg": 0.9247}, "after": {"batchAvg": 0.9439},
+  "observations": ["Broad lift: battleWorn +0.052, ragged +0.042, frayed +0.028, asymmetricTear ->1.000, tornCorners +0.014; deepRips/heavyEdgeDamage flat (saturated).", "One micro-regression: lightlyWorn -0.014 (finer strands merge under its shallow band); within 0.03 tolerance; addressed by E-T04.", "Gates 1.0; 8 styles preserved; analyze clean; torn tests green."],
+  "kbRules": ["R-TEX-01", "R-VH-01"], "decision": "keep",
+  "decisionReason": "Net +0.0192 batch, 5 styles up, diversity held, gates hold; single -0.014 style within tolerance and recovered in E-T04.",
+  "baselineRegenerated": false
+}

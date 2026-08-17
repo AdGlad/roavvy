@@ -1,0 +1,299 @@
+{
+  "batchId": "torn_v2",
+  "engine": "torn-flag-engine-v2",
+  "size": {
+    "w": 480,
+    "h": 300
+  },
+  "count": 26,
+  "averageScore": 0.9214743589743588,
+  "references": "design_studio/reference_images/liked/torn/",
+  "designs": [
+    {
+      "name": "ragged_s2",
+      "style": "ragged",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.02925,
+      "fingerTransitions": 22,
+      "asymmetry": 0.020959034614163225,
+      "score": 1.0
+    },
+    {
+      "name": "battleWorn_s1",
+      "style": "battleWorn",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.058305555555555555,
+      "fingerTransitions": 16,
+      "asymmetry": 0.28631234073534767,
+      "score": 1.0
+    },
+    {
+      "name": "deepRips_s1",
+      "style": "deepRips",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.06409027777777777,
+      "fingerTransitions": 18,
+      "asymmetry": 0.3547379382158973,
+      "score": 1.0
+    },
+    {
+      "name": "deepRips_s3",
+      "style": "deepRips",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.07399305555555556,
+      "fingerTransitions": 20,
+      "asymmetry": 0.4544957937288321,
+      "score": 1.0
+    },
+    {
+      "name": "asymmetricTear_s1",
+      "style": "asymmetricTear",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.021375,
+      "fingerTransitions": 12,
+      "asymmetry": 0.9996752192270217,
+      "score": 1.0
+    },
+    {
+      "name": "asymmetricTear_s3",
+      "style": "asymmetricTear",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.013597222222222222,
+      "fingerTransitions": 17,
+      "asymmetry": 0.9994895354772844,
+      "score": 1.0
+    },
+    {
+      "name": "heavyEdgeDamage_s1",
+      "style": "heavyEdgeDamage",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.0735,
+      "fingerTransitions": 22,
+      "asymmetry": 0.1092590339457355,
+      "score": 1.0
+    },
+    {
+      "name": "heavyEdgeDamage_s2",
+      "style": "heavyEdgeDamage",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.08755555555555555,
+      "fingerTransitions": 22,
+      "asymmetry": 0.141643059490085,
+      "score": 1.0
+    },
+    {
+      "name": "heavyEdgeDamage_s3",
+      "style": "heavyEdgeDamage",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.0740625,
+      "fingerTransitions": 22,
+      "asymmetry": 0.2903263403263403,
+      "score": 1.0
+    },
+    {
+      "name": "composite_heavyEdgeDamage",
+      "style": "heavyEdgeDamage",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.08755555555555555,
+      "fingerTransitions": 22,
+      "asymmetry": 0.141643059490085,
+      "score": 1.0
+    },
+    {
+      "name": "ragged_s1",
+      "style": "ragged",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.020069444444444445,
+      "fingerTransitions": 8,
+      "asymmetry": 0.08114674441205054,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "ragged_s3",
+      "style": "ragged",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.021902777777777778,
+      "fingerTransitions": 8,
+      "asymmetry": 0.22412280701754386,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "battleWorn_s2",
+      "style": "battleWorn",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.04883333333333333,
+      "fingerTransitions": 8,
+      "asymmetry": 0.2529651593773165,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "battleWorn_s3",
+      "style": "battleWorn",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.03677777777777778,
+      "fingerTransitions": 8,
+      "asymmetry": 0.03647139275131069,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "frayed_s1",
+      "style": "frayed",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.02320138888888889,
+      "fingerTransitions": 8,
+      "asymmetry": 0.18665638256845352,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "asymmetricTear_s2",
+      "style": "asymmetricTear",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.012513888888888889,
+      "fingerTransitions": 8,
+      "asymmetry": 0.9994453688297282,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "composite_battleWorn",
+      "style": "battleWorn",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.04883333333333333,
+      "fingerTransitions": 8,
+      "asymmetry": 0.2529651593773165,
+      "score": 0.9166666666666667
+    },
+    {
+      "name": "lightlyWorn_s2",
+      "style": "lightlyWorn",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.012104166666666666,
+      "fingerTransitions": 6,
+      "asymmetry": 0.043333333333333335,
+      "score": 0.875
+    },
+    {
+      "name": "lightlyWorn_s3",
+      "style": "lightlyWorn",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.02023611111111111,
+      "fingerTransitions": 6,
+      "asymmetry": 0.22314478463933576,
+      "score": 0.875
+    },
+    {
+      "name": "tornCorners_s1",
+      "style": "tornCorners",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.03309722222222222,
+      "fingerTransitions": 6,
+      "asymmetry": 0.3379553466509988,
+      "score": 0.875
+    },
+    {
+      "name": "tornCorners_s2",
+      "style": "tornCorners",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.0161875,
+      "fingerTransitions": 4,
+      "asymmetry": 0.3250544662309368,
+      "score": 0.8333333333333335
+    },
+    {
+      "name": "tornCorners_s3",
+      "style": "tornCorners",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.014645833333333334,
+      "fingerTransitions": 4,
+      "asymmetry": 0.37801111797405806,
+      "score": 0.8333333333333335
+    },
+    {
+      "name": "deepRips_s2",
+      "style": "deepRips",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.030618055555555555,
+      "fingerTransitions": 4,
+      "asymmetry": 0.14355293514483466,
+      "score": 0.8333333333333335
+    },
+    {
+      "name": "frayed_s2",
+      "style": "frayed",
+      "seed": 2,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.01545138888888889,
+      "fingerTransitions": 4,
+      "asymmetry": 0.0030120481927710845,
+      "score": 0.8333333333333335
+    },
+    {
+      "name": "lightlyWorn_s1",
+      "style": "lightlyWorn",
+      "seed": 1,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.012993055555555556,
+      "fingerTransitions": 2,
+      "asymmetry": 0.2821685173089484,
+      "score": 0.7916666666666667
+    },
+    {
+      "name": "frayed_s3",
+      "style": "frayed",
+      "seed": 3,
+      "interiorClean": 1.0,
+      "edgeConcentration": 1.0,
+      "removedFraction": 0.013729166666666667,
+      "fingerTransitions": 2,
+      "asymmetry": 0.11194895591647332,
+      "score": 0.7916666666666667
+    }
+  ]
+}

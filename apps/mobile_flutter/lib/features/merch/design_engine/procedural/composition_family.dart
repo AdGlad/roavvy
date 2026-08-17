@@ -113,6 +113,12 @@ enum CompositionFamily {
 
   /// Exactly two flags merged into one graphic on the GPU (blend + ripple).
   duoBlend,
+
+  /// The traveller's COUNT/scope is the hero — a bold typographic achievement
+  /// statement ("47 COUNTRIES · 6 CONTINENTS", "EST. 2011") with flags demoted
+  /// to a whisper. The premium answer for large sets where individual flags
+  /// overwhelm (KB R-MERCH-02 "16+ → count-forward"; R-STORY-03 identity claim).
+  statementCount,
 }
 
 /// Registry of family specs. Country ranges + density/scope weights are the
@@ -212,7 +218,13 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
       GridClipShape.heart,
       GridClipShape.circle,
     ],
-    layoutModes: [FlagGridLayoutMode.montage, FlagGridLayoutMode.packedRow],
+    // E-006 mitigation: all tiny/off-center negativeSpaceCutout renders shared
+    // `montage`, which scatters few flags into a small cluster so the clipped
+    // silhouette reads tiny. Use the fill-the-canvas modes (packedRow rows fill
+    // width+height; normalizedGrid fills the canvas) so flags fill the outline.
+    // (Root cause is the montage↔clip fill interaction in the renderer; this is a
+    // low-risk generator steer, not the deep render fix — verify on-device.)
+    layoutModes: [FlagGridLayoutMode.packedRow, FlagGridLayoutMode.normalizedGrid],
     heroRequiredWhenMulti: false,
     heroScaleRange: (0.7, 0.95),
     densitySuitability: {
@@ -282,7 +294,12 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
     family: CompositionFamily.chronoSequence,
     hierarchy: HierarchyMode.sequence,
     minCountries: 2,
-    maxCountries: 120,
+    // E-001: a sequence renders each country ~1/n of the width, so beyond ~19
+    // countries every candidate falls below the min printable feature (90px) and
+    // is ALWAYS rejected — it had 0 survivors at lifetime(28)/massive(60) yet was
+    // sampled every pool, inflating rejection (0.52 / 0.67). Cap to its legible,
+    // survivable range (also R-MERCH-02: a timeline of >20 entries is clutter).
+    maxCountries: 20,
     templates: [CardTemplateType.timeline, CardTemplateType.journeys],
     masks: [GridClipShape.none],
     layoutModes: [FlagGridLayoutMode.packedRow],
@@ -342,6 +359,36 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
       DesignScope.multiCountry: 0.9,
       DesignScope.trip: 0.7,
       DesignScope.random: 0.6,
+    },
+  ),
+  // NEW FAMILY (concept C-01, 2026-08-16). Count/achievement-forward: the scope
+  // statement is the hero. Large-set focused (min 5) so it becomes a strong
+  // premium option exactly where many-flag layouts read as clutter — the weakest
+  // contexts (lifetime/massive). Pure recombination of the existing `typography`
+  // template; the count STRING is a TitleGen content variant (see catalogue entry
+  // + rendering requirement). Distinct from typographicIntegration, which spans
+  // all counts and integrates flags rather than leading with the numeric stat.
+  CompositionFamily.statementCount: CompositionFamilySpec(
+    family: CompositionFamily.statementCount,
+    hierarchy: HierarchyMode.typeLed,
+    minCountries: 5,
+    maxCountries: 300,
+    templates: [CardTemplateType.typography],
+    masks: [GridClipShape.none],
+    layoutModes: [FlagGridLayoutMode.packedRow],
+    heroRequiredWhenMulti: false,
+    heroScaleRange: (0.5, 0.8),
+    densitySuitability: {
+      DesignDensityClass.medium: 0.6,
+      DesignDensityClass.large: 1.0,
+      DesignDensityClass.massive: 1.0,
+    },
+    scopeAffinity: {
+      DesignScope.lifetime: 1.0,
+      DesignScope.region: 0.9,
+      DesignScope.year: 0.7,
+      DesignScope.multiCountry: 0.6,
+      DesignScope.random: 0.5,
     },
   ),
 };

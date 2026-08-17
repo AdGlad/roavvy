@@ -1,0 +1,13 @@
+{
+  "experimentId": "E-T02", "slug": "frayed-finger-separation", "family": "torn", "status": "kept",
+  "createdAt": "2026-08-16", "decidedAt": "2026-08-16",
+  "hypothesis": "frayed has the highest fray (0.80-1.00) yet fewest fingers (4.7); its band (maxDepth 0.10-0.16) was too shallow for fine strands to separate into countable fingers.",
+  "variables": [{"file": "lib/features/merch/design_engine/torn/torn_recipe.dart", "knob": "kTornFamilies[frayed].maxDepth", "from": "(0.10, 0.16)", "to": "(0.14, 0.22)"}],
+  "batchId": "torn_v2",
+  "before": {"batchAvg": 0.9215, "frayedMean": 0.847, "frayedFingers": 4.7},
+  "after":  {"batchAvg": 0.9247, "frayedMean": 0.875, "frayedFingers": 6.7},
+  "observations": ["frayed +0.028 (fingers 4.7->6.7, removedFraction ->0.024); other styles byte-identical; gates 1.0; 8 styles preserved.", "Partial: fray->finger translation still imperfect (6.7 vs strong styles' 12+)."],
+  "kbRules": ["R-TEX-01", "R-VH-01"], "decision": "keep",
+  "decisionReason": "Real improvement (+0.028 target, +0.0032 batch), zero regressions, diversity held.",
+  "baselineRegenerated": false
+}

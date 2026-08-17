@@ -10,6 +10,23 @@ Nothing here ships.
 > third-party reference images, only with rights cleared). Do not add any path
 > here to `pubspec.yaml`.
 
+## The optimisation framework (start here)
+
+This workspace is driven by an autonomous **Graphic Design Studio** that improves
+the *generator*, not individual images. Entry points:
+
+- **[OPTIMIZATION_STUDIO.md](OPTIMIZATION_STUDIO.md)** — the framework: the loop,
+  the six roles, the experiment protocol, run commands, guardrails.
+- **[reports/optimization_roadmap.md](reports/optimization_roadmap.md)** — the
+  Design Director's living, ranked backlog + decision log (resume from here).
+- **[experiments/](experiments/)** — one folder per experiment (hypothesis →
+  batch → before/after → keep/revert). Run one: `tools/run_experiment.sh`.
+- **[knowledge_base/](knowledge_base/)** — the approved design bar the studio
+  optimises toward.
+- Roles are Claude Code sub-agents in `.claude/agents/`: `design-director`,
+  `design-generator`, `design-critic`, `reference-analyst`, `engine-tuner`
+  (Engineer), `regression-reviewer`.
+
 ## Layout
 
 ```

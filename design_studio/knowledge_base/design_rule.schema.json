@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/studio/design_rule.schema.json",
+  "title": "DesignRule",
+  "description": "One reusable, engine-facing design principle for Roavvy apparel. A rule is not a note: it states a testable claim, explains the mechanism, and binds to the design genome (design_recipe.schema.json genes) and/or the scoring engine (analytic/pixel scorers) so it can bias generation and inform evaluation. Development-only; never bundled.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "topic", "statement", "explanation", "confidence", "polarity"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^R-[A-Z]{2,4}-[0-9]{2,3}$",
+      "description": "Stable id, e.g. 'R-COMP-01' (topic prefix + number). Referenced by recipes, scorers, critiques and mood boards."
+    },
+    "topic": {
+      "type": "string",
+      "enum": [
+        "composition", "visualHierarchy", "colour", "typography", "texture",
+        "apparelLayout", "travelStorytelling", "flagUsage", "printTechnique",
+        "iconUsage", "designTrend", "merchandising", "negativeSpace"
+      ]
+    },
+    "statement": {
+      "type": "string",
+      "description": "One-line, imperative, testable rule. e.g. 'Prefer one dominant element over many small disconnected ones.'"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "WHY it works — the perceptual, production, or commercial mechanism. Not just an assertion."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "How strongly the research + references support this. High = near-universal; low = context-dependent / hypothesis to validate against references + telemetry."
+    },
+    "polarity": {
+      "type": "string",
+      "enum": ["prefer", "avoid", "conditional"],
+      "description": "Whether the rule pushes designs toward (prefer), away from (avoid), or gates on context (conditional)."
+    },
+    "examples": {
+      "type": "array",
+      "description": "Described patterns (NEVER copies of copyrighted artwork) that exemplify the rule; may reference design_studio reference images by stem.",
+      "items": { "type": "string" }
+    },
+    "appliesWhen": {
+      "type": "array",
+      "description": "Contexts/scopes where the rule is in force. Prefer DesignContext scope tokens where possible.",
+      "items": { "type": "string" }
+    },
+    "exceptions": {
+      "type": "array",
+      "description": "Where the rule does NOT hold, or reverses. Every strong rule has an edge.",
+      "items": { "type": "string" }
+    },
+    "genes": {
+      "type": "array",
+      "description": "Which DesignRecipe genes this rule biases, and how. Ties the principle to the searchable parameter space.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gene", "direction"],
+        "properties": {
+          "gene": {
+            "type": "string",
+            "description": "DesignRecipe gene path, e.g. 'composition.density', 'palette.strategy', 'clip.shape', 'printStyle.id', 'typography.case'."
+          },
+          "direction": {
+            "type": "string",
+            "description": "How the rule biases the gene, e.g. 'favour sparse|balanced', 'penalise dense when |countryCodes|<=3', 'prefer duotone|monochrome', 'avoid grunge+halftone stacked'."
+          }
+        }
+      }
+    },
+    "scorers": {
+      "type": "array",
+      "description": "Which scoring signals encode this rule. Use existing scorer names so rules map to weights.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "coverageBalance", "whitespace", "focalHierarchy", "aspectFit", "profileFit",
+          "contrastLegibility", "colorHarmony", "edgeDensity", "aiCritic", "printabilityGate",
+          "referenceAffinity"
+        ]
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "Supporting evidence: research_summary file, reference image stems (liked/disliked), or external principle sources.",
+      "items": { "type": "string" }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How to confirm/refute this rule empirically once telemetry + reference scoring exist.",
+      "properties": {
+        "signal": { "type": "string", "description": "e.g. 'liked references satisfy this at higher rate than disliked', 'chosen designs skew toward this gene value'." },
+        "status": { "type": "string", "enum": ["assumed", "reference-supported", "telemetry-supported", "contested"] }
+      }
+    }
+  }
+}

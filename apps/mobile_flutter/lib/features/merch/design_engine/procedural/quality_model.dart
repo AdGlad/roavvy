@@ -95,6 +95,11 @@ class RecipeQualityModel {
       focalContrast = r.heroScale.clamp(0.0, 1.0);
     } else if (r.family == CompositionFamily.negativeSpaceCutout) {
       focalContrast = 0.7; // the silhouette is the subject
+    } else if (r.hierarchy == HierarchyMode.typeLed) {
+      // C-00: a type-led design's focal IS the wordmark/stat — a clear single
+      // subject by construction (R-VH-01, R-STORY-03), NOT the 0.45 "no focal"
+      // default. Scaled by how much of the canvas the type hero occupies.
+      focalContrast = (0.55 + 0.3 * r.heroScale).clamp(0.0, 1.0);
     } else {
       focalContrast = 0.45;
     }

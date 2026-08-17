@@ -1,0 +1,15 @@
+{
+  "experimentId": "E-001", "slug": "large-set-rejection", "track": "optimisation", "status": "kept",
+  "createdAt": "2026-08-17", "decidedAt": "2026-08-17",
+  "hypothesis": "chronoSequence renders each country ~1/n wide, so beyond ~19 countries every candidate falls below the 90px min feature and is ALWAYS rejected (0 survivors at lifetime/massive) yet was sampled every pool, inflating rejection 0.52/0.67.",
+  "variables": [{"file": "lib/features/merch/design_engine/procedural/composition_family.dart", "knob": "kCompositionFamilies[chronoSequence].maxCountries", "from": "120", "to": "20"}],
+  "before": {"lifetimeRej": 0.521, "massiveRej": 0.667},
+  "after": {"lifetimeRej": 0.438, "massiveRej": 0.625, "aggregateMeanQuality": 0.793},
+  "observations": [
+    "Rejection: lifetime 0.521->0.438 (-8.3pts), massive 0.667->0.625 (-4.2pts).",
+    "Zero quality/diversity cost: lifetime/massive meanQuality +0.002; year/several/region unchanged (chronoSequence still surviving there 5/2/3).",
+    "Remaining rejection sources (E-001b candidates): repetitionField + small imageSize fails MinFeature for large n; negativeSpaceCutout ClutterCap at high flag counts."
+  ],
+  "kbRules": ["R-MERCH-02", "R-PRINT-04"], "decision": "keep",
+  "decisionReason": "Removed a guaranteed-reject family from large sets (0 survivors there); rejection down, quality/diversity held, determinism preserved. Regenerated baseline."
+}

@@ -23,6 +23,16 @@ void main() {
   const perRun = 8;
 
   test('generate + archive development batch', () {
+    // Experiment provenance (Design Studio optimisation framework). Set by the
+    // runner (design_studio/tools/run_experiment.sh); defaults keep the plain
+    // `flutter test` behaviour byte-identical.
+    final env = Platform.environment;
+    final label = (env['EXPERIMENT_LABEL'] ?? '').trim();
+    final experimentId = (env['EXPERIMENT_ID'] ?? '').trim().isEmpty
+        ? 'baseline-v$kProceduralEngineVersion'
+        : env['EXPERIMENT_ID']!.trim();
+    final batchSuffix = label.isEmpty ? '' : '_$label';
+
     final contexts = representativeContexts();
     final designsJson = <Map<String, dynamic>>[];
     final rows = StringBuffer();
@@ -48,9 +58,11 @@ void main() {
     });
 
     final batch = {
-      'batchId': 'batch_v$kProceduralEngineVersion',
+      'batchId': 'batch_v$kProceduralEngineVersion$batchSuffix',
+      'experimentId': experimentId,
       'engineVersion': kProceduralEngineVersion,
       'grammarVersion': kProceduralGrammarVersion,
+      'generatedAt': DateTime.now().toUtc().toIso8601String(),
       'seeds': seeds,
       'contexts': [
         for (final e in contexts.entries)
@@ -61,7 +73,7 @@ void main() {
     };
 
     final dir = Directory(
-        '../../design_studio/generated_batches/batch_v$kProceduralEngineVersion');
+        '../../design_studio/generated_batches/batch_v$kProceduralEngineVersion$batchSuffix');
     dir.createSync(recursive: true);
     File('${dir.path}/batch.json')
         .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(batch));
@@ -83,6 +95,8 @@ const _familyColors = {
   'typographicIntegration': '#2D9CDB',
   'chronoSequence': '#BB6BD9',
   'splitField': '#6FCF97',
+  'duoBlend': '#56CCF2',
+  'statementCount': '#F2C94C',
 };
 
 String _card(String ctx, int seed, GeneratedDesign d) {

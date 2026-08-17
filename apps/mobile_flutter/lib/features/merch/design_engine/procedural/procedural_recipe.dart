@@ -226,6 +226,9 @@ class ProceduralDesignRecipe {
       imageSize: imageSize,
       shirtColour: garmentColour,
       seed: seed,
+      // Count-forward hero for the statementCount family (C-01): the typography
+      // template leads with the numeric stat instead of a name list + footer.
+      statementHero: family == CompositionFamily.statementCount,
     ).normalize();
   }
 

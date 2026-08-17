@@ -2381,11 +2381,21 @@ class TypographyCard extends StatelessWidget {
     required this.codes,
     this.titleOverride,
     this.transparentBackground = false,
+    this.textColor,
+    this.statementHero = false,
   });
 
   final List<String> codes;
   final String? titleOverride;
   final bool transparentBackground;
+
+  /// Ink colour for the count-hero lockup (garment-aware contrast). Only used in
+  /// [statementHero] mode; the name-list layout keeps its own white/gold palette.
+  final Color? textColor;
+
+  /// Count-forward mode (composition family `statementCount`, C-01): render the
+  /// traveller's COUNT as a bold, large, centred hero instead of a name list.
+  final bool statementHero;
 
   @override
   Widget build(BuildContext context) {
@@ -2397,6 +2407,8 @@ class TypographyCard extends StatelessWidget {
             codes: codes,
             titleOverride: titleOverride,
             transparentBackground: transparentBackground,
+            textColor: textColor,
+            statementHero: statementHero,
           ),
         ),
       ),
@@ -2409,11 +2421,15 @@ class _TypographyPainter extends CustomPainter {
     required this.codes,
     this.titleOverride,
     required this.transparentBackground,
+    this.textColor,
+    this.statementHero = false,
   });
 
   final List<String> codes;
   final String? titleOverride;
   final bool transparentBackground;
+  final Color? textColor;
+  final bool statementHero;
 
   static const _bgColor = Color(0xFF0D1B2A);
   static const _accentColor = Color(0xFFE8C84A); // gold
@@ -2447,10 +2463,70 @@ class _TypographyPainter extends CustomPainter {
       return;
     }
 
-    if (codes.length == 1) {
+    if (statementHero) {
+      _drawStatementHero(canvas, size);
+    } else if (codes.length == 1) {
       _drawSingleCountry(canvas, size);
     } else {
       _drawMultiCountry(canvas, size);
+    }
+  }
+
+  /// Count-forward hero lockup (C-01 `statementCount`): the COUNT is the hero —
+  /// a big centred number, "COUNTRIES" caps beneath it, and a continent line as
+  /// a gold accent, e.g. "28 / COUNTRIES / 6 CONTINENTS". [titleOverride], when
+  /// supplied by a TitleGen stat variant, replaces the derived "N COUNTRIES"
+  /// label line.
+  void _drawStatementHero(Canvas canvas, Size size) {
+    final count = codes.length;
+    final continents = codes
+        .map((c) => kCountryContinent[c])
+        .whereType<String>()
+        .toSet()
+        .length;
+    final hero = textColor ?? Colors.white;
+
+    // Big number — the hero.
+    _drawCentredText(
+      canvas,
+      size,
+      '$count',
+      size.width * 0.34,
+      hero,
+      FontWeight.w800,
+      offsetY: -size.height * 0.10,
+    );
+
+    // "COUNTRIES" caps beneath the number (or a TitleGen stat override).
+    _drawCentredText(
+      canvas,
+      size,
+      (titleOverride ?? (count == 1 ? 'COUNTRY' : 'COUNTRIES')).toUpperCase(),
+      size.width * 0.075,
+      hero,
+      FontWeight.w700,
+      offsetY: size.height * 0.11,
+    );
+
+    // Gold continent accent line + rule.
+    if (continents > 0) {
+      final ruleY = size.height * 0.66;
+      canvas.drawLine(
+        Offset(size.width * 0.35, ruleY),
+        Offset(size.width * 0.65, ruleY),
+        Paint()
+          ..color = _accentColor
+          ..strokeWidth = 1.5,
+      );
+      _drawCentredText(
+        canvas,
+        size,
+        '$continents ${continents == 1 ? 'CONTINENT' : 'CONTINENTS'}',
+        size.width * 0.05,
+        _accentColor,
+        FontWeight.w600,
+        offsetY: size.height * 0.26,
+      );
     }
   }
 
@@ -2598,7 +2674,9 @@ class _TypographyPainter extends CustomPainter {
   bool shouldRepaint(_TypographyPainter old) =>
       old.codes != codes ||
       old.titleOverride != titleOverride ||
-      old.transparentBackground != transparentBackground;
+      old.transparentBackground != transparentBackground ||
+      old.textColor != textColor ||
+      old.statementHero != statementHero;
 }
 
 // ── BadgeCard ─────────────────────────────────────────────────────────────────

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roavvy.app/schemas/studio/experiment_record.schema.json",
+  "title": "ExperimentRecord",
+  "description": "One optimisation experiment on the procedural generator. The machine-readable companion to experiment.md. Development-only; never bundled. An experiment modifies a LIMITED number of generator variables to fix a SYSTEMATIC weakness, then keeps or reverts based on the regression Δ.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["experimentId", "slug", "status", "hypothesis", "expectedOutcome", "variables"],
+  "properties": {
+    "experimentId": { "type": "string", "pattern": "^E-[0-9]{3}$", "description": "Stable id, e.g. 'E-001'. Also stamped into the generated batch.json (experimentId) and the batch dir label." },
+    "slug": { "type": "string", "description": "Short kebab-case name, e.g. 'small-multi-hierarchy'." },
+    "status": { "type": "string", "enum": ["planned", "running", "kept", "reverted", "abandoned"] },
+    "createdAt": { "type": ["string", "null"], "description": "ISO date." },
+    "decidedAt": { "type": ["string", "null"] },
+    "hypothesis": { "type": "string", "description": "The systematic weakness + mechanism. Cite a critique id and baseline numbers. NOT about one image." },
+    "expectedOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "improves": { "type": "array", "items": { "type": "string" }, "description": "Contexts/families expected to improve, ideally with a rough magnitude." },
+        "mustNotRegress": { "type": "array", "items": { "type": "string" }, "description": "Contexts/families that must stay within tolerance." },
+        "diversityGuard": { "type": "string", "description": "Why family diversity will not collapse." }
+      }
+    },
+    "variables": {
+      "type": "array",
+      "description": "The LIMITED set of generator knobs changed (1-3). Each ties to a real tuning surface.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "knob", "from", "to"],
+        "properties": {
+          "file": { "type": "string", "description": "e.g. lib/features/merch/design_engine/procedural/design_dna.dart" },
+          "knob": { "type": "string", "description": "e.g. kRoavvyDesignDnaDefault.familyAffinity.dominantAccent" },
+          "from": { "type": "string" },
+          "to": { "type": "string" }
+        }
+      }
+    },
+    "batchId": { "type": ["string", "null"], "description": "The batch produced under this experimentId." },
+    "engineVersion": { "type": ["string", "null"] },
+    "grammarVersion": { "type": ["string", "null"] },
+    "before": { "$ref": "#/$defs/metrics" },
+    "after": { "$ref": "#/$defs/metrics" },
+    "observations": { "type": "array", "items": { "type": "string" }, "description": "Critic/Analyst notes, surprises, tradeoffs." },
+    "criticRefs": { "type": "array", "items": { "type": "string" }, "description": "critiques/<batchId>.json ids this addressed." },
+    "kbRules": { "type": "array", "items": { "type": "string" }, "description": "Knowledge Base rule ids (e.g. R-VH-01) this experiment targets." },
+    "decision": { "type": ["string", "null"], "enum": ["keep", "revert", null], "description": "Director's call." },
+    "decisionReason": { "type": ["string", "null"] },
+    "baselineRegenerated": { "type": "boolean", "description": "True only if an intended, documented tradeoff required REGEN_BASELINE." }
+  },
+  "$defs": {
+    "metrics": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Regression metric snapshot (from procedural_baseline shape).",
+      "properties": {
+        "aggregateMeanQuality": { "type": ["number", "null"] },
+        "perContext": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "meanQuality": { "type": "number" },
+              "topQuality": { "type": "number" },
+              "rejectionRate": { "type": "number" },
+              "familyDiversity": { "type": "integer" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
