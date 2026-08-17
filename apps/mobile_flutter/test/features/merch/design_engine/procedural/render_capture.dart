@@ -33,14 +33,19 @@ void main() {
   final label = (Platform.environment['RENDER_LABEL'] ?? 'v0.1.0').trim();
   const gen = ProceduralDesignGenerator();
 
-  // Focus on the contexts where render-dependent + type-led families live.
-  const captureContexts = [
-    'one-country-light',
-    'two-countries',
-    'several-countries',
-  ];
-  const seed = 1;
-  const perContext = 2; // top-N designs per context
+  // Coverage: all representative contexts × several seeds × top-N designs, so the
+  // auto visual-QA (design_studio/tools/render_qa.py) has a large sample. Env-
+  // configurable so a run can be chunked under the 10-min cap:
+  //   RENDER_CONTEXTS="lifetime,massive-light"  RENDER_SEEDS="1,2,3"  RENDER_PERCTX="3"
+  final ctxEnv = (Platform.environment['RENDER_CONTEXTS'] ?? '').trim();
+  final captureContexts = ctxEnv.isEmpty
+      ? representativeContexts().keys.toList()
+      : ctxEnv.split(',').map((s) => s.trim()).toList();
+  final seeds = (Platform.environment['RENDER_SEEDS'] ?? '1,2,3')
+      .split(',')
+      .map((s) => int.parse(s.trim()))
+      .toList();
+  final perContext = int.parse(Platform.environment['RENDER_PERCTX'] ?? '3');
 
   testWidgets('capture rendered batch → design_studio', (tester) async {
     final ctx = await _pumpContext(tester);
@@ -65,13 +70,14 @@ void main() {
     var ok = 0, failed = 0;
 
     await tester.runAsync(() async {
+      for (final seed in seeds) {
       for (final name in captureContexts) {
         final dctx = contexts[name];
         if (dctx == null) continue;
         final designs = gen.generate(dctx, seed: seed, count: perContext).designs;
         for (var i = 0; i < designs.length; i++) {
           final d = designs[i];
-          final stem = '${name}_${d.recipe.family.name}_$i';
+          final stem = '${name}_s${seed}_${d.recipe.family.name}_$i';
           try {
             final bytes = await _drive(
                 tester, thumb.renderThumbnail(d.params, const []));
@@ -101,6 +107,7 @@ void main() {
             print('[render_capture] skip $stem: $e');
           }
         }
+      }
       }
     });
 

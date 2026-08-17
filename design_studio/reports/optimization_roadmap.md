@@ -144,6 +144,24 @@ and the weakest product experience. That is where the leverage is.
 
 ---
 
+### E-007 — dominantAccent fragmentation — ✅ DONE (2026-08-18, recipe-QA)
+- Isolated by the new recipe-QA (5/960 FRAGMENT-RISK). Fix: `dominantAccent`
+  layoutModes montage→`[treemap]` (montage-scatter culprit, same as E-006). analyze
+  clean, regression Δ0.000, recipe-QA FRAGMENT-RISK 5→0.
+
+### E-008 — typographicIntegration renders near-blank *(pixel-QA, needs on-device confirm)*
+- Auto-flagged by render_qa.py: `several-countries_typographicIntegration_2` at 0.4%
+  coverage (BLANK). Same class as pre-F1 statementCount — a type-led family whose
+  typography template renders a small name-list, not a hero (near-empty on dark
+  garment). F1's statementHero covers only statementCount. **Status:** open; the
+  0.4% is from the pre-F1 capture, so re-capture on-device before fixing.
+
+### Automated Render-QA framework (2026-08-18) — ✅ delivered
+- `tools/render_qa.py` (pixel-QA: coverage/centroid/blank) + `tools/recipe_qa.py`
+  (recipe-QA: encoded defect patterns over hundreds of designs) + widened sampling
+  (`BATCH_SEEDS`, `RENDER_CONTEXTS/SEEDS/PERCTX`). 960-design sweep: **0/960 flagged**
+  (all fix patterns validated). See `render-qa-framework-2026-08-18.md`.
+
 ## Deferred to on-device confirmation (C-00 Lane A2)
 Rendered review (2026-08-16) flagged 3 suspect designs; recipe cross-check cleared
 all as NON-recipe → not fixed headless (would be phantom-chasing), pending on-device

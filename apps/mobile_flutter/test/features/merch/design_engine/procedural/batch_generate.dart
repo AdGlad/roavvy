@@ -19,8 +19,11 @@ import 'regression_fixtures.dart';
 /// (needs a widget harness) — see the limitations note in the completion report.
 void main() {
   const gen = ProceduralDesignGenerator();
-  const seeds = [1, 2, 3, 4, 5, 6]; // 8 contexts × 6 seeds × 8 = 384 recipes
-  const perRun = 8;
+  // BATCH_SEEDS lets the studio gather a much larger sample (8 contexts × N seeds
+  // × perRun). Default 6 keeps the plain `flutter test` behaviour identical.
+  final seedCount = int.parse(Platform.environment['BATCH_SEEDS'] ?? '6');
+  final seeds = List<int>.generate(seedCount, (i) => i + 1);
+  final perRun = int.parse(Platform.environment['BATCH_PERRUN'] ?? '8');
 
   test('generate + archive development batch', () {
     // Experiment provenance (Design Studio optimisation framework). Set by the

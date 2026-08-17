@@ -163,7 +163,11 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
     maxCountries: 10,
     templates: [CardTemplateType.grid],
     masks: [GridClipShape.none, GridClipShape.circle, GridClipShape.heart],
-    layoutModes: [FlagGridLayoutMode.montage, FlagGridLayoutMode.treemap],
+    // E-007 (recipe-QA, 5/960 FRAGMENT-RISK): montage scatters the 2 flags into
+    // fragmented quadrants when clipped small (same montage-scatter failure as
+    // E-006). treemap gives dominantAccent the weighted hero+accent tiles it
+    // actually wants, so use it exclusively.
+    layoutModes: [FlagGridLayoutMode.treemap],
     heroRequiredWhenMulti: true,
     heroScaleRange: (0.32, 0.55),
     densitySuitability: {
