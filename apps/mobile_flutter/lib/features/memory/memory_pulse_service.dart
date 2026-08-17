@@ -316,7 +316,7 @@ class MemoryPulseService {
           ({DateTime deliverAt, String countryCode, String title, String body})
         >[];
 
-    for (var offset = 1; offset <= 366 && anniversaries.length < 30; offset++) {
+    for (var offset = 1; offset <= 730 && anniversaries.length < 64; offset++) {
       final candidate = utcNow.add(Duration(days: offset));
       final key = _mmdd(candidate);
       final dayAssets = mmddToAssets[key];
@@ -648,8 +648,11 @@ class MemoryPulseService {
     };
   }
 
-  /// Returns a DateTime for [hour]:00 UTC on the same month/day as [date].
+  /// Returns a DateTime for [hour]:00 **local time** on the same month/day as
+  /// [date]. Using a local DateTime here is intentional — [scheduleMemoryPulseBatch]
+  /// wraps it with [tz.TZDateTime.from(..., tz.local)], which preserves the
+  /// local-time moment correctly on the device.
   DateTime _deliverAtHour(DateTime date, int year, int hour) {
-    return DateTime.utc(year, date.month, date.day, hour, 0, 0);
+    return DateTime(year, date.month, date.day, hour, 0, 0);
   }
 }

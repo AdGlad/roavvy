@@ -88,5 +88,15 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.roavvy.app.notification-refresh</string>
+	</array>
+
 </dict>
 </plist>

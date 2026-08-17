@@ -16,9 +16,9 @@ const int _kExclusiveDesignNotificationId = 4;
 const int _kStreakReminderNotificationId = 5;
 const int _kShopTab = 3;
 
-/// Base ID for the memory pulse batch (IDs 200–229, max 30 slots).
+/// Base ID for the memory pulse batch (IDs 200–263, max 64 slots).
 const int _kMemoryPulseBatchBase = 200;
-const int _kMemoryPulseBatchSize = 30;
+const int _kMemoryPulseBatchSize = 64; // iOS allows up to 64 scheduled local notifications per app.
 
 /// Singleton service for local push notifications (ADR-056).
 ///
