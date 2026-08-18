@@ -141,12 +141,15 @@ void main() {
 
   group('FlagGridLayoutEngine — GridClipShape enum', () {
     test('all GridClipShape values are defined', () {
-      expect(GridClipShape.values.length, 5);
+      expect(GridClipShape.values.length, 8);
       expect(GridClipShape.values, contains(GridClipShape.none));
       expect(GridClipShape.values, contains(GridClipShape.heart));
       expect(GridClipShape.values, contains(GridClipShape.circle));
       expect(GridClipShape.values, contains(GridClipShape.countryOutline));
       expect(GridClipShape.values, contains(GridClipShape.continentOutline));
+      expect(GridClipShape.values, contains(GridClipShape.animalSilhouette));
+      expect(GridClipShape.values, contains(GridClipShape.plantSilhouette));
+      expect(GridClipShape.values, contains(GridClipShape.landmarkSilhouette));
     });
   });
 

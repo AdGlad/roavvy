@@ -268,21 +268,39 @@ class FlagGridLayoutEngine {
       return List.filled(repeat, codes.first);
     }
 
-    // Build the full repeated list.
-    final expanded = <String>[];
-    for (final code in codes) {
-      for (int i = 0; i < repeat; i++) {
-        expanded.add(code);
-      }
-    }
-
-    // Shuffle with a deterministic seed so the layout is stable across
-    // repaints within a session but looks random, not sequential.
-    final seed =
-        codes.fold<int>(17, (h, c) => h * 31 + c.hashCode) ^
+    // Deterministic seed: stable layout across repaints, varied (not sequential).
+    final seed = codes.fold<int>(17, (h, c) => h * 31 + c.hashCode) ^
         (repeat * 0x9e3779b9);
-    expanded.shuffle(math.Random(seed));
-    return expanded;
+
+    // Non-adjacent spread (standard "reorganise so no two neighbours are equal"):
+    // at each step take the code with the MOST copies remaining that isn't the one
+    // just placed; ties are broken by a seeded shuffle of the code order, giving a
+    // varied look rather than a strict A,B,C,A,B,C sequence. Guarantees no two
+    // adjacent tiles share a code whenever no single code is a strict majority
+    // (e.g. equal repeats interleave perfectly); degrades gracefully otherwise.
+    final remaining = <String, int>{for (final c in codes) c: repeat};
+    final order = List<String>.of(codes)..shuffle(math.Random(seed));
+    final total = codes.length * repeat;
+    final result = <String>[];
+    String? last;
+    for (int k = 0; k < total; k++) {
+      String? pick;
+      var best = 0;
+      for (final c in order) {
+        if (c == last) continue;
+        final r = remaining[c]!;
+        if (r > best) {
+          best = r;
+          pick = c;
+        }
+      }
+      // Only the previous code remains (a strict majority) — forced to repeat.
+      pick ??= order.firstWhere((c) => remaining[c]! > 0);
+      result.add(pick);
+      remaining[pick] = remaining[pick]! - 1;
+      last = pick;
+    }
+    return result;
   }
 
   /// Returns a representative tile width for SVG pre-loading at any mode.
