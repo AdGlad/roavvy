@@ -2597,8 +2597,14 @@ class _TypographyPainter extends CustomPainter {
       final col = i % 2;
       final row = i ~/ 2;
       final isLarge = (i % 3 == 0);
-      final opacity = isLarge ? 1.0 : 0.62;
-      final fontSize = isLarge ? size.width * 0.038 : size.width * 0.032;
+      // E-008: multi-country type-led designs rendered near-blank — the names were
+      // a fixed ~3.5% width (tiny) and half at 0.62 opacity (faint) → invisible on
+      // dark garments. Scale the type to fill the row so it reads as a bold
+      // statement (KB "type-led statement"), and lift the faint tier. Clamp so
+      // long names still fit the column.
+      final opacity = isLarge ? 1.0 : 0.82;
+      final baseFont = (rowH * 0.42).clamp(size.width * 0.04, size.width * 0.075);
+      final fontSize = isLarge ? baseFont : baseFont * 0.85;
 
       final x = pad + col * (colWidth + pad);
       final y = startY + row * rowH;

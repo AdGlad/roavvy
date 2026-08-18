@@ -102,3 +102,14 @@ analyze clean, regression green (no diversity/quality regression), 960-sweep sho
 white/light flags in a cutout on a light garment still under-render — a flag-
 CONTRAST concern for a future treatment fix, not a clip bug. On-device confirmation
 of the multi-flag cutout look: run the widened 8-context capture.
+
+
+## E-008 — fix applied (2026-08-18), pending on-device verify
+`typographicIntegration` rendered near-blank (0.4% coverage) because `_drawMultiCountry`
+drew country names at a fixed ~3.5% width font with half at 0.62 opacity — tiny + faint
+= invisible on dark garments. Fix (`card_templates.dart`): scale names to fill the row
+(`rowH*0.42`, clamped 4–7.5% width) so the type reads as a bold statement (KB "type-led
+statement"), and lift the faint tier 0.62→0.82. analyze clean; the 2 card-test failures
+are PRE-EXISTING (stale GridClipShape count 5-vs-8; a non-adjacency case) and unrelated.
+**Cannot verify headless** (type designs fail to render without fonts) → confirm on the
+next on-device 8-context capture.

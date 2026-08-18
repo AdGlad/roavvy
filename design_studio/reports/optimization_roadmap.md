@@ -155,8 +155,9 @@ and the weakest product experience. That is where the leverage is.
 - CONFIRMED on-device (2026-08-18): 2 instances near-blank. Auto-flagged by render_qa.py: `several-countries_typographicIntegration_2` at 0.4%
   coverage (BLANK). Same class as pre-F1 statementCount — a type-led family whose
   typography template renders a small name-list, not a hero (near-empty on dark
-  garment). F1's statementHero covers only statementCount. **Status:** open; the
-  0.4% is from the pre-F1 capture, so re-capture on-device before fixing.
+  garment). F1's statementHero covers only statementCount. **Status:** 🛠️ FIX APPLIED (2026-08-18) — _drawMultiCountry names scaled to fill
+  rows + opacity lifted; analyze clean, no test breakage (2 failures pre-existing).
+  Pending on-device verify (type designs fail headless).
 
 ### Automated Render-QA framework (2026-08-18) — ✅ delivered
 - `tools/render_qa.py` (pixel-QA: coverage/centroid/blank) + `tools/recipe_qa.py`
