@@ -49,9 +49,32 @@ void main() {
           'ch', 'at', 'se', 'no', 'fi', 'dk', 'pl', 'cz',
         ],
         garmentIsDark: true),
+    // Widened to all 8 representative contexts for broader on-device coverage.
+    'one-country-dark': DesignContext.of(
+        scope: DesignScope.singleCountry,
+        countryCodes: const ['jp'],
+        garmentIsDark: true),
+    'year': DesignContext.of(
+        scope: DesignScope.year,
+        countryCodes: const ['it', 'es', 'fr', 'de'],
+        garmentIsDark: false),
+    'region-europe': DesignContext.of(
+        scope: DesignScope.region,
+        countryCodes: const ['fr', 'de', 'it', 'es', 'gr', 'pt'],
+        garmentIsDark: true),
+    'massive-light': DesignContext.of(
+        scope: DesignScope.lifetime,
+        countryCodes: List<String>.generate(
+            60,
+            (i) => const [
+                  'fr', 'jp', 'us', 'ke', 'br', 'it', 'es', 'de', 'gr', 'pt',
+                  'th', 'vn', 'au', 'nz', 'mx', 'ca', 'gb', 'ie', 'nl', 'be',
+                  'ch', 'at', 'se', 'no', 'fi', 'dk', 'pl', 'cz', 'hr', 'in',
+                ][i % 30]),
+        garmentIsDark: false),
   };
   const seed = 1;
-  const perContext = 3;
+  const perContext = 2;
 
   testWidgets('device render capture', (tester) async {
     // A live context with an Overlay for the renderer.

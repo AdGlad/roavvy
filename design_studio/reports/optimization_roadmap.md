@@ -150,7 +150,7 @@ and the weakest product experience. That is where the leverage is.
   clean, regression Δ0.000, recipe-QA FRAGMENT-RISK 5→0.
 
 ### E-008 — typographicIntegration renders near-blank *(pixel-QA, needs on-device confirm)*
-- Auto-flagged by render_qa.py: `several-countries_typographicIntegration_2` at 0.4%
+- CONFIRMED on-device (2026-08-18): 2 instances near-blank. Auto-flagged by render_qa.py: `several-countries_typographicIntegration_2` at 0.4%
   coverage (BLANK). Same class as pre-F1 statementCount — a type-led family whose
   typography template renders a small name-list, not a hero (near-empty on dark
   garment). F1's statementHero covers only statementCount. **Status:** open; the

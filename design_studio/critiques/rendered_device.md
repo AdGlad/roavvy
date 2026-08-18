@@ -18,8 +18,8 @@ production-ready** — its whole premise ("the count IS the hero") is unrealised
 stat variant) and have the `typography` template render it hero-scale/centered, not
 as a footer caption. This is the C-01 follow-up, now confirmed *necessary*, not optional.
 
-## F2 — `negativeSpaceCutout` hero tiny/off-center — ❌ CONFIRMED STILL BROKEN (E-006 open)
-**Investigation (2026-08-17):** the sub-agent made NO change — it found `_clipPathFor` already scales country outlines via `getBounds()` (verified 97.7% fill on a Kenya *countryOutline* probe). But that CONTRADICTS the on-device capture, which ran on this exact code and still showed tiny/off-center — **Re-capture (2026-08-17) confirms it IS plain `countryOutline` (Kenya) rendering tiny/lower-right** — directly disproving the agent's probe. So `_clipPathFor`'s getBounds() scaling is NOT reaching the live grid render path (or heroScale/grid-zone sizing overrides it). Real render-layer bug; investigate the grid-zone→clip sizing in `GridFlagsCard`/`card_image_renderer`, not just `_clipPathFor`. Original finding below.
+## F2 — `negativeSpaceCutout` — ❌ STILL BROKEN; E-006 MITIGATION REFUTED by pixels (2026-08-18)
+**Investigation (2026-08-17):** the sub-agent made NO change — it found `_clipPathFor` already scales country outlines via `getBounds()` (verified 97.7% fill on a Kenya *countryOutline* probe). But that CONTRADICTS the on-device capture, which ran on this exact code and still showed tiny/off-center — **Fresh on-device re-capture (2026-08-18, AFTER the montage->fill-layout mitigation) STILL shows the outline tiny + lower-right** — so the E-006 mitigation was aimed at the wrong cause (montage/flag-fill). The OUTLINE ITSELF renders small (not a big outline with tiny flags), so this is a render-layer **clip-sizing** bug: the country/continent outline is not scaled to the frame despite recipe heroScale ~0.9. Earlier 2026-08-17 note: it IS plain `countryOutline` rendering tiny/lower-right — directly disproving the agent's probe. So `_clipPathFor`'s getBounds() scaling is NOT reaching the live grid render path (or heroScale/grid-zone sizing overrides it). Real render-layer bug; investigate the grid-zone→clip sizing in `GridFlagsCard`/`card_image_renderer`, not just `_clipPathFor`. Original finding below.
 
 **What:** `several-countries_negativeSpaceCutout_0` (and the lifetime/one-country
 instances) render the clipped silhouette **tiny (~8% of frame), lower-right**, despite
@@ -54,3 +54,22 @@ Lane A2 confirmed F1/F2/F3 as REAL (not headless artifacts) and correctly isolat
 F4 as sim-limited — exactly the pixel-truth the studio lacked. F1 especially: a
 family the analytic pipeline scored 0.79 and "accepted" is actually near-blank until
 its content is wired. The scorer measures parameters; only pixels show the design.
+
+
+---
+
+## Fresh on-device verdicts (2026-08-18, all latest fixes in)
+Ran the pixel-QA (`render_qa.py`) + eyeball on a fresh capture:
+- **E-006 negativeSpaceCutout — STILL BROKEN.** Outline renders tiny/lower-right;
+  the montage mitigation did NOT fix it. Real render-layer clip-sizing bug. (See F2.)
+- **E-008 typographicIntegration — CONFIRMED near-blank** (0.4% & 1.1% coverage,
+  2 instances). Same class as pre-F1 statementCount: type-led family renders a
+  small name-list, not a hero. Needs the statementHero-style treatment extended
+  to this family (or a typography-template hero mode).
+- **statementCount — OK** (renders the "28 / COUNTRIES" hero; pixel-QA flags it
+  TINY only because white-ink-on-dark is thin coverage — a **metric caveat**, not a
+  defect: `render_qa.py`'s coverage% under-reads white-text designs on dark garments).
+- **dominantAccent — off-center** (centroid 0.17–0.28). Likely by-design (dominant
+  hero + small accent is asymmetric); low priority, confirm intent before touching.
+- **FLAG-CLASH fix** validated at recipe level (228->78); needs a multi-flag design
+  in a future capture to eyeball the unification.
