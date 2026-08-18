@@ -30,51 +30,51 @@
       }
     },
     "two-countries": {
-      "meanQuality": 0.797,
-      "topQuality": 0.847,
-      "rejectionRate": 0.007,
-      "familyDiversity": 7,
-      "familyCounts": {
-        "chronoSequence": 2,
-        "dominantAccent": 5,
-        "duoBlend": 4,
-        "negativeSpaceCutout": 4,
-        "singleHero": 2,
-        "splitField": 3,
-        "typographicIntegration": 4
-      }
-    },
-    "several-countries": {
-      "meanQuality": 0.787,
-      "topQuality": 0.854,
+      "meanQuality": 0.798,
+      "topQuality": 0.846,
       "rejectionRate": 0.0,
       "familyDiversity": 7,
       "familyCounts": {
         "chronoSequence": 2,
-        "dominantAccent": 5,
+        "dominantAccent": 4,
+        "duoBlend": 3,
         "negativeSpaceCutout": 4,
-        "repetitionField": 3,
+        "singleHero": 4,
         "splitField": 4,
+        "typographicIntegration": 3
+      }
+    },
+    "several-countries": {
+      "meanQuality": 0.785,
+      "topQuality": 0.85,
+      "rejectionRate": 0.0,
+      "familyDiversity": 7,
+      "familyCounts": {
+        "chronoSequence": 1,
+        "dominantAccent": 6,
+        "negativeSpaceCutout": 5,
+        "repetitionField": 3,
+        "splitField": 3,
         "statementCount": 3,
         "typographicIntegration": 3
       }
     },
     "year": {
       "meanQuality": 0.784,
-      "topQuality": 0.827,
+      "topQuality": 0.826,
       "rejectionRate": 0.0,
       "familyDiversity": 5,
       "familyCounts": {
-        "chronoSequence": 5,
+        "chronoSequence": 4,
         "dominantAccent": 4,
         "negativeSpaceCutout": 6,
-        "splitField": 4,
+        "splitField": 5,
         "typographicIntegration": 5
       }
     },
     "region-europe": {
-      "meanQuality": 0.776,
-      "topQuality": 0.884,
+      "meanQuality": 0.772,
+      "topQuality": 0.877,
       "rejectionRate": 0.021,
       "familyDiversity": 7,
       "familyCounts": {
@@ -88,8 +88,8 @@
       }
     },
     "lifetime": {
-      "meanQuality": 0.755,
-      "topQuality": 0.791,
+      "meanQuality": 0.75,
+      "topQuality": 0.786,
       "rejectionRate": 0.438,
       "familyDiversity": 5,
       "familyCounts": {
@@ -101,7 +101,7 @@
       }
     },
     "massive-light": {
-      "meanQuality": 0.723,
+      "meanQuality": 0.72,
       "topQuality": 0.763,
       "rejectionRate": 0.625,
       "familyDiversity": 4,
@@ -114,6 +114,6 @@
     }
   },
   "aggregate": {
-    "meanQuality": 0.793
+    "meanQuality": 0.792
   }
 }

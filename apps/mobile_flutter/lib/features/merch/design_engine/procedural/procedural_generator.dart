@@ -297,8 +297,17 @@ class ProceduralDesignGenerator {
         : rng.stream('trH').nextRange(0.0, 0.12);
     final fade =
         (f.distress * 0.5 * rng.stream('trF').nextRange(0.4, 1.0)).clamp(0.0, 0.5);
-    final flagTreatment = template == CardTemplateType.typography &&
-            rng.stream('flag').chance(0.3)
+    // R-FLAG-01 / R-COL-01: many flags shown full-colour with no muting treatment
+    // clash (garish, reads as clutter). When a multi-country set (>=4) would land
+    // full-colour AND the colour treatment isn't already taming the palette, unify
+    // the flags to a single ink most of the time so they read as ONE designed
+    // graphic. Single-flag heroes stay full-colour (R-FLAG-01 exception); some
+    // variety is preserved by not forcing every case.
+    final wouldClash = ctx.countryCount >= 4 &&
+        colourTreatment == ColorTreatment.none;
+    final flagTreatment = (template == CardTemplateType.typography &&
+                rng.stream('flag').chance(0.3)) ||
+            (wouldClash && rng.stream('flagMulti').chance(0.75))
         ? FlagTreatment.monochrome
         : FlagTreatment.fullColour;
 
@@ -438,11 +447,14 @@ class ProceduralDesignGenerator {
   }
 
   MerchDensity _pickDensity(DesignDensityClass c, DeterministicRng rng) {
+    // [sparse, balanced, dense]. R-NEG-01: a few flags must never be cramped, so
+    // small sets get no `dense`. R-MERCH-02: large sets read as a grid, not a
+    // sparse scatter, so `large` gets no `sparse`.
     final weights = switch (c) {
       DesignDensityClass.solo => const [0.5, 0.5, 0.0],
-      DesignDensityClass.small => const [0.3, 0.6, 0.1],
+      DesignDensityClass.small => const [0.35, 0.65, 0.0], // was [.3,.6,.1] — no dense (R-NEG-01)
       DesignDensityClass.medium => const [0.15, 0.6, 0.25],
-      DesignDensityClass.large => const [0.05, 0.45, 0.5],
+      DesignDensityClass.large => const [0.0, 0.5, 0.5], // was [.05,.45,.5] — no sparse (R-MERCH-02)
       DesignDensityClass.massive => const [0.0, 0.35, 0.65],
     };
     return rng.pickWeighted(

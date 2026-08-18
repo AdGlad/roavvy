@@ -76,3 +76,39 @@ regression Δ0.000, recipe-QA FRAGMENT-RISK 5→0.
 find (pixel-QA / recipe-QA over a large sweep) → confirm pattern → fix the
 recipe-confirmable ones → re-sweep → verify 0 → log render-layer/ambiguous ones
 (E-008) for on-device. Re-runnable any time via the two commands above.
+
+---
+
+## Extension: comprehensive KB design-rule QA + fixes (2026-08-18)
+
+Extended `recipe_qa.py` beyond render-defect patterns to encode **graphic-design
+rules** from the Knowledge Base, then ran the identify→improve loop over the
+960-design sample.
+
+**New rule checks (recipe-detectable):**
+- `FLAG-CLASH` — R-FLAG-01/R-COL-01: ≥4 flags shown full-colour with no muting
+  colour treatment (garish multi-flag clutter).
+- `CRAMPED` — R-NEG-01: ≤3 countries at `dense` density.
+- `DENSITY-MISMATCH` — R-MERCH-02: 16+ at `sparse`, or ≤2 at `dense`.
+
+**Identified (before):** 252/960 violations (26%) — FLAG-CLASH 228, DENSITY-MISMATCH
+30, CRAMPED 6. FLAG-CLASH spanned every family/context (38% of all multi-country
+designs).
+
+**Improved the generator (replace poor → better):**
+1. **Multi-flag unification** (`procedural_generator._construct`): when a
+   multi-country (≥4) set would land full-colour with no muting treatment, unify
+   the flags to a single ink 75% of the time so many flags read as ONE graphic
+   (R-FLAG-01), keeping ~25% variety and single-flag heroes full-colour.
+2. **Density tables** (`_pickDensity`): `small` → no `dense` (R-NEG-01), `large` →
+   no `sparse` (R-MERCH-02).
+
+**Result (after):** **78/960 violations (8%) — a 69% reduction.** DENSITY-MISMATCH
+and CRAMPED eliminated (→0); FLAG-CLASH 228→78 (remaining = intentional variety +
+duotone/muted cases). Regression green (≤0.005 dip on 3 large contexts, within the
+0.03 tolerance; baseline regenerated). No render-defect patterns
+(TILE/CUTOUT/FRAGMENT) reappeared.
+
+**The loop is now rule-driven:** the QA measures KB-rule compliance across hundreds
+of designs; generator changes are validated by the drop in flagged designs +
+regression. Re-run: `recipe_qa.py <batch.json>` after any generator change.

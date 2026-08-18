@@ -24,6 +24,9 @@ def field(r, *names, default=None):
         if n in r and r[n] is not None: return r[n]
     return default
 
+# Colour treatments that tame/unify a multi-flag palette (KB R-FLAG-01/R-COL-04).
+MUTING = {'muted', 'duotone', 'monoInk', 'vintageWarm'}
+
 def flags_for(d):
     r = d.get('recipe', d)
     fam = field(r, 'family', default='?')
@@ -32,14 +35,25 @@ def flags_for(d):
     rows = field(r, 'rowCount', default=1) or 1
     n = len(field(r, 'countryCodes', default=[]) or [])
     size = field(r, 'imageSize', default='medium')
+    density = field(r, 'density', default='balanced')
+    flagT = field(r, 'flagTreatment', default='fullColour')
+    colT = field(r, 'colourTreatment', default='none')
     q = d.get('quality')
     out = []
+    # ── render-defect patterns (confirmed on pixels) ──────────────────────────
     if n == 1 and mask == 'none' and rows and rows > 1:
         out.append('TILE-REPEAT')                       # E-005
     if fam == 'negativeSpaceCutout' and layout == 'montage':
         out.append('CUTOUT-UNDERFILL')                  # E-006
     if fam == 'dominantAccent' and size == 'small' and layout == 'montage' and mask == 'circle':
-        out.append('FRAGMENT-RISK')                     # dominantAccent
+        out.append('FRAGMENT-RISK')                     # E-007
+    # ── comprehensive KB design-rule checks ───────────────────────────────────
+    if n >= 4 and flagT == 'fullColour' and colT not in MUTING:
+        out.append('FLAG-CLASH')                        # R-FLAG-01 / R-COL-01
+    if n <= 3 and density == 'dense':
+        out.append('CRAMPED')                           # R-NEG-01
+    if (n >= 16 and density == 'sparse') or (n <= 2 and density == 'dense'):
+        out.append('DENSITY-MISMATCH')                  # R-MERCH-02
     if q is not None and q < 0.50:
         out.append('LOW-QUALITY')
     return fam, out
