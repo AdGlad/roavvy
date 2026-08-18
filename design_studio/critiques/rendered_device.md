@@ -73,3 +73,19 @@ Ran the pixel-QA (`render_qa.py`) + eyeball on a fresh capture:
   hero + small accent is asymmetric); low priority, confirm intent before touching.
 - **FLAG-CLASH fix** validated at recipe level (228->78); needs a multi-flag design
   in a future capture to eyeball the unification.
+
+
+## E-006 — instrumented diagnosis (2026-08-18): it's FLAG COVERAGE, not the clip
+A throwaway probe measured the real clip geometry (CountryPathService.pathFor +
+`clipPathForTesting` with the real title/branding offsets 28/20):
+- jp  pathBounds 594x533 -> clipBounds **241x216** (96% of the 224-tall grid zone)
+- ke  -> 178x216, africa -> 192x216, europe -> 240x216 — all **FILL the zone**.
+
+So `_clipPathFor` is CORRECT (the F2 agent's claim was right; my montage mitigation
+was wrong-targeted). CardImageRenderer(grid) builds GridFlagsCard, which uses this
+same fill-correct clip. Therefore the tiny render is NOT the clip — the **flag
+layer does not cover the grid zone** (despite `coverGrid: true`), so only the small
+flag-covered fragment is visible within the correctly-large outline clip → the tiny
+lower-right sliver. **Real fix target:** `FlagGridLayoutEngine.compute(coverGrid:
+true)` — make the flag tiles actually fill the grid zone for the clip case
+(especially few-flag sets). Needs a layout-engine probe + on-device re-verify.
