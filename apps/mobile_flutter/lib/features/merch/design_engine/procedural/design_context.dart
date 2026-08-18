@@ -29,6 +29,7 @@ class DesignContext {
     required this.allCountryCodes,
     required this.continents,
     required this.dominantContinent,
+    required this.dominantContinentShare,
     required this.signatureCountries,
     required this.density,
     required this.garmentIsDark,
@@ -76,12 +77,19 @@ class DesignContext {
         dominant = e.key;
       }
     }
+    // Fraction of the visible set that belongs to the dominant continent. A
+    // continent-outline mask only tells an honest story when this is high; a
+    // one-country-per-continent spread (share ≈ 0.2) must NOT be masked to a
+    // single continent (it would represent just that one country).
+    final withContinent = counts.values.fold<int>(0, (s, v) => s + v);
+    final dominantShare = withContinent == 0 ? 0.0 : best / withContinent;
     return DesignContext._(
       scope: scope,
       countryCodes: codes,
       allCountryCodes: all,
       continents: continents,
       dominantContinent: dominant,
+      dominantContinentShare: dominantShare,
       signatureCountries: signatureCountries == null
           ? const []
           : _canon(signatureCountries).where(codes.contains).toList(),
@@ -105,6 +113,11 @@ class DesignContext {
 
   final Set<String> continents;
   final String? dominantContinent;
+
+  /// Fraction (0–1) of the visible country set that belongs to
+  /// [dominantContinent]. Used to gate the continent-outline mask so it is only
+  /// chosen when the countries genuinely cluster in one continent.
+  final double dominantContinentShare;
 
   /// Rare/standout countries worth featuring (subset of [countryCodes]).
   final List<String> signatureCountries;

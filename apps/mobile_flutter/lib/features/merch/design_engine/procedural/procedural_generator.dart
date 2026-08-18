@@ -238,10 +238,19 @@ class ProceduralDesignGenerator {
     final maskCode = _maskCode(mask, ctx, hero);
 
     // Layout mode.
-    final layoutMode = isGrid
+    var layoutMode = isGrid
         ? spec.layoutModes[
             rng.stream('layout').nextInt(spec.layoutModes.length)]
         : FlagGridLayoutMode.packedRow;
+    // E-006 (on-device pixels): `treemap`/`montage` pack into a rectangle and do
+    // not honour coverGrid, so inside a clip they cluster to one side and leave
+    // the shape half-empty. A clipped design must use a tiling layout that fills
+    // the clip bounds — force packedRow when a mask is present.
+    if (mask != GridClipShape.none &&
+        (layoutMode == FlagGridLayoutMode.treemap ||
+            layoutMode == FlagGridLayoutMode.montage)) {
+      layoutMode = FlagGridLayoutMode.packedRow;
+    }
 
     // Rows: from set size + orientation, clamped; hero families stay shallow.
     final isPortrait = rng.stream('orient').chance(_portraitProb(spec, template));
@@ -259,8 +268,21 @@ class ProceduralDesignGenerator {
     // must render as ONE bold hero flag — never a tiled N×N grid of the same
     // flag (R-VH-01). Only a clip shape (outline/silhouette/circle) may host a
     // single flag at rowCount > 1, because then the flag fills a hero shape.
-    final resolvedRowCount =
-        (n == 1 && mask == GridClipShape.none) ? 1 : rowCount;
+    //
+    // E-006 (found via C-00 on-device pixels): a clip mask with MANY countries
+    // and rowCount 1 collapses to a single giant flag inside the shape — the
+    // clip must be tiled with a real flag grid. Derive a square-ish row count
+    // from the set size so the flags fill the whole clipped zone.
+    final int resolvedRowCount;
+    if (n == 1 && mask == GridClipShape.none) {
+      resolvedRowCount = 1;
+    } else if (mask != GridClipShape.none && n >= 4) {
+      final tileRows =
+          math.sqrt(n * (isPortrait ? 1.35 : 0.72)).round().clamp(2, 8);
+      resolvedRowCount = math.max(rowCount, tileRows);
+    } else {
+      resolvedRowCount = rowCount;
+    }
 
     // Hero scale within the family's legal band.
     final (loScale, hiScale) = spec.heroScaleRange;
@@ -268,7 +290,13 @@ class ProceduralDesignGenerator {
         hiScale <= 0 ? 0.0 : rng.stream('scale').nextRange(loScale, hiScale);
 
     // Density / jitter (montage is looser than a tidy grid).
-    final density = _pickDensity(ctx.density, rng.stream('density'));
+    // E-006: a clipped design (cutout/circle/outline) must fill its shape — a
+    // `sparse` scatter leaves the clip half-empty (on-device evidence), so any
+    // masked recipe is bumped to at least `balanced`.
+    var density = _pickDensity(ctx.density, rng.stream('density'));
+    if (mask != GridClipShape.none && density == MerchDensity.sparse) {
+      density = MerchDensity.balanced;
+    }
     final jitter = layoutMode == FlagGridLayoutMode.montage
         ? rng.stream('jitter').nextRange(0.15, 0.5)
         : rng.stream('jitter').nextRange(0.0, 0.22);
@@ -397,7 +425,8 @@ class ProceduralDesignGenerator {
     final legal = <GridClipShape>[
       for (final m in spec.masks)
         if (resolvable.contains(m) &&
-            _maskLegal(m, ctx.countryCount, ctx.dominantContinent, hero))
+            _maskLegal(m, ctx.countryCount, ctx.dominantContinent,
+                ctx.dominantContinentShare, hero))
           m,
     ];
     if (legal.isEmpty) return GridClipShape.none;
@@ -409,12 +438,16 @@ class ProceduralDesignGenerator {
     return rng.pickWeighted(legal, weights);
   }
 
-  bool _maskLegal(GridClipShape m, int n, String? continent, String? hero) {
+  bool _maskLegal(
+      GridClipShape m, int n, String? continent, double continentShare, String? hero) {
     switch (m) {
       case GridClipShape.countryOutline:
         return n == 1 && hero != null;
       case GridClipShape.continentOutline:
-        return continent != null;
+        // Only when the countries genuinely cluster in one continent: a strong
+        // majority must belong to it, else the mask would represent a fraction
+        // of the set (e.g. 1-of-5 for a globe-spanning trip). R-STORY-03.
+        return continent != null && continentShare >= 0.6;
       case GridClipShape.animalSilhouette:
         // Single-country only, and only when a BUNDLED silhouette exists (local).
         return n == 1 &&
