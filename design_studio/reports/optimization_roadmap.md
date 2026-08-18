@@ -124,8 +124,10 @@ and the weakest product experience. That is where the leverage is.
   into a small cluster.
 - **Mitigation applied:** `negativeSpaceCutout.layoutModes` montage→[packedRow,
   normalizedGrid] (the engine's fill-the-canvas modes). analyze clean, regression
-  Δ0.000. **Status:** 🟡 mitigation pending on-device verify. If still tiny, next
-  step is runtime instrumentation of tile-rects vs clip-bounds in the renderer.
+  Δ0.000. **Status:** ✅ RESOLVED (2026-08-18). Instrumented: clip + coverGrid are
+  CORRECT (3 wrong hypotheses disproven with measurements). Real cause = too few
+  flags / thin outlines / white-flag invisibility. Fix: minCountries 1->3. Regression
+  green; 0 single/two-country cutouts. Residual: white-flag contrast (separate).
 
 ### E-007 — dominantAccent fragmented (small+montage+circle) *(confirmed weak, Lane A2)*
 - Legal but weak combo (heroScale 0.39 + imageSize small + montage + circle) renders

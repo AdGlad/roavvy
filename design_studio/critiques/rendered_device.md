@@ -89,3 +89,16 @@ flag-covered fragment is visible within the correctly-large outline clip → the
 lower-right sliver. **Real fix target:** `FlagGridLayoutEngine.compute(coverGrid:
 true)` — make the flag tiles actually fill the grid zone for the clip case
 (especially few-flag sets). Needs a layout-engine probe + on-device re-verify.
+
+
+## E-006 — RESOLVED at generator level (2026-08-18)
+The instrumented finding (clip + coverGrid correct; sparse renders come from too
+few flags in a silhouette, thin outlines, and near-invisible white flags on light
+garments) led to a design-suitability fix, not a render change:
+`negativeSpaceCutout.minCountries 1 -> 3` — a "flags packed in a silhouette" needs
+several flags; single/pair country is `singleHero`'s job (R-VH-01). Validated:
+analyze clean, regression green (no diversity/quality regression), 960-sweep shows
+0 single/two-country cutouts (min count now 4). **Residual (minor, separate):**
+white/light flags in a cutout on a light garment still under-render — a flag-
+CONTRAST concern for a future treatment fix, not a clip bug. On-device confirmation
+of the multi-flag cutout look: run the widened 8-context capture.

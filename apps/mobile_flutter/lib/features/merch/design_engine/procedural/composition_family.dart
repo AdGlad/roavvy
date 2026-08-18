@@ -213,7 +213,12 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
   CompositionFamily.negativeSpaceCutout: CompositionFamilySpec(
     family: CompositionFamily.negativeSpaceCutout,
     hierarchy: HierarchyMode.singleFocal,
-    minCountries: 1,
+    // E-006 (instrumented: clip + coverGrid are correct; the real issue is
+    // suitability): "flags PACKED inside a silhouette" needs several flags — with
+    // 1–2 it renders sparse (thin outlines fit few; a mostly-white flag on a light
+    // garment is near-invisible). Single/pair country is singleHero's job (R-VH-01),
+    // so require >=3 flags to actually fill a cutout.
+    minCountries: 3,
     maxCountries: 80,
     templates: [CardTemplateType.grid],
     masks: [
