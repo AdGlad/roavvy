@@ -1,0 +1,13 @@
+name: design_forge
+description: >-
+  Standalone, cross-platform procedural T-shirt design engine (core). Pure Dart,
+  no dart:ui — deterministic DesignRecipe model, RecipeGenerator interface, and
+  platform-independent geometry. Rendering lives in design_forge_render.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dev_dependencies:
+  test: ^1.25.0
