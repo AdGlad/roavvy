@@ -111,8 +111,19 @@ void main() {
     test('ClipShape.needsCode flags single-country outline/silhouette shapes', () {
       expect(ClipShape.countryOutline.needsCode, isTrue);
       expect(ClipShape.animalSilhouette.needsCode, isTrue);
+      expect(ClipShape.passportStampOutline.needsCode, isTrue);
+      expect(ClipShape.passportPage.needsCode, isTrue);
       expect(ClipShape.heart.needsCode, isFalse);
       expect(ClipShape.circle.needsCode, isFalse);
+    });
+
+    test('passport clip shapes are registered + browsable in the Travel family', () {
+      final travel = clipShapesByFamily(ShapeFamily.travel).map((m) => m.id).toSet();
+      expect(travel, containsAll(<String>['passportStampOutline', 'passportPage']));
+      // Both are resolver-backed with the right kind.
+      expect(clipShapeMetaById('passportStampOutline')!.resolverKind,
+          ClipShape.passportStampOutline);
+      expect(clipShapeMetaById('passportPage')!.resolverKind, ClipShape.passportPage);
     });
   });
 }

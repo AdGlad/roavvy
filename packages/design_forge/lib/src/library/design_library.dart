@@ -1,0 +1,212 @@
+import 'dart:convert';
+
+import '../recipe/design_recipe.dart';
+
+/// Abstract local persistence for the design library — the engine core stays
+/// free of `dart:io` and platform APIs. Each host supplies its own:
+///   • macOS Design Lab → a JSON file on disk;
+///   • the iPhone app → a file in the app's documents directory (path_provider);
+///   • tests → an in-memory store.
+abstract class DesignStore {
+  /// The persisted library JSON, or null if nothing has been saved yet.
+  Future<String?> read();
+
+  /// Persist the library JSON.
+  Future<void> write(String contents);
+}
+
+/// A design the user chose to keep: the **full reproducible recipe** plus how it
+/// was used. Because a [DesignRecipe] is deterministic and self-contained, the
+/// recipe alone re-renders the exact image at any resolution later — no raster
+/// needs to be stored. [id] is the recipe's content hash.
+class SavedDesign {
+  const SavedDesign({
+    required this.recipe,
+    this.liked = false,
+    this.usedForTshirt = false,
+    required this.savedAtEpochMs,
+    this.usedAtEpochMs,
+    this.note,
+  });
+
+  final DesignRecipe recipe;
+
+  /// The user "hearted" this design.
+  final bool liked;
+
+  /// This design was used to order/print an actual t-shirt.
+  final bool usedForTshirt;
+
+  final int savedAtEpochMs;
+  final int? usedAtEpochMs;
+  final String? note;
+
+  /// Content-hash id (stable across sessions and re-renders).
+  String get id => recipe.recipeId;
+
+  SavedDesign copyWith({
+    bool? liked,
+    bool? usedForTshirt,
+    int? usedAtEpochMs,
+    String? note,
+  }) =>
+      SavedDesign(
+        recipe: recipe,
+        liked: liked ?? this.liked,
+        usedForTshirt: usedForTshirt ?? this.usedForTshirt,
+        savedAtEpochMs: savedAtEpochMs,
+        usedAtEpochMs: usedAtEpochMs ?? this.usedAtEpochMs,
+        note: note ?? this.note,
+      );
+
+  Map<String, Object?> toJson() => {
+        'recipe': recipe.toJson(),
+        if (liked) 'liked': true,
+        if (usedForTshirt) 'usedForTshirt': true,
+        'savedAt': savedAtEpochMs,
+        if (usedAtEpochMs != null) 'usedAt': usedAtEpochMs,
+        if (note != null) 'note': note,
+      };
+
+  factory SavedDesign.fromJson(Map<String, Object?> j) => SavedDesign(
+        recipe: DesignRecipe.fromJson((j['recipe'] as Map).cast<String, Object?>()),
+        liked: j['liked'] == true,
+        usedForTshirt: j['usedForTshirt'] == true,
+        savedAtEpochMs: (j['savedAt'] as num?)?.toInt() ?? 0,
+        usedAtEpochMs: (j['usedAt'] as num?)?.toInt(),
+        note: j['note'] as String?,
+      );
+}
+
+/// An in-memory collection of [SavedDesign]s keyed by recipe id, with
+/// JSON (de)serialisation. Pure data — the host owns persistence via a
+/// [DesignStore] (see [PersistentDesignLibrary]).
+///
+/// Policy: a design is only kept while it is *selected* (liked or used for a
+/// t-shirt). Un-liking a design that was never used drops it entirely, so the
+/// library never accumulates the whole generated batch — only what the user chose.
+class DesignLibrary {
+  DesignLibrary([Iterable<SavedDesign> entries = const []])
+      : _byId = {for (final e in entries) e.id: e};
+
+  static const schemaVersion = 1;
+  final Map<String, SavedDesign> _byId;
+
+  /// All kept designs, newest first.
+  List<SavedDesign> get entries => _byId.values.toList()
+    ..sort((a, b) => b.savedAtEpochMs.compareTo(a.savedAtEpochMs));
+
+  List<SavedDesign> get liked => entries.where((e) => e.liked).toList();
+
+  /// Designs used to order/print real t-shirts, most recently used first.
+  List<SavedDesign> get usedForTshirt {
+    final out = entries.where((e) => e.usedForTshirt).toList();
+    out.sort((a, b) => (b.usedAtEpochMs ?? b.savedAtEpochMs)
+        .compareTo(a.usedAtEpochMs ?? a.savedAtEpochMs));
+    return out;
+  }
+
+  bool isLiked(String id) => _byId[id]?.liked ?? false;
+  bool isUsedForTshirt(String id) => _byId[id]?.usedForTshirt ?? false;
+  bool contains(String id) => _byId.containsKey(id);
+  SavedDesign? get(String id) => _byId[id];
+  int get length => _byId.length;
+
+  /// Heart a design — stores its full recipe so it can be reproduced later.
+  void like(DesignRecipe recipe, {required int nowMs}) {
+    final existing = _byId[recipe.recipeId];
+    _byId[recipe.recipeId] = existing?.copyWith(liked: true) ??
+        SavedDesign(recipe: recipe, liked: true, savedAtEpochMs: nowMs);
+  }
+
+  /// Remove the heart. If the design was never used for a t-shirt it is dropped
+  /// entirely (we don't keep un-selected designs).
+  void unlike(String id) {
+    final e = _byId[id];
+    if (e == null) return;
+    if (e.usedForTshirt) {
+      _byId[id] = e.copyWith(liked: false);
+    } else {
+      _byId.remove(id);
+    }
+  }
+
+  /// Toggle a like, returning the new liked state.
+  bool toggleLike(DesignRecipe recipe, {required int nowMs}) {
+    if (isLiked(recipe.recipeId)) {
+      unlike(recipe.recipeId);
+      return false;
+    }
+    like(recipe, nowMs: nowMs);
+    return true;
+  }
+
+  /// Mark (or unmark) a design as used for a real t-shirt. Marking also keeps
+  /// the recipe even if it isn't liked; unmarking drops it if not liked.
+  void setUsedForTshirt(DesignRecipe recipe, bool used, {required int nowMs}) {
+    final existing = _byId[recipe.recipeId];
+    if (used) {
+      _byId[recipe.recipeId] = (existing ??
+              SavedDesign(recipe: recipe, savedAtEpochMs: nowMs))
+          .copyWith(usedForTshirt: true, usedAtEpochMs: nowMs);
+    } else if (existing != null) {
+      if (existing.liked) {
+        _byId[recipe.recipeId] = existing.copyWith(usedForTshirt: false);
+      } else {
+        _byId.remove(recipe.recipeId);
+      }
+    }
+  }
+
+  Map<String, Object?> toJson() => {
+        'version': schemaVersion,
+        'designs': [for (final e in entries) e.toJson()],
+      };
+
+  factory DesignLibrary.fromJson(Map<String, Object?> j) => DesignLibrary([
+        for (final d in (j['designs'] as List? ?? const []))
+          SavedDesign.fromJson((d as Map).cast<String, Object?>()),
+      ]);
+
+  String encode() => jsonEncode(toJson());
+
+  factory DesignLibrary.decode(String? jsonStr) {
+    if (jsonStr == null || jsonStr.trim().isEmpty) return DesignLibrary();
+    try {
+      return DesignLibrary.fromJson(
+          (jsonDecode(jsonStr) as Map).cast<String, Object?>());
+    } catch (_) {
+      return DesignLibrary();
+    }
+  }
+}
+
+/// A [DesignLibrary] backed by a [DesignStore]: load once, then persist after
+/// every mutation. The same class works on macOS and iOS — only the injected
+/// [DesignStore] differs.
+class PersistentDesignLibrary {
+  PersistentDesignLibrary(this._store);
+  final DesignStore _store;
+  DesignLibrary _lib = DesignLibrary();
+
+  DesignLibrary get library => _lib;
+
+  Future<void> load() async {
+    _lib = DesignLibrary.decode(await _store.read());
+  }
+
+  Future<void> _persist() => _store.write(_lib.encode());
+
+  Future<bool> toggleLike(DesignRecipe r, {int? nowMs}) async {
+    final liked =
+        _lib.toggleLike(r, nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
+    await _persist();
+    return liked;
+  }
+
+  Future<void> setUsedForTshirt(DesignRecipe r, bool used, {int? nowMs}) async {
+    _lib.setUsedForTshirt(r, used,
+        nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
+    await _persist();
+  }
+}

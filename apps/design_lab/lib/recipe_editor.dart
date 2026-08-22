@@ -59,6 +59,8 @@ class RecipeDraft {
         rippleAmp = r.effects?.rippleAmp ?? 0.0,
         rippleFreq = r.effects?.rippleFreq ?? 8.0,
         tieDye = r.effects?.tieDye ?? 0.0,
+        shatter = r.effects?.shatter ?? 0.0,
+        shatterSpikes = r.effects?.shatterSpikes ?? 0.0,
         // palette
         paletteOn = r.palette != null,
         strategy = r.palette?.strategy ?? ColourStrategy.flagDerived,
@@ -127,6 +129,7 @@ class RecipeDraft {
   bool fxOn;
   double distress, grain, fade, halftone, halftoneScale, rippleAmp, rippleFreq;
   double tieDye;
+  double shatter, shatterSpikes;
 
   bool paletteOn;
   ColourStrategy strategy;
@@ -143,6 +146,8 @@ class RecipeDraft {
       rippleAmp: rippleAmp,
       rippleFreq: rippleFreq,
       tieDye: tieDye,
+      shatter: shatter,
+      shatterSpikes: shatterSpikes,
     );
     final flags = effectiveFlags();
     final family = switch (pattern) {
@@ -594,8 +599,14 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
     if (kind == ClipShape.continentOutline) return widget.continents.isNotEmpty;
     if (kind == ClipShape.animalSilhouette ||
         kind == ClipShape.plantSilhouette ||
-        kind == ClipShape.landmarkSilhouette) {
+        kind == ClipShape.landmarkSilhouette ||
+        kind == ClipShape.passportStampOutline) {
       return _isSingleCountry && _countrySlugsFor(kind!).isNotEmpty;
+    }
+    // The passport page overlays this country's entry + exit stamps.
+    if (kind == ClipShape.passportPage) {
+      return _isSingleCountry &&
+          _countrySlugsFor(ClipShape.passportStampOutline).isNotEmpty;
     }
     if (m.source == ClipShapeSource.svgAsset) return false; // custom SVG: later
     return true;
@@ -662,7 +673,10 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
 
   String? _defaultCodeForId(ClipShapeMeta m) {
     final kind = m.resolverKind;
-    if (kind == ClipShape.countryOutline) return _draft.baseFlags.first.code;
+    // countryOutline + passportPage key off the country ISO code, not a slug.
+    if (kind == ClipShape.countryOutline || kind == ClipShape.passportPage) {
+      return _draft.baseFlags.first.code;
+    }
     if (kind == ClipShape.continentOutline) {
       return widget.continents.isEmpty ? null : widget.continents.first;
     }
@@ -708,7 +722,8 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
     final kind = m.resolverKind;
     if (kind == ClipShape.animalSilhouette ||
         kind == ClipShape.plantSilhouette ||
-        kind == ClipShape.landmarkSilhouette) {
+        kind == ClipShape.landmarkSilhouette ||
+        kind == ClipShape.passportStampOutline) {
       return _countrySlugsFor(kind!).isEmpty ? const [] : [_silhouettePicker(kind)];
     }
     if (kind == ClipShape.countryOutline) {
@@ -725,6 +740,16 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
         _codeDropdown('Region', widget.continents,
             _draft.clipCode ?? widget.continents.first,
             (v) => _draft.clipCode = v),
+      ];
+    }
+    if (kind == ClipShape.passportPage) {
+      // No picker — it uses the country's own entry + exit stamps.
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Text('Overlays this country’s entry + exit stamps.',
+              style: TextStyle(fontSize: 11, color: Colors.white60)),
+        ),
       ];
     }
     return const [];
@@ -806,6 +831,8 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
         return 'Plant';
       case ClipShape.landmarkSilhouette:
         return 'Landmark';
+      case ClipShape.passportStampOutline:
+        return 'Stamp';
       default:
         return 'Animal';
     }
@@ -848,6 +875,10 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
               (v) => _change(() => _draft.rippleAmp = v)),
           _slider('Tie-dye', _draft.tieDye, 0, 1,
               (v) => _change(() => _draft.tieDye = v)),
+          _slider('Shatter', _draft.shatter, 0, 1,
+              (v) => _change(() => _draft.shatter = v)),
+          _slider('Shatter spikes', _draft.shatterSpikes, 0, 1,
+              (v) => _change(() => _draft.shatterSpikes = v)),
           _slider('Ripple freq', _draft.rippleFreq, 1, 16,
               (v) => _change(() => _draft.rippleFreq = v)),
         ],

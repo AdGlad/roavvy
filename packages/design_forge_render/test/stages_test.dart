@@ -107,6 +107,105 @@ void main() {
         expect(a.imageHash, isNot(b.imageHash));
       });
     });
+
+    testWidgets('shatter warps the artwork, deterministically', (tester) async {
+      await tester.runAsync(() async {
+        final r = CanvasRenderer(assets: _resolver());
+        final plain = DesignRecipe(
+          seed: 7,
+          content: const RecipeContent(flags: [FlagRef('br')]),
+          composition: const Composition(family: DesignFamily.singleHero),
+        );
+        final shattered =
+            plain.copyWith(effects: const Effects(shatter: 0.85));
+        final a = await r.render(plain, RenderTarget.preview(size: 200));
+        final b = await r.render(shattered, RenderTarget.preview(size: 200));
+        final b2 = await r.render(shattered, RenderTarget.preview(size: 200));
+        expect(b.imageHash, isNot(a.imageHash), reason: 'shatter must alter it');
+        expect(b.pngBytes.length, greaterThan(200), reason: 'non-blank');
+        expect(b.imageHash, b2.imageHash, reason: 'deterministic for same seed');
+      });
+    });
+  });
+
+  group('halftone screen', () {
+    // Mean absolute per-channel difference between two images over a central
+    // INTERIOR patch. The original defect left the interior identical to the
+    // unscreened flag (only an edge fringe changed) → this would be ~0; a screen
+    // that re-covers the whole area changes the interior → this is large.
+    Future<double> interiorDiff(ui.Image a, ui.Image b) async {
+      final da = (await a.toByteData())!.buffer.asUint8List();
+      final db = (await b.toByteData())!.buffer.asUint8List();
+      final w = a.width, h = a.height;
+      final x0 = w * 4 ~/ 10, x1 = w * 6 ~/ 10;
+      final y0 = h * 4 ~/ 10, y1 = h * 6 ~/ 10;
+      var sum = 0.0;
+      var n = 0;
+      for (var y = y0; y < y1; y++) {
+        for (var x = x0; x < x1; x++) {
+          final i = (y * w + x) * 4;
+          sum += (da[i] - db[i]).abs() +
+              (da[i + 1] - db[i + 1]).abs() +
+              (da[i + 2] - db[i + 2]).abs();
+          n += 3;
+        }
+      }
+      return sum / n;
+    }
+
+    DesignRecipe base(Effects? fx) => DesignRecipe(
+          seed: 42,
+          content: const RecipeContent(flags: [FlagRef('us')]),
+          composition: const Composition(family: DesignFamily.singleHero),
+          clip: const Clip(shapeId: 'circle'),
+          effects: fx,
+        );
+
+    testWidgets('partial strength re-screens the whole area, not just edges',
+        (tester) async {
+      await tester.runAsync(() async {
+        final r = CanvasRenderer(assets: _resolver());
+        const bg = ui.Color(0xFFF2F2F2);
+        final plain =
+            await r.render(base(null), RenderTarget.preview(size: 400, background: bg));
+        final half = await r.render(
+            base(const Effects(halftone: 0.5, halftoneScale: 6)),
+            RenderTarget.preview(size: 400, background: bg));
+        final full = await r.render(
+            base(const Effects(halftone: 1.0, halftoneScale: 6)),
+            RenderTarget.preview(size: 400, background: bg));
+
+        // (a) full-strength halftone differs from the unscreened flag.
+        expect(full.imageHash, isNot(plain.imageHash),
+            reason: 'full halftone must change the image');
+        // (b) partial strength differs from BOTH unscreened AND full.
+        expect(half.imageHash, isNot(plain.imageHash),
+            reason: 'partial halftone must change the image');
+        expect(half.imageHash, isNot(full.imageHash),
+            reason: 'partial must differ from full (real re-screen, not a copy)');
+
+        // The core defect: at partial strength the screen must re-cover the
+        // INTERIOR, not leave it identical to the unscreened flag with only an
+        // edge fringe. A meaningful interior difference proves it re-screens.
+        final dHalf = await interiorDiff(half.image, plain.image);
+        final dFull = await interiorDiff(full.image, plain.image);
+        expect(dHalf, greaterThan(12.0),
+            reason: 'partial halftone must re-screen the interior, not stay flat');
+        expect(dFull, greaterThan(12.0),
+            reason: 'full halftone must re-screen the interior');
+      });
+    });
+
+    testWidgets('deterministic for same seed', (tester) async {
+      await tester.runAsync(() async {
+        final r = CanvasRenderer(assets: _resolver());
+        final a = await r.render(base(const Effects(halftone: 0.5)),
+            RenderTarget.preview(size: 256));
+        final b = await r.render(base(const Effects(halftone: 0.5)),
+            RenderTarget.preview(size: 256));
+        expect(a.imageHash, b.imageHash);
+      });
+    });
   });
 
   group('resolution independence', () {

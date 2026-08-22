@@ -56,7 +56,10 @@ shield. Symbolic: heart, star, lightning. Outdoor: mountain, wave, island,
 sunset. Travel: map pin, compass, ticket, luggage tag, postage stamp, passport
 stamp, entry/exit stamp. Typographic: text (any word/name/number, incl. the
 country's own name). Geographic: country outline,
-continent outline, animal/plant/landmark silhouettes. Custom: customSvg (stub).
+continent outline, animal/plant/landmark silhouettes, real per-country passport
+entry/exit stamps (`passportStampOutline`, resolver mask — the flag fills the
+stamp's ink), and a `passportPage` that overlays a country's entry + exit stamps
+at opposing angles like stamps on a passport page. Custom: customSvg (stub).
 
 Verified: all 22 procedural+text shapes render a flag through the mask
 (`shapes_export_test.dart`), independent of composition (single/grid/voronoi/…),

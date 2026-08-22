@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
@@ -11,6 +12,9 @@ import 'asset_resolver.dart';
 /// e.g. from disk or the asset bundle.
 typedef SvgStringLookup = Future<String> Function(String key);
 
+/// Loads raw bytes for a key (e.g. a PNG stamp), from disk or the asset bundle.
+typedef AssetBytesLookup = Future<Uint8List> Function(String key);
+
 /// An [AssetResolver] that rasterises flag SVGs (and, optionally, silhouette
 /// SVGs used as clip masks) via `flutter_svg` — fully headless (no widget tree,
 /// no `BuildContext`). Rasterised images are cached so batch/live renders don't
@@ -21,9 +25,11 @@ class SvgFlagResolver implements AssetResolver {
     SvgStringLookup? silhouetteLookup,
     SvgStringLookup? countryOutlineLookup,
     SvgStringLookup? continentOutlineLookup,
+    AssetBytesLookup? passportStampLookup,
   })  : _silhouetteLookup = silhouetteLookup,
         _countryOutlineLookup = countryOutlineLookup,
-        _continentOutlineLookup = continentOutlineLookup;
+        _continentOutlineLookup = continentOutlineLookup,
+        _passportStampLookup = passportStampLookup;
 
   final SvgStringLookup _flagLookup;
   final SvgStringLookup? _silhouetteLookup;
@@ -31,6 +37,10 @@ class SvgFlagResolver implements AssetResolver {
   /// Returns a `{w,h,polys:[[[x,y]…]…]}` JSON string for a country/continent id.
   final SvgStringLookup? _countryOutlineLookup;
   final SvgStringLookup? _continentOutlineLookup;
+
+  /// Returns raw PNG bytes for a real passport entry/exit stamp (ink on
+  /// transparent) — its alpha is used directly as the clip mask.
+  final AssetBytesLookup? _passportStampLookup;
 
   final Map<String, Future<ui.Image>> _flagCache = {};
   final Map<String, Future<ui.Image?>> _maskCache = {};
@@ -71,7 +81,90 @@ class SvgFlagResolver implements AssetResolver {
       return _maskCache.putIfAbsent(
           key, () => _rasterOutline(_continentOutlineLookup!, code, width, height));
     }
+    if (shape == ClipShape.passportStampOutline && _passportStampLookup != null) {
+      return _maskCache.putIfAbsent(
+          key, () => _rasterPngContain(_passportStampLookup!, code, width, height));
+    }
+    if (shape == ClipShape.passportPage && _passportStampLookup != null) {
+      return _maskCache.putIfAbsent(
+          key, () => _rasterPassportPage(_passportStampLookup!, code, width, height));
+    }
     return Future.value(null);
+  }
+
+  Future<ui.Image?> _decodePng(AssetBytesLookup lookup, String key) async {
+    try {
+      final codec = await ui.instantiateImageCodec(await lookup(key));
+      return (await codec.getNextFrame()).image;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Compose a country's real entry + exit stamps ([code] is the ISO cc, so the
+  /// slugs are `${code}_entry` / `${code}_exit`) overlaid at jaunty angles like
+  /// stamps on a passport page. The union of their ink alpha is the clip mask,
+  /// so the flag fills both imprints. Falls back to whichever stamp exists.
+  Future<ui.Image?> _rasterPassportPage(
+      AssetBytesLookup lookup, String cc, int width, int height) async {
+    final entry = await _decodePng(lookup, '${cc}_entry');
+    final exit = await _decodePng(lookup, '${cc}_exit');
+    if (entry == null && exit == null) return null;
+
+    void place(ui.Canvas canvas, ui.Image img, double cxF, double cyF,
+        double deg, double sizeFrac) {
+      final maxDim = math.max(img.width, img.height).toDouble();
+      final s = maxDim <= 0 ? 1.0 : math.min(width, height) * sizeFrac / maxDim;
+      canvas.save();
+      canvas.translate(width * cxF, height * cyF);
+      canvas.rotate(deg * math.pi / 180);
+      canvas.scale(s);
+      canvas.drawImage(img, ui.Offset(-img.width / 2, -img.height / 2),
+          ui.Paint()..filterQuality = ui.FilterQuality.medium);
+      canvas.restore();
+    }
+
+    final image = await _record(width, height, (canvas) {
+      // Two overlapping stamps at opposing angles. If only one exists, centre it.
+      if (entry != null && exit != null) {
+        place(canvas, exit, 0.60, 0.62, 11, 0.60); // behind
+        place(canvas, entry, 0.43, 0.43, -13, 0.62); // in front, overlapping
+      } else {
+        place(canvas, (entry ?? exit)!, 0.5, 0.5, -8, 0.7);
+      }
+    });
+    entry?.dispose();
+    exit?.dispose();
+    return image;
+  }
+
+  /// Decode a PNG stamp (ink on transparent) and draw it aspect-fit + centred
+  /// into width×height. The PNG's own alpha becomes the clip mask, so the flag
+  /// fills the stamp's inked lines/border. Returns null if missing/undecodable.
+  Future<ui.Image?> _rasterPngContain(
+      AssetBytesLookup lookup, String key, int width, int height) async {
+    ui.Image stamp;
+    try {
+      final codec = await ui.instantiateImageCodec(await lookup(key));
+      stamp = (await codec.getNextFrame()).image;
+    } catch (_) {
+      return null;
+    }
+    final image = await _record(width, height, (canvas) {
+      final s = stamp.width == 0 || stamp.height == 0
+          ? 1.0
+          : math.min(width / stamp.width, height / stamp.height) * 0.92;
+      final dw = stamp.width * s, dh = stamp.height * s;
+      final dst =
+          ui.Rect.fromLTWH((width - dw) / 2, (height - dh) / 2, dw, dh);
+      canvas.drawImageRect(
+          stamp,
+          ui.Rect.fromLTWH(0, 0, stamp.width.toDouble(), stamp.height.toDouble()),
+          dst,
+          ui.Paint()..filterQuality = ui.FilterQuality.medium);
+    });
+    stamp.dispose();
+    return image;
   }
 
   /// Rasterise a flag SVG at its **native aspect ratio**, scaled to fit within

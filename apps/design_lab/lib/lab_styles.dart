@@ -42,6 +42,8 @@ enum ClipArchetype {
   postageStamp,
   passportStamp,
   entryStamp,
+  passportStampReal, // the country's real entry/exit stamp (resolver mask)
+  passportPage, // both entry + exit stamps overlaid at angles
   compass,
   badge, // circular/emblem composition (circle / stamp / shield)
   text, // typography hero — flag fills the letters
@@ -88,6 +90,7 @@ class StyleSpec {
 /// Selectable Lab styles. [showcase] is the broad "everything" default.
 enum LabStyle {
   showcase('Showcase'),
+  extreme('Extreme'),
   maximal('Maximal'),
   beachwear('Beachwear'),
   surf('Surf'),
@@ -155,15 +158,18 @@ final Map<LabStyle, StyleSpec> _specs = {
       ClipArchetype.shield,
       ClipArchetype.basicFlag,
       ClipArchetype.star,
+      ClipArchetype.passportStampReal,
       ClipArchetype.postageStamp,
       ClipArchetype.plantSilhouette,
       ClipArchetype.mountain,
+      ClipArchetype.passportPage,
       ClipArchetype.continentOutline,
       ClipArchetype.landmarkSilhouette,
       ClipArchetype.text,
       ClipArchetype.mapPin,
       ClipArchetype.passportStamp,
       ClipArchetype.entryStamp,
+      ClipArchetype.passportStampReal,
       ClipArchetype.sunset,
       ClipArchetype.diamond,
     ],
@@ -191,6 +197,54 @@ final Map<LabStyle, StyleSpec> _specs = {
       return Finish(
           fx: Effects(
               distress: r.nextRange(0.2, 0.45), grain: r.nextRange(0.15, 0.35)));
+    },
+  ),
+
+  // Abstract "shattered/exploded flag" — the flag blown into radial zigzag
+  // shards (shatter warp) with deep torn silhouettes and heavy grit. Mostly the
+  // bare flag as subject so the burst reads; a few bold clips for variety.
+  LabStyle.extreme: StyleSpec(
+    rotation: const [
+      ClipArchetype.basicFlag,
+      ClipArchetype.basicFlag,
+      ClipArchetype.star,
+      ClipArchetype.basicFlag,
+      ClipArchetype.animalSilhouette,
+      ClipArchetype.basicFlag,
+      ClipArchetype.heart,
+      ClipArchetype.basicFlag,
+      ClipArchetype.countryOutline,
+      ClipArchetype.basicFlag,
+      ClipArchetype.shield,
+      ClipArchetype.basicFlag,
+    ],
+    orientationWeights: const [0.74, 0.16, 0.1],
+    clipScale: (0.9, 1.1),
+    tornOnClip: true,
+    finish: (r, hasClip) {
+      final fx = Effects(
+        shatter: r.nextRange(0.65, 0.95),
+        shatterSpikes: r.nextRange(0.0, 1.0),
+        distress: r.nextRange(0.35, 0.65),
+        grain: r.nextRange(0.3, 0.55),
+      );
+      // Deep, high-frequency tears for a shredded silhouette.
+      final edge = r.chance(0.7)
+          ? EdgeTreatment(
+              style: r.pick(TearStyle.values),
+              edgeDamage: r.nextRange(0.7, 0.95),
+              maxDepth: r.nextRange(0.2, 0.35),
+              frayAmount: r.nextRange(0.7, 0.98),
+              cornerDamage: r.nextRange(0.3, 0.7),
+              asymmetry: r.nextRange(0.6, 0.95),
+            )
+          : null;
+      final palette = r.chance(0.3)
+          ? Palette(
+              strategy: ColourStrategy.flagDerived,
+              vintageGrade: r.nextRange(0.3, 0.6))
+          : null;
+      return Finish(edge: edge, fx: _fx(fx), palette: palette);
     },
   ),
 
@@ -438,11 +492,14 @@ final Map<LabStyle, StyleSpec> _specs = {
   LabStyle.vintage: StyleSpec(
     rotation: const [
       ClipArchetype.postageStamp,
+      ClipArchetype.passportStampReal,
+      ClipArchetype.passportPage,
       ClipArchetype.circle,
       ClipArchetype.entryStamp,
       ClipArchetype.arch,
       ClipArchetype.passportStamp,
       ClipArchetype.oval,
+      ClipArchetype.passportStampReal,
       ClipArchetype.star,
       ClipArchetype.countryOutline,
       ClipArchetype.ticket,

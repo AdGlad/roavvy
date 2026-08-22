@@ -28,6 +28,7 @@ when unavailable (e.g. a multi-country batch), so the rotation degrades cleanly.
 | Style | Signature subjects | Finish |
 |---|---|---|
 | **Showcase** | basic · silhouettes · outline, then all shapes | mixed: clean / torn / vintage / halftone / tie-dye |
+| **Extreme** | mostly the bare flag (so the burst reads) + a few bold clips | radial **shatter** warp (zigzag shards from a centre) + deep torn silhouettes + heavy grain — the abstract "exploded flag" look |
 | **Maximal** | bold shapes + silhouettes + outline, edge-to-edge | everything stacked: torn (on clips too) + distress + grain + halftone + colour grade |
 | **Beachwear** | sunset · wave · island · circle · heart | faded flag palette, tie-dye/fade, light torn |
 | **Surf** | wave · badge · circle · sunset | sun-faded palette, retro halftone |

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -9,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'flag_source.dart';
 import 'lab_generator.dart';
 import 'lab_styles.dart';
+import 'preference_survey.dart';
 import 'recipe_editor.dart';
 import 'render_service.dart';
 
@@ -36,6 +36,8 @@ class LabHome extends StatefulWidget {
   State<LabHome> createState() => _LabHomeState();
 }
 
+enum _GeneratorMode { style, smart }
+
 class _LabHomeState extends State<LabHome> {
   // Rebuilt when the style changes or once silhouette/continent assets are
   // indexed (see _boot) so the rotation can offer the country's own silhouettes.
@@ -55,8 +57,18 @@ class _LabHomeState extends State<LabHome> {
   int _count = 48;
 
   List<DesignRecipe> _recipes = [];
-  final Set<String> _favourites = {};
+  late PersistentDesignLibrary _lib;
+  _ViewMode _view = _ViewMode.batch;
   DesignRecipe? _inspected;
+
+  // ── Recommendation system (Steps 3–6) ──
+  _GeneratorMode _mode = _GeneratorMode.style;
+  DesignPreferences _preferences = DesignPreferences.neutral;
+  SimulatedTravelContext _travelProfile = const SimulatedTravelContext();
+  PreferencePersistence? _persistence;
+  _LeftTab _leftTab = _LeftTab.generate;
+  // Variation drill-down (Step 5)
+  List<RecipeVariation>? _variations;
 
   String _status = 'Locating flag assets…';
 
@@ -81,11 +93,26 @@ class _LabHomeState extends State<LabHome> {
       ClipShape.animalSilhouette: byKind['animal'] ?? const [],
       ClipShape.plantSilhouette: byKind['plant'] ?? const [],
       ClipShape.landmarkSilhouette: byKind['landmark'] ?? const [],
+      ClipShape.passportStampOutline: source.passportStampSlugs(),
     };
     _continents = source.continents();
     _countryNames = source.countryNames();
     _rebuildGenerator();
-    _loadFavourites();
+    // The reproducible design library (liked + used-for-t-shirt), persisted
+    // locally as full recipes so any kept design can be re-rendered later.
+    _lib = PersistentDesignLibrary(
+        _FileDesignStore(File('${source.labOutputDir.path}/library.json')));
+    _lib.load().then((_) {
+      if (mounted) setState(() {});
+    });
+    // Load persisted preferences + travel profile.
+    _persistence = PreferencePersistence(source.labOutputDir);
+    _persistence!.loadPreferences().then((p) {
+      if (p != null && mounted) setState(() => _preferences = p);
+    });
+    _persistence!.loadProfile().then((p) {
+      if (p != null && mounted) setState(() => _travelProfile = p);
+    });
     setState(() => _status = '${_allCodes.length} flags loaded');
     _generate();
   }
@@ -99,21 +126,30 @@ class _LabHomeState extends State<LabHome> {
     );
   }
 
-  File get _favFile => File('${_source!.labOutputDir.path}/favourites.json');
-
-  void _loadFavourites() {
-    try {
-      if (_favFile.existsSync()) {
-        final list = jsonDecode(_favFile.readAsStringSync()) as List;
-        _favourites.addAll(list.cast<String>());
-      }
-    } catch (_) {/* ignore */}
+  Future<void> _toggleLike(DesignRecipe r) async {
+    final wasLiked = _lib.library.isLiked(r.recipeId);
+    await _lib.toggleLike(r);
+    // Step 6: feed preference signal.
+    if (!wasLiked) {
+      _updatePreferencesFromSignal(r, PreferenceSignal.saved);
+    }
+    if (mounted) setState(() {});
   }
 
-  void _saveFavourites() {
-    try {
-      _favFile.writeAsStringSync(jsonEncode(_favourites.toList()));
-    } catch (_) {/* ignore */}
+  Future<void> _toggleTshirt(DesignRecipe r) async {
+    final wasUsed = _lib.library.isUsedForTshirt(r.recipeId);
+    await _lib.setUsedForTshirt(r, !wasUsed);
+    // Step 6: strongest positive signal.
+    if (!wasUsed) {
+      _updatePreferencesFromSignal(r, PreferenceSignal.selectedForMockup);
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Step 6: Update preferences via exponential moving average on interaction.
+  void _updatePreferencesFromSignal(DesignRecipe r, PreferenceSignal signal) {
+    _preferences = const PreferenceLearner().observe(_preferences, r, signal);
+    _persistence?.savePreferences(_preferences);
   }
 
   DesignContext get _context => DesignContext(
@@ -122,24 +158,43 @@ class _LabHomeState extends State<LabHome> {
       );
 
   void _generate() {
+    final RecipeGenerator gen;
+    if (_mode == _GeneratorMode.smart) {
+      gen = LabSmartGenerator(
+        preferences: _preferences,
+        silhouettesByShape: _silhouettesByShape,
+        continents: _continents,
+        countryNames: _countryNames,
+        poolSize: 150,
+        outputCount: _count < 8 ? _count : 8,
+      );
+    } else {
+      gen = _generator;
+    }
     setState(() {
-      _recipes = _generator.generate(_context, seed: _baseSeed, count: _count);
+      _recipes = gen.generate(_context, seed: _baseSeed, count: _count);
       _inspected = null;
-      _status = 'Generated ${_recipes.length} designs (seed $_baseSeed)';
+      _variations = null;
+      _status = _mode == _GeneratorMode.smart
+          ? 'Smart: ${_recipes.length} designs (seed $_baseSeed)'
+          : 'Generated ${_recipes.length} designs (seed $_baseSeed)';
+    });
+  }
+
+  /// Step 5: "More Like This" with VariationGenerator.
+  void _moreLikeThis(DesignRecipe r) {
+    const varGen = VariationGenerator();
+    final vars = varGen.variate(r, count: 12);
+    setState(() {
+      _variations = vars;
+      _status = 'Variations of seed ${r.seed}';
     });
   }
 
   void _variationsOf(DesignRecipe r) {
-    // "More like this": same flags, seeds around the parent seed.
-    final ctx = DesignContext(
-      flagCodes: r.content.flags.map((f) => f.code).toList(),
-      scopeKey: r.content.source,
-    );
-    setState(() {
-      _recipes = _generator.generate(ctx, seed: r.seed, count: _count);
-      _inspected = null;
-      _status = 'Variations of ${r.recipeId}';
-    });
+    // Original "More like this": same flags, seeds around the parent seed.
+    // Now also sets up the variation view.
+    _moreLikeThis(r);
   }
 
   Future<void> _reproduce(String seedText) async {
@@ -167,6 +222,20 @@ class _LabHomeState extends State<LabHome> {
         '${_source!.labOutputDir.path}/contact_sheet_seed${_baseSeed}_${_recipes.length}.png');
     await file.writeAsBytes(sheet);
     _toast('Contact sheet: ${file.path}');
+  }
+
+  Future<void> _openSurvey() async {
+    final result = await PreferenceSurveyDialog.show(
+      context,
+      initial: _preferences,
+      service: _service!,
+      allCodes: _allCodes,
+    );
+    if (result != null) {
+      setState(() => _preferences = result);
+      _persistence?.savePreferences(result);
+      if (_mode == _GeneratorMode.smart) _generate();
+    }
   }
 
   void _toast(String msg) {
@@ -216,70 +285,124 @@ class _LabHomeState extends State<LabHome> {
     );
   }
 
-  // ---- Left panel: flag selection + controls ----
+  // ---- Left panel: tabs for Generate + Profile ----
   Widget _leftPanel() {
-    final filtered = _flagQuery.isEmpty
-        ? _allCodes
-        : _allCodes.where((c) => c.contains(_flagQuery)).toList();
     return SizedBox(
       width: 280,
       child: Container(
         color: const Color(0xFF16181D),
-        padding: const EdgeInsets.all(12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('FLAGS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                for (final c in _selectedFlags)
-                  Chip(
-                    label: Text(c.toUpperCase()),
-                    onDeleted: () => setState(() => _selectedFlags.remove(c)),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              decoration: const InputDecoration(
-                isDense: true,
-                hintText: 'search code (e.g. jp)…',
-                prefixIcon: Icon(Icons.search, size: 18),
-              ),
-              onChanged: (v) => setState(() => _flagQuery = v.toLowerCase().trim()),
-            ),
-            const SizedBox(height: 6),
-            Expanded(
-              flex: 3,
-              child: ListView(
-                children: [
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      for (final c in filtered.take(200))
-                        FilterChip(
-                          label: Text(c.toUpperCase(), style: const TextStyle(fontSize: 11)),
-                          selected: _selectedFlags.contains(c),
-                          visualDensity: VisualDensity.compact,
-                          onSelected: (s) => setState(() {
-                            if (s) {
-                              _selectedFlags.add(c);
-                            } else {
-                              _selectedFlags.remove(c);
-                            }
-                          }),
-                        ),
-                    ],
-                  ),
+            // Tab bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: SegmentedButton<_LeftTab>(
+                showSelectedIcon: false,
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                segments: const [
+                  ButtonSegment(value: _LeftTab.generate, label: Text('Generate')),
+                  ButtonSegment(value: _LeftTab.profile, label: Text('Profile')),
                 ],
+                selected: {_leftTab},
+                onSelectionChanged: (s) => setState(() => _leftTab = s.first),
               ),
             ),
             const Divider(),
+            Expanded(
+              child: _leftTab == _LeftTab.generate
+                  ? _generatePanel()
+                  : _profilePanel(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---- Generate tab (original left panel content) ----
+  Widget _generatePanel() {
+    final filtered = _flagQuery.isEmpty
+        ? _allCodes
+        : _allCodes.where((c) => c.contains(_flagQuery)).toList();
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('FLAGS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              for (final c in _selectedFlags)
+                Chip(
+                  label: Text(c.toUpperCase()),
+                  onDeleted: () => setState(() => _selectedFlags.remove(c)),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            decoration: const InputDecoration(
+              isDense: true,
+              hintText: 'search code (e.g. jp)…',
+              prefixIcon: Icon(Icons.search, size: 18),
+            ),
+            onChanged: (v) => setState(() => _flagQuery = v.toLowerCase().trim()),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            flex: 3,
+            child: ListView(
+              children: [
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    for (final c in filtered.take(200))
+                      FilterChip(
+                        label: Text(c.toUpperCase(), style: const TextStyle(fontSize: 11)),
+                        selected: _selectedFlags.contains(c),
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (s) => setState(() {
+                          if (s) {
+                            _selectedFlags.add(c);
+                          } else {
+                            _selectedFlags.remove(c);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          // Mode toggle: Style vs Smart
+          Row(
+            children: [
+              const Text('Mode '),
+              Expanded(
+                child: SegmentedButton<_GeneratorMode>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                  segments: const [
+                    ButtonSegment(value: _GeneratorMode.style, label: Text('Style')),
+                    ButtonSegment(value: _GeneratorMode.smart, label: Text('Smart')),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (s) {
+                    setState(() => _mode = s.first);
+                    _generate();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (_mode == _GeneratorMode.style)
             Row(
               children: [
                 const Text('Style '),
@@ -304,19 +427,20 @@ class _LabHomeState extends State<LabHome> {
                 ),
               ],
             ),
-            Row(
-              children: [
-                const Text('Seed '),
-                Expanded(
-                  child: TextField(
-                    controller: TextEditingController(text: '$_baseSeed'),
-                    decoration: const InputDecoration(isDense: true),
-                    keyboardType: TextInputType.number,
-                    onSubmitted: (v) => _baseSeed = int.tryParse(v) ?? _baseSeed,
-                  ),
+          Row(
+            children: [
+              const Text('Seed '),
+              Expanded(
+                child: TextField(
+                  controller: TextEditingController(text: '$_baseSeed'),
+                  decoration: const InputDecoration(isDense: true),
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (v) => _baseSeed = int.tryParse(v) ?? _baseSeed,
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          if (_mode == _GeneratorMode.style)
             Row(
               children: [
                 const Text('Count '),
@@ -333,104 +457,498 @@ class _LabHomeState extends State<LabHome> {
                 Text('$_count'),
               ],
             ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                FilledButton.icon(
-                  onPressed: _generate,
-                  icon: const Icon(Icons.grid_view, size: 16),
-                  label: const Text('Generate'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() => _baseSeed += _count);
-                    _generate();
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              FilledButton.icon(
+                onPressed: _generate,
+                icon: const Icon(Icons.grid_view, size: 16),
+                label: Text(_mode == _GeneratorMode.smart ? 'Recommend' : 'Generate'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() => _baseSeed += _count);
+                  _generate();
+                },
+                icon: const Icon(Icons.casino, size: 16),
+                label: const Text('Next batch'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _exportContactSheet,
+                icon: const Icon(Icons.dashboard, size: 16),
+                label: const Text('Contact sheet'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            decoration: const InputDecoration(
+              isDense: true,
+              labelText: 'Reproduce from seed',
+              suffixIcon: Icon(Icons.replay, size: 18),
+            ),
+            keyboardType: TextInputType.number,
+            onSubmitted: _reproduce,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Profile tab (Step 3 + Step 4 trigger) ----
+  Widget _profilePanel() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: ListView(
+        children: [
+          const Text('TRAVEL PROFILE',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+          const SizedBox(height: 12),
+          // Persona dropdown
+          Row(
+            children: [
+              const Text('Persona '),
+              Expanded(
+                child: DropdownButton<TravelPersona>(
+                  isExpanded: true,
+                  isDense: true,
+                  value: _travelProfile.persona,
+                  items: [
+                    for (final p in TravelPersona.values)
+                      DropdownMenuItem(
+                        value: p,
+                        child: Text(p.label, style: const TextStyle(fontSize: 12)),
+                      ),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _travelProfile = SimulatedTravelContext(
+                          visitedCountries: _travelProfile.visitedCountries,
+                          signatureCountries: _travelProfile.signatureCountries,
+                          persona: v,
+                        ));
+                    _persistence?.saveProfile(_travelProfile);
                   },
-                  icon: const Icon(Icons.casino, size: 16),
-                  label: const Text('Next batch'),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _exportContactSheet,
-                  icon: const Icon(Icons.dashboard, size: 16),
-                  label: const Text('Contact sheet'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _travelProfile.persona.description,
+            style: const TextStyle(fontSize: 11, color: Colors.white38),
+          ),
+          const SizedBox(height: 12),
+          // Visited countries
+          const Text('Visited Countries',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              for (final c in _travelProfile.visitedCountries)
+                Chip(
+                  label: Text(c.toUpperCase()),
+                  onDeleted: () {
+                    final updated = Set<String>.from(_travelProfile.visitedCountries)
+                      ..remove(c);
+                    final sig = Set<String>.from(_travelProfile.signatureCountries)
+                      ..remove(c);
+                    setState(() => _travelProfile = SimulatedTravelContext(
+                          visitedCountries: updated,
+                          signatureCountries: sig,
+                          persona: _travelProfile.persona,
+                        ));
+                    _persistence?.saveProfile(_travelProfile);
+                  },
+                  visualDensity: VisualDensity.compact,
                 ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _CountryAdder(
+            allCodes: _allCodes,
+            excluded: _travelProfile.visitedCountries,
+            onAdd: (code) {
+              final updated = Set<String>.from(_travelProfile.visitedCountries)
+                ..add(code);
+              setState(() => _travelProfile = SimulatedTravelContext(
+                    visitedCountries: updated,
+                    signatureCountries: _travelProfile.signatureCountries,
+                    persona: _travelProfile.persona,
+                  ));
+              _persistence?.saveProfile(_travelProfile);
+            },
+          ),
+          const SizedBox(height: 12),
+          // Signature countries (subset of visited, 1–3)
+          const Text('Signature Countries (1–3)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          if (_travelProfile.visitedCountries.isEmpty)
+            const Text('Add visited countries first',
+                style: TextStyle(fontSize: 11, color: Colors.white38))
+          else
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final c in _travelProfile.visitedCountries)
+                  FilterChip(
+                    label: Text(c.toUpperCase()),
+                    selected: _travelProfile.signatureCountries.contains(c),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (selected) {
+                      final sig =
+                          Set<String>.from(_travelProfile.signatureCountries);
+                      if (selected && sig.length < 3) {
+                        sig.add(c);
+                      } else {
+                        sig.remove(c);
+                      }
+                      setState(() => _travelProfile = SimulatedTravelContext(
+                            visitedCountries: _travelProfile.visitedCountries,
+                            signatureCountries: sig,
+                            persona: _travelProfile.persona,
+                          ));
+                      _persistence?.saveProfile(_travelProfile);
+                    },
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(
-                isDense: true,
-                labelText: 'Reproduce from seed',
-                suffixIcon: Icon(Icons.replay, size: 18),
-              ),
-              keyboardType: TextInputType.number,
-              onSubmitted: _reproduce,
+          const Divider(height: 24),
+          const Text('PREFERENCES',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+          const SizedBox(height: 8),
+          // Show current preference summary
+          _prefSummaryRow('Styles', _preferences.styleWeights.entries
+              .where((e) => e.value > 1.2)
+              .map((e) => e.key.label)
+              .toList()),
+          _prefSummaryRow('Shapes', _preferences.shapeWeights.entries
+              .where((e) => e.value > 1.2)
+              .map((e) => e.key.label)
+              .toList()),
+          if (_preferences.prefersDarkGarment != null)
+            _prefSummaryRow('Garment',
+                [_preferences.prefersDarkGarment! ? 'Dark' : 'Light']),
+          if (_preferences.prefersVibrant != null)
+            _prefSummaryRow('Color',
+                [_preferences.prefersVibrant! ? 'Vibrant' : 'Muted']),
+          Text('Interactions: ${_preferences.sampleCount}',
+              style: const TextStyle(fontSize: 11, color: Colors.white38)),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _openSurvey,
+            icon: const Icon(Icons.tune, size: 16),
+            label: const Text('Take Preference Survey'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () {
+              setState(() => _preferences = DesignPreferences.neutral);
+              _persistence?.savePreferences(_preferences);
+            },
+            icon: const Icon(Icons.restart_alt, size: 16),
+            label: const Text('Reset Preferences'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _prefSummaryRow(String label, List<String> values) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text('$label:',
+                style: const TextStyle(fontSize: 11, color: Colors.white54)),
+          ),
+          Expanded(
+            child: Text(
+              values.isEmpty ? 'None' : values.join(', '),
+              style: const TextStyle(fontSize: 11),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   // ---- Center: gallery ----
   Widget _gallery() {
-    if (_recipes.isEmpty) {
-      return const Center(child: Text('Select flags and press Generate'));
-    }
-    return GridView.builder(
-      padding: const EdgeInsets.all(10),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 200,
-        childAspectRatio: 1,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemCount: _recipes.length,
-      itemBuilder: (context, i) {
-        final r = _recipes[i];
-        final fav = _favourites.contains(r.recipeId);
-        final isSel = _inspected?.recipeId == r.recipeId;
-        return GestureDetector(
-          onTap: () => setState(() => _inspected = r),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSel ? Colors.tealAccent : const Color(0xFF2A2D33),
-                    width: isSel ? 2 : 1,
+    // Which designs to show: the current batch, or the persisted library
+    // (liked / used-for-t-shirt) re-rendered from their stored recipes.
+    final List<DesignRecipe> items = switch (_view) {
+      _ViewMode.batch => _recipes,
+      _ViewMode.liked => [for (final e in _lib.library.liked) e.recipe],
+      _ViewMode.tshirts => [for (final e in _lib.library.usedForTshirt) e.recipe],
+    };
+
+    return Column(
+      children: [
+        _viewBar(),
+        // Step 5: Variation drill-down panel.
+        if (_variations != null && _view == _ViewMode.batch) _variationPanel(),
+        Expanded(
+          child: items.isEmpty
+              ? Center(
+                  child: Text(switch (_view) {
+                  _ViewMode.batch => 'Select flags and press Generate',
+                  _ViewMode.liked => 'No liked designs yet — tap the heart on a design',
+                  _ViewMode.tshirts => 'No designs marked as used for a t-shirt yet',
+                }))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(10),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 200,
+                    childAspectRatio: 1,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
-                  color: const Color(0xFFF2F2F2),
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _galleryTile(items[i]),
                 ),
-                child: _RecipeTile(service: _service!, recipe: r, size: 200),
-              ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: IconButton(
-                  iconSize: 18,
-                  icon: Icon(fav ? Icons.star : Icons.star_border,
-                      color: fav ? Colors.amber : Colors.white70),
-                  onPressed: () => setState(() {
-                    if (fav) {
-                      _favourites.remove(r.recipeId);
-                    } else {
-                      _favourites.add(r.recipeId);
-                    }
-                    _saveFavourites();
-                  }),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 
+  /// Step 5: Shows variations grouped by axis.
+  Widget _variationPanel() {
+    final vars = _variations!;
+    // Group by axis.
+    final byAxis = <VariationAxis, List<RecipeVariation>>{};
+    for (final v in vars) {
+      (byAxis[v.axis] ??= []).add(v);
+    }
+    return Container(
+      color: const Color(0xFF1A1D22),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Text('More Like This',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const Spacer(),
+              IconButton(
+                iconSize: 16,
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() => _variations = null),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 130,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final axis in byAxis.keys) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(axis.label,
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.white54)),
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              for (final v in byAxis[axis]!)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: GestureDetector(
+                                    onTap: () => setState(() {
+                                      _inspected = v.recipe;
+                                    }),
+                                    child: SizedBox(
+                                      width: 100,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: _inspected?.recipeId ==
+                                                    v.recipe.recipeId
+                                                ? Colors.tealAccent
+                                                : const Color(0xFF2A2D33),
+                                          ),
+                                          color: const Color(0xFFF2F2F2),
+                                        ),
+                                        child: _RecipeTile(
+                                          service: _service!,
+                                          recipe: v.recipe,
+                                          size: 100,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viewBar() {
+    final likedN = _lib.library.liked.length;
+    final tshirtN = _lib.library.usedForTshirt.length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+      child: Row(
+        children: [
+          SegmentedButton<_ViewMode>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: [
+              const ButtonSegment(value: _ViewMode.batch, label: Text('Batch')),
+              ButtonSegment(value: _ViewMode.liked, label: Text('Liked ($likedN)')),
+              ButtonSegment(
+                  value: _ViewMode.tshirts, label: Text('T-shirts ($tshirtN)')),
+            ],
+            selected: {_view},
+            onSelectionChanged: (s) => setState(() => _view = s.first),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _galleryTile(DesignRecipe r) {
+    final liked = _lib.library.isLiked(r.recipeId);
+    final tshirt = _lib.library.isUsedForTshirt(r.recipeId);
+    final isSel = _inspected?.recipeId == r.recipeId;
+    return GestureDetector(
+      onTap: () => setState(() => _inspected = r),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSel ? Colors.tealAccent : const Color(0xFF2A2D33),
+                width: isSel ? 2 : 1,
+              ),
+              color: const Color(0xFFF2F2F2),
+            ),
+            child: _RecipeTile(service: _service!, recipe: r, size: 200),
+          ),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: Row(
+              children: [
+                IconButton(
+                  iconSize: 18,
+                  tooltip: 'More like this',
+                  icon: const Icon(Icons.auto_awesome, color: Colors.white70, size: 18),
+                  onPressed: () => _moreLikeThis(r),
+                ),
+                IconButton(
+                  iconSize: 18,
+                  tooltip: tshirt ? 'Used for a t-shirt' : 'Mark used for t-shirt',
+                  icon: Icon(tshirt ? Icons.checkroom : Icons.checkroom_outlined,
+                      color: tshirt ? Colors.lightBlueAccent : Colors.white70),
+                  onPressed: () => _toggleTshirt(r),
+                ),
+                IconButton(
+                  iconSize: 18,
+                  tooltip: liked ? 'Liked' : 'Like (saves the recipe)',
+                  icon: Icon(liked ? Icons.favorite : Icons.favorite_border,
+                      color: liked ? Colors.pinkAccent : Colors.white70),
+                  onPressed: () => _toggleLike(r),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _ViewMode { batch, liked, tshirts }
+
+enum _LeftTab { generate, profile }
+
+/// A small widget for adding a country code via autocomplete.
+class _CountryAdder extends StatefulWidget {
+  const _CountryAdder({
+    required this.allCodes,
+    required this.excluded,
+    required this.onAdd,
+  });
+  final List<String> allCodes;
+  final Set<String> excluded;
+  final void Function(String) onAdd;
+
+  @override
+  State<_CountryAdder> createState() => _CountryAdderState();
+}
+
+class _CountryAdderState extends State<_CountryAdder> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _ctrl,
+      decoration: const InputDecoration(
+        isDense: true,
+        hintText: 'Add country code…',
+        prefixIcon: Icon(Icons.add, size: 16),
+      ),
+      onSubmitted: (v) {
+        final code = v.trim().toLowerCase();
+        if (code.isNotEmpty && widget.allCodes.contains(code)) {
+          widget.onAdd(code);
+          _ctrl.clear();
+        }
+      },
+    );
+  }
+}
+
+/// A [DesignStore] backed by a local JSON file (the macOS Lab's disk). The
+/// iPhone app plugs the same [PersistentDesignLibrary] into a documents-dir
+/// store instead — the library core is identical.
+class _FileDesignStore implements DesignStore {
+  _FileDesignStore(this.file);
+  final File file;
+
+  @override
+  Future<String?> read() async =>
+      await file.exists() ? file.readAsString() : null;
+
+  @override
+  Future<void> write(String contents) async {
+    await file.writeAsString(contents);
+  }
 }
 
 /// A gallery tile that renders its recipe once (cached in [RenderService]).

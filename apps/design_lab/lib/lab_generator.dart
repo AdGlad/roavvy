@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:design_forge/design_forge.dart';
 
 import 'lab_styles.dart';
@@ -93,6 +95,9 @@ class LabShowcaseGenerator implements RecipeGenerator {
         single ? _countrySlugs(ClipShape.plantSilhouette, code) : const <String>[];
     final landmarks =
         single ? _countrySlugs(ClipShape.landmarkSilhouette, code) : const <String>[];
+    final stamps = single
+        ? _countrySlugs(ClipShape.passportStampOutline, code)
+        : const <String>[];
 
     bool available(ClipArchetype a) {
       switch (a) {
@@ -102,6 +107,9 @@ class LabShowcaseGenerator implements RecipeGenerator {
           return plants.isNotEmpty;
         case ClipArchetype.landmarkSilhouette:
           return landmarks.isNotEmpty;
+        case ClipArchetype.passportStampReal:
+        case ClipArchetype.passportPage:
+          return stamps.isNotEmpty;
         case ClipArchetype.countryOutline:
           return single;
         case ClipArchetype.continentOutline:
@@ -119,7 +127,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
 
     final clip = _clipFor(
       arc, rng.stream('clip'), spec, code,
-      animals: animals, plants: plants, landmarks: landmarks,
+      animals: animals, plants: plants, landmarks: landmarks, stamps: stamps,
     );
 
     // Finish: edge/effects/palette from the style. Don't tear a clipped shape
@@ -155,6 +163,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
     required List<String> animals,
     required List<String> plants,
     required List<String> landmarks,
+    required List<String> stamps,
   }) {
     final (lo, hi) = spec.clipScale;
     Clip proc(String id) => Clip(
@@ -172,6 +181,11 @@ class LabShowcaseGenerator implements RecipeGenerator {
         return Clip(shapeId: 'plantSilhouette', code: r.pick(plants));
       case ClipArchetype.landmarkSilhouette:
         return Clip(shapeId: 'landmarkSilhouette', code: r.pick(landmarks));
+      case ClipArchetype.passportStampReal:
+        return Clip(shapeId: 'passportStampOutline', code: r.pick(stamps));
+      case ClipArchetype.passportPage:
+        // Both entry + exit stamps for this country, overlaid at angles.
+        return Clip(shapeId: 'passportPage', code: code);
       case ClipArchetype.countryOutline:
         return Clip(shapeId: 'countryOutline', code: code);
       case ClipArchetype.continentOutline:
@@ -213,5 +227,96 @@ class LabShowcaseGenerator implements RecipeGenerator {
       case ClipArchetype.compass:
         return proc(arc.name);
     }
+  }
+}
+
+/// Smart batch generator that produces a preference-weighted, diversity-
+/// constrained set of 6–8 designs.
+///
+/// Pipeline:
+///  1. [StratifiedSampler] allocates a pool budget across style clusters.
+///  2. For each cluster, delegates to [LabShowcaseGenerator] per lab style.
+///  3. [PreferenceScorer] scores every recipe against [DesignPreferences].
+///  4. [DiversitySelector] picks the final set.
+class LabSmartGenerator implements RecipeGenerator {
+  const LabSmartGenerator({
+    required this.preferences,
+    this.silhouettesByShape = const {},
+    this.continents = const [],
+    this.countryNames = const {},
+    this.poolSize = 150,
+    this.outputCount = 8,
+  });
+
+  final DesignPreferences preferences;
+  final Map<ClipShape, List<String>> silhouettesByShape;
+  final List<String> continents;
+  final Map<String, String> countryNames;
+
+  /// How many candidate recipes to generate across all clusters.
+  final int poolSize;
+
+  /// How many recipes to return after diversity selection.
+  final int outputCount;
+
+  @override
+  List<DesignRecipe> generate(
+    DesignContext context, {
+    required int seed,
+    int count = 1,
+  }) {
+    final rng = DeterministicRng(seed);
+
+    // 1. Allocate pool budget across clusters.
+    final sampler = const StratifiedSampler();
+    final allocation = sampler.allocate(
+      preferences,
+      poolSize: poolSize,
+      rng: rng.stream('alloc'),
+    );
+
+    // 2. Generate recipes per cluster via existing LabShowcaseGenerator.
+    final pool = <DesignRecipe>[];
+    var seedOffset = 0;
+    for (final entry in allocation.entries) {
+      final cluster = entry.key;
+      final quota = entry.value;
+      final labStyleNames = kClusterToLabStyles[cluster] ?? [];
+
+      for (final styleName in labStyleNames) {
+        final labStyle = LabStyle.values
+            .where((s) => s.name == styleName)
+            .firstOrNull;
+        if (labStyle == null) continue;
+
+        final gen = LabShowcaseGenerator(
+          style: labStyle,
+          silhouettesByShape: silhouettesByShape,
+          continents: continents,
+          countryNames: countryNames,
+        );
+
+        // Split the cluster's quota across its lab styles.
+        final perStyle = math.max(1, quota ~/ labStyleNames.length);
+        final recipes = gen.generate(
+          context,
+          seed: seed + seedOffset,
+          count: perStyle,
+        );
+        pool.addAll(recipes);
+        seedOffset += perStyle;
+      }
+    }
+
+    // 3. Score all recipes.
+    const scorer = PreferenceScorer();
+    final scored = pool
+        .map((r) => (r, scorer.score(r, preferences)))
+        .toList()
+      ..sort((a, b) => b.$2.compareTo(a.$2));
+
+    // 4. Diversity-select final set.
+    const selector = DiversitySelector();
+    return selector.select(scored, count: outputCount);
   }
 }

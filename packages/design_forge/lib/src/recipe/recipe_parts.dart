@@ -143,7 +143,9 @@ enum ClipShape {
   continentOutline,
   animalSilhouette,
   plantSilhouette,
-  landmarkSilhouette;
+  landmarkSilhouette,
+  passportStampOutline,
+  passportPage; // both entry + exit stamps overlaid at angles (code = country cc)
 
   /// Stable id, used as [Clip.shapeId].
   String get id => name;
@@ -161,7 +163,9 @@ enum ClipShape {
       this == ClipShape.continentOutline ||
       this == ClipShape.animalSilhouette ||
       this == ClipShape.plantSilhouette ||
-      this == ClipShape.landmarkSilhouette;
+      this == ClipShape.landmarkSilhouette ||
+      this == ClipShape.passportStampOutline ||
+      this == ClipShape.passportPage;
 }
 
 /// A clip shape applied to the artwork. Identified by a string [shapeId] from
@@ -382,6 +386,8 @@ class Effects {
     this.rippleFreq = 8.0,
     this.acidWash = 0.0,
     this.tieDye = 0.0,
+    this.shatter = 0.0,
+    this.shatterSpikes = 0.0,
   });
 
   final double distress;
@@ -400,6 +406,15 @@ class Effects {
   /// rainbow bleed blended over the artwork).
   final double tieDye;
 
+  /// Radial "shatter/explosion" warp (0 = off, 1 = full): the artwork is blown
+  /// into sharp zigzag shards radiating from a centre, with a spiky torn
+  /// silhouette. The signature "extreme" abstract look.
+  final double shatter;
+
+  /// Number of shatter spikes/arms as a 0..1 knob (0 → engine default ~14,
+  /// 1 → dense ~40). Ignored when [shatter] is 0.
+  final double shatterSpikes;
+
   bool get isIdentity =>
       distress == 0 &&
       grain == 0 &&
@@ -408,7 +423,8 @@ class Effects {
       halftone == 0 &&
       rippleAmp == 0 &&
       acidWash == 0 &&
-      tieDye == 0;
+      tieDye == 0 &&
+      shatter == 0;
 
   Map<String, Object?> toJson() => {
         if (distress != 0.0) 'distress': distress,
@@ -424,6 +440,8 @@ class Effects {
         if (rippleAmp != 0.0 && rippleFreq != 8.0) 'rippleFreq': rippleFreq,
         if (acidWash != 0.0) 'acidWash': acidWash,
         if (tieDye != 0.0) 'tieDye': tieDye,
+        if (shatter != 0.0) 'shatter': shatter,
+        if (shatter != 0.0 && shatterSpikes != 0.0) 'shatterSpikes': shatterSpikes,
       };
 
   factory Effects.fromJson(Map<String, Object?> j) => Effects(
@@ -439,6 +457,8 @@ class Effects {
         rippleFreq: (j['rippleFreq'] as num?)?.toDouble() ?? 8.0,
         acidWash: (j['acidWash'] as num?)?.toDouble() ?? 0.0,
         tieDye: (j['tieDye'] as num?)?.toDouble() ?? 0.0,
+        shatter: (j['shatter'] as num?)?.toDouble() ?? 0.0,
+        shatterSpikes: (j['shatterSpikes'] as num?)?.toDouble() ?? 0.0,
       );
 }
 

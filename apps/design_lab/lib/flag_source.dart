@@ -150,6 +150,54 @@ class FlagSource {
 
   Directory get _assetsDir => dir.parent.parent;
   Directory get countryPathsDir => Directory('${_assetsDir.path}/country_paths');
+
+  /// Real passport entry/exit stamp PNGs (ink on transparent) live in the app's
+  /// `assets/mobile_png/`, named `<country>-<cc>-<entry|exit>.png`.
+  Directory get _stampDir => Directory('${_assetsDir.path}/mobile_png');
+
+  // Normalised slug (`sc_entry`, `us_exit`) → absolute PNG path. Normalising to
+  // the `cc_<name>` convention lets the same single-country filtering used for
+  // silhouettes work unchanged. Built once, lazily.
+  Map<String, String>? _stampIndex;
+
+  void _ensureStampIndex() {
+    if (_stampIndex != null) return;
+    final idx = <String, String>{};
+    final d = _stampDir;
+    if (d.existsSync()) {
+      final re = RegExp(r'^.+-([a-z]{2})-(entry|exit)\.png$', caseSensitive: false);
+      for (final f in d.listSync()) {
+        if (f is! File) continue;
+        final name = f.path.split(Platform.pathSeparator).last;
+        final m = re.firstMatch(name);
+        if (m == null) continue;
+        final cc = m.group(1)!.toLowerCase();
+        final dir = m.group(2)!.toLowerCase();
+        var slug = '${cc}_$dir';
+        // Disambiguate rare per-country variants (e.g. two entry stamps).
+        var n = 2;
+        while (idx.containsKey(slug)) {
+          slug = '${cc}_$dir$n';
+          n++;
+        }
+        idx[slug] = f.path;
+      }
+    }
+    _stampIndex = idx;
+  }
+
+  /// Normalised passport-stamp slugs (`sc_entry`, `sc_exit`, …), sorted.
+  List<String> passportStampSlugs() {
+    _ensureStampIndex();
+    return _stampIndex!.keys.toList()..sort();
+  }
+
+  /// Absolute path to a passport-stamp PNG by slug, or null.
+  String? passportStampPath(String slug) {
+    _ensureStampIndex();
+    return _stampIndex![slug];
+  }
+
   Directory get continentPathsDir =>
       Directory('${_assetsDir.path}/continent_paths');
 
@@ -179,6 +227,11 @@ class FlagSource {
             File('${countryPathsDir.path}/$code.json').readAsString(),
         continentOutlineLookup: (name) =>
             File('${continentPathsDir.path}/$name.json').readAsString(),
+        passportStampLookup: (slug) {
+          final path = passportStampPath(slug);
+          if (path == null) throw StateError('no passport stamp for $slug');
+          return File(path).readAsBytes();
+        },
       );
 
   /// `<repo>/design_studio/generated_batches/lab_export`, created on demand.

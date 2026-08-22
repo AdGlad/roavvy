@@ -63,4 +63,62 @@ void main() {
       }
     });
   });
+
+  test('real passport stamps index by cc_direction slug', () {
+    final source = FlagSource.locate()!;
+    final slugs = source.passportStampSlugs();
+    expect(slugs, isNotEmpty);
+    // Country-prefixed like silhouettes, so single-country filtering works.
+    expect(slugs, contains('sc_entry'));
+    expect(slugs, contains('sc_exit'));
+    expect(source.passportStampPath('sc_entry'), isNotNull);
+  });
+
+  testWidgets('a real passport entry/exit stamp clips the flag', (tester) async {
+    final source = FlagSource.locate()!;
+    final renderer = CanvasRenderer(assets: source.resolver());
+    final unclipped = DesignRecipe(
+      seed: 1,
+      content: const RecipeContent(flags: [FlagRef('sc')]),
+      composition: const Composition(family: DesignFamily.singleHero),
+    );
+    final stamped = DesignRecipe(
+      seed: 1,
+      content: const RecipeContent(flags: [FlagRef('sc')]),
+      composition: const Composition(family: DesignFamily.singleHero),
+      clip: const Clip(shapeId: 'passportStampOutline', code: 'sc_entry'),
+    );
+    await tester.runAsync(() async {
+      final a = await renderer.render(unclipped, RenderTarget.preview(size: 300));
+      final b = await renderer.render(stamped, RenderTarget.preview(size: 300));
+      expect(b.pngBytes.length, greaterThan(500));
+      // The stamp mask must actually change the image (ink-only fill vs full flag).
+      expect(b.imageHash, isNot(a.imageHash));
+    });
+  });
+
+  testWidgets('passport page overlays both entry + exit stamps', (tester) async {
+    final source = FlagSource.locate()!;
+    final renderer = CanvasRenderer(assets: source.resolver());
+    // code is the country ISO cc; the resolver pulls sc_entry + sc_exit.
+    final page = DesignRecipe(
+      seed: 1,
+      content: const RecipeContent(flags: [FlagRef('sc')]),
+      composition: const Composition(family: DesignFamily.singleHero),
+      clip: const Clip(shapeId: 'passportPage', code: 'sc'),
+    );
+    final single = DesignRecipe(
+      seed: 1,
+      content: const RecipeContent(flags: [FlagRef('sc')]),
+      composition: const Composition(family: DesignFamily.singleHero),
+      clip: const Clip(shapeId: 'passportStampOutline', code: 'sc_entry'),
+    );
+    await tester.runAsync(() async {
+      final p = await renderer.render(page, RenderTarget.preview(size: 320));
+      final s = await renderer.render(single, RenderTarget.preview(size: 320));
+      expect(p.pngBytes.length, greaterThan(1000));
+      // Two overlaid stamps differ from a single stamp.
+      expect(p.imageHash, isNot(s.imageHash));
+    });
+  });
 }

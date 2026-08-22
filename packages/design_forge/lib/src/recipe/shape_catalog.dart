@@ -107,6 +107,8 @@ const List<ClipShapeMeta> kClipShapeCatalog = [
   // ── GEOGRAPHIC (asset-backed via AssetResolver) ──────────────────────────
   ClipShapeMeta(id: 'countryOutline', label: 'Country boundary', family: ShapeFamily.geographic, source: ClipShapeSource.resolver, resolverKind: ClipShape.countryOutline),
   ClipShapeMeta(id: 'continentOutline', label: 'Region (continent)', family: ShapeFamily.geographic, source: ClipShapeSource.resolver, resolverKind: ClipShape.continentOutline),
+  ClipShapeMeta(id: 'passportStampOutline', label: 'Passport stamp (real)', family: ShapeFamily.travel, source: ClipShapeSource.resolver, resolverKind: ClipShape.passportStampOutline),
+  ClipShapeMeta(id: 'passportPage', label: 'Passport page (entry + exit)', family: ShapeFamily.travel, source: ClipShapeSource.resolver, resolverKind: ClipShape.passportPage, aspectRatio: 1.1),
   ClipShapeMeta(id: 'animalSilhouette', label: 'Animal silhouette', family: ShapeFamily.geographic, source: ClipShapeSource.resolver, resolverKind: ClipShape.animalSilhouette),
   ClipShapeMeta(id: 'plantSilhouette', label: 'Plant silhouette', family: ShapeFamily.geographic, source: ClipShapeSource.resolver, resolverKind: ClipShape.plantSilhouette),
   ClipShapeMeta(id: 'landmarkSilhouette', label: 'Landmark silhouette', family: ShapeFamily.geographic, source: ClipShapeSource.resolver, resolverKind: ClipShape.landmarkSilhouette),
