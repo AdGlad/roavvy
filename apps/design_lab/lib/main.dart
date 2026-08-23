@@ -42,6 +42,9 @@ class _LabHomeState extends State<LabHome> {
   // Rebuilt when the style changes or once silhouette/continent assets are
   // indexed (see _boot) so the rotation can offer the country's own silhouettes.
   LabStyle _style = LabStyle.showcase;
+  // Data-driven template (null = the flag/clip showcase). Timeline/journeys/
+  // wordCloud render from the travel history + date range.
+  DesignFamily? _template;
   LabShowcaseGenerator _generator = const LabShowcaseGenerator();
 
   FlagSource? _source;
@@ -88,6 +91,10 @@ class _LabHomeState extends State<LabHome> {
     _source = source;
     _service = RenderService(source.resolver());
     _allCodes = source.codes();
+    // Simulated "visited countries" universe (macOS has no real travel history):
+    // a deterministic roster with trips across the year range. The Trips slider
+    // populates the flag selection from whoever was visited in the window.
+    _allTrips = _simulatedTrips(_visitedRoster());
     final byKind = source.silhouettesByKind();
     _silhouettesByShape = {
       ClipShape.animalSilhouette: byKind['animal'] ?? const [],
@@ -120,6 +127,7 @@ class _LabHomeState extends State<LabHome> {
   void _rebuildGenerator() {
     _generator = LabShowcaseGenerator(
       style: _style,
+      template: _template,
       silhouettesByShape: _silhouettesByShape,
       continents: _continents,
       countryNames: _countryNames,
@@ -152,14 +160,110 @@ class _LabHomeState extends State<LabHome> {
     _persistence?.savePreferences(_preferences);
   }
 
-  DesignContext get _context => DesignContext(
-        flagCodes: _selectedFlags.isEmpty ? ['us'] : _selectedFlags.toList(),
-        scopeKey: 'lab:${_selectedFlags.join("+")}',
-      );
+  // Date-range filter for the studio design options. macOS has no real travel
+  // history, so the Lab synthesises a deterministic trip set per country; the
+  // range filters which trips feed passport/timeline/etc. designs.
+  static const _minYear = 2018;
+  static const _maxYear = 2026;
+  RangeValues _years = const RangeValues(2018, 2026);
+
+  /// Optional: when on, moving the Trips slider populates the flag selection
+  /// with the countries visited within the range.
+  bool _restrictToRange = false;
+
+  /// The simulated "visited countries" universe (built at boot).
+  List<Trip> _allTrips = const [];
+
+  /// A deterministic set of "visited" countries (those that have trips). Uses a
+  /// familiar roster, intersected with the flags actually available.
+  List<String> _visitedRoster() {
+    const roster = [
+      'us', 'gb', 'fr', 'de', 'jp', 'br', 'au', 'it', 'es', 'ca',
+      'sc', 'in', 'cn', 'mx', 'za', 'th', 'gr', 'pt', 'nl', 'se',
+    ];
+    final available = _allCodes.toSet();
+    final present = [for (final c in roster) if (available.contains(c)) c];
+    return present.isEmpty ? _allCodes.take(12).toList() : present;
+  }
+
+  /// Distinct countries with a trip overlapping [range], first-visited order.
+  List<String> _visitedInRange(DateRange range) =>
+      TravelHistory(_allTrips.where(range.overlaps).toList()).countryCodes;
+
+  bool get _yearsIsAll =>
+      _years.start <= _minYear && _years.end >= _maxYear;
+
+  DateRange get _dateRange => _yearsIsAll
+      ? DateRange.all
+      : DateRange.years(_years.start.round(), _years.end.round());
+
+  /// Deterministic simulated trips for [codes] — 1–3 trips per country spread
+  /// across [_minYear].._maxYear, so the date-range filter has data to act on.
+  List<Trip> _simulatedTrips(List<String> codes) {
+    final trips = <Trip>[];
+    for (final cc in codes) {
+      final r = DeterministicRng(_stableSeed('trips:$cc')).stream('trip');
+      final n = 1 + r.nextInt(3);
+      for (var i = 0; i < n; i++) {
+        final year = _minYear + r.nextInt(_maxYear - _minYear + 1);
+        final month = 1 + r.nextInt(12);
+        final day = 1 + r.nextInt(24);
+        final stay = 3 + r.nextInt(14);
+        final start = DateTime(year, month, day);
+        trips.add(Trip(
+          countryCode: cc,
+          startedOn: start,
+          endedOn: start.add(Duration(days: stay)),
+          photoCount: 10 + r.nextInt(200),
+        ));
+      }
+    }
+    return trips;
+  }
+
+  static int _stableSeed(String s) {
+    var h = 0x811c9dc5;
+    for (final c in s.codeUnits) {
+      h = (h ^ c) * 0x01000193;
+      h &= 0x7fffffff;
+    }
+    return h;
+  }
+
+  DesignContext get _context {
+    final range = _dateRange;
+    // When restricting, the selection has already been populated from the range,
+    // so an empty selection genuinely means "nothing visited" (no 'us' fallback).
+    final selected = _selectedFlags.isEmpty && !_restrictToRange
+        ? ['us']
+        : _selectedFlags.toList();
+    // Trips (deterministic per country) for the selected countries, in range.
+    final trips =
+        _simulatedTrips(selected).where(range.overlaps).toList();
+    return DesignContext(
+      flagCodes: selected,
+      trips: trips,
+      dateRange: range,
+      scopeKey: 'lab:${selected.join("+")}'
+          '${_yearsIsAll ? '' : ':${_years.start.round()}-${_years.end.round()}'}',
+    );
+  }
+
+  /// Populate the flag selection from the countries visited in the current range
+  /// (used when the "auto-select from range" toggle is on and the slider moves).
+  void _syncSelectionToRange() {
+    _selectedFlags
+      ..clear()
+      ..addAll(_visitedInRange(_dateRange));
+  }
 
   void _generate() {
     final RecipeGenerator gen;
-    if (_mode == _GeneratorMode.smart) {
+    if (_template != null) {
+      // A data-driven template always uses the showcase generator (which owns
+      // the template path); Smart mode doesn't apply.
+      gen = _generator;
+    } else if (_mode == _GeneratorMode.smart) {
       gen = LabSmartGenerator(
         preferences: _preferences,
         silhouettesByShape: _silhouettesByShape,
@@ -171,8 +275,20 @@ class _LabHomeState extends State<LabHome> {
     } else {
       gen = _generator;
     }
+    final ctx = _context;
+    if (ctx.flagCodes.isEmpty) {
+      // "Only in range" is on but no country was visited in the window.
+      setState(() {
+        _recipes = [];
+        _inspected = null;
+        _variations = null;
+        _status = 'No countries visited in '
+            '${_years.start.round()}–${_years.end.round()}';
+      });
+      return;
+    }
     setState(() {
-      _recipes = gen.generate(_context, seed: _baseSeed, count: _count);
+      _recipes = gen.generate(ctx, seed: _baseSeed, count: _count);
       _inspected = null;
       _variations = null;
       _status = _mode == _GeneratorMode.smart
@@ -402,7 +518,35 @@ class _LabHomeState extends State<LabHome> {
             ],
           ),
           const SizedBox(height: 4),
-          if (_mode == _GeneratorMode.style)
+          Row(
+            children: [
+              const Text('Template '),
+              Expanded(
+                child: DropdownButton<DesignFamily?>(
+                  isExpanded: true,
+                  isDense: true,
+                  value: _template,
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Showcase (flags)')),
+                    DropdownMenuItem(
+                        value: DesignFamily.timeline, child: Text('Timeline')),
+                    DropdownMenuItem(
+                        value: DesignFamily.journeys, child: Text('Journeys')),
+                    DropdownMenuItem(
+                        value: DesignFamily.wordCloud, child: Text('Word cloud')),
+                  ],
+                  onChanged: (v) {
+                    setState(() {
+                      _template = v;
+                      _rebuildGenerator();
+                    });
+                    _generate();
+                  },
+                ),
+              ),
+            ],
+          ),
+          if (_template == null && _mode == _GeneratorMode.style)
             Row(
               children: [
                 const Text('Style '),
@@ -427,6 +571,7 @@ class _LabHomeState extends State<LabHome> {
                 ),
               ],
             ),
+          _dateRangeRow(),
           Row(
             children: [
               const Text('Seed '),
@@ -806,6 +951,58 @@ class _LabHomeState extends State<LabHome> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Studio design option: filter designs to trips within a year range. Feeds
+  /// real (simulated, on macOS) trip dates into passport/timeline designs.
+  Widget _dateRangeRow() {
+    final label = _yearsIsAll
+        ? 'All years'
+        : '${_years.start.round()}–${_years.end.round()}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Trips'),
+            const Spacer(),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          ],
+        ),
+        RangeSlider(
+          values: _years,
+          min: _minYear.toDouble(),
+          max: _maxYear.toDouble(),
+          divisions: _maxYear - _minYear,
+          labels: RangeLabels(
+              '${_years.start.round()}', '${_years.end.round()}'),
+          onChanged: (v) => setState(() => _years = v),
+          onChangeEnd: (_) {
+            if (_restrictToRange) setState(_syncSelectionToRange);
+            _generate();
+          },
+        ),
+        // Optional: the slider populates the flag selection with the countries
+        // visited within the range.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilterChip(
+            label: const Text('Auto-select countries visited in range',
+                style: TextStyle(fontSize: 11)),
+            selected: _restrictToRange,
+            visualDensity: VisualDensity.compact,
+            onSelected: (v) {
+              setState(() {
+                _restrictToRange = v;
+                if (v) _syncSelectionToRange();
+              });
+              _generate();
+            },
+          ),
+        ),
+      ],
     );
   }
 

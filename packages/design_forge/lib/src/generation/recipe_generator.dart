@@ -1,20 +1,52 @@
 import '../determinism/deterministic_rng.dart';
 import '../recipe/design_recipe.dart';
+import '../travel/trip.dart';
 
 /// The travel/filter input to generation — "what is this design about?".
 ///
-/// Phase-0 minimal: a resolved set of flag codes plus an opaque [scopeKey] used
-/// to derive a stable seed and to re-resolve the context later. On mobile this
-/// is produced from `TravelProfile`/`MerchContext`; the engine never needs to
-/// know how it was derived.
+/// Carries the resolved set of [flagCodes] plus, optionally, the real
+/// **travel history** ([trips]) and a [dateRange] filter selected in the studio
+/// design options. Timeline / journey / passport / word-cloud designs read the
+/// trips (dates, visit frequency); simpler designs use just the flag codes. On
+/// mobile this is produced from the user's `TripRecord`s; the engine never needs
+/// to know how it was derived.
 class DesignContext {
   const DesignContext({
     required this.flagCodes,
     this.scopeKey,
+    this.trips = const [],
+    this.dateRange = DateRange.all,
   });
+
+  /// Build a context straight from a travel history, applying [dateRange] and
+  /// deriving [flagCodes] from the (filtered) trips.
+  factory DesignContext.fromTrips(
+    List<Trip> trips, {
+    DateRange dateRange = DateRange.all,
+    String? scopeKey,
+  }) {
+    final history = TravelHistory(trips).inRange(dateRange);
+    return DesignContext(
+      flagCodes: history.countryCodes,
+      trips: history.trips,
+      dateRange: dateRange,
+      scopeKey: scopeKey,
+    );
+  }
 
   final List<String> flagCodes;
   final String? scopeKey;
+
+  /// Real travel history (already filtered to [dateRange] when non-empty).
+  final List<Trip> trips;
+
+  /// The date-range filter the trips were resolved under (for provenance/seed).
+  final DateRange dateRange;
+
+  bool get hasTrips => trips.isNotEmpty;
+
+  /// Convenience view over [trips].
+  TravelHistory get history => TravelHistory(trips);
 }
 
 /// Produces [DesignRecipe]s. The engine renders whatever a generator emits, so

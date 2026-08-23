@@ -15,6 +15,7 @@ export 'src/renderer.dart';
 export 'src/stages/clip_stage.dart';
 export 'src/stages/colour_stage.dart';
 export 'src/stages/composition_stage.dart';
+export 'src/stages/data_layouts.dart';
 export 'src/stages/edge_treatment_stage.dart';
 export 'src/stages/effects_stage.dart';
 export 'src/stages/render_stage.dart';

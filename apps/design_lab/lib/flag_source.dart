@@ -198,6 +198,16 @@ class FlagSource {
     return _stampIndex![slug];
   }
 
+  /// Absolute path to a passport-stamp's JSON metadata (date position/font),
+  /// derived from its PNG path (`…/mobile_png/<base>.png` → `…/mobile_meta/<base>.json`).
+  String? passportStampMetaPath(String slug) {
+    final png = passportStampPath(slug);
+    if (png == null) return null;
+    final base = png.split(Platform.pathSeparator).last;
+    final stem = base.endsWith('.png') ? base.substring(0, base.length - 4) : base;
+    return '${_assetsDir.path}/mobile_meta/$stem.json';
+  }
+
   Directory get continentPathsDir =>
       Directory('${_assetsDir.path}/continent_paths');
 
@@ -231,6 +241,11 @@ class FlagSource {
           final path = passportStampPath(slug);
           if (path == null) throw StateError('no passport stamp for $slug');
           return File(path).readAsBytes();
+        },
+        passportMetaLookup: (slug) {
+          final path = passportStampMetaPath(slug);
+          if (path == null) throw StateError('no passport meta for $slug');
+          return File(path).readAsString();
         },
       );
 

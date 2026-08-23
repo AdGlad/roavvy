@@ -14,6 +14,7 @@ export 'src/recipe/recipe_parts.dart';
 export 'src/recipe/shape_catalog.dart';
 export 'src/recipe/versions.dart';
 export 'src/library/design_library.dart';
+export 'src/travel/trip.dart';
 
 // Recommendation / preference system.
 export 'src/recommendation/design_preferences.dart';

@@ -29,4 +29,48 @@ abstract class AssetResolver {
     required int height,
   }) async =>
       null;
+
+  /// Build a "passport page" collage from [stamps] (each a country's entry or
+  /// exit stamp with an optional trip date), **each filled with its own flag**
+  /// and scattered at angles across a [width]×[height] transparent canvas. The
+  /// date is drawn onto the stamp at the position from its metadata, exactly like
+  /// the real passport t-shirt. Returns a fully-coloured image (not a mask) that
+  /// replaces the artwork, or null if the resolver has no stamps. Default: none.
+  Future<ui.Image?> resolvePassportCollage(
+    List<PassportStampRef> stamps, {
+    required int width,
+    required int height,
+    int seed = 0,
+    double scatter = 0.5,
+    double stampScale = 1.0,
+    PassportInk ink = PassportInk.flag,
+  }) async =>
+      null;
+}
+
+/// One stamp to render: [slug] (e.g. `sc_entry`) + an optional trip [date] label
+/// (e.g. `12 MAR 24`) drawn at the stamp's metadata date position.
+class PassportStampRef {
+  const PassportStampRef(this.slug, [this.date]);
+  final String slug;
+  final String? date;
+}
+
+/// How passport stamps are inked in the collage.
+enum PassportInk {
+  /// Each stamp filled with its own country's flag (default).
+  flag,
+
+  /// Plain solid black ink on transparent — like a real passport stamp.
+  black,
+
+  /// Plain solid white ink on transparent (for dark garments).
+  white;
+
+  static PassportInk fromId(String? id) {
+    for (final v in PassportInk.values) {
+      if (v.name == id) return v;
+    }
+    return PassportInk.flag;
+  }
 }

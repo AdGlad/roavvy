@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 
+import 'data_layouts.dart';
 import 'multi_flag_layout.dart';
 import 'render_stage.dart';
 
@@ -20,6 +21,13 @@ class CompositionStage extends RenderStage {
 
   @override
   Future<void> apply(DesignRecipe recipe, RenderContext ctx) async {
+    // Data-driven families (timeline / journeys / word cloud) build their own
+    // artwork from the recipe's travel entries.
+    if (DataLayouts.handles(recipe.composition.family)) {
+      await DataLayouts.build(recipe, ctx);
+      return;
+    }
+
     final flags = recipe.content.flags;
     if (flags.isEmpty) return;
 

@@ -64,16 +64,59 @@ class FlagRef {
   int get hashCode => Object.hash(code, weight);
 }
 
+/// A data-driven entry for the timeline / journeys / word-cloud families: a
+/// country ([code]) with its display [label] (name — the pure engine can't look
+/// names up, so the recipe carries it), optional trip dates, and a [weight]
+/// (visit frequency → word-cloud sizing). Kept in the recipe so these designs
+/// are self-contained and reproducible.
+class RecipeEntry {
+  const RecipeEntry({
+    required this.code,
+    this.label = '',
+    this.start,
+    this.end,
+    this.weight = 1,
+  });
+
+  final String code;
+  final String label;
+  final DateTime? start;
+  final DateTime? end;
+  final int weight;
+
+  Map<String, Object?> toJson() => {
+        'code': code,
+        if (label.isNotEmpty) 'label': label,
+        if (start != null) 'start': start!.toIso8601String(),
+        if (end != null) 'end': end!.toIso8601String(),
+        if (weight != 1) 'weight': weight,
+      };
+
+  factory RecipeEntry.fromJson(Map<String, Object?> j) => RecipeEntry(
+        code: j['code']! as String,
+        label: (j['label'] as String?) ?? '',
+        start: j['start'] == null ? null : DateTime.parse(j['start'] as String),
+        end: j['end'] == null ? null : DateTime.parse(j['end'] as String),
+        weight: (j['weight'] as num?)?.toInt() ?? 1,
+      );
+}
+
 /// The concrete travel content drawn.
 class RecipeContent {
-  const RecipeContent({required this.flags, this.source});
+  const RecipeContent({required this.flags, this.source, this.entries = const []});
 
   final List<FlagRef> flags;
   final String? source;
 
+  /// Data-driven entries for timeline / journeys / word-cloud designs. Empty for
+  /// flag-only families (grid/hero/…).
+  final List<RecipeEntry> entries;
+
   Map<String, Object?> toJson() => {
         'flags': [for (final f in flags) f.toJson()],
         if (source != null) 'source': source,
+        if (entries.isNotEmpty)
+          'entries': [for (final e in entries) e.toJson()],
       };
 
   factory RecipeContent.fromJson(Map<String, Object?> json) => RecipeContent(
@@ -82,6 +125,10 @@ class RecipeContent {
             FlagRef.fromJson((f as Map).cast<String, Object?>()),
         ],
         source: json['source'] as String?,
+        entries: [
+          for (final e in (json['entries'] as List? ?? const []))
+            RecipeEntry.fromJson((e as Map).cast<String, Object?>()),
+        ],
       );
 }
 

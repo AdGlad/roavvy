@@ -58,8 +58,19 @@ stamp, entry/exit stamp. Typographic: text (any word/name/number, incl. the
 country's own name). Geographic: country outline,
 continent outline, animal/plant/landmark silhouettes, real per-country passport
 entry/exit stamps (`passportStampOutline`, resolver mask — the flag fills the
-stamp's ink), and a `passportPage` that overlays a country's entry + exit stamps
-at opposing angles like stamps on a passport page. Custom: customSvg (stub).
+stamp's ink; code is `slug` or `slug|DATE`), and a `passportPage` collage that
+scatters the entry + exit stamps of **every** selected country/trip at angles
+like a real passport page — each stamp filled with its OWN country's flag and
+stamped with the **trip date** at the position from its `mobile_meta/*.json`
+(no added border — matches the real passport t-shirt). The `passportPage` code is
+`cc|ENTRY|EXIT` trip segments joined by `;` (repeat a country for multiple trips;
+a legacy `cc,cc` list is also accepted); dates are optional. Stamps are placed
+**randomly** (mobile parity: seeded shuffle + grid-cell jitter + ±20° rotation,
+count-adaptive size) via `AssetResolver.resolvePassportCollage(seed, scatter,
+stampScale, ink)`, which replaces the artwork. `Clip.scatter` spreads stamps
+apart, `Clip.scale` sizes them (smaller → fit more), and `Clip.ink` picks the
+fill: `flag` (each stamp its own flag) / `black` / `white` on transparent.
+Custom: customSvg (stub).
 
 Verified: all 22 procedural+text shapes render a flag through the mask
 (`shapes_export_test.dart`), independent of composition (single/grid/voronoi/…),

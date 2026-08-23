@@ -20,12 +20,18 @@ import 'lab_styles.dart';
 class LabShowcaseGenerator implements RecipeGenerator {
   const LabShowcaseGenerator({
     this.style = LabStyle.showcase,
+    this.template,
     this.silhouettesByShape = const {},
     this.continents = const [],
     this.countryNames = const {},
   });
 
   final LabStyle style;
+
+  /// When set to a data-driven family (timeline / journeys / wordCloud), the
+  /// generator emits that template from the context's travel history instead of
+  /// the flag/clip showcase.
+  final DesignFamily? template;
 
   /// Lowercase ISO-2 → display name (e.g. `sc` → `Seychelles`), used to offer
   /// the country's own name as a typography subject.
@@ -39,6 +45,28 @@ class LabShowcaseGenerator implements RecipeGenerator {
   final List<String> continents;
 
   static const _words = ['ROAM', 'EXPLORE', 'WANDER', 'ADVENTURE', 'WILD', 'NOMAD'];
+
+  static const _months = [
+    'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+  ];
+
+  /// Format a real trip date as `DD MMM YY` for a stamp.
+  static String formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')} ${_months[d.month - 1]} '
+      '${(d.year % 100).toString().padLeft(2, '0')}';
+
+  /// A plausible, deterministic trip (entry, exit) as `DD MMM YY` — used only
+  /// when the context has no real travel history for the country.
+  static (String, String) tripDates(DeterministicRng r) {
+    final year = 20 + r.nextInt(6); // '20'..'25'
+    final month = 1 + r.nextInt(12);
+    final entryDay = 1 + r.nextInt(20);
+    final exitDay = (entryDay + 3 + r.nextInt(12)).clamp(1, 28);
+    String fmt(int d, int y) =>
+        '${d.toString().padLeft(2, '0')} ${_months[month - 1]} ${y.toString().padLeft(2, '0')}';
+    return (fmt(entryDay, year), fmt(exitDay, year));
+  }
 
   @override
   List<DesignRecipe> generate(
@@ -61,7 +89,16 @@ class LabShowcaseGenerator implements RecipeGenerator {
     ];
   }
 
+  static const _dataFamilies = {
+    DesignFamily.timeline,
+    DesignFamily.journeys,
+    DesignFamily.wordCloud,
+  };
+
   DesignRecipe _one(DesignContext context, int seed) {
+    if (template != null && _dataFamilies.contains(template)) {
+      return _dataRecipe(context, seed, template!);
+    }
     final rng = DeterministicRng(seed);
     final spec = style.spec;
     final codes = context.flagCodes;
@@ -98,6 +135,14 @@ class LabShowcaseGenerator implements RecipeGenerator {
     final stamps = single
         ? _countrySlugs(ClipShape.passportStampOutline, code)
         : const <String>[];
+    // All selected countries that have a real passport stamp — the passport
+    // PAGE works for one OR many countries (one image with every country's
+    // entry/exit stamps, each filled with its own flag).
+    final stampSlugs = silhouettesByShape[ClipShape.passportStampOutline] ?? const [];
+    final stampCcs = [
+      for (final c in codes.map((e) => e.toLowerCase()))
+        if (stampSlugs.any((s) => s.split('_').first == c)) c,
+    ];
 
     bool available(ClipArchetype a) {
       switch (a) {
@@ -108,8 +153,9 @@ class LabShowcaseGenerator implements RecipeGenerator {
         case ClipArchetype.landmarkSilhouette:
           return landmarks.isNotEmpty;
         case ClipArchetype.passportStampReal:
+          return stamps.isNotEmpty; // single-country single stamp
         case ClipArchetype.passportPage:
-          return stamps.isNotEmpty;
+          return stampCcs.isNotEmpty; // one or many countries
         case ClipArchetype.countryOutline:
           return single;
         case ClipArchetype.continentOutline:
@@ -128,6 +174,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
     final clip = _clipFor(
       arc, rng.stream('clip'), spec, code,
       animals: animals, plants: plants, landmarks: landmarks, stamps: stamps,
+      stampCcs: stampCcs, history: context.history,
     );
 
     // Finish: edge/effects/palette from the style. Don't tear a clipped shape
@@ -154,6 +201,65 @@ class LabShowcaseGenerator implements RecipeGenerator {
     );
   }
 
+  /// Build a data-driven design (timeline / journeys / word cloud) from the
+  /// context's travel history. Entries carry the country label + dates + visit
+  /// weight so the recipe is self-contained and reproducible.
+  DesignRecipe _dataRecipe(DesignContext context, int seed, DesignFamily family) {
+    final rng = DeterministicRng(seed);
+    final history = context.history;
+    String nameOf(String cc) => countryNames[cc.toLowerCase()] ?? cc.toUpperCase();
+
+    List<RecipeEntry> entries;
+    if (family == DesignFamily.wordCloud) {
+      final counts = history.visitCounts;
+      final codes = counts.isNotEmpty
+          ? counts.keys.toList()
+          : context.flagCodes.map((e) => e.toLowerCase()).toList();
+      entries = [
+        for (final cc in codes)
+          RecipeEntry(code: cc, label: nameOf(cc), weight: counts[cc] ?? 1),
+      ];
+    } else {
+      // timeline / journeys → one entry per real trip (dated); else per flag.
+      entries = history.isNotEmpty
+          ? [
+              for (final t in history.trips)
+                RecipeEntry(
+                    code: t.cc, label: nameOf(t.cc), start: t.startedOn, end: t.endedOn)
+            ]
+          : [
+              for (final cc in context.flagCodes)
+                RecipeEntry(code: cc.toLowerCase(), label: nameOf(cc))
+            ];
+    }
+    if (entries.isEmpty) {
+      entries = [RecipeEntry(code: 'us', label: nameOf('us'))];
+    }
+
+    final orientation = family == DesignFamily.wordCloud
+        ? rng.stream('o').pick(const [Orientation.square, Orientation.landscape])
+        : rng.stream('o').pick(const [Orientation.portrait, Orientation.square]);
+    final pr = rng.stream('pal');
+    final palette = pr.chance(0.4)
+        ? Palette(
+            strategy: ColourStrategy.flagDerived,
+            vintageGrade: pr.nextRange(0.3, 0.6))
+        : null;
+
+    final distinct = <String>{for (final e in entries) e.code}.toList();
+    return DesignRecipe(
+      seed: seed,
+      content: RecipeContent(
+        flags: [for (final c in distinct) FlagRef(c)],
+        entries: entries,
+        source: context.scopeKey,
+      ),
+      composition: Composition(family: family, orientation: orientation),
+      palette: palette,
+      provenance: RecipeProvenance(generator: 'lab:template:${family.name}'),
+    );
+  }
+
   /// Turn a subject archetype into a [Clip] (or null for the plain flag).
   Clip? _clipFor(
     ClipArchetype arc,
@@ -164,6 +270,8 @@ class LabShowcaseGenerator implements RecipeGenerator {
     required List<String> plants,
     required List<String> landmarks,
     required List<String> stamps,
+    required List<String> stampCcs,
+    required TravelHistory history,
   }) {
     final (lo, hi) = spec.clipScale;
     Clip proc(String id) => Clip(
@@ -182,10 +290,42 @@ class LabShowcaseGenerator implements RecipeGenerator {
       case ClipArchetype.landmarkSilhouette:
         return Clip(shapeId: 'landmarkSilhouette', code: r.pick(landmarks));
       case ClipArchetype.passportStampReal:
-        return Clip(shapeId: 'passportStampOutline', code: r.pick(stamps));
+        // A single real stamp with its trip date. Prefer the country's most
+        // recent real trip; fall back to a synthesised date.
+        final slug = r.pick(stamps);
+        final cc = slug.split('_').first;
+        final recent = history.mostRecentFor(cc);
+        final String entry, exit;
+        if (recent != null) {
+          entry = formatDate(recent.startedOn);
+          exit = formatDate(recent.endedOn);
+        } else {
+          (entry, exit) = tripDates(r);
+        }
+        return Clip(
+            shapeId: 'passportStampOutline',
+            code: '$slug|${slug.endsWith('_exit') ? exit : entry}');
       case ClipArchetype.passportPage:
-        // Both entry + exit stamps for this country, overlaid at angles.
-        return Clip(shapeId: 'passportPage', code: code);
+        // Entry + exit stamps for ALL selected countries — one `cc|entry|exit`
+        // segment per REAL trip (multiple trips → multiple stamp pairs), each
+        // filled with its own flag. Falls back to a synthesised date per country.
+        final segs = <String>[];
+        for (final cc in stampCcs) {
+          final tripsForCc = history.forCountry(cc);
+          if (tripsForCc.isNotEmpty) {
+            for (final t in tripsForCc) {
+              segs.add('$cc|${formatDate(t.startedOn)}|${formatDate(t.endedOn)}');
+            }
+          } else {
+            final (entry, exit) = tripDates(r);
+            segs.add('$cc|$entry|$exit');
+          }
+        }
+        return Clip(
+            shapeId: 'passportPage',
+            code: segs.join(';'),
+            scatter: r.nextRange(0.35, 0.7),
+            scale: r.nextRange(0.85, 1.1));
       case ClipArchetype.countryOutline:
         return Clip(shapeId: 'countryOutline', code: code);
       case ClipArchetype.continentOutline:

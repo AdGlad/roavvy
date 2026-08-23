@@ -41,6 +41,8 @@ class RecipeDraft {
         clipRotation = r.clip?.rotationDeg ?? 0.0,
         clipCornerRadius = r.clip?.cornerRadius ?? 0.0,
         feather = r.clip?.feather ?? 0.0,
+        clipScatter = r.clip?.scatter ?? 0.5,
+        clipInk = r.clip?.ink ?? 'flag',
         // edge treatment
         edgeOn = r.edgeTreatment != null,
         tearStyle = r.edgeTreatment?.style ?? TearStyle.ragged,
@@ -121,6 +123,8 @@ class RecipeDraft {
   double clipRotation;
   double clipCornerRadius;
   double feather;
+  double clipScatter;
+  String clipInk;
 
   bool edgeOn;
   TearStyle tearStyle;
@@ -172,6 +176,7 @@ class RecipeDraft {
               final isAsset = meta?.source == ClipShapeSource.resolver ||
                   meta?.source == ClipShapeSource.svgAsset;
               final isText = meta?.source == ClipShapeSource.text;
+              final isPassportPage = meta?.resolverKind == ClipShape.passportPage;
               return Clip(
                 shapeId: clipShapeId,
                 code: isAsset ? clipCode : null,
@@ -180,6 +185,8 @@ class RecipeDraft {
                 rotationDeg: clipRotation,
                 cornerRadius: clipCornerRadius,
                 feather: feather,
+                scatter: clipScatter,
+                ink: isPassportPage ? clipInk : null,
               );
             }()
           : null,
@@ -593,6 +600,18 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
     ];
   }
 
+  /// Selected countries (lowercase cc) that have a real passport stamp — used
+  /// by the passport page (one image with every selected country's stamps).
+  List<String> _stampCountryCodes() {
+    final slugs =
+        widget.silhouettesByShape[ClipShape.passportStampOutline] ?? const [];
+    return [
+      for (final f in _draft.baseFlags)
+        if (slugs.any((s) => s.split('_').first == f.code.toLowerCase()))
+          f.code.toLowerCase(),
+    ];
+  }
+
   /// Whether a catalog shape is usable for the current design.
   bool _shapeAvailable(ClipShapeMeta m) {
     final kind = m.resolverKind;
@@ -603,10 +622,10 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
         kind == ClipShape.passportStampOutline) {
       return _isSingleCountry && _countrySlugsFor(kind!).isNotEmpty;
     }
-    // The passport page overlays this country's entry + exit stamps.
+    // The passport page overlays entry + exit stamps for ALL selected countries
+    // that have them — works for one OR many countries.
     if (kind == ClipShape.passportPage) {
-      return _isSingleCountry &&
-          _countrySlugsFor(ClipShape.passportStampOutline).isNotEmpty;
+      return _stampCountryCodes().isNotEmpty;
     }
     if (m.source == ClipShapeSource.svgAsset) return false; // custom SVG: later
     return true;
@@ -658,12 +677,31 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
         if (meta.cornerRadius)
           _slider('Corner', _draft.clipCornerRadius, 0, 1,
               (v) => _change(() => _draft.clipCornerRadius = v)),
-        _slider('Scale', _draft.clipScale, 0.25, 1.2,
-            (v) => _change(() => _draft.clipScale = v)),
-        _slider('Rotation', _draft.clipRotation, -45, 45,
-            (v) => _change(() => _draft.clipRotation = v)),
-        _slider('Feather', _draft.feather, 0, 1,
-            (v) => _change(() => _draft.feather = v)),
+        if (meta.resolverKind == ClipShape.passportPage) ...[
+          // Passport collage controls: stamp size, spread, and ink mode.
+          _slider('Stamp size', _draft.clipScale, 0.4, 1.4,
+              (v) => _change(() => _draft.clipScale = v)),
+          _slider('Scatter', _draft.clipScatter, 0, 1,
+              (v) => _change(() => _draft.clipScatter = v)),
+          _dropdown<String>(
+            'Ink',
+            _draft.clipInk,
+            const ['flag', 'black', 'white'],
+            (v) => _change(() => _draft.clipInk = v),
+            labeler: (v) => {
+              'flag': 'Flag-filled',
+              'black': 'Black on transparent',
+              'white': 'White on transparent',
+            }[v]!,
+          ),
+        ] else ...[
+          _slider('Scale', _draft.clipScale, 0.25, 1.2,
+              (v) => _change(() => _draft.clipScale = v)),
+          _slider('Rotation', _draft.clipRotation, -45, 45,
+              (v) => _change(() => _draft.clipRotation = v)),
+          _slider('Feather', _draft.feather, 0, 1,
+              (v) => _change(() => _draft.feather = v)),
+        ],
       ],
     );
   }
@@ -673,9 +711,17 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
 
   String? _defaultCodeForId(ClipShapeMeta m) {
     final kind = m.resolverKind;
-    // countryOutline + passportPage key off the country ISO code, not a slug.
-    if (kind == ClipShape.countryOutline || kind == ClipShape.passportPage) {
-      return _draft.baseFlags.first.code;
+    if (kind == ClipShape.countryOutline) return _draft.baseFlags.first.code;
+    // passportPage: one `cc|entry|exit` trip per selected country (with real
+    // trip dates), joined by ';'.
+    if (kind == ClipShape.passportPage) {
+      final ccs = _stampCountryCodes();
+      if (ccs.isEmpty) return _draft.baseFlags.first.code;
+      final r = DeterministicRng(_draft.seed).stream('passport');
+      return ccs.map((cc) {
+        final (entry, exit) = LabShowcaseGenerator.tripDates(r);
+        return '$cc|$entry|$exit';
+      }).join(';');
     }
     if (kind == ClipShape.continentOutline) {
       return widget.continents.isEmpty ? null : widget.continents.first;
@@ -743,12 +789,16 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
       ];
     }
     if (kind == ClipShape.passportPage) {
-      // No picker — it uses the country's own entry + exit stamps.
-      return const [
+      // No picker — it uses every selected country's entry + exit stamps.
+      final n = _stampCountryCodes().length;
+      return [
         Padding(
-          padding: EdgeInsets.symmetric(vertical: 4),
-          child: Text('Overlays this country’s entry + exit stamps.',
-              style: TextStyle(fontSize: 11, color: Colors.white60)),
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+              n <= 1
+                  ? 'Overlays this country’s entry + exit stamps.'
+                  : 'Overlays entry + exit stamps for all $n selected countries.',
+              style: const TextStyle(fontSize: 11, color: Colors.white60)),
         ),
       ];
     }

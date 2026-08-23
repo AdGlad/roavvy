@@ -137,4 +137,36 @@ void main() {
     expect(texts, contains('SEYCHELLES'),
         reason: 'the full country name must be an available text subject');
   });
+
+  testWidgets('passport designs use REAL trip dates from the context',
+      (tester) async {
+    final source = FlagSource.locate();
+    expect(source, isNotNull);
+    final gen = LabShowcaseGenerator(
+      silhouettesByShape: {
+        ClipShape.passportStampOutline: source!.passportStampSlugs(),
+      },
+    );
+    // A context carrying a real trip (12–18 Mar 2024) → the stamp date must be
+    // the trip's date, not a synthesised one.
+    final ctx = DesignContext.fromTrips([
+      Trip(
+        countryCode: 'sc',
+        startedOn: DateTime(2024, 3, 12),
+        endedOn: DateTime(2024, 3, 18),
+      ),
+    ]);
+    final recipes = gen.generate(ctx, seed: 1, count: 60);
+    final passportCodes = recipes
+        .map((r) => r.clip?.code)
+        .whereType<String>()
+        .where((c) => c.contains('|'))
+        .toList();
+    expect(passportCodes, isNotEmpty,
+        reason: 'passport stamps should appear for a single-country context');
+    expect(passportCodes.any((c) => c.contains('12 MAR 24')), isTrue,
+        reason: 'entry date must come from the real trip');
+    expect(passportCodes.any((c) => c.contains('18 MAR 24')), isTrue,
+        reason: 'exit date must come from the real trip');
+  });
 }

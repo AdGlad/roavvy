@@ -183,6 +183,8 @@ class Clip {
     this.cornerRadius = 0.0,
     this.feather = 0.0,
     this.position,
+    this.scatter = 0.5,
+    this.ink,
   });
 
   /// Convenience for the built-in [ClipShape] enum shapes.
@@ -196,6 +198,8 @@ class Clip {
     this.cornerRadius = 0.0,
     this.feather = 0.0,
     this.position,
+    this.scatter = 0.5,
+    this.ink,
   }) : shapeId = shape.id;
 
   /// Catalog id, e.g. 'circle', 'hexagon', 'luggageTag', 'text', 'countryOutline'.
@@ -226,6 +230,14 @@ class Clip {
   /// Where the shape sits in the frame (centre by default).
   final Placement? position;
 
+  /// Passport collage: how far stamps scatter/spread apart within the page
+  /// (0 = tight grid, 1 = maximum jitter). Ignored by other shapes.
+  final double scatter;
+
+  /// Passport collage ink mode: null/'flag' = each stamp filled with its own
+  /// flag; 'black' / 'white' = plain solid ink on transparent (a real stamp).
+  final String? ink;
+
   /// The [ClipShape] enum for asset-backed shapes, or null for procedural/text.
   ClipShape get resolverShape => ClipShape.fromId(shapeId);
 
@@ -242,6 +254,8 @@ class Clip {
         if (cornerRadius != 0.0) 'cornerRadius': cornerRadius,
         if (feather != 0.0) 'feather': feather,
         if (position != null) 'position': position!.toJson(),
+        if (scatter != 0.5) 'scatter': scatter,
+        if (ink != null) 'ink': ink,
       };
 
   factory Clip.fromJson(Map<String, Object?> j) => Clip(
@@ -257,6 +271,8 @@ class Clip {
         position: j['position'] == null
             ? null
             : Placement.fromJson((j['position'] as Map).cast<String, Object?>()),
+        scatter: (j['scatter'] as num?)?.toDouble() ?? 0.5,
+        ink: j['ink'] as String?,
       );
 }
 

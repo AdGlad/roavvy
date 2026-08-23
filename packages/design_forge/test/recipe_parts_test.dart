@@ -117,6 +117,19 @@ void main() {
       expect(ClipShape.circle.needsCode, isFalse);
     });
 
+    test('Clip carries passport scatter + ink through JSON', () {
+      const c = Clip(
+          shapeId: 'passportPage', code: 'sc|1 JAN 24|5 JAN 24',
+          scatter: 0.8, ink: 'black', scale: 0.7);
+      final back = Clip.fromJson(c.toJson());
+      expect(back.scatter, 0.8);
+      expect(back.ink, 'black');
+      expect(back.scale, 0.7);
+      // Defaults are omitted / restored.
+      expect(const Clip(shapeId: 'circle').scatter, 0.5);
+      expect(const Clip(shapeId: 'circle').ink, isNull);
+    });
+
     test('passport clip shapes are registered + browsable in the Travel family', () {
       final travel = clipShapesByFamily(ShapeFamily.travel).map((m) => m.id).toSet();
       expect(travel, containsAll(<String>['passportStampOutline', 'passportPage']));

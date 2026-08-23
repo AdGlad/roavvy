@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 
+import '../asset_resolver.dart';
 import '../clip/shape_geometry.dart';
 import '../clip/text_mask.dart';
 import 'render_stage.dart';
@@ -28,6 +29,26 @@ class ClipStage extends RenderStage {
     if (clip == null || clip.shapeId == 'none' || ctx.artwork == null) return;
     final meta = clipShapeMetaById(clip.shapeId);
     if (meta == null) return; // unknown shape → skip rather than blank out
+
+    // Passport page is a self-contained COLLAGE (one or many countries, one or
+    // many trips): each trip's real entry + exit stamps, each filled with its OWN
+    // flag and stamped with the trip DATE, scattered on the page. It replaces the
+    // artwork rather than masking it.
+    if (meta.resolverKind == ClipShape.passportPage) {
+      final stamps = _parsePassportTrips(clip.code ?? '');
+      if (stamps.isEmpty) return;
+      final collage = await ctx.assets.resolvePassportCollage(
+        stamps,
+        width: ctx.width,
+        height: ctx.height,
+        seed: recipe.seed,
+        scatter: clip.scatter.clamp(0.0, 1.0),
+        stampScale: clip.scale <= 0 ? 1.0 : clip.scale,
+        ink: PassportInk.fromId(clip.ink),
+      );
+      if (collage != null) ctx.artwork = collage;
+      return;
+    }
 
     final rect = _targetRect(clip, meta, ctx.width, ctx.height);
 
@@ -71,6 +92,31 @@ class ClipStage extends RenderStage {
         if (mask != null) await _applyMask(ctx, mask);
         break;
     }
+  }
+
+  /// Parse a passport-page code into per-trip entry/exit stamp refs. Format is
+  /// `cc|ENTRY|EXIT` segments joined by `;` (a country may repeat for multiple
+  /// trips); a legacy plain `cc,cc,cc` list (no dates) is also accepted.
+  List<PassportStampRef> _parsePassportTrips(String code) {
+    final out = <PassportStampRef>[];
+    for (final seg in code.split(';')) {
+      final s = seg.trim();
+      if (s.isEmpty) continue;
+      final parts = s.split('|');
+      final entry = parts.length > 1 && parts[1].trim().isNotEmpty
+          ? parts[1].trim()
+          : null;
+      final exit = parts.length > 2 && parts[2].trim().isNotEmpty
+          ? parts[2].trim()
+          : null;
+      for (final cc in parts[0].split(',')) {
+        final c = cc.trim().toLowerCase();
+        if (c.isEmpty) continue;
+        out.add(PassportStampRef('${c}_entry', entry));
+        out.add(PassportStampRef('${c}_exit', exit));
+      }
+    }
+    return out;
   }
 
   /// The box the shape occupies: its aspect (recipe override or catalog natural)
