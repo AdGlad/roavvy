@@ -58,6 +58,37 @@ class PreferenceLearner {
     );
   }
 
+  /// Observe [signal] over a whole batch of [recipes] — used to "rework" the
+  /// generator from a set of rejected designs (each one nudges preferences away
+  /// from its style/shape). Returns the updated preferences.
+  DesignPreferences observeBatch(
+    DesignPreferences prefs,
+    Iterable<DesignRecipe> recipes,
+    PreferenceSignal signal,
+  ) {
+    var p = prefs;
+    for (final r in recipes) {
+      p = observe(p, r, signal);
+    }
+    return p;
+  }
+
+  /// A human-readable tally of the style/shape/genre features across [recipes],
+  /// most common first — so the UI can explain what a rework down-weighted.
+  static List<MapEntry<String, int>> featureTally(Iterable<DesignRecipe> recipes) {
+    final m = <String, int>{};
+    void bump(String k) => m[k] = (m[k] ?? 0) + 1;
+    for (final r in recipes) {
+      final c = _clusterFromRecipe(r);
+      if (c != null) bump('style:${c.name}');
+      final s = _shapeFromRecipe(r);
+      if (s != null) bump('shape:${s.name}');
+      bump('genre:${r.composition.family.name}');
+    }
+    final out = m.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return out;
+  }
+
   double _update(double current, double delta) {
     return (current * math.exp(learningRate * delta))
         .clamp(DesignPreferences.kClampMin, DesignPreferences.kClampMax);
