@@ -251,6 +251,31 @@ class RecipeDraft {
 
 /// The live parameter-editor panel. Every control mutates the [RecipeDraft] and
 /// re-renders the preview immediately. [onExportPng] / [onVariations] bubble up.
+/// A one-tap **finish** (effects + palette) applied on top of the SAME image —
+/// the Configure step's non-destructive swaps (Vintage → Tie-dye, etc.).
+class FinishPreset {
+  const FinishPreset(this.name, {this.effects, this.palette});
+  final String name;
+  final Effects? effects;
+  final Palette? palette;
+}
+
+const List<FinishPreset> kFinishPresets = [
+  FinishPreset('None'),
+  FinishPreset('Vintage',
+      effects: Effects(grain: 0.3, fade: 0.2),
+      palette: Palette(strategy: ColourStrategy.flagDerived, vintageGrade: 0.6)),
+  FinishPreset('Tie-dye', effects: Effects(tieDye: 0.9)),
+  FinishPreset('Halftone', effects: Effects(halftone: 0.9, halftoneScale: 5)),
+  FinishPreset('Distress', effects: Effects(distress: 0.55, grain: 0.4)),
+  FinishPreset('Shatter',
+      effects: Effects(shatter: 0.85, distress: 0.35, grain: 0.3)),
+  FinishPreset('Mono', palette: Palette(strategy: ColourStrategy.monochrome)),
+  FinishPreset('Retro',
+      effects: Effects(halftone: 0.7, halftoneScale: 6),
+      palette: Palette(strategy: ColourStrategy.flagDerived, vintageGrade: 0.4)),
+];
+
 class RecipeEditorPanel extends StatefulWidget {
   const RecipeEditorPanel({
     super.key,
@@ -306,6 +331,65 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
   }
 
   void _change(VoidCallback mutate) => setState(mutate);
+
+  // ── Configure: non-destructive finish swapping (keeps the same image) ────────
+
+  /// Apply a finish preset to the draft — sets the effect/palette fields and
+  /// clears the rest, leaving the SUBJECT (clip/pattern/flags/seed) untouched.
+  void _applyFinish(FinishPreset p) {
+    _change(() {
+      final fx = p.effects;
+      _draft.fxOn = fx != null;
+      _draft.distress = fx?.distress ?? 0;
+      _draft.grain = fx?.grain ?? 0;
+      _draft.fade = fx?.fade ?? 0;
+      _draft.halftone = fx?.halftone ?? 0;
+      _draft.halftoneScale = fx?.halftoneScale ?? 6;
+      _draft.rippleAmp = fx?.rippleAmp ?? 0;
+      _draft.tieDye = fx?.tieDye ?? 0;
+      _draft.shatter = fx?.shatter ?? 0;
+      _draft.shatterSpikes = fx?.shatterSpikes ?? 0;
+      final pal = p.palette;
+      _draft.paletteOn = pal != null;
+      _draft.strategy = pal?.strategy ?? ColourStrategy.flagDerived;
+      _draft.vintageGrade = pal?.vintageGrade ?? 0;
+    });
+  }
+
+  /// The current design with [p]'s finish swapped in — for the chip previews.
+  DesignRecipe _finishVariant(DesignRecipe base, FinishPreset p) => DesignRecipe(
+        seed: base.seed,
+        content: base.content,
+        composition: base.composition,
+        flagCombination: base.flagCombination,
+        clip: base.clip,
+        edgeTreatment: base.edgeTreatment,
+        effects: p.effects,
+        palette: p.palette,
+        provenance: base.provenance,
+      );
+
+  /// Index of the finish preset the draft currently matches, or -1 (custom).
+  int _activeFinishIndex() {
+    for (var i = 0; i < kFinishPresets.length; i++) {
+      final p = kFinishPresets[i];
+      final fx = p.effects;
+      final effOk = (_draft.fxOn == (fx != null)) &&
+          _draft.distress == (fx?.distress ?? 0) &&
+          _draft.grain == (fx?.grain ?? 0) &&
+          _draft.fade == (fx?.fade ?? 0) &&
+          _draft.halftone == (fx?.halftone ?? 0) &&
+          _draft.tieDye == (fx?.tieDye ?? 0) &&
+          _draft.shatter == (fx?.shatter ?? 0);
+      final pal = p.palette;
+      final palOk = (_draft.paletteOn == (pal != null)) &&
+          (pal == null ||
+              (_draft.strategy == pal.strategy &&
+                  _draft.vintageGrade == pal.vintageGrade));
+      if (effOk && palOk) return i;
+    }
+    return -1;
+  }
 
   /// Read the style back from provenance (`lab:<style>`), defaulting to showcase.
   static LabStyle _styleOf(DesignRecipe r) =>
@@ -394,6 +478,7 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
                         style: const TextStyle(fontSize: 11, color: Colors.white60)),
                   ),
                   const Divider(height: 12),
+                  _finishSection(recipe),
                   _styleRow(),
                   _seedRow(),
                   _patternRow(),
@@ -533,12 +618,76 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
 
   /// Apply a whole style preset as a starting point, then fine-tune below. The
   /// dice advances the seed to browse the style's other subjects.
+  /// Configure step: a one-tap strip of finishes rendered on the SAME image.
+  /// Tapping swaps the finish non-destructively; the sliders below fine-tune it.
+  Widget _finishSection(DesignRecipe recipe) {
+    final active = _activeFinishIndex();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 2),
+          child: Text('FINISH',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, fontSize: 12)),
+        ),
+        const Text('Same image, different treatment — tap to try.',
+            style: TextStyle(fontSize: 10, color: Colors.white54)),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 96,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: kFinishPresets.length,
+            separatorBuilder: (_, i) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final p = kFinishPresets[i];
+              final selected = i == active;
+              return GestureDetector(
+                onTap: () => _applyFinish(p),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F2F2),
+                        border: Border.all(
+                          color: selected ? Colors.tealAccent : const Color(0xFF2A2D33),
+                          width: selected ? 2 : 1,
+                        ),
+                      ),
+                      child: _LivePreview(
+                          service: widget.service,
+                          recipe: _finishVariant(recipe, p),
+                          size: 68),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(p.name,
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: selected ? Colors.tealAccent : Colors.white70)),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   Widget _styleRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          const SizedBox(width: 90, child: Text('Style')),
+          const SizedBox(
+              width: 90,
+              child: Text('Restyle',
+                  style: TextStyle(fontSize: 12),
+                  // Distinct from Finish: restyle may recompose the image.
+                  semanticsLabel: 'Restyle (changes the image)')),
           Expanded(
             child: DropdownButton<LabStyle>(
               isExpanded: true,

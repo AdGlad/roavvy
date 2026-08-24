@@ -75,6 +75,38 @@ void main() {
     expect(r.content.flags.length, 1);
   });
 
+  test('finish presets swap the finish but keep the SAME image (subject)', () {
+    // Configure step: chose Vintage, try Tie-dye on the same graphic.
+    final base = DesignRecipe(
+      seed: 7,
+      content: const RecipeContent(flags: [FlagRef('sc')]),
+      composition: const Composition(family: DesignFamily.singleHero),
+      clip: const Clip(shapeId: 'heart'),
+    );
+    DesignRecipe withFinish(FinishPreset p) => DesignRecipe(
+          seed: base.seed,
+          content: base.content,
+          composition: base.composition,
+          clip: base.clip,
+          effects: p.effects,
+          palette: p.palette,
+        );
+    final vintage = withFinish(
+        kFinishPresets.firstWhere((p) => p.name == 'Vintage'));
+    final tieDye = withFinish(
+        kFinishPresets.firstWhere((p) => p.name == 'Tie-dye'));
+
+    // Subject is identical (same image); only the finish differs.
+    expect(vintage.clip?.shapeId, 'heart');
+    expect(tieDye.clip?.shapeId, 'heart');
+    expect(vintage.content.toJson(), tieDye.content.toJson());
+    expect(vintage.composition.toJson(), tieDye.composition.toJson());
+    // Different finish → different design id → different render.
+    expect(vintage.recipeId, isNot(tieDye.recipeId));
+    expect(tieDye.effects?.tieDye, 0.9);
+    expect(vintage.palette?.vintageGrade, 0.6);
+  });
+
   test('style round-trips through provenance', () {
     for (final style in LabStyle.values) {
       expect(labStyleFromProvenance('lab:${style.name}'), style);
