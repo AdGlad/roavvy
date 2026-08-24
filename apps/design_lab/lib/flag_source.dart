@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:design_forge_render/design_forge_render.dart';
@@ -210,6 +211,34 @@ class FlagSource {
 
   Directory get continentPathsDir =>
       Directory('${_assetsDir.path}/continent_paths');
+
+  // Lowercase ISO-2 → continent id, parsed from `<continent>_countries.json`.
+  Map<String, String>? _continentOf;
+
+  /// Country → continent map (for the Stats template's continent count).
+  Map<String, String> continentOfCountry() {
+    if (_continentOf != null) return _continentOf!;
+    final out = <String, String>{};
+    final d = continentPathsDir;
+    if (d.existsSync()) {
+      const suffix = '_countries.json';
+      for (final f in d.listSync()) {
+        if (f is! File) continue;
+        final name = f.path.split(Platform.pathSeparator).last;
+        if (!name.endsWith(suffix)) continue;
+        final continent = name.substring(0, name.length - suffix.length);
+        try {
+          final j = jsonDecode(f.readAsStringSync()) as Map;
+          final countries = (j['countries'] as Map?) ?? const {};
+          for (final k in countries.keys) {
+            out[(k as String).toLowerCase()] = continent;
+          }
+        } catch (_) {/* skip malformed */}
+      }
+    }
+    _continentOf = out;
+    return out;
+  }
 
   /// Continent outline ids available (e.g. 'europe', 'asia'), excluding the
   /// per-country variants.

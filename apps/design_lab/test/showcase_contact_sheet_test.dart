@@ -28,28 +28,23 @@ void main() {
       continents: source.continents(),
     );
 
-    // Single-country (Seychelles) — silhouette + country-outline clips must
-    // appear, and the first tiles must cover a broad style spread.
+    // Single-country (Seychelles) Flags genre — a broad, varied spread of
+    // flag/shape subjects (silhouettes/outlines/passport now live in their own
+    // genres, so they must NOT appear here).
     const scCtx = DesignContext(flagCodes: ['sc'], scopeKey: 'lab:sc');
     final sc = gen.generate(scCtx, seed: 1, count: 48);
     expect(sc, hasLength(48));
 
-    // The favoured styles show up early: within the first 8 tiles we expect a
-    // silhouette, a country outline, a torn (edge) flag and a plain flag.
-    final first8 = sc.take(8).toList();
-    expect(first8.where((r) => r.clip?.shapeId == 'countryOutline'), isNotEmpty,
-        reason: 'country outline should appear early');
-    expect(
-        first8.where((r) =>
-            r.clip?.shapeId == 'animalSilhouette' ||
-            r.clip?.shapeId == 'plantSilhouette' ||
-            r.clip?.shapeId == 'landmarkSilhouette'),
-        isNotEmpty,
-        reason: 'a country silhouette should appear early');
-    expect(first8.where((r) => r.clip == null && r.edgeTreatment == null),
-        isNotEmpty,
-        reason: 'a plain flag should appear early');
-    // Broad variety, not near-duplicates: many distinct recipe ids.
+    const nonFlag = {
+      'animalSilhouette', 'plantSilhouette', 'landmarkSilhouette',
+      'countryOutline', 'continentOutline', 'text',
+      'passportStampOutline', 'passportPage',
+    };
+    expect(sc.where((r) => nonFlag.contains(r.clip?.shapeId)), isEmpty,
+        reason: 'Flags genre must not leak other genres\' subjects');
+    // A plain flag appears, and the batch is broadly varied.
+    expect(sc.where((r) => r.clip == null && r.edgeTreatment == null), isNotEmpty,
+        reason: 'a plain flag should appear');
     expect(sc.map((r) => r.recipeId).toSet().length, greaterThan(40));
 
     // Deterministic: same seed reproduces the same recipe ids.
@@ -125,7 +120,7 @@ void main() {
     final source = FlagSource.locate();
     expect(source, isNotNull);
     final gen = LabShowcaseGenerator(
-      style: LabStyle.typography,
+      genre: LabGenre.typography,
       countryNames: const {'sc': 'Seychelles'},
     );
     final recipes = gen.generate(
@@ -143,6 +138,7 @@ void main() {
     final source = FlagSource.locate();
     expect(source, isNotNull);
     final gen = LabShowcaseGenerator(
+      genre: LabGenre.passport,
       silhouettesByShape: {
         ClipShape.passportStampOutline: source!.passportStampSlugs(),
       },

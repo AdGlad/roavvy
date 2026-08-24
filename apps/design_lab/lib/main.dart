@@ -38,14 +38,38 @@ class LabHome extends StatefulWidget {
 
 enum _GeneratorMode { style, smart }
 
+/// Steps of the Guided Funnel (the default flow): pick a genre, then a style
+/// (or data type), then an effect/finish, then refine.
+enum _FunnelStep { genre, style, effect, refine }
+
+/// Finish presets shown as the funnel's Effect step: (label, effects, palette).
+/// A null effects/palette means "leave that axis off".
+const List<(String, Effects?, Palette?)> _kFinishPresets = [
+  ('None', null, null),
+  ('Halftone', Effects(halftone: 0.9, halftoneScale: 5), null),
+  ('Vintage', Effects(grain: 0.3, fade: 0.2),
+      Palette(strategy: ColourStrategy.flagDerived, vintageGrade: 0.6)),
+  ('Distress', Effects(distress: 0.55, grain: 0.4), null),
+  ('Tie-dye', Effects(tieDye: 0.9), null),
+  ('Shatter', Effects(shatter: 0.85, distress: 0.35, grain: 0.3), null),
+  ('Mono', null, Palette(strategy: ColourStrategy.monochrome)),
+];
+
 class _LabHomeState extends State<LabHome> {
   // Rebuilt when the style changes or once silhouette/continent assets are
   // indexed (see _boot) so the rotation can offer the country's own silhouettes.
   LabStyle _style = LabStyle.showcase;
-  // Data-driven template (null = the flag/clip showcase). Timeline/journeys/
-  // wordCloud render from the travel history + date range.
-  DesignFamily? _template;
+  // Genre-first navigation: the subject the design is about. Style/effects are
+  // cross-cutting finishes. Data genres (Travel Log / Milestones) offer a
+  // specific family via [_subType] (null = mixed across the genre's families).
+  LabGenre _genre = LabGenre.flags;
+  DesignFamily? _subType;
   LabShowcaseGenerator _generator = const LabShowcaseGenerator();
+
+  // Guided Funnel (default). Explore mode exposes the full batch controls.
+  bool _guided = true;
+  _FunnelStep _step = _FunnelStep.genre;
+  int _effectIdx = 0;
 
   FlagSource? _source;
   RenderService? _service;
@@ -53,6 +77,7 @@ class _LabHomeState extends State<LabHome> {
   Map<ClipShape, List<String>> _silhouettesByShape = {};
   List<String> _continents = [];
   Map<String, String> _countryNames = const {};
+  Map<String, String> _countryContinents = const {};
   final Set<String> _selectedFlags = {'us', 'gb'};
   String _flagQuery = '';
 
@@ -104,6 +129,7 @@ class _LabHomeState extends State<LabHome> {
     };
     _continents = source.continents();
     _countryNames = source.countryNames();
+    _countryContinents = source.continentOfCountry();
     _rebuildGenerator();
     // The reproducible design library (liked + used-for-t-shirt), persisted
     // locally as full recipes so any kept design can be re-rendered later.
@@ -124,13 +150,26 @@ class _LabHomeState extends State<LabHome> {
     _generate();
   }
 
+  static String _familyLabel(DesignFamily f) => switch (f) {
+        DesignFamily.timeline => 'Timeline',
+        DesignFamily.journeys => 'Journeys',
+        DesignFamily.wordCloud => 'Word cloud',
+        DesignFamily.badge => 'Badge',
+        DesignFamily.frontRibbon => 'Front ribbon',
+        DesignFamily.achievements => 'Achievements',
+        DesignFamily.stats => 'Travel stats',
+        _ => f.name,
+      };
+
   void _rebuildGenerator() {
     _generator = LabShowcaseGenerator(
       style: _style,
-      template: _template,
+      genre: _genre,
+      template: _subType,
       silhouettesByShape: _silhouettesByShape,
       continents: _continents,
       countryNames: _countryNames,
+      countryContinents: _countryContinents,
     );
   }
 
@@ -259,9 +298,9 @@ class _LabHomeState extends State<LabHome> {
 
   void _generate() {
     final RecipeGenerator gen;
-    if (_template != null) {
-      // A data-driven template always uses the showcase generator (which owns
-      // the template path); Smart mode doesn't apply.
+    if (_genre != LabGenre.flags) {
+      // Non-flag genres are produced by the genre-aware showcase generator;
+      // Smart mode only applies to the Flags genre.
       gen = _generator;
     } else if (_mode == _GeneratorMode.smart) {
       gen = LabSmartGenerator(
@@ -371,33 +410,63 @@ class _LabHomeState extends State<LabHome> {
         title: const Text('Roavvy Design Lab'),
         backgroundColor: const Color(0xFF16181D),
         actions: [
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: const [
+              ButtonSegment(value: true, label: Text('Guided')),
+              ButtonSegment(value: false, label: Text('Explore')),
+            ],
+            selected: {_guided},
+            onSelectionChanged: (s) => setState(() {
+              _guided = s.first;
+              if (_guided) _step = _FunnelStep.genre;
+            }),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Center(child: Text(_status, style: const TextStyle(fontSize: 12))),
           ),
         ],
       ),
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _leftPanel(),
-          const VerticalDivider(width: 1),
-          Expanded(child: _gallery()),
-          if (_inspected != null) ...[
-            const VerticalDivider(width: 1),
-            RecipeEditorPanel(
-              recipe: _inspected!,
-              service: _service!,
-              silhouettesByShape: _silhouettesByShape,
-              continents: _continents,
-              countryNames: _countryNames,
-              onExportPng: _exportPng,
-              onVariations: _variationsOf,
-              onClose: () => setState(() => _inspected = null),
+      body: _guided
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _leftPanel(),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _funnelHeader(),
+                      Expanded(child: _funnelBody()),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _leftPanel(),
+                const VerticalDivider(width: 1),
+                Expanded(child: _gallery()),
+                if (_inspected != null) ...[
+                  const VerticalDivider(width: 1),
+                  RecipeEditorPanel(
+                    recipe: _inspected!,
+                    service: _service!,
+                    silhouettesByShape: _silhouettesByShape,
+                    continents: _continents,
+                    countryNames: _countryNames,
+                    onExportPng: _exportPng,
+                    onVariations: _variationsOf,
+                    onClose: () => setState(() => _inspected = null),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
     );
   }
 
@@ -496,7 +565,10 @@ class _LabHomeState extends State<LabHome> {
             ),
           ),
           const Divider(),
-          // Mode toggle: Style vs Smart
+          // Batch controls (Explore mode only); Guided funnel drives these.
+          if (!_guided) ...[
+          // Mode toggle: Style vs Smart (Smart applies to the Flags genre only).
+          if (_genre == LabGenre.flags)
           Row(
             children: [
               const Text('Mode '),
@@ -518,26 +590,24 @@ class _LabHomeState extends State<LabHome> {
             ],
           ),
           const SizedBox(height: 4),
+          // Genre (subject) — the primary navigation. Style/effects are finishes.
           Row(
             children: [
-              const Text('Template '),
+              const Text('Genre '),
               Expanded(
-                child: DropdownButton<DesignFamily?>(
+                child: DropdownButton<LabGenre>(
                   isExpanded: true,
                   isDense: true,
-                  value: _template,
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Showcase (flags)')),
-                    DropdownMenuItem(
-                        value: DesignFamily.timeline, child: Text('Timeline')),
-                    DropdownMenuItem(
-                        value: DesignFamily.journeys, child: Text('Journeys')),
-                    DropdownMenuItem(
-                        value: DesignFamily.wordCloud, child: Text('Word cloud')),
+                  value: _genre,
+                  items: [
+                    for (final g in LabGenre.values)
+                      DropdownMenuItem(value: g, child: Text(g.label)),
                   ],
                   onChanged: (v) {
+                    if (v == null) return;
                     setState(() {
-                      _template = v;
+                      _genre = v;
+                      _subType = null;
                       _rebuildGenerator();
                     });
                     _generate();
@@ -546,7 +616,34 @@ class _LabHomeState extends State<LabHome> {
               ),
             ],
           ),
-          if (_template == null && _mode == _GeneratorMode.style)
+          // Type sub-selector for data genres (Travel Log / Milestones).
+          if (_genre.isData)
+            Row(
+              children: [
+                const Text('Type '),
+                Expanded(
+                  child: DropdownButton<DesignFamily?>(
+                    isExpanded: true,
+                    isDense: true,
+                    value: _subType,
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Mixed')),
+                      for (final f in _genre.families)
+                        DropdownMenuItem(value: f, child: Text(_familyLabel(f))),
+                    ],
+                    onChanged: (v) {
+                      setState(() {
+                        _subType = v;
+                        _rebuildGenerator();
+                      });
+                      _generate();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          // Style (finish) — applies to any non-data genre.
+          if (!_genre.isData && _mode == _GeneratorMode.style)
             Row(
               children: [
                 const Text('Style '),
@@ -571,7 +668,9 @@ class _LabHomeState extends State<LabHome> {
                 ),
               ],
             ),
+          ], // end Explore-only subject controls
           _dateRangeRow(),
+          if (!_guided) ...[
           Row(
             children: [
               const Text('Seed '),
@@ -637,6 +736,7 @@ class _LabHomeState extends State<LabHome> {
             keyboardType: TextInputType.number,
             onSubmitted: _reproduce,
           ),
+          ], // end Explore-only batch controls
         ],
       ),
     );
@@ -828,6 +928,232 @@ class _LabHomeState extends State<LabHome> {
   }
 
   // ---- Center: gallery ----
+  // ──────────────────────────── Guided Funnel ────────────────────────────────
+
+  LabShowcaseGenerator _mkGen(
+          {LabGenre? genre, LabStyle? style, DesignFamily? template}) =>
+      LabShowcaseGenerator(
+        genre: genre ?? _genre,
+        style: style ?? _style,
+        template: template,
+        silhouettesByShape: _silhouettesByShape,
+        continents: _continents,
+        countryNames: _countryNames,
+        countryContinents: _countryContinents,
+      );
+
+  DesignRecipe _first(LabShowcaseGenerator g) =>
+      g.generate(_context, seed: _baseSeed, count: 1).first;
+
+  /// Apply a finish preset to a base recipe (effects can be cleared → null).
+  DesignRecipe _withFinish(DesignRecipe base, Effects? fx, Palette? pal) =>
+      DesignRecipe(
+        seed: base.seed,
+        content: base.content,
+        composition: base.composition,
+        flagCombination: base.flagCombination,
+        clip: base.clip,
+        edgeTreatment: base.edgeTreatment,
+        effects: fx,
+        palette: pal ?? base.palette,
+        provenance: base.provenance,
+      );
+
+  /// The subject recipe for the chosen genre + style/type (before the finish).
+  DesignRecipe _baseSubjectRecipe() => _genre.isData
+      ? _first(_mkGen(template: _subType))
+      : _first(_mkGen(style: _style));
+
+  /// The final recipe with the chosen finish applied.
+  DesignRecipe _funnelRecipe() {
+    final base = _baseSubjectRecipe();
+    final p = _kFinishPresets[_effectIdx.clamp(0, _kFinishPresets.length - 1)];
+    return _withFinish(base, p.$2, p.$3);
+  }
+
+  Widget _funnelBody() {
+    switch (_step) {
+      case _FunnelStep.genre:
+        return _chooserGrid(
+          title: 'Choose a genre',
+          items: [
+            for (final g in LabGenre.values)
+              (g.label, _first(_mkGen(genre: g, style: _style))),
+          ],
+          onPick: (i) => setState(() {
+            _genre = LabGenre.values[i];
+            _subType = null;
+            _rebuildGenerator();
+            _step = _FunnelStep.style;
+          }),
+        );
+      case _FunnelStep.style:
+        final items = _genre.isData
+            ? <(String, DesignRecipe)>[
+                ('Mixed', _first(_mkGen(template: null))),
+                for (final f in _genre.families)
+                  (_familyLabel(f), _first(_mkGen(template: f))),
+              ]
+            : [
+                for (final s in LabStyle.values)
+                  (s.label, _first(_mkGen(style: s))),
+              ];
+        return _chooserGrid(
+          title: _genre.isData ? 'Choose a type' : 'Choose a style',
+          items: items,
+          onPick: (i) => setState(() {
+            if (_genre.isData) {
+              _subType = i == 0 ? null : _genre.families[i - 1];
+            } else {
+              _style = LabStyle.values[i];
+            }
+            _rebuildGenerator();
+            _step = _FunnelStep.effect;
+          }),
+        );
+      case _FunnelStep.effect:
+        final base = _baseSubjectRecipe();
+        return _chooserGrid(
+          title: 'Choose a finish',
+          items: [
+            for (final p in _kFinishPresets)
+              (p.$1, _withFinish(base, p.$2, p.$3)),
+          ],
+          onPick: (i) => setState(() {
+            _effectIdx = i;
+            _inspected = _funnelRecipe();
+            _step = _FunnelStep.refine;
+          }),
+        );
+      case _FunnelStep.refine:
+        return RecipeEditorPanel(
+          key: ValueKey(_inspected!.recipeId),
+          recipe: _inspected!,
+          service: _service!,
+          silhouettesByShape: _silhouettesByShape,
+          continents: _continents,
+          countryNames: _countryNames,
+          onExportPng: _exportPng,
+          onVariations: _variationsOf,
+          onClose: () => setState(() => _step = _FunnelStep.effect),
+        );
+    }
+  }
+
+  Widget _funnelHeader() {
+    final crumbs = <String>[
+      _genre.label,
+      if (_step.index >= _FunnelStep.effect.index)
+        (_genre.isData
+            ? (_subType == null ? 'Mixed' : _familyLabel(_subType!))
+            : _style.label),
+      if (_step.index >= _FunnelStep.refine.index) _kFinishPresets[_effectIdx].$1,
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      child: Row(
+        children: [
+          if (_step != _FunnelStep.genre)
+            IconButton(
+              tooltip: 'Back',
+              icon: const Icon(Icons.arrow_back, size: 18),
+              onPressed: () => setState(() =>
+                  _step = _FunnelStep.values[_step.index - 1]),
+            ),
+          Expanded(
+            child: Text(
+              _step == _FunnelStep.genre
+                  ? 'Guided design'
+                  : crumbs.join('  ›  '),
+              style: const TextStyle(fontSize: 13, color: Colors.white70),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.casino, size: 16),
+            label: const Text('Surprise me'),
+            onPressed: _surpriseMe,
+          ),
+          TextButton(
+            onPressed: () => setState(() => _guided = false),
+            child: const Text('Explore all'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _surpriseMe() {
+    final r = DeterministicRng(DateTime.now().microsecondsSinceEpoch % 100000);
+    setState(() {
+      _baseSeed = r.nextInt(100000);
+      _genre = LabGenre.values[r.nextInt(LabGenre.values.length)];
+      if (_genre.isData) {
+        _subType = null;
+      } else {
+        _style = LabStyle.values[r.nextInt(LabStyle.values.length)];
+      }
+      _effectIdx = r.nextInt(_kFinishPresets.length);
+      _rebuildGenerator();
+      _inspected = _funnelRecipe();
+      _step = _FunnelStep.refine;
+    });
+  }
+
+  /// A grid of tappable rendered choices — the heart of the funnel.
+  Widget _chooserGrid({
+    required String title,
+    required List<(String, DesignRecipe)> items,
+    required void Function(int) onPick,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+          child: Text(title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              childAspectRatio: 0.9,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, i) {
+              final (label, recipe) = items[i];
+              return GestureDetector(
+                onTap: () => onPick(i),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF2A2D33)),
+                          color: const Color(0xFFF2F2F2),
+                        ),
+                        child: _RecipeTile(
+                            service: _service!, recipe: recipe, size: 220),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(label,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _gallery() {
     // Which designs to show: the current batch, or the persisted library
     // (liked / used-for-t-shirt) re-rendered from their stored recipes.

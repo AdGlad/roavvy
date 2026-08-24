@@ -20,22 +20,30 @@ import 'lab_styles.dart';
 class LabShowcaseGenerator implements RecipeGenerator {
   const LabShowcaseGenerator({
     this.style = LabStyle.showcase,
+    this.genre = LabGenre.flags,
     this.template,
     this.silhouettesByShape = const {},
     this.continents = const [],
     this.countryNames = const {},
+    this.countryContinents = const {},
   });
 
   final LabStyle style;
 
-  /// When set to a data-driven family (timeline / journeys / wordCloud), the
-  /// generator emits that template from the context's travel history instead of
-  /// the flag/clip showcase.
+  /// The top-level genre (subject). Drives which subjects/families are emitted;
+  /// the [style] supplies the finish.
+  final LabGenre genre;
+
+  /// For a data genre, an optional specific [DesignFamily] to emit; null =
+  /// rotate through the genre's families across the batch.
   final DesignFamily? template;
 
   /// Lowercase ISO-2 → display name (e.g. `sc` → `Seychelles`), used to offer
   /// the country's own name as a typography subject.
   final Map<String, String> countryNames;
+
+  /// Lowercase ISO-2 → continent (for the stats template's continent count).
+  final Map<String, String> countryContinents;
 
   /// All silhouette slugs available per kind, e.g.
   /// `{ ClipShape.animalSilhouette: ['sc_coco_de_mer', 'af_snow_leopard', …] }`.
@@ -93,9 +101,33 @@ class LabShowcaseGenerator implements RecipeGenerator {
     DesignFamily.timeline,
     DesignFamily.journeys,
     DesignFamily.wordCloud,
+    DesignFamily.badge,
+    DesignFamily.frontRibbon,
+    DesignFamily.achievements,
+    DesignFamily.stats,
   };
 
+  static String _milestone(int n) {
+    if (n >= 100) return 'Century Club';
+    if (n >= 50) return 'World Wanderer';
+    if (n >= 25) return 'Globetrotter';
+    if (n >= 10) return 'Explorer';
+    if (n >= 5) return 'Getting Started';
+    if (n >= 2) return 'On the Move';
+    return 'First Country';
+  }
+
   DesignRecipe _one(DesignContext context, int seed) {
+    // Data genres (Travel Log / Milestones) → a data-driven family. A specific
+    // [template] pins one; otherwise rotate through the genre's families.
+    if (genre.isData) {
+      final fams = genre.families;
+      final family = template != null && fams.contains(template)
+          ? template!
+          : fams[(seed - 1).abs() % fams.length];
+      return _dataRecipe(context, seed, family);
+    }
+    // Legacy direct-template path (kept for callers that set template directly).
     if (template != null && _dataFamilies.contains(template)) {
       return _dataRecipe(context, seed, template!);
     }
@@ -165,10 +197,16 @@ class LabShowcaseGenerator implements RecipeGenerator {
       }
     }
 
-    // Walk the style's rotation across the grid. Offset by the default base seed
-    // (1) so the grid's first tile lands on rotation[0]; a given seed still maps
-    // to a fixed archetype, so reproduce/variations stay deterministic.
-    final avail = [for (final a in spec.rotation) if (available(a)) a];
+    // Subject rotation = the genre's subjects, or (for Flags) the style's
+    // rotation with the OTHER genres' subjects removed so Flags stays flag-only.
+    // The style still supplies the finish below.
+    final List<ClipArchetype> rotation = genre.rotation.isNotEmpty
+        ? genre.rotation
+        : [for (final a in spec.rotation) if (!kNonFlagArchetypes.contains(a)) a];
+    // Walk the rotation across the grid; offset by the default base seed (1) so
+    // the first tile lands on rotation[0]. Deterministic per seed.
+    var avail = [for (final a in rotation) if (available(a)) a];
+    if (avail.isEmpty) avail = [ClipArchetype.basicFlag];
     final arc = avail[(seed - 1).abs() % avail.length];
 
     final clip = _clipFor(
@@ -201,49 +239,95 @@ class LabShowcaseGenerator implements RecipeGenerator {
     );
   }
 
-  /// Build a data-driven design (timeline / journeys / word cloud) from the
-  /// context's travel history. Entries carry the country label + dates + visit
-  /// weight so the recipe is self-contained and reproducible.
+  /// Build a data-driven design (timeline / journeys / word cloud / badge /
+  /// front ribbon / achievements / stats) from the context's travel history.
+  /// Entries + meta are baked in so the recipe is self-contained + reproducible.
   DesignRecipe _dataRecipe(DesignContext context, int seed, DesignFamily family) {
     final rng = DeterministicRng(seed);
     final history = context.history;
     String nameOf(String cc) => countryNames[cc.toLowerCase()] ?? cc.toUpperCase();
 
-    List<RecipeEntry> entries;
-    if (family == DesignFamily.wordCloud) {
-      final counts = history.visitCounts;
-      final codes = counts.isNotEmpty
-          ? counts.keys.toList()
-          : context.flagCodes.map((e) => e.toLowerCase()).toList();
-      entries = [
-        for (final cc in codes)
-          RecipeEntry(code: cc, label: nameOf(cc), weight: counts[cc] ?? 1),
-      ];
-    } else {
-      // timeline / journeys → one entry per real trip (dated); else per flag.
-      entries = history.isNotEmpty
-          ? [
-              for (final t in history.trips)
-                RecipeEntry(
-                    code: t.cc, label: nameOf(t.cc), start: t.startedOn, end: t.endedOn)
-            ]
-          : [
-              for (final cc in context.flagCodes)
-                RecipeEntry(code: cc.toLowerCase(), label: nameOf(cc))
-            ];
-    }
-    if (entries.isEmpty) {
-      entries = [RecipeEntry(code: 'us', label: nameOf('us'))];
-    }
+    final counts = history.visitCounts;
+    final countryCodes = counts.isNotEmpty
+        ? counts.keys.toList()
+        : context.flagCodes.map((e) => e.toLowerCase()).toList();
+    List<RecipeEntry> perCountry() => [
+          for (final cc in countryCodes)
+            RecipeEntry(code: cc, label: nameOf(cc), weight: counts[cc] ?? 1),
+        ];
+    List<RecipeEntry> perTrip() => history.isNotEmpty
+        ? [
+            for (final t in history.trips)
+              RecipeEntry(
+                  code: t.cc, label: nameOf(t.cc), start: t.startedOn, end: t.endedOn)
+          ]
+        : [for (final cc in countryCodes) RecipeEntry(code: cc, label: nameOf(cc))];
 
-    final orientation = family == DesignFamily.wordCloud
-        ? rng.stream('o').pick(const [Orientation.square, Orientation.landscape])
-        : rng.stream('o').pick(const [Orientation.portrait, Orientation.square]);
+    List<RecipeEntry> entries;
+    Map<String, Object?> meta = const {};
+    final Orientation orientation;
+    switch (family) {
+      case DesignFamily.timeline:
+      case DesignFamily.journeys:
+        entries = perTrip();
+        orientation =
+            rng.stream('o').pick(const [Orientation.portrait, Orientation.square]);
+        break;
+      case DesignFamily.wordCloud:
+        entries = perCountry();
+        orientation =
+            rng.stream('o').pick(const [Orientation.square, Orientation.landscape]);
+        break;
+      case DesignFamily.badge:
+        entries = perCountry();
+        meta = {'count': countryCodes.length, 'scope': 'EXPLORER'};
+        orientation = Orientation.square;
+        break;
+      case DesignFamily.frontRibbon:
+        entries = perCountry();
+        orientation =
+            rng.stream('o').pick(const [Orientation.landscape, Orientation.square]);
+        break;
+      case DesignFamily.achievements:
+        entries = perCountry();
+        final n = countryCodes.length;
+        meta = {
+          'milestone': _milestone(n),
+          'sub': '$n ${n == 1 ? 'country' : 'countries'}',
+        };
+        orientation = Orientation.square;
+        break;
+      case DesignFamily.stats:
+        entries = perCountry();
+        final continentsN = <String>{
+          for (final cc in countryCodes)
+            if (countryContinents[cc] != null) countryContinents[cc]!,
+        }.length;
+        meta = {
+          'count': countryCodes.length,
+          'trips': history.isNotEmpty ? history.trips.length : countryCodes.length,
+          'continents': continentsN,
+          'worldPct': (countryCodes.length / 195 * 100).round(),
+        };
+        orientation = Orientation.portrait;
+        break;
+      default:
+        entries = perCountry();
+        orientation = Orientation.square;
+    }
+    if (entries.isEmpty) entries = [RecipeEntry(code: 'us', label: nameOf('us'))];
+
+    // Label/stat families stay clean; the freer ones may get a light vintage.
+    const labelFamilies = {
+      DesignFamily.badge,
+      DesignFamily.achievements,
+      DesignFamily.stats,
+      DesignFamily.frontRibbon,
+    };
     final pr = rng.stream('pal');
-    final palette = pr.chance(0.4)
+    final palette = (!labelFamilies.contains(family) && pr.chance(0.4))
         ? Palette(
-            strategy: ColourStrategy.flagDerived,
-            vintageGrade: pr.nextRange(0.3, 0.6))
+            strategy: ColourStrategy.flagDerived, vintageGrade: pr.nextRange(0.3, 0.6))
         : null;
 
     final distinct = <String>{for (final e in entries) e.code}.toList();
@@ -252,6 +336,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
       content: RecipeContent(
         flags: [for (final c in distinct) FlagRef(c)],
         entries: entries,
+        meta: meta,
         source: context.scopeKey,
       ),
       composition: Composition(family: family, orientation: orientation),

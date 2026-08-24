@@ -54,8 +54,50 @@ carries the per-country travel data so these designs are self-contained. New
 - **timeline** — chronological dated trip list with a spine + node dots, flag
   chips, country name + `MMM yyyy` date range (one row per trip).
 - **journeys** — flag "stops" (circular chips) along a winding dotted route.
-- **wordCloud** — country names sized by visit frequency (`weight`), coloured by
-  each flag's dominant colour.
+- **wordCloud** — country names sized by visit frequency (`weight`) and
+  **spiral-packed** into a dense oval (Archimedean spiral + overlap test +
+  shrink-to-fit), like the mobile `word_cloud` package — not a same-size list.
+  Coloured by each flag's dominant colour.
+
+Four more data-driven genres (mobile-proven), same `DataLayouts` mechanism:
+
+- **badge** — circular explorer emblem: double ring + tick marks, an arc of flag
+  chips, big country count + scope label. `meta: {count, scope}`.
+- **frontRibbon** — a medal-bar block of rounded flag "ribbons" (front-chest).
+- **achievements** — a star medallion with a hero flag + milestone title
+  (`_milestone(count)`) + subtitle. `meta: {milestone, sub}`.
+- **stats** — travel-story infographic: countries / continents / % of world +
+  trips + flag strip. `meta: {count, trips, continents, worldPct}`.
+
+Label/stat values are baked into `RecipeContent.meta` (self-contained). The Lab
+computes continents via `FlagSource.continentOfCountry()` (from the
+`<continent>_countries.json` files) and passes `countryContinents` to the
+generator.
+
+## Genre-first navigation (`LabGenre`)
+
+The Lab's primary selector is a **Genre** dropdown — the *subject* the design is
+about — with **Style** and **Effects** as cross-cutting *finishes*:
+
+| Genre | Emits |
+|---|---|
+| **Flags** | flag hero + geometric/symbolic/outdoor/prop clip shapes (style-driven; the other genres' subjects are filtered out) |
+| **Passport** | real entry/exit stamps + passport page |
+| **Animals & Nature** | animal + plant silhouettes |
+| **Landmarks** | landmark silhouettes |
+| **Maps** | country + continent outlines |
+| **Travel Log** | timeline / journeys / word cloud (data) |
+| **Typography** | text |
+| **Milestones** | badge / front ribbon / achievements / stats (data) |
+
+`LabGenre` (in `lab_styles.dart`) owns each genre's subject rotation / family
+set; `LabShowcaseGenerator(genre:, template:)` uses the genre's subjects with the
+style's finish. Data genres show a **Type** sub-dropdown (Mixed = rotate the
+genre's families, or pin one). `kNonFlagArchetypes` keeps the Flags genre clean.
+
+Inspecting a data-driven design in the editor preserves its family + entries +
+meta (`RecipeDraft`/`toRecipe`), so the preview matches the grid instead of
+collapsing to a single flag; a colour grade stays editable.
 
 The Lab exposes a **Template** dropdown (Showcase / Timeline / Journeys / Word
 cloud); the **Trips** year-range slider filters which trips feed them. Note: in

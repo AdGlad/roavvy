@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
 import 'package:design_lab/flag_source.dart';
 import 'package:design_lab/lab_generator.dart';
+import 'package:design_lab/recipe_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -52,6 +53,75 @@ void main() {
     expect(cloud.content.entries, hasLength(3));
     final sc = cloud.content.entries.firstWhere((e) => e.code == 'sc');
     expect(sc.weight, 2);
+  });
+
+  test('editor draft preserves data-family designs (no collapse to a flag)', () {
+    // The selection bug: inspecting a timeline/journeys/wordCloud design must
+    // reproduce the SAME design, not a plain single flag.
+    final ctx = DesignContext.fromTrips(trips);
+    for (final fam in [
+      DesignFamily.timeline,
+      DesignFamily.journeys,
+      DesignFamily.wordCloud,
+    ]) {
+      final r = LabShowcaseGenerator(template: fam, countryNames: const {'sc': 'Seychelles'})
+          .generate(ctx, seed: 1, count: 1)
+          .first;
+      final back = RecipeDraft(r).toRecipe();
+      expect(back.composition.family, fam, reason: '$fam family must survive');
+      expect(back.content.entries.length, r.content.entries.length,
+          reason: '$fam entries must survive');
+      expect(back.composition.family, isNot(DesignFamily.singleHero));
+    }
+  });
+
+  test('badge / achievements / stats bake the right meta', () {
+    final ctx = DesignContext.fromTrips(trips); // sc×2, au, gb → 3 countries
+    final badge = LabShowcaseGenerator(template: DesignFamily.badge)
+        .generate(ctx, seed: 1, count: 1)
+        .first;
+    expect(badge.content.meta['count'], 3);
+
+    final ach = LabShowcaseGenerator(template: DesignFamily.achievements)
+        .generate(ctx, seed: 1, count: 1)
+        .first;
+    expect(ach.content.meta['milestone'], 'On the Move'); // 3 countries → 2..4
+
+    final stats = LabShowcaseGenerator(
+      template: DesignFamily.stats,
+      countryContinents: const {'sc': 'africa', 'au': 'oceania', 'gb': 'europe'},
+    ).generate(ctx, seed: 1, count: 1).first;
+    expect(stats.content.meta['count'], 3);
+    expect(stats.content.meta['continents'], 3);
+    expect(stats.content.meta['trips'], 4);
+  });
+
+  testWidgets('badge/frontRibbon/achievements/stats render non-blank + round-trip',
+      (tester) async {
+    final source = FlagSource.locate()!;
+    final renderer = CanvasRenderer(assets: source.resolver());
+    final ctx = DesignContext.fromTrips(trips);
+    await tester.runAsync(() async {
+      for (final fam in [
+        DesignFamily.badge,
+        DesignFamily.frontRibbon,
+        DesignFamily.achievements,
+        DesignFamily.stats,
+      ]) {
+        final r = LabShowcaseGenerator(
+                template: fam,
+                countryNames: source.countryNames(),
+                countryContinents: source.continentOfCountry())
+            .generate(ctx, seed: 1, count: 1)
+            .first;
+        final res = await renderer.render(r, RenderTarget.preview(size: 320));
+        expect(res.pngBytes.length, greaterThan(1000), reason: '$fam blank');
+        // Inspecting must reproduce the same family + meta, not a plain flag.
+        final back = RecipeDraft(r).toRecipe();
+        expect(back.composition.family, fam);
+        expect(back.content.meta, r.content.meta);
+      }
+    });
   });
 
   test('recipe with entries round-trips through JSON', () {

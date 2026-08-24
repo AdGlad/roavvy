@@ -19,6 +19,9 @@ enum LabPattern { single, blend, multi }
 class RecipeDraft {
   RecipeDraft(DesignRecipe r)
       : seed = r.seed,
+        family = r.composition.family,
+        entries = r.content.entries,
+        meta = r.content.meta,
         baseFlags = _distinct(r.content.flags),
         perCountry = (r.content.flags.length / _distinct(r.content.flags).length)
             .round()
@@ -70,6 +73,23 @@ class RecipeDraft {
         garment = r.palette?.garmentColour;
 
   int seed;
+
+  /// Preserved so data-driven designs (timeline/journeys/wordCloud) reproduce
+  /// exactly when inspected/edited, instead of collapsing to a plain flag.
+  final DesignFamily family;
+  final List<RecipeEntry> entries;
+  final Map<String, Object?> meta;
+
+  static const _dataFamilies = {
+    DesignFamily.timeline,
+    DesignFamily.journeys,
+    DesignFamily.wordCloud,
+    DesignFamily.badge,
+    DesignFamily.frontRibbon,
+    DesignFamily.achievements,
+    DesignFamily.stats,
+  };
+  bool get isDataFamily => _dataFamilies.contains(family) && entries.isNotEmpty;
 
   /// The distinct flags in play; a multi grid repeats each [perCountry] times.
   List<FlagRef> baseFlags;
@@ -141,6 +161,22 @@ class RecipeDraft {
   String? garment;
 
   DesignRecipe toRecipe() {
+    // Data-driven designs (timeline/journeys/wordCloud) are reproduced from the
+    // preserved family + entries + orientation/palette, so the editor preview
+    // matches the grid instead of collapsing to a single flag. A colour grade
+    // (palette) is still editable; other flag/clip controls don't apply.
+    if (isDataFamily) {
+      return DesignRecipe(
+        seed: seed,
+        content: RecipeContent(
+            flags: baseFlags, source: source, entries: entries, meta: meta),
+        composition: Composition(family: this.family, orientation: orientation),
+        palette: paletteOn
+            ? Palette(strategy: strategy, vintageGrade: vintageGrade)
+            : null,
+        provenance: const RecipeProvenance(generator: 'labEdit'),
+      );
+    }
     final fx = Effects(
       distress: distress,
       grain: grain,

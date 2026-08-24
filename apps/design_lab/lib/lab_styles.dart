@@ -670,3 +670,83 @@ final Map<LabStyle, StyleSpec> _specs = {
     },
   ),
 };
+
+/// Top-level **genre** — the subject the design is *about*. Genres own the
+/// subject; [LabStyle] and effects are cross-cutting *finishes*. A genre is
+/// either a set of clip subjects (rendered by the Showcase generator with the
+/// chosen style's finish) or a group of data-driven families.
+enum LabGenre {
+  flags('Flags'),
+  passport('Passport'),
+  animalsNature('Animals & Nature'),
+  landmarks('Landmarks'),
+  maps('Maps'),
+  travelLog('Travel Log'),
+  typography('Typography'),
+  milestones('Milestones');
+
+  const LabGenre(this.label);
+  final String label;
+
+  /// Data-driven genres pick a [DesignFamily] rather than a clip subject.
+  bool get isData => this == travelLog || this == milestones;
+
+  /// The [DesignFamily]s a data genre offers (Travel Log / Milestones).
+  List<DesignFamily> get families {
+    switch (this) {
+      case travelLog:
+        return const [
+          DesignFamily.timeline,
+          DesignFamily.journeys,
+          DesignFamily.wordCloud,
+        ];
+      case milestones:
+        return const [
+          DesignFamily.badge,
+          DesignFamily.frontRibbon,
+          DesignFamily.achievements,
+          DesignFamily.stats,
+        ];
+      default:
+        return const [];
+    }
+  }
+
+  /// The clip subjects a (non-data) genre draws from. Empty for [flags], which
+  /// reuses the style's rotation minus the other genres' subjects.
+  List<ClipArchetype> get rotation {
+    switch (this) {
+      case passport:
+        return const [ClipArchetype.passportPage, ClipArchetype.passportStampReal];
+      case animalsNature:
+        return const [
+          ClipArchetype.animalSilhouette,
+          ClipArchetype.plantSilhouette,
+        ];
+      case landmarks:
+        return const [ClipArchetype.landmarkSilhouette];
+      case maps:
+        return const [
+          ClipArchetype.countryOutline,
+          ClipArchetype.continentOutline,
+        ];
+      case typography:
+        return const [ClipArchetype.text];
+      default:
+        return const [];
+    }
+  }
+}
+
+/// Subjects that belong to OTHER genres — excluded from the [LabGenre.flags]
+/// genre so it stays flag/shape-only even under a broad style.
+const Set<ClipArchetype> kNonFlagArchetypes = {
+  ClipArchetype.animalSilhouette,
+  ClipArchetype.plantSilhouette,
+  ClipArchetype.landmarkSilhouette,
+  ClipArchetype.countryOutline,
+  ClipArchetype.continentOutline,
+  ClipArchetype.text,
+  ClipArchetype.passportStampReal,
+  ClipArchetype.passportPage,
+};

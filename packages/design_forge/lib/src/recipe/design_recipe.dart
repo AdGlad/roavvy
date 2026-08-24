@@ -15,6 +15,9 @@ enum DesignFamily {
   wordCloud,
   landmark,
   journeys,
+  frontRibbon,
+  achievements,
+  stats,
   tornHero,
   unknown;
 
@@ -103,7 +106,12 @@ class RecipeEntry {
 
 /// The concrete travel content drawn.
 class RecipeContent {
-  const RecipeContent({required this.flags, this.source, this.entries = const []});
+  const RecipeContent({
+    required this.flags,
+    this.source,
+    this.entries = const [],
+    this.meta = const {},
+  });
 
   final List<FlagRef> flags;
   final String? source;
@@ -112,11 +120,17 @@ class RecipeContent {
   /// flag-only families (grid/hero/…).
   final List<RecipeEntry> entries;
 
+  /// Freeform baked-in values for label/stat designs (badge / achievements /
+  /// stats): e.g. `{scope, count, trips, continents, worldPct, milestone}`.
+  /// Kept in the recipe so these designs are self-contained + reproducible.
+  final Map<String, Object?> meta;
+
   Map<String, Object?> toJson() => {
         'flags': [for (final f in flags) f.toJson()],
         if (source != null) 'source': source,
         if (entries.isNotEmpty)
           'entries': [for (final e in entries) e.toJson()],
+        if (meta.isNotEmpty) 'meta': meta,
       };
 
   factory RecipeContent.fromJson(Map<String, Object?> json) => RecipeContent(
@@ -129,6 +143,7 @@ class RecipeContent {
           for (final e in (json['entries'] as List? ?? const []))
             RecipeEntry.fromJson((e as Map).cast<String, Object?>()),
         ],
+        meta: (json['meta'] as Map?)?.cast<String, Object?>() ?? const {},
       );
 }
 
