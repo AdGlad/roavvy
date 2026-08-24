@@ -64,6 +64,37 @@ void main() {
       expect(lib.entries.length, 3);
     });
 
+    test('reject stores the recipe + reason and excludes like', () {
+      final lib = DesignLibrary();
+      final r = _recipe(11);
+      lib.reject(r, reason: 'Too busy', nowMs: 1);
+      expect(lib.isRejected(r.recipeId), isTrue);
+      expect(lib.rejected.single.reason, 'Too busy');
+      // Rejecting then liking is mutually exclusive.
+      lib.like(r, nowMs: 2);
+      expect(lib.isRejected(r.recipeId), isFalse);
+      expect(lib.isLiked(r.recipeId), isTrue);
+      // Liking then rejecting flips the other way.
+      lib.reject(r, nowMs: 3);
+      expect(lib.isLiked(r.recipeId), isFalse);
+      expect(lib.isRejected(r.recipeId), isTrue);
+      // Full recipe survives a JSON round-trip (needed for batch learning).
+      final back = DesignLibrary.decode(lib.encode());
+      expect(back.rejected.single.recipe.toJson(), r.toJson());
+    });
+
+    test('unreject/clearRejected remove entries kept only for rejection', () {
+      final lib = DesignLibrary();
+      lib.reject(_recipe(1), nowMs: 1);
+      lib.reject(_recipe(2), nowMs: 2);
+      expect(lib.rejected.length, 2);
+      lib.unreject(_recipe(1).recipeId);
+      expect(lib.rejected.length, 1);
+      lib.clearRejected();
+      expect(lib.rejected, isEmpty);
+      expect(lib.length, 0);
+    });
+
     test('toggleLike flips state', () {
       final lib = DesignLibrary();
       final r = _recipe(7);

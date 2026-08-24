@@ -67,5 +67,34 @@ void main() {
       expect(updated.shapeWeightFor(ShapePreference.noClip),
           greaterThan(1.0));
     });
+
+    test('observeBatch of rejects reworks preferences away from them', () {
+      // The delete-to-learn feature: a batch of disliked designs pushes their
+      // style/shape weights down (below neutral), stronger than one reject.
+      final rejects = [
+        for (var i = 0; i < 4; i++) _recipe(generator: 'lab:grunge', shapeId: 'star'),
+      ];
+      final reworked = learner.observeBatch(
+          DesignPreferences.neutral, rejects, PreferenceSignal.rejected);
+      expect(reworked.weightFor(StyleCluster.bold), lessThan(1.0));
+      expect(reworked.shapeWeightFor(ShapePreference.geometric), lessThan(1.0));
+      final onceRejected = learner.observe(DesignPreferences.neutral,
+          rejects.first, PreferenceSignal.rejected);
+      // Four rejects push further than one.
+      expect(reworked.weightFor(StyleCluster.bold),
+          lessThan(onceRejected.weightFor(StyleCluster.bold)));
+    });
+
+    test('featureTally summarises the rejected batch', () {
+      final rejects = [
+        _recipe(generator: 'lab:grunge', shapeId: 'star'),
+        _recipe(generator: 'lab:grunge', shapeId: 'star'),
+        _recipe(generator: 'lab:vintage', shapeId: 'circle'),
+      ];
+      final tally = PreferenceLearner.featureTally(rejects);
+      expect(tally, isNotEmpty);
+      // Most common feature first.
+      expect(tally.first.value, greaterThanOrEqualTo(tally.last.value));
+    });
   });
 }
