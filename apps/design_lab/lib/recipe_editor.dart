@@ -374,27 +374,26 @@ class _RecipeEditorPanelState extends State<RecipeEditorPanel> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Container(
-                  color: const Color(0xFFF2F2F2),
-                  child: _LivePreview(service: widget.service, recipe: recipe, size: 356),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-              child: Text('seed ${recipe.seed} · ${recipe.recipeId}',
-                  style: const TextStyle(fontSize: 11, color: Colors.white60)),
-            ),
-            const Divider(height: 12),
-            // Controls.
+            // Preview + controls all scroll below the pinned header, so the
+            // panel never overflows on short windows.
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      color: const Color(0xFFF2F2F2),
+                      child: _LivePreview(
+                          service: widget.service, recipe: recipe, size: 356),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('seed ${recipe.seed} · ${recipe.recipeId}',
+                        style: const TextStyle(fontSize: 11, color: Colors.white60)),
+                  ),
+                  const Divider(height: 12),
                   _styleRow(),
                   _seedRow(),
                   _patternRow(),
