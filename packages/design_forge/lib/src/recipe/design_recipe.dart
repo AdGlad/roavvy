@@ -1,4 +1,5 @@
 import 'canonical_json.dart';
+import 'design_axis.dart';
 import 'recipe_parts.dart';
 import 'versions.dart';
 
@@ -261,6 +262,7 @@ class DesignRecipe {
     this.effects,
     this.typography,
     this.motifs = const [],
+    this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
     this.engineVersion = kEngineVersion,
     this.grammarVersion = kGrammarVersion,
@@ -289,7 +291,17 @@ class DesignRecipe {
   final Typography? typography;
   final List<Motif> motifs;
 
+  /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
+  /// untouched recipe derives every axis from the master [seed] and therefore
+  /// reproduces its original output exactly. Setting one axis's seed re-rolls
+  /// only that axis (see `LabShowcaseGenerator.reroll`). Included in the content
+  /// hash and JSON so a re-rolled recipe has a distinct, reproducible id.
+  final Map<String, int> axisSeeds;
+
   final RecipeProvenance? provenance;
+
+  /// The effective seed for [axis]: its per-axis override if set, else [seed].
+  int seedForAxis(DesignAxis axis) => axisSeeds[axis.key] ?? seed;
 
   /// The fields that define the artwork — everything the hash covers.
   Map<String, Object?> _hashableJson() => {
@@ -308,6 +320,9 @@ class DesignRecipe {
         if (typography != null) 'typography': typography!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
+        // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
+        // are canonically sorted by the encoder.
+        if (axisSeeds.isNotEmpty) 'axisSeeds': {...axisSeeds},
       };
 
   /// Stable content hash of the design (excludes [provenance] and [recipeId]).
@@ -339,6 +354,10 @@ class DesignRecipe {
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
         ],
+        axisSeeds: {
+          for (final e in ((json['axisSeeds'] as Map?) ?? const {}).entries)
+            e.key.toString(): (e.value as num).toInt(),
+        },
         provenance: _obj(json['provenance'], RecipeProvenance.fromJson),
       );
 
@@ -353,6 +372,7 @@ class DesignRecipe {
     Effects? effects,
     Typography? typography,
     List<Motif>? motifs,
+    Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
   }) =>
       DesignRecipe(
@@ -366,6 +386,7 @@ class DesignRecipe {
         effects: effects ?? this.effects,
         typography: typography ?? this.typography,
         motifs: motifs ?? this.motifs,
+        axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,
         engineVersion: engineVersion,
         grammarVersion: grammarVersion,
