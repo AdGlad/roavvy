@@ -124,15 +124,28 @@ class GarmentDesign {
     );
   }
 
-  /// Produces a complementary back recipe for [front] that shares its palette
-  /// (hence vibe + [garmentColour]) and the garment [themeSeed].
+  /// Produces a genuinely *complementary* back recipe for [front] that shares
+  /// its palette (hence vibe + [garmentColour]), its travel [content] (flags),
+  /// and the garment [themeSeed] — but is a **different design family** so the
+  /// two faces read as one coherent product rather than a reseed of the same
+  /// artwork.
   ///
-  /// RULE (deliberately simple and documented): the back keeps the front's
-  /// travel content and palette so the two sides stay coherent, but draws with a
-  /// distinct, deterministic seed derived from [themeSeed] (see
-  /// [backSeedFromTheme]) so the artwork differs rather than duplicating the
-  /// front. Callers may override [composition] and/or [content] to make the back
-  /// a different family/layout while keeping the shared theme.
+  /// RULE (documented + deterministic): the back keeps the front's travel
+  /// content and palette so the two sides stay coherent, draws with a distinct
+  /// seed derived from [themeSeed] (see [backSeedFromTheme]), and swaps the
+  /// composition to a complementary family chosen by [complementFamilyFor]:
+  ///
+  ///  * A compact / text-forward front (typographic, badge, frontRibbon, stats,
+  ///    achievements, wordCloud) is balanced by a rich, image-forward back
+  ///    (grid / passportStamp).
+  ///  * A busy, full-bleed front (grid, passportStamp, singleHero, duoBlend,
+  ///    tornHero, landmark, timeline, journeys) is balanced by a compact,
+  ///    restrained back (badge / frontRibbon / typographic).
+  ///
+  /// The chosen family is picked deterministically from [themeSeed], so the same
+  /// inputs always yield the same back (and therefore the same `recipeId`).
+  /// Callers may still override [composition] and/or [content] explicitly to
+  /// force a specific family/layout while keeping the shared theme.
   static DesignRecipe deriveBack(
     DesignRecipe front, {
     required int themeSeed,
@@ -143,11 +156,89 @@ class GarmentDesign {
   }) {
     final colour = garmentColour ?? front.palette?.garmentColour;
     final coloured = _recipeWithGarmentColour(front, colour);
+    final backComposition =
+        composition ?? _complementaryComposition(front.composition, themeSeed);
     return coloured.copyWith(
       seed: seed ?? backSeedFromTheme(themeSeed),
-      composition: composition,
+      composition: backComposition,
       content: content,
     );
+  }
+
+  /// Builds the back-face [Composition] for the complementary family chosen by
+  /// [complementFamilyFor]. Reuses the front's [Orientation], [Density] and
+  /// [Composition.jitter] so the two faces still share proportions/energy, but
+  /// swaps the [DesignFamily]. Grid-only layout fields are left unset so the
+  /// renderer applies its family defaults.
+  static Composition _complementaryComposition(
+      Composition front, int themeSeed) {
+    final backFamily = complementFamilyFor(front.family, themeSeed);
+    return Composition(
+      family: backFamily,
+      orientation: front.orientation,
+      density: front.density,
+      jitter: front.jitter,
+    );
+  }
+
+  /// The documented complementary-family map: for each front [DesignFamily], the
+  /// candidate back families (ordered by preference) that make a good visual
+  /// counterpoint while sharing the theme. Every candidate list deliberately
+  /// EXCLUDES its own key, so [complementFamilyFor] always returns a family that
+  /// differs from the front.
+  static const Map<DesignFamily, List<DesignFamily>> complementCandidates = {
+    // Compact / text-forward fronts → a rich, image-forward back.
+    DesignFamily.typographic: [DesignFamily.grid, DesignFamily.passportStamp],
+    DesignFamily.badge: [DesignFamily.grid, DesignFamily.passportStamp],
+    DesignFamily.frontRibbon: [DesignFamily.passportStamp, DesignFamily.grid],
+    DesignFamily.stats: [DesignFamily.passportStamp, DesignFamily.grid],
+    DesignFamily.achievements: [DesignFamily.grid, DesignFamily.passportStamp],
+    DesignFamily.wordCloud: [DesignFamily.grid, DesignFamily.passportStamp],
+    // Rich / full-bleed fronts → a compact, restrained back.
+    DesignFamily.grid: [
+      DesignFamily.badge,
+      DesignFamily.frontRibbon,
+      DesignFamily.typographic,
+    ],
+    DesignFamily.passportStamp: [
+      DesignFamily.badge,
+      DesignFamily.typographic,
+      DesignFamily.frontRibbon,
+    ],
+    DesignFamily.singleHero: [
+      DesignFamily.badge,
+      DesignFamily.frontRibbon,
+      DesignFamily.typographic,
+    ],
+    DesignFamily.duoBlend: [
+      DesignFamily.typographic,
+      DesignFamily.badge,
+      DesignFamily.frontRibbon,
+    ],
+    DesignFamily.tornHero: [DesignFamily.badge, DesignFamily.frontRibbon],
+    DesignFamily.landmark: [DesignFamily.badge, DesignFamily.typographic],
+    DesignFamily.timeline: [DesignFamily.badge, DesignFamily.frontRibbon],
+    DesignFamily.journeys: [DesignFamily.badge, DesignFamily.frontRibbon],
+    DesignFamily.unknown: [DesignFamily.badge, DesignFamily.grid],
+  };
+
+  /// Deterministically chooses a complementary back family for a [front] family,
+  /// driven only by [themeSeed] so the result is stable/reproducible. Guaranteed
+  /// to differ from [front] (see [complementCandidates]).
+  static DesignFamily complementFamilyFor(DesignFamily front, int themeSeed) {
+    final candidates = complementCandidates[front] ??
+        const [DesignFamily.badge, DesignFamily.grid];
+    final idx = _deterministicIndex(themeSeed, candidates.length);
+    return candidates[idx];
+  }
+
+  /// A stable, non-negative index into a list of [length], mixed from
+  /// [themeSeed] with the 64-bit golden-ratio constant so successive seeds
+  /// spread across the candidates.
+  static int _deterministicIndex(int themeSeed, int length) {
+    if (length <= 1) return 0;
+    final mixed = (themeSeed ^ 0x9E3779B97F4A7C15) & 0x7FFFFFFFFFFFFFFF;
+    return mixed % length;
   }
 
   /// Deterministic back-face seed from a garment [themeSeed]. Mixed with the
