@@ -128,6 +128,82 @@ void main() {
       expect(back.seed, isNot(front.seed));
     });
 
+    test('deriveBack yields a complementary family sharing theme + flags', () {
+      // A typographic (compact / text-forward) front should be balanced by a
+      // rich, image-forward back — a *different* family.
+      final front = DesignRecipe(
+        seed: 321,
+        content: const RecipeContent(
+          flags: [FlagRef('jp', weight: 2.0), FlagRef('fr')],
+          source: 'thisYear',
+        ),
+        composition: const Composition(family: DesignFamily.typographic),
+        palette: const Palette(garmentColour: '#202020', accents: ['#00ffcc']),
+      );
+      final back =
+          GarmentDesign.deriveBack(front, themeSeed: 77, garmentColour: '#202020');
+      // Different family …
+      expect(back.composition.family,
+          isNot(front.composition.family));
+      // … but the shared theme is preserved: palette (incl. garment colour,
+      // accents) and travel flags carry over, and the orientation is reused.
+      expect(back.palette!.garmentColour, '#202020');
+      expect(back.palette!.accents, front.palette!.accents);
+      expect(back.content.flags, front.content.flags);
+      expect(back.composition.orientation, front.composition.orientation);
+      // Distinct, theme-derived seed.
+      expect(back.seed, GarmentDesign.backSeedFromTheme(77));
+    });
+
+    test('deriveBack is deterministic (same inputs → same back recipeId)', () {
+      final front = _front();
+      final a = GarmentDesign.deriveBack(front, themeSeed: 55);
+      final b = GarmentDesign.deriveBack(front, themeSeed: 55);
+      expect(a.recipeId, b.recipeId);
+      expect(a.composition.family, b.composition.family);
+    });
+
+    test('complementFamilyFor never returns the front family', () {
+      for (final f in DesignFamily.values) {
+        for (final seed in const [0, 1, 2, 7, 42, 99, 1000]) {
+          expect(GarmentDesign.complementFamilyFor(f, seed), isNot(f),
+              reason: 'front=$f seed=$seed');
+        }
+      }
+    });
+
+    test('a busy full-bleed front maps to a compact back', () {
+      final front = _back(); // _back() is a grid design
+      final back = GarmentDesign.deriveBack(front, themeSeed: 12);
+      expect(front.composition.family, DesignFamily.grid);
+      // Grid → one of the compact families.
+      expect(
+        back.composition.family,
+        anyOf(
+          DesignFamily.badge,
+          DesignFamily.frontRibbon,
+          DesignFamily.typographic,
+        ),
+      );
+    });
+
+    test('withSharedTheme + deriveBack produce a reproducible garmentId', () {
+      final a = GarmentDesign.withSharedTheme(
+          front: _front(), themeSeed: 88, garmentColour: '#333');
+      final b = GarmentDesign.withSharedTheme(
+          front: _front(), themeSeed: 88, garmentColour: '#333');
+      expect(a.back!.composition.family, isNot(a.front!.composition.family));
+      expect(a.garmentId, b.garmentId);
+    });
+
+    test('explicit composition override still wins over the complement map', () {
+      final front = _front();
+      const forced = Composition(family: DesignFamily.timeline);
+      final back = GarmentDesign.deriveBack(front,
+          themeSeed: 5, composition: forced);
+      expect(back.composition.family, DesignFamily.timeline);
+    });
+
     test('withGarmentColour updates both sides and the shared field', () {
       final g = GarmentDesign(
         front: _front(),
