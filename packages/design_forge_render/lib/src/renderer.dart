@@ -10,6 +10,7 @@ import 'stages/clip_stage.dart';
 import 'stages/edge_treatment_stage.dart';
 import 'stages/effects_stage.dart';
 import 'stages/colour_stage.dart';
+import 'stages/typography_stage.dart';
 
 /// Turns a [DesignRecipe] into pixels. The default [CanvasRenderer] is a
 /// **headless** pipeline: it draws directly to a `ui.Canvas` via a
@@ -32,13 +33,16 @@ class CanvasRenderer implements Renderer {
   final List<RenderStage> stages;
 
   /// The default pipeline in canonical order:
-  /// Composition → Clip(geometry/mask) → EdgeTreatment → Effects → Colour.
+  /// Composition → Clip(geometry/mask) → EdgeTreatment → Effects → Colour →
+  /// Typography. Typography is a top overlay drawn AFTER the colour grade so the
+  /// grade never washes out the title text.
   static List<RenderStage> defaultStages() => const [
         CompositionStage(),
         ClipStage(),
         EdgeTreatmentStage(),
         EffectsStage(),
         ColourStage(),
+        TypographyStage(),
       ];
 
   @override

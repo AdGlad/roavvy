@@ -1,0 +1,117 @@
+import 'dart:ui' as ui;
+
+import 'package:design_forge/design_forge.dart';
+
+import 'render_stage.dart';
+
+/// Renders the title/footer text overlay described by [DesignRecipe.typography].
+///
+/// The [Typography] recipe group carries only the *treatment* (case, placement,
+/// style hint) — the printed STRING is not part of the reproducible genome and
+/// is supplied at render time via [RecipeContent.meta] under the `'title'` key.
+/// When there is no `title` in `meta`, or `placement == none`, or no
+/// [DesignRecipe.typography] at all, this stage is a no-op and the output is
+/// byte-identical to the pipeline without it.
+///
+/// This stage runs LAST — a top overlay after the colour grade — so the grade
+/// never washes out the text.
+///
+/// TODO(M6): bundle a licensed display font (OFL/Apache). No such `.ttf`/`.otf`
+/// exists in the repo source tree today (only build artifacts / third-party
+/// Pods), so this uses the platform default font family and ignores
+/// [Typography.titleStyle] for family selection. Once a font is bundled in
+/// `apps/design_lab/pubspec.yaml`, wire its family in here.
+class TypographyStage extends RenderStage {
+  const TypographyStage();
+
+  @override
+  String get id => 'typography';
+
+  @override
+  Future<void> apply(DesignRecipe recipe, RenderContext ctx) async {
+    final typo = recipe.typography;
+    if (typo == null || typo.placement == TextPlacement.none) return;
+
+    final raw = recipe.content.meta['title'];
+    if (raw is! String) return;
+    final title = transformCase(raw.trim(), typo.textCase);
+    if (title.isEmpty) return;
+
+    final w = ctx.width.toDouble();
+    final h = ctx.height.toDouble();
+    final ink = _legibleInk(ctx.target.background);
+
+    // A horizontal band across the top or bottom of the frame.
+    final bandH = h * 0.16;
+    final bandTop =
+        typo.placement == TextPlacement.top ? h * 0.04 : h - bandH - h * 0.04;
+    final margin = w * 0.08;
+    final maxWidth = w - margin * 2;
+
+    // Size the text to the band, then shrink to fit the width if it overflows.
+    var fontSize = bandH * 0.62;
+    ui.Paragraph build(double size) {
+      final b = ui.ParagraphBuilder(ui.ParagraphStyle(
+        fontSize: size,
+        fontWeight: ui.FontWeight.w800,
+        textAlign: ui.TextAlign.center,
+        // TODO(M6): fontFamily: typo.titleStyle once a licensed font is bundled.
+      ))
+        ..pushStyle(ui.TextStyle(color: ink))
+        ..addText(title);
+      return b.build()..layout(ui.ParagraphConstraints(width: maxWidth));
+    }
+
+    var para = build(fontSize);
+    final longest =
+        para.longestLine > 0 ? para.longestLine : para.maxIntrinsicWidth;
+    if (longest > maxWidth && longest > 0) {
+      fontSize *= maxWidth / longest;
+      para = build(fontSize);
+    }
+
+    final origin = ui.Offset(margin, bandTop + (bandH - para.height) / 2);
+
+    if (ctx.artwork == null) {
+      ctx.artwork = await ctx.rasterise((canvas) {
+        canvas.drawParagraph(para, origin);
+      });
+      return;
+    }
+    await ctx.transformArtwork((canvas, src) {
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint());
+      canvas.drawParagraph(para, origin);
+    });
+  }
+
+  /// Applies the recipe's [TextCase] to [text]. Exposed for unit testing: under
+  /// the Ahem test font upper/lower glyphs render as identical boxes, so the
+  /// transformation is verified here rather than through pixels.
+  static String transformCase(String text, TextCase c) {
+    switch (c) {
+      case TextCase.upper:
+        return text.toUpperCase();
+      case TextCase.lower:
+        return text.toLowerCase();
+      case TextCase.title:
+        return _titleCase(text);
+      case TextCase.asIs:
+        return text;
+    }
+  }
+
+  static String _titleCase(String text) =>
+      text.replaceAllMapped(RegExp(r'\S+'), (m) {
+        final word = m[0]!;
+        return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+      });
+
+  /// A legible default ink chosen from the (optional) garment background so the
+  /// text stays readable without depending on the colour/garment stage.
+  static ui.Color _legibleInk(ui.Color? background) {
+    if (background == null) return const ui.Color(0xFF1A1A1A);
+    final lum =
+        0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b;
+    return lum > 0.5 ? const ui.Color(0xFF1A1A1A) : const ui.Color(0xFFF5F5F5);
+  }
+}
