@@ -34,8 +34,22 @@ class RenderService {
   RenderTarget targetFor(DesignRecipe r, int longSide,
       {RenderQuality quality = RenderQuality.preview, ui.Color? background}) {
     final (w, h) = dimsFor(r.composition.orientation, longSide);
-    return RenderTarget(
-        width: w, height: h, quality: quality, background: background ?? _bg);
+    // The garment colour is a real design property: fill the background with the
+    // recipe's garmentColour when set, so garment-aware re-inking has the right
+    // tone to contrast against. Falls back to the neutral preview grey.
+    final bg = background ?? _garmentColour(r) ?? _bg;
+    return RenderTarget(width: w, height: h, quality: quality, background: bg);
+  }
+
+  /// The recipe's garment colour as a [ui.Color], or null when unset/unparseable
+  /// (hex `#rrggbb` / `#aarrggbb`; named colours fall through to the grey default).
+  static ui.Color? _garmentColour(DesignRecipe r) {
+    var h = r.palette?.garmentColour?.replaceAll('#', '').trim();
+    if (h == null) return null;
+    if (h.length == 6) h = 'ff$h';
+    if (h.length != 8) return null;
+    final v = int.tryParse(h, radix: 16);
+    return v == null ? null : ui.Color(v);
   }
 
   Future<ui.Image> imageFor(DesignRecipe recipe, int longSide) async {
@@ -50,7 +64,8 @@ class RenderService {
   Future<RenderResult> renderFull(DesignRecipe recipe, int longSide) =>
       _renderer.render(
         recipe,
-        targetFor(recipe, longSide,
-            quality: RenderQuality.print, background: _bg),
+        // No explicit background → targetFor uses the recipe's garment colour
+        // (grey fallback), so print output matches the on-garment preview.
+        targetFor(recipe, longSide, quality: RenderQuality.print),
       );
 }

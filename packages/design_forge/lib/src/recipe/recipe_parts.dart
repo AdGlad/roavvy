@@ -362,6 +362,8 @@ class Palette {
     this.strategy = ColourStrategy.flagDerived,
     this.accents = const [],
     this.vintageGrade = 0.0,
+    this.contrastInk = false,
+    this.adaptiveInk,
   });
 
   final String? garmentColour;
@@ -369,11 +371,26 @@ class Palette {
   final List<String> accents;
   final double vintageGrade;
 
+  /// Marks this design's ink as ADAPTIVE — re-inked for garment contrast under
+  /// [ColourStrategy.garmentAware]. The renderer already treats text/typographic
+  /// and solid passport-stamp ink as adaptive from the recipe structure; set this
+  /// for line-art/outline/silhouette designs whose ink is not flag-derived and
+  /// which the structural heuristic can't otherwise detect. Append-only.
+  final bool contrastInk;
+
+  /// Optional explicit adaptive-ink colour (hex `#rrggbb` or `#aarrggbb`). When
+  /// set, [ColourStrategy.garmentAware] recolours adaptive ink to this exact
+  /// colour instead of the auto-computed near-black/near-white contrast tone.
+  /// Append-only.
+  final String? adaptiveInk;
+
   Map<String, Object?> toJson() => {
         if (garmentColour != null) 'garmentColour': garmentColour,
         'strategy': strategy.name,
         if (accents.isNotEmpty) 'accents': accents,
         if (vintageGrade != 0.0) 'vintageGrade': vintageGrade,
+        if (contrastInk) 'contrastInk': contrastInk,
+        if (adaptiveInk != null) 'adaptiveInk': adaptiveInk,
       };
 
   factory Palette.fromJson(Map<String, Object?> j) => Palette(
@@ -381,6 +398,8 @@ class Palette {
         strategy: ColourStrategy.fromId(j['strategy'] as String?),
         accents: [for (final a in (j['accents'] as List? ?? const [])) a as String],
         vintageGrade: (j['vintageGrade'] as num?)?.toDouble() ?? 0.0,
+        contrastInk: (j['contrastInk'] as bool?) ?? false,
+        adaptiveInk: j['adaptiveInk'] as String?,
       );
 }
 

@@ -27,6 +27,13 @@ class ColourStage extends RenderStage {
       // Duotone: luminance → gradient between two accents.
       filters.add(_saturation(0.0));
       filters.add(_duotone(_hex(palette.accents[0]), _hex(palette.accents[1])));
+    } else if (palette.strategy == ColourStrategy.garmentAware &&
+        _isAdaptiveInk(recipe, palette)) {
+      // Garment-aware: re-ink ADAPTIVE designs (text/typographic, solid stamp
+      // ink, opted-in line-art) toward a legible contrast tone for the garment.
+      // Flag fills and intentionally-coloured artwork are NOT adaptive, so this
+      // branch never fires for them → they keep their semantic colours.
+      filters.add(_recolour(_contrastInk(palette, ctx.target.background)));
     }
 
     if (palette.vintageGrade > 0) {
@@ -43,6 +50,58 @@ class ColourStage extends RenderStage {
         ui.Paint()..colorFilter = ui.ColorFilter.matrix(matrix),
       );
     });
+  }
+
+  // ---- garment-aware adaptive ink ----
+
+  /// True when the recipe's ink is ADAPTIVE (re-inkable for contrast) rather than
+  /// a flag fill. Classified from the recipe (ColourStage only sees flattened
+  /// pixels): typographic family or a `text` clip (letterforms), solid
+  /// passport-stamp ink (`clip.ink` is `black`/`white`, not `flag`), or an
+  /// explicit [Palette.contrastInk] opt-in for line-art/outline/silhouette
+  /// designs whose ink is not flag-derived. Flag-filled shapes stay semantic.
+  bool _isAdaptiveInk(DesignRecipe recipe, Palette palette) {
+    if (palette.contrastInk) return true;
+    if (recipe.composition.family == DesignFamily.typographic) return true;
+    final clip = recipe.clip;
+    if (clip != null) {
+      if (clip.shapeId == 'text') return true;
+      final ink = clip.ink;
+      // null/'flag' = filled with the flag (semantic); anything else is solid ink.
+      if (ink != null && ink != 'flag') return true;
+    }
+    return false;
+  }
+
+  /// The contrast ink colour for the garment: an explicit [Palette.adaptiveInk]
+  /// if given, else near-white on dark garments / near-black on light ones. The
+  /// garment tone is read from [Palette.garmentColour] (hex) when parseable, else
+  /// the render target background, else a neutral light grey.
+  ui.Color _contrastInk(Palette palette, ui.Color? background) {
+    final explicit = _tryHex(palette.adaptiveInk);
+    if (explicit != null) return explicit;
+    final garment =
+        _tryHex(palette.garmentColour) ?? background ?? const ui.Color(0xFFF2F2F2);
+    final lum = 0.2126 * garment.r + 0.7152 * garment.g + 0.0722 * garment.b;
+    return lum < 0.5 ? const ui.Color(0xFFF5F5F5) : const ui.Color(0xFF1A1A1A);
+  }
+
+  /// A flat recolour matrix: force RGB to [c], preserve alpha. Anti-aliased edges
+  /// (partial alpha) stay soft, so text/stamp ink reads cleanly as one tone.
+  List<double> _recolour(ui.Color c) => <double>[
+        0, 0, 0, 0, c.r * 255,
+        0, 0, 0, 0, c.g * 255,
+        0, 0, 0, 0, c.b * 255,
+        0, 0, 0, 1, 0,
+      ];
+
+  ui.Color? _tryHex(String? s) {
+    if (s == null) return null;
+    var h = s.replaceAll('#', '').trim();
+    if (h.length == 6) h = 'ff$h';
+    if (h.length != 8) return null;
+    final v = int.tryParse(h, radix: 16);
+    return v == null ? null : ui.Color(v);
   }
 
   // ---- colour matrices (4x5, row-major) ----
