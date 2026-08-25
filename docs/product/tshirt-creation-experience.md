@@ -207,6 +207,54 @@ suggestions list + "generate more", colour preview with automatic contrast, save
 - **"Remix & Explore" is not a step** — it is the per-decision alternatives tray plus a
   global "Surprise me" always on the canvas.
 
+### 9b. Funnel hierarchy + control taxonomy (fixed vs contextual; style-owned vs generic)
+
+**Hierarchy the customer walks:** Direction → (Detail, if Flags) → Form controls → Style →
+Effects → Colour → Words. Flags/Maps/Animals/Landmarks are ALL "Flags" — they differ only
+by the *shape the flag fills* (the Detail sub-step). Passport / Route(timeline+journeys) /
+World(wordCloud) / Words(typographic) / Milestones are the non-flag subjects.
+
+Direction→engine map: Flags=`flags`→singleHero/duoBlend/grid; Detail=`ClipShape`
+(none/countryOutline/continentOutline/animal|plant|landmarkSilhouette/heart/circle);
+Passport=`passportStamp`(real stamp PNGs); Route=`timeline`+`journeys`; World=`wordCloud`;
+Words=`typographic`(text clip); Milestones=`badge`/`frontRibbon`/`achievements`/`stats`.
+
+**Three control tiers:**
+- **Tier 1 — FIXED / GLOBAL** (always available, persist across subject/style changes, in a
+  persistent bar not the deck): Aspect `Composition.orientation` (portrait/landscape/square);
+  Size (S/M/L → `Placement.scale`, needs mapping); Garment colour `Palette.garmentColour`+
+  garmentAware; Front/Back `GarmentDesign`; Surprise/Seed; Save/Undo/Cart. A style change
+  NEVER touches these.
+- **Tier 2 — CROSS-CUTTING CREATIVE** (valid on any design; the deck): Direction
+  (`family`+`clip`), Style (`LabStyle`), Effects (`Effects`), Words (`Typography`+`meta.title`),
+  Colour treatment (`Palette.strategy`/accents/vintageGrade).
+- **Tier 3 — CONTEXTUAL** (only when the subject matches): Detail/clip shape; clip transforms
+  (`Clip.scale`/rotationDeg/aspectRatio/cornerRadius/feather/position); grid fill
+  (`Composition.fillAlgorithm`)/layoutMode/rowCount/density/copies/jitter; flag combine
+  (`FlagCombination`); passport ink/size/scatter/entry-exit/dates (`Clip.ink`/scale/scatter/
+  code); data entries/weights/date-range/journeyStyle/big-count (`content.entries`/`meta`).
+
+**Style-owned vs generic:** a Style OWNS its identity — edge treatment, default effect mix +
+intensities, default colour treatment (vintageGrade/duotone/mono/accents), preferred clip
+archetypes + orientation bias. Everything else is GENERIC (garment colour, aspect, size,
+front/back, subject, title, seed). **Principle: Style seeds DEFAULTS for unlocked axes; the
+user overrides generically; Tier-1 fixed controls are never overwritten by a style change;
+locks make any axis sticky.**
+
+**Gaps identified (from the mobile-app + studio capability review):**
+1. Funnel doesn't expose the Tier-3 form controls yet (fill/rows/density/scatter/aspect/size
+   for grid; scatter/size/ink for passport) — they live in the recipe + Lab editor only.
+2. Direction axis doesn't switch family/genre and has no Detail sub-level (wiring gap in
+   `lab_generator.dart` + `studio_canvas_screen.dart`).
+3. No first-class recipe fields for: copies-per-country (was `flagRepeatCount`), passport
+   `stampMode` (entry/exit/entry-only — currently encoded in `Clip.code`), `statementHero`
+   big-count typography, Size S/M/L (was `ImageSize`).
+4. Effects not ported from mobile PrintStylePipeline: riso, newsprint, sunFaded, photocopy.
+5. Typography: footer/subtitle unmodelled; no bundled font (`titleStyle`→family unwired).
+6. Output: RenderQuality preview-vs-print supersample unbranched; print export from a recipe
+   (M1); front/back UI; per-style colour character lost when palette moved to its own axis.
+7. Journey style variants thin vs mobile `journeyStyle`.
+
 ## 10. Key screen concepts
 
 - **Canvas (primary).** Shirt hero (front/back toggle), decision deck (chips), alternatives tray, breadcrumb (undo/branch), single primary CTA ("This is the one").
