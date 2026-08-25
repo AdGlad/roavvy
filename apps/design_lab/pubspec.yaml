@@ -73,6 +73,12 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
+  # TODO(M6): bundle a licensed OFL/Apache display font for the Typography
+  # render stage (packages/design_forge_render TypographyStage). No licensed
+  # .ttf/.otf currently exists in the repo source tree, so the stage falls back
+  # to the platform default font. When a font is added, declare it here with a
+  # `family:` and reference that family from TypographyStage.
+  #
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
   # "family" key with the font family name, and a "fonts" key with a
