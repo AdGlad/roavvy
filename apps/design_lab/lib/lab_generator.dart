@@ -164,12 +164,36 @@ class LabShowcaseGenerator implements RecipeGenerator {
     final famSrc = r(DesignAxis.direction) ? regen : base;
     final compSrc = r(DesignAxis.focus) ? regen : base;
     final vibeSrc = r(DesignAxis.vibe) ? regen : base;
-    final colourSrc =
-        (r(DesignAxis.vibe) || r(DesignAxis.colour)) ? regen : base;
+    // Palette is now drawn solely on the colour sub-stream, so only a colour
+    // re-roll changes it (a vibe re-roll leaves it byte-identical).
+    final colourSrc = r(DesignAxis.colour) ? regen : base;
+    // The WORDS axis owns the printed title (content.meta['title']); everything
+    // else in content belongs to direction/focus. Splice the title alone so a
+    // words re-roll changes the title but nothing else in content, and any other
+    // re-roll leaves content byte-identical to base.
+    final RecipeContent content;
+    if (r(DesignAxis.words)) {
+      final baseC = base.content;
+      final newTitle = regen.content.meta['title'];
+      final meta = {...baseC.meta};
+      if (newTitle != null) {
+        meta['title'] = newTitle;
+      } else {
+        meta.remove('title');
+      }
+      content = RecipeContent(
+        flags: baseC.flags,
+        source: baseC.source,
+        entries: baseC.entries,
+        meta: meta,
+      );
+    } else {
+      content = base.content;
+    }
     return DesignRecipe(
       seed: base.seed,
       axisSeeds: axisSeeds,
-      content: base.content,
+      content: content,
       composition: Composition(
         family: famSrc.composition.family,
         orientation: compSrc.composition.orientation,
@@ -249,7 +273,9 @@ class LabShowcaseGenerator implements RecipeGenerator {
     int sfa(DesignAxis a) => axisSeeds[a.key] ?? seed;
     final focusRng = DeterministicRng(sfa(DesignAxis.focus)); // composition
     final dirRng = DeterministicRng(sfa(DesignAxis.direction)); // subject/clip
-    final vibeRng = DeterministicRng(sfa(DesignAxis.vibe)); // finish
+    final vibeRng = DeterministicRng(sfa(DesignAxis.vibe)); // finish (edge+fx)
+    final colourRng = DeterministicRng(sfa(DesignAxis.colour)); // palette
+    final wordsRng = DeterministicRng(sfa(DesignAxis.words)); // title/typography
     final spec = style.spec;
     final codes = context.flagCodes;
     final flags = [for (final c in codes) FlagRef(c)];
@@ -335,10 +361,30 @@ class LabShowcaseGenerator implements RecipeGenerator {
       stampCcs: stampCcs, history: context.history,
     );
 
-    // Finish: edge/effects/palette from the style. Don't tear a clipped shape
-    // unless the style opts in (grunge grit on silhouettes etc.).
+    // Finish: edge/effects from the style (VIBE axis). Don't tear a clipped shape
+    // unless the style opts in (grunge grit on silhouettes etc.). The finish's
+    // OWN palette is deliberately discarded — colour is now a first-class axis
+    // (below) so it can be re-rolled independently of edge/effects.
     final finish = spec.finish(vibeRng.stream('finish'), clip != null);
     final edge = (clip != null && !spec.tornOnClip) ? null : finish.edge;
+
+    // COLOUR axis: garment colour + colour treatment, drawn on the colour
+    // sub-stream so reroll(colour) perturbs ONLY the palette. Adaptive-ink designs
+    // (text / typographic / solid-ink stamps) go garmentAware so M5 re-inks them
+    // for the garment; flag-filled designs stay semantic (flag-derived).
+    final palette = _paletteFor(colourRng, clip, family);
+
+    // WORDS axis: an optional travel-phrase title + typography treatment, drawn on
+    // the words sub-stream so reroll(words) perturbs ONLY the title/typography.
+    // Text heroes always get a title; other designs get it as an occasional
+    // overlay. Single-country designs may use the country's own name; multi-country
+    // designs never do (title rules).
+    final (title, typo) = _titleFor(
+      wordsRng,
+      isTextHero: clip?.shapeId == 'text' || family == DesignFamily.typographic,
+      single: single,
+      countryName: countryNames[code],
+    );
 
     final orientation = focusRng.stream('orient').pickWeighted(
       const [Orientation.square, Orientation.portrait, Orientation.landscape],
@@ -348,16 +394,119 @@ class LabShowcaseGenerator implements RecipeGenerator {
     return DesignRecipe(
       seed: seed,
       axisSeeds: axisSeeds,
-      content: RecipeContent(flags: flags, source: context.scopeKey),
+      content: RecipeContent(
+        flags: flags,
+        source: context.scopeKey,
+        meta: title != null ? {'title': title} : const {},
+      ),
       composition: Composition(
           family: family, orientation: orientation, fillAlgorithm: fillAlgorithm),
       flagCombination: combo,
       clip: clip,
       edgeTreatment: edge,
       effects: finish.fx,
-      palette: finish.palette,
+      palette: palette,
+      typography: typo,
       provenance: RecipeProvenance(generator: 'lab:${style.name}'),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wave-2 — colour (M5) + words (M6) axis draws
+  // ---------------------------------------------------------------------------
+
+  /// A spread of sensible garment (T-shirt) colours as hexes. The colour axis
+  /// picks one per design; under [ColourStrategy.garmentAware] the renderer inks
+  /// adaptive designs for contrast against it.
+  static const _garmentColours = <String>[
+    '#111111', // black
+    '#F5F3EC', // natural white
+    '#1B2A4A', // navy
+    '#6F6F6F', // heather grey
+    '#D9C7A3', // sand
+    '#5B5B3A', // olive
+  ];
+
+  /// Whether a design's ink is ADAPTIVE (re-inkable for garment contrast) rather
+  /// than a flag fill — mirrors the renderer's structural heuristic (see
+  /// `ColourStage._isAdaptiveInk`) so the generator only marks garmentAware where
+  /// the renderer will actually re-ink: typographic family, a `text` clip
+  /// (letterforms), or a solid-ink stamp (`clip.ink` set to non-`flag`).
+  static bool _isAdaptiveInk(Clip? clip, DesignFamily family) {
+    if (family == DesignFamily.typographic) return true;
+    if (clip == null) return false;
+    if (clip.shapeId == 'text') return true;
+    final ink = clip.ink;
+    return ink != null && ink != 'flag';
+  }
+
+  /// Build the palette on the COLOUR sub-stream: always a garment colour, plus a
+  /// treatment. Adaptive designs go [ColourStrategy.garmentAware] (renderer
+  /// re-inks for contrast); flag-filled designs keep semantic flag colours with
+  /// an occasional monochrome or vintage grade for variety.
+  static Palette _paletteFor(
+      DeterministicRng colourRng, Clip? clip, DesignFamily family) {
+    final garment = colourRng.stream('garment').pick(_garmentColours);
+    if (_isAdaptiveInk(clip, family)) {
+      return Palette(
+          garmentColour: garment, strategy: ColourStrategy.garmentAware);
+    }
+    final t = colourRng.stream('treatment');
+    if (t.chance(0.15)) {
+      return Palette(
+          garmentColour: garment, strategy: ColourStrategy.monochrome);
+    }
+    return Palette(
+      garmentColour: garment,
+      strategy: ColourStrategy.flagDerived,
+      vintageGrade: t.chance(0.55) ? t.nextRange(0.3, 0.7) : 0.0,
+    );
+  }
+
+  /// Curated travel phrases for titles — one ready-to-print phrase each, no
+  /// numbering/preamble (per the title rules). A single-country design may also
+  /// offer the country's own name; multi-country designs never do.
+  static const _titleBank = <String>[
+    'THE WORLD AWAITS',
+    'COLLECT MOMENTS',
+    'WANDER OFTEN',
+    'ADVENTURE AWAITS',
+    'KEEP EXPLORING',
+    'FIND YOUR NORTH',
+    'OFF THE MAP',
+    'STAMP YOUR PASSPORT',
+    'ROAM FREE',
+    'BORN TO WANDER',
+    'GONE EXPLORING',
+    'CHASE HORIZONS',
+  ];
+
+  /// The WORDS axis: pick a travel-phrase title + typography treatment from the
+  /// words sub-stream. Text heroes ([isTextHero]) always get a title; other
+  /// designs get one as an occasional overlay. Returns (null, null) for no title
+  /// so the design carries no typography (a render no-op).
+  static (String?, Typography?) _titleFor(
+    DeterministicRng wordsRng, {
+    required bool isTextHero,
+    required bool single,
+    String? countryName,
+  }) {
+    final wantTitle = isTextHero || wordsRng.stream('overlay').chance(0.33);
+    if (!wantTitle) return (null, null);
+    final options = <String>[
+      ..._titleBank,
+      if (single && countryName != null && countryName.isNotEmpty)
+        countryName.toUpperCase(),
+    ];
+    final title = wordsRng.stream('phrase').pick(options);
+    final typo = Typography(
+      placement: wordsRng
+          .stream('place')
+          .pick(const [TextPlacement.top, TextPlacement.bottom]),
+      textCase:
+          wordsRng.stream('case').pick(const [TextCase.upper, TextCase.title]),
+    );
+    return (title, typo);
   }
 
   /// Build a data-driven design (timeline / journeys / word cloud / badge /
@@ -370,7 +519,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
     // [axisSeeds] reproduces the original output exactly).
     int sfa(DesignAxis a) => axisSeeds[a.key] ?? seed;
     final focusRng = DeterministicRng(sfa(DesignAxis.focus));
-    final vibeRng = DeterministicRng(sfa(DesignAxis.vibe));
+    final colourRng = DeterministicRng(sfa(DesignAxis.colour));
     final history = context.history;
     String nameOf(String cc) => countryNames[cc.toLowerCase()] ?? cc.toUpperCase();
 
@@ -451,11 +600,17 @@ class LabShowcaseGenerator implements RecipeGenerator {
       DesignFamily.stats,
       DesignFamily.frontRibbon,
     };
-    final pr = vibeRng.stream('pal');
+    // Palette is a COLOUR-axis draw (garment colour + optional grade) so it can
+    // be re-rolled independently. Label/stat families keep a clean flag-derived
+    // look; the freer families may pick up a light vintage grade.
+    final pr = colourRng.stream('pal');
+    final garment = colourRng.stream('garment').pick(_garmentColours);
     final palette = (!labelFamilies.contains(family) && pr.chance(0.4))
         ? Palette(
-            strategy: ColourStrategy.flagDerived, vintageGrade: pr.nextRange(0.3, 0.6))
-        : null;
+            garmentColour: garment,
+            strategy: ColourStrategy.flagDerived,
+            vintageGrade: pr.nextRange(0.3, 0.6))
+        : Palette(garmentColour: garment);
 
     final distinct = <String>{for (final e in entries) e.code}.toList();
     return DesignRecipe(
