@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:design_forge/design_forge.dart';
 import 'package:design_lab/lab_generator.dart';
+import 'package:design_lab/lab_styles.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Canonical string views used to compare a single axis's fields for identity.
@@ -15,6 +16,12 @@ String _vibe(DesignRecipe r) => jsonEncode([
       r.palette?.toJson(),
     ]);
 
+// Wave-2 axis views: palette (colour axis) and title+typography (words axis).
+String _pal(DesignRecipe r) => jsonEncode(r.palette?.toJson());
+String _fx(DesignRecipe r) => jsonEncode(r.effects?.toJson());
+String _typo(DesignRecipe r) => jsonEncode(r.typography?.toJson());
+Object? _title(DesignRecipe r) => r.content.meta['title'];
+
 void main() {
   const gen = LabShowcaseGenerator();
   const sc = DesignContext(flagCodes: ['sc'], scopeKey: 'lab:sc');
@@ -24,21 +31,25 @@ void main() {
   final gridBase = gen.generate(grid, seed: 3).single;
 
   group('determinism preserved (task 3)', () {
-    // Golden recipeIds captured from the pre-M2 generator (single shared seed).
-    // With an empty axisSeeds map the refactored generator MUST reproduce them.
-    test('empty axisSeeds reproduces the exact pre-M2 output', () {
+    // Golden recipeIds for the current (wave-2) generator with an empty axisSeeds
+    // map. Wave-2 moved the palette onto the colour axis and added garment colour
+    // + titles/typography, which deliberately changed these ids from the pre-M2
+    // values; the test's INTENT is unchanged: an untouched recipe reproduces the
+    // current generation byte-for-byte across runs.
+    test('empty axisSeeds reproduces the current generation deterministically',
+        () {
       const duo = DesignContext(flagCodes: ['jp', 'fr'], scopeKey: 'lab:duo');
       const golden = {
-        'SINGLE 1': '6f6c433211770c6c',
-        'SINGLE 2': '5e7bacaafb6f6132',
-        'SINGLE 3': '676a5860978621be',
-        'SINGLE 7': '1f0ee50d04abb3a9',
-        'SINGLE 42': '394d94da2e2ca4f6',
-        'DUO 1': '6e5b904c03ecdb25',
-        'DUO 2': '26b585a87b970b1d',
-        'DUO 5': '2d2f38c221c77199',
-        'GRID 1': '3e0c545ce353bc1c',
-        'GRID 4': '321fdb5fc4d149fc',
+        'SINGLE 1': '70a12665be047c38',
+        'SINGLE 2': '3bcd8e9eca5ebc2a',
+        'SINGLE 3': '42c4748f7e05fd7c',
+        'SINGLE 7': '757488141b8045f0',
+        'SINGLE 42': '2bad72771880c35c',
+        'DUO 1': '5778b13ff1b76655',
+        'DUO 2': '6b3955014655823d',
+        'DUO 5': '77cfba584cf0bb7d',
+        'GRID 1': '788138f10ef66178',
+        'GRID 4': '145f31a1b4850630',
       };
       String id(DesignContext c, int s) => gen.generate(c, seed: s).single.recipeId;
       expect(id(sc, 1), golden['SINGLE 1']);
@@ -129,6 +140,105 @@ void main() {
     test('default (seedless) re-roll is reproducible for a given axis', () {
       expect(gen.reroll(base, DesignAxis.vibe).recipeId,
           gen.reroll(base, DesignAxis.vibe).recipeId);
+    });
+  });
+
+  group('wave-2 colour axis (M5)', () {
+    test('re-rolling colour changes ONLY the palette', () {
+      final r = gen.reroll(base, DesignAxis.colour, newSeed: 999);
+      // Everything except the palette is byte-identical.
+      expect(_clip(r), _clip(base));
+      expect(_comp(r), _comp(base));
+      expect(_combo(r), _combo(base));
+      expect(_content(r), _content(base)); // title lives here → unchanged
+      expect(jsonEncode(r.edgeTreatment?.toJson()),
+          jsonEncode(base.edgeTreatment?.toJson()));
+      expect(_fx(r), _fx(base));
+      expect(_typo(r), _typo(base));
+      expect(r.axisSeeds[DesignAxis.colour.key], 999);
+    });
+
+    test('colour re-rolls vary the palette while other axes stay identical', () {
+      final variants = [
+        for (final s in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+          gen.reroll(base, DesignAxis.colour, newSeed: s),
+      ];
+      // The palette takes more than one distinct value across colour seeds…
+      expect(variants.map(_pal).toSet().length, greaterThan(1));
+      // …while clip / composition / effects / typography stay pinned to base.
+      for (final v in variants) {
+        expect(_clip(v), _clip(base));
+        expect(_comp(v), _comp(base));
+        expect(_fx(v), _fx(base));
+        expect(_typo(v), _typo(base));
+      }
+    });
+
+    test('a flag/shape design keeps a semantic (non-garmentAware) palette', () {
+      // base is a single-flag (sc) design → flag-filled, not adaptive ink.
+      expect(base.palette, isNotNull);
+      expect(base.palette!.strategy, isNot(ColourStrategy.garmentAware));
+    });
+  });
+
+  group('wave-2 words axis (M6)', () {
+    final typoGen = LabShowcaseGenerator(
+      genre: LabGenre.typography,
+      countryNames: const {'sc': 'Seychelles'},
+    );
+    final typoBase = typoGen.generate(sc, seed: 7).single;
+
+    test('a generated typographic design has a non-empty title + typography', () {
+      expect(typoBase.clip?.shapeId, 'text');
+      final title = typoBase.content.meta['title'];
+      expect(title, isA<String>());
+      expect((title! as String).isNotEmpty, isTrue);
+      expect(typoBase.typography, isNotNull);
+      expect(typoBase.typography!.placement, isNot(TextPlacement.none));
+      // Text heroes are adaptive-ink → garmentAware so M5 re-inks them.
+      expect(typoBase.palette?.strategy, ColourStrategy.garmentAware);
+    });
+
+    test('re-rolling words changes ONLY the title/typography', () {
+      final r = typoGen.reroll(typoBase, DesignAxis.words, newSeed: 999);
+      expect(_pal(r), _pal(typoBase));
+      expect(_clip(r), _clip(typoBase));
+      expect(r.composition.family, typoBase.composition.family);
+      expect(_fx(r), _fx(typoBase));
+      expect(r.axisSeeds[DesignAxis.words.key], 999);
+    });
+
+    test('words re-rolls vary the title/typography while other axes stay pinned',
+        () {
+      final variants = [
+        for (final s in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+          typoGen.reroll(typoBase, DesignAxis.words, newSeed: s),
+      ];
+      // The title + typography take more than one distinct value across seeds…
+      expect(
+          variants.map((v) => '${_title(v)}|${_typo(v)}').toSet().length,
+          greaterThan(1));
+      // …while palette / clip / family stay pinned to base.
+      for (final v in variants) {
+        expect(_pal(v), _pal(typoBase));
+        expect(_clip(v), _clip(typoBase));
+        expect(v.composition.family, typoBase.composition.family);
+      }
+    });
+
+    test('a multi-country design never uses a single country name as its title',
+        () {
+      // Titles must not name one country on a multi-country design (title rules).
+      final multiGen = LabShowcaseGenerator(
+        genre: LabGenre.typography,
+        countryNames: const {'jp': 'Japan', 'fr': 'France'},
+      );
+      const duo = DesignContext(flagCodes: ['jp', 'fr'], scopeKey: 'lab:duo');
+      for (var s = 1; s <= 30; s++) {
+        final t = multiGen.generate(duo, seed: s).single.content.meta['title'];
+        expect(t, isNot('JAPAN'));
+        expect(t, isNot('FRANCE'));
+      }
     });
   });
 
