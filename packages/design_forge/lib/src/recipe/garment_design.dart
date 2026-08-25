@@ -210,6 +210,8 @@ DesignRecipe _recipeWithGarmentColour(DesignRecipe r, String? colour) {
       strategy: base.strategy,
       accents: base.accents,
       vintageGrade: base.vintageGrade,
+      contrastInk: base.contrastInk,
+      adaptiveInk: base.adaptiveInk,
     ),
   );
 }
