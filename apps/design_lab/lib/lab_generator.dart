@@ -87,6 +87,115 @@ class LabShowcaseGenerator implements RecipeGenerator {
     ];
   }
 
+  // ---------------------------------------------------------------------------
+  // M2 — single-axis re-roll + lock
+  // ---------------------------------------------------------------------------
+
+  /// Re-roll ONE creative [axis] of [recipe], returning a new recipe whose
+  /// fields for that axis change while **every other axis stays byte-identical**
+  /// (its `toJson`/`recipeId` for the untouched axes is preserved). This is the
+  /// foundation of the Studio Canvas lock/branch/undo UX.
+  ///
+  /// The axis's per-axis seed is bumped (or set to [newSeed] when given) and the
+  /// design is regenerated; only the regenerated axis's fields are spliced in.
+  /// A [locked] axis is never re-rolled — if [axis] itself is locked the recipe
+  /// is returned unchanged.
+  ///
+  /// The [recipe]'s originating generator config (style/genre/silhouettes) must
+  /// match this instance for a faithful re-roll. Travel history is not carried on
+  /// the recipe, so re-rolling [DesignAxis.direction] on a passport design may
+  /// synthesise dates; all other axes are unaffected by that.
+  DesignRecipe reroll(
+    DesignRecipe recipe,
+    DesignAxis axis, {
+    int? newSeed,
+    Set<DesignAxis> locked = const {},
+  }) {
+    if (locked.contains(axis)) return recipe;
+    return _rerollAxes(recipe, {axis}, newSeed: newSeed);
+  }
+
+  /// Re-roll every axis that is NOT in [locked] at once ("shuffle the rest"),
+  /// holding the locked axes byte-identical. Complements the single-axis
+  /// [reroll]; each re-rolled axis gets a freshly bumped seed.
+  DesignRecipe rerollUnlocked(
+    DesignRecipe recipe, {
+    Set<DesignAxis> locked = const {},
+  }) =>
+      _rerollAxes(recipe, DesignAxis.values.toSet().difference(locked));
+
+  DesignRecipe _rerollAxes(
+    DesignRecipe recipe,
+    Set<DesignAxis> axes, {
+    int? newSeed,
+  }) {
+    if (axes.isEmpty) return recipe;
+    final seeds = Map<String, int>.of(recipe.axisSeeds);
+    for (final a in axes) {
+      seeds[a.key] = newSeed ?? _bumpSeed(recipe.seedForAxis(a), a);
+    }
+    final regen = _one(_contextFor(recipe), recipe.seed, axisSeeds: seeds);
+    return _spliceAxes(recipe, regen, axes, seeds);
+  }
+
+  /// Reconstruct the generation context from a recipe's baked-in content.
+  static DesignContext _contextFor(DesignRecipe r) => DesignContext(
+        flagCodes: [for (final f in r.content.flags) f.code],
+        scopeKey: r.content.source,
+      );
+
+  /// A fresh, deterministic seed for [axis] derived from its current [current]
+  /// seed — so the default re-roll gives a new look reproducibly.
+  static int _bumpSeed(int current, DesignAxis axis) =>
+      DeterministicRng(current).stream('reroll:${axis.key}').nextInt(0x7FFFFFFF);
+
+  /// Build the result by taking each field from [regen] when its owning axis was
+  /// [rerolled], else from [base]. This guarantees non-re-rolled axes are
+  /// byte-identical to [base] even where the generator couples fields (e.g. edge
+  /// treatment gating on clip presence). [Composition] is split field-wise:
+  /// family follows [DesignAxis.direction], the rest follows [DesignAxis.focus].
+  static DesignRecipe _spliceAxes(
+    DesignRecipe base,
+    DesignRecipe regen,
+    Set<DesignAxis> rerolled,
+    Map<String, int> axisSeeds,
+  ) {
+    bool r(DesignAxis a) => rerolled.contains(a);
+    final famSrc = r(DesignAxis.direction) ? regen : base;
+    final compSrc = r(DesignAxis.focus) ? regen : base;
+    final vibeSrc = r(DesignAxis.vibe) ? regen : base;
+    final colourSrc =
+        (r(DesignAxis.vibe) || r(DesignAxis.colour)) ? regen : base;
+    return DesignRecipe(
+      seed: base.seed,
+      axisSeeds: axisSeeds,
+      content: base.content,
+      composition: Composition(
+        family: famSrc.composition.family,
+        orientation: compSrc.composition.orientation,
+        layoutMode: compSrc.composition.layoutMode,
+        fillAlgorithm: compSrc.composition.fillAlgorithm,
+        rowCount: compSrc.composition.rowCount,
+        density: compSrc.composition.density,
+        jitter: compSrc.composition.jitter,
+        placement: compSrc.composition.placement,
+      ),
+      flagCombination:
+          (r(DesignAxis.focus) ? regen : base).flagCombination,
+      clip: (r(DesignAxis.direction) ? regen : base).clip,
+      edgeTreatment: vibeSrc.edgeTreatment,
+      palette: colourSrc.palette,
+      effects: vibeSrc.effects,
+      typography: (r(DesignAxis.words) ? regen : base).typography,
+      motifs: base.motifs,
+      schemaVersion: base.schemaVersion,
+      engineVersion: base.engineVersion,
+      grammarVersion: base.grammarVersion,
+      assetsVersion: base.assetsVersion,
+      provenance: base.provenance,
+    );
+  }
+
   /// Silhouette slugs of [kind] belonging to [code] (slugs are country-prefixed,
   /// e.g. `sc_coco_de_mer` → country `sc`).
   List<String> _countrySlugs(ClipShape kind, String code) {
@@ -117,7 +226,8 @@ class LabShowcaseGenerator implements RecipeGenerator {
     return 'First Country';
   }
 
-  DesignRecipe _one(DesignContext context, int seed) {
+  DesignRecipe _one(DesignContext context, int seed,
+      {Map<String, int> axisSeeds = const {}}) {
     // Data genres (Travel Log / Milestones) → a data-driven family. A specific
     // [template] pins one; otherwise rotate through the genre's families.
     if (genre.isData) {
@@ -125,13 +235,21 @@ class LabShowcaseGenerator implements RecipeGenerator {
       final family = template != null && fams.contains(template)
           ? template!
           : fams[(seed - 1).abs() % fams.length];
-      return _dataRecipe(context, seed, family);
+      return _dataRecipe(context, seed, family, axisSeeds: axisSeeds);
     }
     // Legacy direct-template path (kept for callers that set template directly).
     if (template != null && _dataFamilies.contains(template)) {
-      return _dataRecipe(context, seed, template!);
+      return _dataRecipe(context, seed, template!, axisSeeds: axisSeeds);
     }
-    final rng = DeterministicRng(seed);
+    // Per-axis effective seed: an override in [axisSeeds] re-rolls just that
+    // axis; when absent every axis falls back to [seed]. When [axisSeeds] is
+    // empty this reproduces the pre-M2 single-seed behaviour byte-for-byte
+    // (each axis rng == DeterministicRng(seed), so its sub-streams match the
+    // old shared `DeterministicRng(seed).stream(name)`).
+    int sfa(DesignAxis a) => axisSeeds[a.key] ?? seed;
+    final focusRng = DeterministicRng(sfa(DesignAxis.focus)); // composition
+    final dirRng = DeterministicRng(sfa(DesignAxis.direction)); // subject/clip
+    final vibeRng = DeterministicRng(sfa(DesignAxis.vibe)); // finish
     final spec = style.spec;
     final codes = context.flagCodes;
     final flags = [for (final c in codes) FlagRef(c)];
@@ -147,7 +265,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
     } else if (flags.length == 2) {
       family = DesignFamily.duoBlend;
       combo = FlagCombination(
-        mode: rng.stream('combo').pick(const [
+        mode: focusRng.stream('combo').pick(const [
           FlagCombineMode.diagonalSplit,
           FlagCombineMode.vertical,
           FlagCombineMode.horizontal,
@@ -155,7 +273,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
       );
     } else {
       family = DesignFamily.grid;
-      fillAlgorithm = rng.stream('algo').pick(FillAlgorithm.values);
+      fillAlgorithm = focusRng.stream('algo').pick(FillAlgorithm.values);
     }
 
     final animals =
@@ -207,26 +325,29 @@ class LabShowcaseGenerator implements RecipeGenerator {
     // the first tile lands on rotation[0]. Deterministic per seed.
     var avail = [for (final a in rotation) if (available(a)) a];
     if (avail.isEmpty) avail = [ClipArchetype.basicFlag];
-    final arc = avail[(seed - 1).abs() % avail.length];
+    // Subject choice is owned by the DIRECTION axis, so it walks on that axis's
+    // effective seed (== seed when not re-rolled).
+    final arc = avail[(sfa(DesignAxis.direction) - 1).abs() % avail.length];
 
     final clip = _clipFor(
-      arc, rng.stream('clip'), spec, code,
+      arc, dirRng.stream('clip'), spec, code,
       animals: animals, plants: plants, landmarks: landmarks, stamps: stamps,
       stampCcs: stampCcs, history: context.history,
     );
 
     // Finish: edge/effects/palette from the style. Don't tear a clipped shape
     // unless the style opts in (grunge grit on silhouettes etc.).
-    final finish = spec.finish(rng.stream('finish'), clip != null);
+    final finish = spec.finish(vibeRng.stream('finish'), clip != null);
     final edge = (clip != null && !spec.tornOnClip) ? null : finish.edge;
 
-    final orientation = rng.stream('orient').pickWeighted(
+    final orientation = focusRng.stream('orient').pickWeighted(
       const [Orientation.square, Orientation.portrait, Orientation.landscape],
       spec.orientationWeights,
     );
 
     return DesignRecipe(
       seed: seed,
+      axisSeeds: axisSeeds,
       content: RecipeContent(flags: flags, source: context.scopeKey),
       composition: Composition(
           family: family, orientation: orientation, fillAlgorithm: fillAlgorithm),
@@ -242,8 +363,14 @@ class LabShowcaseGenerator implements RecipeGenerator {
   /// Build a data-driven design (timeline / journeys / word cloud / badge /
   /// front ribbon / achievements / stats) from the context's travel history.
   /// Entries + meta are baked in so the recipe is self-contained + reproducible.
-  DesignRecipe _dataRecipe(DesignContext context, int seed, DesignFamily family) {
-    final rng = DeterministicRng(seed);
+  DesignRecipe _dataRecipe(DesignContext context, int seed, DesignFamily family,
+      {Map<String, int> axisSeeds = const {}}) {
+    // Orientation is a FOCUS draw; the vintage palette is a VIBE draw. Each
+    // reads its axis's effective seed (== seed when not re-rolled, so an empty
+    // [axisSeeds] reproduces the original output exactly).
+    int sfa(DesignAxis a) => axisSeeds[a.key] ?? seed;
+    final focusRng = DeterministicRng(sfa(DesignAxis.focus));
+    final vibeRng = DeterministicRng(sfa(DesignAxis.vibe));
     final history = context.history;
     String nameOf(String cc) => countryNames[cc.toLowerCase()] ?? cc.toUpperCase();
 
@@ -271,12 +398,12 @@ class LabShowcaseGenerator implements RecipeGenerator {
       case DesignFamily.journeys:
         entries = perTrip();
         orientation =
-            rng.stream('o').pick(const [Orientation.portrait, Orientation.square]);
+            focusRng.stream('o').pick(const [Orientation.portrait, Orientation.square]);
         break;
       case DesignFamily.wordCloud:
         entries = perCountry();
         orientation =
-            rng.stream('o').pick(const [Orientation.square, Orientation.landscape]);
+            focusRng.stream('o').pick(const [Orientation.square, Orientation.landscape]);
         break;
       case DesignFamily.badge:
         entries = perCountry();
@@ -286,7 +413,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
       case DesignFamily.frontRibbon:
         entries = perCountry();
         orientation =
-            rng.stream('o').pick(const [Orientation.landscape, Orientation.square]);
+            focusRng.stream('o').pick(const [Orientation.landscape, Orientation.square]);
         break;
       case DesignFamily.achievements:
         entries = perCountry();
@@ -324,7 +451,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
       DesignFamily.stats,
       DesignFamily.frontRibbon,
     };
-    final pr = rng.stream('pal');
+    final pr = vibeRng.stream('pal');
     final palette = (!labelFamilies.contains(family) && pr.chance(0.4))
         ? Palette(
             strategy: ColourStrategy.flagDerived, vintageGrade: pr.nextRange(0.3, 0.6))
