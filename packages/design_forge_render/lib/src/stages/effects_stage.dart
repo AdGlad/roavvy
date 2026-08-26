@@ -39,6 +39,18 @@ class EffectsStage extends RenderStage {
     if (fx.halftone > 0) {
       await _halftone(ctx, fx.halftone, fx.halftoneScale, fx.halftoneAngle);
     }
+    if (fx.newsprint > 0) {
+      await _newsprint(ctx, fx.newsprint);
+    }
+    if (fx.riso > 0) {
+      await _riso(ctx, seed, fx.riso);
+    }
+    if (fx.sunFaded > 0) {
+      await _sunFaded(ctx, fx.sunFaded);
+    }
+    if (fx.photocopy > 0) {
+      await _photocopy(ctx, seed, fx.photocopy);
+    }
     if (fx.distress > 0) {
       await _distress(ctx, seed, fx.distress);
     }
@@ -92,6 +104,136 @@ class EffectsStage extends RenderStage {
         0, 0, 0, 1 - a * 0.25, 0,
       ]);
       canvas.drawImage(src, ui.Offset.zero, ui.Paint()..colorFilter = cf);
+    });
+  }
+
+  /// Sun-faded: desaturate toward luminance, warm the highlights and lift the
+  /// blacks — a washed-out, left-in-the-window look. Pure colour grade.
+  Future<void> _sunFaded(RenderContext ctx, double amount) async {
+    final a = amount.clamp(0.0, 1.0);
+    const lr = 0.299, lg = 0.587, lb = 0.114;
+    final d = a * 0.5; // desaturation
+    double m(double base, double lc) => base * (1 - d) + lc * d;
+    final lift = a * 0.12 * 255;
+    final warmR = a * 0.10 * 255;
+    final coolB = -a * 0.06 * 255;
+    await ctx.transformArtwork((canvas, src) {
+      final cf = ui.ColorFilter.matrix(<double>[
+        m(1, lr), m(0, lg), m(0, lb), 0, lift + warmR,
+        m(0, lr), m(1, lg), m(0, lb), 0, lift,
+        m(0, lr), m(0, lg), m(1, lb), 0, lift + coolB,
+        0, 0, 0, 1, 0,
+      ]);
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint()..colorFilter = cf);
+    });
+  }
+
+  /// Photocopy: desaturate to grey, crush to a steep high-contrast near
+  /// black-and-white, then erode a little toner speckle out.
+  Future<void> _photocopy(RenderContext ctx, int seed, double amount) async {
+    final a = amount.clamp(0.0, 1.0);
+    const lr = 0.299, lg = 0.587, lb = 0.114;
+    final k = 1 + a * 6; // contrast slope around mid-grey
+    final off = (1 - k) * 0.5 * 255;
+    await ctx.transformArtwork((canvas, src) {
+      final cf = ui.ColorFilter.matrix(<double>[
+        lr * k, lg * k, lb * k, 0, off,
+        lr * k, lg * k, lb * k, 0, off,
+        lr * k, lg * k, lb * k, 0, off,
+        0, 0, 0, 1, 0,
+      ]);
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint()..colorFilter = cf);
+    });
+    final mask =
+        await EffectTextures.speckle(ctx.width, ctx.height, seed ^ 0x50, a * 0.3);
+    await ctx.transformArtwork((canvas, src) {
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint());
+      canvas.drawImage(
+          mask, ui.Offset.zero, ui.Paint()..blendMode = ui.BlendMode.dstOut);
+    });
+  }
+
+  /// Newsprint: monochrome the artwork, re-screen it as a coarse dot grid
+  /// (reusing the halftone screen) and warm it toward newsprint paper.
+  Future<void> _newsprint(RenderContext ctx, double amount) async {
+    final a = amount.clamp(0.0, 1.0);
+    const lr = 0.299, lg = 0.587, lb = 0.114;
+    await ctx.transformArtwork((canvas, src) {
+      final cf = ui.ColorFilter.matrix(<double>[
+        lr, lg, lb, 0, 0,
+        lr, lg, lb, 0, 0,
+        lr, lg, lb, 0, 0,
+        0, 0, 0, 1, 0,
+      ]);
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint()..colorFilter = cf);
+    });
+    await _halftone(ctx, a, 0.5, 15); // coarse, angled screen
+    await ctx.transformArtwork((canvas, src) {
+      final t = a;
+      final cf = ui.ColorFilter.matrix(<double>[
+        1, 0, 0, 0, 8 * t,
+        0, 1, 0, 0, 4 * t,
+        0, 0, 1, 0, -6 * t,
+        0, 0, 0, 1, 0,
+      ]);
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint()..colorFilter = cf);
+    });
+  }
+
+  /// Riso: two misregistered duotone ink passes (pink + blue), each mapping
+  /// artwork luminance to that ink over paper-white, offset in opposite
+  /// directions and multiply-blended, then grained. The classic risograph look.
+  Future<void> _riso(RenderContext ctx, int seed, double amount) async {
+    final a = amount.clamp(0.0, 1.0);
+    final off = 2 + a * 4;
+
+    // out = ink + ((255-ink)/255)*luminance → white where light, ink where dark.
+    ui.ColorFilter ink(int r, int g, int b) {
+      const lr = 0.299, lg = 0.587, lb = 0.114;
+      final kr = (255 - r) / 255, kg = (255 - g) / 255, kb = (255 - b) / 255;
+      return ui.ColorFilter.matrix(<double>[
+        kr * lr, kr * lg, kr * lb, 0, r.toDouble(),
+        kg * lr, kg * lg, kg * lb, 0, g.toDouble(),
+        kb * lr, kb * lg, kb * lb, 0, b.toDouble(),
+        0, 0, 0, 1, 0,
+      ]);
+    }
+
+    await ctx.transformArtwork((canvas, src) {
+      canvas.saveLayer(
+          ctx.fullRect, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, a));
+      // Pink ink, shifted one way.
+      canvas.drawImage(
+          src,
+          ui.Offset(-off, 0),
+          ui.Paint()
+            ..colorFilter = ink(0xEC, 0x40, 0x89)
+            ..blendMode = ui.BlendMode.multiply);
+      // Blue ink, shifted the other.
+      canvas.drawImage(
+          src,
+          ui.Offset(off, off * 0.5),
+          ui.Paint()
+            ..colorFilter = ink(0x24, 0x51, 0xB5)
+            ..blendMode = ui.BlendMode.multiply);
+      // Keep the wash inside the artwork silhouette, then blend over the base.
+      canvas.drawImage(
+          src, ui.Offset.zero, ui.Paint()..blendMode = ui.BlendMode.dstIn);
+      canvas.restore();
+    });
+
+    final noise = await EffectTextures.grain(ctx.width, ctx.height, seed ^ 0x21);
+    await ctx.transformArtwork((canvas, src) {
+      canvas.drawImage(src, ui.Offset.zero, ui.Paint());
+      canvas.saveLayer(
+          ctx.fullRect,
+          ui.Paint()
+            ..blendMode = ui.BlendMode.softLight
+            ..color = ui.Color.fromRGBO(0, 0, 0, a * 0.5));
+      canvas.drawImage(noise, ui.Offset.zero, ui.Paint());
+      canvas.drawImage(
+          src, ui.Offset.zero, ui.Paint()..blendMode = ui.BlendMode.dstIn);
+      canvas.restore();
     });
   }
 
