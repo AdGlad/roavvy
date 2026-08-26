@@ -725,11 +725,18 @@ class LabShowcaseGenerator implements RecipeGenerator {
             segs.add('$cc|$entry|$exit');
           }
         }
+        // Occasionally show just arrivals or just departures; null = both
+        // (default), which keeps existing passport recipeIds unchanged.
+        final sm = r.stream('stampmode');
+        final stampMode = sm.chance(0.25)
+            ? (sm.chance(0.5) ? 'entryOnly' : 'exitOnly')
+            : null;
         return Clip(
             shapeId: 'passportPage',
             code: segs.join(';'),
             scatter: r.nextRange(0.35, 0.7),
-            scale: r.nextRange(0.85, 1.1));
+            scale: r.nextRange(0.85, 1.1),
+            stampMode: stampMode);
       case ClipArchetype.countryOutline:
         return Clip(shapeId: 'countryOutline', code: code);
       case ClipArchetype.continentOutline:
