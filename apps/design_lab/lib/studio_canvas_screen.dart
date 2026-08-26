@@ -4,6 +4,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:flutter/material.dart';
 
 import 'lab_generator.dart';
+import 'lab_styles.dart';
 import 'preference_survey.dart';
 import 'render_service.dart';
 
@@ -112,6 +113,27 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   int _seedBump = 1000;
   int _nextSeed() => _seedBump++;
 
+  /// The Direction axis = the SUBJECT. Each entry is a (genre, pinned family,
+  /// label); the Direction chip cycles these and regenerates the hero for that
+  /// subject (Flags/Maps/Animals/Landmarks all live under Flags via the Detail
+  /// sub-step, which arrives in a later chunk).
+  static const List<(LabGenre, DesignFamily?, String)> _subjects = [
+    (LabGenre.flags, null, 'Flags'),
+    (LabGenre.passport, null, 'Passport'),
+    (LabGenre.travelLog, DesignFamily.journeys, 'Route'),
+    (LabGenre.travelLog, DesignFamily.wordCloud, 'World'),
+    (LabGenre.typography, null, 'Words'),
+    (LabGenre.milestones, null, 'Milestones'),
+  ];
+  int _subjectIndex = 0;
+
+  /// The generator bound to the current subject — every generate/re-roll goes
+  /// through this so the whole design stays within the chosen subject.
+  LabShowcaseGenerator get _gen {
+    final (g, t, _) = _subjects[_subjectIndex];
+    return widget.generator.withGenre(g, template: t);
+  }
+
   // ── Test-facing read-only accessors ──
   DesignRecipe get currentRecipe => _current;
   Set<DesignAxis> get lockedAxes => Set.unmodifiable(_locked);
@@ -126,6 +148,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   void initState() {
     super.initState();
     _preferences = widget.preferences;
+    final i = _subjects.indexWhere((s) => s.$1 == widget.generator.genre);
+    if (i >= 0) _subjectIndex = i;
     // Instant hero: pick a design from the default context, rendered large. When
     // the customer already has preferences, bias the opening hero toward them
     // (task §19.3); otherwise keep the deterministic first design.
@@ -184,7 +208,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
   /// Deck tap: re-roll just [axis] with a fresh seed, focus its tray.
   void _rerollAxis(DesignAxis axis) {
-    final next = widget.generator.reroll(_current, axis, newSeed: _nextSeed());
+    final next = _gen.reroll(_current, axis, newSeed: _nextSeed());
     _commit(next);
     _focusAxis(axis);
   }
@@ -194,12 +218,53 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   void _focusAxis(DesignAxis axis) {
     setState(() {
       _activeAxis = axis;
-      _alternatives = _orderByPreference([
-        for (var i = 0; i < 4; i++)
-          widget.generator.reroll(_current, axis, newSeed: _nextSeed()),
-      ]);
+      _alternatives = axis == DesignAxis.direction
+          ? _subjectAlternatives()
+          : _orderByPreference([
+              for (var i = 0; i < 4; i++)
+                _gen.reroll(_current, axis, newSeed: _nextSeed()),
+            ]);
     });
   }
+
+  /// One hero per subject (Direction) so the tray previews the whole subject set.
+  List<DesignRecipe> _subjectAlternatives() => [
+        for (var i = 0; i < _subjects.length; i++)
+          widget.generator
+              .withGenre(_subjects[i].$1, template: _subjects[i].$2)
+              .generate(widget.designContext,
+                  seed: widget.initialSeed + i, count: 1)
+              .first,
+      ];
+
+  /// Direction chip → advance to the next subject and regenerate the hero.
+  void _cycleSubject() {
+    setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
+    _commit(
+        _gen.generate(widget.designContext, seed: _nextSeed(), count: 1).first);
+    _focusAxis(DesignAxis.direction);
+  }
+
+  /// Deck tap: Direction switches SUBJECT; every other chip re-rolls its axis.
+  void _onChipTap(DesignAxis axis) {
+    if (axis == DesignAxis.direction) {
+      _cycleSubject();
+    } else {
+      _rerollAxis(axis);
+    }
+  }
+
+  /// Tray tap: keep the alternative. For Direction, also adopt its subject so
+  /// subsequent re-rolls stay within it.
+  void _onAlternativeTap(int index, DesignRecipe alt) {
+    if (_activeAxis == DesignAxis.direction && index < _subjects.length) {
+      setState(() => _subjectIndex = index);
+    }
+    _commit(alt);
+  }
+
+  /// The label shown on the Direction chip = the current subject.
+  String get _subjectLabel => _subjects[_subjectIndex].$3;
 
   /// ♥ Save: the customer loves the current hero. Strong-ish positive signal +
   /// a like in the reproducible library so the full recipe can be re-rendered.
@@ -230,7 +295,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
   /// Surprise me: re-roll every UNLOCKED axis at once, holding locks identical.
   void _surprise() {
-    final next = widget.generator.rerollUnlocked(_current, locked: _locked);
+    final next = _gen.rerollUnlocked(_current, locked: _locked);
     _commit(next);
     if (_activeAxis != null && !_locked.contains(_activeAxis)) {
       _focusAxis(_activeAxis!);
@@ -245,7 +310,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       if (_activeAxis != null) {
         _alternatives = _orderByPreference([
           for (var i = 0; i < 4; i++)
-            widget.generator.reroll(_current, _activeAxis!, newSeed: _nextSeed()),
+            _gen.reroll(_current, _activeAxis!, newSeed: _nextSeed()),
         ]);
       }
     });
@@ -354,7 +419,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
                   children: [
                     GestureDetector(
                       key: Key('studio-alt-$i'),
-                      onTap: () => _commit(alt),
+                      onTap: () => _onAlternativeTap(i, alt),
                       child: Container(
                         width: 96,
                         decoration: BoxDecoration(
@@ -405,11 +470,11 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           for (final (axis, label, icon) in _deck)
             _AxisChip(
               key: Key('studio-chip-${axis.key}'),
-              label: label,
+              label: axis == DesignAxis.direction ? _subjectLabel : label,
               icon: icon,
               locked: _locked.contains(axis),
               active: _activeAxis == axis,
-              onTap: () => _rerollAxis(axis),
+              onTap: () => _onChipTap(axis),
               onToggleLock: () => _toggleLock(axis),
             ),
         ],

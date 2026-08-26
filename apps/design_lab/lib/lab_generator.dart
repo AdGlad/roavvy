@@ -52,6 +52,20 @@ class LabShowcaseGenerator implements RecipeGenerator {
   /// Continent ids available for region clips (e.g. `['africa', 'europe']`).
   final List<String> continents;
 
+  /// A copy of this generator bound to a different subject [genre] (and optional
+  /// pinned [template] family), reusing the same asset config. Lets the Studio
+  /// Canvas switch the Direction/subject while keeping one generator setup.
+  LabShowcaseGenerator withGenre(LabGenre genre, {DesignFamily? template}) =>
+      LabShowcaseGenerator(
+        style: style,
+        genre: genre,
+        template: template,
+        silhouettesByShape: silhouettesByShape,
+        continents: continents,
+        countryNames: countryNames,
+        countryContinents: countryContinents,
+      );
+
   static const _words = ['ROAM', 'EXPLORE', 'WANDER', 'ADVENTURE', 'WILD', 'NOMAD'];
 
   static const _months = [

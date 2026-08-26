@@ -123,4 +123,31 @@ void main() {
     expect(state.currentRecipe.recipeId, original);
     expect(state.historyLength, 0);
   });
+
+  testWidgets('(e) Direction switches subject, not just re-rolls flags',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Cycle the Direction chip through the whole subject set.
+    final families = <DesignFamily>{state.currentRecipe.composition.family};
+    for (var i = 0; i < 6; i++) {
+      await tester
+          .tap(find.byKey(Key('studio-chip-${DesignAxis.direction.key}')));
+      await tester.pump();
+      families.add(state.currentRecipe.composition.family);
+    }
+    // Route→journeys and World→wordCloud are distinct data families, so the
+    // subject genuinely changes (a plain flag re-roll would never reach them).
+    expect(families.length, greaterThan(1),
+        reason: 'Direction must reach different subjects');
+    expect(
+        families.any((f) =>
+            f == DesignFamily.journeys || f == DesignFamily.wordCloud),
+        isTrue,
+        reason: 'Route/World subjects must be reachable via Direction');
+    // The Direction tray previews one hero per subject.
+    expect(state.activeAxis, DesignAxis.direction);
+    expect(state.alternatives.length, greaterThan(1));
+  });
 }
