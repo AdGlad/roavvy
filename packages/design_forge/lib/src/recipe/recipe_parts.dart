@@ -185,6 +185,7 @@ class Clip {
     this.position,
     this.scatter = 0.5,
     this.ink,
+    this.stampMode,
   });
 
   /// Convenience for the built-in [ClipShape] enum shapes.
@@ -200,6 +201,7 @@ class Clip {
     this.position,
     this.scatter = 0.5,
     this.ink,
+    this.stampMode,
   }) : shapeId = shape.id;
 
   /// Catalog id, e.g. 'circle', 'hexagon', 'luggageTag', 'text', 'countryOutline'.
@@ -238,6 +240,10 @@ class Clip {
   /// flag; 'black' / 'white' = plain solid ink on transparent (a real stamp).
   final String? ink;
 
+  /// Passport: which stamp(s) to show — null/'entryExit' = both, 'entryOnly' /
+  /// 'exitOnly' = just one (was the mobile `stampMode`).
+  final String? stampMode;
+
   /// The [ClipShape] enum for asset-backed shapes, or null for procedural/text.
   ClipShape get resolverShape => ClipShape.fromId(shapeId);
 
@@ -256,6 +262,7 @@ class Clip {
         if (position != null) 'position': position!.toJson(),
         if (scatter != 0.5) 'scatter': scatter,
         if (ink != null) 'ink': ink,
+        if (stampMode != null) 'stampMode': stampMode,
       };
 
   factory Clip.fromJson(Map<String, Object?> j) => Clip(
@@ -273,6 +280,7 @@ class Clip {
             : Placement.fromJson((j['position'] as Map).cast<String, Object?>()),
         scatter: (j['scatter'] as num?)?.toDouble() ?? 0.5,
         ink: j['ink'] as String?,
+        stampMode: j['stampMode'] as String?,
       );
 }
 
@@ -423,6 +431,10 @@ class Effects {
     this.tieDye = 0.0,
     this.shatter = 0.0,
     this.shatterSpikes = 0.0,
+    this.riso = 0.0,
+    this.newsprint = 0.0,
+    this.sunFaded = 0.0,
+    this.photocopy = 0.0,
   });
 
   final double distress;
@@ -450,6 +462,18 @@ class Effects {
   /// 1 → dense ~40). Ignored when [shatter] is 0.
   final double shatterSpikes;
 
+  /// Riso-print look: misregistered duotone with grain (0 = off, 1 = full).
+  final double riso;
+
+  /// Newsprint look: coarse halftone dot screen + paper tint (0 = off).
+  final double newsprint;
+
+  /// Sun-faded look: desaturate + warm highlight lift (0 = off).
+  final double sunFaded;
+
+  /// Photocopy look: high-contrast threshold + toner speckle (0 = off).
+  final double photocopy;
+
   bool get isIdentity =>
       distress == 0 &&
       grain == 0 &&
@@ -459,7 +483,11 @@ class Effects {
       rippleAmp == 0 &&
       acidWash == 0 &&
       tieDye == 0 &&
-      shatter == 0;
+      shatter == 0 &&
+      riso == 0 &&
+      newsprint == 0 &&
+      sunFaded == 0 &&
+      photocopy == 0;
 
   Map<String, Object?> toJson() => {
         if (distress != 0.0) 'distress': distress,
@@ -477,6 +505,10 @@ class Effects {
         if (tieDye != 0.0) 'tieDye': tieDye,
         if (shatter != 0.0) 'shatter': shatter,
         if (shatter != 0.0 && shatterSpikes != 0.0) 'shatterSpikes': shatterSpikes,
+        if (riso != 0.0) 'riso': riso,
+        if (newsprint != 0.0) 'newsprint': newsprint,
+        if (sunFaded != 0.0) 'sunFaded': sunFaded,
+        if (photocopy != 0.0) 'photocopy': photocopy,
       };
 
   factory Effects.fromJson(Map<String, Object?> j) => Effects(
@@ -494,6 +526,10 @@ class Effects {
         tieDye: (j['tieDye'] as num?)?.toDouble() ?? 0.0,
         shatter: (j['shatter'] as num?)?.toDouble() ?? 0.0,
         shatterSpikes: (j['shatterSpikes'] as num?)?.toDouble() ?? 0.0,
+        riso: (j['riso'] as num?)?.toDouble() ?? 0.0,
+        newsprint: (j['newsprint'] as num?)?.toDouble() ?? 0.0,
+        sunFaded: (j['sunFaded'] as num?)?.toDouble() ?? 0.0,
+        photocopy: (j['photocopy'] as num?)?.toDouble() ?? 0.0,
       );
 }
 

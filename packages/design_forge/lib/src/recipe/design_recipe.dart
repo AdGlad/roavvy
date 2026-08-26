@@ -148,6 +148,28 @@ class RecipeContent {
       );
 }
 
+/// Overall artwork footprint on the garment (was the mobile `ImageSize`). The
+/// [scale] getter maps to a fraction of the print area the artwork fills.
+enum SizeClass {
+  small,
+  medium,
+  large;
+
+  /// Artwork footprint as a fraction of the frame's limiting dimension.
+  double get scale => switch (this) {
+        SizeClass.small => 0.75,
+        SizeClass.medium => 0.9,
+        SizeClass.large => 1.0,
+      };
+
+  static SizeClass fromId(String? id) {
+    for (final v in SizeClass.values) {
+      if (v.name == id) return v;
+    }
+    return SizeClass.medium;
+  }
+}
+
 /// The macro layout skeleton.
 class Composition {
   const Composition({
@@ -159,6 +181,9 @@ class Composition {
     this.density = Density.balanced,
     this.jitter = 0.0,
     this.placement,
+    this.copiesPerCountry = 1,
+    this.statementHero = false,
+    this.sizeClass = SizeClass.medium,
   });
 
   final DesignFamily family;
@@ -174,6 +199,17 @@ class Composition {
   final double jitter;
   final Placement? placement;
 
+  /// How many times each country's flag is repeated into the layout (was the
+  /// mobile `flagRepeatCount`). 1 = one instance per country.
+  final int copiesPerCountry;
+
+  /// Typographic path: lead with the traveller's COUNT as a bold hero (was the
+  /// mobile `statementHero`) instead of a list of names.
+  final bool statementHero;
+
+  /// Overall artwork footprint (was the mobile `ImageSize`).
+  final SizeClass sizeClass;
+
   Map<String, Object?> toJson() => {
         'family': family.id,
         'orientation': orientation.name,
@@ -183,6 +219,9 @@ class Composition {
         if (density != Density.balanced) 'density': density.name,
         if (jitter != 0.0) 'jitter': jitter,
         if (placement != null) 'placement': placement!.toJson(),
+        if (copiesPerCountry != 1) 'copiesPerCountry': copiesPerCountry,
+        if (statementHero) 'statementHero': statementHero,
+        if (sizeClass != SizeClass.medium) 'sizeClass': sizeClass.name,
       };
 
   factory Composition.fromJson(Map<String, Object?> json) => Composition(
@@ -201,6 +240,9 @@ class Composition {
             ? null
             : Placement.fromJson(
                 (json['placement'] as Map).cast<String, Object?>()),
+        copiesPerCountry: (json['copiesPerCountry'] as num?)?.toInt() ?? 1,
+        statementHero: (json['statementHero'] as bool?) ?? false,
+        sizeClass: SizeClass.fromId(json['sizeClass'] as String?),
       );
 }
 
