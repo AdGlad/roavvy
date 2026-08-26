@@ -5,7 +5,7 @@ import 'package:design_lab/flag_source.dart';
 import 'package:design_lab/lab_generator.dart';
 import 'package:design_lab/render_service.dart';
 import 'package:design_lab/studio_canvas_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Canonical view of the DIRECTION axis (the clip) for byte-identity checks.
@@ -186,5 +186,31 @@ void main() {
     await tester.tap(find.text(FillAlgorithm.treemap.name).last);
     await tester.pump();
     expect(state.currentRecipe.composition.fillAlgorithm, FillAlgorithm.treemap);
+  });
+
+  testWidgets('(h) Tier-1 controls edit and survive a Vibe re-roll',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    await tester.tap(find.byKey(const Key('studio-aspect-square')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('studio-size-large')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('studio-garment-White')));
+    await tester.pump();
+    expect(state.currentRecipe.composition.orientation, Orientation.square);
+    expect(state.currentRecipe.composition.sizeClass, SizeClass.large);
+    expect(state.currentRecipe.palette?.garmentColour, '#F5F5F5');
+
+    // A Style change (Vibe re-roll) must NOT reset the fixed Tier-1 controls.
+    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.vibe.key}')));
+    await tester.pump();
+    expect(state.currentRecipe.composition.orientation, Orientation.square,
+        reason: 'aspect must survive a style change');
+    expect(state.currentRecipe.composition.sizeClass, SizeClass.large,
+        reason: 'size must survive a style change');
+    expect(state.currentRecipe.palette?.garmentColour, '#F5F5F5',
+        reason: 'garment colour must survive a style change');
   });
 }

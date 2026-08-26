@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
 
 import 'lab_generator.dart';
 import 'lab_styles.dart';
@@ -133,6 +133,17 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
   /// Whether the contextual Adjust panel (Tier-3 form controls) is open.
   bool _showAdjust = false;
+
+  /// Front/Back view. `_current` is always the FRONT; the Back is a complementary
+  /// design derived from it (shared theme/palette) — see [_heroRecipe].
+  bool _onBack = false;
+
+  /// The recipe shown in the hero: the front, or its derived complementary back.
+  DesignRecipe get _heroRecipe => _onBack
+      ? GarmentDesign.deriveBack(_current,
+          themeSeed: _current.seed,
+          garmentColour: _current.palette?.garmentColour)
+      : _current;
 
   /// The generator bound to the current subject — every generate/re-roll goes
   /// through this so the whole design stays within the chosen subject.
@@ -402,6 +413,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       body: Column(
         children: [
           _breadcrumb(),
+          // Tier-1 fixed controls — always available, survive Style/Direction.
+          _formatBar(),
           // Instant hero — the shirt is the star, always visible + centred.
           Expanded(
             child: Container(
@@ -411,7 +424,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               child: _HeroCanvas(
                 key: const Key('studio-hero'),
                 service: widget.service,
-                recipe: _current,
+                recipe: _heroRecipe,
               ),
             ),
           ),
@@ -589,6 +602,124 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           ),
         ),
       ]);
+
+  // ── A4: Tier-1 fixed Format & Colour bar (always available, never reset by a
+  // Style/Direction change) ──────────────────────────────────────────────────
+  void _setSize(SizeClass s) =>
+      _setComp(_current.composition.copyWith(sizeClass: s));
+  void _setOrientation(Orientation o) =>
+      _setComp(_current.composition.copyWith(orientation: o));
+  void _setGarment(String hex) {
+    final p = _current.palette ?? const Palette();
+    _applyLive(_current.copyWith(
+        palette: p.copyWith(
+            garmentColour: hex, strategy: ColourStrategy.garmentAware)));
+  }
+
+  static const _garments = <(String, String)>[
+    ('#1F2B33', 'Black'),
+    ('#F5F5F5', 'White'),
+    ('#22303A', 'Navy'),
+    ('#8A8F98', 'Grey'),
+    ('#D8C9A3', 'Sand'),
+    ('#6B7350', 'Olive'),
+  ];
+
+  Widget _formatBar() {
+    final comp = _current.composition;
+    final garment = _current.palette?.garmentColour;
+    return Container(
+      color: const Color(0xFF1B1E24),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          _miniLabel('Aspect'),
+          for (final (o, lbl) in const [
+            (Orientation.portrait, 'Portrait'),
+            (Orientation.landscape, 'Landscape'),
+            (Orientation.square, 'Square'),
+          ])
+            _pill('aspect-${o.name}', lbl, comp.orientation == o,
+                () => _setOrientation(o)),
+          _divider(),
+          _miniLabel('Size'),
+          for (final (s, lbl) in const [
+            (SizeClass.small, 'S'),
+            (SizeClass.medium, 'M'),
+            (SizeClass.large, 'L'),
+          ])
+            _pill('size-${s.name}', lbl, comp.sizeClass == s, () => _setSize(s)),
+          _divider(),
+          _miniLabel('Colour'),
+          for (final (hex, name) in _garments)
+            _swatch(hex, name, garment == hex),
+          _divider(),
+          _miniLabel('Side'),
+          _pill('side-front', 'Front', !_onBack,
+              () => setState(() => _onBack = false)),
+          _pill('side-back', 'Back', _onBack,
+              () => setState(() => _onBack = true)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _miniLabel(String s) => Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child:
+            Text(s, style: const TextStyle(fontSize: 10, color: Colors.white38)),
+      );
+
+  Widget _divider() => Container(
+      width: 1,
+      height: 20,
+      color: Colors.white12,
+      margin: const EdgeInsets.symmetric(horizontal: 8));
+
+  Widget _pill(String id, String label, bool selected, VoidCallback onTap) =>
+      Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: GestureDetector(
+          key: Key('studio-$id'),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: selected
+                  ? Colors.tealAccent.withValues(alpha: 0.2)
+                  : const Color(0xFF23262C),
+              border: Border.all(
+                  color:
+                      selected ? Colors.tealAccent : const Color(0xFF3A3D44)),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: selected ? Colors.tealAccent : Colors.white70)),
+          ),
+        ),
+      );
+
+  Widget _swatch(String hex, String name, bool selected) => Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: GestureDetector(
+          key: Key('studio-garment-$name'),
+          onTap: () => _setGarment(hex),
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: selected ? Colors.tealAccent : Colors.white24,
+                  width: selected ? 2 : 1),
+            ),
+          ),
+        ),
+      );
 
   Widget _breadcrumb() {
     return Container(

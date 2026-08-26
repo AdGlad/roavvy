@@ -217,6 +217,11 @@ class LabShowcaseGenerator implements RecipeGenerator {
         density: compSrc.composition.density,
         jitter: compSrc.composition.jitter,
         placement: compSrc.composition.placement,
+        // The generator never produces these (they're user/Tier-1 edits), so
+        // carry them from base so a re-roll never silently resets them.
+        copiesPerCountry: base.composition.copiesPerCountry,
+        statementHero: base.composition.statementHero,
+        sizeClass: base.composition.sizeClass,
       ),
       flagCombination:
           (r(DesignAxis.focus) ? regen : base).flagCombination,
