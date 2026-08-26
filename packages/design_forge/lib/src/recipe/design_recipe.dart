@@ -244,6 +244,33 @@ class Composition {
         statementHero: (json['statementHero'] as bool?) ?? false,
         sizeClass: SizeClass.fromId(json['sizeClass'] as String?),
       );
+
+  Composition copyWith({
+    DesignFamily? family,
+    Orientation? orientation,
+    LayoutMode? layoutMode,
+    FillAlgorithm? fillAlgorithm,
+    int? rowCount,
+    Density? density,
+    double? jitter,
+    Placement? placement,
+    int? copiesPerCountry,
+    bool? statementHero,
+    SizeClass? sizeClass,
+  }) =>
+      Composition(
+        family: family ?? this.family,
+        orientation: orientation ?? this.orientation,
+        layoutMode: layoutMode ?? this.layoutMode,
+        fillAlgorithm: fillAlgorithm ?? this.fillAlgorithm,
+        rowCount: rowCount ?? this.rowCount,
+        density: density ?? this.density,
+        jitter: jitter ?? this.jitter,
+        placement: placement ?? this.placement,
+        copiesPerCountry: copiesPerCountry ?? this.copiesPerCountry,
+        statementHero: statementHero ?? this.statementHero,
+        sizeClass: sizeClass ?? this.sizeClass,
+      );
 }
 
 /// How a recipe came to exist. Never part of the content hash and never feeds

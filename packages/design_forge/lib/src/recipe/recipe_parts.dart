@@ -282,6 +282,35 @@ class Clip {
         ink: j['ink'] as String?,
         stampMode: j['stampMode'] as String?,
       );
+
+  Clip copyWith({
+    String? shapeId,
+    String? code,
+    String? text,
+    double? scale,
+    double? rotationDeg,
+    double? aspectRatio,
+    double? cornerRadius,
+    double? feather,
+    Placement? position,
+    double? scatter,
+    String? ink,
+    String? stampMode,
+  }) =>
+      Clip(
+        shapeId: shapeId ?? this.shapeId,
+        code: code ?? this.code,
+        text: text ?? this.text,
+        scale: scale ?? this.scale,
+        rotationDeg: rotationDeg ?? this.rotationDeg,
+        aspectRatio: aspectRatio ?? this.aspectRatio,
+        cornerRadius: cornerRadius ?? this.cornerRadius,
+        feather: feather ?? this.feather,
+        position: position ?? this.position,
+        scatter: scatter ?? this.scatter,
+        ink: ink ?? this.ink,
+        stampMode: stampMode ?? this.stampMode,
+      );
 }
 
 // ---------------------------------------------------------------------------
@@ -409,6 +438,23 @@ class Palette {
         contrastInk: (j['contrastInk'] as bool?) ?? false,
         adaptiveInk: j['adaptiveInk'] as String?,
       );
+
+  Palette copyWith({
+    String? garmentColour,
+    ColourStrategy? strategy,
+    List<String>? accents,
+    double? vintageGrade,
+    bool? contrastInk,
+    String? adaptiveInk,
+  }) =>
+      Palette(
+        garmentColour: garmentColour ?? this.garmentColour,
+        strategy: strategy ?? this.strategy,
+        accents: accents ?? this.accents,
+        vintageGrade: vintageGrade ?? this.vintageGrade,
+        contrastInk: contrastInk ?? this.contrastInk,
+        adaptiveInk: adaptiveInk ?? this.adaptiveInk,
+      );
 }
 
 // ---------------------------------------------------------------------------
@@ -530,6 +576,47 @@ class Effects {
         newsprint: (j['newsprint'] as num?)?.toDouble() ?? 0.0,
         sunFaded: (j['sunFaded'] as num?)?.toDouble() ?? 0.0,
         photocopy: (j['photocopy'] as num?)?.toDouble() ?? 0.0,
+      );
+
+  Effects copyWith({
+    double? distress,
+    double? distressHardness,
+    double? grain,
+    double? fade,
+    double? cracks,
+    double? halftone,
+    double? halftoneScale,
+    double? halftoneAngle,
+    double? rippleAmp,
+    double? rippleFreq,
+    double? acidWash,
+    double? tieDye,
+    double? shatter,
+    double? shatterSpikes,
+    double? riso,
+    double? newsprint,
+    double? sunFaded,
+    double? photocopy,
+  }) =>
+      Effects(
+        distress: distress ?? this.distress,
+        distressHardness: distressHardness ?? this.distressHardness,
+        grain: grain ?? this.grain,
+        fade: fade ?? this.fade,
+        cracks: cracks ?? this.cracks,
+        halftone: halftone ?? this.halftone,
+        halftoneScale: halftoneScale ?? this.halftoneScale,
+        halftoneAngle: halftoneAngle ?? this.halftoneAngle,
+        rippleAmp: rippleAmp ?? this.rippleAmp,
+        rippleFreq: rippleFreq ?? this.rippleFreq,
+        acidWash: acidWash ?? this.acidWash,
+        tieDye: tieDye ?? this.tieDye,
+        shatter: shatter ?? this.shatter,
+        shatterSpikes: shatterSpikes ?? this.shatterSpikes,
+        riso: riso ?? this.riso,
+        newsprint: newsprint ?? this.newsprint,
+        sunFaded: sunFaded ?? this.sunFaded,
+        photocopy: photocopy ?? this.photocopy,
       );
 }
 
