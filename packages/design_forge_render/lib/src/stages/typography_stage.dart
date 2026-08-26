@@ -29,6 +29,10 @@ class TypographyStage extends RenderStage {
 
   @override
   Future<void> apply(DesignRecipe recipe, RenderContext ctx) async {
+    if (recipe.composition.statementHero) {
+      await _statementHero(recipe, ctx);
+      return;
+    }
     final typo = recipe.typography;
     if (typo == null || typo.placement == TextPlacement.none) return;
 
@@ -83,6 +87,58 @@ class TypographyStage extends RenderStage {
       canvas.drawParagraph(para, origin);
     });
   }
+
+  /// Big-count hero (the mobile `statementHero`): the traveller's COUNT as the
+  /// dominant element (e.g. "28" over "COUNTRIES"). The count comes from
+  /// `meta['count']`, else the number of flags/entries; the label from
+  /// `meta['countLabel']` (default "COUNTRIES").
+  Future<void> _statementHero(DesignRecipe recipe, RenderContext ctx) async {
+    final meta = recipe.content.meta;
+    final cv = meta['count'];
+    final count = cv is num
+        ? cv.toInt()
+        : (cv is String ? int.tryParse(cv) ?? _fallbackCount(recipe) : _fallbackCount(recipe));
+    final label = (meta['countLabel'] is String
+            ? meta['countLabel'] as String
+            : 'COUNTRIES')
+        .toUpperCase();
+    final w = ctx.width.toDouble();
+    final h = ctx.height.toDouble();
+    final ink = _legibleInk(ctx.target.background);
+
+    ui.Paragraph para(String s, double size, ui.FontWeight wt) {
+      final b = ui.ParagraphBuilder(ui.ParagraphStyle(
+        fontSize: size,
+        fontWeight: wt,
+        textAlign: ui.TextAlign.center,
+      ))
+        ..pushStyle(ui.TextStyle(color: ink))
+        ..addText(s);
+      return b.build()..layout(ui.ParagraphConstraints(width: w * 0.9));
+    }
+
+    final big = para('$count', h * 0.4, ui.FontWeight.w900);
+    final sub = para(label, h * 0.08, ui.FontWeight.w700);
+    final top = (h - big.height - sub.height) / 2;
+    final x = w * 0.05;
+    void paint(ui.Canvas canvas) {
+      canvas.drawParagraph(big, ui.Offset(x, top));
+      canvas.drawParagraph(sub, ui.Offset(x, top + big.height));
+    }
+
+    if (ctx.artwork == null) {
+      ctx.artwork = await ctx.rasterise(paint);
+    } else {
+      await ctx.transformArtwork((canvas, src) {
+        canvas.drawImage(src, ui.Offset.zero, ui.Paint());
+        paint(canvas);
+      });
+    }
+  }
+
+  static int _fallbackCount(DesignRecipe r) => r.content.flags.isNotEmpty
+      ? r.content.flags.length
+      : r.content.entries.length;
 
   /// Applies the recipe's [TextCase] to [text]. Exposed for unit testing: under
   /// the Ahem test font upper/lower glyphs render as identical boxes, so the

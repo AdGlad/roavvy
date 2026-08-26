@@ -105,4 +105,23 @@ void main() {
       });
     });
   });
+
+  group('statementHero (B5)', () {
+    testWidgets('renders a big-count hero different from the plain design',
+        (tester) async {
+      await tester.runAsync(() async {
+        DesignRecipe recipe(bool hero) => DesignRecipe(
+              seed: 9,
+              content: const RecipeContent(
+                  flags: [FlagRef('us')], meta: {'count': 28}),
+              composition: Composition(
+                  family: DesignFamily.typographic, statementHero: hero),
+            );
+        final plain = await _hash(recipe(false));
+        final hero = await _hash(recipe(true));
+        expect(hero, isNot(plain),
+            reason: 'statementHero must render the count as a hero');
+      });
+    });
+  });
 }
