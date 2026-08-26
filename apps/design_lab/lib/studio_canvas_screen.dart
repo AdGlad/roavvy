@@ -131,6 +131,9 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// subject is Flags; a live clip edit (not a re-roll).
   _StudioDetail _detail = _StudioDetail.grid;
 
+  /// Whether the contextual Adjust panel (Tier-3 form controls) is open.
+  bool _showAdjust = false;
+
   /// The generator bound to the current subject — every generate/re-roll goes
   /// through this so the whole design stays within the chosen subject.
   LabShowcaseGenerator get _gen {
@@ -298,6 +301,19 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     return Clip.shape(shape, code: slug);
   }
 
+  // ── A3: Adjust panel (Tier-3 contextual form controls) ──────────────────────
+  // Live parameter edits: update the hero in place without pushing history (a
+  // refinement, not a decision) so dragging a slider doesn't flood undo.
+  void _applyLive(DesignRecipe next) {
+    if (next.recipeId == _current.recipeId) return;
+    setState(() => _current = next);
+  }
+
+  Effects get _fx => _current.effects ?? const Effects();
+  void _setFx(Effects fx) => _applyLive(_current.copyWith(effects: fx));
+  void _setComp(Composition c) => _applyLive(_current.copyWith(composition: c));
+  void _setClip(Clip c) => _applyLive(_current.copyWith(clip: c));
+
   /// ♥ Save: the customer loves the current hero. Strong-ish positive signal +
   /// a like in the reproducible library so the full recipe can be re-rendered.
   void _save() {
@@ -356,6 +372,13 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         backgroundColor: const Color(0xFF16181D),
         actions: [
           IconButton(
+            key: const Key('studio-adjust-toggle'),
+            tooltip: 'Adjust details',
+            color: _showAdjust ? Colors.tealAccent : null,
+            icon: const Icon(Icons.tune),
+            onPressed: () => setState(() => _showAdjust = !_showAdjust),
+          ),
+          IconButton(
             key: const Key('studio-save'),
             tooltip: 'Save to favourites',
             icon: const Icon(Icons.favorite_border),
@@ -395,6 +418,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           if (_activeAxis != null) _alternativesTray(),
           // Detail sub-step: only for the Flags subject — the shape flags fill.
           if (_subjectIndex == 0) _detailRow(),
+          if (_showAdjust) _adjustPanel(),
           _decisionDeck(),
         ],
       ),
@@ -440,6 +464,131 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       ),
     );
   }
+
+  /// The contextual Adjust panel: grid controls for Flags, stamp controls for
+  /// Passport, and an Effects section (incl. the ported riso/newsprint/sunFaded/
+  /// photocopy) for every subject.
+  Widget _adjustPanel() {
+    final rows = <Widget>[];
+    final genre = _subjects[_subjectIndex].$1;
+    final comp = _current.composition;
+
+    if (_subjectIndex == 0) {
+      rows
+        ..add(_sectionLabel('Grid'))
+        ..add(_fillDropdown(comp))
+        ..add(_adjSlider('Copies', comp.copiesPerCountry.toDouble(),
+            (v) => _setComp(comp.copyWith(copiesPerCountry: v.round().clamp(1, 8))),
+            max: 8))
+        ..add(_adjSlider(
+            'Scatter', comp.jitter, (v) => _setComp(comp.copyWith(jitter: v))));
+    }
+    if (genre == LabGenre.passport && _current.clip != null) {
+      final clip = _current.clip!;
+      rows
+        ..add(_sectionLabel('Passport'))
+        ..add(_adjSlider('Scatter', clip.scatter,
+            (v) => _setClip(clip.copyWith(scatter: v))))
+        ..add(_choiceRow('Ink', const ['flag', 'black', 'white'],
+            clip.ink ?? 'flag', (v) => _setClip(clip.copyWith(ink: v))))
+        ..add(_choiceRow(
+            'Stamps',
+            const ['entryExit', 'entryOnly', 'exitOnly'],
+            clip.stampMode ?? 'entryExit',
+            (v) => _setClip(clip.copyWith(stampMode: v))));
+    }
+
+    final fx = _fx;
+    rows
+      ..add(_sectionLabel('Effects'))
+      ..add(_adjSlider('Halftone', fx.halftone,
+          (v) => _setFx(fx.copyWith(halftone: v))))
+      ..add(_adjSlider('Grain', fx.grain, (v) => _setFx(fx.copyWith(grain: v))))
+      ..add(_adjSlider('Fade', fx.fade, (v) => _setFx(fx.copyWith(fade: v))))
+      ..add(_adjSlider('Riso', fx.riso, (v) => _setFx(fx.copyWith(riso: v))))
+      ..add(_adjSlider('Newsprint', fx.newsprint,
+          (v) => _setFx(fx.copyWith(newsprint: v))))
+      ..add(_adjSlider('Sun-faded', fx.sunFaded,
+          (v) => _setFx(fx.copyWith(sunFaded: v))))
+      ..add(_adjSlider('Photocopy', fx.photocopy,
+          (v) => _setFx(fx.copyWith(photocopy: v))));
+
+    return Container(
+      color: const Color(0xFF16181D),
+      constraints: const BoxConstraints(maxHeight: 220),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: rows),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String s) => Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 2),
+        child: Text(s.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 10, color: Colors.white38, letterSpacing: 1)),
+      );
+
+  Widget _adjSlider(String label, double value, ValueChanged<double> onChanged,
+          {double max = 1.0}) =>
+      Row(children: [
+        SizedBox(
+            width: 82,
+            child: Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.white70))),
+        Expanded(
+          child: Slider(
+            value: value.clamp(0.0, max),
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
+      ]);
+
+  Widget _fillDropdown(Composition comp) => Row(children: [
+        const SizedBox(
+            width: 82,
+            child: Text('Fill',
+                style: TextStyle(fontSize: 11, color: Colors.white70))),
+        DropdownButton<FillAlgorithm>(
+          key: const Key('studio-adjust-fill'),
+          value: comp.fillAlgorithm ?? FillAlgorithm.grid,
+          dropdownColor: const Color(0xFF23262C),
+          style: const TextStyle(fontSize: 12, color: Colors.white),
+          items: [
+            for (final f in FillAlgorithm.values)
+              DropdownMenuItem(value: f, child: Text(f.name)),
+          ],
+          onChanged: (f) {
+            if (f != null) _setComp(comp.copyWith(fillAlgorithm: f));
+          },
+        ),
+      ]);
+
+  Widget _choiceRow(String label, List<String> options, String selected,
+          ValueChanged<String> onSelected) =>
+      Row(children: [
+        SizedBox(
+            width: 82,
+            child: Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.white70))),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            children: [
+              for (final o in options)
+                ChoiceChip(
+                  key: Key('studio-adjust-$label-$o'),
+                  label: Text(o, style: const TextStyle(fontSize: 11)),
+                  selected: selected == o,
+                  onSelected: (_) => onSelected(o),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        ),
+      ]);
 
   Widget _breadcrumb() {
     return Container(

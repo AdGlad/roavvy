@@ -168,4 +168,23 @@ void main() {
     await tester.pump();
     expect(state.currentRecipe.clip?.shapeId, ClipShape.none.id);
   });
+
+  testWidgets('(g) Adjust panel live-edits the recipe (fill algorithm)',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Hidden until toggled.
+    expect(find.byKey(const Key('studio-adjust-fill')), findsNothing);
+    await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+    expect(find.byKey(const Key('studio-adjust-fill')), findsOneWidget);
+
+    // Change the grid fill algorithm and confirm it lands on the recipe.
+    await tester.tap(find.byKey(const Key('studio-adjust-fill')));
+    await tester.pump();
+    await tester.tap(find.text(FillAlgorithm.treemap.name).last);
+    await tester.pump();
+    expect(state.currentRecipe.composition.fillAlgorithm, FillAlgorithm.treemap);
+  });
 }
