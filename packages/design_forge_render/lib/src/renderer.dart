@@ -61,7 +61,20 @@ class CanvasRenderer implements Renderer {
       }
       final art = ctx.artwork;
       if (art != null) {
-        canvas.drawImage(art, ui.Offset.zero, ui.Paint());
+        // SizeClass shrinks the whole artwork onto the garment (centred).
+        final s = recipe.composition.sizeClass.scale;
+        if (s >= 0.999) {
+          canvas.drawImage(art, ui.Offset.zero, ui.Paint());
+        } else {
+          final w = ctx.width.toDouble(), h = ctx.height.toDouble();
+          final dst = ui.Rect.fromLTWH(
+              w * (1 - s) / 2, h * (1 - s) / 2, w * s, h * s);
+          canvas.drawImageRect(
+              art,
+              ui.Rect.fromLTWH(0, 0, w, h),
+              dst,
+              ui.Paint()..filterQuality = ui.FilterQuality.high);
+        }
       }
     });
 

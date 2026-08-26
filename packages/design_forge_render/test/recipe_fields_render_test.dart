@@ -87,4 +87,22 @@ void main() {
       });
     });
   });
+
+  group('sizeClass (B5)', () {
+    testWidgets('a smaller size shrinks the artwork on the garment',
+        (tester) async {
+      await tester.runAsync(() async {
+        DesignRecipe recipe(SizeClass size) => DesignRecipe(
+              seed: 5,
+              content: const RecipeContent(flags: [FlagRef('us')]),
+              composition:
+                  Composition(family: DesignFamily.singleHero, sizeClass: size),
+            );
+        final large = await _hash(recipe(SizeClass.large));
+        final small = await _hash(recipe(SizeClass.small));
+        expect(small, isNot(large),
+            reason: 'small must render the artwork at a smaller footprint');
+      });
+    });
+  });
 }
