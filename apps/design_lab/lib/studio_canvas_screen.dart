@@ -127,6 +127,10 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   ];
   int _subjectIndex = 0;
 
+  /// The Flags "Detail" — the shape the flags fill. Only meaningful when the
+  /// subject is Flags; a live clip edit (not a re-roll).
+  _StudioDetail _detail = _StudioDetail.grid;
+
   /// The generator bound to the current subject — every generate/re-roll goes
   /// through this so the whole design stays within the chosen subject.
   LabShowcaseGenerator get _gen {
@@ -266,6 +270,34 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// The label shown on the Direction chip = the current subject.
   String get _subjectLabel => _subjects[_subjectIndex].$3;
 
+  /// Apply a Flags "Detail" — swap the clip shape the flags fill, keeping every
+  /// other axis identical (a live, non-destructive clip edit).
+  void _applyDetail(_StudioDetail d) {
+    setState(() => _detail = d);
+    final code = widget.designContext.flagCodes.isNotEmpty
+        ? widget.designContext.flagCodes.first.toLowerCase()
+        : 'us';
+    final clip = switch (d) {
+      _StudioDetail.grid => Clip.shape(ClipShape.none),
+      _StudioDetail.map => Clip.shape(ClipShape.countryOutline, code: code),
+      _StudioDetail.animals =>
+        _silhouetteClip(ClipShape.animalSilhouette, code),
+      _StudioDetail.landmarks =>
+        _silhouetteClip(ClipShape.landmarkSilhouette, code),
+      _StudioDetail.heart => Clip.shape(ClipShape.heart),
+      _StudioDetail.circle => Clip.shape(ClipShape.circle),
+    };
+    _commit(_current.copyWith(clip: clip));
+  }
+
+  /// Pick a silhouette slug for [code] (prefer one for this country) → a clip.
+  Clip _silhouetteClip(ClipShape shape, String code) {
+    final slugs = widget.generator.silhouettesByShape[shape] ?? const <String>[];
+    final slug = slugs.firstWhere((s) => s.startsWith('${code}_'),
+        orElse: () => slugs.isNotEmpty ? slugs.first : code);
+    return Clip.shape(shape, code: slug);
+  }
+
   /// ♥ Save: the customer loves the current hero. Strong-ish positive signal +
   /// a like in the reproducible library so the full recipe can be re-rendered.
   void _save() {
@@ -361,7 +393,49 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             ),
           ),
           if (_activeAxis != null) _alternativesTray(),
+          // Detail sub-step: only for the Flags subject — the shape flags fill.
+          if (_subjectIndex == 0) _detailRow(),
           _decisionDeck(),
+        ],
+      ),
+    );
+  }
+
+  /// The Flags "Detail" sub-row (Grid / Map / Animals / Landmarks / Heart /
+  /// Circle) — the shape the flags fill. Shown only when the subject is Flags.
+  Widget _detailRow() {
+    const items = [
+      (_StudioDetail.grid, 'Grid'),
+      (_StudioDetail.map, 'Map'),
+      (_StudioDetail.animals, 'Animals'),
+      (_StudioDetail.landmarks, 'Landmarks'),
+      (_StudioDetail.heart, 'Heart'),
+      (_StudioDetail.circle, 'Circle'),
+    ];
+    return Container(
+      color: const Color(0xFF16181D),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      child: Row(
+        children: [
+          const Text('Detail',
+              style: TextStyle(fontSize: 11, color: Colors.white38)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final (d, label) in items)
+                  ChoiceChip(
+                    key: Key('studio-detail-${d.name}'),
+                    label: Text(label, style: const TextStyle(fontSize: 11)),
+                    selected: _detail == d,
+                    onSelected: (_) => _applyDetail(d),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -482,6 +556,10 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     );
   }
 }
+
+/// The shape a Flags design fills — the "Detail" sub-step under the Flags
+/// subject (Grid = plain flags; Map/Animals/Landmarks/Heart/Circle = clipped).
+enum _StudioDetail { grid, map, animals, landmarks, heart, circle }
 
 /// A decision-deck chip: tap re-rolls its axis; long-press (or the lock badge)
 /// pins it. The badge doubles as the lock-state indicator.

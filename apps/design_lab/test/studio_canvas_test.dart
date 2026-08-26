@@ -150,4 +150,22 @@ void main() {
     expect(state.activeAxis, DesignAxis.direction);
     expect(state.alternatives.length, greaterThan(1));
   });
+
+  testWidgets('(f) Detail sub-step swaps the clip on the Flags subject',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Flags is the opening subject → the Detail sub-row is present.
+    expect(find.byKey(const Key('studio-detail-heart')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('studio-detail-heart')));
+    await tester.pump();
+    expect(state.currentRecipe.clip?.shapeId, ClipShape.heart.id);
+
+    // Grid clears the clip back to a plain flag ('none').
+    await tester.tap(find.byKey(const Key('studio-detail-grid')));
+    await tester.pump();
+    expect(state.currentRecipe.clip?.shapeId, ClipShape.none.id);
+  });
 }
