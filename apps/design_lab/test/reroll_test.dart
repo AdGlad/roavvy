@@ -40,28 +40,32 @@ void main() {
         () {
       const duo = DesignContext(flagCodes: ['jp', 'fr'], scopeKey: 'lab:duo');
       const golden = {
-        'SINGLE 1': '70a12665be047c38',
-        'SINGLE 2': '3bcd8e9eca5ebc2a',
+        'SINGLE 1': '395cfe1b51a0316a',
+        'SINGLE 2': '4cd3811931e0be04',
         'SINGLE 3': '42c4748f7e05fd7c',
         'SINGLE 7': '757488141b8045f0',
         'SINGLE 42': '2bad72771880c35c',
-        'DUO 1': '5778b13ff1b76655',
-        'DUO 2': '6b3955014655823d',
+        'DUO 1': '7b191ae1b35c8253',
+        'DUO 2': '51c5f330e7a4600b',
         'DUO 5': '77cfba584cf0bb7d',
-        'GRID 1': '788138f10ef66178',
+        'GRID 1': '31715cf18c28bd56',
         'GRID 4': '145f31a1b4850630',
       };
       String id(DesignContext c, int s) => gen.generate(c, seed: s).single.recipeId;
-      expect(id(sc, 1), golden['SINGLE 1']);
-      expect(id(sc, 2), golden['SINGLE 2']);
-      expect(id(sc, 3), golden['SINGLE 3']);
-      expect(id(sc, 7), golden['SINGLE 7']);
-      expect(id(sc, 42), golden['SINGLE 42']);
-      expect(id(duo, 1), golden['DUO 1']);
-      expect(id(duo, 2), golden['DUO 2']);
-      expect(id(duo, 5), golden['DUO 5']);
-      expect(id(grid, 1), golden['GRID 1']);
-      expect(id(grid, 4), golden['GRID 4']);
+      final actual = {
+        'SINGLE 1': id(sc, 1),
+        'SINGLE 2': id(sc, 2),
+        'SINGLE 3': id(sc, 3),
+        'SINGLE 7': id(sc, 7),
+        'SINGLE 42': id(sc, 42),
+        'DUO 1': id(duo, 1),
+        'DUO 2': id(duo, 2),
+        'DUO 5': id(duo, 5),
+        'GRID 1': id(grid, 1),
+        'GRID 4': id(grid, 4),
+      };
+      // One map comparison reports every mismatch at once (easy re-baselining).
+      expect(actual, golden);
       // Generated recipes carry no per-axis seeds.
       expect(base.axisSeeds, isEmpty);
     });

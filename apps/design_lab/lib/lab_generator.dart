@@ -410,6 +410,19 @@ class LabShowcaseGenerator implements RecipeGenerator {
       spec.orientationWeights,
     );
 
+    // Batch variety for the new recipe fields (the customer can also set these
+    // in the Studio Canvas). Each is drawn from an independent named sub-stream
+    // so it doesn't shift other draws; defaults keep most designs simple.
+    final sizeRng = focusRng.stream('sizeclass');
+    final sizeClass = sizeRng.chance(0.18)
+        ? (sizeRng.chance(0.5) ? SizeClass.small : SizeClass.large)
+        : SizeClass.medium;
+    final copyRng = focusRng.stream('copies');
+    final copiesPerCountry =
+        (clip == null && single && copyRng.chance(0.22)) ? 2 + copyRng.nextInt(4) : 1;
+    final statementHero = family == DesignFamily.typographic &&
+        wordsRng.stream('statement').chance(0.4);
+
     return DesignRecipe(
       seed: seed,
       axisSeeds: axisSeeds,
@@ -419,7 +432,12 @@ class LabShowcaseGenerator implements RecipeGenerator {
         meta: title != null ? {'title': title} : const {},
       ),
       composition: Composition(
-          family: family, orientation: orientation, fillAlgorithm: fillAlgorithm),
+          family: family,
+          orientation: orientation,
+          fillAlgorithm: fillAlgorithm,
+          copiesPerCountry: copiesPerCountry,
+          statementHero: statementHero,
+          sizeClass: sizeClass),
       flagCombination: combo,
       clip: clip,
       edgeTreatment: edge,
