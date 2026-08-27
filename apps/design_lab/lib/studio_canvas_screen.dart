@@ -520,6 +520,26 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             (v) => _setClip(clip.copyWith(stampMode: v))));
     }
 
+    // Shape transforms for a clipped Detail (map / silhouette / heart / circle /
+    // text) — passport has its own section above.
+    final clip = _current.clip;
+    if (clip != null &&
+        clip.shapeId != 'none' &&
+        clip.shapeId != 'passportPage') {
+      rows
+        ..add(_sectionLabel('Shape'))
+        ..add(_adjSlider('Size', clip.scale,
+            (v) => _setClip(clip.copyWith(scale: v)),
+            min: 0.25, max: 1.4))
+        ..add(_adjSlider('Rotation', clip.rotationDeg,
+            (v) => _setClip(clip.copyWith(rotationDeg: v)),
+            min: -45, max: 45))
+        ..add(_adjSlider('Corner', clip.cornerRadius,
+            (v) => _setClip(clip.copyWith(cornerRadius: v))))
+        ..add(_adjSlider('Feather', clip.feather,
+            (v) => _setClip(clip.copyWith(feather: v))));
+    }
+
     final fx = _fx;
     rows
       ..add(_sectionLabel('Effects'))
