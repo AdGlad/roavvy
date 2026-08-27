@@ -101,6 +101,32 @@ All phases landed on `feat/studio-ux-storyboard`; lab 76 tests green, analyze cl
   printed title, Save to Library, and a disabled "Add to cart (mobile)" placeholder (commerce = M1).
 - **P7 — Remix rename.** ✅ "Surprise me" → "Remix"; tune button → "Fine tune (Refine)".
 
+## 6. Front print model (mobile parity) — added post-storyboard
+
+Direction from the product owner: the shirt's big artwork lives on the **back**; the
+**front** is a small chest ribbon by default. Reconciled the Studio's original
+"Front = hero / Back = derived complement" to match mobile:
+
+- **Back = the hero/main design** (the primary authoring surface, default view).
+- **Front = a flag ribbon by default**, and can instead be a **generated complement**
+  of the back or a **copy of the main design** (Art: Ribbon · Complement · Match back).
+- **Front fit = Full · Chest · None** (mobile `center` / `left_chest`+`right_chest` / blank).
+  Chest exposes **Left / Right**. Left chest is the default.
+- Chest/full print positions reuse mobile's exact rects from
+  `apps/mobile_flutter/.../product_mockup_specs.dart`
+  (left chest `0.55,0.25,0.18,0.25`; right `0.27,0.25,0.18,0.25`; full/centre
+  `0.25,0.22,0.50,0.40`) so the artwork lands where the real garment prints it.
+- The Front side renders on a shirt-front board (`_GarmentFrontPreview`) with the
+  artwork composited at the chosen rect; the Review sheet shows Front + Back and a
+  `Front: …` spec chip. Placement is a **product attribute** (not folded into the
+  artwork `recipeId`), so goldens/repro are unaffected.
+
+Retired from the Studio UI: the storyboard's "derived complementary back" as the *back*
+face (the back is now the main design) and its "Sync to front" action; the complement
+idea survives as a **front** art source. `GarmentDesign.deriveBack` (forge) is untouched.
+Tests: (i) now asserts the *Front* is the separately-editable side; (q) covers front
+fit + chest side + art source. lab 76 green, analyze clean.
+
 **Not built (deferred, per intentional differences §4):** bottom app-nav (Saved/Trips/Profile),
 real cart/checkout, and garment fit-size (XS–XXL) — all mobile/commerce (milestone M1). Lower-priority
 polish still open from spec §13: Pattern Single/Blend/Multi + flagCombination, Map country/region

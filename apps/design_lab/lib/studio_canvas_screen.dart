@@ -98,17 +98,23 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     (DesignAxis.words, 'Words', Icons.title),
   ];
 
-  /// Front + back recipes. [_current] is a view onto whichever side is active,
-  /// so every existing mutator edits the visible side. The back is materialised
-  /// (via [GarmentDesign.deriveBack]) the first time it's viewed.
-  late DesignRecipe _front;
-  DesignRecipe? _back;
-  DesignRecipe get _current => _onBack ? _back! : _front;
+  /// The garment's two faces (mobile parity: the big artwork prints on the
+  /// **back**, a small ribbon/badge on the **front**).
+  ///
+  /// [_hero] is the main design — shown on the **back** by default. [_frontFace]
+  /// is the shirt's **front** design; it defaults to a flag *ribbon* derived
+  /// from the hero (see [_ribbonOf]) and can be regenerated as a complement of
+  /// the back or matched to the main design, then independently edited.
+  /// [_current] is a view onto whichever face is active so every existing
+  /// mutator edits the visible face.
+  late DesignRecipe _hero;
+  late DesignRecipe _frontFace;
+  DesignRecipe get _current => _onFront ? _frontFace : _hero;
   set _current(DesignRecipe v) {
-    if (_onBack) {
-      _back = v;
+    if (_onFront) {
+      _frontFace = v;
     } else {
-      _front = v;
+      _hero = v;
     }
   }
 
@@ -155,9 +161,38 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// set is contextual to the current subject/detail.
   _RefineCategory _refineCat = _RefineCategory.finish;
 
-  /// Front/Back view. The Back is a complementary design derived from the front
-  /// (shared theme/palette) on first view, then independently editable.
-  bool _onBack = false;
+  /// Which face is being viewed/edited. Default = the **back** (the hero/main
+  /// design). `true` = the **front** face ([_frontFace]).
+  bool _onFront = false;
+
+  /// How the front design is printed on the shirt (mobile parity — see the
+  /// print rects in [_frontPrintRect]). Full = centred full-front print; chest =
+  /// a small chest print (then [_chestRight] picks the side); none = blank front.
+  _FrontFit _frontFit = _FrontFit.chest;
+
+  /// Chest print side when [_frontFit] is chest: false = left chest (default),
+  /// true = right chest. Mirrors mobile's `left_chest` / `right_chest`.
+  bool _chestRight = false;
+
+  /// Where the front artwork comes from (ribbon by default; a complement of the
+  /// back; or a copy of the main design).
+  _FrontArt _frontArt = _FrontArt.ribbon;
+
+  /// Ribbon coverage (mobile "Selected vs All"): false = the design's current
+  /// flags; true = every country in the design context.
+  bool _ribbonAllCountries = false;
+
+  /// The EFFECTIVE design context (starts as the host's, then re-derived when the
+  /// travel Source / Year filter changes). All generation reads this.
+  late DesignContext _context;
+
+  /// Country source (mobile parity): false = one flag per Country (distinct);
+  /// true = one flag per Trip (repeat visits repeat the flag).
+  bool _sourceTrips = false;
+
+  /// Trip-year filter bounds (only meaningful when the context has trips).
+  int _yearLo = 0;
+  int _yearHi = 0;
 
   /// The recipe shown in the hero = whichever side is active.
   DesignRecipe get _heroRecipe => _current;
@@ -171,6 +206,9 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
   // ── Test-facing read-only accessors ──
   DesignRecipe get currentRecipe => _current;
+
+  /// Test-facing: the effective design context (after Source/Year filtering).
+  DesignContext get effectiveContext => _context;
   Set<DesignAxis> get lockedAxes => Set.unmodifiable(_locked);
   int get historyLength => _history.length;
   List<DesignRecipe> get alternatives => List.unmodifiable(_alternatives);
@@ -188,7 +226,17 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     // Instant hero: pick a design from the default context, rendered large. When
     // the customer already has preferences, bias the opening hero toward them
     // (task §19.3); otherwise keep the deterministic first design.
-    _front = _pickHero();
+    _context = widget.designContext;
+    // Seed the year filter to the full travel span (if any trips were supplied).
+    final span = _context.history.span;
+    if (span != null) {
+      _yearLo = span.start!.year;
+      _yearHi = span.end!.year;
+    }
+    _hero = _pickHero();
+    // The front defaults to a flag ribbon derived from the hero (the shirt's
+    // main design prints on the back; a small chest ribbon on the front).
+    _frontFace = _ribbonOf(_hero);
     // The initial hero being shown is a soft positive signal. Emit it after the
     // first frame so preference/library updates never run during build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -202,11 +250,11 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   DesignRecipe _pickHero() {
     if (_preferences.sampleCount == 0) {
       return widget.generator
-          .generate(widget.designContext, seed: widget.initialSeed, count: 1)
+          .generate(_context, seed: widget.initialSeed, count: 1)
           .first;
     }
     final pool = widget.generator
-        .generate(widget.designContext, seed: widget.initialSeed, count: 6);
+        .generate(_context, seed: widget.initialSeed, count: 6);
     return _orderByPreference(pool).first;
   }
 
@@ -267,7 +315,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         for (var i = 0; i < _subjects.length; i++)
           widget.generator
               .withGenre(_subjects[i].$1, template: _subjects[i].$2)
-              .generate(widget.designContext,
+              .generate(_context,
                   seed: widget.initialSeed + i, count: 1)
               .first,
       ];
@@ -349,7 +397,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   void _cycleSubject() {
     setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
     _commit(
-        _gen.generate(widget.designContext, seed: _nextSeed(), count: 1).first);
+        _gen.generate(_context, seed: _nextSeed(), count: 1).first);
     _focusAxis(DesignAxis.direction);
   }
 
@@ -380,8 +428,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// other axis identical (a live, non-destructive clip edit).
   void _applyDetail(_StudioDetail d) {
     setState(() => _detail = d);
-    final code = widget.designContext.flagCodes.isNotEmpty
-        ? widget.designContext.flagCodes.first.toLowerCase()
+    final code = _context.flagCodes.isNotEmpty
+        ? _context.flagCodes.first.toLowerCase()
         : 'us';
     final clip = switch (d) {
       _StudioDetail.grid => Clip.shape(ClipShape.none),
@@ -422,7 +470,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       ClipShape.landmarkSilhouette,
     ];
     final codes =
-        widget.designContext.flagCodes.map((c) => c.toLowerCase()).toSet();
+        _context.flagCodes.map((c) => c.toLowerCase()).toSet();
     final out = <(ClipShape, String)>[];
     for (final k in kinds) {
       for (final slug in widget.generator.silhouettesByShape[k] ?? const []) {
@@ -481,7 +529,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// The at-a-glance spec chips for the Review summary (storyboard step 8).
   List<String> _reviewSpec() {
     final comp = _current.composition;
-    final n = widget.designContext.flagCodes.length;
+    final n = _context.flagCodes.length;
     return [
       '$n ${n == 1 ? 'country' : 'countries'}',
       _subjectLabel,
@@ -490,7 +538,20 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       _cap(comp.sizeClass.name),
       _cap(comp.orientation.name),
       _garmentName,
+      'Front: $_frontLabel',
     ];
+  }
+
+  /// Human label for the current front print (mobile parity).
+  String get _frontLabel {
+    switch (_frontFit) {
+      case _FrontFit.full:
+        return 'Full';
+      case _FrontFit.chest:
+        return _chestRight ? 'Right chest' : 'Left chest';
+      case _FrontFit.none:
+        return 'Blank';
+    }
   }
 
   static String _cap(String s) =>
@@ -500,15 +561,11 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// spec summary, Save to Library, and an explicit Add-to-cart placeholder
   /// (commerce lives in the mobile app / milestone M1, not the Lab).
   void _showReview() {
-    // Materialise the back for the preview if it hasn't been visited yet.
-    final back = _back ??
-        GarmentDesign.deriveBack(_front,
-            themeSeed: _front.seed,
-            garmentColour: _front.palette?.garmentColour);
+    final garment = _current.palette?.garmentColour;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF16181D),
-      builder: (sheetContext) => Padding(
+      builder: (sheetContext) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -521,9 +578,17 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             Row(children: [
-              _reviewThumb('Front', _front),
+              _reviewThumbChild(
+                'Front',
+                _GarmentFrontPreview(
+                  service: widget.service,
+                  design: _frontFace,
+                  printRect: _frontPrintRect(),
+                  garmentColour: garment,
+                ),
+              ),
               const SizedBox(width: 12),
-              _reviewThumb('Back', back),
+              _reviewThumb('Back', _hero),
             ]),
             const SizedBox(height: 12),
             Wrap(
@@ -583,7 +648,10 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     );
   }
 
-  Widget _reviewThumb(String label, DesignRecipe recipe) => Expanded(
+  Widget _reviewThumb(String label, DesignRecipe recipe) => _reviewThumbChild(
+      label, _HeroCanvas(service: widget.service, recipe: recipe, longSide: 132));
+
+  Widget _reviewThumbChild(String label, Widget child) => Expanded(
         child: Column(
           children: [
             Container(
@@ -592,8 +660,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
                 border: Border.all(color: const Color(0xFF2A2D33)),
                 color: const Color(0xFFF2F2F2),
               ),
-              child: _HeroCanvas(
-                  service: widget.service, recipe: recipe, longSide: 132),
+              child: child,
             ),
             const SizedBox(height: 4),
             Text(label,
@@ -691,17 +758,27 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           _breadcrumb(),
           // Tier-1 fixed controls — always available, survive Style/Direction.
           _formatBar(),
-          // Instant hero — the shirt is the star, always visible + centred.
+          // Instant hero — the shirt is the star, always visible + centred. The
+          // back shows the full main design; the front shows the artwork placed
+          // on a shirt-front at the chosen print position (mobile parity).
           Expanded(
             child: Container(
               color: const Color(0xFF0E0F12),
               padding: const EdgeInsets.all(24),
               alignment: Alignment.center,
-              child: _HeroCanvas(
-                key: const Key('studio-hero'),
-                service: widget.service,
-                recipe: _heroRecipe,
-              ),
+              child: _onFront
+                  ? _GarmentFrontPreview(
+                      key: const Key('studio-hero'),
+                      service: widget.service,
+                      design: _frontFace,
+                      printRect: _frontPrintRect(),
+                      garmentColour: _current.palette?.garmentColour,
+                    )
+                  : _HeroCanvas(
+                      key: const Key('studio-hero'),
+                      service: widget.service,
+                      recipe: _heroRecipe,
+                    ),
             ),
           ),
           if (_activeAxis == DesignAxis.vibe)
@@ -711,6 +788,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           else if (_activeAxis != null)
             _alternativesTray(),
           // Detail sub-step: only for the Flags subject — the shape flags fill.
+          if (widget.designContext.hasTrips) _travelRow(),
           if (_subjectIndex == 0) _detailRow(),
           if (_showAdjust) _adjustPanel(),
           _decisionDeck(),
@@ -934,6 +1012,11 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     if (genre == LabGenre.passport && _current.clip != null) {
       final clip = _current.clip!;
       rows
+        // Passport stamp size (mobile parity: 50–150%). The renderer reads
+        // clip.scale as the passport stampScale (clip_stage._resolveInk path).
+        ..add(_adjSlider('Stamp size', clip.scale <= 0 ? 1.0 : clip.scale,
+            (v) => _setClip(clip.copyWith(scale: v)),
+            min: 0.5, max: 1.5))
         ..add(_adjSlider('Scatter', clip.scatter,
             (v) => _setClip(clip.copyWith(scatter: v))))
         // Multi = each stamp in its country's flag colours; Mono = a single ink
@@ -1225,52 +1308,188 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             _swatch(hex, name, garment == hex),
           _divider(),
           _miniLabel('Side'),
-          _pill('side-front', 'Front', !_onBack,
-              () => setState(() => _onBack = false)),
-          _pill('side-back', 'Back', _onBack, () {
-            setState(() {
-              _back ??= GarmentDesign.deriveBack(_front,
-                  themeSeed: _front.seed,
-                  garmentColour: _front.palette?.garmentColour);
-              _onBack = true;
-            });
-          }),
-          // Storyboard "Start from Front theme": re-derive the back so it shares
-          // the front's current theme again (available only while on the Back).
-          if (_onBack) ...[
-            const SizedBox(width: 6),
-            GestureDetector(
-              key: const Key('studio-sync-back'),
-              onTap: _syncBackToFront,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF23262C),
-                  border: Border.all(color: const Color(0xFF3A3D44)),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.sync, size: 13, color: Colors.white70),
-                  SizedBox(width: 4),
-                  Text('Sync to front',
-                      style: TextStyle(fontSize: 11, color: Colors.white70)),
-                ]),
-              ),
-            ),
+          // The hero/main design lives on the BACK by default; the FRONT is the
+          // small chest ribbon (or a complement).
+          _pill('side-back', 'Back', !_onFront,
+              () => setState(() => _onFront = false)),
+          _pill('side-front', 'Front', _onFront,
+              () => setState(() => _onFront = true)),
+          // Front-only: the print fit (full / chest / none), the chest side, and
+          // where the front artwork comes from.
+          if (_onFront) ...[
+            _divider(),
+            _miniLabel('Front'),
+            _pill('front-fit-full', 'Full', _frontFit == _FrontFit.full,
+                () => setState(() => _frontFit = _FrontFit.full)),
+            _pill('front-fit-chest', 'Chest', _frontFit == _FrontFit.chest,
+                () => setState(() => _frontFit = _FrontFit.chest)),
+            _pill('front-fit-none', 'None', _frontFit == _FrontFit.none,
+                () => setState(() => _frontFit = _FrontFit.none)),
+            if (_frontFit == _FrontFit.chest) ...[
+              const SizedBox(width: 6),
+              _pill('front-chest-left', 'Left', !_chestRight,
+                  () => setState(() => _chestRight = false)),
+              _pill('front-chest-right', 'Right', _chestRight,
+                  () => setState(() => _chestRight = true)),
+            ],
+            _divider(),
+            _miniLabel('Art'),
+            _pill('front-art-ribbon', 'Ribbon',
+                _frontArt == _FrontArt.ribbon, () => _setFrontArt(_FrontArt.ribbon)),
+            _pill('front-art-complement', 'Complement',
+                _frontArt == _FrontArt.complement,
+                () => _setFrontArt(_FrontArt.complement)),
+            _pill('front-art-match', 'Match back',
+                _frontArt == _FrontArt.matchBack,
+                () => _setFrontArt(_FrontArt.matchBack)),
+            // Ribbon coverage (mobile "Selected vs All").
+            if (_frontArt == _FrontArt.ribbon) ...[
+              const SizedBox(width: 6),
+              _pill('front-ribbon-selected', 'Selected', !_ribbonAllCountries,
+                  () => _setRibbonCoverage(false)),
+              _pill('front-ribbon-all', 'All', _ribbonAllCountries,
+                  () => _setRibbonCoverage(true)),
+            ],
           ],
         ]),
       ),
     );
   }
 
-  /// Re-derive the Back from the Front's current theme (storyboard "Start from
-  /// Front theme") — a fresh complementary back that matches an evolved front.
-  void _syncBackToFront() {
+  /// The front artwork's print rect as *fractions of the shirt-front image*,
+  /// mirroring the mobile print positions (`product_mockup_specs.dart`) so the
+  /// design lands in the same place on the real garment. Left/right chest are
+  /// intentionally mapped as mobile does — `left_chest` sits on the viewer's
+  /// right (the wearer's left). Returns [Rect.zero] for a blank (none) front.
+  Rect _frontPrintRect() {
+    switch (_frontFit) {
+      case _FrontFit.full:
+        // Mobile `center` — the full-front DTG printfile area.
+        return const Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
+      case _FrontFit.chest:
+        return _chestRight
+            ? const Rect.fromLTWH(0.27, 0.25, 0.18, 0.25) // right_chest
+            : const Rect.fromLTWH(0.55, 0.25, 0.18, 0.25); // left_chest
+      case _FrontFit.none:
+        return Rect.zero;
+    }
+  }
+
+  /// A flag-ribbon (medal-bar) recipe derived from [r]: same palette and garment
+  /// colour, re-laid-out as the [DesignFamily.frontRibbon] family. When
+  /// [_ribbonAllCountries] is set the ribbon shows every country in the design
+  /// context (mobile "All"); otherwise it keeps the design's own flags ("Selected").
+  DesignRecipe _ribbonOf(DesignRecipe r) {
+    var content = r.content;
+    if (_ribbonAllCountries) {
+      final all = _context.flagCodes;
+      if (all.isNotEmpty) {
+        content = RecipeContent(
+          flags: [for (final c in all) FlagRef(c)],
+          source: r.content.source,
+          entries: r.content.entries,
+          meta: r.content.meta,
+        );
+      }
+    }
+    return r.copyWith(
+      composition: r.composition.copyWith(family: DesignFamily.frontRibbon),
+      content: content,
+    );
+  }
+
+  /// Switch where the front artwork comes from and rebuild [_frontFace] from the
+  /// current hero. After this the front is independently editable (like the old
+  /// derived back) until the source is changed again.
+  void _setFrontArt(_FrontArt art) {
     setState(() {
-      _back = GarmentDesign.deriveBack(_front,
-          themeSeed: _front.seed,
-          garmentColour: _front.palette?.garmentColour);
+      _frontArt = art;
+      switch (art) {
+        case _FrontArt.ribbon:
+          _frontFace = _ribbonOf(_hero);
+        case _FrontArt.complement:
+          _frontFace = GarmentDesign.deriveBack(_hero,
+              themeSeed: _nextSeed(),
+              garmentColour: _hero.palette?.garmentColour);
+        case _FrontArt.matchBack:
+          _frontFace = _hero;
+      }
     });
+  }
+
+  /// Ribbon coverage toggle (mobile "Selected vs All") — rebuilds the ribbon.
+  void _setRibbonCoverage(bool all) {
+    setState(() {
+      _ribbonAllCountries = all;
+      _frontFace = _ribbonOf(_hero);
+    });
+  }
+
+  /// Re-derive the effective [_context] from the host's trips under the current
+  /// Source (Countries vs Trips) + Year filter, then regenerate the hero. Mobile
+  /// parity: Countries = one flag per distinct country; Trips = one per visit.
+  void _rebuildContext() {
+    final all = TravelHistory(widget.designContext.trips);
+    final range = DateRange.years(_yearLo, _yearHi);
+    final filtered = all.inRange(range);
+    final codes = _sourceTrips
+        ? [for (final t in filtered.trips) t.cc]
+        : filtered.countryCodes;
+    if (codes.isEmpty) return; // never leave the design with no flags.
+    setState(() {
+      _context = DesignContext(
+        flagCodes: codes,
+        scopeKey: widget.designContext.scopeKey,
+        trips: filtered.trips,
+        dateRange: range,
+      );
+      _hero = _gen.generate(_context, seed: _nextSeed(), count: 1).first;
+      _frontFace = _ribbonOf(_hero);
+    });
+  }
+
+  /// Travel-data controls (only when the context carries trips): Source
+  /// (Countries vs Trips) + a year-range filter. Mirrors the mobile Flag-source
+  /// and trip-year controls.
+  Widget _travelRow() {
+    final span = widget.designContext.history.span!;
+    final minY = span.start!.year, maxY = span.end!.year;
+    return Container(
+      color: const Color(0xFF16181D),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: Row(children: [
+        const Text('Trips',
+            style: TextStyle(fontSize: 11, color: Colors.white38)),
+        const SizedBox(width: 10),
+        _pill('source-countries', 'Countries', !_sourceTrips, () {
+          _sourceTrips = false;
+          _rebuildContext();
+        }),
+        _pill('source-trips', 'Trips', _sourceTrips, () {
+          _sourceTrips = true;
+          _rebuildContext();
+        }),
+        const SizedBox(width: 10),
+        if (maxY > minY)
+          Expanded(
+            child: RangeSlider(
+              values: RangeValues(_yearLo.toDouble(), _yearHi.toDouble()),
+              min: minY.toDouble(),
+              max: maxY.toDouble(),
+              divisions: maxY - minY,
+              labels: RangeLabels('$_yearLo', '$_yearHi'),
+              onChanged: (v) => setState(() {
+                _yearLo = v.start.round();
+                _yearHi = v.end.round();
+              }),
+              onChangeEnd: (_) => _rebuildContext(),
+            ),
+          )
+        else
+          Text('$minY',
+              style: const TextStyle(fontSize: 11, color: Colors.white54)),
+      ]),
+    );
   }
 
   Widget _miniLabel(String s) => Padding(
@@ -1601,6 +1820,15 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 /// subject (Grid = plain flags; the rest are clipped).
 enum _StudioDetail { grid, map, animals, plants, landmarks, heart, circle }
 
+/// How the FRONT artwork is printed on the shirt (mobile parity). Full = the
+/// centred full-front print; chest = a small chest print (left/right); none =
+/// a blank front (the main design lives on the back).
+enum _FrontFit { full, chest, none }
+
+/// Where the front artwork comes from: a flag ribbon (default), a generated
+/// complement of the back, or a copy of the main (back) design.
+enum _FrontArt { ribbon, complement, matchBack }
+
 /// The Refine ("Fine Tune") categories — the storyboard's category menu. Each
 /// groups a contextual slice of the Tier-3 control set so advanced controls are
 /// disclosed by category rather than as one long, always-cluttering panel.
@@ -1714,5 +1942,68 @@ class _HeroCanvasState extends State<_HeroCanvas> {
       );
     }
     return RawImage(image: img, fit: BoxFit.contain);
+  }
+}
+
+/// Previews the shirt **front**: the [design] placed on a shirt-front-shaped
+/// area at [printRect] (fractions of the front image), so the artwork lands in
+/// the same place the mobile app prints it. [printRect] == [Rect.zero] renders a
+/// blank front. The board is filled with [garmentColour] so the preview reads as
+/// the actual garment.
+class _GarmentFrontPreview extends StatelessWidget {
+  const _GarmentFrontPreview({
+    super.key,
+    required this.service,
+    required this.design,
+    required this.printRect,
+    this.garmentColour,
+  });
+
+  final RenderService service;
+  final DesignRecipe design;
+  final Rect printRect;
+  final String? garmentColour;
+
+  static Color _parse(String? hex) {
+    var h = hex?.replaceAll('#', '').trim();
+    if (h == null) return const Color(0xFFF2F2F2);
+    if (h.length == 6) h = 'ff$h';
+    final v = h.length == 8 ? int.tryParse(h, radix: 16) : null;
+    return v == null ? const Color(0xFFF2F2F2) : Color(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final blank = printRect == Rect.zero;
+    return AspectRatio(
+      // Portrait, roughly a T-shirt front's proportions.
+      aspectRatio: 0.82,
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final w = c.maxWidth, h = c.maxHeight;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: _parse(garmentColour),
+              border: Border.all(color: const Color(0xFF2A2D33)),
+            ),
+            child: blank
+                ? const Center(
+                    child: Text('Blank front',
+                        style: TextStyle(fontSize: 11, color: Colors.black26)),
+                  )
+                : Stack(children: [
+                    Positioned(
+                      left: printRect.left * w,
+                      top: printRect.top * h,
+                      width: printRect.width * w,
+                      height: printRect.height * h,
+                      child: _HeroCanvas(
+                          service: service, recipe: design, longSide: 256),
+                    ),
+                  ]),
+          );
+        },
+      ),
+    );
   }
 }

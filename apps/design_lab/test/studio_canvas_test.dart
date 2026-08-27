@@ -218,30 +218,102 @@ void main() {
         reason: 'garment colour must survive a style change');
   });
 
-  testWidgets('(i) Back is a separate, independently-editable side',
+  testWidgets('(i) Front is a separate, independently-editable side',
       (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();
     final state = await pumpScreen(tester, key);
-    final frontId = state.currentRecipe.recipeId;
+    // The default view is the Back — the hero/main design.
+    final heroId = state.currentRecipe.recipeId;
 
-    // Flip to the Back — it's a distinct (complementary) design. (The Format bar
-    // scrolls horizontally, so reveal the control before tapping.)
-    await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
-    await tester.tap(find.byKey(const Key('studio-side-back')));
+    // Flip to the Front — it defaults to a distinct flag *ribbon*. (The Format
+    // bar scrolls horizontally, so reveal the control before tapping.)
+    await tester.ensureVisible(find.byKey(const Key('studio-side-front')));
+    await tester.tap(find.byKey(const Key('studio-side-front')));
     await tester.pump();
-    expect(state.currentRecipe.recipeId, isNot(frontId));
+    expect(state.currentRecipe.recipeId, isNot(heroId));
 
-    // Edit the Back only.
+    // Edit the Front only.
     await tester.ensureVisible(find.byKey(const Key('studio-garment-Olive')));
     await tester.tap(find.byKey(const Key('studio-garment-Olive')));
     await tester.pump();
     expect(state.currentRecipe.palette?.garmentColour, '#6B7350');
 
-    // Returning to the Front leaves it byte-identical (the edit hit the back).
+    // Returning to the Back leaves the hero byte-identical (the edit hit the
+    // front face).
+    await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
+    await tester.tap(find.byKey(const Key('studio-side-back')));
+    await tester.pump();
+    expect(state.currentRecipe.recipeId, heroId);
+  });
+
+  testWidgets('(s) Front ribbon "All" covers every context country',
+      (tester) async {
+    // A multi-country context so Selected (the design) vs All (the context) differ.
+    const multi =
+        DesignContext(flagCodes: ['us', 'fr', 'jp'], scopeKey: 'lab:multi');
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await tester.pumpWidget(MaterialApp(
+      home: StudioCanvasScreen(
+        key: key,
+        generator: generator,
+        service: service,
+        designContext: multi,
+        initialSeed: 7,
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final state = key.currentState!;
+
+    // Flip to the Front (ribbon by default) and choose "All".
     await tester.ensureVisible(find.byKey(const Key('studio-side-front')));
     await tester.tap(find.byKey(const Key('studio-side-front')));
     await tester.pump();
-    expect(state.currentRecipe.recipeId, frontId);
+    await tester.ensureVisible(find.byKey(const Key('studio-front-ribbon-all')));
+    await tester.tap(find.byKey(const Key('studio-front-ribbon-all')));
+    await tester.pump();
+
+    // The front ribbon now carries all three context flags.
+    expect(state.currentRecipe.composition.family, DesignFamily.frontRibbon);
+    expect(state.currentRecipe.content.flags.length, 3);
+  });
+
+  testWidgets('(u) Source Countries↔Trips + year filter re-derive the context',
+      (tester) async {
+    // 3 trips over 2 years, with a repeat visit to `us`.
+    final trips = [
+      Trip(countryCode: 'us', startedOn: DateTime(2020, 6, 1),
+          endedOn: DateTime(2020, 6, 8)),
+      Trip(countryCode: 'fr', startedOn: DateTime(2021, 4, 1),
+          endedOn: DateTime(2021, 4, 9)),
+      Trip(countryCode: 'us', startedOn: DateTime(2021, 9, 1),
+          endedOn: DateTime(2021, 9, 5)),
+    ];
+    final ctx = DesignContext.fromTrips(trips, scopeKey: 'lab:trips');
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await tester.pumpWidget(MaterialApp(
+      home: StudioCanvasScreen(
+        key: key,
+        generator: generator,
+        service: service,
+        designContext: ctx,
+        initialSeed: 7,
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final state = key.currentState!;
+
+    // Countries source (default): 2 distinct countries.
+    expect(state.effectiveContext.flagCodes.length, 2);
+
+    // Trips source: one flag per visit → 3 (us, fr, us).
+    await tester.ensureVisible(find.byKey(const Key('studio-source-trips')));
+    await tester.tap(find.byKey(const Key('studio-source-trips')));
+    await tester.pump();
+    expect(state.effectiveContext.flagCodes.length, 3);
+    // A year range slider is offered across the 2020–2021 span.
+    expect(find.byType(RangeSlider), findsOneWidget);
   });
 
   testWidgets('(j) a Finish preset applies a bundled effect', (tester) async {
@@ -292,25 +364,29 @@ void main() {
     expect(find.byKey(const Key('studio-refine-finish')), findsOneWidget);
   });
 
-  testWidgets('(q) Sync-to-front re-derives the Back from the Front theme',
-      (tester) async {
+  testWidgets('(q) Front print: placement fit + art source', (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();
     final state = await pumpScreen(tester, key);
+    final heroId = state.currentRecipe.recipeId; // the Back/hero design.
 
-    // Flip to the Back and give it its own garment colour.
-    await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
-    await tester.tap(find.byKey(const Key('studio-side-back')));
+    // Flip to the Front — defaults to the flag ribbon (a distinct design).
+    await tester.ensureVisible(find.byKey(const Key('studio-side-front')));
+    await tester.tap(find.byKey(const Key('studio-side-front')));
     await tester.pump();
-    await tester.ensureVisible(find.byKey(const Key('studio-garment-Olive')));
-    await tester.tap(find.byKey(const Key('studio-garment-Olive')));
-    await tester.pump();
-    expect(state.currentRecipe.palette?.garmentColour, '#6B7350');
+    expect(state.currentRecipe.recipeId, isNot(heroId));
 
-    // Sync to front re-derives the back → it inherits the front's garment again.
-    await tester.ensureVisible(find.byKey(const Key('studio-sync-back')));
-    await tester.tap(find.byKey(const Key('studio-sync-back')));
+    // 'Chest' fit exposes the Left/Right chest side pills (mobile parity).
+    await tester.ensureVisible(find.byKey(const Key('studio-front-fit-chest')));
+    await tester.tap(find.byKey(const Key('studio-front-fit-chest')));
     await tester.pump();
-    expect(state.currentRecipe.palette?.garmentColour, isNot('#6B7350'));
+    expect(find.byKey(const Key('studio-front-chest-left')), findsOneWidget);
+    expect(find.byKey(const Key('studio-front-chest-right')), findsOneWidget);
+
+    // 'Match back' sets the front artwork to the main (back) design.
+    await tester.ensureVisible(find.byKey(const Key('studio-front-art-match')));
+    await tester.tap(find.byKey(const Key('studio-front-art-match')));
+    await tester.pump();
+    expect(state.currentRecipe.recipeId, heroId);
   });
 
   testWidgets('(p) Review sheet shows a spec summary and saves to library',
