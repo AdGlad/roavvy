@@ -595,11 +595,20 @@ class StudioController extends ChangeNotifier {
       setComp(current.composition.copyWith(sizeClass: s));
   void setOrientation(Orientation o) =>
       setComp(current.composition.copyWith(orientation: o));
+  /// Set the blank GARMENT colour. Applied to BOTH faces (a t-shirt is one
+  /// colour front and back) as a live palette edit — no layout re-roll, no
+  /// history step, so each face keeps its own design.
   void setGarment(String hex) {
-    final p = current.palette ?? const Palette();
-    applyLive(current.copyWith(
-        palette: p.copyWith(
-            garmentColour: hex, strategy: ColourStrategy.garmentAware)));
+    DesignRecipe withGarment(DesignRecipe r) {
+      final p = r.palette ?? const Palette();
+      return r.copyWith(
+          palette: p.copyWith(
+              garmentColour: hex, strategy: ColourStrategy.garmentAware));
+    }
+
+    _hero = withGarment(_hero);
+    _frontFace = withGarment(_frontFace);
+    notifyListeners();
   }
 
   /// The active artwork colour treatment, matched against [colourTreatments].

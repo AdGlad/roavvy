@@ -99,11 +99,26 @@ void main() {
     final heroId = c.current.recipeId; // back = hero, the default view
     c.setSide(true); // front defaults to a flag ribbon
     expect(c.current.recipeId, isNot(heroId));
-    // Editing the front leaves the hero untouched.
-    c.setGarment('#6B7350');
-    expect(c.current.palette?.garmentColour, '#6B7350');
+    // A front-artwork edit leaves the hero (back) untouched.
+    c.setFrontArt(FrontArt.complement);
+    expect(c.current.recipeId, isNot(heroId));
     c.setSide(false);
     expect(c.current.recipeId, heroId);
+  });
+
+  test('garment colour is shared by both faces (one physical shirt), applied '
+      'live without rerolling either design', () {
+    final c = make(multi);
+    c.setFrontArt(FrontArt.complement); // a genuinely different front
+    final backLayout = c.hero.composition.orientation;
+    final frontLayout = c.frontFace.composition.orientation;
+    final histBefore = c.history.length;
+    c.setGarment('#6B7350'); // Olive
+    expect(c.hero.palette?.garmentColour, '#6B7350');
+    expect(c.frontFace.palette?.garmentColour, '#6B7350'); // both faces
+    expect(c.hero.composition.orientation, backLayout); // neither rerolled
+    expect(c.frontFace.composition.orientation, frontLayout);
+    expect(c.history.length, histBefore); // live edit, not a recipe step
   });
 
   test('front art Match-back mirrors the hero; ribbon All covers the context',
