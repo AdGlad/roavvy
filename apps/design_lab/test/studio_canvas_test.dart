@@ -278,6 +278,27 @@ void main() {
     expect(state.currentRecipe.clip?.text, 'WANDER');
   });
 
+  testWidgets('(q) Sync-to-front re-derives the Back from the Front theme',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Flip to the Back and give it its own garment colour.
+    await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
+    await tester.tap(find.byKey(const Key('studio-side-back')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('studio-garment-Olive')));
+    await tester.tap(find.byKey(const Key('studio-garment-Olive')));
+    await tester.pump();
+    expect(state.currentRecipe.palette?.garmentColour, '#6B7350');
+
+    // Sync to front re-derives the back → it inherits the front's garment again.
+    await tester.ensureVisible(find.byKey(const Key('studio-sync-back')));
+    await tester.tap(find.byKey(const Key('studio-sync-back')));
+    await tester.pump();
+    expect(state.currentRecipe.palette?.garmentColour, isNot('#6B7350'));
+  });
+
   testWidgets('(p) Review sheet shows a spec summary and saves to library',
       (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();

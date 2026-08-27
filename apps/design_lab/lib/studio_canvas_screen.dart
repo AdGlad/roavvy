@@ -1235,9 +1235,42 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               _onBack = true;
             });
           }),
+          // Storyboard "Start from Front theme": re-derive the back so it shares
+          // the front's current theme again (available only while on the Back).
+          if (_onBack) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              key: const Key('studio-sync-back'),
+              onTap: _syncBackToFront,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF23262C),
+                  border: Border.all(color: const Color(0xFF3A3D44)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.sync, size: 13, color: Colors.white70),
+                  SizedBox(width: 4),
+                  Text('Sync to front',
+                      style: TextStyle(fontSize: 11, color: Colors.white70)),
+                ]),
+              ),
+            ),
+          ],
         ]),
       ),
     );
+  }
+
+  /// Re-derive the Back from the Front's current theme (storyboard "Start from
+  /// Front theme") — a fresh complementary back that matches an evolved front.
+  void _syncBackToFront() {
+    setState(() {
+      _back = GarmentDesign.deriveBack(_front,
+          themeSeed: _front.seed,
+          garmentColour: _front.palette?.garmentColour);
+    });
   }
 
   Widget _miniLabel(String s) => Padding(
