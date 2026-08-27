@@ -626,8 +626,13 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         ..add(_sectionLabel('Passport'))
         ..add(_adjSlider('Scatter', clip.scatter,
             (v) => _setClip(clip.copyWith(scatter: v))))
-        ..add(_choiceRow('Ink', const ['flag', 'black', 'white'],
-            clip.ink ?? 'flag', (v) => _setClip(clip.copyWith(ink: v))))
+        // Multi = each stamp in its country's flag colours; Mono = a single ink
+        // (auto black/white for the chosen t-shirt colour).
+        ..add(_choiceRow(
+            'Colour',
+            const ['Multi', 'Mono'],
+            (clip.ink == null || clip.ink == 'flag') ? 'Multi' : 'Mono',
+            (v) => _setClip(clip.copyWith(ink: v == 'Multi' ? 'flag' : 'mono'))))
         ..add(_choiceRow(
             'Stamps',
             const ['entryExit', 'entryOnly', 'exitOnly'],
