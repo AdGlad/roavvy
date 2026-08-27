@@ -123,6 +123,19 @@ class StudioController extends ChangeNotifier {
     ('Mono', Effects(), 0.0, ColourStrategy.monochrome),
   ];
 
+  /// Artwork COLOUR treatments — how the design's ink is coloured, NOT the blank
+  /// garment colour (that is [garments] / [setGarment]). Each maps a plain-language
+  /// label to an engine [ColourStrategy] (+ a vintage grade for the aged look), so
+  /// the palette state written here is always real engine state, never UI-only.
+  /// (label, strategy, vintageGrade).
+  static const List<(String, ColourStrategy, double)> colourTreatments = [
+    ('Flag colours', ColourStrategy.flagDerived, 0.0),
+    ('Monochrome', ColourStrategy.monochrome, 0.0),
+    ('Duotone', ColourStrategy.duotone, 0.0),
+    ('Match shirt', ColourStrategy.garmentAware, 0.0),
+    ('Vintage', ColourStrategy.flagDerived, 0.55),
+  ];
+
   static const Set<String> silhouetteShapeIds = {
     'animalSilhouette',
     'plantSilhouette',
@@ -339,6 +352,23 @@ class StudioController extends ChangeNotifier {
       meta['title'] = v;
     }
     applyLive(current.copyWith(
+        content: RecipeContent(
+            flags: c.flags, source: c.source, entries: c.entries, meta: meta)));
+  }
+
+  /// Apply / replace / remove the design title as an UNDOABLE step (unlike the
+  /// live-typing [setTitle], which edits in place). An empty value removes the
+  /// title. Used when a title is applied at a boundary — a suggestion tap, field
+  /// submit, or the Remove action — so Words changes participate in recipe undo.
+  void commitTitle(String v) {
+    final c = current.content;
+    final meta = {...c.meta};
+    if (v.trim().isEmpty) {
+      meta.remove('title');
+    } else {
+      meta['title'] = v.trim();
+    }
+    _commit(current.copyWith(
         content: RecipeContent(
             flags: c.flags, source: c.source, entries: c.entries, meta: meta)));
   }
@@ -570,6 +600,21 @@ class StudioController extends ChangeNotifier {
     applyLive(current.copyWith(
         palette: p.copyWith(
             garmentColour: hex, strategy: ColourStrategy.garmentAware)));
+  }
+
+  /// The active artwork colour treatment, matched against [colourTreatments].
+  ColourStrategy get colourStrategy =>
+      current.palette?.strategy ?? ColourStrategy.flagDerived;
+  double get vintageGrade => current.palette?.vintageGrade ?? 0.0;
+
+  /// Apply an artwork COLOUR treatment (see [colourTreatments]) — writes only the
+  /// palette strategy + vintage grade, carrying the layout, effects (Vibe) and
+  /// garment colour forward untouched. Undoable (participates in recipe history),
+  /// unlike the live garment control [setGarment].
+  void setColourTreatment((String, ColourStrategy, double) t) {
+    final pal = current.palette ?? const Palette();
+    _commit(current.copyWith(
+        palette: pal.copyWith(strategy: t.$2, vintageGrade: t.$3)));
   }
 
   void setSide(bool onFront) {

@@ -3,12 +3,14 @@ import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
 import 'studio_v2_stage.dart';
+import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
 import 'widgets/direction_workspace.dart';
 import 'widgets/focus_workspace.dart';
 import 'widgets/garment_preview.dart';
 import 'widgets/travels_workspace.dart';
 import 'widgets/vibe_workspace.dart';
+import 'widgets/words_workspace.dart';
 
 /// **Studio V2 shell** (M1) — the permanent visual hierarchy for the whole V2
 /// workflow. The live t-shirt is the hero and is ALWAYS visible; a persistent
@@ -155,7 +157,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(children: [
-          _label('Colour'),
+          // Persistent GARMENT colour — distinct from the artwork "Colour" stage.
+          _label('Shirt colour'),
           for (final (hex, name) in StudioController.garments)
             _swatch(hex, name, garment == hex),
           _divider(),
@@ -203,6 +206,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             : _detailNotApplicable(),
         StudioStage.vibe => VibeWorkspace(controller: _c),
         StudioStage.focus => FocusWorkspace(controller: _c),
+        StudioStage.colour => ColourWorkspace(controller: _c),
+        StudioStage.words => WordsWorkspace(controller: _c),
         _ => _placeholder(),
       },
     );

@@ -340,6 +340,95 @@ void main() {
     expect(c.locked, contains(DesignAxis.vibe));
   });
 
+  test('Colour: an artwork treatment applies palette-only, preserves layout + '
+      'garment, and is undoable', () {
+    final c = make(multi);
+    c.setGarment('#6B7350'); // Olive garment must survive a treatment change
+    final id0 = c.current.recipeId;
+    final orient0 = c.current.composition.orientation;
+    final clip0 = c.current.clip?.shapeId;
+
+    final mono = StudioController.colourTreatments
+        .firstWhere((t) => t.$2 == ColourStrategy.monochrome);
+    c.setColourTreatment(mono);
+    expect(c.colourStrategy, ColourStrategy.monochrome); // treatment applied
+    expect(c.current.recipeId, isNot(id0)); // live update
+    expect(c.current.composition.orientation, orient0); // layout untouched
+    expect(c.current.clip?.shapeId, clip0);
+    expect(c.current.palette?.garmentColour, '#6B7350'); // garment carried
+
+    c.undo(); // Colour change participates in recipe undo/redo
+    expect(c.current.recipeId, id0);
+    expect(c.colourStrategy, isNot(ColourStrategy.monochrome));
+
+    // The Vintage treatment adds the aged grade (still flag-derived ink).
+    final vintage = StudioController.colourTreatments
+        .firstWhere((t) => t.$1 == 'Vintage');
+    c.setColourTreatment(vintage);
+    expect(c.vintageGrade, greaterThan(0.3));
+  });
+
+  test('Colour alternatives are deterministic per state (M4 tray pattern)', () {
+    final a = make(multi)..focusAxis(DesignAxis.colour);
+    final b = make(multi)..focusAxis(DesignAxis.colour);
+    expect(a.activeAxis, DesignAxis.colour);
+    expect(a.alternatives, isNotEmpty);
+    expect(a.alternatives.map((r) => r.recipeId).toList(),
+        b.alternatives.map((r) => r.recipeId).toList());
+  });
+
+  test('changing garment colour is independent + never rerolls the layout', () {
+    final c = make(multi);
+    final orient0 = c.current.composition.orientation;
+    final clip0 = c.current.clip?.shapeId;
+    final histBefore = c.history.length;
+    c.setGarment('#22303A'); // Navy
+    expect(c.current.palette?.garmentColour, '#22303A');
+    expect(c.current.composition.orientation, orient0); // no layout reroll
+    expect(c.current.clip?.shapeId, clip0);
+    expect(c.history.length, histBefore); // a live edit, not a recipe step
+  });
+
+  test('Colour lock is respected by Remix (palette held byte-identical)', () {
+    final c = make(multi);
+    final mono = StudioController.colourTreatments
+        .firstWhere((t) => t.$2 == ColourStrategy.monochrome);
+    c.setColourTreatment(mono);
+    c.toggleLock(DesignAxis.colour);
+    final id0 = c.current.recipeId;
+    c.surprise();
+    expect(c.current.recipeId, isNot(id0)); // unlocked axes evolved
+    expect(c.colourStrategy, ColourStrategy.monochrome); // locked Colour held
+    expect(c.locked, contains(DesignAxis.colour));
+  });
+
+  test('Words: manual edit + removal are undoable; suggestions are local + '
+      'deterministic', () {
+    final c = make(multi);
+    final id0 = c.current.recipeId;
+    c.commitTitle('Wanderlust'); // manual edit
+    expect(c.currentTitle, 'Wanderlust');
+    expect(c.current.recipeId, isNot(id0));
+    c.undo(); // participates in recipe undo/redo
+    expect(c.currentTitle, isNot('Wanderlust'));
+
+    // Same state → same ideas (no network, no randomness).
+    final a = make(multi)..focusWords();
+    final b = make(multi)..focusWords();
+    expect(a.titleIdeas, b.titleIdeas);
+
+    if (a.titleIdeas.isNotEmpty) {
+      a.commitTitle(a.titleIdeas.first); // tap-to-apply
+      expect(a.currentTitle, a.titleIdeas.first);
+      final first = a.titleIdeas.toList();
+      a.suggestTitles(); // "More" re-rolls a fresh set
+      expect(a.titleIdeas, isNot(first));
+    }
+    a.commitTitle('Set'); // removal clears the title
+    a.commitTitle('');
+    expect(a.currentTitle, isEmpty);
+  });
+
   test('authoring emits preference signals; Save likes into the library', () {
     final library = PersistentDesignLibrary(_MemoryStore());
     final c = make(single, library: library);
