@@ -278,6 +278,24 @@ void main() {
     expect(state.currentRecipe.clip?.text, 'WANDER');
   });
 
+  testWidgets('(o) Words opens a title editor that edits the printed title',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Tapping Words opens the editor (not a blind re-roll) with a Suggest action.
+    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.words.key}')));
+    await tester.pump();
+    expect(find.byKey(const Key('studio-title-input')), findsOneWidget);
+    expect(find.byKey(const Key('studio-suggest-titles')), findsOneWidget);
+
+    // Typing sets the printed title (content.meta['title']).
+    await tester.enterText(
+        find.byKey(const Key('studio-title-input')), 'ONE JOURNEY');
+    await tester.pump();
+    expect(state.currentRecipe.content.meta['title'], 'ONE JOURNEY');
+  });
+
   testWidgets('(n) Vibe opens a named style tray; picking one restyles live',
       (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();

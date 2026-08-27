@@ -122,6 +122,9 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   DesignAxis? _activeAxis;
   List<DesignRecipe> _alternatives = const [];
 
+  /// Suggested titles for the Words editor (regenerated on open / Suggest).
+  List<String> _titleIdeas = const [];
+
   /// Monotonic source of fresh per-axis seeds so each tap yields a new look.
   int _seedBump = 1000;
   int _nextSeed() => _seedBump++;
@@ -298,6 +301,50 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     setState(() {}); // refresh the tray's selected highlight
   }
 
+  /// The printed title (content.meta['title']) — the customer's words.
+  String get _currentTitle => (_current.content.meta['title'] as String?) ?? '';
+
+  /// Set / clear the printed title, live (no history push per keystroke).
+  void _setTitle(String v) {
+    final c = _current.content;
+    final meta = {...c.meta};
+    if (v.trim().isEmpty) {
+      meta.remove('title');
+    } else {
+      meta['title'] = v;
+    }
+    _applyLive(_current.copyWith(
+        content: RecipeContent(
+            flags: c.flags,
+            source: c.source,
+            entries: c.entries,
+            meta: meta)));
+  }
+
+  /// A handful of distinct AI/offline title ideas (each a Words-axis re-roll),
+  /// powering the storyboard's "Suggest titles".
+  List<String> _titleSuggestions() {
+    final seen = <String>{};
+    final out = <String>[];
+    for (var i = 0; i < 12 && out.length < 6; i++) {
+      final t = _gen
+          .reroll(_current, DesignAxis.words, newSeed: _nextSeed())
+          .content
+          .meta['title'] as String?;
+      if (t != null && t.trim().isNotEmpty && seen.add(t)) out.add(t);
+    }
+    return out;
+  }
+
+  /// Words chip → open the title editor (no blind re-roll). The editor offers a
+  /// text field + tappable suggestions.
+  void _focusWords() {
+    setState(() {
+      _activeAxis = DesignAxis.words;
+      _titleIdeas = _titleSuggestions();
+    });
+  }
+
   /// Direction chip → advance to the next subject and regenerate the hero.
   void _cycleSubject() {
     setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
@@ -310,6 +357,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   void _onChipTap(DesignAxis axis) {
     if (axis == DesignAxis.direction) {
       _cycleSubject();
+    } else if (axis == DesignAxis.words) {
+      _focusWords();
     } else {
       _rerollAxis(axis);
     }
@@ -518,6 +567,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           ),
           if (_activeAxis == DesignAxis.vibe)
             _vibeStyleTray()
+          else if (_activeAxis == DesignAxis.words)
+            _wordsPanel()
           else if (_activeAxis != null)
             _alternativesTray(),
           // Detail sub-step: only for the Flags subject — the shape flags fill.
@@ -1194,6 +1245,64 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// The "Add your words" editor (storyboard step 5): an editable printed-title
+  /// field plus tappable AI/offline title suggestions. Editing is live; "Suggest
+  /// titles" regenerates the ideas.
+  Widget _wordsPanel() {
+    return Container(
+      color: const Color(0xFF1A1D22),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Add your words  ·  your story in words',
+              style: TextStyle(fontSize: 11, color: Colors.white54)),
+          const SizedBox(height: 6),
+          Row(children: [
+            Expanded(
+              child: TextFormField(
+                key: const Key('studio-title-input'),
+                initialValue: _currentTitle,
+                style: const TextStyle(fontSize: 13, color: Colors.white),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Your title (e.g. WANDERED FAR & WIDE)',
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+                onChanged: _setTitle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              key: const Key('studio-suggest-titles'),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: const Text('Suggest', style: TextStyle(fontSize: 12)),
+              onPressed: () => setState(() => _titleIdeas = _titleSuggestions()),
+            ),
+          ]),
+          if (_titleIdeas.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (var i = 0; i < _titleIdeas.length; i++)
+                  ActionChip(
+                    key: Key('studio-title-idea-$i'),
+                    label: Text(_titleIdeas[i],
+                        style: const TextStyle(fontSize: 11)),
+                    onPressed: () => _setTitle(_titleIdeas[i]),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
