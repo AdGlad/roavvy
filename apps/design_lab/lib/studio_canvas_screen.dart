@@ -122,6 +122,9 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   DesignAxis? _activeAxis;
   List<DesignRecipe> _alternatives = const [];
 
+  /// Suggested titles for the Words editor (regenerated on open / Suggest).
+  List<String> _titleIdeas = const [];
+
   /// Monotonic source of fresh per-axis seeds so each tap yields a new look.
   int _seedBump = 1000;
   int _nextSeed() => _seedBump++;
@@ -144,8 +147,13 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// subject is Flags; a live clip edit (not a re-roll).
   _StudioDetail _detail = _StudioDetail.grid;
 
-  /// Whether the contextual Adjust panel (Tier-3 form controls) is open.
+  /// Whether the contextual Refine panel (Tier-3 form controls) is open.
   bool _showAdjust = false;
+
+  /// The active Refine category (storyboard "Fine Tune" menu). The panel shows
+  /// one focused category at a time instead of one long scroll, and the category
+  /// set is contextual to the current subject/detail.
+  _RefineCategory _refineCat = _RefineCategory.finish;
 
   /// Front/Back view. The Back is a complementary design derived from the front
   /// (shared theme/palette) on first view, then independently editable.
@@ -264,6 +272,79 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               .first,
       ];
 
+  /// The 13 NAMED style options for the Vibe picker: each is the current design
+  /// restyled into one [LabStyle] (only the Vibe/finish axis is spliced, so the
+  /// subject/colour/words and all Tier-1 choices are preserved). Seeds are fixed
+  /// per style so the thumbnails are stable across rebuilds.
+  List<(LabStyle, DesignRecipe)> _vibeStyleOptions() {
+    final base = _current;
+    return [
+      for (final s in LabStyle.values)
+        (
+          s,
+          _gen
+              .withStyle(s)
+              .reroll(base, DesignAxis.vibe, newSeed: 7000 + s.index)
+        ),
+    ];
+  }
+
+  /// The style the current design is wearing (from its provenance stamp), so the
+  /// Vibe picker can highlight it. Null if it wasn't Lab-generated.
+  LabStyle? get _currentStyle =>
+      labStyleFromProvenance(_current.provenance?.generator);
+
+  /// Pick a NAMED style from the Vibe tray — commit the restyle and keep the tray
+  /// open so the customer can keep trying vibes.
+  void _onStyleTap(LabStyle style, DesignRecipe styled) {
+    _commit(styled);
+    setState(() {}); // refresh the tray's selected highlight
+  }
+
+  /// The printed title (content.meta['title']) — the customer's words.
+  String get _currentTitle => (_current.content.meta['title'] as String?) ?? '';
+
+  /// Set / clear the printed title, live (no history push per keystroke).
+  void _setTitle(String v) {
+    final c = _current.content;
+    final meta = {...c.meta};
+    if (v.trim().isEmpty) {
+      meta.remove('title');
+    } else {
+      meta['title'] = v;
+    }
+    _applyLive(_current.copyWith(
+        content: RecipeContent(
+            flags: c.flags,
+            source: c.source,
+            entries: c.entries,
+            meta: meta)));
+  }
+
+  /// A handful of distinct AI/offline title ideas (each a Words-axis re-roll),
+  /// powering the storyboard's "Suggest titles".
+  List<String> _titleSuggestions() {
+    final seen = <String>{};
+    final out = <String>[];
+    for (var i = 0; i < 12 && out.length < 6; i++) {
+      final t = _gen
+          .reroll(_current, DesignAxis.words, newSeed: _nextSeed())
+          .content
+          .meta['title'] as String?;
+      if (t != null && t.trim().isNotEmpty && seen.add(t)) out.add(t);
+    }
+    return out;
+  }
+
+  /// Words chip → open the title editor (no blind re-roll). The editor offers a
+  /// text field + tappable suggestions.
+  void _focusWords() {
+    setState(() {
+      _activeAxis = DesignAxis.words;
+      _titleIdeas = _titleSuggestions();
+    });
+  }
+
   /// Direction chip → advance to the next subject and regenerate the hero.
   void _cycleSubject() {
     setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
@@ -276,6 +357,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   void _onChipTap(DesignAxis axis) {
     if (axis == DesignAxis.direction) {
       _cycleSubject();
+    } else if (axis == DesignAxis.words) {
+      _focusWords();
     } else {
       _rerollAxis(axis);
     }
@@ -386,6 +469,139 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     _observe(_current, PreferenceSignal.saved);
   }
 
+  /// Human name of the current garment colour, for the Review summary.
+  String get _garmentName {
+    final hex = _current.palette?.garmentColour;
+    for (final (h, name) in _garments) {
+      if (h == hex) return name;
+    }
+    return '—';
+  }
+
+  /// The at-a-glance spec chips for the Review summary (storyboard step 8).
+  List<String> _reviewSpec() {
+    final comp = _current.composition;
+    final n = widget.designContext.flagCodes.length;
+    return [
+      '$n ${n == 1 ? 'country' : 'countries'}',
+      _subjectLabel,
+      if (_subjectIndex == 0) _cap(_detail.name),
+      if (_currentStyle != null) _currentStyle!.label,
+      _cap(comp.sizeClass.name),
+      _cap(comp.orientation.name),
+      _garmentName,
+    ];
+  }
+
+  static String _cap(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  /// Review & Save (storyboard step 8): front + back preview, an at-a-glance
+  /// spec summary, Save to Library, and an explicit Add-to-cart placeholder
+  /// (commerce lives in the mobile app / milestone M1, not the Lab).
+  void _showReview() {
+    // Materialise the back for the preview if it hasn't been visited yet.
+    final back = _back ??
+        GarmentDesign.deriveBack(_front,
+            themeSeed: _front.seed,
+            garmentColour: _front.palette?.garmentColour);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF16181D),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Review & save',
+                style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Row(children: [
+              _reviewThumb('Front', _front),
+              const SizedBox(width: 12),
+              _reviewThumb('Back', back),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final s in _reviewSpec())
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF23262C),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(s,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.white70)),
+                  ),
+              ],
+            ),
+            if (_currentTitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('“$_currentTitle”',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontStyle: FontStyle.italic)),
+            ],
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  key: const Key('studio-review-save'),
+                  icon: const Icon(Icons.favorite, size: 18),
+                  label: const Text('Save to library'),
+                  onPressed: () {
+                    _save();
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('studio-review-cart'),
+                  icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                  // Commerce is a mobile/production (M1) concern — the Lab
+                  // prototype stops at Save, so this is explicitly disabled.
+                  onPressed: null,
+                  label: const Text('Add to cart (mobile)'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reviewThumb(String label, DesignRecipe recipe) => Expanded(
+        child: Column(
+          children: [
+            Container(
+              height: 132,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF2A2D33)),
+                color: const Color(0xFFF2F2F2),
+              ),
+              child: _HeroCanvas(
+                  service: widget.service, recipe: recipe, longSide: 132),
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.white60)),
+          ],
+        ),
+      );
+
   /// Tray ✕: the customer explicitly dislikes this alternative. Emit an explicit
   /// reject (preferred over inferring), reject it in the library, and drop the
   /// tile so the strip stays subtle.
@@ -438,7 +654,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         actions: [
           IconButton(
             key: const Key('studio-adjust-toggle'),
-            tooltip: 'Adjust details',
+            tooltip: 'Fine tune (Refine)',
             color: _showAdjust ? Colors.tealAccent : null,
             icon: const Icon(Icons.tune),
             onPressed: () => setState(() => _showAdjust = !_showAdjust),
@@ -450,6 +666,12 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             onPressed: _save,
           ),
           IconButton(
+            key: const Key('studio-review'),
+            tooltip: 'Review & save',
+            icon: const Icon(Icons.checklist),
+            onPressed: _showReview,
+          ),
+          IconButton(
             key: const Key('studio-undo'),
             tooltip: _history.isEmpty ? 'Nothing to undo' : 'Undo',
             icon: const Icon(Icons.undo),
@@ -458,7 +680,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           TextButton.icon(
             key: const Key('studio-surprise'),
             icon: const Icon(Icons.casino, size: 18),
-            label: const Text('Surprise me'),
+            label: const Text('Remix'),
             onPressed: _surprise,
           ),
           const SizedBox(width: 8),
@@ -482,7 +704,12 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               ),
             ),
           ),
-          if (_activeAxis != null) _alternativesTray(),
+          if (_activeAxis == DesignAxis.vibe)
+            _vibeStyleTray()
+          else if (_activeAxis == DesignAxis.words)
+            _wordsPanel()
+          else if (_activeAxis != null)
+            _alternativesTray(),
           // Detail sub-step: only for the Flags subject — the shape flags fill.
           if (_subjectIndex == 0) _detailRow(),
           if (_showAdjust) _adjustPanel(),
@@ -574,56 +801,139 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         ),
       ]);
 
-  /// The contextual Adjust panel: one-tap Finish presets, then grid controls for
-  /// Flags / stamp controls for Passport, Shape, Colour, Edges and Effects.
+  /// The contextual **Refine** panel (storyboard "Fine Tune"): a category menu
+  /// across the top, then a focused body for the active category — instead of one
+  /// long scroll. The category set is contextual to the current subject/detail so
+  /// advanced controls never permanently clutter the Studio, and NO control is
+  /// dropped: every axis of the old single panel lives under exactly one category.
   Widget _adjustPanel() {
+    final cats = _refineCategories();
+    // Clamp locally without mutating state during build.
+    final cat = cats.contains(_refineCat) ? _refineCat : cats.first;
+    return Container(
+      color: const Color(0xFF16181D),
+      constraints: const BoxConstraints(maxHeight: 240),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _refineMenu(cats, cat),
+          const SizedBox(height: 4),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _refineBody(cat),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Which Refine categories apply to the current design. Finish/Colour/Edges/
+  /// Effects/Print are universal; Layout is Flags-only; Graphic appears when the
+  /// artwork is clipped or is a passport collage; Text appears on the Words
+  /// subject. Order matches the storyboard's Fine-Tune menu.
+  List<_RefineCategory> _refineCategories() {
+    final genre = _subjects[_subjectIndex].$1;
+    final clip = _current.clip;
+    final clipped =
+        clip != null && clip.shapeId != 'none' && clip.shapeId != 'passportPage';
+    final isPassport = genre == LabGenre.passport;
+    return [
+      _RefineCategory.finish,
+      if (_subjectIndex == 0) _RefineCategory.layout,
+      if (clipped || isPassport) _RefineCategory.graphic,
+      if (genre == LabGenre.typography) _RefineCategory.text,
+      _RefineCategory.colour,
+      _RefineCategory.edges,
+      _RefineCategory.effects,
+      _RefineCategory.print,
+    ];
+  }
+
+  Widget _refineMenu(List<_RefineCategory> cats, _RefineCategory active) =>
+      SizedBox(
+        height: 30,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: cats.length,
+          separatorBuilder: (_, index) => const SizedBox(width: 6),
+          itemBuilder: (context, i) {
+            final c = cats[i];
+            final on = c == active;
+            return GestureDetector(
+              key: Key('studio-refine-${c.name}'),
+              onTap: () => setState(() => _refineCat = c),
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: on
+                      ? Colors.tealAccent.withValues(alpha: 0.18)
+                      : const Color(0xFF23262C),
+                  border: Border.all(
+                      color: on ? Colors.tealAccent : const Color(0xFF3A3D44)),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(c.label,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: on ? Colors.tealAccent : Colors.white70)),
+              ),
+            );
+          },
+        ),
+      );
+
+  /// The focused control body for one Refine category. Each branch owns exactly
+  /// the controls the old single panel grouped under that heading.
+  List<Widget> _refineBody(_RefineCategory cat) {
+    switch (cat) {
+      case _RefineCategory.finish:
+        return [_finishRow()];
+      case _RefineCategory.layout:
+        return _layoutControls();
+      case _RefineCategory.graphic:
+        return _graphicControls();
+      case _RefineCategory.text:
+        return _textControls();
+      case _RefineCategory.colour:
+        return _colourControls();
+      case _RefineCategory.edges:
+        return _edgeControls();
+      case _RefineCategory.effects:
+        return _effectControls();
+      case _RefineCategory.print:
+        return _printControls();
+    }
+  }
+
+  /// Grid arrangement — Flags subject.
+  List<Widget> _layoutControls() {
+    final comp = _current.composition;
+    return [
+      _fillDropdown(comp),
+      _adjSlider('Copies', comp.copiesPerCountry.toDouble(),
+          (v) => _setComp(comp.copyWith(copiesPerCountry: v.round().clamp(1, 8))),
+          max: 8),
+      _adjSlider(
+          'Scatter', comp.jitter, (v) => _setComp(comp.copyWith(jitter: v))),
+    ];
+  }
+
+  /// Shape / clip / silhouette / passport — the "Graphic" bucket.
+  List<Widget> _graphicControls() {
     final rows = <Widget>[];
     final genre = _subjects[_subjectIndex].$1;
-    final comp = _current.composition;
 
-    rows..add(_sectionLabel('Finish'))..add(_finishRow());
-
-    // Custom text — type your own word for a text (flag-filled letters) subject.
-    if (genre == LabGenre.typography) {
-      final clip = _current.clip;
-      final text = clip?.shapeId == 'text' ? (clip?.text ?? '') : '';
-      rows
-        ..add(_sectionLabel('Text'))
-        ..add(Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: TextFormField(
-            key: const Key('studio-text-input'),
-            initialValue: text,
-            style: const TextStyle(fontSize: 12, color: Colors.white),
-            decoration: const InputDecoration(
-              isDense: true,
-              hintText: 'Your word (ROAM / a name)',
-              hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
-            ),
-            onChanged: (v) {
-              final base = clip?.shapeId == 'text'
-                  ? clip!
-                  : const Clip(shapeId: 'text');
-              _setClip(base.copyWith(text: v));
-            },
-          ),
-        ));
-    }
-
-    if (_subjectIndex == 0) {
-      rows
-        ..add(_sectionLabel('Grid'))
-        ..add(_fillDropdown(comp))
-        ..add(_adjSlider('Copies', comp.copiesPerCountry.toDouble(),
-            (v) => _setComp(comp.copyWith(copiesPerCountry: v.round().clamp(1, 8))),
-            max: 8))
-        ..add(_adjSlider(
-            'Scatter', comp.jitter, (v) => _setComp(comp.copyWith(jitter: v))));
-    }
     if (genre == LabGenre.passport && _current.clip != null) {
       final clip = _current.clip!;
       rows
-        ..add(_sectionLabel('Passport'))
         ..add(_adjSlider('Scatter', clip.scatter,
             (v) => _setClip(clip.copyWith(scatter: v))))
         // Multi = each stamp in its country's flag colours; Mono = a single ink
@@ -648,44 +958,41 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         final value = options.any((o) => o.$2 == silClip.code)
             ? silClip.code
             : options.first.$2;
-        rows
-          ..add(_sectionLabel('Silhouette'))
-          ..add(Row(children: [
-            const SizedBox(
-                width: 82,
-                child: Text('Pick',
-                    style: TextStyle(fontSize: 11, color: Colors.white70))),
-            Expanded(
-              child: DropdownButton<String>(
-                key: const Key('studio-silhouette-pick'),
-                isExpanded: true,
-                value: value,
-                dropdownColor: const Color(0xFF23262C),
-                style: const TextStyle(fontSize: 12, color: Colors.white),
-                items: [
-                  for (final (k, slug) in options)
-                    DropdownMenuItem(
-                        value: slug, child: Text(_silhouetteLabel(k, slug))),
-                ],
-                onChanged: (slug) {
-                  if (slug == null) return;
-                  final kind = options.firstWhere((o) => o.$2 == slug).$1;
-                  _setClip(Clip.shape(kind, code: slug));
-                },
-              ),
+        rows.add(Row(children: [
+          const SizedBox(
+              width: 82,
+              child: Text('Pick',
+                  style: TextStyle(fontSize: 11, color: Colors.white70))),
+          Expanded(
+            child: DropdownButton<String>(
+              key: const Key('studio-silhouette-pick'),
+              isExpanded: true,
+              value: value,
+              dropdownColor: const Color(0xFF23262C),
+              style: const TextStyle(fontSize: 12, color: Colors.white),
+              items: [
+                for (final (k, slug) in options)
+                  DropdownMenuItem(
+                      value: slug, child: Text(_silhouetteLabel(k, slug))),
+              ],
+              onChanged: (slug) {
+                if (slug == null) return;
+                final kind = options.firstWhere((o) => o.$2 == slug).$1;
+                _setClip(Clip.shape(kind, code: slug));
+              },
             ),
-          ]));
+          ),
+        ]));
       }
     }
 
     // Shape transforms for a clipped Detail (map / silhouette / heart / circle /
-    // text) — passport has its own section above.
+    // text) — passport has its own scatter above.
     final clip = _current.clip;
     if (clip != null &&
         clip.shapeId != 'none' &&
         clip.shapeId != 'passportPage') {
       rows
-        ..add(_sectionLabel('Shape'))
         ..add(_adjSlider('Size', clip.scale,
             (v) => _setClip(clip.copyWith(scale: v)),
             min: 0.25, max: 1.4))
@@ -697,91 +1004,112 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         ..add(_adjSlider('Feather', clip.feather,
             (v) => _setClip(clip.copyWith(feather: v))));
     }
+    return rows;
+  }
 
+  /// Custom text — type your own word for a text (flag-filled letters) subject.
+  List<Widget> _textControls() {
+    final clip = _current.clip;
+    final text = clip?.shapeId == 'text' ? (clip?.text ?? '') : '';
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: TextFormField(
+          key: const Key('studio-text-input'),
+          initialValue: text,
+          style: const TextStyle(fontSize: 12, color: Colors.white),
+          decoration: const InputDecoration(
+            isDense: true,
+            hintText: 'Your word (ROAM / a name)',
+            hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+          ),
+          onChanged: (v) {
+            final base =
+                clip?.shapeId == 'text' ? clip! : const Clip(shapeId: 'text');
+            _setClip(base.copyWith(text: v));
+          },
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _colourControls() {
     final pal = _current.palette ?? const Palette();
-    rows
-      ..add(_sectionLabel('Colour'))
-      ..add(_choiceRow(
+    return [
+      _choiceRow(
           'Treatment',
           const ['flagDerived', 'monochrome', 'duotone', 'garmentAware'],
           pal.strategy.name,
           (v) => _applyLive(_current.copyWith(
-              palette: pal.copyWith(strategy: ColourStrategy.fromId(v))))))
-      ..add(_adjSlider('Vintage', pal.vintageGrade,
+              palette: pal.copyWith(strategy: ColourStrategy.fromId(v))))),
+      _adjSlider('Vintage', pal.vintageGrade,
           (v) => _applyLive(
-              _current.copyWith(palette: pal.copyWith(vintageGrade: v)))));
+              _current.copyWith(palette: pal.copyWith(vintageGrade: v)))),
+    ];
+  }
 
-    // Torn / ripped edges. Touching any control opts the design into a torn
-    // edge (materialised from defaults); set Damage to 0 for a clean edge.
+  /// Torn / ripped edges. Touching any control opts the design into a torn edge
+  /// (materialised from defaults); set Damage to 0 for a clean edge.
+  List<Widget> _edgeControls() {
     final edge = _current.edgeTreatment ?? const EdgeTreatment();
-    rows
-      ..add(_sectionLabel('Edges (torn)'))
-      ..add(_choiceRow(
+    return [
+      _choiceRow(
           'Style',
           const ['ragged', 'frayed', 'tornCorners', 'deepRips'],
           edge.style.name,
           (v) => _applyLive(_current.copyWith(
-              edgeTreatment: edge.copyWith(style: TearStyle.fromId(v))))))
-      ..add(_adjSlider('Damage', edge.edgeDamage,
+              edgeTreatment: edge.copyWith(style: TearStyle.fromId(v))))),
+      _adjSlider('Damage', edge.edgeDamage,
           (v) => _applyLive(
-              _current.copyWith(edgeTreatment: edge.copyWith(edgeDamage: v)))))
-      ..add(_adjSlider('Corners', edge.cornerDamage,
+              _current.copyWith(edgeTreatment: edge.copyWith(edgeDamage: v)))),
+      _adjSlider('Corners', edge.cornerDamage,
           (v) => _applyLive(_current.copyWith(
-              edgeTreatment: edge.copyWith(cornerDamage: v)))))
-      ..add(_adjSlider('Fray', edge.frayAmount,
+              edgeTreatment: edge.copyWith(cornerDamage: v)))),
+      _adjSlider('Fray', edge.frayAmount,
           (v) => _applyLive(
-              _current.copyWith(edgeTreatment: edge.copyWith(frayAmount: v)))));
-
-    final fx = _fx;
-    rows
-      ..add(_sectionLabel('Effects'))
-      ..add(_adjSlider('Distress', fx.distress,
-          (v) => _setFx(fx.copyWith(distress: v))))
-      ..add(_adjSlider('Grain', fx.grain, (v) => _setFx(fx.copyWith(grain: v))))
-      ..add(_adjSlider('Fade', fx.fade, (v) => _setFx(fx.copyWith(fade: v))))
-      ..add(_adjSlider('Cracks', fx.cracks, (v) => _setFx(fx.copyWith(cracks: v))))
-      ..add(_adjSlider('Acid wash', fx.acidWash,
-          (v) => _setFx(fx.copyWith(acidWash: v))))
-      ..add(_adjSlider('Tie-dye', fx.tieDye, (v) => _setFx(fx.copyWith(tieDye: v))))
-      ..add(_adjSlider('Shatter', fx.shatter,
-          (v) => _setFx(fx.copyWith(shatter: v))))
-      ..add(_adjSlider('Shatter spikes', fx.shatterSpikes,
-          (v) => _setFx(fx.copyWith(shatterSpikes: v))))
-      ..add(_adjSlider('Halftone', fx.halftone,
-          (v) => _setFx(fx.copyWith(halftone: v))))
-      ..add(_adjSlider('Halftone scale', fx.halftoneScale,
-          (v) => _setFx(fx.copyWith(halftoneScale: v)),
-          min: 2, max: 12))
-      ..add(_adjSlider('Ripple', fx.rippleAmp,
-          (v) => _setFx(fx.copyWith(rippleAmp: v))))
-      ..add(_adjSlider('Ripple freq', fx.rippleFreq,
-          (v) => _setFx(fx.copyWith(rippleFreq: v)),
-          min: 1, max: 16))
-      ..add(_sectionLabel('Print'))
-      ..add(_adjSlider('Riso', fx.riso, (v) => _setFx(fx.copyWith(riso: v))))
-      ..add(_adjSlider('Newsprint', fx.newsprint,
-          (v) => _setFx(fx.copyWith(newsprint: v))))
-      ..add(_adjSlider('Sun-faded', fx.sunFaded,
-          (v) => _setFx(fx.copyWith(sunFaded: v))))
-      ..add(_adjSlider('Photocopy', fx.photocopy,
-          (v) => _setFx(fx.copyWith(photocopy: v))));
-
-    return Container(
-      color: const Color(0xFF16181D),
-      constraints: const BoxConstraints(maxHeight: 220),
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-      child: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: rows),
-      ),
-    );
+              _current.copyWith(edgeTreatment: edge.copyWith(frayAmount: v)))),
+    ];
   }
 
-  Widget _sectionLabel(String s) => Padding(
-        padding: const EdgeInsets.only(top: 6, bottom: 2),
-        child: Text(s.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 10, color: Colors.white38, letterSpacing: 1)),
-      );
+  List<Widget> _effectControls() {
+    final fx = _fx;
+    return [
+      _adjSlider('Distress', fx.distress,
+          (v) => _setFx(fx.copyWith(distress: v))),
+      _adjSlider('Grain', fx.grain, (v) => _setFx(fx.copyWith(grain: v))),
+      _adjSlider('Fade', fx.fade, (v) => _setFx(fx.copyWith(fade: v))),
+      _adjSlider('Cracks', fx.cracks, (v) => _setFx(fx.copyWith(cracks: v))),
+      _adjSlider('Acid wash', fx.acidWash,
+          (v) => _setFx(fx.copyWith(acidWash: v))),
+      _adjSlider('Tie-dye', fx.tieDye, (v) => _setFx(fx.copyWith(tieDye: v))),
+      _adjSlider('Shatter', fx.shatter, (v) => _setFx(fx.copyWith(shatter: v))),
+      _adjSlider('Shatter spikes', fx.shatterSpikes,
+          (v) => _setFx(fx.copyWith(shatterSpikes: v))),
+      _adjSlider('Halftone', fx.halftone,
+          (v) => _setFx(fx.copyWith(halftone: v))),
+      _adjSlider('Halftone scale', fx.halftoneScale,
+          (v) => _setFx(fx.copyWith(halftoneScale: v)),
+          min: 2, max: 12),
+      _adjSlider('Ripple', fx.rippleAmp,
+          (v) => _setFx(fx.copyWith(rippleAmp: v))),
+      _adjSlider('Ripple freq', fx.rippleFreq,
+          (v) => _setFx(fx.copyWith(rippleFreq: v)),
+          min: 1, max: 16),
+    ];
+  }
+
+  List<Widget> _printControls() {
+    final fx = _fx;
+    return [
+      _adjSlider('Riso', fx.riso, (v) => _setFx(fx.copyWith(riso: v))),
+      _adjSlider('Newsprint', fx.newsprint,
+          (v) => _setFx(fx.copyWith(newsprint: v))),
+      _adjSlider('Sun-faded', fx.sunFaded,
+          (v) => _setFx(fx.copyWith(sunFaded: v))),
+      _adjSlider('Photocopy', fx.photocopy,
+          (v) => _setFx(fx.copyWith(photocopy: v))),
+    ];
+  }
 
   Widget _adjSlider(String label, double value, ValueChanged<double> onChanged,
           {double min = 0.0, double max = 1.0}) =>
@@ -907,9 +1235,42 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               _onBack = true;
             });
           }),
+          // Storyboard "Start from Front theme": re-derive the back so it shares
+          // the front's current theme again (available only while on the Back).
+          if (_onBack) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              key: const Key('studio-sync-back'),
+              onTap: _syncBackToFront,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF23262C),
+                  border: Border.all(color: const Color(0xFF3A3D44)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.sync, size: 13, color: Colors.white70),
+                  SizedBox(width: 4),
+                  Text('Sync to front',
+                      style: TextStyle(fontSize: 11, color: Colors.white70)),
+                ]),
+              ),
+            ),
+          ],
         ]),
       ),
     );
+  }
+
+  /// Re-derive the Back from the Front's current theme (storyboard "Start from
+  /// Front theme") — a fresh complementary back that matches an evolved front.
+  void _syncBackToFront() {
+    setState(() {
+      _back = GarmentDesign.deriveBack(_front,
+          themeSeed: _front.seed,
+          garmentColour: _front.palette?.garmentColour);
+    });
   }
 
   Widget _miniLabel(String s) => Padding(
@@ -996,6 +1357,129 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   static String _labelFor(DesignAxis a) =>
       _deck.firstWhere((e) => e.$1 == a).$2;
 
+  /// The "Pick a Vibe" tray — 13 NAMED style thumbnails (the current design in
+  /// each [LabStyle]), the storyboard's signature "primary choices feel creative
+  /// and visual" step. The current style is highlighted; tapping restyles live.
+  Widget _vibeStyleTray() {
+    final options = _vibeStyleOptions();
+    final current = _currentStyle;
+    return Container(
+      color: const Color(0xFF1A1D22),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Pick a vibe  ·  tap a style',
+              style: TextStyle(fontSize: 11, color: Colors.white54)),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 116,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: options.length,
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final (style, styled) = options[i];
+                final on = style == current;
+                return GestureDetector(
+                  key: Key('studio-vibe-${style.name}'),
+                  onTap: () => _onStyleTap(style, styled),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: on
+                                  ? Colors.tealAccent
+                                  : const Color(0xFF2A2D33),
+                              width: on ? 2 : 1),
+                          color: const Color(0xFFF2F2F2),
+                        ),
+                        child: _HeroCanvas(
+                          service: widget.service,
+                          recipe: styled,
+                          longSide: 84,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(style.label,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  on ? Colors.tealAccent : Colors.white60)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The "Add your words" editor (storyboard step 5): an editable printed-title
+  /// field plus tappable AI/offline title suggestions. Editing is live; "Suggest
+  /// titles" regenerates the ideas.
+  Widget _wordsPanel() {
+    return Container(
+      color: const Color(0xFF1A1D22),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Add your words  ·  your story in words',
+              style: TextStyle(fontSize: 11, color: Colors.white54)),
+          const SizedBox(height: 6),
+          Row(children: [
+            Expanded(
+              child: TextFormField(
+                key: const Key('studio-title-input'),
+                initialValue: _currentTitle,
+                style: const TextStyle(fontSize: 13, color: Colors.white),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Your title (e.g. WANDERED FAR & WIDE)',
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+                onChanged: _setTitle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              key: const Key('studio-suggest-titles'),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: const Text('Suggest', style: TextStyle(fontSize: 12)),
+              onPressed: () => setState(() => _titleIdeas = _titleSuggestions()),
+            ),
+          ]),
+          if (_titleIdeas.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (var i = 0; i < _titleIdeas.length; i++)
+                  ActionChip(
+                    key: Key('studio-title-idea-$i'),
+                    label: Text(_titleIdeas[i],
+                        style: const TextStyle(fontSize: 11)),
+                    onPressed: () => _setTitle(_titleIdeas[i]),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _alternativesTray() {
     final axis = _activeAxis!;
     return Container(
@@ -1061,23 +1545,52 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   }
 
   Widget _decisionDeck() {
+    // The three-phase spine (Instant → Make It Yours → Fine Tune): the hero above
+    // is the Instant design; this deck is Make It Yours; the Fine-tune (Refine)
+    // button opens the deeper controls. Labelling it keeps the creative choices
+    // reading as a guided journey rather than a flat control row.
     return Container(
       color: const Color(0xFF16181D),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          for (final (axis, label, icon) in _deck)
-            _AxisChip(
-              key: Key('studio-chip-${axis.key}'),
-              label: axis == DesignAxis.direction ? _subjectLabel : label,
-              icon: icon,
-              locked: _locked.contains(axis),
-              active: _activeAxis == axis,
-              onTap: () => _onChipTap(axis),
-              onToggleLock: () => _toggleLock(axis),
+          Row(children: [
+            const Text('MAKE IT YOURS',
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white38,
+                    letterSpacing: 1.5)),
+            const Spacer(),
+            TextButton.icon(
+              key: const Key('studio-finetune'),
+              icon: const Icon(Icons.tune, size: 15),
+              label: const Text('Fine tune', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor:
+                      _showAdjust ? Colors.tealAccent : Colors.white54),
+              onPressed: () => setState(() => _showAdjust = !_showAdjust),
             ),
+          ]),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (axis, label, icon) in _deck)
+                _AxisChip(
+                  key: Key('studio-chip-${axis.key}'),
+                  label: axis == DesignAxis.direction ? _subjectLabel : label,
+                  icon: icon,
+                  locked: _locked.contains(axis),
+                  active: _activeAxis == axis,
+                  onTap: () => _onChipTap(axis),
+                  onToggleLock: () => _toggleLock(axis),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -1087,6 +1600,24 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 /// The shape a Flags design fills — the "Detail" sub-step under the Flags
 /// subject (Grid = plain flags; the rest are clipped).
 enum _StudioDetail { grid, map, animals, plants, landmarks, heart, circle }
+
+/// The Refine ("Fine Tune") categories — the storyboard's category menu. Each
+/// groups a contextual slice of the Tier-3 control set so advanced controls are
+/// disclosed by category rather than as one long, always-cluttering panel.
+enum _RefineCategory { finish, layout, graphic, text, colour, edges, effects, print }
+
+extension _RefineCategoryLabel on _RefineCategory {
+  String get label => switch (this) {
+        _RefineCategory.finish => 'Finish',
+        _RefineCategory.layout => 'Layout',
+        _RefineCategory.graphic => 'Graphic',
+        _RefineCategory.text => 'Text',
+        _RefineCategory.colour => 'Colour',
+        _RefineCategory.edges => 'Edges',
+        _RefineCategory.effects => 'Effects',
+        _RefineCategory.print => 'Print',
+      };
+}
 
 /// A decision-deck chip: tap re-rolls its axis; long-press (or the lock badge)
 /// pins it. The badge doubles as the lock-state indicator.

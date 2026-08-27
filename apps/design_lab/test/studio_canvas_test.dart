@@ -178,6 +178,10 @@ void main() {
     expect(find.byKey(const Key('studio-adjust-fill')), findsNothing);
     await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
     await tester.pump();
+    // Grid fill lives under the Layout Refine category.
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-layout')));
+    await tester.tap(find.byKey(const Key('studio-refine-layout')));
+    await tester.pump();
     expect(find.byKey(const Key('studio-adjust-fill')), findsOneWidget);
 
     // Change the grid fill algorithm and confirm it lands on the recipe.
@@ -263,11 +267,149 @@ void main() {
     }
     await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
     await tester.pump();
+    // Custom text lives under the Text Refine category.
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-text')));
+    await tester.tap(find.byKey(const Key('studio-refine-text')));
+    await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('studio-text-input')));
     await tester.enterText(find.byKey(const Key('studio-text-input')), 'WANDER');
     await tester.pump();
     expect(state.currentRecipe.clip?.shapeId, 'text');
     expect(state.currentRecipe.clip?.text, 'WANDER');
+  });
+
+  testWidgets('(r) Make-It-Yours deck has a Fine-tune entry to Refine',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await pumpScreen(tester, key);
+
+    // The creative deck reads as the guided "Make it yours" phase…
+    expect(find.text('MAKE IT YOURS'), findsOneWidget);
+    // …with a Fine-tune entry that opens the Refine panel.
+    expect(find.byKey(const Key('studio-refine-finish')), findsNothing);
+    await tester.tap(find.byKey(const Key('studio-finetune')));
+    await tester.pump();
+    expect(find.byKey(const Key('studio-refine-finish')), findsOneWidget);
+  });
+
+  testWidgets('(q) Sync-to-front re-derives the Back from the Front theme',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Flip to the Back and give it its own garment colour.
+    await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
+    await tester.tap(find.byKey(const Key('studio-side-back')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('studio-garment-Olive')));
+    await tester.tap(find.byKey(const Key('studio-garment-Olive')));
+    await tester.pump();
+    expect(state.currentRecipe.palette?.garmentColour, '#6B7350');
+
+    // Sync to front re-derives the back → it inherits the front's garment again.
+    await tester.ensureVisible(find.byKey(const Key('studio-sync-back')));
+    await tester.tap(find.byKey(const Key('studio-sync-back')));
+    await tester.pump();
+    expect(state.currentRecipe.palette?.garmentColour, isNot('#6B7350'));
+  });
+
+  testWidgets('(p) Review sheet shows a spec summary and saves to library',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    await tester.tap(find.byKey(const Key('studio-review')));
+    // The thumbnails' hero spinner never settles, so pump a couple of frames
+    // rather than pumpAndSettle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Summary sheet: title, front/back previews, spec chips, and both actions.
+    expect(find.text('Review & save'), findsOneWidget);
+    // 'Front'/'Back' also label the Side pills, so just assert they're present.
+    expect(find.text('Front'), findsWidgets);
+    expect(find.text('Back'), findsWidgets);
+    expect(find.text('1 country'), findsOneWidget);
+    // Add-to-cart is an explicit disabled placeholder (commerce = mobile/M1).
+    final cart = tester.widget<OutlinedButton>(
+        find.byKey(const Key('studio-review-cart')));
+    expect(cart.onPressed, isNull);
+
+    // Save to library commits a like and closes the sheet.
+    await tester.tap(find.byKey(const Key('studio-review-save')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Review & save'), findsNothing);
+    expect(state.currentRecipe, isNotNull);
+  });
+
+  testWidgets('(o) Words opens a title editor that edits the printed title',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Tapping Words opens the editor (not a blind re-roll) with a Suggest action.
+    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.words.key}')));
+    await tester.pump();
+    expect(find.byKey(const Key('studio-title-input')), findsOneWidget);
+    expect(find.byKey(const Key('studio-suggest-titles')), findsOneWidget);
+
+    // Typing sets the printed title (content.meta['title']).
+    await tester.enterText(
+        find.byKey(const Key('studio-title-input')), 'ONE JOURNEY');
+    await tester.pump();
+    expect(state.currentRecipe.content.meta['title'], 'ONE JOURNEY');
+  });
+
+  testWidgets('(n) Vibe opens a named style tray; picking one restyles live',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Tapping Vibe surfaces the named "Pick a vibe" tray (13 labelled styles),
+    // not an anonymous re-roll strip.
+    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.vibe.key}')));
+    await tester.pump();
+    expect(find.text('Pick a vibe  ·  tap a style'), findsOneWidget);
+    // (The tray is a lazy horizontal list; grunge is in the built range.)
+    expect(find.byKey(const Key('studio-vibe-grunge')), findsOneWidget);
+
+    // Pick a specific named style → it commits and the design now wears it.
+    final before = state.currentRecipe.recipeId;
+    await tester.ensureVisible(find.byKey(const Key('studio-vibe-grunge')));
+    await tester.tap(find.byKey(const Key('studio-vibe-grunge')));
+    await tester.pump();
+    expect(state.currentRecipe.recipeId, isNot(before));
+    expect(state.currentRecipe.provenance?.generator, 'lab:grunge');
+  });
+
+  testWidgets('(m) Refine opens a category menu; switching category swaps body',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await pumpScreen(tester, key);
+
+    await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+
+    // Universal categories are always offered; the body is focused (one category
+    // at a time), so the Effects "Grain" slider is hidden until Effects is
+    // selected. (Labels like Distress/Riso are avoided here as they double as
+    // Finish preset chips.)
+    expect(find.byKey(const Key('studio-refine-finish')), findsOneWidget);
+    expect(find.byKey(const Key('studio-refine-effects')), findsOneWidget);
+    expect(find.text('Grain'), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-effects')));
+    await tester.tap(find.byKey(const Key('studio-refine-effects')));
+    await tester.pump();
+    expect(find.text('Grain'), findsOneWidget);
+
+    // Print is its own category (contains the ported print effects).
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-print')));
+    await tester.tap(find.byKey(const Key('studio-refine-print')));
+    await tester.pump();
+    expect(find.text('Newsprint'), findsOneWidget);
+    expect(find.text('Grain'), findsNothing);
   });
 
   testWidgets('(l) silhouette picker lists all kinds for selected countries',
@@ -298,6 +440,10 @@ void main() {
     await tester.tap(find.byKey(const Key('studio-detail-animals')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+    // The silhouette picker lives under the Graphic Refine category.
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-graphic')));
+    await tester.tap(find.byKey(const Key('studio-refine-graphic')));
     await tester.pump();
     expect(find.byKey(const Key('studio-silhouette-pick')), findsOneWidget);
 

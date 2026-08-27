@@ -101,8 +101,10 @@ void main() {
     final key = GlobalKey<StudioCanvasScreenState>();
     final state = await pumpScreen(tester, key);
 
-    // Populate the alternatives tray by touching an axis.
-    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.vibe.key}')));
+    // Populate the generic alternatives tray by touching an axis. (Vibe now uses
+    // a named style tray without per-tile dismiss, so use Focus for the reject
+    // affordance.)
+    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.focus.key}')));
     await tester.pump();
     expect(state.alternatives, isNotEmpty);
 
