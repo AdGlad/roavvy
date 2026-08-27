@@ -185,6 +185,7 @@ class Clip {
     this.position,
     this.scatter = 0.5,
     this.ink,
+    this.stampMode,
   });
 
   /// Convenience for the built-in [ClipShape] enum shapes.
@@ -200,6 +201,7 @@ class Clip {
     this.position,
     this.scatter = 0.5,
     this.ink,
+    this.stampMode,
   }) : shapeId = shape.id;
 
   /// Catalog id, e.g. 'circle', 'hexagon', 'luggageTag', 'text', 'countryOutline'.
@@ -238,6 +240,10 @@ class Clip {
   /// flag; 'black' / 'white' = plain solid ink on transparent (a real stamp).
   final String? ink;
 
+  /// Passport: which stamp(s) to show — null/'entryExit' = both, 'entryOnly' /
+  /// 'exitOnly' = just one (was the mobile `stampMode`).
+  final String? stampMode;
+
   /// The [ClipShape] enum for asset-backed shapes, or null for procedural/text.
   ClipShape get resolverShape => ClipShape.fromId(shapeId);
 
@@ -256,6 +262,7 @@ class Clip {
         if (position != null) 'position': position!.toJson(),
         if (scatter != 0.5) 'scatter': scatter,
         if (ink != null) 'ink': ink,
+        if (stampMode != null) 'stampMode': stampMode,
       };
 
   factory Clip.fromJson(Map<String, Object?> j) => Clip(
@@ -273,6 +280,36 @@ class Clip {
             : Placement.fromJson((j['position'] as Map).cast<String, Object?>()),
         scatter: (j['scatter'] as num?)?.toDouble() ?? 0.5,
         ink: j['ink'] as String?,
+        stampMode: j['stampMode'] as String?,
+      );
+
+  Clip copyWith({
+    String? shapeId,
+    String? code,
+    String? text,
+    double? scale,
+    double? rotationDeg,
+    double? aspectRatio,
+    double? cornerRadius,
+    double? feather,
+    Placement? position,
+    double? scatter,
+    String? ink,
+    String? stampMode,
+  }) =>
+      Clip(
+        shapeId: shapeId ?? this.shapeId,
+        code: code ?? this.code,
+        text: text ?? this.text,
+        scale: scale ?? this.scale,
+        rotationDeg: rotationDeg ?? this.rotationDeg,
+        aspectRatio: aspectRatio ?? this.aspectRatio,
+        cornerRadius: cornerRadius ?? this.cornerRadius,
+        feather: feather ?? this.feather,
+        position: position ?? this.position,
+        scatter: scatter ?? this.scatter,
+        ink: ink ?? this.ink,
+        stampMode: stampMode ?? this.stampMode,
       );
 }
 
@@ -335,6 +372,23 @@ class EdgeTreatment {
         cornerDamage: (j['cornerDamage'] as num?)?.toDouble() ?? 0.3,
         asymmetry: (j['asymmetry'] as num?)?.toDouble() ?? 0.5,
       );
+
+  EdgeTreatment copyWith({
+    TearStyle? style,
+    double? edgeDamage,
+    double? maxDepth,
+    double? frayAmount,
+    double? cornerDamage,
+    double? asymmetry,
+  }) =>
+      EdgeTreatment(
+        style: style ?? this.style,
+        edgeDamage: edgeDamage ?? this.edgeDamage,
+        maxDepth: maxDepth ?? this.maxDepth,
+        frayAmount: frayAmount ?? this.frayAmount,
+        cornerDamage: cornerDamage ?? this.cornerDamage,
+        asymmetry: asymmetry ?? this.asymmetry,
+      );
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +416,8 @@ class Palette {
     this.strategy = ColourStrategy.flagDerived,
     this.accents = const [],
     this.vintageGrade = 0.0,
+    this.contrastInk = false,
+    this.adaptiveInk,
   });
 
   final String? garmentColour;
@@ -369,11 +425,26 @@ class Palette {
   final List<String> accents;
   final double vintageGrade;
 
+  /// Marks this design's ink as ADAPTIVE — re-inked for garment contrast under
+  /// [ColourStrategy.garmentAware]. The renderer already treats text/typographic
+  /// and solid passport-stamp ink as adaptive from the recipe structure; set this
+  /// for line-art/outline/silhouette designs whose ink is not flag-derived and
+  /// which the structural heuristic can't otherwise detect. Append-only.
+  final bool contrastInk;
+
+  /// Optional explicit adaptive-ink colour (hex `#rrggbb` or `#aarrggbb`). When
+  /// set, [ColourStrategy.garmentAware] recolours adaptive ink to this exact
+  /// colour instead of the auto-computed near-black/near-white contrast tone.
+  /// Append-only.
+  final String? adaptiveInk;
+
   Map<String, Object?> toJson() => {
         if (garmentColour != null) 'garmentColour': garmentColour,
         'strategy': strategy.name,
         if (accents.isNotEmpty) 'accents': accents,
         if (vintageGrade != 0.0) 'vintageGrade': vintageGrade,
+        if (contrastInk) 'contrastInk': contrastInk,
+        if (adaptiveInk != null) 'adaptiveInk': adaptiveInk,
       };
 
   factory Palette.fromJson(Map<String, Object?> j) => Palette(
@@ -381,6 +452,25 @@ class Palette {
         strategy: ColourStrategy.fromId(j['strategy'] as String?),
         accents: [for (final a in (j['accents'] as List? ?? const [])) a as String],
         vintageGrade: (j['vintageGrade'] as num?)?.toDouble() ?? 0.0,
+        contrastInk: (j['contrastInk'] as bool?) ?? false,
+        adaptiveInk: j['adaptiveInk'] as String?,
+      );
+
+  Palette copyWith({
+    String? garmentColour,
+    ColourStrategy? strategy,
+    List<String>? accents,
+    double? vintageGrade,
+    bool? contrastInk,
+    String? adaptiveInk,
+  }) =>
+      Palette(
+        garmentColour: garmentColour ?? this.garmentColour,
+        strategy: strategy ?? this.strategy,
+        accents: accents ?? this.accents,
+        vintageGrade: vintageGrade ?? this.vintageGrade,
+        contrastInk: contrastInk ?? this.contrastInk,
+        adaptiveInk: adaptiveInk ?? this.adaptiveInk,
       );
 }
 
@@ -404,6 +494,10 @@ class Effects {
     this.tieDye = 0.0,
     this.shatter = 0.0,
     this.shatterSpikes = 0.0,
+    this.riso = 0.0,
+    this.newsprint = 0.0,
+    this.sunFaded = 0.0,
+    this.photocopy = 0.0,
   });
 
   final double distress;
@@ -431,6 +525,18 @@ class Effects {
   /// 1 → dense ~40). Ignored when [shatter] is 0.
   final double shatterSpikes;
 
+  /// Riso-print look: misregistered duotone with grain (0 = off, 1 = full).
+  final double riso;
+
+  /// Newsprint look: coarse halftone dot screen + paper tint (0 = off).
+  final double newsprint;
+
+  /// Sun-faded look: desaturate + warm highlight lift (0 = off).
+  final double sunFaded;
+
+  /// Photocopy look: high-contrast threshold + toner speckle (0 = off).
+  final double photocopy;
+
   bool get isIdentity =>
       distress == 0 &&
       grain == 0 &&
@@ -440,7 +546,11 @@ class Effects {
       rippleAmp == 0 &&
       acidWash == 0 &&
       tieDye == 0 &&
-      shatter == 0;
+      shatter == 0 &&
+      riso == 0 &&
+      newsprint == 0 &&
+      sunFaded == 0 &&
+      photocopy == 0;
 
   Map<String, Object?> toJson() => {
         if (distress != 0.0) 'distress': distress,
@@ -458,6 +568,10 @@ class Effects {
         if (tieDye != 0.0) 'tieDye': tieDye,
         if (shatter != 0.0) 'shatter': shatter,
         if (shatter != 0.0 && shatterSpikes != 0.0) 'shatterSpikes': shatterSpikes,
+        if (riso != 0.0) 'riso': riso,
+        if (newsprint != 0.0) 'newsprint': newsprint,
+        if (sunFaded != 0.0) 'sunFaded': sunFaded,
+        if (photocopy != 0.0) 'photocopy': photocopy,
       };
 
   factory Effects.fromJson(Map<String, Object?> j) => Effects(
@@ -475,6 +589,51 @@ class Effects {
         tieDye: (j['tieDye'] as num?)?.toDouble() ?? 0.0,
         shatter: (j['shatter'] as num?)?.toDouble() ?? 0.0,
         shatterSpikes: (j['shatterSpikes'] as num?)?.toDouble() ?? 0.0,
+        riso: (j['riso'] as num?)?.toDouble() ?? 0.0,
+        newsprint: (j['newsprint'] as num?)?.toDouble() ?? 0.0,
+        sunFaded: (j['sunFaded'] as num?)?.toDouble() ?? 0.0,
+        photocopy: (j['photocopy'] as num?)?.toDouble() ?? 0.0,
+      );
+
+  Effects copyWith({
+    double? distress,
+    double? distressHardness,
+    double? grain,
+    double? fade,
+    double? cracks,
+    double? halftone,
+    double? halftoneScale,
+    double? halftoneAngle,
+    double? rippleAmp,
+    double? rippleFreq,
+    double? acidWash,
+    double? tieDye,
+    double? shatter,
+    double? shatterSpikes,
+    double? riso,
+    double? newsprint,
+    double? sunFaded,
+    double? photocopy,
+  }) =>
+      Effects(
+        distress: distress ?? this.distress,
+        distressHardness: distressHardness ?? this.distressHardness,
+        grain: grain ?? this.grain,
+        fade: fade ?? this.fade,
+        cracks: cracks ?? this.cracks,
+        halftone: halftone ?? this.halftone,
+        halftoneScale: halftoneScale ?? this.halftoneScale,
+        halftoneAngle: halftoneAngle ?? this.halftoneAngle,
+        rippleAmp: rippleAmp ?? this.rippleAmp,
+        rippleFreq: rippleFreq ?? this.rippleFreq,
+        acidWash: acidWash ?? this.acidWash,
+        tieDye: tieDye ?? this.tieDye,
+        shatter: shatter ?? this.shatter,
+        shatterSpikes: shatterSpikes ?? this.shatterSpikes,
+        riso: riso ?? this.riso,
+        newsprint: newsprint ?? this.newsprint,
+        sunFaded: sunFaded ?? this.sunFaded,
+        photocopy: photocopy ?? this.photocopy,
       );
 }
 

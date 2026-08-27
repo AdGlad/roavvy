@@ -1,4 +1,5 @@
 import 'canonical_json.dart';
+import 'design_axis.dart';
 import 'recipe_parts.dart';
 import 'versions.dart';
 
@@ -147,6 +148,28 @@ class RecipeContent {
       );
 }
 
+/// Overall artwork footprint on the garment (was the mobile `ImageSize`). The
+/// [scale] getter maps to a fraction of the print area the artwork fills.
+enum SizeClass {
+  small,
+  medium,
+  large;
+
+  /// Artwork footprint as a fraction of the frame's limiting dimension.
+  double get scale => switch (this) {
+        SizeClass.small => 0.75,
+        SizeClass.medium => 0.9,
+        SizeClass.large => 1.0,
+      };
+
+  static SizeClass fromId(String? id) {
+    for (final v in SizeClass.values) {
+      if (v.name == id) return v;
+    }
+    return SizeClass.medium;
+  }
+}
+
 /// The macro layout skeleton.
 class Composition {
   const Composition({
@@ -158,6 +181,9 @@ class Composition {
     this.density = Density.balanced,
     this.jitter = 0.0,
     this.placement,
+    this.copiesPerCountry = 1,
+    this.statementHero = false,
+    this.sizeClass = SizeClass.medium,
   });
 
   final DesignFamily family;
@@ -173,6 +199,17 @@ class Composition {
   final double jitter;
   final Placement? placement;
 
+  /// How many times each country's flag is repeated into the layout (was the
+  /// mobile `flagRepeatCount`). 1 = one instance per country.
+  final int copiesPerCountry;
+
+  /// Typographic path: lead with the traveller's COUNT as a bold hero (was the
+  /// mobile `statementHero`) instead of a list of names.
+  final bool statementHero;
+
+  /// Overall artwork footprint (was the mobile `ImageSize`).
+  final SizeClass sizeClass;
+
   Map<String, Object?> toJson() => {
         'family': family.id,
         'orientation': orientation.name,
@@ -182,6 +219,9 @@ class Composition {
         if (density != Density.balanced) 'density': density.name,
         if (jitter != 0.0) 'jitter': jitter,
         if (placement != null) 'placement': placement!.toJson(),
+        if (copiesPerCountry != 1) 'copiesPerCountry': copiesPerCountry,
+        if (statementHero) 'statementHero': statementHero,
+        if (sizeClass != SizeClass.medium) 'sizeClass': sizeClass.name,
       };
 
   factory Composition.fromJson(Map<String, Object?> json) => Composition(
@@ -200,6 +240,36 @@ class Composition {
             ? null
             : Placement.fromJson(
                 (json['placement'] as Map).cast<String, Object?>()),
+        copiesPerCountry: (json['copiesPerCountry'] as num?)?.toInt() ?? 1,
+        statementHero: (json['statementHero'] as bool?) ?? false,
+        sizeClass: SizeClass.fromId(json['sizeClass'] as String?),
+      );
+
+  Composition copyWith({
+    DesignFamily? family,
+    Orientation? orientation,
+    LayoutMode? layoutMode,
+    FillAlgorithm? fillAlgorithm,
+    int? rowCount,
+    Density? density,
+    double? jitter,
+    Placement? placement,
+    int? copiesPerCountry,
+    bool? statementHero,
+    SizeClass? sizeClass,
+  }) =>
+      Composition(
+        family: family ?? this.family,
+        orientation: orientation ?? this.orientation,
+        layoutMode: layoutMode ?? this.layoutMode,
+        fillAlgorithm: fillAlgorithm ?? this.fillAlgorithm,
+        rowCount: rowCount ?? this.rowCount,
+        density: density ?? this.density,
+        jitter: jitter ?? this.jitter,
+        placement: placement ?? this.placement,
+        copiesPerCountry: copiesPerCountry ?? this.copiesPerCountry,
+        statementHero: statementHero ?? this.statementHero,
+        sizeClass: sizeClass ?? this.sizeClass,
       );
 }
 
@@ -261,6 +331,7 @@ class DesignRecipe {
     this.effects,
     this.typography,
     this.motifs = const [],
+    this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
     this.engineVersion = kEngineVersion,
     this.grammarVersion = kGrammarVersion,
@@ -289,7 +360,17 @@ class DesignRecipe {
   final Typography? typography;
   final List<Motif> motifs;
 
+  /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
+  /// untouched recipe derives every axis from the master [seed] and therefore
+  /// reproduces its original output exactly. Setting one axis's seed re-rolls
+  /// only that axis (see `LabShowcaseGenerator.reroll`). Included in the content
+  /// hash and JSON so a re-rolled recipe has a distinct, reproducible id.
+  final Map<String, int> axisSeeds;
+
   final RecipeProvenance? provenance;
+
+  /// The effective seed for [axis]: its per-axis override if set, else [seed].
+  int seedForAxis(DesignAxis axis) => axisSeeds[axis.key] ?? seed;
 
   /// The fields that define the artwork — everything the hash covers.
   Map<String, Object?> _hashableJson() => {
@@ -308,6 +389,9 @@ class DesignRecipe {
         if (typography != null) 'typography': typography!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
+        // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
+        // are canonically sorted by the encoder.
+        if (axisSeeds.isNotEmpty) 'axisSeeds': {...axisSeeds},
       };
 
   /// Stable content hash of the design (excludes [provenance] and [recipeId]).
@@ -339,6 +423,10 @@ class DesignRecipe {
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
         ],
+        axisSeeds: {
+          for (final e in ((json['axisSeeds'] as Map?) ?? const {}).entries)
+            e.key.toString(): (e.value as num).toInt(),
+        },
         provenance: _obj(json['provenance'], RecipeProvenance.fromJson),
       );
 
@@ -353,6 +441,7 @@ class DesignRecipe {
     Effects? effects,
     Typography? typography,
     List<Motif>? motifs,
+    Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
   }) =>
       DesignRecipe(
@@ -366,6 +455,7 @@ class DesignRecipe {
         effects: effects ?? this.effects,
         typography: typography ?? this.typography,
         motifs: motifs ?? this.motifs,
+        axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,
         engineVersion: engineVersion,
         grammarVersion: grammarVersion,

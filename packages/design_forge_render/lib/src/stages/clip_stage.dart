@@ -35,7 +35,7 @@ class ClipStage extends RenderStage {
     // flag and stamped with the trip DATE, scattered on the page. It replaces the
     // artwork rather than masking it.
     if (meta.resolverKind == ClipShape.passportPage) {
-      final stamps = _parsePassportTrips(clip.code ?? '');
+      final stamps = _parsePassportTrips(clip.code ?? '', clip.stampMode);
       if (stamps.isEmpty) return;
       final collage = await ctx.assets.resolvePassportCollage(
         stamps,
@@ -97,7 +97,12 @@ class ClipStage extends RenderStage {
   /// Parse a passport-page code into per-trip entry/exit stamp refs. Format is
   /// `cc|ENTRY|EXIT` segments joined by `;` (a country may repeat for multiple
   /// trips); a legacy plain `cc,cc,cc` list (no dates) is also accepted.
-  List<PassportStampRef> _parsePassportTrips(String code) {
+  ///
+  /// [mode] (the mobile `stampMode`) selects which stamps to emit: null/
+  /// 'entryExit' = both, 'entryOnly' = arrival only, 'exitOnly' = departure only.
+  List<PassportStampRef> _parsePassportTrips(String code, String? mode) {
+    final wantEntry = mode != 'exitOnly';
+    final wantExit = mode != 'entryOnly';
     final out = <PassportStampRef>[];
     for (final seg in code.split(';')) {
       final s = seg.trim();
@@ -112,8 +117,8 @@ class ClipStage extends RenderStage {
       for (final cc in parts[0].split(',')) {
         final c = cc.trim().toLowerCase();
         if (c.isEmpty) continue;
-        out.add(PassportStampRef('${c}_entry', entry));
-        out.add(PassportStampRef('${c}_exit', exit));
+        if (wantEntry) out.add(PassportStampRef('${c}_entry', entry));
+        if (wantExit) out.add(PassportStampRef('${c}_exit', exit));
       }
     }
     return out;

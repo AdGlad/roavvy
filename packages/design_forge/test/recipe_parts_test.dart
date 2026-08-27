@@ -138,5 +138,26 @@ void main() {
           ClipShape.passportStampOutline);
       expect(clipShapeMetaById('passportPage')!.resolverKind, ClipShape.passportPage);
     });
+
+    test('Palette carries garment-aware adaptive-ink fields through JSON', () {
+      const p = Palette(
+        garmentColour: '#101010',
+        strategy: ColourStrategy.garmentAware,
+        contrastInk: true,
+        adaptiveInk: '#f5f5f5',
+      );
+      final back = Palette.fromJson(p.toJson());
+      expect(back.strategy, ColourStrategy.garmentAware);
+      expect(back.garmentColour, '#101010');
+      expect(back.contrastInk, isTrue);
+      expect(back.adaptiveInk, '#f5f5f5');
+      // Defaults are omitted from JSON and restored.
+      const plain = Palette();
+      expect(plain.toJson().containsKey('contrastInk'), isFalse);
+      expect(plain.toJson().containsKey('adaptiveInk'), isFalse);
+      final plainBack = Palette.fromJson(plain.toJson());
+      expect(plainBack.contrastInk, isFalse);
+      expect(plainBack.adaptiveInk, isNull);
+    });
   });
 }

@@ -28,8 +28,15 @@ class CompositionStage extends RenderStage {
       return;
     }
 
-    final flags = recipe.content.flags;
-    if (flags.isEmpty) return;
+    final baseFlags = recipe.content.flags;
+    if (baseFlags.isEmpty) return;
+
+    // Repeat each country's flag `copiesPerCountry` times into the layout
+    // (was the mobile `flagRepeatCount`). >1 always forces the multi-flag grid.
+    final copies = recipe.composition.copiesPerCountry.clamp(1, 64);
+    final flags = copies > 1
+        ? [for (final f in baseFlags) for (var i = 0; i < copies; i++) f]
+        : baseFlags;
 
     final w = ctx.width.toDouble();
     final h = ctx.height.toDouble();
@@ -49,8 +56,9 @@ class CompositionStage extends RenderStage {
     }
 
     final combo = recipe.flagCombination;
-    final isSingle =
-        flags.length == 1 || recipe.composition.family == DesignFamily.singleHero;
+    final isSingle = copies <= 1 &&
+        (baseFlags.length == 1 ||
+            recipe.composition.family == DesignFamily.singleHero);
 
     // Bleed to the frame when a clip or torn edge will carve the outline.
     final bleed = recipe.edgeTreatment != null || recipe.clip != null;
