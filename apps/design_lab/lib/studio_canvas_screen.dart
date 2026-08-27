@@ -98,7 +98,20 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     (DesignAxis.words, 'Words', Icons.title),
   ];
 
-  late DesignRecipe _current;
+  /// Front + back recipes. [_current] is a view onto whichever side is active,
+  /// so every existing mutator edits the visible side. The back is materialised
+  /// (via [GarmentDesign.deriveBack]) the first time it's viewed.
+  late DesignRecipe _front;
+  DesignRecipe? _back;
+  DesignRecipe get _current => _onBack ? _back! : _front;
+  set _current(DesignRecipe v) {
+    if (_onBack) {
+      _back = v;
+    } else {
+      _front = v;
+    }
+  }
+
   final List<DesignRecipe> _history = [];
   final Set<DesignAxis> _locked = {};
 
@@ -134,16 +147,12 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// Whether the contextual Adjust panel (Tier-3 form controls) is open.
   bool _showAdjust = false;
 
-  /// Front/Back view. `_current` is always the FRONT; the Back is a complementary
-  /// design derived from it (shared theme/palette) — see [_heroRecipe].
+  /// Front/Back view. The Back is a complementary design derived from the front
+  /// (shared theme/palette) on first view, then independently editable.
   bool _onBack = false;
 
-  /// The recipe shown in the hero: the front, or its derived complementary back.
-  DesignRecipe get _heroRecipe => _onBack
-      ? GarmentDesign.deriveBack(_current,
-          themeSeed: _current.seed,
-          garmentColour: _current.palette?.garmentColour)
-      : _current;
+  /// The recipe shown in the hero = whichever side is active.
+  DesignRecipe get _heroRecipe => _current;
 
   /// The generator bound to the current subject — every generate/re-roll goes
   /// through this so the whole design stays within the chosen subject.
@@ -171,7 +180,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     // Instant hero: pick a design from the default context, rendered large. When
     // the customer already has preferences, bias the opening hero toward them
     // (task §19.3); otherwise keep the deterministic first design.
-    _current = _pickHero();
+    _front = _pickHero();
     // The initial hero being shown is a soft positive signal. Emit it after the
     // first frame so preference/library updates never run during build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -658,8 +667,14 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           _miniLabel('Side'),
           _pill('side-front', 'Front', !_onBack,
               () => setState(() => _onBack = false)),
-          _pill('side-back', 'Back', _onBack,
-              () => setState(() => _onBack = true)),
+          _pill('side-back', 'Back', _onBack, () {
+            setState(() {
+              _back ??= GarmentDesign.deriveBack(_front,
+                  themeSeed: _front.seed,
+                  garmentColour: _front.palette?.garmentColour);
+              _onBack = true;
+            });
+          }),
         ]),
       ),
     );

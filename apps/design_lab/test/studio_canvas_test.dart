@@ -213,4 +213,30 @@ void main() {
     expect(state.currentRecipe.palette?.garmentColour, '#F5F5F5',
         reason: 'garment colour must survive a style change');
   });
+
+  testWidgets('(i) Back is a separate, independently-editable side',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+    final frontId = state.currentRecipe.recipeId;
+
+    // Flip to the Back — it's a distinct (complementary) design. (The Format bar
+    // scrolls horizontally, so reveal the control before tapping.)
+    await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
+    await tester.tap(find.byKey(const Key('studio-side-back')));
+    await tester.pump();
+    expect(state.currentRecipe.recipeId, isNot(frontId));
+
+    // Edit the Back only.
+    await tester.ensureVisible(find.byKey(const Key('studio-garment-Olive')));
+    await tester.tap(find.byKey(const Key('studio-garment-Olive')));
+    await tester.pump();
+    expect(state.currentRecipe.palette?.garmentColour, '#6B7350');
+
+    // Returning to the Front leaves it byte-identical (the edit hit the back).
+    await tester.ensureVisible(find.byKey(const Key('studio-side-front')));
+    await tester.tap(find.byKey(const Key('studio-side-front')));
+    await tester.pump();
+    expect(state.currentRecipe.recipeId, frontId);
+  });
 }
