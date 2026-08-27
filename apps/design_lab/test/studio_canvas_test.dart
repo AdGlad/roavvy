@@ -250,4 +250,23 @@ void main() {
     await tester.pump();
     expect(state.currentRecipe.effects?.tieDye, 0.9);
   });
+
+  testWidgets('(k) custom text edits the word on the Words subject',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+    // Cycle Direction to the Words subject (index 4: Flags→Passport→Route→World→Words).
+    for (var i = 0; i < 4; i++) {
+      await tester
+          .tap(find.byKey(Key('studio-chip-${DesignAxis.direction.key}')));
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('studio-text-input')));
+    await tester.enterText(find.byKey(const Key('studio-text-input')), 'WANDER');
+    await tester.pump();
+    expect(state.currentRecipe.clip?.shapeId, 'text');
+    expect(state.currentRecipe.clip?.text, 'WANDER');
+  });
 }

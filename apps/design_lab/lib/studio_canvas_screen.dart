@@ -537,6 +537,33 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
     rows..add(_sectionLabel('Finish'))..add(_finishRow());
 
+    // Custom text — type your own word for a text (flag-filled letters) subject.
+    if (genre == LabGenre.typography) {
+      final clip = _current.clip;
+      final text = clip?.shapeId == 'text' ? (clip?.text ?? '') : '';
+      rows
+        ..add(_sectionLabel('Text'))
+        ..add(Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: TextFormField(
+            key: const Key('studio-text-input'),
+            initialValue: text,
+            style: const TextStyle(fontSize: 12, color: Colors.white),
+            decoration: const InputDecoration(
+              isDense: true,
+              hintText: 'Your word (ROAM / a name)',
+              hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+            onChanged: (v) {
+              final base = clip?.shapeId == 'text'
+                  ? clip!
+                  : const Clip(shapeId: 'text');
+              _setClip(base.copyWith(text: v));
+            },
+          ),
+        ));
+    }
+
     if (_subjectIndex == 0) {
       rows
         ..add(_sectionLabel('Grid'))
