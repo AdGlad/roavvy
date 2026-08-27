@@ -40,15 +40,15 @@ void main() {
         () {
       const duo = DesignContext(flagCodes: ['jp', 'fr'], scopeKey: 'lab:duo');
       const golden = {
-        'SINGLE 1': '395cfe1b51a0316a',
+        'SINGLE 1': '09802314fe0c4436',
         'SINGLE 2': '4cd3811931e0be04',
         'SINGLE 3': '42c4748f7e05fd7c',
         'SINGLE 7': '757488141b8045f0',
-        'SINGLE 42': '2bad72771880c35c',
-        'DUO 1': '7b191ae1b35c8253',
+        'SINGLE 42': '4d179c70068ef894',
+        'DUO 1': '6f9db780a6ee7557',
         'DUO 2': '51c5f330e7a4600b',
         'DUO 5': '77cfba584cf0bb7d',
-        'GRID 1': '31715cf18c28bd56',
+        'GRID 1': '2b6b248f242916d2',
         'GRID 4': '145f31a1b4850630',
       };
       String id(DesignContext c, int s) => gen.generate(c, seed: s).single.recipeId;

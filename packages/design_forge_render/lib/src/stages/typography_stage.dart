@@ -16,11 +16,12 @@ import 'render_stage.dart';
 /// This stage runs LAST — a top overlay after the colour grade — so the grade
 /// never washes out the text.
 ///
-/// TODO(M6): bundle a licensed display font (OFL/Apache). No such `.ttf`/`.otf`
-/// exists in the repo source tree today (only build artifacts / third-party
-/// Pods), so this uses the platform default font family and ignores
-/// [Typography.titleStyle] for family selection. Once a font is bundled in
-/// `apps/design_lab/pubspec.yaml`, wire its family in here.
+/// The display face is [Typography.titleStyle] — a font-family NAME resolved by
+/// the host platform (e.g. a macOS system face like "Futura"). It falls back to
+/// the platform default when the family is unavailable (e.g. Ahem under
+/// flutter_test). To ship a specific licensed face across platforms, bundle an
+/// OFL/Apache `.ttf` in `apps/design_lab/pubspec.yaml` and set its family as the
+/// `titleStyle`; no code change here is needed.
 class TypographyStage extends RenderStage {
   const TypographyStage();
 
@@ -59,7 +60,9 @@ class TypographyStage extends RenderStage {
         fontSize: size,
         fontWeight: ui.FontWeight.w800,
         textAlign: ui.TextAlign.center,
-        // TODO(M6): fontFamily: typo.titleStyle once a licensed font is bundled.
+        // The display face — a system font name (e.g. Futura). Falls back to the
+        // platform default when unavailable (e.g. Ahem under flutter_test).
+        fontFamily: typo.titleStyle,
       ))
         ..pushStyle(ui.TextStyle(color: ink))
         ..addText(title);

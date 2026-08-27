@@ -68,6 +68,17 @@ class LabShowcaseGenerator implements RecipeGenerator {
 
   static const _words = ['ROAM', 'EXPLORE', 'WANDER', 'ADVENTURE', 'WILD', 'NOMAD'];
 
+  /// Distinctive display faces for titles, by family NAME. These ship on macOS
+  /// (the Lab host); on other platforms the TypographyStage falls back to the
+  /// default. Bundle an OFL `.ttf` and add its family here to ship it portably.
+  static const _titleFonts = <String>[
+    'Futura',
+    'Impact',
+    'Georgia',
+    'Copperplate',
+    'Avenir Next Condensed',
+  ];
+
   static const _months = [
     'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
     'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
@@ -557,6 +568,10 @@ class LabShowcaseGenerator implements RecipeGenerator {
     ];
     final title = wordsRng.stream('phrase').pick(options);
     final typo = Typography(
+      // A distinctive display face by NAME — these ship on macOS and fall back
+      // to the platform default elsewhere (see TypographyStage). Drawn on the
+      // words stream so re-rolling Words also changes the lettering.
+      titleStyle: wordsRng.stream('font').pick(_titleFonts),
       placement: wordsRng
           .stream('place')
           .pick(const [TextPlacement.top, TextPlacement.bottom]),
