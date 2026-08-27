@@ -372,6 +372,23 @@ class EdgeTreatment {
         cornerDamage: (j['cornerDamage'] as num?)?.toDouble() ?? 0.3,
         asymmetry: (j['asymmetry'] as num?)?.toDouble() ?? 0.5,
       );
+
+  EdgeTreatment copyWith({
+    TearStyle? style,
+    double? edgeDamage,
+    double? maxDepth,
+    double? frayAmount,
+    double? cornerDamage,
+    double? asymmetry,
+  }) =>
+      EdgeTreatment(
+        style: style ?? this.style,
+        edgeDamage: edgeDamage ?? this.edgeDamage,
+        maxDepth: maxDepth ?? this.maxDepth,
+        frayAmount: frayAmount ?? this.frayAmount,
+        cornerDamage: cornerDamage ?? this.cornerDamage,
+        asymmetry: asymmetry ?? this.asymmetry,
+      );
 }
 
 // ---------------------------------------------------------------------------

@@ -553,6 +553,27 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           (v) => _applyLive(
               _current.copyWith(palette: pal.copyWith(vintageGrade: v)))));
 
+    // Torn / ripped edges. Touching any control opts the design into a torn
+    // edge (materialised from defaults); set Damage to 0 for a clean edge.
+    final edge = _current.edgeTreatment ?? const EdgeTreatment();
+    rows
+      ..add(_sectionLabel('Edges (torn)'))
+      ..add(_choiceRow(
+          'Style',
+          const ['ragged', 'frayed', 'tornCorners', 'deepRips'],
+          edge.style.name,
+          (v) => _applyLive(_current.copyWith(
+              edgeTreatment: edge.copyWith(style: TearStyle.fromId(v))))))
+      ..add(_adjSlider('Damage', edge.edgeDamage,
+          (v) => _applyLive(
+              _current.copyWith(edgeTreatment: edge.copyWith(edgeDamage: v)))))
+      ..add(_adjSlider('Corners', edge.cornerDamage,
+          (v) => _applyLive(_current.copyWith(
+              edgeTreatment: edge.copyWith(cornerDamage: v)))))
+      ..add(_adjSlider('Fray', edge.frayAmount,
+          (v) => _applyLive(
+              _current.copyWith(edgeTreatment: edge.copyWith(frayAmount: v)))));
+
     final fx = _fx;
     rows
       ..add(_sectionLabel('Effects'))
