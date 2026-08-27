@@ -540,6 +540,19 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             (v) => _setClip(clip.copyWith(feather: v))));
     }
 
+    final pal = _current.palette ?? const Palette();
+    rows
+      ..add(_sectionLabel('Colour'))
+      ..add(_choiceRow(
+          'Treatment',
+          const ['flagDerived', 'monochrome', 'duotone', 'garmentAware'],
+          pal.strategy.name,
+          (v) => _applyLive(_current.copyWith(
+              palette: pal.copyWith(strategy: ColourStrategy.fromId(v))))))
+      ..add(_adjSlider('Vintage', pal.vintageGrade,
+          (v) => _applyLive(
+              _current.copyWith(palette: pal.copyWith(vintageGrade: v)))));
+
     final fx = _fx;
     rows
       ..add(_sectionLabel('Effects'))
