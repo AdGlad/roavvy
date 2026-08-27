@@ -44,7 +44,7 @@ class ClipStage extends RenderStage {
         seed: recipe.seed,
         scatter: clip.scatter.clamp(0.0, 1.0),
         stampScale: clip.scale <= 0 ? 1.0 : clip.scale,
-        ink: PassportInk.fromId(clip.ink),
+        ink: _resolveInk(clip.ink, recipe, ctx.target.background),
       );
       if (collage != null) ctx.artwork = collage;
       return;
@@ -92,6 +92,35 @@ class ClipStage extends RenderStage {
         if (mask != null) await _applyMask(ctx, mask);
         break;
     }
+  }
+
+  /// Resolve the passport ink. Multi‑colour: 'flag'/null → each stamp filled
+  /// with its own flag. Mono: 'mono'/'auto' → a single ink chosen for contrast
+  /// with the t‑shirt — black on light garments, white on dark ones (from the
+  /// recipe's garment colour, else the render background). 'black'/'white' force
+  /// a specific mono ink.
+  static PassportInk _resolveInk(
+      String? inkId, DesignRecipe recipe, ui.Color? background) {
+    if (inkId == 'mono' || inkId == 'auto') {
+      final lum = _garmentLuminance(recipe.palette?.garmentColour, background);
+      return lum > 0.5 ? PassportInk.black : PassportInk.white;
+    }
+    return PassportInk.fromId(inkId);
+  }
+
+  static double _garmentLuminance(String? hex, ui.Color? background) {
+    final c = _parseHex(hex) ?? background;
+    if (c == null) return 1.0; // unknown → assume light → black ink
+    return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  }
+
+  static ui.Color? _parseHex(String? hex) {
+    if (hex == null) return null;
+    var h = hex.replaceFirst('#', '').trim();
+    if (h.length == 6) h = 'ff$h';
+    if (h.length != 8) return null;
+    final v = int.tryParse(h, radix: 16);
+    return v == null ? null : ui.Color(v);
   }
 
   /// Parse a passport-page code into per-trip entry/exit stamp refs. Format is

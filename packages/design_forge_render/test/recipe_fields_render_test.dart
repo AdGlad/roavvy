@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _RecordingResolver extends SvgFlagResolver {
   _RecordingResolver(super.load);
   int lastCount = -1;
+  PassportInk? lastInk;
   @override
   Future<ui.Image?> resolvePassportCollage(
     List<PassportStampRef> stamps, {
@@ -21,6 +22,7 @@ class _RecordingResolver extends SvgFlagResolver {
     PassportInk ink = PassportInk.flag,
   }) async {
     lastCount = stamps.length;
+    lastInk = ink;
     return null;
   }
 }
@@ -84,6 +86,35 @@ void main() {
         expect(await stampsFor('entryExit'), 2);
         expect(await stampsFor('entryOnly'), 1);
         expect(await stampsFor('exitOnly'), 1);
+      });
+    });
+  });
+
+  group('passport ink Multi/Mono', () {
+    testWidgets('mono ink auto-picks black/white for the garment; flag = multi',
+        (tester) async {
+      await tester.runAsync(() async {
+        Future<PassportInk?> inkFor(String inkMode, String? garment) async {
+          final rec = _RecordingResolver(
+              (code) => File('$_flagDir/$code.svg').readAsString());
+          final recipe = DesignRecipe(
+            seed: 4,
+            content: const RecipeContent(flags: [FlagRef('us')]),
+            composition: const Composition(family: DesignFamily.passportStamp),
+            palette: garment == null ? null : Palette(garmentColour: garment),
+            clip: Clip.shape(ClipShape.passportPage,
+                code: 'us|2024-01|2024-02', ink: inkMode),
+          );
+          await CanvasRenderer(assets: rec)
+              .render(recipe, RenderTarget.preview(size: 200));
+          return rec.lastInk;
+        }
+
+        // Multi = flag colours regardless of garment.
+        expect(await inkFor('flag', '#111111'), PassportInk.flag);
+        // Mono = white on a dark shirt, black on a light shirt.
+        expect(await inkFor('mono', '#111111'), PassportInk.white);
+        expect(await inkFor('mono', '#eeeeee'), PassportInk.black);
       });
     });
   });
