@@ -523,10 +523,29 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     final fx = _fx;
     rows
       ..add(_sectionLabel('Effects'))
-      ..add(_adjSlider('Halftone', fx.halftone,
-          (v) => _setFx(fx.copyWith(halftone: v))))
+      ..add(_adjSlider('Distress', fx.distress,
+          (v) => _setFx(fx.copyWith(distress: v))))
       ..add(_adjSlider('Grain', fx.grain, (v) => _setFx(fx.copyWith(grain: v))))
       ..add(_adjSlider('Fade', fx.fade, (v) => _setFx(fx.copyWith(fade: v))))
+      ..add(_adjSlider('Cracks', fx.cracks, (v) => _setFx(fx.copyWith(cracks: v))))
+      ..add(_adjSlider('Acid wash', fx.acidWash,
+          (v) => _setFx(fx.copyWith(acidWash: v))))
+      ..add(_adjSlider('Tie-dye', fx.tieDye, (v) => _setFx(fx.copyWith(tieDye: v))))
+      ..add(_adjSlider('Shatter', fx.shatter,
+          (v) => _setFx(fx.copyWith(shatter: v))))
+      ..add(_adjSlider('Shatter spikes', fx.shatterSpikes,
+          (v) => _setFx(fx.copyWith(shatterSpikes: v))))
+      ..add(_adjSlider('Halftone', fx.halftone,
+          (v) => _setFx(fx.copyWith(halftone: v))))
+      ..add(_adjSlider('Halftone scale', fx.halftoneScale,
+          (v) => _setFx(fx.copyWith(halftoneScale: v)),
+          min: 2, max: 12))
+      ..add(_adjSlider('Ripple', fx.rippleAmp,
+          (v) => _setFx(fx.copyWith(rippleAmp: v))))
+      ..add(_adjSlider('Ripple freq', fx.rippleFreq,
+          (v) => _setFx(fx.copyWith(rippleFreq: v)),
+          min: 1, max: 16))
+      ..add(_sectionLabel('Print'))
       ..add(_adjSlider('Riso', fx.riso, (v) => _setFx(fx.copyWith(riso: v))))
       ..add(_adjSlider('Newsprint', fx.newsprint,
           (v) => _setFx(fx.copyWith(newsprint: v))))
@@ -553,7 +572,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       );
 
   Widget _adjSlider(String label, double value, ValueChanged<double> onChanged,
-          {double max = 1.0}) =>
+          {double min = 0.0, double max = 1.0}) =>
       Row(children: [
         SizedBox(
             width: 82,
@@ -561,7 +580,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
                 style: const TextStyle(fontSize: 11, color: Colors.white70))),
         Expanded(
           child: Slider(
-            value: value.clamp(0.0, max),
+            value: value.clamp(min, max),
+            min: min,
             max: max,
             onChanged: onChanged,
           ),
