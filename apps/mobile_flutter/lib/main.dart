@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
+import 'features/studio_v2/studio_v2_app.dart';
 import 'core/notification_service.dart';
 import 'core/remote_config_service.dart';
 import 'core/providers.dart';
@@ -32,7 +33,18 @@ void _stage(String name) {
   print('[roavvy-startup] $name');
 }
 
+/// Developer-only flag to boot the parallel T-Shirt Studio **V2** shell instead
+/// of the production app. Default `false` → production behaviour is unchanged.
+/// Enable with `flutter run --dart-define=STUDIO_V2=true` (or use the dedicated
+/// entrypoint `lib/main_studio_v2.dart`). Never affects the V1 flow.
+const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
+
 Future<void> main() async {
+  if (kStudioV2Enabled) {
+    WidgetsFlutterBinding.ensureInitialized();
+    runApp(const StudioV2App());
+    return;
+  }
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();

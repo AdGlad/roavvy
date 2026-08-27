@@ -40,6 +40,12 @@ dependencies:
     path: ../../packages/shared_models
   country_lookup:
     path: ../../packages/country_lookup
+  design_forge:
+    path: ../../packages/design_forge
+  design_forge_render:
+    path: ../../packages/design_forge_render
+  design_studio:
+    path: ../../packages/design_studio
   region_lookup:
     path: ../../packages/region_lookup
   flutter_riverpod: ^2.6.1
