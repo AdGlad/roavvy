@@ -42,7 +42,8 @@ const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
 Future<void> main() async {
   if (kStudioV2Enabled) {
     WidgetsFlutterBinding.ensureInitialized();
-    runApp(const StudioV2App());
+    // ProviderScope so V2 can read real Roavvy travel data (tripListProvider).
+    runApp(const ProviderScope(child: StudioV2App()));
     return;
   }
   runZonedGuarded(

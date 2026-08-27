@@ -205,6 +205,19 @@ class StudioController extends ChangeNotifier {
   bool get hasTrips => designContext.hasTrips;
   DateRange? get span => designContext.history.span;
 
+  /// The distinct visited countries the user can choose from — trip countries
+  /// when dated history exists, else the flat visited-country list. Deterministic
+  /// order (first-visited / declared order), lowercase.
+  List<String> get availableCountryCodes => designContext.hasTrips
+      ? TravelHistory(designContext.trips).countryCodes
+      : [for (final c in designContext.flagCodes) c.toLowerCase()];
+
+  /// The current travel selection (a subset of [availableCountryCodes]). Map and
+  /// List selection both read/write THIS single set, so they stay in sync.
+  final Set<String> _selected = {};
+  Set<String> get selectedCountryCodes => Set.unmodifiable(_selected);
+  bool isSelected(String cc) => _selected.contains(cc.toLowerCase());
+
   /// The generator bound to the current subject — every generate/re-roll goes
   /// through this so the whole design stays within the chosen subject.
   LabShowcaseGenerator get _gen {
@@ -222,6 +235,9 @@ class StudioController extends ChangeNotifier {
       _yearLo = span.start!.year;
       _yearHi = span.end!.year;
     }
+    _selected
+      ..clear()
+      ..addAll(availableCountryCodes);
     _hero = _pickHero();
     _frontFace = _ribbonOf(_hero);
   }
@@ -612,29 +628,138 @@ class StudioController extends ChangeNotifier {
   }
 
   void setSource(bool trips) {
+    if (_sourceTrips == trips) return;
     _sourceTrips = trips;
+    rebuildContext();
+    notifyListeners();
+  }
+
+  /// Commit a new year range (slider change-end) — filter + regenerate. Use
+  /// [previewYear] during the drag to update labels cheaply without a re-render.
+  void setYearRange(int lo, int hi) {
+    _yearLo = lo;
+    _yearHi = hi;
     rebuildContext();
   }
 
-  /// Re-derive [_context] from the host's trips under the current Source + Year
-  /// filter, then regenerate the hero. Countries = one flag per distinct country;
-  /// Trips = one per visit.
-  void rebuildContext() {
-    final all = TravelHistory(designContext.trips);
+  // ── Country selection (Map & List share this one set) ───────────────────────
+  void toggleCountry(String cc) {
+    final c = cc.toLowerCase();
+    if (!_selected.remove(c)) _selected.add(c);
+    _applySelection();
+  }
+
+  void setSelectedCountries(Iterable<String> codes) {
+    _selected
+      ..clear()
+      ..addAll(codes.map((c) => c.toLowerCase()));
+    _applySelection();
+  }
+
+  void selectAllCountries() => setSelectedCountries(availableCountryCodes);
+
+  void clearCountries() {
+    _selected.clear();
+    _applySelection();
+  }
+
+  /// Apply a selection change: regenerate when it still yields ≥1 country, and
+  /// always notify so the Map/List reflect the (possibly empty) selection.
+  void _applySelection() {
+    rebuildContext();
+    notifyListeners();
+  }
+
+  /// The effective country codes feeding the design, under the current selection
+  /// + Source + Year filter. Countries = one flag per distinct country; Trips =
+  /// one per visit. Flat visited data (no trips) ignores Source/Year.
+  List<String> _effectiveCodes() {
+    if (!designContext.hasTrips) {
+      return [for (final c in availableCountryCodes) if (_selected.contains(c)) c];
+    }
     final range = DateRange.years(_yearLo, _yearHi);
-    final filtered = all.inRange(range);
-    final codes =
-        _sourceTrips ? [for (final t in filtered.trips) t.cc] : filtered.countryCodes;
+    final kept = [
+      for (final t in TravelHistory(designContext.trips).inRange(range).trips)
+        if (_selected.contains(t.cc)) t,
+    ];
+    if (_sourceTrips) return [for (final t in kept) t.cc];
+    final seen = <String>{};
+    final out = <String>[];
+    for (final t in kept) {
+      if (seen.add(t.cc)) out.add(t.cc);
+    }
+    return out;
+  }
+
+  /// Re-derive [_context] from the current selection + Source + Year filter, then
+  /// deterministically regenerate the hero — carrying the garment/size/orientation
+  /// so a travel change never resets the Tier-1 controls or the front/back side.
+  void rebuildContext() {
+    final codes = _effectiveCodes();
     if (codes.isEmpty) return; // never leave the design with no flags.
+    final List<Trip> trips;
+    final DateRange range;
+    if (designContext.hasTrips) {
+      range = DateRange.years(_yearLo, _yearHi);
+      trips = [
+        for (final t in TravelHistory(designContext.trips).inRange(range).trips)
+          if (_selected.contains(t.cc)) t,
+      ];
+    } else {
+      range = DateRange.all;
+      trips = const [];
+    }
     _context = DesignContext(
       flagCodes: codes,
       scopeKey: designContext.scopeKey,
-      trips: filtered.trips,
+      trips: trips,
       dateRange: range,
     );
-    _hero = _gen.generate(_context, seed: _nextSeed(), count: 1).first;
+    _regenerateFaces();
+  }
+
+  /// A deterministic seed for the current effective selection: the same set of
+  /// countries (+ Source + Year) always yields the same design, independent of
+  /// how many re-rolls happened before.
+  int _selectionSeed(List<String> codes) {
+    var h = initialSeed & 0x7fffffff;
+    h = (h * 31 + (_sourceTrips ? 1 : 0)) & 0x7fffffff;
+    h = (h * 31 + _yearLo) & 0x7fffffff;
+    h = (h * 31 + _yearHi) & 0x7fffffff;
+    for (final c in codes) {
+      for (final u in c.codeUnits) {
+        h = (h * 31 + u) & 0x7fffffff;
+      }
+    }
+    return h;
+  }
+
+  void _regenerateFaces() {
+    final prev = _hero;
+    final pool = _gen.generate(_context,
+        seed: _selectionSeed(_context.flagCodes),
+        count: _preferences.sampleCount == 0 ? 1 : 6);
+    _hero = _carryGarment(_orderByPreference(pool).first, prev);
     _frontFace = _ribbonOf(_hero);
     notifyListeners();
+  }
+
+  /// Carry the current garment colour / artwork size / orientation onto a freshly
+  /// generated recipe so travel changes preserve the persistent Tier-1 state.
+  DesignRecipe _carryGarment(DesignRecipe next, DesignRecipe prev) {
+    final prevGarment = prev.palette?.garmentColour;
+    final nextPal = next.palette ?? const Palette();
+    final palette = prevGarment == null
+        ? nextPal
+        : nextPal.copyWith(
+            garmentColour: prevGarment, strategy: prev.palette?.strategy);
+    return next.copyWith(
+      palette: palette,
+      composition: next.composition.copyWith(
+        sizeClass: prev.composition.sizeClass,
+        orientation: prev.composition.orientation,
+      ),
+    );
   }
 
   // ── Save / review ───────────────────────────────────────────────────────────

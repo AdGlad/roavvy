@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' hide Orientation;
 
 import 'studio_v2_stage.dart';
 import 'widgets/garment_preview.dart';
+import 'widgets/travels_workspace.dart';
 
 /// **Studio V2 shell** (M1) — the permanent visual hierarchy for the whole V2
 /// workflow. The live t-shirt is the hero and is ALWAYS visible; a persistent
@@ -125,7 +126,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             ),
           ),
           _tier1Bar(),
-          _workspace(),
+          Expanded(flex: 4, child: _workspace()),
           _stageStrip(),
         ],
       ),
@@ -174,23 +175,27 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     );
   }
 
-  // ── Contextual workspace — placeholder per stage (populated later) ──────────
+  // ── Contextual workspace — real controls for implemented stages, else a
+  //    placeholder. The live shirt above stays visible at every stage.
   Widget _workspace() {
     return Container(
       key: const Key('v2-workspace'),
       width: double.infinity,
       color: const Color(0xFF121317),
-      constraints: const BoxConstraints(minHeight: 96),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
+      child: _stage == StudioStage.travels
+          ? TravelsWorkspace(controller: _c)
+          : _placeholder(),
+    );
+  }
+
+  Widget _placeholder() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(_stage.label.toUpperCase(),
               style: const TextStyle(
-                  fontSize: 11,
-                  letterSpacing: 1.4,
-                  color: Colors.tealAccent)),
+                  fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
           const SizedBox(height: 6),
           Text(_stage.blurb,
               style: const TextStyle(fontSize: 13, color: Colors.white70)),
@@ -198,9 +203,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
           const Text('Controls for this step arrive in a later milestone.',
               style: TextStyle(fontSize: 11, color: Colors.white38)),
         ],
-      ),
-    );
-  }
+      );
 
   // ── Stage strip: current-stage indicator + jump-to-stage + Next ─────────────
   Widget _stageStrip() {

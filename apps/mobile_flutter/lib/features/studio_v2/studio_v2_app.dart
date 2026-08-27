@@ -3,65 +3,119 @@ import 'dart:async';
 import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers.dart';
 import 'host/bundle_asset_resolver.dart';
 import 'host/prefs_persistence.dart';
+import 'host/travel_context.dart';
 import 'studio_v2_screen.dart';
 
-/// Builds a [StudioController] wired to the mobile host adapters: the bundle
-/// [AssetResolver] (rootBundle) for rendering, and `shared_preferences`-backed
-/// library + preference persistence. The shared `design_studio` / `design_forge`
-/// stack is used as-is — nothing is duplicated here.
-///
-/// M1 seeds a demo travel context so a REAL design renders immediately; live
-/// travel selection is M2.
-StudioController buildStudioV2Controller() {
+/// Builds a [StudioController] over a supplied [DesignContext], wired to the
+/// mobile host adapters: the bundle [AssetResolver] (rootBundle) for rendering,
+/// and `shared_preferences`-backed library + preference persistence. The shared
+/// `design_studio` / `design_forge` stack is used as-is — nothing is duplicated.
+StudioController buildStudioV2ControllerFor(
+  DesignContext context, {
+  DesignPreferences preferences = DesignPreferences.neutral,
+}) {
   final generator = LabShowcaseGenerator(
     silhouettesByShape: {for (final s in ClipShape.values) s: const <String>[]},
     countryNames: const {},
   );
   final service = RenderService(createBundleAssetResolver());
-  const context = DesignContext(
-    flagCodes: ['us', 'fr', 'jp', 'br', 'au', 'it', 'gr', 'th'],
-    scopeKey: 'studio_v2:demo',
-  );
-  final prefs = PrefsPreferenceStore();
+  final prefsStore = PrefsPreferenceStore();
   return StudioController(
     generator: generator,
     service: service,
     designContext: context,
     initialSeed: 1,
+    preferences: preferences,
     library: PersistentDesignLibrary(PrefsDesignStore()),
-    savePreferences: (p) => unawaited(prefs.save(p)),
+    savePreferences: (p) => unawaited(prefsStore.save(p)),
   );
 }
 
+/// Test/dev convenience: a controller over a fixed demo context (no Riverpod).
+/// The real app path uses [StudioV2App], which sources the context from live
+/// Roavvy travel data.
+StudioController buildStudioV2Controller() => buildStudioV2ControllerFor(
+      const DesignContext(
+        flagCodes: ['us', 'fr', 'jp', 'br', 'au', 'it', 'gr', 'th'],
+        scopeKey: 'studio_v2:demo',
+      ),
+    );
+
 /// The developer-only V2 app root. Launched independently of production V1 via
 /// `--dart-define=STUDIO_V2=true` (see `main.dart`) or the dedicated entrypoint
-/// `lib/main_studio_v2.dart`. It never touches the V1 flow.
-class StudioV2App extends StatefulWidget {
+/// `lib/main_studio_v2.dart`, always under a [ProviderScope]. It never touches
+/// the V1 flow.
+///
+/// M2: the controller is built once from REAL Roavvy travel data ([tripListProvider]
+/// → [Trip] → [DesignContext.fromTrips], with the flat visited-country list as the
+/// no-dated-trips fallback), and saved Studio preferences are loaded on open.
+class StudioV2App extends ConsumerStatefulWidget {
   const StudioV2App({super.key});
 
   @override
-  State<StudioV2App> createState() => _StudioV2AppState();
+  ConsumerState<StudioV2App> createState() => _StudioV2AppState();
 }
 
-class _StudioV2AppState extends State<StudioV2App> {
-  late final StudioController _controller = buildStudioV2Controller();
+class _StudioV2AppState extends ConsumerState<StudioV2App> {
+  StudioController? _controller;
+  DesignPreferences? _prefs;
+  bool _prefsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final p = await PrefsPreferenceStore().load();
+    if (mounted) {
+      setState(() {
+        _prefs = p;
+        _prefsLoaded = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Both are async; treat an error/empty as "no data" so a dev build still runs.
+    final trips = ref.watch(tripListProvider).valueOrNull;
+    final visits = ref.watch(effectiveVisitsProvider).valueOrNull;
+    final ready = _prefsLoaded && trips != null;
+
+    if (ready && _controller == null) {
+      final ctx = StudioV2TravelContext.build(
+        trips: trips,
+        visitedCodes: [for (final v in (visits ?? const [])) v.countryCode],
+      );
+      _controller = buildStudioV2ControllerFor(
+        ctx,
+        preferences: _prefs ?? DesignPreferences.neutral,
+      );
+    }
+
     return MaterialApp(
       title: 'Roavvy Studio V2',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: StudioV2Screen(controller: _controller),
+      home: _controller == null
+          ? const Scaffold(
+              backgroundColor: Color(0xFF0E0F12),
+              body: Center(child: CircularProgressIndicator()),
+            )
+          : StudioV2Screen(controller: _controller!),
     );
   }
 }

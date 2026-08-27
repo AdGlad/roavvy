@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/studio_v2/studio_v2_app.dart';
 
@@ -12,5 +13,5 @@ import 'features/studio_v2/studio_v2_app.dart';
 /// V1 flow completely untouched.)
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const StudioV2App());
+  runApp(const ProviderScope(child: StudioV2App()));
 }

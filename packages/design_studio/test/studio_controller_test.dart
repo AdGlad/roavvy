@@ -149,6 +149,61 @@ void main() {
     expect(c.context.flagCodes.length, 1);
   });
 
+  // M2 — travel selection. One shared selection set drives the design; Map and
+  // List both mutate it, so they stay in sync by construction.
+  List<Trip> tripsFixture() => [
+        Trip(countryCode: 'us', startedOn: DateTime(2020, 6, 1), endedOn: DateTime(2020, 6, 8)),
+        Trip(countryCode: 'fr', startedOn: DateTime(2021, 3, 1), endedOn: DateTime(2021, 3, 9)),
+        Trip(countryCode: 'jp', startedOn: DateTime(2021, 8, 1), endedOn: DateTime(2021, 8, 5)),
+      ];
+
+  test('selection subsets the context; Select-All / Clear behave', () {
+    final c = make(DesignContext.fromTrips(tripsFixture(), scopeKey: 's'));
+    expect(c.availableCountryCodes, ['us', 'fr', 'jp']);
+    expect(c.selectedCountryCodes, {'us', 'fr', 'jp'});
+
+    c.toggleCountry('fr'); // deselect
+    expect(c.selectedCountryCodes, {'us', 'jp'});
+    expect(c.context.flagCodes, ['us', 'jp']);
+
+    c.clearCountries(); // never leaves the design empty…
+    expect(c.selectedCountryCodes, isEmpty);
+    expect(c.context.flagCodes, ['us', 'jp']); // …last valid art retained
+
+    c.selectAllCountries();
+    expect(c.selectedCountryCodes, {'us', 'fr', 'jp'});
+    expect(c.context.flagCodes.toSet(), {'us', 'fr', 'jp'});
+  });
+
+  test('the same selection deterministically yields the same design', () {
+    final c = make(DesignContext.fromTrips(tripsFixture(), scopeKey: 's'));
+    c.setSelectedCountries(['us', 'jp']);
+    final id = c.hero.recipeId;
+    c.toggleCountry('fr'); // add fr
+    c.toggleCountry('fr'); // remove fr → back to {us, jp}
+    expect(c.selectedCountryCodes, {'us', 'jp'});
+    expect(c.hero.recipeId, id); // reproducible regardless of the path taken
+  });
+
+  test('a travel change preserves garment colour + front/back side', () {
+    final c = make(DesignContext.fromTrips(tripsFixture(), scopeKey: 's'));
+    c.setGarment('#6B7350'); // edits the hero (back)
+    c.setSide(true); // move to the front face
+    expect(c.onFront, isTrue);
+    c.toggleCountry('fr'); // travel change regenerates the hero
+    expect(c.onFront, isTrue); // side preserved
+    expect(c.hero.palette?.garmentColour, '#6B7350'); // garment preserved
+  });
+
+  test('flat visited-country data (no dated trips) still selects', () {
+    final c = make(const DesignContext(
+        flagCodes: ['us', 'fr', 'jp'], scopeKey: 'flat'));
+    expect(c.hasTrips, isFalse);
+    expect(c.availableCountryCodes, ['us', 'fr', 'jp']);
+    c.toggleCountry('fr');
+    expect(c.context.flagCodes, ['us', 'jp']);
+  });
+
   test('authoring emits preference signals; Save likes into the library', () {
     final library = PersistentDesignLibrary(_MemoryStore());
     final c = make(single, library: library);
