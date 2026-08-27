@@ -39,6 +39,8 @@ dependencies:
     path: ../../packages/design_forge
   design_forge_render:
     path: ../../packages/design_forge_render
+  design_studio:
+    path: ../../packages/design_studio
 
 dev_dependencies:
   flutter_test:

@@ -1,12 +1,10 @@
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
+import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
-import 'lab_generator.dart';
-import 'lab_styles.dart';
 import 'preference_survey.dart';
-import 'render_service.dart';
 
 /// M3 — **Studio Canvas** prototype (docs/product/tshirt-creation-experience.md §9).
 ///
@@ -98,619 +96,114 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     (DesignAxis.words, 'Words', Icons.title),
   ];
 
-  /// The garment's two faces (mobile parity: the big artwork prints on the
-  /// **back**, a small ribbon/badge on the **front**).
-  ///
-  /// [_hero] is the main design — shown on the **back** by default. [_frontFace]
-  /// is the shirt's **front** design; it defaults to a flag *ribbon* derived
-  /// from the hero (see [_ribbonOf]) and can be regenerated as a complement of
-  /// the back or matched to the main design, then independently edited.
-  /// [_current] is a view onto whichever face is active so every existing
-  /// mutator edits the visible face.
-  late DesignRecipe _hero;
-  late DesignRecipe _frontFace;
-  DesignRecipe get _current => _onFront ? _frontFace : _hero;
-  set _current(DesignRecipe v) {
-    if (_onFront) {
-      _frontFace = v;
-    } else {
-      _hero = v;
-    }
-  }
+  // ── Session controller (shared design_studio orchestration layer) ───────────
+  // All recipe/session state + mutations live in [StudioController] (portable,
+  // no Flutter widget). This screen is a thin macOS host: it creates the
+  // controller from its injected deps, rebuilds on notifications, and renders.
+  late final StudioController _c;
 
-  final List<DesignRecipe> _history = [];
-  final Set<DesignAxis> _locked = {};
-
-  /// Preferences learned from this session's authoring, seeded from the host.
-  late DesignPreferences _preferences;
-
-  /// The axis whose alternatives the tray currently shows (null on open).
-  DesignAxis? _activeAxis;
-  List<DesignRecipe> _alternatives = const [];
-
-  /// Suggested titles for the Words editor (regenerated on open / Suggest).
-  List<String> _titleIdeas = const [];
-
-  /// Monotonic source of fresh per-axis seeds so each tap yields a new look.
-  int _seedBump = 1000;
-  int _nextSeed() => _seedBump++;
-
-  /// The Direction axis = the SUBJECT. Each entry is a (genre, pinned family,
-  /// label); the Direction chip cycles these and regenerates the hero for that
-  /// subject (Flags/Maps/Animals/Landmarks all live under Flags via the Detail
-  /// sub-step, which arrives in a later chunk).
-  static const List<(LabGenre, DesignFamily?, String)> _subjects = [
-    (LabGenre.flags, null, 'Flags'),
-    (LabGenre.passport, null, 'Passport'),
-    (LabGenre.travelLog, DesignFamily.journeys, 'Route'),
-    (LabGenre.travelLog, DesignFamily.wordCloud, 'World'),
-    (LabGenre.typography, null, 'Words'),
-    (LabGenre.milestones, null, 'Milestones'),
-  ];
-  int _subjectIndex = 0;
-
-  /// The Flags "Detail" — the shape the flags fill. Only meaningful when the
-  /// subject is Flags; a live clip edit (not a re-roll).
-  _StudioDetail _detail = _StudioDetail.grid;
-
-  /// Whether the contextual Refine panel (Tier-3 form controls) is open.
+  /// Whether the contextual Refine panel (Tier-3 form controls) is open (UI-only).
   bool _showAdjust = false;
 
-  /// The active Refine category (storyboard "Fine Tune" menu). The panel shows
-  /// one focused category at a time instead of one long scroll, and the category
-  /// set is contextual to the current subject/detail.
-  _RefineCategory _refineCat = _RefineCategory.finish;
-
-  /// Which face is being viewed/edited. Default = the **back** (the hero/main
-  /// design). `true` = the **front** face ([_frontFace]).
-  bool _onFront = false;
-
-  /// How the front design is printed on the shirt (mobile parity — see the
-  /// print rects in [_frontPrintRect]). Full = centred full-front print; chest =
-  /// a small chest print (then [_chestRight] picks the side); none = blank front.
-  _FrontFit _frontFit = _FrontFit.chest;
-
-  /// Chest print side when [_frontFit] is chest: false = left chest (default),
-  /// true = right chest. Mirrors mobile's `left_chest` / `right_chest`.
-  bool _chestRight = false;
-
-  /// Where the front artwork comes from (ribbon by default; a complement of the
-  /// back; or a copy of the main design).
-  _FrontArt _frontArt = _FrontArt.ribbon;
-
-  /// Ribbon coverage (mobile "Selected vs All"): false = the design's current
-  /// flags; true = every country in the design context.
-  bool _ribbonAllCountries = false;
-
-  /// The EFFECTIVE design context (starts as the host's, then re-derived when the
-  /// travel Source / Year filter changes). All generation reads this.
-  late DesignContext _context;
-
-  /// Country source (mobile parity): false = one flag per Country (distinct);
-  /// true = one flag per Trip (repeat visits repeat the flag).
-  bool _sourceTrips = false;
-
-  /// Trip-year filter bounds (only meaningful when the context has trips).
-  int _yearLo = 0;
-  int _yearHi = 0;
-
-  /// The recipe shown in the hero = whichever side is active.
-  DesignRecipe get _heroRecipe => _current;
-
-  /// The generator bound to the current subject — every generate/re-roll goes
-  /// through this so the whole design stays within the chosen subject.
-  LabShowcaseGenerator get _gen {
-    final (g, t, _) = _subjects[_subjectIndex];
-    return widget.generator.withGenre(g, template: t);
-  }
-
-  // ── Test-facing read-only accessors ──
-  DesignRecipe get currentRecipe => _current;
-
-  /// Test-facing: the effective design context (after Source/Year filtering).
-  DesignContext get effectiveContext => _context;
-  Set<DesignAxis> get lockedAxes => Set.unmodifiable(_locked);
-  int get historyLength => _history.length;
-  List<DesignRecipe> get alternatives => List.unmodifiable(_alternatives);
-  DesignAxis? get activeAxis => _activeAxis;
-
-  /// Test-facing: the preferences learned so far this session.
-  DesignPreferences get currentPreferences => _preferences;
+  /// The active Refine category (UI-only view state).
+  RefineCategory _refineCat = RefineCategory.finish;
 
   @override
   void initState() {
     super.initState();
-    _preferences = widget.preferences;
-    final i = _subjects.indexWhere((s) => s.$1 == widget.generator.genre);
-    if (i >= 0) _subjectIndex = i;
-    // Instant hero: pick a design from the default context, rendered large. When
-    // the customer already has preferences, bias the opening hero toward them
-    // (task §19.3); otherwise keep the deterministic first design.
-    _context = widget.designContext;
-    // Seed the year filter to the full travel span (if any trips were supplied).
-    final span = _context.history.span;
-    if (span != null) {
-      _yearLo = span.start!.year;
-      _yearHi = span.end!.year;
-    }
-    _hero = _pickHero();
-    // The front defaults to a flag ribbon derived from the hero (the shirt's
-    // main design prints on the back; a small chest ribbon on the front).
-    _frontFace = _ribbonOf(_hero);
-    // The initial hero being shown is a soft positive signal. Emit it after the
-    // first frame so preference/library updates never run during build.
+    _c = StudioController(
+      generator: widget.generator,
+      service: widget.service,
+      designContext: widget.designContext,
+      initialSeed: widget.initialSeed,
+      preferences: widget.preferences,
+      learner: widget.learner,
+      library: widget.library,
+      savePreferences: widget.persistence == null
+          ? null
+          : (p) => widget.persistence!.savePreferences(p),
+      onPreferencesChanged: widget.onPreferencesChanged,
+    )..addListener(_onControllerChanged);
+    // The initial hero being shown is a soft positive signal; emit after the
+    // first frame so a listener never fires mid-build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _observe(_current, PreferenceSignal.viewed);
+      if (mounted) _c.markViewed();
     });
   }
 
-  /// Choose the opening hero. Neutral preferences → the deterministic first
-  /// design (unchanged behaviour). Learned preferences → the best-scoring of a
-  /// small pool under [PreferenceScorer], so learning visibly feeds back.
-  DesignRecipe _pickHero() {
-    if (_preferences.sampleCount == 0) {
-      return widget.generator
-          .generate(_context, seed: widget.initialSeed, count: 1)
-          .first;
-    }
-    final pool = widget.generator
-        .generate(_context, seed: widget.initialSeed, count: 6);
-    return _orderByPreference(pool).first;
+  @override
+  void dispose() {
+    _c.removeListener(_onControllerChanged);
+    _c.dispose();
+    super.dispose();
   }
 
-  /// Order candidates best-first by preference score (stable when neutral).
-  List<DesignRecipe> _orderByPreference(List<DesignRecipe> recipes) {
-    if (_preferences.sampleCount == 0) return recipes;
-    const scorer = PreferenceScorer();
-    final scored = [...recipes]..sort((a, b) =>
-        scorer.score(b, _preferences).compareTo(scorer.score(a, _preferences)));
-    return scored;
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
   }
 
-  /// Fold [signal] on [recipe] into the learned preferences, persist, and
-  /// notify the host. The single choke-point for every learning update.
-  void _observe(DesignRecipe recipe, PreferenceSignal signal) {
-    final updated = widget.learner.observe(_preferences, recipe, signal);
-    setState(() => _preferences = updated);
-    widget.persistence?.savePreferences(updated);
-    widget.onPreferencesChanged?.call(updated);
-  }
+  // ── Test-facing read-only accessors (delegate to the controller) ────────────
+  DesignRecipe get currentRecipe => _c.current;
+  DesignContext get effectiveContext => _c.context;
+  Set<DesignAxis> get lockedAxes => _c.locked;
+  int get historyLength => _c.history.length;
+  List<DesignRecipe> get alternatives => _c.alternatives;
+  DesignAxis? get activeAxis => _c.activeAxis;
+  DesignPreferences get currentPreferences => _c.preferences;
 
-  /// Commit [next] as the new hero, pushing the outgoing hero onto the undo
-  /// stack. No-op (no history entry) if the recipe is unchanged.
-  void _commit(DesignRecipe next) {
-    if (next.recipeId == _current.recipeId) return;
-    setState(() {
-      _history.add(_current);
-      _current = next;
-    });
-    // Committing a decision (a chip re-roll, an alternative pick, or Surprise-me)
-    // is the customer actively choosing this look → a styleChosen signal.
-    _observe(next, PreferenceSignal.styleChosen);
-  }
+  // ── Thin forwarders so the build methods below read as before ───────────────
+  DesignRecipe get _current => _c.current;
+  DesignRecipe get _hero => _c.hero;
+  DesignRecipe get _frontFace => _c.frontFace;
+  DesignRecipe get _heroRecipe => _c.heroRecipe;
+  bool get _onFront => _c.onFront;
+  FrontFit get _frontFit => _c.frontFit;
+  bool get _chestRight => _c.chestRight;
+  FrontArt get _frontArt => _c.frontArt;
+  bool get _ribbonAllCountries => _c.ribbonAllCountries;
+  int get _subjectIndex => _c.subjectIndex;
+  StudioDetail get _detail => _c.detail;
+  DesignAxis? get _activeAxis => _c.activeAxis;
+  List<DesignRecipe> get _alternatives => _c.alternatives;
+  List<String> get _titleIdeas => _c.titleIdeas;
+  List<DesignRecipe> get _history => _c.history;
+  Set<DesignAxis> get _locked => _c.locked;
+  LabStyle? get _currentStyle => _c.currentStyle;
+  String get _currentTitle => _c.currentTitle;
+  String get _subjectLabel => _c.subjectLabel;
+  Effects get _fx => _c.fx;
+  bool get _sourceTrips => _c.sourceTrips;
+  int get _yearLo => _c.yearLo;
+  int get _yearHi => _c.yearHi;
 
-  /// Deck tap: re-roll just [axis] with a fresh seed, focus its tray.
-  void _rerollAxis(DesignAxis axis) {
-    final next = _gen.reroll(_current, axis, newSeed: _nextSeed());
-    _commit(next);
-    _focusAxis(axis);
-  }
-
-  /// Rebuild the alternatives tray for [axis] (a strip of 4 re-rolls of the
-  /// current hero on that axis, each a non-destructive candidate).
-  void _focusAxis(DesignAxis axis) {
-    setState(() {
-      _activeAxis = axis;
-      _alternatives = axis == DesignAxis.direction
-          ? _subjectAlternatives()
-          : _orderByPreference([
-              for (var i = 0; i < 4; i++)
-                _gen.reroll(_current, axis, newSeed: _nextSeed()),
-            ]);
-    });
-  }
-
-  /// One hero per subject (Direction) so the tray previews the whole subject set.
-  List<DesignRecipe> _subjectAlternatives() => [
-        for (var i = 0; i < _subjects.length; i++)
-          widget.generator
-              .withGenre(_subjects[i].$1, template: _subjects[i].$2)
-              .generate(_context,
-                  seed: widget.initialSeed + i, count: 1)
-              .first,
-      ];
-
-  /// The 13 NAMED style options for the Vibe picker: each is the current design
-  /// restyled into one [LabStyle] (only the Vibe/finish axis is spliced, so the
-  /// subject/colour/words and all Tier-1 choices are preserved). Seeds are fixed
-  /// per style so the thumbnails are stable across rebuilds.
-  List<(LabStyle, DesignRecipe)> _vibeStyleOptions() {
-    final base = _current;
-    return [
-      for (final s in LabStyle.values)
-        (
-          s,
-          _gen
-              .withStyle(s)
-              .reroll(base, DesignAxis.vibe, newSeed: 7000 + s.index)
-        ),
-    ];
-  }
-
-  /// The style the current design is wearing (from its provenance stamp), so the
-  /// Vibe picker can highlight it. Null if it wasn't Lab-generated.
-  LabStyle? get _currentStyle =>
-      labStyleFromProvenance(_current.provenance?.generator);
-
-  /// Pick a NAMED style from the Vibe tray — commit the restyle and keep the tray
-  /// open so the customer can keep trying vibes.
-  void _onStyleTap(LabStyle style, DesignRecipe styled) {
-    _commit(styled);
-    setState(() {}); // refresh the tray's selected highlight
-  }
-
-  /// The printed title (content.meta['title']) — the customer's words.
-  String get _currentTitle => (_current.content.meta['title'] as String?) ?? '';
-
-  /// Set / clear the printed title, live (no history push per keystroke).
-  void _setTitle(String v) {
-    final c = _current.content;
-    final meta = {...c.meta};
-    if (v.trim().isEmpty) {
-      meta.remove('title');
-    } else {
-      meta['title'] = v;
-    }
-    _applyLive(_current.copyWith(
-        content: RecipeContent(
-            flags: c.flags,
-            source: c.source,
-            entries: c.entries,
-            meta: meta)));
-  }
-
-  /// A handful of distinct AI/offline title ideas (each a Words-axis re-roll),
-  /// powering the storyboard's "Suggest titles".
-  List<String> _titleSuggestions() {
-    final seen = <String>{};
-    final out = <String>[];
-    for (var i = 0; i < 12 && out.length < 6; i++) {
-      final t = _gen
-          .reroll(_current, DesignAxis.words, newSeed: _nextSeed())
-          .content
-          .meta['title'] as String?;
-      if (t != null && t.trim().isNotEmpty && seen.add(t)) out.add(t);
-    }
-    return out;
-  }
-
-  /// Words chip → open the title editor (no blind re-roll). The editor offers a
-  /// text field + tappable suggestions.
-  void _focusWords() {
-    setState(() {
-      _activeAxis = DesignAxis.words;
-      _titleIdeas = _titleSuggestions();
-    });
-  }
-
-  /// Direction chip → advance to the next subject and regenerate the hero.
-  void _cycleSubject() {
-    setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
-    _commit(
-        _gen.generate(_context, seed: _nextSeed(), count: 1).first);
-    _focusAxis(DesignAxis.direction);
-  }
-
-  /// Deck tap: Direction switches SUBJECT; every other chip re-rolls its axis.
-  void _onChipTap(DesignAxis axis) {
-    if (axis == DesignAxis.direction) {
-      _cycleSubject();
-    } else if (axis == DesignAxis.words) {
-      _focusWords();
-    } else {
-      _rerollAxis(axis);
-    }
-  }
-
-  /// Tray tap: keep the alternative. For Direction, also adopt its subject so
-  /// subsequent re-rolls stay within it.
-  void _onAlternativeTap(int index, DesignRecipe alt) {
-    if (_activeAxis == DesignAxis.direction && index < _subjects.length) {
-      setState(() => _subjectIndex = index);
-    }
-    _commit(alt);
-  }
-
-  /// The label shown on the Direction chip = the current subject.
-  String get _subjectLabel => _subjects[_subjectIndex].$3;
-
-  /// Apply a Flags "Detail" — swap the clip shape the flags fill, keeping every
-  /// other axis identical (a live, non-destructive clip edit).
-  void _applyDetail(_StudioDetail d) {
-    setState(() => _detail = d);
-    final code = _context.flagCodes.isNotEmpty
-        ? _context.flagCodes.first.toLowerCase()
-        : 'us';
-    final clip = switch (d) {
-      _StudioDetail.grid => Clip.shape(ClipShape.none),
-      _StudioDetail.map => Clip.shape(ClipShape.countryOutline, code: code),
-      _StudioDetail.animals =>
-        _silhouetteClip(ClipShape.animalSilhouette, code),
-      _StudioDetail.plants =>
-        _silhouetteClip(ClipShape.plantSilhouette, code),
-      _StudioDetail.landmarks =>
-        _silhouetteClip(ClipShape.landmarkSilhouette, code),
-      _StudioDetail.heart => Clip.shape(ClipShape.heart),
-      _StudioDetail.circle => Clip.shape(ClipShape.circle),
-    };
-    _commit(_current.copyWith(clip: clip));
-  }
-
-  /// Pick a silhouette slug for [code] (prefer one for this country) → a clip.
-  Clip _silhouetteClip(ClipShape shape, String code) {
-    final slugs = widget.generator.silhouettesByShape[shape] ?? const <String>[];
-    final slug = slugs.firstWhere((s) => s.startsWith('${code}_'),
-        orElse: () => slugs.isNotEmpty ? slugs.first : code);
-    return Clip.shape(shape, code: slug);
-  }
-
-  static const _silhouetteShapeIds = {
-    'animalSilhouette',
-    'plantSilhouette',
-    'landmarkSilhouette',
-  };
-
-  /// Every silhouette (animal / plant / landmark) available for the SELECTED
-  /// countries — so the user can pick a specific one from the full list rather
-  /// than the auto-picked default. A country may contribute several.
-  List<(ClipShape, String)> _silhouetteOptions() {
-    const kinds = [
-      ClipShape.animalSilhouette,
-      ClipShape.plantSilhouette,
-      ClipShape.landmarkSilhouette,
-    ];
-    final codes =
-        _context.flagCodes.map((c) => c.toLowerCase()).toSet();
-    final out = <(ClipShape, String)>[];
-    for (final k in kinds) {
-      for (final slug in widget.generator.silhouettesByShape[k] ?? const []) {
-        final cc = slug.split('_').first;
-        if (codes.isEmpty || codes.contains(cc)) out.add((k, slug));
-      }
-    }
-    return out;
-  }
-
-  String _silhouetteLabel(ClipShape kind, String slug) {
-    final parts = slug.split('_');
-    final cc = parts.first.toUpperCase();
-    final name = parts
-        .skip(1)
-        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-    final kindLabel = switch (kind) {
-      ClipShape.animalSilhouette => 'animal',
-      ClipShape.plantSilhouette => 'plant',
-      ClipShape.landmarkSilhouette => 'landmark',
-      _ => '',
-    };
-    return '$cc · $name ($kindLabel)';
-  }
-
-  // ── A3: Adjust panel (Tier-3 contextual form controls) ──────────────────────
-  // Live parameter edits: update the hero in place without pushing history (a
-  // refinement, not a decision) so dragging a slider doesn't flood undo.
-  void _applyLive(DesignRecipe next) {
-    if (next.recipeId == _current.recipeId) return;
-    setState(() => _current = next);
-  }
-
-  Effects get _fx => _current.effects ?? const Effects();
-  void _setFx(Effects fx) => _applyLive(_current.copyWith(effects: fx));
-  void _setComp(Composition c) => _applyLive(_current.copyWith(composition: c));
-  void _setClip(Clip c) => _applyLive(_current.copyWith(clip: c));
-
-  /// ♥ Save: the customer loves the current hero. Strong-ish positive signal +
-  /// a like in the reproducible library so the full recipe can be re-rendered.
-  void _save() {
-    widget.library?.toggleLike(_current);
-    _observe(_current, PreferenceSignal.saved);
-  }
-
-  /// Human name of the current garment colour, for the Review summary.
-  String get _garmentName {
-    final hex = _current.palette?.garmentColour;
-    for (final (h, name) in _garments) {
-      if (h == hex) return name;
-    }
-    return '—';
-  }
-
-  /// The at-a-glance spec chips for the Review summary (storyboard step 8).
-  List<String> _reviewSpec() {
-    final comp = _current.composition;
-    final n = _context.flagCodes.length;
-    return [
-      '$n ${n == 1 ? 'country' : 'countries'}',
-      _subjectLabel,
-      if (_subjectIndex == 0) _cap(_detail.name),
-      if (_currentStyle != null) _currentStyle!.label,
-      _cap(comp.sizeClass.name),
-      _cap(comp.orientation.name),
-      _garmentName,
-      'Front: $_frontLabel',
-    ];
-  }
-
-  /// Human label for the current front print (mobile parity).
-  String get _frontLabel {
-    switch (_frontFit) {
-      case _FrontFit.full:
-        return 'Full';
-      case _FrontFit.chest:
-        return _chestRight ? 'Right chest' : 'Left chest';
-      case _FrontFit.none:
-        return 'Blank';
-    }
-  }
-
-  static String _cap(String s) =>
-      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
-
-  /// Review & Save (storyboard step 8): front + back preview, an at-a-glance
-  /// spec summary, Save to Library, and an explicit Add-to-cart placeholder
-  /// (commerce lives in the mobile app / milestone M1, not the Lab).
-  void _showReview() {
-    final garment = _current.palette?.garmentColour;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF16181D),
-      builder: (sheetContext) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Review & save',
-                style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            Row(children: [
-              _reviewThumbChild(
-                'Front',
-                _GarmentFrontPreview(
-                  service: widget.service,
-                  design: _frontFace,
-                  printRect: _frontPrintRect(),
-                  garmentColour: garment,
-                ),
-              ),
-              const SizedBox(width: 12),
-              _reviewThumb('Back', _hero),
-            ]),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final s in _reviewSpec())
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF23262C),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(s,
-                        style: const TextStyle(
-                            fontSize: 11, color: Colors.white70)),
-                  ),
-              ],
-            ),
-            if (_currentTitle.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('“$_currentTitle”',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white,
-                      fontStyle: FontStyle.italic)),
-            ],
-            const SizedBox(height: 16),
-            Row(children: [
-              Expanded(
-                child: FilledButton.icon(
-                  key: const Key('studio-review-save'),
-                  icon: const Icon(Icons.favorite, size: 18),
-                  label: const Text('Save to library'),
-                  onPressed: () {
-                    _save();
-                    Navigator.of(sheetContext).pop();
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const Key('studio-review-cart'),
-                  icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                  // Commerce is a mobile/production (M1) concern — the Lab
-                  // prototype stops at Save, so this is explicitly disabled.
-                  onPressed: null,
-                  label: const Text('Add to cart (mobile)'),
-                ),
-              ),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _reviewThumb(String label, DesignRecipe recipe) => _reviewThumbChild(
-      label, _HeroCanvas(service: widget.service, recipe: recipe, longSide: 132));
-
-  Widget _reviewThumbChild(String label, Widget child) => Expanded(
-        child: Column(
-          children: [
-            Container(
-              height: 132,
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF2A2D33)),
-                color: const Color(0xFFF2F2F2),
-              ),
-              child: child,
-            ),
-            const SizedBox(height: 4),
-            Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.white60)),
-          ],
-        ),
-      );
-
-  /// Tray ✕: the customer explicitly dislikes this alternative. Emit an explicit
-  /// reject (preferred over inferring), reject it in the library, and drop the
-  /// tile so the strip stays subtle.
-  void _dismissAlternative(int index) {
-    if (index < 0 || index >= _alternatives.length) return;
-    final alt = _alternatives[index];
-    widget.library?.toggleReject(alt);
-    _observe(alt, PreferenceSignal.rejected);
-    setState(() {
-      _alternatives = [..._alternatives]..removeAt(index);
-    });
-  }
-
-  /// Long-press / badge tap: pin or unpin an axis for "Surprise me".
-  void _toggleLock(DesignAxis axis) {
-    setState(() {
-      if (!_locked.add(axis)) _locked.remove(axis);
-    });
-  }
-
-  /// Surprise me: re-roll every UNLOCKED axis at once, holding locks identical.
-  void _surprise() {
-    final next = _gen.rerollUnlocked(_current, locked: _locked);
-    _commit(next);
-    if (_activeAxis != null && !_locked.contains(_activeAxis)) {
-      _focusAxis(_activeAxis!);
-    }
-  }
-
-  /// Undo: restore the previous hero instantly from the stored recipe.
-  void _undo() {
-    if (_history.isEmpty) return;
-    setState(() {
-      _current = _history.removeLast();
-      if (_activeAxis != null) {
-        _alternatives = _orderByPreference([
-          for (var i = 0; i < 4; i++)
-            _gen.reroll(_current, _activeAxis!, newSeed: _nextSeed()),
-        ]);
-      }
-    });
-  }
+  void _save() => _c.save();
+  void _surprise() => _c.surprise();
+  void _undo() => _c.undo();
+  void _setSize(SizeClass s) => _c.setSize(s);
+  void _setOrientation(Orientation o) => _c.setOrientation(o);
+  void _setGarment(String hex) => _c.setGarment(hex);
+  void _onChipTap(DesignAxis a) => _c.onChipTap(a);
+  void _onAlternativeTap(int i, DesignRecipe alt) => _c.onAlternativeTap(i, alt);
+  void _onStyleTap(LabStyle s, DesignRecipe r) => _c.onStyleTap(s, r);
+  void _applyDetail(StudioDetail d) => _c.applyDetail(d);
+  void _applyFinishPreset((String, Effects, double, ColourStrategy?) p) =>
+      _c.applyFinishPreset(p);
+  void _dismissAlternative(int i) => _c.dismissAlternative(i);
+  void _toggleLock(DesignAxis a) => _c.toggleLock(a);
+  void _setFrontArt(FrontArt a) => _c.setFrontArt(a);
+  void _setRibbonCoverage(bool b) => _c.setRibbonCoverage(b);
+  void _setTitle(String v) => _c.setTitle(v);
+  void _setFx(Effects fx) => _c.setFx(fx);
+  void _setComp(Composition comp) => _c.setComp(comp);
+  void _setClip(Clip clip) => _c.setClip(clip);
+  void _applyLive(DesignRecipe r) => _c.applyLive(r);
+  List<(LabStyle, DesignRecipe)> _vibeStyleOptions() => _c.vibeStyleOptions();
+  List<(ClipShape, String)> _silhouetteOptions() => _c.silhouetteOptions();
+  String _silhouetteLabel(ClipShape k, String slug) =>
+      _c.silhouetteLabel(k, slug);
+  List<String> _reviewSpec() => _c.reviewSpec();
+  Rect _frontPrintRect() => _c.frontPrintRect();
+  List<RefineCategory> _refineCategories() => _c.refineCategories();
 
   @override
   Widget build(BuildContext context) {
@@ -788,7 +281,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
           else if (_activeAxis != null)
             _alternativesTray(),
           // Detail sub-step: only for the Flags subject — the shape flags fill.
-          if (widget.designContext.hasTrips) _travelRow(),
+          if (_c.hasTrips) _travelRow(),
           if (_subjectIndex == 0) _detailRow(),
           if (_showAdjust) _adjustPanel(),
           _decisionDeck(),
@@ -801,13 +294,13 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// Circle) — the shape the flags fill. Shown only when the subject is Flags.
   Widget _detailRow() {
     const items = [
-      (_StudioDetail.grid, 'Grid'),
-      (_StudioDetail.map, 'Map'),
-      (_StudioDetail.animals, 'Animals'),
-      (_StudioDetail.plants, 'Plants'),
-      (_StudioDetail.landmarks, 'Landmarks'),
-      (_StudioDetail.heart, 'Heart'),
-      (_StudioDetail.circle, 'Circle'),
+      (StudioDetail.grid, 'Grid'),
+      (StudioDetail.map, 'Map'),
+      (StudioDetail.animals, 'Animals'),
+      (StudioDetail.plants, 'Plants'),
+      (StudioDetail.landmarks, 'Landmarks'),
+      (StudioDetail.heart, 'Heart'),
+      (StudioDetail.circle, 'Circle'),
     ];
     return Container(
       color: const Color(0xFF16181D),
@@ -838,28 +331,6 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     );
   }
 
-  /// One-tap named finishes (the old editor's "Restyle" strip): each applies a
-  /// bundled Effects (+ colour intent) over the current design, non-destructively.
-  static const _finishPresets = <(String, Effects, double, ColourStrategy?)>[
-    ('Clean', Effects(), 0.0, ColourStrategy.flagDerived),
-    ('Vintage', Effects(fade: 0.35, grain: 0.3), 0.6, null),
-    ('Retro', Effects(halftone: 0.5, halftoneScale: 5), 0.2, null),
-    ('Halftone', Effects(halftone: 0.9, halftoneScale: 5), 0.0, null),
-    ('Distress', Effects(distress: 0.55, grain: 0.4), 0.0, null),
-    ('Tie-dye', Effects(tieDye: 0.9), 0.0, null),
-    ('Shatter', Effects(shatter: 0.6, shatterSpikes: 0.4), 0.0, null),
-    ('Riso', Effects(riso: 0.9), 0.0, null),
-    ('Mono', Effects(), 0.0, ColourStrategy.monochrome),
-  ];
-
-  void _applyFinishPreset((String, Effects, double, ColourStrategy?) p) {
-    final pal = _current.palette ?? const Palette();
-    _commit(_current.copyWith(
-      effects: p.$2,
-      palette: pal.copyWith(vintageGrade: p.$3, strategy: p.$4 ?? pal.strategy),
-    ));
-  }
-
   Widget _finishRow() => Row(children: [
         _miniLabel('Finish'),
         Expanded(
@@ -867,7 +338,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              for (final p in _finishPresets)
+              for (final p in StudioController.finishPresets)
                 ActionChip(
                   key: Key('studio-finish-${p.$1}'),
                   label: Text(p.$1, style: const TextStyle(fontSize: 11)),
@@ -912,29 +383,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     );
   }
 
-  /// Which Refine categories apply to the current design. Finish/Colour/Edges/
-  /// Effects/Print are universal; Layout is Flags-only; Graphic appears when the
-  /// artwork is clipped or is a passport collage; Text appears on the Words
-  /// subject. Order matches the storyboard's Fine-Tune menu.
-  List<_RefineCategory> _refineCategories() {
-    final genre = _subjects[_subjectIndex].$1;
-    final clip = _current.clip;
-    final clipped =
-        clip != null && clip.shapeId != 'none' && clip.shapeId != 'passportPage';
-    final isPassport = genre == LabGenre.passport;
-    return [
-      _RefineCategory.finish,
-      if (_subjectIndex == 0) _RefineCategory.layout,
-      if (clipped || isPassport) _RefineCategory.graphic,
-      if (genre == LabGenre.typography) _RefineCategory.text,
-      _RefineCategory.colour,
-      _RefineCategory.edges,
-      _RefineCategory.effects,
-      _RefineCategory.print,
-    ];
-  }
 
-  Widget _refineMenu(List<_RefineCategory> cats, _RefineCategory active) =>
+  Widget _refineMenu(List<RefineCategory> cats, RefineCategory active) =>
       SizedBox(
         height: 30,
         child: ListView.separated(
@@ -970,23 +420,23 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
   /// The focused control body for one Refine category. Each branch owns exactly
   /// the controls the old single panel grouped under that heading.
-  List<Widget> _refineBody(_RefineCategory cat) {
+  List<Widget> _refineBody(RefineCategory cat) {
     switch (cat) {
-      case _RefineCategory.finish:
+      case RefineCategory.finish:
         return [_finishRow()];
-      case _RefineCategory.layout:
+      case RefineCategory.layout:
         return _layoutControls();
-      case _RefineCategory.graphic:
+      case RefineCategory.graphic:
         return _graphicControls();
-      case _RefineCategory.text:
+      case RefineCategory.text:
         return _textControls();
-      case _RefineCategory.colour:
+      case RefineCategory.colour:
         return _colourControls();
-      case _RefineCategory.edges:
+      case RefineCategory.edges:
         return _edgeControls();
-      case _RefineCategory.effects:
+      case RefineCategory.effects:
         return _effectControls();
-      case _RefineCategory.print:
+      case RefineCategory.print:
         return _printControls();
     }
   }
@@ -1007,7 +457,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   /// Shape / clip / silhouette / passport — the "Graphic" bucket.
   List<Widget> _graphicControls() {
     final rows = <Widget>[];
-    final genre = _subjects[_subjectIndex].$1;
+    final genre = StudioController.subjects[_subjectIndex].$1;
 
     if (genre == LabGenre.passport && _current.clip != null) {
       final clip = _current.clip!;
@@ -1035,7 +485,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
     // Full silhouette list for the selected countries — pick a specific one.
     final silClip = _current.clip;
-    if (silClip != null && _silhouetteShapeIds.contains(silClip.shapeId)) {
+    if (silClip != null && StudioController.silhouetteShapeIds.contains(silClip.shapeId)) {
       final options = _silhouetteOptions();
       if (options.isNotEmpty) {
         final value = options.any((o) => o.$2 == silClip.code)
@@ -1255,28 +705,6 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         ),
       ]);
 
-  // ── A4: Tier-1 fixed Format & Colour bar (always available, never reset by a
-  // Style/Direction change) ──────────────────────────────────────────────────
-  void _setSize(SizeClass s) =>
-      _setComp(_current.composition.copyWith(sizeClass: s));
-  void _setOrientation(Orientation o) =>
-      _setComp(_current.composition.copyWith(orientation: o));
-  void _setGarment(String hex) {
-    final p = _current.palette ?? const Palette();
-    _applyLive(_current.copyWith(
-        palette: p.copyWith(
-            garmentColour: hex, strategy: ColourStrategy.garmentAware)));
-  }
-
-  static const _garments = <(String, String)>[
-    ('#1F2B33', 'Black'),
-    ('#F5F5F5', 'White'),
-    ('#22303A', 'Navy'),
-    ('#8A8F98', 'Grey'),
-    ('#D8C9A3', 'Sand'),
-    ('#6B7350', 'Olive'),
-  ];
-
   Widget _formatBar() {
     final comp = _current.composition;
     final garment = _current.palette?.garmentColour;
@@ -1304,46 +732,46 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             _pill('size-${s.name}', lbl, comp.sizeClass == s, () => _setSize(s)),
           _divider(),
           _miniLabel('Colour'),
-          for (final (hex, name) in _garments)
+          for (final (hex, name) in StudioController.garments)
             _swatch(hex, name, garment == hex),
           _divider(),
           _miniLabel('Side'),
           // The hero/main design lives on the BACK by default; the FRONT is the
           // small chest ribbon (or a complement).
           _pill('side-back', 'Back', !_onFront,
-              () => setState(() => _onFront = false)),
+              () => _c.setSide(false)),
           _pill('side-front', 'Front', _onFront,
-              () => setState(() => _onFront = true)),
+              () => _c.setSide(true)),
           // Front-only: the print fit (full / chest / none), the chest side, and
           // where the front artwork comes from.
           if (_onFront) ...[
             _divider(),
             _miniLabel('Front'),
-            _pill('front-fit-full', 'Full', _frontFit == _FrontFit.full,
-                () => setState(() => _frontFit = _FrontFit.full)),
-            _pill('front-fit-chest', 'Chest', _frontFit == _FrontFit.chest,
-                () => setState(() => _frontFit = _FrontFit.chest)),
-            _pill('front-fit-none', 'None', _frontFit == _FrontFit.none,
-                () => setState(() => _frontFit = _FrontFit.none)),
-            if (_frontFit == _FrontFit.chest) ...[
+            _pill('front-fit-full', 'Full', _frontFit == FrontFit.full,
+                () => _c.setFrontFit(FrontFit.full)),
+            _pill('front-fit-chest', 'Chest', _frontFit == FrontFit.chest,
+                () => _c.setFrontFit(FrontFit.chest)),
+            _pill('front-fit-none', 'None', _frontFit == FrontFit.none,
+                () => _c.setFrontFit(FrontFit.none)),
+            if (_frontFit == FrontFit.chest) ...[
               const SizedBox(width: 6),
               _pill('front-chest-left', 'Left', !_chestRight,
-                  () => setState(() => _chestRight = false)),
+                  () => _c.setChestSide(false)),
               _pill('front-chest-right', 'Right', _chestRight,
-                  () => setState(() => _chestRight = true)),
+                  () => _c.setChestSide(true)),
             ],
             _divider(),
             _miniLabel('Art'),
             _pill('front-art-ribbon', 'Ribbon',
-                _frontArt == _FrontArt.ribbon, () => _setFrontArt(_FrontArt.ribbon)),
+                _frontArt == FrontArt.ribbon, () => _setFrontArt(FrontArt.ribbon)),
             _pill('front-art-complement', 'Complement',
-                _frontArt == _FrontArt.complement,
-                () => _setFrontArt(_FrontArt.complement)),
+                _frontArt == FrontArt.complement,
+                () => _setFrontArt(FrontArt.complement)),
             _pill('front-art-match', 'Match back',
-                _frontArt == _FrontArt.matchBack,
-                () => _setFrontArt(_FrontArt.matchBack)),
+                _frontArt == FrontArt.matchBack,
+                () => _setFrontArt(FrontArt.matchBack)),
             // Ribbon coverage (mobile "Selected vs All").
-            if (_frontArt == _FrontArt.ribbon) ...[
+            if (_frontArt == FrontArt.ribbon) ...[
               const SizedBox(width: 6),
               _pill('front-ribbon-selected', 'Selected', !_ribbonAllCountries,
                   () => _setRibbonCoverage(false)),
@@ -1356,103 +784,11 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     );
   }
 
-  /// The front artwork's print rect as *fractions of the shirt-front image*,
-  /// mirroring the mobile print positions (`product_mockup_specs.dart`) so the
-  /// design lands in the same place on the real garment. Left/right chest are
-  /// intentionally mapped as mobile does — `left_chest` sits on the viewer's
-  /// right (the wearer's left). Returns [Rect.zero] for a blank (none) front.
-  Rect _frontPrintRect() {
-    switch (_frontFit) {
-      case _FrontFit.full:
-        // Mobile `center` — the full-front DTG printfile area.
-        return const Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
-      case _FrontFit.chest:
-        return _chestRight
-            ? const Rect.fromLTWH(0.27, 0.25, 0.18, 0.25) // right_chest
-            : const Rect.fromLTWH(0.55, 0.25, 0.18, 0.25); // left_chest
-      case _FrontFit.none:
-        return Rect.zero;
-    }
-  }
-
-  /// A flag-ribbon (medal-bar) recipe derived from [r]: same palette and garment
-  /// colour, re-laid-out as the [DesignFamily.frontRibbon] family. When
-  /// [_ribbonAllCountries] is set the ribbon shows every country in the design
-  /// context (mobile "All"); otherwise it keeps the design's own flags ("Selected").
-  DesignRecipe _ribbonOf(DesignRecipe r) {
-    var content = r.content;
-    if (_ribbonAllCountries) {
-      final all = _context.flagCodes;
-      if (all.isNotEmpty) {
-        content = RecipeContent(
-          flags: [for (final c in all) FlagRef(c)],
-          source: r.content.source,
-          entries: r.content.entries,
-          meta: r.content.meta,
-        );
-      }
-    }
-    return r.copyWith(
-      composition: r.composition.copyWith(family: DesignFamily.frontRibbon),
-      content: content,
-    );
-  }
-
-  /// Switch where the front artwork comes from and rebuild [_frontFace] from the
-  /// current hero. After this the front is independently editable (like the old
-  /// derived back) until the source is changed again.
-  void _setFrontArt(_FrontArt art) {
-    setState(() {
-      _frontArt = art;
-      switch (art) {
-        case _FrontArt.ribbon:
-          _frontFace = _ribbonOf(_hero);
-        case _FrontArt.complement:
-          _frontFace = GarmentDesign.deriveBack(_hero,
-              themeSeed: _nextSeed(),
-              garmentColour: _hero.palette?.garmentColour);
-        case _FrontArt.matchBack:
-          _frontFace = _hero;
-      }
-    });
-  }
-
-  /// Ribbon coverage toggle (mobile "Selected vs All") — rebuilds the ribbon.
-  void _setRibbonCoverage(bool all) {
-    setState(() {
-      _ribbonAllCountries = all;
-      _frontFace = _ribbonOf(_hero);
-    });
-  }
-
-  /// Re-derive the effective [_context] from the host's trips under the current
-  /// Source (Countries vs Trips) + Year filter, then regenerate the hero. Mobile
-  /// parity: Countries = one flag per distinct country; Trips = one per visit.
-  void _rebuildContext() {
-    final all = TravelHistory(widget.designContext.trips);
-    final range = DateRange.years(_yearLo, _yearHi);
-    final filtered = all.inRange(range);
-    final codes = _sourceTrips
-        ? [for (final t in filtered.trips) t.cc]
-        : filtered.countryCodes;
-    if (codes.isEmpty) return; // never leave the design with no flags.
-    setState(() {
-      _context = DesignContext(
-        flagCodes: codes,
-        scopeKey: widget.designContext.scopeKey,
-        trips: filtered.trips,
-        dateRange: range,
-      );
-      _hero = _gen.generate(_context, seed: _nextSeed(), count: 1).first;
-      _frontFace = _ribbonOf(_hero);
-    });
-  }
-
   /// Travel-data controls (only when the context carries trips): Source
   /// (Countries vs Trips) + a year-range filter. Mirrors the mobile Flag-source
   /// and trip-year controls.
   Widget _travelRow() {
-    final span = widget.designContext.history.span!;
+    final span = _c.span!;
     final minY = span.start!.year, maxY = span.end!.year;
     return Container(
       color: const Color(0xFF16181D),
@@ -1461,14 +797,10 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
         const Text('Trips',
             style: TextStyle(fontSize: 11, color: Colors.white38)),
         const SizedBox(width: 10),
-        _pill('source-countries', 'Countries', !_sourceTrips, () {
-          _sourceTrips = false;
-          _rebuildContext();
-        }),
-        _pill('source-trips', 'Trips', _sourceTrips, () {
-          _sourceTrips = true;
-          _rebuildContext();
-        }),
+        _pill('source-countries', 'Countries', !_sourceTrips,
+            () => _c.setSource(false)),
+        _pill('source-trips', 'Trips', _sourceTrips,
+            () => _c.setSource(true)),
         const SizedBox(width: 10),
         if (maxY > minY)
           Expanded(
@@ -1478,11 +810,9 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               max: maxY.toDouble(),
               divisions: maxY - minY,
               labels: RangeLabels('$_yearLo', '$_yearHi'),
-              onChanged: (v) => setState(() {
-                _yearLo = v.start.round();
-                _yearHi = v.end.round();
-              }),
-              onChangeEnd: (_) => _rebuildContext(),
+              onChanged: (v) =>
+                  _c.previewYear(v.start.round(), v.end.round()),
+              onChangeEnd: (_) => _c.rebuildContext(),
             ),
           )
         else
@@ -1674,7 +1004,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               key: const Key('studio-suggest-titles'),
               icon: const Icon(Icons.auto_awesome, size: 16),
               label: const Text('Suggest', style: TextStyle(fontSize: 12)),
-              onPressed: () => setState(() => _titleIdeas = _titleSuggestions()),
+              onPressed: _c.suggestTitles,
             ),
           ]),
           if (_titleIdeas.isNotEmpty) ...[
@@ -1814,37 +1144,118 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       ),
     );
   }
-}
 
-/// The shape a Flags design fills — the "Detail" sub-step under the Flags
-/// subject (Grid = plain flags; the rest are clipped).
-enum _StudioDetail { grid, map, animals, plants, landmarks, heart, circle }
+  /// Review & Save (storyboard step 8): front + back preview, an at-a-glance
+  /// spec summary, Save to Library, and an explicit Add-to-cart placeholder
+  /// (commerce lives in the mobile app / milestone M8, not the Lab).
+  void _showReview() {
+    final garment = _current.palette?.garmentColour;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF16181D),
+      builder: (sheetContext) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Review & save',
+                style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Row(children: [
+              _reviewThumbChild(
+                'Front',
+                _GarmentFrontPreview(
+                  service: widget.service,
+                  design: _frontFace,
+                  printRect: _frontPrintRect(),
+                  garmentColour: garment,
+                ),
+              ),
+              const SizedBox(width: 12),
+              _reviewThumb('Back', _hero),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final s in _reviewSpec())
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF23262C),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(s,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.white70)),
+                  ),
+              ],
+            ),
+            if (_currentTitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('“$_currentTitle”',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontStyle: FontStyle.italic)),
+            ],
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  key: const Key('studio-review-save'),
+                  icon: const Icon(Icons.favorite, size: 18),
+                  label: const Text('Save to library'),
+                  onPressed: () {
+                    _save();
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('studio-review-cart'),
+                  icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                  // Commerce is a mobile/production (M8) concern — the Lab
+                  // prototype stops at Save, so this is explicitly disabled.
+                  onPressed: null,
+                  label: const Text('Add to cart (mobile)'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
 
-/// How the FRONT artwork is printed on the shirt (mobile parity). Full = the
-/// centred full-front print; chest = a small chest print (left/right); none =
-/// a blank front (the main design lives on the back).
-enum _FrontFit { full, chest, none }
+  Widget _reviewThumb(String label, DesignRecipe recipe) => _reviewThumbChild(
+      label, _HeroCanvas(service: widget.service, recipe: recipe, longSide: 132));
 
-/// Where the front artwork comes from: a flag ribbon (default), a generated
-/// complement of the back, or a copy of the main (back) design.
-enum _FrontArt { ribbon, complement, matchBack }
-
-/// The Refine ("Fine Tune") categories — the storyboard's category menu. Each
-/// groups a contextual slice of the Tier-3 control set so advanced controls are
-/// disclosed by category rather than as one long, always-cluttering panel.
-enum _RefineCategory { finish, layout, graphic, text, colour, edges, effects, print }
-
-extension _RefineCategoryLabel on _RefineCategory {
-  String get label => switch (this) {
-        _RefineCategory.finish => 'Finish',
-        _RefineCategory.layout => 'Layout',
-        _RefineCategory.graphic => 'Graphic',
-        _RefineCategory.text => 'Text',
-        _RefineCategory.colour => 'Colour',
-        _RefineCategory.edges => 'Edges',
-        _RefineCategory.effects => 'Effects',
-        _RefineCategory.print => 'Print',
-      };
+  Widget _reviewThumbChild(String label, Widget child) => Expanded(
+        child: Column(
+          children: [
+            Container(
+              height: 132,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF2A2D33)),
+                color: const Color(0xFFF2F2F2),
+              ),
+              child: child,
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.white60)),
+          ],
+        ),
+      );
 }
 
 /// A decision-deck chip: tap re-rolls its axis; long-press (or the lock badge)

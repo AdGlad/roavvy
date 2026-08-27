@@ -1,0 +1,29 @@
+name: design_studio
+description: >-
+  Interactive Studio session/orchestration layer for the Roavvy Design Studio.
+  Sits ABOVE design_forge (core design domain: DesignRecipe, GarmentDesign,
+  DesignContext, procedural generation) and design_forge_render (renderer). Owns
+  the interactive editing session — the StudioController (recipe mutations, axes,
+  locks, remix, alternatives, undo/redo, front/back + travel-context
+  coordination) and portable showcase/render orchestration. Host-specific UI,
+  asset loading and filesystem behaviour stay OUT of this package (injected).
+  Hosts: macOS design_lab, mobile Roavvy V2.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  design_forge:
+    path: ../design_forge
+  design_forge_render:
+    path: ../design_forge_render
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
