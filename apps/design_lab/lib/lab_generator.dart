@@ -66,6 +66,20 @@ class LabShowcaseGenerator implements RecipeGenerator {
         countryContinents: countryContinents,
       );
 
+  /// A copy bound to a different [LabStyle] (the VIBE), reusing the same asset
+  /// config + subject. Lets the Studio Canvas offer a NAMED style picker: build
+  /// `withStyle(target).reroll(current, DesignAxis.vibe, …)` to splice that
+  /// style's finish onto the current design while keeping every other axis.
+  LabShowcaseGenerator withStyle(LabStyle style) => LabShowcaseGenerator(
+        style: style,
+        genre: genre,
+        template: template,
+        silhouettesByShape: silhouettesByShape,
+        continents: continents,
+        countryNames: countryNames,
+        countryContinents: countryContinents,
+      );
+
   static const _words = ['ROAM', 'EXPLORE', 'WANDER', 'ADVENTURE', 'WILD', 'NOMAD'];
 
   /// Distinctive display faces for titles, by family NAME. These ship on macOS
@@ -246,7 +260,10 @@ class LabShowcaseGenerator implements RecipeGenerator {
       engineVersion: base.engineVersion,
       grammarVersion: base.grammarVersion,
       assetsVersion: base.assetsVersion,
-      provenance: base.provenance,
+      // A VIBE re-roll changes the style, so record which style the design now
+      // wears (provenance is excluded from the content hash, so recipeId — and
+      // every determinism golden — is unaffected). Other re-rolls keep base's.
+      provenance: r(DesignAxis.vibe) ? regen.provenance : base.provenance,
     );
   }
 

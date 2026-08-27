@@ -269,6 +269,35 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               .first,
       ];
 
+  /// The 13 NAMED style options for the Vibe picker: each is the current design
+  /// restyled into one [LabStyle] (only the Vibe/finish axis is spliced, so the
+  /// subject/colour/words and all Tier-1 choices are preserved). Seeds are fixed
+  /// per style so the thumbnails are stable across rebuilds.
+  List<(LabStyle, DesignRecipe)> _vibeStyleOptions() {
+    final base = _current;
+    return [
+      for (final s in LabStyle.values)
+        (
+          s,
+          _gen
+              .withStyle(s)
+              .reroll(base, DesignAxis.vibe, newSeed: 7000 + s.index)
+        ),
+    ];
+  }
+
+  /// The style the current design is wearing (from its provenance stamp), so the
+  /// Vibe picker can highlight it. Null if it wasn't Lab-generated.
+  LabStyle? get _currentStyle =>
+      labStyleFromProvenance(_current.provenance?.generator);
+
+  /// Pick a NAMED style from the Vibe tray — commit the restyle and keep the tray
+  /// open so the customer can keep trying vibes.
+  void _onStyleTap(LabStyle style, DesignRecipe styled) {
+    _commit(styled);
+    setState(() {}); // refresh the tray's selected highlight
+  }
+
   /// Direction chip → advance to the next subject and regenerate the hero.
   void _cycleSubject() {
     setState(() => _subjectIndex = (_subjectIndex + 1) % _subjects.length);
@@ -487,7 +516,10 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
               ),
             ),
           ),
-          if (_activeAxis != null) _alternativesTray(),
+          if (_activeAxis == DesignAxis.vibe)
+            _vibeStyleTray()
+          else if (_activeAxis != null)
+            _alternativesTray(),
           // Detail sub-step: only for the Flags subject — the shape flags fill.
           if (_subjectIndex == 0) _detailRow(),
           if (_showAdjust) _adjustPanel(),
@@ -1101,6 +1133,71 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 
   static String _labelFor(DesignAxis a) =>
       _deck.firstWhere((e) => e.$1 == a).$2;
+
+  /// The "Pick a Vibe" tray — 13 NAMED style thumbnails (the current design in
+  /// each [LabStyle]), the storyboard's signature "primary choices feel creative
+  /// and visual" step. The current style is highlighted; tapping restyles live.
+  Widget _vibeStyleTray() {
+    final options = _vibeStyleOptions();
+    final current = _currentStyle;
+    return Container(
+      color: const Color(0xFF1A1D22),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Pick a vibe  ·  tap a style',
+              style: TextStyle(fontSize: 11, color: Colors.white54)),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 116,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: options.length,
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final (style, styled) = options[i];
+                final on = style == current;
+                return GestureDetector(
+                  key: Key('studio-vibe-${style.name}'),
+                  onTap: () => _onStyleTap(style, styled),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: on
+                                  ? Colors.tealAccent
+                                  : const Color(0xFF2A2D33),
+                              width: on ? 2 : 1),
+                          color: const Color(0xFFF2F2F2),
+                        ),
+                        child: _HeroCanvas(
+                          service: widget.service,
+                          recipe: styled,
+                          longSide: 84,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(style.label,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  on ? Colors.tealAccent : Colors.white60)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _alternativesTray() {
     final axis = _activeAxis!;

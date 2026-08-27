@@ -278,6 +278,28 @@ void main() {
     expect(state.currentRecipe.clip?.text, 'WANDER');
   });
 
+  testWidgets('(n) Vibe opens a named style tray; picking one restyles live',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    // Tapping Vibe surfaces the named "Pick a vibe" tray (13 labelled styles),
+    // not an anonymous re-roll strip.
+    await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.vibe.key}')));
+    await tester.pump();
+    expect(find.text('Pick a vibe  ·  tap a style'), findsOneWidget);
+    // (The tray is a lazy horizontal list; grunge is in the built range.)
+    expect(find.byKey(const Key('studio-vibe-grunge')), findsOneWidget);
+
+    // Pick a specific named style → it commits and the design now wears it.
+    final before = state.currentRecipe.recipeId;
+    await tester.ensureVisible(find.byKey(const Key('studio-vibe-grunge')));
+    await tester.tap(find.byKey(const Key('studio-vibe-grunge')));
+    await tester.pump();
+    expect(state.currentRecipe.recipeId, isNot(before));
+    expect(state.currentRecipe.provenance?.generator, 'lab:grunge');
+  });
+
   testWidgets('(m) Refine opens a category menu; switching category swaps body',
       (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();
