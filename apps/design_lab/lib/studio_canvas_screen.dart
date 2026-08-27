@@ -487,13 +487,55 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     );
   }
 
-  /// The contextual Adjust panel: grid controls for Flags, stamp controls for
-  /// Passport, and an Effects section (incl. the ported riso/newsprint/sunFaded/
-  /// photocopy) for every subject.
+  /// One-tap named finishes (the old editor's "Restyle" strip): each applies a
+  /// bundled Effects (+ colour intent) over the current design, non-destructively.
+  static const _finishPresets = <(String, Effects, double, ColourStrategy?)>[
+    ('Clean', Effects(), 0.0, ColourStrategy.flagDerived),
+    ('Vintage', Effects(fade: 0.35, grain: 0.3), 0.6, null),
+    ('Retro', Effects(halftone: 0.5, halftoneScale: 5), 0.2, null),
+    ('Halftone', Effects(halftone: 0.9, halftoneScale: 5), 0.0, null),
+    ('Distress', Effects(distress: 0.55, grain: 0.4), 0.0, null),
+    ('Tie-dye', Effects(tieDye: 0.9), 0.0, null),
+    ('Shatter', Effects(shatter: 0.6, shatterSpikes: 0.4), 0.0, null),
+    ('Riso', Effects(riso: 0.9), 0.0, null),
+    ('Mono', Effects(), 0.0, ColourStrategy.monochrome),
+  ];
+
+  void _applyFinishPreset((String, Effects, double, ColourStrategy?) p) {
+    final pal = _current.palette ?? const Palette();
+    _commit(_current.copyWith(
+      effects: p.$2,
+      palette: pal.copyWith(vintageGrade: p.$3, strategy: p.$4 ?? pal.strategy),
+    ));
+  }
+
+  Widget _finishRow() => Row(children: [
+        _miniLabel('Finish'),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final p in _finishPresets)
+                ActionChip(
+                  key: Key('studio-finish-${p.$1}'),
+                  label: Text(p.$1, style: const TextStyle(fontSize: 11)),
+                  onPressed: () => _applyFinishPreset(p),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        ),
+      ]);
+
+  /// The contextual Adjust panel: one-tap Finish presets, then grid controls for
+  /// Flags / stamp controls for Passport, Shape, Colour, Edges and Effects.
   Widget _adjustPanel() {
     final rows = <Widget>[];
     final genre = _subjects[_subjectIndex].$1;
     final comp = _current.composition;
+
+    rows..add(_sectionLabel('Finish'))..add(_finishRow());
 
     if (_subjectIndex == 0) {
       rows

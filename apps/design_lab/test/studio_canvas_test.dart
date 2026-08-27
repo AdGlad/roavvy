@@ -239,4 +239,15 @@ void main() {
     await tester.pump();
     expect(state.currentRecipe.recipeId, frontId);
   });
+
+  testWidgets('(j) a Finish preset applies a bundled effect', (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+    await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('studio-finish-Tie-dye')));
+    await tester.tap(find.byKey(const Key('studio-finish-Tie-dye')));
+    await tester.pump();
+    expect(state.currentRecipe.effects?.tieDye, 0.9);
+  });
 }
