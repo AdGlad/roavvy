@@ -3,6 +3,8 @@ import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
 import 'studio_v2_stage.dart';
+import 'widgets/detail_workspace.dart';
+import 'widgets/direction_workspace.dart';
 import 'widgets/garment_preview.dart';
 import 'widgets/travels_workspace.dart';
 
@@ -69,9 +71,17 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     });
   }
 
+  /// Stages visible in the strip / reachable via Next. Detail is Flags-only, so
+  /// it is hidden (and skipped) for every other Direction.
+  List<StudioStage> get _visibleStages => [
+        for (final s in _stages)
+          if (s != StudioStage.detail || _c.detailApplies) s,
+      ];
+
   void _next() {
-    final i = _stages.indexOf(_stage);
-    if (i < _stages.length - 1) _goToStage(_stages[i + 1]);
+    final vis = _visibleStages;
+    final i = vis.indexOf(_stage);
+    if (i >= 0 && i < vis.length - 1) _goToStage(vis[i + 1]);
   }
 
   void _workflowBack() {
@@ -183,11 +193,29 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       width: double.infinity,
       color: const Color(0xFF121317),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: _stage == StudioStage.travels
-          ? TravelsWorkspace(controller: _c)
-          : _placeholder(),
+      child: switch (_stage) {
+        StudioStage.travels => TravelsWorkspace(controller: _c),
+        StudioStage.direction => DirectionWorkspace(controller: _c),
+        StudioStage.detail => _c.detailApplies
+            ? DetailWorkspace(controller: _c)
+            : _detailNotApplicable(),
+        _ => _placeholder(),
+      },
     );
   }
+
+  Widget _detailNotApplicable() => const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('DETAIL',
+              style: TextStyle(
+                  fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+          SizedBox(height: 6),
+          Text('The shape step applies to Flags designs.',
+              style: TextStyle(fontSize: 13, color: Colors.white70)),
+        ],
+      );
 
   Widget _placeholder() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,6 +235,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
 
   // ── Stage strip: current-stage indicator + jump-to-stage + Next ─────────────
   Widget _stageStrip() {
+    final vis = _visibleStages;
     return Container(
       color: const Color(0xFF16181D),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -216,10 +245,10 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             height: 30,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _stages.length,
+              itemCount: vis.length,
               separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (context, i) {
-                final s = _stages[i];
+                final s = vis[i];
                 final on = s == _stage;
                 return GestureDetector(
                   key: Key('v2-stage-${s.name}'),
@@ -249,7 +278,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         const SizedBox(width: 8),
         FilledButton(
           key: const Key('v2-next'),
-          onPressed: _stage == _stages.last ? null : _next,
+          onPressed: _stage == vis.last ? null : _next,
           child: const Text('Next'),
         ),
       ]),

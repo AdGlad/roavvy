@@ -204,6 +204,53 @@ void main() {
     expect(c.context.flagCodes, ['us', 'jp']);
   });
 
+  test('Direction: selectSubject switches subject deterministically, carrying '
+      'garment + resetting Detail off Flags', () {
+    final a = make(multi);
+    a.setGarment('#6B7350'); // Olive
+    a.applyDetail(StudioDetail.heart);
+    expect(a.subjectIndex, 0); // Flags
+    expect(a.detailApplies, isTrue);
+
+    // Switch to a non-Flags subject (index 5 = Milestones).
+    a.selectSubject(5);
+    expect(a.subjectIndex, 5);
+    expect(a.subjectLabel, 'Milestones');
+    expect(a.detailApplies, isFalse);
+    expect(a.detail, StudioDetail.grid); // reset off Flags
+    expect(a.current.palette?.garmentColour, '#6B7350'); // garment preserved
+
+    // Travel selection is untouched by a Direction change.
+    expect(a.selectedCountryCodes, {'us', 'fr', 'jp'});
+
+    // Deterministic: two controllers with identical prior state land on the
+    // same design for the same subject.
+    final b = make(multi)..selectSubject(5);
+    final d = make(multi)..selectSubject(5);
+    expect(b.current.recipeId, d.current.recipeId);
+  });
+
+  test('allSilhouetteOptions exposes the full bundled inventory (unscoped)', () {
+    final gen = LabShowcaseGenerator(
+      silhouettesByShape: const {
+        ClipShape.animalSilhouette: ['us_bison', 'jp_crane'],
+        ClipShape.landmarkSilhouette: ['fr_eiffel_tower'],
+      },
+      countryNames: const {},
+    );
+    final c = StudioController(
+      generator: gen,
+      service: service,
+      designContext: single, // only 'us' selected
+      initialSeed: 7,
+    );
+    // Scoped options are limited to the design's countries…
+    expect(c.silhouetteOptions().map((o) => o.$2), ['us_bison']);
+    // …but the full inventory stays reachable.
+    expect(c.allSilhouetteOptions().map((o) => o.$2),
+        containsAll(['us_bison', 'jp_crane', 'fr_eiffel_tower']));
+  });
+
   test('authoring emits preference signals; Save likes into the library', () {
     final library = PersistentDesignLibrary(_MemoryStore());
     final c = make(single, library: library);

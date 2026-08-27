@@ -386,6 +386,26 @@ class StudioController extends ChangeNotifier {
     }
   }
 
+  /// Whether the Detail sub-step applies — only the Flags subject fills a shape.
+  bool get detailApplies => _subjectIndex == 0;
+
+  /// Direction: select the design SUBJECT directly by [index] into [subjects]
+  /// (Flags / Passport / Route / World / Words / Milestones). Regenerates the
+  /// design deterministically for the chosen subject while CARRYING the garment
+  /// colour / artwork size / orientation forward — a Direction change never
+  /// resets the Tier-1 controls or the active travel selection. Leaving Flags
+  /// resets [detail] to Grid (Detail applies to Flags only).
+  void selectSubject(int index) {
+    if (index < 0 || index >= subjects.length || index == _subjectIndex) return;
+    _subjectIndex = index;
+    if (index != 0) _detail = StudioDetail.grid;
+    final (g, t, _) = subjects[index];
+    final pool = generator.withGenre(g, template: t).generate(_context,
+        seed: _selectionSeed(_context.flagCodes) + index,
+        count: _preferences.sampleCount == 0 ? 1 : 6);
+    _commit(_carryGarment(_orderByPreference(pool).first, current));
+  }
+
   void onAlternativeTap(int index, DesignRecipe alt) {
     if (_activeAxis == DesignAxis.direction && index < subjects.length) {
       _subjectIndex = index;
@@ -468,6 +488,24 @@ class StudioController extends ChangeNotifier {
       for (final slug in generator.silhouettesByShape[k] ?? const []) {
         final cc = slug.split('_').first;
         if (codes.isEmpty || codes.contains(cc)) out.add((k, slug));
+      }
+    }
+    return out;
+  }
+
+  /// EVERY bundled silhouette (across all kinds), independent of the current
+  /// travel selection — so the complete inventory stays reachable in the picker.
+  /// [silhouetteOptions] is the country-scoped subset of this.
+  List<(ClipShape, String)> allSilhouetteOptions() {
+    const kinds = [
+      ClipShape.animalSilhouette,
+      ClipShape.plantSilhouette,
+      ClipShape.landmarkSilhouette,
+    ];
+    final out = <(ClipShape, String)>[];
+    for (final k in kinds) {
+      for (final slug in generator.silhouettesByShape[k] ?? const []) {
+        out.add((k, slug));
       }
     }
     return out;

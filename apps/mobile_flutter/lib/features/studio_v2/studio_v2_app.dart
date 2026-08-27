@@ -8,8 +8,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import 'host/bundle_asset_resolver.dart';
 import 'host/prefs_persistence.dart';
+import 'host/silhouette_inventory.g.dart';
 import 'host/travel_context.dart';
 import 'studio_v2_screen.dart';
+
+/// The bundled silhouette inventory keyed by [ClipShape], built once from the
+/// generated kind manifest. Feeds the generator so the Detail step's Animals /
+/// Plants / Landmarks pickers reach the full on-device inventory (159 animals,
+/// 2 landmarks; plants require additional bundled art — see the manifest).
+Map<ClipShape, List<String>> _bundledSilhouettesByShape() => {
+      ClipShape.animalSilhouette:
+          kStudioV2SilhouettesByKind['animal'] ?? const [],
+      ClipShape.plantSilhouette:
+          kStudioV2SilhouettesByKind['plant'] ?? const [],
+      ClipShape.landmarkSilhouette:
+          kStudioV2SilhouettesByKind['landmark'] ?? const [],
+    };
 
 /// Builds a [StudioController] over a supplied [DesignContext], wired to the
 /// mobile host adapters: the bundle [AssetResolver] (rootBundle) for rendering,
@@ -20,7 +34,7 @@ StudioController buildStudioV2ControllerFor(
   DesignPreferences preferences = DesignPreferences.neutral,
 }) {
   final generator = LabShowcaseGenerator(
-    silhouettesByShape: {for (final s in ClipShape.values) s: const <String>[]},
+    silhouettesByShape: _bundledSilhouettesByShape(),
     countryNames: const {},
   );
   final service = RenderService(createBundleAssetResolver());
