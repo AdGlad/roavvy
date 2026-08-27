@@ -305,6 +305,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       _StudioDetail.map => Clip.shape(ClipShape.countryOutline, code: code),
       _StudioDetail.animals =>
         _silhouetteClip(ClipShape.animalSilhouette, code),
+      _StudioDetail.plants =>
+        _silhouetteClip(ClipShape.plantSilhouette, code),
       _StudioDetail.landmarks =>
         _silhouetteClip(ClipShape.landmarkSilhouette, code),
       _StudioDetail.heart => Clip.shape(ClipShape.heart),
@@ -319,6 +321,49 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     final slug = slugs.firstWhere((s) => s.startsWith('${code}_'),
         orElse: () => slugs.isNotEmpty ? slugs.first : code);
     return Clip.shape(shape, code: slug);
+  }
+
+  static const _silhouetteShapeIds = {
+    'animalSilhouette',
+    'plantSilhouette',
+    'landmarkSilhouette',
+  };
+
+  /// Every silhouette (animal / plant / landmark) available for the SELECTED
+  /// countries — so the user can pick a specific one from the full list rather
+  /// than the auto-picked default. A country may contribute several.
+  List<(ClipShape, String)> _silhouetteOptions() {
+    const kinds = [
+      ClipShape.animalSilhouette,
+      ClipShape.plantSilhouette,
+      ClipShape.landmarkSilhouette,
+    ];
+    final codes =
+        widget.designContext.flagCodes.map((c) => c.toLowerCase()).toSet();
+    final out = <(ClipShape, String)>[];
+    for (final k in kinds) {
+      for (final slug in widget.generator.silhouettesByShape[k] ?? const []) {
+        final cc = slug.split('_').first;
+        if (codes.isEmpty || codes.contains(cc)) out.add((k, slug));
+      }
+    }
+    return out;
+  }
+
+  String _silhouetteLabel(ClipShape kind, String slug) {
+    final parts = slug.split('_');
+    final cc = parts.first.toUpperCase();
+    final name = parts
+        .skip(1)
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+    final kindLabel = switch (kind) {
+      ClipShape.animalSilhouette => 'animal',
+      ClipShape.plantSilhouette => 'plant',
+      ClipShape.landmarkSilhouette => 'landmark',
+      _ => '',
+    };
+    return '$cc · $name ($kindLabel)';
   }
 
   // ── A3: Adjust panel (Tier-3 contextual form controls) ──────────────────────
@@ -454,6 +499,7 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
       (_StudioDetail.grid, 'Grid'),
       (_StudioDetail.map, 'Map'),
       (_StudioDetail.animals, 'Animals'),
+      (_StudioDetail.plants, 'Plants'),
       (_StudioDetail.landmarks, 'Landmarks'),
       (_StudioDetail.heart, 'Heart'),
       (_StudioDetail.circle, 'Circle'),
@@ -587,6 +633,44 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             const ['entryExit', 'entryOnly', 'exitOnly'],
             clip.stampMode ?? 'entryExit',
             (v) => _setClip(clip.copyWith(stampMode: v))));
+    }
+
+    // Full silhouette list for the selected countries — pick a specific one.
+    final silClip = _current.clip;
+    if (silClip != null && _silhouetteShapeIds.contains(silClip.shapeId)) {
+      final options = _silhouetteOptions();
+      if (options.isNotEmpty) {
+        final value = options.any((o) => o.$2 == silClip.code)
+            ? silClip.code
+            : options.first.$2;
+        rows
+          ..add(_sectionLabel('Silhouette'))
+          ..add(Row(children: [
+            const SizedBox(
+                width: 82,
+                child: Text('Pick',
+                    style: TextStyle(fontSize: 11, color: Colors.white70))),
+            Expanded(
+              child: DropdownButton<String>(
+                key: const Key('studio-silhouette-pick'),
+                isExpanded: true,
+                value: value,
+                dropdownColor: const Color(0xFF23262C),
+                style: const TextStyle(fontSize: 12, color: Colors.white),
+                items: [
+                  for (final (k, slug) in options)
+                    DropdownMenuItem(
+                        value: slug, child: Text(_silhouetteLabel(k, slug))),
+                ],
+                onChanged: (slug) {
+                  if (slug == null) return;
+                  final kind = options.firstWhere((o) => o.$2 == slug).$1;
+                  _setClip(Clip.shape(kind, code: slug));
+                },
+              ),
+            ),
+          ]));
+      }
     }
 
     // Shape transforms for a clipped Detail (map / silhouette / heart / circle /
@@ -996,8 +1080,8 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
 }
 
 /// The shape a Flags design fills — the "Detail" sub-step under the Flags
-/// subject (Grid = plain flags; Map/Animals/Landmarks/Heart/Circle = clipped).
-enum _StudioDetail { grid, map, animals, landmarks, heart, circle }
+/// subject (Grid = plain flags; the rest are clipped).
+enum _StudioDetail { grid, map, animals, plants, landmarks, heart, circle }
 
 /// A decision-deck chip: tap re-rolls its axis; long-press (or the lock badge)
 /// pins it. The badge doubles as the lock-state indicator.
