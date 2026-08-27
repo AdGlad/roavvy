@@ -80,16 +80,28 @@ per-axis `reroll`, alternatives + preference ordering, per-axis **lock**, **undo
 5. **"Remix" replaces "Surprise me".** Adopt the storyboard's clearer, on-brand verb; behaviour
    (re-roll all UNLOCKED axes) is unchanged.
 
-## 5. Build plan (isolated Studio packages only; never touch production merch/cards; inline chunked commits)
+## 5. Build plan — STATUS (isolated Studio packages only; production merch/cards never touched; inline chunked commits)
 
-- **P1 — "Make It Yours" step rail.** Turn the chip deck into a guided step sequence
-  (Direction→Detail→Vibe→Words→Shirt&Colour→Front/Back→Review) as panels over the live hero;
-  keep chips as quick-jump; keep alternatives tray + locks + undo.
-- **P2 — Vibe style grid.** 13 labelled LabStyle thumbnails, each a live preview of the current design restyled.
-- **P3 — Refine category menu.** Split the long Adjust panel into Layout/Graphic/Text/Colour/Edges/Effects/Print → focused panels. Every existing control retained, just regrouped.
-- **P4 — Words step.** Title field + SUGGEST TITLES (generator title bank) + idea list.
-- **P5 — Front/Back step.** Sync-style toggle + explicit "start from front theme" (wraps `deriveBack`).
-- **P6 — Review step.** Front+back thumbnails + spec chips + Save to Library (+ cart placeholder).
-- **P7 — Rename** Surprise me → Remix.
+All phases landed on `feat/studio-ux-storyboard`; lab 76 tests green, analyze clean, macOS build ✓.
 
-Each phase: `flutter test` (design_lab + render) green + `flutter analyze` clean + macOS build where affected, then a small commit.
+- **P1 — Make-It-Yours framing.** ✅ The deck is labelled "MAKE IT YOURS" with a
+  "Fine tune" entry to Refine, so the flow reads Instant → Make It Yours → Fine Tune.
+  (Kept as panels over the persistent live hero — intentional difference #1 — rather than 8 routes.)
+- **P2 — Vibe style grid.** ✅ Tapping Vibe surfaces 13 labelled LabStyle thumbnails, each a
+  live restyle of the current design (new `LabShowcaseGenerator.withStyle` + a spliced vibe re-roll;
+  vibe re-rolls now stamp provenance, recipeId unaffected). Highlights the active style.
+- **P3 — Refine category menu.** ✅ The one long Adjust panel is now Finish · Layout · Graphic ·
+  Text · Colour · Edges · Effects · Print → one focused body at a time, contextual to the design.
+  Every control retained.
+- **P4 — Words editor.** ✅ Tapping Words opens an editable printed-title field +
+  "Suggest titles" (distinct Words-axis re-rolls) instead of a blind re-roll.
+- **P5 — Front/Back sync.** ✅ While on the Back, "Sync to front" re-derives it from the front's
+  current theme (storyboard "Start from Front theme").
+- **P6 — Review & Save.** ✅ A Review action opens a sheet with front/back previews, spec chips,
+  printed title, Save to Library, and a disabled "Add to cart (mobile)" placeholder (commerce = M1).
+- **P7 — Remix rename.** ✅ "Surprise me" → "Remix"; tune button → "Fine tune (Refine)".
+
+**Not built (deferred, per intentional differences §4):** bottom app-nav (Saved/Trips/Profile),
+real cart/checkout, and garment fit-size (XS–XXL) — all mobile/commerce (milestone M1). Lower-priority
+polish still open from spec §13: Pattern Single/Blend/Multi + flagCombination, Map country/region
+picker, placement anchor, explicit seed field.
