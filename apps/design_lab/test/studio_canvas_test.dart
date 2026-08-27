@@ -269,4 +269,45 @@ void main() {
     expect(state.currentRecipe.clip?.shapeId, 'text');
     expect(state.currentRecipe.clip?.text, 'WANDER');
   });
+
+  testWidgets('(l) silhouette picker lists all kinds for selected countries',
+      (tester) async {
+    final gen = LabShowcaseGenerator(
+      silhouettesByShape: const {
+        ClipShape.animalSilhouette: ['us_bald_eagle', 'us_bison'],
+        ClipShape.plantSilhouette: ['us_redwood'],
+        ClipShape.landmarkSilhouette: ['us_statue_of_liberty'],
+      },
+      countryNames: source?.countryNames() ?? const {},
+    );
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await tester.pumpWidget(MaterialApp(
+      home: StudioCanvasScreen(
+        key: key,
+        generator: gen,
+        service: service,
+        designContext: context,
+        initialSeed: 7,
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final state = key.currentState!;
+
+    // Pick the Animals detail, then open Adjust — the picker appears.
+    await tester.tap(find.byKey(const Key('studio-detail-animals')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+    expect(find.byKey(const Key('studio-silhouette-pick')), findsOneWidget);
+
+    // The full list (animal + plant + landmark) is offered; pick the landmark.
+    await tester.ensureVisible(find.byKey(const Key('studio-silhouette-pick')));
+    await tester.tap(find.byKey(const Key('studio-silhouette-pick')));
+    await tester.pump();
+    await tester.tap(find.text('US · Statue Of Liberty (landmark)').last);
+    await tester.pump();
+    expect(state.currentRecipe.clip?.shapeId, 'landmarkSilhouette');
+    expect(state.currentRecipe.clip?.code, 'us_statue_of_liberty');
+  });
 }
