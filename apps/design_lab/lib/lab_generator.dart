@@ -391,7 +391,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
     // sub-stream so reroll(colour) perturbs ONLY the palette. Adaptive-ink designs
     // (text / typographic / solid-ink stamps) go garmentAware so M5 re-inks them
     // for the garment; flag-filled designs stay semantic (flag-derived).
-    final palette = _paletteFor(colourRng, clip, family);
+    final palette = _paletteFor(colourRng, clip, family, style);
 
     // WORDS axis: an optional travel-phrase title + typography treatment, drawn on
     // the words sub-stream so reroll(words) perturbs ONLY the title/typography.
@@ -482,21 +482,41 @@ class LabShowcaseGenerator implements RecipeGenerator {
   /// re-inks for contrast); flag-filled designs keep semantic flag colours with
   /// an occasional monochrome or vintage grade for variety.
   static Palette _paletteFor(
-      DeterministicRng colourRng, Clip? clip, DesignFamily family) {
+      DeterministicRng colourRng, Clip? clip, DesignFamily family,
+      LabStyle style) {
     final garment = colourRng.stream('garment').pick(_garmentColours);
     if (_isAdaptiveInk(clip, family)) {
       return Palette(
           garmentColour: garment, strategy: ColourStrategy.garmentAware);
     }
     final t = colourRng.stream('treatment');
-    if (t.chance(0.15)) {
+    // Per-style colour character: each style leans toward a treatment so the
+    // vibe reads in the colour, not just the edge/effects (restored after the
+    // palette moved onto the colour axis).
+    final monoChance = switch (style) {
+      LabStyle.grunge => 0.5,
+      LabStyle.streetwear || LabStyle.extreme => 0.25,
+      LabStyle.minimalist || LabStyle.premium => 0.04,
+      _ => 0.15,
+    };
+    final vintageChance = switch (style) {
+      LabStyle.vintage || LabStyle.retro => 0.85,
+      LabStyle.outdoor => 0.5,
+      LabStyle.premium ||
+      LabStyle.minimalist ||
+      LabStyle.surf ||
+      LabStyle.beachwear =>
+        0.1,
+      _ => 0.5,
+    };
+    if (t.chance(monoChance)) {
       return Palette(
           garmentColour: garment, strategy: ColourStrategy.monochrome);
     }
     return Palette(
       garmentColour: garment,
       strategy: ColourStrategy.flagDerived,
-      vintageGrade: t.chance(0.55) ? t.nextRange(0.3, 0.7) : 0.0,
+      vintageGrade: t.chance(vintageChance) ? t.nextRange(0.3, 0.7) : 0.0,
     );
   }
 
