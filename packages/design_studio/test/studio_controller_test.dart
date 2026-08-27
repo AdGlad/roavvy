@@ -251,6 +251,95 @@ void main() {
         containsAll(['us_bison', 'jp_crane', 'fr_eiffel_tower']));
   });
 
+  test('Vibe: 13 named styles restyle the current design; tap is undoable', () {
+    final c = make(multi);
+    final options = c.vibeStyleOptions();
+    expect(options.length, 13); // every LabStyle
+    expect(options.map((o) => o.$1).toSet(), LabStyle.values.toSet());
+
+    final id0 = c.current.recipeId;
+    final grunge = options.firstWhere((o) => o.$1 == LabStyle.grunge);
+    c.onStyleTap(grunge.$1, grunge.$2);
+    expect(c.current.recipeId, isNot(id0)); // live update
+    expect(c.currentStyle, LabStyle.grunge); // reflects the chosen vibe
+    expect(c.history, isNotEmpty);
+
+    c.undo(); // Vibe change participates in recipe undo/redo
+    expect(c.current.recipeId, id0);
+  });
+
+  test('a Vibe change preserves Direction, Detail + garment (Tier-1)', () {
+    final c = make(multi);
+    c.setGarment('#6B7350'); // Olive
+    c.applyDetail(StudioDetail.heart);
+    expect(c.subjectIndex, 0);
+    final opts = c.vibeStyleOptions();
+    final vintage = opts.firstWhere((o) => o.$1 == LabStyle.vintage);
+    c.onStyleTap(vintage.$1, vintage.$2);
+    expect(c.subjectIndex, 0); // Direction preserved
+    expect(c.current.clip?.shapeId, ClipShape.heart.id); // Detail preserved
+    expect(c.current.palette?.garmentColour, '#6B7350'); // garment preserved
+    expect(c.selectedCountryCodes, {'us', 'fr', 'jp'}); // travel preserved
+  });
+
+  test('alternatives are deterministic per axis; More rolls fresh; dismiss '
+      'rejects', () {
+    // Same prior state → identical Vibe alternatives (shared sub-seed stream).
+    final a = make(multi)..focusAxis(DesignAxis.vibe);
+    final b = make(multi)..focusAxis(DesignAxis.vibe);
+    expect(a.activeAxis, DesignAxis.vibe);
+    expect(a.alternatives.length, greaterThan(1));
+    expect(a.alternatives.map((r) => r.recipeId).toList(),
+        b.alternatives.map((r) => r.recipeId).toList());
+
+    // Committing an alternative is undoable and selects it.
+    final id0 = a.current.recipeId;
+    final chosen = a.alternatives[1];
+    a.onAlternativeTap(1, chosen);
+    expect(a.current.recipeId, chosen.recipeId);
+    a.undo();
+    expect(a.current.recipeId, id0);
+
+    // "More" yields a fresh set (advances the deterministic seed stream).
+    final firstSet = a.alternatives.map((r) => r.recipeId).toList();
+    a.focusAxis(DesignAxis.vibe);
+    expect(a.alternatives.map((r) => r.recipeId).toList(), isNot(firstSet));
+
+    // Dismiss removes the option and records a reject signal.
+    final n = a.alternatives.length;
+    final before = a.preferences.sampleCount;
+    a.dismissAlternative(0);
+    expect(a.alternatives.length, n - 1);
+    expect(a.preferences.sampleCount, greaterThan(before));
+  });
+
+  test('Focus is the composition axis; its alternatives re-roll + commit', () {
+    final c = make(multi)..focusAxis(DesignAxis.focus);
+    expect(c.activeAxis, DesignAxis.focus);
+    expect(c.alternatives, isNotEmpty);
+    final id0 = c.current.recipeId;
+    c.onAlternativeTap(0, c.alternatives.first);
+    expect(c.current.recipeId, isNot(id0)); // composition changed + committed
+  });
+
+  test('Remix respects locks: a locked axis is held while the rest evolves', () {
+    final c = make(multi);
+    // Give the Vibe axis distinctive, non-trivial finish fields to watch.
+    final grunge =
+        c.vibeStyleOptions().firstWhere((o) => o.$1 == LabStyle.grunge);
+    c.onStyleTap(grunge.$1, grunge.$2);
+    final fx0 = c.current.effects; // Vibe owns Effects (+ edge/palette grade)
+    expect(fx0, isNotNull);
+
+    c.toggleLock(DesignAxis.vibe);
+    final id0 = c.current.recipeId;
+    c.surprise();
+    expect(c.current.recipeId, isNot(id0)); // unlocked axes evolved
+    expect(c.current.effects?.distress, fx0?.distress); // locked Vibe held
+    expect(c.current.effects?.grain, fx0?.grain);
+    expect(c.locked, contains(DesignAxis.vibe));
+  });
+
   test('authoring emits preference signals; Save likes into the library', () {
     final library = PersistentDesignLibrary(_MemoryStore());
     final c = make(single, library: library);

@@ -1,5 +1,8 @@
+import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
+
+import 'axis_controls.dart';
 
 /// **Direction** workspace (M3) — pick what the shirt is *about*. A compact,
 /// visual row of the six storyboard subjects (Flags / Passport / Route / World /
@@ -29,9 +32,14 @@ class DirectionWorkspace extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('DIRECTION',
-            style: TextStyle(
-                fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+        Row(children: [
+          const Expanded(
+            child: Text('DIRECTION',
+                style: TextStyle(
+                    fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+          ),
+          AxisLockChip(controller: controller, axis: DesignAxis.direction),
+        ]),
         const SizedBox(height: 4),
         const Text('Pick what your shirt is about.',
             style: TextStyle(fontSize: 13, color: Colors.white70)),
