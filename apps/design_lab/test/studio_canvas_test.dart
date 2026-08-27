@@ -278,6 +278,36 @@ void main() {
     expect(state.currentRecipe.clip?.text, 'WANDER');
   });
 
+  testWidgets('(p) Review sheet shows a spec summary and saves to library',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    final state = await pumpScreen(tester, key);
+
+    await tester.tap(find.byKey(const Key('studio-review')));
+    // The thumbnails' hero spinner never settles, so pump a couple of frames
+    // rather than pumpAndSettle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Summary sheet: title, front/back previews, spec chips, and both actions.
+    expect(find.text('Review & save'), findsOneWidget);
+    // 'Front'/'Back' also label the Side pills, so just assert they're present.
+    expect(find.text('Front'), findsWidgets);
+    expect(find.text('Back'), findsWidgets);
+    expect(find.text('1 country'), findsOneWidget);
+    // Add-to-cart is an explicit disabled placeholder (commerce = mobile/M1).
+    final cart = tester.widget<OutlinedButton>(
+        find.byKey(const Key('studio-review-cart')));
+    expect(cart.onPressed, isNull);
+
+    // Save to library commits a like and closes the sheet.
+    await tester.tap(find.byKey(const Key('studio-review-save')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Review & save'), findsNothing);
+    expect(state.currentRecipe, isNotNull);
+  });
+
   testWidgets('(o) Words opens a title editor that edits the printed title',
       (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();

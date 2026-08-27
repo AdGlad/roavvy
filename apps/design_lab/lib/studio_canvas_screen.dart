@@ -469,6 +469,139 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
     _observe(_current, PreferenceSignal.saved);
   }
 
+  /// Human name of the current garment colour, for the Review summary.
+  String get _garmentName {
+    final hex = _current.palette?.garmentColour;
+    for (final (h, name) in _garments) {
+      if (h == hex) return name;
+    }
+    return '—';
+  }
+
+  /// The at-a-glance spec chips for the Review summary (storyboard step 8).
+  List<String> _reviewSpec() {
+    final comp = _current.composition;
+    final n = widget.designContext.flagCodes.length;
+    return [
+      '$n ${n == 1 ? 'country' : 'countries'}',
+      _subjectLabel,
+      if (_subjectIndex == 0) _cap(_detail.name),
+      if (_currentStyle != null) _currentStyle!.label,
+      _cap(comp.sizeClass.name),
+      _cap(comp.orientation.name),
+      _garmentName,
+    ];
+  }
+
+  static String _cap(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  /// Review & Save (storyboard step 8): front + back preview, an at-a-glance
+  /// spec summary, Save to Library, and an explicit Add-to-cart placeholder
+  /// (commerce lives in the mobile app / milestone M1, not the Lab).
+  void _showReview() {
+    // Materialise the back for the preview if it hasn't been visited yet.
+    final back = _back ??
+        GarmentDesign.deriveBack(_front,
+            themeSeed: _front.seed,
+            garmentColour: _front.palette?.garmentColour);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF16181D),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Review & save',
+                style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Row(children: [
+              _reviewThumb('Front', _front),
+              const SizedBox(width: 12),
+              _reviewThumb('Back', back),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final s in _reviewSpec())
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF23262C),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(s,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.white70)),
+                  ),
+              ],
+            ),
+            if (_currentTitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('“$_currentTitle”',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontStyle: FontStyle.italic)),
+            ],
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  key: const Key('studio-review-save'),
+                  icon: const Icon(Icons.favorite, size: 18),
+                  label: const Text('Save to library'),
+                  onPressed: () {
+                    _save();
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('studio-review-cart'),
+                  icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                  // Commerce is a mobile/production (M1) concern — the Lab
+                  // prototype stops at Save, so this is explicitly disabled.
+                  onPressed: null,
+                  label: const Text('Add to cart (mobile)'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reviewThumb(String label, DesignRecipe recipe) => Expanded(
+        child: Column(
+          children: [
+            Container(
+              height: 132,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF2A2D33)),
+                color: const Color(0xFFF2F2F2),
+              ),
+              child: _HeroCanvas(
+                  service: widget.service, recipe: recipe, longSide: 132),
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.white60)),
+          ],
+        ),
+      );
+
   /// Tray ✕: the customer explicitly dislikes this alternative. Emit an explicit
   /// reject (preferred over inferring), reject it in the library, and drop the
   /// tile so the strip stays subtle.
@@ -531,6 +664,12 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
             tooltip: 'Save to favourites',
             icon: const Icon(Icons.favorite_border),
             onPressed: _save,
+          ),
+          IconButton(
+            key: const Key('studio-review'),
+            tooltip: 'Review & save',
+            icon: const Icon(Icons.checklist),
+            onPressed: _showReview,
           ),
           IconButton(
             key: const Key('studio-undo'),
