@@ -178,6 +178,10 @@ void main() {
     expect(find.byKey(const Key('studio-adjust-fill')), findsNothing);
     await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
     await tester.pump();
+    // Grid fill lives under the Layout Refine category.
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-layout')));
+    await tester.tap(find.byKey(const Key('studio-refine-layout')));
+    await tester.pump();
     expect(find.byKey(const Key('studio-adjust-fill')), findsOneWidget);
 
     // Change the grid fill algorithm and confirm it lands on the recipe.
@@ -263,11 +267,44 @@ void main() {
     }
     await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
     await tester.pump();
+    // Custom text lives under the Text Refine category.
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-text')));
+    await tester.tap(find.byKey(const Key('studio-refine-text')));
+    await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('studio-text-input')));
     await tester.enterText(find.byKey(const Key('studio-text-input')), 'WANDER');
     await tester.pump();
     expect(state.currentRecipe.clip?.shapeId, 'text');
     expect(state.currentRecipe.clip?.text, 'WANDER');
+  });
+
+  testWidgets('(m) Refine opens a category menu; switching category swaps body',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await pumpScreen(tester, key);
+
+    await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+
+    // Universal categories are always offered; the body is focused (one category
+    // at a time), so the Effects "Grain" slider is hidden until Effects is
+    // selected. (Labels like Distress/Riso are avoided here as they double as
+    // Finish preset chips.)
+    expect(find.byKey(const Key('studio-refine-finish')), findsOneWidget);
+    expect(find.byKey(const Key('studio-refine-effects')), findsOneWidget);
+    expect(find.text('Grain'), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-effects')));
+    await tester.tap(find.byKey(const Key('studio-refine-effects')));
+    await tester.pump();
+    expect(find.text('Grain'), findsOneWidget);
+
+    // Print is its own category (contains the ported print effects).
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-print')));
+    await tester.tap(find.byKey(const Key('studio-refine-print')));
+    await tester.pump();
+    expect(find.text('Newsprint'), findsOneWidget);
+    expect(find.text('Grain'), findsNothing);
   });
 
   testWidgets('(l) silhouette picker lists all kinds for selected countries',
@@ -298,6 +335,10 @@ void main() {
     await tester.tap(find.byKey(const Key('studio-detail-animals')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('studio-adjust-toggle')));
+    await tester.pump();
+    // The silhouette picker lives under the Graphic Refine category.
+    await tester.ensureVisible(find.byKey(const Key('studio-refine-graphic')));
+    await tester.tap(find.byKey(const Key('studio-refine-graphic')));
     await tester.pump();
     expect(find.byKey(const Key('studio-silhouette-pick')), findsOneWidget);
 
