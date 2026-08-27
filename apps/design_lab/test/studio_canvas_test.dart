@@ -278,6 +278,20 @@ void main() {
     expect(state.currentRecipe.clip?.text, 'WANDER');
   });
 
+  testWidgets('(r) Make-It-Yours deck has a Fine-tune entry to Refine',
+      (tester) async {
+    final key = GlobalKey<StudioCanvasScreenState>();
+    await pumpScreen(tester, key);
+
+    // The creative deck reads as the guided "Make it yours" phase…
+    expect(find.text('MAKE IT YOURS'), findsOneWidget);
+    // …with a Fine-tune entry that opens the Refine panel.
+    expect(find.byKey(const Key('studio-refine-finish')), findsNothing);
+    await tester.tap(find.byKey(const Key('studio-finetune')));
+    await tester.pump();
+    expect(find.byKey(const Key('studio-refine-finish')), findsOneWidget);
+  });
+
   testWidgets('(q) Sync-to-front re-derives the Back from the Front theme',
       (tester) async {
     final key = GlobalKey<StudioCanvasScreenState>();

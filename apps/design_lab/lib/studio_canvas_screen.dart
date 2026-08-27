@@ -1545,23 +1545,52 @@ class StudioCanvasScreenState extends State<StudioCanvasScreen> {
   }
 
   Widget _decisionDeck() {
+    // The three-phase spine (Instant → Make It Yours → Fine Tune): the hero above
+    // is the Instant design; this deck is Make It Yours; the Fine-tune (Refine)
+    // button opens the deeper controls. Labelling it keeps the creative choices
+    // reading as a guided journey rather than a flat control row.
     return Container(
       color: const Color(0xFF16181D),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          for (final (axis, label, icon) in _deck)
-            _AxisChip(
-              key: Key('studio-chip-${axis.key}'),
-              label: axis == DesignAxis.direction ? _subjectLabel : label,
-              icon: icon,
-              locked: _locked.contains(axis),
-              active: _activeAxis == axis,
-              onTap: () => _onChipTap(axis),
-              onToggleLock: () => _toggleLock(axis),
+          Row(children: [
+            const Text('MAKE IT YOURS',
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white38,
+                    letterSpacing: 1.5)),
+            const Spacer(),
+            TextButton.icon(
+              key: const Key('studio-finetune'),
+              icon: const Icon(Icons.tune, size: 15),
+              label: const Text('Fine tune', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor:
+                      _showAdjust ? Colors.tealAccent : Colors.white54),
+              onPressed: () => setState(() => _showAdjust = !_showAdjust),
             ),
+          ]),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (axis, label, icon) in _deck)
+                _AxisChip(
+                  key: Key('studio-chip-${axis.key}'),
+                  label: axis == DesignAxis.direction ? _subjectLabel : label,
+                  icon: icon,
+                  locked: _locked.contains(axis),
+                  active: _activeAxis == axis,
+                  onTap: () => _onChipTap(axis),
+                  onToggleLock: () => _toggleLock(axis),
+                ),
+            ],
+          ),
         ],
       ),
     );
