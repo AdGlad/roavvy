@@ -3,16 +3,34 @@ import 'dart:ui' as ui;
 import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
 
-/// Renders recipes to `ui.Image`s with an in-memory cache keyed by
+/// Renders recipes to `ui.Image`s with a **bounded LRU** cache keyed by
 /// `recipeId@longSide`, so the gallery can scroll and re-layout without
 /// re-rendering designs it has already produced. Output aspect follows the
 /// recipe's [Orientation] (square / portrait / landscape).
+///
+/// The cache is capped ([maxCacheEntries]) so a long editing session — most
+/// acutely a live Fine-Tune slider drag, which mints a distinct recipe (and a
+/// full-resolution render) on every tick — cannot grow memory without bound.
+/// On eviction the least-recently-used entry's strong reference is simply
+/// dropped; the [ui.Image] is **never** `dispose()`d here, because a mounted
+/// widget may still be painting it (the caller owns the image's lifetime).
 class RenderService {
   RenderService(AssetResolver assets)
       : _renderer = CanvasRenderer(assets: assets);
 
   final CanvasRenderer _renderer;
+
+  /// Maximum number of rendered images held at once. Sized to comfortably cover
+  /// the hero preview + every on-screen thumbnail tray with headroom, while
+  /// capping worst-case memory (a full-res 1024px RGBA image is ~4 MB).
+  static const int maxCacheEntries = 64;
+
+  /// Insertion-ordered so the first key is the least-recently-used; a cache hit
+  /// re-inserts to move the entry to the most-recently-used end.
   final Map<String, ui.Image> _cache = {};
+
+  /// Live entry count — for diagnostics/tests asserting the bound holds.
+  int get cacheSize => _cache.length;
 
   static const ui.Color _bg = ui.Color(0xFFF2F2F2);
 
@@ -55,9 +73,24 @@ class RenderService {
   Future<ui.Image> imageFor(DesignRecipe recipe, int longSide) async {
     final key = '${recipe.recipeId}@$longSide';
     final cached = _cache[key];
-    if (cached != null) return cached;
+    if (cached != null) {
+      // Touch: move to the most-recently-used end so it survives eviction.
+      _cache
+        ..remove(key)
+        ..[key] = cached;
+      return cached;
+    }
     final result = await _renderer.render(recipe, targetFor(recipe, longSide));
+    // A concurrent call for the same key may have populated the cache while we
+    // awaited; prefer the already-cached image so both callers share one.
+    final raced = _cache[key];
+    if (raced != null) return raced;
     _cache[key] = result.image;
+    if (_cache.length > maxCacheEntries) {
+      // Evict the least-recently-used (first) entry. Drop only the strong ref —
+      // never dispose(): a mounted widget may still be painting that image.
+      _cache.remove(_cache.keys.first);
+    }
     return result.image;
   }
 
