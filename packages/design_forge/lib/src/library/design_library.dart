@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../recipe/design_recipe.dart';
+import '../recipe/garment_design.dart';
 
 /// Abstract local persistence for the design library — the engine core stays
 /// free of `dart:io` and platform APIs. Each host supplies its own:
@@ -22,6 +23,7 @@ abstract class DesignStore {
 class SavedDesign {
   const SavedDesign({
     required this.recipe,
+    this.garment,
     this.liked = false,
     this.usedForTshirt = false,
     this.rejected = false,
@@ -32,6 +34,13 @@ class SavedDesign {
   });
 
   final DesignRecipe recipe;
+
+  /// The full two-face garment (front + back + shared garment colour/theme) when
+  /// this entry was saved from the T-Shirt Studio's Review step. Null for legacy
+  /// single-face ♥ likes. When present it carries EVERYTHING needed to reproduce
+  /// BOTH printed sides deterministically (see [GarmentDesign.garmentId]); the
+  /// single-face [recipe] is kept as the back/hero for backward compatibility.
+  final GarmentDesign? garment;
 
   /// The user "hearted" this design.
   final bool liked;
@@ -50,8 +59,11 @@ class SavedDesign {
   final int? usedAtEpochMs;
   final String? note;
 
-  /// Content-hash id (stable across sessions and re-renders).
-  String get id => recipe.recipeId;
+  /// Content-hash id (stable across sessions and re-renders). A two-face garment
+  /// is keyed by its composite [GarmentDesign.garmentId] (covers both faces +
+  /// colour), so re-saving the same garment updates ONE entry — no duplicates.
+  /// A single-face like keeps the recipe's own content hash.
+  String get id => garment?.garmentId ?? recipe.recipeId;
 
   SavedDesign copyWith({
     bool? liked,
@@ -63,6 +75,7 @@ class SavedDesign {
   }) =>
       SavedDesign(
         recipe: recipe,
+        garment: garment,
         liked: liked ?? this.liked,
         usedForTshirt: usedForTshirt ?? this.usedForTshirt,
         rejected: rejected ?? this.rejected,
@@ -74,6 +87,7 @@ class SavedDesign {
 
   Map<String, Object?> toJson() => {
         'recipe': recipe.toJson(),
+        if (garment != null) 'garment': garment!.toJson(),
         if (liked) 'liked': true,
         if (usedForTshirt) 'usedForTshirt': true,
         if (rejected) 'rejected': true,
@@ -85,6 +99,9 @@ class SavedDesign {
 
   factory SavedDesign.fromJson(Map<String, Object?> j) => SavedDesign(
         recipe: DesignRecipe.fromJson((j['recipe'] as Map).cast<String, Object?>()),
+        garment: j['garment'] == null
+            ? null
+            : GarmentDesign.fromJson((j['garment'] as Map).cast<String, Object?>()),
         liked: j['liked'] == true,
         usedForTshirt: j['usedForTshirt'] == true,
         rejected: j['rejected'] == true,
@@ -140,6 +157,25 @@ class DesignLibrary {
     _byId[recipe.recipeId] = existing?.copyWith(liked: true, rejected: false) ??
         SavedDesign(recipe: recipe, liked: true, savedAtEpochMs: nowMs);
   }
+
+  /// Save a two-face [GarmentDesign] (the T-Shirt Studio Review step). Stores the
+  /// FULL garment so both printed faces reproduce deterministically. Idempotent
+  /// by [GarmentDesign.garmentId]: re-saving the same garment updates the one
+  /// entry rather than accumulating duplicates. A no-op when the garment carries
+  /// no artwork on either face.
+  void likeGarment(GarmentDesign g, {required int nowMs}) {
+    final back = g.back ?? g.front;
+    if (back == null) return; // nothing to save
+    final id = g.garmentId;
+    final existing = _byId[id];
+    _byId[id] = existing?.copyWith(liked: true, rejected: false) ??
+        SavedDesign(
+            recipe: back, garment: g, liked: true, savedAtEpochMs: nowMs);
+  }
+
+  /// The saved two-face garments (newest first).
+  List<SavedDesign> get garments =>
+      entries.where((e) => e.garment != null).toList();
 
   /// Remove the heart. If the design was never used for a t-shirt it is dropped
   /// entirely (we don't keep un-selected designs).
@@ -261,6 +297,13 @@ class PersistentDesignLibrary {
         _lib.toggleLike(r, nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
     await _persist();
     return liked;
+  }
+
+  /// Save a two-face [GarmentDesign] (Studio Review). Idempotent by garment
+  /// identity, so repeated Save keeps a single entry (no uncontrolled duplicates).
+  Future<void> saveGarment(GarmentDesign g, {int? nowMs}) async {
+    _lib.likeGarment(g, nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
+    await _persist();
   }
 
   Future<void> setUsedForTshirt(DesignRecipe r, bool used, {int? nowMs}) async {

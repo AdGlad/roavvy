@@ -484,4 +484,25 @@ void main() {
     c.save();
     expect(library.library.isLiked(saved.recipeId), isTrue);
   });
+
+  test('Review saveGarment persists BOTH faces as one reproducible garment; '
+      'repeated Save is idempotent (no duplicates)', () {
+    final library = PersistentDesignLibrary(_MemoryStore());
+    final c = make(multi, library: library);
+    c.setFrontArt(FrontArt.complement); // a genuinely distinct front face
+
+    // The composed garment carries both real faces + the shared garment colour.
+    final g = c.garment;
+    expect(g.back!.recipeId, c.hero.recipeId);
+    expect(g.front!.recipeId, c.frontFace.recipeId);
+    expect(g.garmentColour, c.hero.palette?.garmentColour);
+
+    c.saveGarment();
+    c.saveGarment(); // repeated Save must not create a duplicate
+    expect(library.library.garments.length, 1);
+
+    final saved = library.library.get(g.garmentId)!;
+    expect(saved.garment!.back!.recipeId, c.hero.recipeId);
+    expect(saved.garment!.front!.recipeId, c.frontFace.recipeId);
+  });
 }

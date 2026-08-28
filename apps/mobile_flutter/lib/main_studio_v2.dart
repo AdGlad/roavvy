@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/studio_v2/studio_v2_app.dart';
+import 'features/studio_v2_commerce/studio_v2_cart_adapter.dart';
 
 /// Dedicated **developer entrypoint** for Roavvy T-Shirt Studio V2.
 ///
@@ -13,5 +14,9 @@ import 'features/studio_v2/studio_v2_app.dart';
 /// V1 flow completely untouched.)
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: StudioV2App()));
+  // Wire the Studio V2 → commerce bridge here (the top level is the only place
+  // that may know BOTH the isolated V2 feature and the V1 merch flow). Review →
+  // Add to cart then reuses the existing cart/checkout/Printful pipeline.
+  const adapter = StudioV2CartAdapter();
+  runApp(ProviderScope(child: StudioV2App(onAddToCart: adapter.addToCart)));
 }

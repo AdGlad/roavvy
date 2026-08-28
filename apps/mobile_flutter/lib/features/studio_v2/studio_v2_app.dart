@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import 'commerce/garment_cart_request.dart';
 import 'host/bundle_asset_resolver.dart';
 import 'host/prefs_persistence.dart';
 import 'host/silhouette_inventory.g.dart';
@@ -69,7 +70,13 @@ StudioController buildStudioV2Controller() => buildStudioV2ControllerFor(
 /// → [Trip] → [DesignContext.fromTrips], with the flat visited-country list as the
 /// no-dated-trips fallback), and saved Studio preferences are loaded on open.
 class StudioV2App extends ConsumerStatefulWidget {
-  const StudioV2App({super.key});
+  const StudioV2App({super.key, this.onAddToCart});
+
+  /// Host-injected bridge to the existing merch cart/checkout flow (Review →
+  /// Add to cart). Passed straight through to [StudioV2Screen]; the App itself
+  /// stays isolated from `features/merch` — only the top-level entrypoint knows
+  /// the concrete adapter. Null-safe: dev builds without it simply have no cart.
+  final AddToCartCallback? onAddToCart;
 
   @override
   ConsumerState<StudioV2App> createState() => _StudioV2AppState();
@@ -129,7 +136,8 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
               backgroundColor: Color(0xFF0E0F12),
               body: Center(child: CircularProgressIndicator()),
             )
-          : StudioV2Screen(controller: _controller!),
+          : StudioV2Screen(
+              controller: _controller!, onAddToCart: widget.onAddToCart),
     );
   }
 }

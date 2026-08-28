@@ -880,6 +880,28 @@ class StudioController extends ChangeNotifier {
     _observe(current, PreferenceSignal.saved);
   }
 
+  /// The current design as ONE two-face garment: [back] = the hero (main
+  /// artwork), [front] = the front face (chest ribbon/config), sharing the
+  /// garment colour. This is the reproducible unit the Review step saves and
+  /// hands to commerce — both `recipeId`s + the colour fully determine the print,
+  /// so it re-renders identically later (see [GarmentDesign.garmentId]).
+  GarmentDesign get garment => GarmentDesign(
+        front: _frontFace,
+        back: _hero,
+        garmentColour: _hero.palette?.garmentColour,
+        themeSeed: initialSeed,
+      );
+
+  /// Save the whole two-face [garment] into the reproducible [library] at the
+  /// Review step. Idempotent by garment identity — repeated Save keeps a single
+  /// entry rather than creating duplicates. Distinct from [save] (the single-face
+  /// ♥ toggle the macOS Lab uses); this persists BOTH printed sides so the design
+  /// reproduces deterministically.
+  void saveGarment() {
+    library?.saveGarment(garment);
+    _observe(current, PreferenceSignal.saved);
+  }
+
   String get garmentName {
     final hex = current.palette?.garmentColour;
     for (final (h, name) in garments) {

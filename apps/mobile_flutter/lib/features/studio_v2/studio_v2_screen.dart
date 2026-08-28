@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
+import 'commerce/garment_cart_request.dart';
 import 'studio_v2_stage.dart';
 import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
@@ -10,6 +11,7 @@ import 'widgets/fine_tune_workspace.dart';
 import 'widgets/focus_workspace.dart';
 import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
+import 'widgets/review_workspace.dart';
 import 'widgets/travels_workspace.dart';
 import 'widgets/vibe_workspace.dart';
 import 'widgets/words_workspace.dart';
@@ -28,10 +30,20 @@ import 'widgets/words_workspace.dart';
 /// This shell implements NO creative workflow logic yet (Travels/Direction/Vibe/
 /// Words/Fine-Tune are later milestones) — only the frame and its guarantees.
 class StudioV2Screen extends StatefulWidget {
-  const StudioV2Screen({super.key, required this.controller});
+  const StudioV2Screen({
+    super.key,
+    required this.controller,
+    this.onAddToCart,
+  });
 
   /// The shared session (recipe, front/back, colour, orientation, size, undo).
   final StudioController controller;
+
+  /// Host-injected bridge to the existing merch cart/checkout flow, used by the
+  /// Review step's Add-to-cart. Null in dev/test builds with no commerce wired;
+  /// Studio V2 stays isolated from `features/merch` and only builds a neutral
+  /// [GarmentCartRequest] for this callback.
+  final AddToCartCallback? onAddToCart;
 
   @override
   State<StudioV2Screen> createState() => StudioV2ScreenState();
@@ -212,6 +224,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         StudioStage.words => WordsWorkspace(controller: _c),
         StudioStage.front => FrontWorkspace(controller: _c),
         StudioStage.fineTune => FineTuneWorkspace(controller: _c),
+        StudioStage.review =>
+          ReviewWorkspace(controller: _c, onAddToCart: widget.onAddToCart),
         _ => _placeholder(),
       },
     );

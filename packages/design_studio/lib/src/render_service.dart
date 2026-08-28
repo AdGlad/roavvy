@@ -68,4 +68,20 @@ class RenderService {
         // (grey fallback), so print output matches the on-garment preview.
         targetFor(recipe, longSide, quality: RenderQuality.print),
       );
+
+  /// Renders the artwork LAYER at print quality with a fully transparent
+  /// background — the print-file form a print-on-demand pipeline expects (the
+  /// artwork composites onto fabric, so no garment fill is baked in). Distinct
+  /// from [renderFull], which bakes the garment colour behind the art for an
+  /// on-garment preview.
+  Future<RenderResult> renderArtwork(DesignRecipe recipe,
+          {int longSide = 2048}) =>
+      _renderer.render(
+        recipe,
+        // A fully-transparent background: the renderer's background rect becomes
+        // a no-op, leaving only the opaque artwork pixels.
+        targetFor(recipe, longSide,
+            quality: RenderQuality.print,
+            background: const ui.Color(0x00000000)),
+      );
 }

@@ -127,4 +127,66 @@ void main() {
       expect(DesignLibrary.decode('not json').length, 0);
     });
   });
+
+  group('DesignLibrary — two-face garments (Studio Review save)', () {
+    GarmentDesign garment(int back, int front) => GarmentDesign(
+          back: _recipe(back),
+          front: _recipe(front),
+          garmentColour: '#1F2B33',
+          themeSeed: 7,
+        );
+
+    test('likeGarment stores BOTH faces and reproduces them deterministically',
+        () {
+      final lib = DesignLibrary();
+      final g = garment(1, 2);
+      lib.likeGarment(g, nowMs: 1000);
+
+      // Round-trips through JSON with both faces + colour + theme intact.
+      final restored = DesignLibrary.decode(lib.encode());
+      final saved = restored.get(g.garmentId)!;
+      expect(saved.garment, isNotNull);
+      expect(saved.garment!.garmentId, g.garmentId);
+      expect(saved.garment!.back!.recipeId, _recipe(1).recipeId);
+      expect(saved.garment!.front!.recipeId, _recipe(2).recipeId);
+      expect(saved.garment!.garmentColour, '#1F2B33');
+      // The single-face recipe mirror is the hero/back (backward compat).
+      expect(saved.recipe.recipeId, _recipe(1).recipeId);
+      expect(restored.garments.length, 1);
+    });
+
+    test('re-saving the same garment is idempotent — no duplicate entries', () {
+      final lib = DesignLibrary();
+      final g = garment(3, 4);
+      lib.likeGarment(g, nowMs: 1);
+      lib.likeGarment(g, nowMs: 2);
+      lib.likeGarment(g, nowMs: 3);
+      expect(lib.garments.length, 1);
+      expect(lib.length, 1);
+    });
+
+    test('a changed face yields a new identity (distinct saved garment)', () {
+      final lib = DesignLibrary();
+      lib.likeGarment(garment(1, 2), nowMs: 1);
+      lib.likeGarment(garment(1, 9), nowMs: 2); // front edited
+      expect(lib.garments.length, 2);
+    });
+
+    test('PersistentDesignLibrary.saveGarment persists + is idempotent',
+        () async {
+      final store = _MemStore();
+      final p1 = PersistentDesignLibrary(store);
+      await p1.load();
+      final g = garment(5, 6);
+      await p1.saveGarment(g, nowMs: 100);
+      await p1.saveGarment(g, nowMs: 101); // repeated Save
+
+      final p2 = PersistentDesignLibrary(store);
+      await p2.load();
+      expect(p2.library.garments.length, 1);
+      final saved = p2.library.get(g.garmentId)!;
+      expect(saved.garment!.back!.recipeId, _recipe(5).recipeId);
+      expect(saved.garment!.front!.recipeId, _recipe(6).recipeId);
+    });
+  });
 }
