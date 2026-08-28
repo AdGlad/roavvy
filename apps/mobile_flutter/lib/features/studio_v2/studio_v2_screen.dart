@@ -6,6 +6,7 @@ import 'studio_v2_stage.dart';
 import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
 import 'widgets/direction_workspace.dart';
+import 'widgets/fine_tune_workspace.dart';
 import 'widgets/focus_workspace.dart';
 import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
@@ -210,6 +211,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         StudioStage.colour => ColourWorkspace(controller: _c),
         StudioStage.words => WordsWorkspace(controller: _c),
         StudioStage.front => FrontWorkspace(controller: _c),
+        StudioStage.fineTune => FineTuneWorkspace(controller: _c),
         _ => _placeholder(),
       },
     );

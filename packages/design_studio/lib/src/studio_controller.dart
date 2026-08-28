@@ -563,6 +563,26 @@ class StudioController extends ChangeNotifier {
   void setComp(Composition c) => applyLive(current.copyWith(composition: c));
   void setClip(Clip c) => applyLive(current.copyWith(clip: c));
 
+  /// The active outer-[EdgeTreatment] (torn/ragged edges), defaulted when the
+  /// recipe carries none, so Fine Tune can surface + edit it live.
+  EdgeTreatment get edges => current.edgeTreatment ?? const EdgeTreatment();
+  void setEdges(EdgeTreatment e) =>
+      applyLive(current.copyWith(edgeTreatment: e));
+
+  /// The active [Typography] (title case / placement), defaulted so the Text
+  /// category can edit it without needing the recipe to pre-populate one.
+  Typography get typography => current.typography ?? const Typography();
+  void setTypography(Typography t) =>
+      applyLive(current.copyWith(typography: t));
+
+  /// Advanced COLOUR knob: the aged/vintage grade alone (0..1), applied live to
+  /// the palette without touching the strategy — complements the discrete
+  /// [colourTreatments] with a continuous control.
+  void setVintageGrade(double grade) {
+    final pal = current.palette ?? const Palette();
+    applyLive(current.copyWith(palette: pal.copyWith(vintageGrade: grade)));
+  }
+
   void applyFinishPreset((String, Effects, double, ColourStrategy?) p) {
     final pal = current.palette ?? const Palette();
     _commit(current.copyWith(

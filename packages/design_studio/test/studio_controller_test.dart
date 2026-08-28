@@ -444,6 +444,35 @@ void main() {
     expect(a.currentTitle, isEmpty);
   });
 
+  test('Fine Tune setters (edges / typography / vintage) edit the active face '
+      'live — no history, routed by front/back', () {
+    final c = make(multi);
+    final backId = c.hero.recipeId;
+    final histLen = c.history.length;
+
+    // Edges: live edit of the outer torn-edge treatment on the (back) hero.
+    c.setEdges(c.edges.copyWith(style: TearStyle.frayed, edgeDamage: 0.8));
+    expect(c.current.edgeTreatment?.style, TearStyle.frayed);
+    expect(c.edges.edgeDamage, 0.8);
+
+    // Vintage grade: live palette-only edit.
+    c.setVintageGrade(0.7);
+    expect(c.current.palette?.vintageGrade, 0.7);
+
+    // All of the above are live: nothing was pushed to undo history.
+    expect(c.history.length, histLen);
+
+    // Typography routes to whichever face is active. Switch to the front and
+    // edit there; the hero (back) must stay byte-identical.
+    c.setSide(true);
+    c.setTypography(const Typography(textCase: TextCase.upper));
+    expect(c.current.typography?.textCase, TextCase.upper);
+    c.setSide(false);
+    expect(c.hero.edgeTreatment?.style, TearStyle.frayed); // back kept its edit
+    expect(c.hero.recipeId, isNot(backId)); // (the back's own live edits applied)
+    expect(c.history.length, histLen); // still no history churn
+  });
+
   test('authoring emits preference signals; Save likes into the library', () {
     final library = PersistentDesignLibrary(_MemoryStore());
     final c = make(single, library: library);
