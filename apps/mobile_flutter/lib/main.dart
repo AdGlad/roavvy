@@ -43,9 +43,14 @@ const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
 Future<void> main() async {
   if (kStudioV2Enabled) {
     WidgetsFlutterBinding.ensureInitialized();
-    // ProviderScope so V2 can read real Roavvy travel data (tripListProvider);
-    // the cart adapter gives this dev entrypoint a working Review → cart hand-off.
+    // Wire the real on-device travel database so V2 reads the user's actual
+    // trips (tripListProvider). Without this override roavvyDatabaseProvider
+    // throws, tripListProvider errors, and StudioV2App hangs on a blank spinner.
+    final db = RoavvyDatabase(driftDatabase(name: 'roavvy'));
+    // ProviderScope so V2 can read real Roavvy travel data; the cart adapter
+    // gives this dev entrypoint a working Review → cart hand-off.
     runApp(ProviderScope(
+        overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
         child: StudioV2App(
             onAddToCart: const StudioV2CartAdapter().addToCart)));
     return;

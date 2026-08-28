@@ -112,17 +112,31 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
 
   @override
   Widget build(BuildContext context) {
-    // Both are async; treat an error/empty as "no data" so a dev build still runs.
-    final trips = ref.watch(tripListProvider).valueOrNull;
-    final visits = ref.watch(effectiveVisitsProvider).valueOrNull;
-    final ready = _prefsLoaded && trips != null;
+    final tripsAsync = ref.watch(tripListProvider);
+    final visitsAsync = ref.watch(effectiveVisitsProvider);
+    final trips = tripsAsync.valueOrNull;
+    final visits = visitsAsync.valueOrNull;
+
+    // The studio must OPEN even when travel data is unavailable — e.g. a dev
+    // entrypoint launched without the `roavvyDatabaseProvider` override, where
+    // `tripListProvider` throws and `.valueOrNull` silently yields null. Waiting
+    // for `trips != null` in that case hangs forever on a blank spinner (with no
+    // visible exception, because the error was swallowed). Instead, once prefs
+    // are loaded, treat a SETTLED trips provider — data OR error — as ready and
+    // fall back to visited/demo codes; only a still-loading provider waits.
+    if (tripsAsync.hasError) {
+      v2trace('tripListProvider ERROR (using fallback context): '
+          '${tripsAsync.error}');
+    }
+    final ready = _prefsLoaded && !tripsAsync.isLoading;
     v2bump('StudioV2App.build',
         detail: 'ready=$ready ctrl=${_controller != null} '
+            'tripsLoading=${tripsAsync.isLoading} tripsErr=${tripsAsync.hasError} '
             'trips=${trips?.length} visits=${visits?.length}');
 
     if (ready && _controller == null) {
       final ctx = StudioV2TravelContext.build(
-        trips: trips,
+        trips: trips ?? const [],
         visitedCodes: [for (final v in (visits ?? const [])) v.countryCode],
       );
       v2trace('creating controller: flagCodes=${ctx.flagCodes.length} '
