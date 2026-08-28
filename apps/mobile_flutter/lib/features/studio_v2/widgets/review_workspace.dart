@@ -80,10 +80,18 @@ class _ReviewWorkspaceState extends State<ReviewWorkspace> {
     // when the expensive rasterise runs.
     final hero = _c.hero;
     final service = _c.service;
+    // The front (chest) face is the real V2 front artwork — render it lazily too
+    // so it, not the V1 flag ribbon, becomes the front print. A blank front
+    // (FrontFit.none) carries no front render, so the shirt front stays empty.
+    final frontFace = _c.frontFace;
+    final hasFrontPrint = _c.frontFit != FrontFit.none;
     final req = GarmentCartRequest(
       garment: _c.garment,
       renderBackArtwork: () async =>
           (await service.renderArtwork(hero)).pngBytes,
+      renderFrontArtwork: hasFrontPrint
+          ? () async => (await service.renderArtwork(frontFace)).pngBytes
+          : null,
       garmentColourHex: _c.hero.palette?.garmentColour,
       garmentColourName: _c.garmentName,
       selectedCountryCodes: _c.selectedCountryCodes.toList(),

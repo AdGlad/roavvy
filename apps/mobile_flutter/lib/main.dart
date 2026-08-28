@@ -16,6 +16,7 @@ import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
 import 'features/studio_v2/studio_v2_app.dart';
+import 'features/studio_v2_commerce/studio_v2_cart_adapter.dart';
 import 'core/notification_service.dart';
 import 'core/remote_config_service.dart';
 import 'core/providers.dart';
@@ -42,8 +43,11 @@ const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
 Future<void> main() async {
   if (kStudioV2Enabled) {
     WidgetsFlutterBinding.ensureInitialized();
-    // ProviderScope so V2 can read real Roavvy travel data (tripListProvider).
-    runApp(const ProviderScope(child: StudioV2App()));
+    // ProviderScope so V2 can read real Roavvy travel data (tripListProvider);
+    // the cart adapter gives this dev entrypoint a working Review → cart hand-off.
+    runApp(ProviderScope(
+        child: StudioV2App(
+            onAddToCart: const StudioV2CartAdapter().addToCart)));
     return;
   }
   runZonedGuarded(

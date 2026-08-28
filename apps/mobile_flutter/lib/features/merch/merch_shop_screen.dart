@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../studio_v2/studio_v2_app.dart';
+import '../studio_v2_commerce/studio_v2_cart_adapter.dart';
 import 'merch_cart_screen.dart';
 import 'merch_design_entry_screen.dart';
 import 'merch_orders_screen.dart';
@@ -23,6 +26,23 @@ class MerchShopScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Shop'),
         actions: [
+          // Debug-only entry into the parallel T-Shirt Studio V2 (M9). Gated on
+          // [kDebugMode] so it never ships to users; it lets V1 and V2 be
+          // launched side-by-side for comparison. Pushed on top of the fully
+          // initialised app, so V2 inherits the real providers (travel data,
+          // Firebase) and a working Review → cart hand-off via the adapter.
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.science_outlined),
+              tooltip: 'Studio V2 (beta)',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => StudioV2App(
+                    onAddToCart: const StudioV2CartAdapter().addToCart,
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             icon: Badge(
               isLabelVisible: cartCount > 0,

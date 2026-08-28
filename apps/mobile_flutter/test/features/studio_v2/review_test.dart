@@ -120,6 +120,28 @@ void main() {
     expect(captured!.garment.back!.recipeId, c.hero.recipeId);
     expect(captured!.garment.front!.recipeId, c.frontFace.recipeId);
     expect(captured!.trips.length, 3);
+    // M9: the real V2 front face is carried as a deferred render, so the true
+    // front artwork (not the V1 ribbon) becomes the front print.
+    expect(captured!.renderFrontArtwork, isNotNull);
+  });
+
+  testWidgets('Front None hands no front render → blank front print (M9)',
+      (tester) async {
+    final c = controller();
+    addTearDown(c.dispose);
+    c.setFrontFit(FrontFit.none);
+
+    GarmentCartRequest? captured;
+    await pumpAt(tester, c, StudioStage.review, onAddToCart: (ctx, req) async {
+      captured = req;
+    });
+    await tester.tap(find.byKey(const Key('v2-review-addtocart')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(captured, isNotNull);
+    expect(captured!.frontPosition, 'none');
+    expect(captured!.renderFrontArtwork, isNull); // no front print
   });
 
   testWidgets('Add to cart with no host wired is a graceful no-op (snackbar)',

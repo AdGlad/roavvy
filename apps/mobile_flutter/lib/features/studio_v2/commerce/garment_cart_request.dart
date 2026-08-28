@@ -20,6 +20,7 @@ class GarmentCartRequest {
   const GarmentCartRequest({
     required this.garment,
     required this.renderBackArtwork,
+    required this.renderFrontArtwork,
     required this.garmentColourHex,
     required this.garmentColourName,
     required this.selectedCountryCodes,
@@ -39,6 +40,13 @@ class GarmentCartRequest {
   /// fill is baked in). Deferred (not eager bytes) so the Review hand-off stays
   /// synchronous and the host owns exactly when the (expensive) rasterise runs.
   final Future<Uint8List> Function() renderBackArtwork;
+
+  /// Lazily renders the front (chest) face to a transparent, print-resolution PNG
+  /// — the print file for the shirt front. **Null when the design has no front
+  /// print** (FrontFit.none): the commerce flow then sends no front image, so the
+  /// shirt front stays blank. Deferred like [renderBackArtwork] so the Review
+  /// hand-off stays synchronous and the host controls when the rasterise runs.
+  final Future<Uint8List> Function()? renderFrontArtwork;
 
   /// The shared garment (blank) colour as a hex string, and its Studio label.
   final String? garmentColourHex;

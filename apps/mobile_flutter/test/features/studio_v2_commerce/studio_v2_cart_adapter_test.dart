@@ -25,6 +25,7 @@ void main() {
     String frontPosition = 'left_chest',
     String backPosition = 'center',
     String? title = 'Wanderer',
+    bool frontPrint = true,
   }) =>
       GarmentCartRequest(
         garment: GarmentDesign(
@@ -34,6 +35,8 @@ void main() {
           themeSeed: 3,
         ),
         renderBackArtwork: () async => Uint8List.fromList([1, 2, 3, 4]),
+        renderFrontArtwork:
+            frontPrint ? () async => Uint8List.fromList([5, 6, 7, 8]) : null,
         garmentColourHex: '#22303A',
         garmentColourName: colourName,
         selectedCountryCodes: const ['us', 'fr', 'jp'],
@@ -69,6 +72,24 @@ void main() {
     final input = StudioV2CartAdapter.map(request());
     expect(input.frontPosition, 'left_chest');
     expect(input.backPosition, 'center'); // main artwork prints on the back
+  });
+
+  test('front face renders lazily when a front print is enabled (M9)', () async {
+    final r = request(frontPosition: 'right_chest');
+    // The real V2 front artwork is carried as a deferred render, so it — not the
+    // V1 flag ribbon — becomes the front print.
+    expect(r.renderFrontArtwork, isNotNull);
+    final png = await r.renderFrontArtwork!();
+    expect(png, isNotEmpty);
+    // Chest placement is preserved through the mapping.
+    expect(StudioV2CartAdapter.map(r).frontPosition, 'right_chest');
+  });
+
+  test('Front None carries no front render → blank front print (M9)', () {
+    final r = request(frontPosition: 'none', frontPrint: false);
+    // No front render closure ⇒ the commerce screen sends no front image.
+    expect(r.renderFrontArtwork, isNull);
+    expect(StudioV2CartAdapter.map(r).frontPosition, 'none');
   });
 
   test('garment colour maps to the nearest existing t-shirt colour', () {

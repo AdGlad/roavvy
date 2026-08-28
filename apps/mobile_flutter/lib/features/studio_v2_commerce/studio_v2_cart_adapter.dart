@@ -5,6 +5,7 @@ import 'package:shared_models/shared_models.dart' show CardTemplateType, TripRec
 
 import '../merch/local_mockup_preview_screen.dart';
 import '../merch/merch_variant_lookup.dart' show tshirtColors;
+import '../merch/product_mockup_specs.dart' show ImageSize;
 import '../studio_v2/commerce/garment_cart_request.dart';
 
 /// **Studio V2 → commerce adapter** (M8). The single, thin boundary between the
@@ -53,14 +54,24 @@ class StudioV2CartAdapter {
   /// entire cart/checkout/Printful pipeline from here on.
   Future<void> addToCart(BuildContext context, GarmentCartRequest r) async {
     final input = map(r);
-    // Render the print file now (the host owns when the expensive rasterise runs).
+    // Render the print files now (the host owns when the expensive rasterise
+    // runs). The back is the main artwork; the front is the real V2 chest face
+    // when enabled — a blank front (FrontFit.none) renders nothing, so the
+    // commerce screen sends no front image and the shirt front stays empty.
     final backArtworkPng = await r.renderBackArtwork();
+    final frontArtworkPng = await r.renderFrontArtwork?.call();
     if (!context.mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LocalMockupPreviewScreen(
           artworkImageBytes: backArtworkPng,
           fixedArtwork: input.fixedArtwork,
+          // The real V2 front face replaces the V1 ribbon as the front print.
+          frontArtworkOverride: frontArtworkPng,
+          // Placement + print scale come from the design, not the V1 defaults.
+          initialFrontPosition: input.frontPosition,
+          initialBackPosition: input.backPosition,
+          initialImageSize: ImageSize.large,
           selectedCodes: input.selectedCodes,
           allCodes: input.allCodes,
           trips: input.trips,

@@ -505,4 +505,25 @@ void main() {
     expect(saved.garment!.back!.recipeId, c.hero.recipeId);
     expect(saved.garment!.front!.recipeId, c.frontFace.recipeId);
   });
+
+  test('M9: a saved garment reopens identically after a serialize round-trip',
+      () {
+    final c = make(multi);
+    c.setFrontArt(FrontArt.complement); // a genuinely distinct front face
+    final savedGarment = c.garment;
+
+    // Persist as save → leave Studio would: through JSON and back.
+    final reopened = GarmentDesign.fromJson(savedGarment.toJson());
+
+    // Reopen into a FRESH Studio session.
+    final c2 = make(multi);
+    c2.loadGarment(reopened);
+
+    // Both printed faces + the garment identity reproduce exactly, so the
+    // reopened design renders the same front/back print as when it was saved.
+    expect(c2.garment.garmentId, savedGarment.garmentId);
+    expect(c2.hero.recipeId, savedGarment.back!.recipeId);
+    expect(c2.frontFace.recipeId, savedGarment.front!.recipeId);
+    expect(c2.onFront, isFalse); // lands on the back (main) face, like Review
+  });
 }

@@ -155,6 +155,10 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
     this.autoStyleParams,
     this.autoShowTitle = true,
     this.autoShowFooter = true,
+    this.frontArtworkOverride,
+    this.initialFrontPosition,
+    this.initialBackPosition,
+    this.initialImageSize,
   });
 
   final List<String> selectedCodes;
@@ -257,6 +261,26 @@ class LocalMockupPreviewScreen extends ConsumerStatefulWidget {
   /// Footer/branding-zone visibility for the auto-design text layer (recipe
   /// gene). Only consulted when [autoStyleParams] is non-null.
   final bool autoShowFooter;
+
+  /// **Studio V2 front print override** (M9). A pre-rendered, transparent
+  /// front-face print PNG supplied by a caller (the V2 commerce adapter). When
+  /// non-null it REPLACES the internally-generated chest ribbon as the front
+  /// print source AND the front preview, so V2's true front artwork — not the V1
+  /// ribbon — reaches Printful. Null for every V1 caller ⇒ unchanged ribbon
+  /// behaviour.
+  final Uint8List? frontArtworkOverride;
+
+  /// Studio V2 placement overrides (M9). Seed [_frontPosition]/[_backPosition]
+  /// from the design's real placement instead of the V1 defaults
+  /// (`left_chest`/`center`). Null ⇒ existing defaults, so V1 callers are
+  /// unaffected. `'none'` on the front produces no front print.
+  final String? initialFrontPosition;
+  final String? initialBackPosition;
+
+  /// Studio V2 print-scale override (M9). Seeds [_imageSize] (how much of the
+  /// printable area the back artwork fills). Null ⇒ the V1 default. V2 passes
+  /// [ImageSize.large] so its fill-the-shape designs print edge-to-edge.
+  final ImageSize? initialImageSize;
 
   @override
   ConsumerState<LocalMockupPreviewScreen> createState() =>
@@ -631,6 +655,18 @@ class _LocalMockupPreviewScreenState
         tshirtColors.contains(widget.initialColour)) {
       _colour = widget.initialColour!;
     }
+    // Studio V2 (M9): seed placement + print scale from the design's real state
+    // so Front Full/Chest L/R/None and artwork sizing survive into production,
+    // instead of falling back to the V1 defaults. Null for V1 callers.
+    if (widget.initialFrontPosition != null) {
+      _frontPosition = widget.initialFrontPosition!;
+    }
+    if (widget.initialBackPosition != null) {
+      _backPosition = widget.initialBackPosition!;
+    }
+    if (widget.initialImageSize != null) {
+      _imageSize = widget.initialImageSize!;
+    }
     final providedBytes = widget.artworkImageBytes;
     if (providedBytes != null) {
       // Existing path: caller supplied pre-rendered artwork bytes (ADR-147).
@@ -939,6 +975,27 @@ class _LocalMockupPreviewScreenState
 
   Future<void> _loadFrontRibbonImage() async {
     if (!_isTshirt || !mounted) return;
+
+    // Studio V2 (M9): a caller supplied the real front-face artwork. Use it
+    // verbatim as the front print + preview and skip the V1 ribbon render, so
+    // V2's designed front — not a flag ribbon — reaches Printful.
+    final override = widget.frontArtworkOverride;
+    if (override != null) {
+      try {
+        final codec = await ui.instantiateImageCodec(override);
+        final frame = await codec.getNextFrame();
+        if (!mounted) {
+          frame.image.dispose();
+          return;
+        }
+        setState(() {
+          _frontRibbonBytes = override;
+          _frontRibbonImage?.dispose();
+          _frontRibbonImage = frame.image;
+        });
+      } catch (_) {}
+      return;
+    }
 
     final levelLabel = ref.read(xpNotifierProvider).levelLabel;
     final Color textColor;

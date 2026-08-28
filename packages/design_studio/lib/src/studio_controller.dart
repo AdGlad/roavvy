@@ -902,6 +902,22 @@ class StudioController extends ChangeNotifier {
     _observe(current, PreferenceSignal.saved);
   }
 
+  /// Reopen a previously saved [GarmentDesign] (M9). Restores BOTH printed faces
+  /// so the design renders identically to when it was saved: the persisted front
+  /// + back recipes and garment colour fully determine the print, so a
+  /// save → leave Studio → reopen cycle reproduces the same [garment] identity
+  /// ([GarmentDesign.garmentId]) and the same front/back artwork. Lands on the
+  /// back (main) face, matching a fresh Review.
+  void loadGarment(GarmentDesign g) {
+    final back = g.back ?? g.front;
+    final front = g.front ?? g.back;
+    if (back == null || front == null) return;
+    _hero = back;
+    _frontFace = front;
+    _onFront = false;
+    notifyListeners();
+  }
+
   String get garmentName {
     final hex = current.palette?.garmentColour;
     for (final (h, name) in garments) {
