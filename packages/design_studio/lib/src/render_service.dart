@@ -2,6 +2,11 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
+import 'package:flutter/foundation.dart';
+
+/// Temporary startup diagnostics gate (mirrors the mobile host's flag). Enable
+/// with `--dart-define=STUDIO_V2_TRACE=true`; zero-cost otherwise.
+const bool _kTrace = bool.fromEnvironment('STUDIO_V2_TRACE');
 
 /// Renders recipes to `ui.Image`s with a **bounded LRU** cache keyed by
 /// `recipeId@longSide`, so the gallery can scroll and re-layout without
@@ -70,6 +75,8 @@ class RenderService {
     return v == null ? null : ui.Color(v);
   }
 
+  int _renderCalls = 0;
+
   Future<ui.Image> imageFor(DesignRecipe recipe, int longSide) async {
     final key = '${recipe.recipeId}@$longSide';
     final cached = _cache[key];
@@ -80,7 +87,17 @@ class RenderService {
         ..[key] = cached;
       return cached;
     }
+    if (_kTrace) {
+      _renderCalls++;
+      debugPrint('[v2trace] RenderService.render #$_renderCalls '
+          'longSide=$longSide cache=${_cache.length} key=$key');
+    }
+    final sw = _kTrace ? (Stopwatch()..start()) : null;
     final result = await _renderer.render(recipe, targetFor(recipe, longSide));
+    if (sw != null) {
+      debugPrint('[v2trace] RenderService.render #$_renderCalls DONE '
+          'in ${sw.elapsedMilliseconds}ms');
+    }
     // A concurrent call for the same key may have populated the cache while we
     // awaited; prefer the already-cached image so both callers share one.
     final raced = _cache[key];

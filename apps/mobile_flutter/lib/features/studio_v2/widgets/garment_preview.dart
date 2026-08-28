@@ -4,6 +4,8 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../host/studio_v2_trace.dart';
+
 /// The live t-shirt preview — the visual **hero** of the V2 shell. Renders a real
 /// [DesignRecipe] through the shared [RenderService] (design_forge_render), with
 /// an image cache keyed by `recipeId@size`.
@@ -49,12 +51,19 @@ class _GarmentPreviewState extends State<GarmentPreview> {
   }
 
   Future<void> _load() async {
+    final sw = Stopwatch()..start();
+    v2bump('GarmentPreview.load.start',
+        detail: 'longSide=${widget.longSide} recipeId=${widget.recipe.recipeId}');
     try {
       final img = await widget.service.imageFor(widget.recipe, widget.longSide);
+      v2trace('GarmentPreview.load.done longSide=${widget.longSide} '
+          'in ${sw.elapsedMilliseconds}ms');
       if (mounted) setState(() => _image = img);
-    } catch (_) {
+    } catch (e) {
       // A transient render/asset failure must never crash the shell; keep the
       // spinner and let a later recipe change retry.
+      v2trace('GarmentPreview.load.ERROR longSide=${widget.longSide} '
+          'after ${sw.elapsedMilliseconds}ms: $e');
     }
   }
 

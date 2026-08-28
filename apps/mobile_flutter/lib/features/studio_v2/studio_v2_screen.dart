@@ -3,6 +3,7 @@ import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
 import 'commerce/garment_cart_request.dart';
+import 'host/studio_v2_trace.dart';
 import 'studio_v2_stage.dart';
 import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
@@ -77,6 +78,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   }
 
   void _onControllerChanged() {
+    v2bump('controller.notify', detail: 'recipeId=${_c.current.recipeId}');
     if (mounted) setState(() {});
   }
 
@@ -109,6 +111,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
 
   @override
   Widget build(BuildContext context) {
+    v2bump('StudioV2Screen.build', detail: 'stage=${_stage.name}');
     final canBack = canWorkflowBack;
     final canUndo = _c.history.isNotEmpty;
     return Scaffold(

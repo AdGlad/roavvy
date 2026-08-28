@@ -10,6 +10,7 @@ import 'commerce/garment_cart_request.dart';
 import 'host/bundle_asset_resolver.dart';
 import 'host/prefs_persistence.dart';
 import 'host/silhouette_inventory.g.dart';
+import 'host/studio_v2_trace.dart';
 import 'host/travel_context.dart';
 import 'studio_v2_screen.dart';
 
@@ -115,16 +116,24 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
     final trips = ref.watch(tripListProvider).valueOrNull;
     final visits = ref.watch(effectiveVisitsProvider).valueOrNull;
     final ready = _prefsLoaded && trips != null;
+    v2bump('StudioV2App.build',
+        detail: 'ready=$ready ctrl=${_controller != null} '
+            'trips=${trips?.length} visits=${visits?.length}');
 
     if (ready && _controller == null) {
       final ctx = StudioV2TravelContext.build(
         trips: trips,
         visitedCodes: [for (final v in (visits ?? const [])) v.countryCode],
       );
+      v2trace('creating controller: flagCodes=${ctx.flagCodes.length} '
+          'trips=${ctx.trips.length} prefsSamples=${_prefs?.sampleCount ?? 0}');
       _controller = buildStudioV2ControllerFor(
         ctx,
         preferences: _prefs ?? DesignPreferences.neutral,
       );
+      v2trace('controller ready: heroRecipeId=${_controller!.current.recipeId} '
+          'family=${_controller!.current.composition.family.name} '
+          'flagsInRecipe=${_controller!.current.content.flags.length}');
     }
 
     return MaterialApp(
