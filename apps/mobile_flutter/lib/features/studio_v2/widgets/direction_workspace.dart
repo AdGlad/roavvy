@@ -155,7 +155,9 @@ class _DirectionCard extends StatelessWidget {
               Text(description,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5, color: Colors.white46)),
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.white.withValues(alpha: 0.46))),
             ],
           ),
         ),
