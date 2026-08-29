@@ -6,21 +6,20 @@ import 'alternatives_tray.dart';
 import 'axis_controls.dart';
 import 'garment_preview.dart';
 
-/// **Vibe** workspace (M4) — the real style selector. Presents all 13 named
-/// [LabStyle]s ([StudioController.vibeStyleOptions]) as live thumbnails restyled
-/// from the user's CURRENT design (not generic samples), so each card previews
-/// exactly what that vibe does to this shirt. Selecting one commits it through
-/// [StudioController.onStyleTap] (immediate live update, undoable) while every
-/// Tier-1 control and the travel / Direction / Detail selection is preserved.
-///
-/// Below the picker sits a compact [AlternativesTray] over the Vibe axis — more
-/// deterministic interpretations of the chosen look — plus a per-axis lock and
-/// the global Remix (keep what I love, remix the rest). The shirt above stays the
-/// hero; this strip only swaps the finish.
-class VibeWorkspace extends StatelessWidget {
+/// Vibe remains a live, current-design style selector. Expert tools are kept
+/// intact but disclosed on demand so the default experience stays visual.
+class VibeWorkspace extends StatefulWidget {
   const VibeWorkspace({super.key, required this.controller});
 
   final StudioController controller;
+
+  @override
+  State<VibeWorkspace> createState() => _VibeWorkspaceState();
+}
+
+class _VibeWorkspaceState extends State<VibeWorkspace> {
+  bool _showOptions = false;
+  StudioController get controller => widget.controller;
 
   @override
   Widget build(BuildContext context) {
@@ -29,26 +28,44 @@ class VibeWorkspace extends StatelessWidget {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(children: [
-            const Expanded(
-              child: Text('VIBE',
-                  style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.4,
-                      color: Colors.tealAccent)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Choose a vibe',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 4),
+                    Text('Same travels. A completely different feel.',
+                        style: TextStyle(fontSize: 12, color: Colors.white54)),
+                  ],
+                ),
+              ),
+              TextButton(
+                key: const Key('v2-vibe-options'),
+                onPressed: () => setState(() => _showOptions = !_showOptions),
+                child: Text(_showOptions ? 'Done' : 'Options'),
+              ),
+            ],
+          ),
+          if (_showOptions) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AxisLockChip(controller: controller, axis: DesignAxis.vibe),
+                const SizedBox(width: 8),
+                RemixButton(controller: controller),
+              ],
             ),
-            AxisLockChip(controller: controller, axis: DesignAxis.vibe),
-            const SizedBox(width: 8),
-            RemixButton(controller: controller),
-          ]),
-          const SizedBox(height: 4),
-          const Text('Pick the overall style.',
-              style: TextStyle(fontSize: 13, color: Colors.white70)),
+          ],
           const SizedBox(height: 12),
           SizedBox(
-            height: 132,
+            height: 154,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: options.length,
@@ -63,19 +80,20 @@ class VibeWorkspace extends StatelessWidget {
                   selected: current == style,
                   onTap: () {
                     controller.onStyleTap(style, styled);
-                    // Refresh the tray so its variations follow the new look.
                     controller.focusAxis(DesignAxis.vibe);
                   },
                 );
               },
             ),
           ),
-          const SizedBox(height: 14),
-          AlternativesTray(
-            controller: controller,
-            axis: DesignAxis.vibe,
-            label: 'More like this',
-          ),
+          if (_showOptions) ...[
+            const SizedBox(height: 16),
+            AlternativesTray(
+              controller: controller,
+              axis: DesignAxis.vibe,
+              label: 'More like this',
+            ),
+          ],
         ],
       ),
     );
@@ -100,37 +118,54 @@ class _VibeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 104,
-        decoration: BoxDecoration(
-          color: selected
-              ? Colors.tealAccent.withValues(alpha: 0.14)
-              : const Color(0xFF1B1E24),
-          border: Border.all(
-              color: selected ? Colors.tealAccent : const Color(0xFF3A3D44),
-              width: selected ? 2 : 1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 84,
-              width: double.infinity,
-              child: GarmentPreview(
-                  service: service, recipe: recipe, longSide: 220),
-            ),
-            const SizedBox(height: 4),
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: selected ? Colors.tealAccent : Colors.white70)),
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          width: 116,
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.tealAccent.withValues(alpha: 0.10)
+                : const Color(0xFF1B1E24),
+            border: Border.all(
+                color: selected ? Colors.tealAccent : Colors.white10,
+                width: selected ? 1.6 : 1),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          padding: const EdgeInsets.all(7),
+          child: Column(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: GarmentPreview(
+                      service: service, recipe: recipe, longSide: 220),
+                ),
+              ),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: Colors.white)),
+                  ),
+                  if (selected)
+                    const Icon(Icons.check_circle,
+                        size: 16, color: Colors.tealAccent),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
