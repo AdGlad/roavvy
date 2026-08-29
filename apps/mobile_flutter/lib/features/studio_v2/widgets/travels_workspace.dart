@@ -4,14 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../core/country_names.dart';
 import '../../map/globe_map_widget.dart';
 
-/// **Choose Your Travels** (M2) — the Travels-stage workspace. The live shirt
-/// stays visible above this; everything here writes the ONE shared selection on
-/// the [StudioController], so Map and List can never disagree.
-///
-///  * **Source** Countries | Trips — Trips (+ the year range) appear only when
-///    dated trip history exists.
-///  * **View** Map | List — two front-ends onto the same selection set. Map reuses
-///    the existing Roavvy globe ([GlobeMapWidget]); List is the precise selector.
+/// Choose the travels represented by the shirt. Map and List are two views onto
+/// the same controller selection; the globe is the primary Roavvy experience.
 class TravelsWorkspace extends StatefulWidget {
   const TravelsWorkspace({super.key, required this.controller});
 
@@ -24,8 +18,9 @@ class TravelsWorkspace extends StatefulWidget {
 class _TravelsWorkspaceState extends State<TravelsWorkspace> {
   StudioController get _c => widget.controller;
 
-  /// View sub-tab is pure presentation (not design state) → local.
-  bool _mapView = false;
+  /// Roavvy's globe is the primary experience; List remains available for
+  /// precise selection.
+  bool _mapView = true;
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +28,26 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          if (dated) ...[
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Choose your travels',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  SizedBox(height: 3),
+                  Text('Tap the places you want represented on your shirt.',
+                      style: TextStyle(fontSize: 12, color: Colors.white54)),
+                ],
+              ),
+            ),
+            _viewButton(),
+          ],
+        ),
+        if (dated) ...[
+          const SizedBox(height: 10),
+          Row(children: [
             _segment(
               children: [
                 _seg('travels-source-countries', 'Countries', !_c.sourceTrips,
@@ -43,32 +56,40 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
                     () => _c.setSource(true)),
               ],
             ),
-            const SizedBox(width: 10),
-          ],
-          _segment(children: [
-            _seg('travels-view-list', 'List', !_mapView,
-                () => setState(() => _mapView = false)),
-            _seg('travels-view-map', 'Map', _mapView,
-                () => setState(() => _mapView = true)),
+            const Spacer(),
+            Text('${_c.selectedCountryCodes.length} selected',
+                style: const TextStyle(fontSize: 12, color: Colors.white60)),
           ]),
-        ]),
-        if (dated) _yearRange(),
-        const SizedBox(height: 8),
-        Row(children: [
-          Text('${_c.selectedCountryCodes.length} selected',
-              style: const TextStyle(fontSize: 12, color: Colors.white60)),
-          const Spacer(),
-          _textButton('travels-select-all', 'Select all', _c.selectAllCountries),
-          const SizedBox(width: 4),
-          _textButton('travels-clear', 'Clear', _c.clearCountries),
-        ]),
+          _yearRange(),
+        ] else ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Text('${_c.selectedCountryCodes.length} countries selected',
+                style: const TextStyle(fontSize: 12, color: Colors.white60)),
+            const Spacer(),
+            _textButton('travels-select-all', 'All', _c.selectAllCountries),
+            _textButton('travels-clear', 'Clear', _c.clearCountries),
+          ]),
+        ],
+        if (dated)
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            _textButton('travels-select-all', 'Select all', _c.selectAllCountries),
+            _textButton('travels-clear', 'Clear', _c.clearCountries),
+          ]),
         const SizedBox(height: 6),
         Expanded(child: _mapView ? _map() : _list()),
       ],
     );
   }
 
-  // ── Year range (dated trips only) ───────────────────────────────────────────
+  Widget _viewButton() => TextButton.icon(
+        key: const Key('v2-travels-view-toggle'),
+        onPressed: () => setState(() => _mapView = !_mapView),
+        icon: Icon(_mapView ? Icons.list_rounded : Icons.public, size: 17),
+        label: Text(_mapView ? 'List' : 'Map'),
+        style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+      );
+
   Widget _yearRange() {
     final span = _c.span;
     if (span == null) return const SizedBox.shrink();
@@ -88,7 +109,7 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Years  ${_c.yearLo}–${_c.yearHi}',
+          Text('${_c.yearLo} – ${_c.yearHi}',
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
           RangeSlider(
             key: const Key('v2-travels-year'),
@@ -97,19 +118,14 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
             divisions: maxY - minY,
             labels: RangeLabels('${lo.round()}', '${hi.round()}'),
             values: RangeValues(lo, hi),
-            // Cheap label update during the drag…
-            onChanged: (v) =>
-                _c.previewYear(v.start.round(), v.end.round()),
-            // …commit (regenerate) only on release → debounces the render.
-            onChangeEnd: (v) =>
-                _c.setYearRange(v.start.round(), v.end.round()),
+            onChanged: (v) => _c.previewYear(v.start.round(), v.end.round()),
+            onChangeEnd: (v) => _c.setYearRange(v.start.round(), v.end.round()),
           ),
         ],
       ),
     );
   }
 
-  // ── List selector (the precise selector; same state as the Map) ─────────────
   Widget _list() {
     final codes = _c.availableCountryCodes;
     return ListView.builder(
@@ -122,6 +138,7 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
         return ListTile(
           key: Key('v2-travels-country-$cc'),
           dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Text(_flagEmoji(cc), style: const TextStyle(fontSize: 22)),
           title: Text(name,
               style: const TextStyle(fontSize: 14, color: Colors.white)),
@@ -136,18 +153,16 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
     );
   }
 
-  // ── Map selector — reuses the existing Roavvy globe (no new renderer) ────────
   Widget _map() {
     final visited = _c.availableCountryCodes.toSet();
     return Container(
       key: const Key('v2-travels-map'),
       decoration: BoxDecoration(
         color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.antiAlias,
       child: GlobeMapWidget(
-        // Only visited countries are selectable; taps toggle the shared set.
         onCountryTap: (iso) {
           final cc = iso.toLowerCase();
           if (visited.contains(cc)) _c.toggleCountry(cc);
@@ -156,7 +171,6 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
     );
   }
 
-  // ── Bits ────────────────────────────────────────────────────────────────────
   Widget _segment({required List<Widget> children}) => Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
@@ -183,19 +197,17 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
         ),
       );
 
-  Widget _textButton(String id, String label, VoidCallback onTap) =>
-      TextButton(
+  Widget _textButton(String id, String label, VoidCallback onTap) => TextButton(
         key: Key('v2-$id'),
         onPressed: onTap,
         style: TextButton.styleFrom(
           foregroundColor: Colors.tealAccent,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: const Size(0, 30),
         ),
         child: Text(label, style: const TextStyle(fontSize: 12)),
       );
 
-  /// ISO alpha-2 → flag emoji (regional-indicator pair). Pure, no assets.
   String _flagEmoji(String iso) {
     final code = iso.toUpperCase();
     if (code.length != 2) return '🏳️';
