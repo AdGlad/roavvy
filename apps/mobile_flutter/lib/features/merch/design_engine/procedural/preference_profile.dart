@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:design_forge/design_forge.dart' as forge;
+
 import 'procedural_recipe.dart';
 
 /// Behavioural signals we translate into design preference. Ordered weakest →
@@ -99,6 +101,20 @@ class UserDesignPreferenceProfile {
         'sampleCount': sampleCount,
         'explorationRate': explorationRate,
       };
+
+  /// Convert to the forge-level [forge.DesignPreferences] for use with the
+  /// shared recommendation pipeline.
+  forge.DesignPreferences toDesignPreferences() {
+    return const PreferenceBridgeHelper().toForge(this);
+  }
+
+  /// Create from forge-level preferences, merging into [existing].
+  factory UserDesignPreferenceProfile.fromDesignPreferences(
+    forge.DesignPreferences forgePrefs, {
+    UserDesignPreferenceProfile existing = neutral,
+  }) {
+    return const PreferenceBridgeHelper().toMobile(forgePrefs, existing);
+  }
 
   factory UserDesignPreferenceProfile.fromJson(Map<String, dynamic> j) {
     Map<String, double> m(String k) => {
@@ -210,4 +226,93 @@ class PreferenceScorer {
   /// callers can tune the exploration/exploitation balance at the call site.
   double combined(double quality, double preference, {double prefBlend = 0.35}) =>
       ((1 - prefBlend) * quality + prefBlend * preference).clamp(0.0, 1.0);
+}
+
+/// Inline helper to convert between mobile and forge preference types.
+/// Kept in this file to avoid a circular import with preference_bridge.dart.
+class PreferenceBridgeHelper {
+  const PreferenceBridgeHelper();
+
+  forge.DesignPreferences toForge(UserDesignPreferenceProfile mobile) {
+    final styleWeights = <forge.StyleCluster, double>{};
+    _mapWeight(mobile.family, ['singleHero'], forge.StyleCluster.clean, styleWeights);
+    _mapWeight(mobile.family, ['passport', 'timeline'], forge.StyleCluster.vintage, styleWeights);
+    _mapWeight(mobile.family, ['badge', 'wordCloud'], forge.StyleCluster.bold, styleWeights);
+    _mapWeight(mobile.family, ['flagBlend', 'grid'], forge.StyleCluster.relaxed, styleWeights);
+    _mapWeight(mobile.family, ['artistic', 'landmark'], forge.StyleCluster.artistic, styleWeights);
+    _mapWeight(mobile.family, ['typographic'], forge.StyleCluster.typographic, styleWeights);
+
+    final shapeWeights = <forge.ShapePreference, double>{};
+    _mapWeight(mobile.mask, ['none'], forge.ShapePreference.noClip, shapeWeights);
+    _mapWeight(mobile.mask, ['country', 'continent'], forge.ShapePreference.countryOutline, shapeWeights);
+    _mapWeight(mobile.mask, ['animal', 'plant', 'landmark'], forge.ShapePreference.silhouette, shapeWeights);
+    _mapWeight(mobile.mask, ['circle', 'diamond', 'heart', 'hexagon'], forge.ShapePreference.geometric, shapeWeights);
+    _mapWeight(mobile.mask, ['compass', 'ticket', 'badge'], forge.ShapePreference.travelIcon, shapeWeights);
+    _mapWeight(mobile.mask, ['text'], forge.ShapePreference.textMask, shapeWeights);
+
+    return forge.DesignPreferences(
+      styleWeights: styleWeights,
+      shapeWeights: shapeWeights,
+      sampleCount: mobile.sampleCount,
+      explorationRate: mobile.explorationRate.clamp(0.15, 0.60),
+    );
+  }
+
+  UserDesignPreferenceProfile toMobile(
+    forge.DesignPreferences forgePrefs,
+    UserDesignPreferenceProfile existing,
+  ) {
+    final family = Map<String, double>.from(existing.family);
+    _reverseMap(forgePrefs.styleWeights, forge.StyleCluster.clean, ['singleHero'], family);
+    _reverseMap(forgePrefs.styleWeights, forge.StyleCluster.vintage, ['passport', 'timeline'], family);
+    _reverseMap(forgePrefs.styleWeights, forge.StyleCluster.bold, ['badge', 'wordCloud'], family);
+    _reverseMap(forgePrefs.styleWeights, forge.StyleCluster.relaxed, ['flagBlend', 'grid'], family);
+    _reverseMap(forgePrefs.styleWeights, forge.StyleCluster.artistic, ['artistic', 'landmark'], family);
+    _reverseMap(forgePrefs.styleWeights, forge.StyleCluster.typographic, ['typographic'], family);
+
+    final mask = Map<String, double>.from(existing.mask);
+    _reverseMap(forgePrefs.shapeWeights, forge.ShapePreference.noClip, ['none'], mask);
+    _reverseMap(forgePrefs.shapeWeights, forge.ShapePreference.countryOutline, ['country', 'continent'], mask);
+    _reverseMap(forgePrefs.shapeWeights, forge.ShapePreference.silhouette, ['animal', 'plant', 'landmark'], mask);
+    _reverseMap(forgePrefs.shapeWeights, forge.ShapePreference.geometric, ['circle', 'diamond', 'heart'], mask);
+    _reverseMap(forgePrefs.shapeWeights, forge.ShapePreference.travelIcon, ['compass', 'ticket', 'badge'], mask);
+    _reverseMap(forgePrefs.shapeWeights, forge.ShapePreference.textMask, ['text'], mask);
+
+    return existing.copyWith(
+      family: family,
+      mask: mask,
+      sampleCount: forgePrefs.sampleCount,
+      explorationRate: forgePrefs.explorationRate,
+    );
+  }
+
+  static void _mapWeight<T>(
+    Map<String, double> source,
+    List<String> keys,
+    T target,
+    Map<T, double> dest,
+  ) {
+    double sum = 0;
+    int count = 0;
+    for (final k in keys) {
+      if (source.containsKey(k)) {
+        sum += source[k]!;
+        count++;
+      }
+    }
+    if (count > 0) dest[target] = sum / count;
+  }
+
+  static void _reverseMap<T>(
+    Map<T, double> source,
+    T key,
+    List<String> targets,
+    Map<String, double> dest,
+  ) {
+    final w = source[key];
+    if (w == null) return;
+    for (final t in targets) {
+      dest[t] = w;
+    }
+  }
 }

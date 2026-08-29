@@ -104,34 +104,47 @@ class MaskCalculator {
   ///
   /// The path is suitable for `Canvas.clipPath()`.
   static ui.Path heartPath(Size size, {int numPoints = 120}) {
-    // Heart is drawn over a square whose side = min(width, height).
-    final side = math.min(size.width, size.height).toDouble();
-    final offsetX = (size.width - side) / 2;
-    final offsetY = (size.height - side) / 2;
-
-    final path = ui.Path();
-    bool started = false;
-
-    // Parametric sweep: t in [0, 2π] → polar coordinates on the heart.
+    // Build the raw parametric heart first, tracking its TRUE bounds, then
+    // fit-scale it (aspect preserved, centred) so the whole shape — including
+    // the bottom tip — always fits inside `size`. The bottom tip reaches
+    // hy≈+17 while the lobes only reach hy≈−12, so a naive fixed divisor
+    // (÷13) pushed the tip ~15% below the box and clipped it. Fitting to the
+    // measured bounds guarantees the clip mask is never cut off at any edge.
+    final xs = List<double>.filled(numPoints + 1, 0);
+    final ys = List<double>.filled(numPoints + 1, 0);
+    var minX = double.infinity, minY = double.infinity;
+    var maxX = -double.infinity, maxY = -double.infinity;
     for (int i = 0; i <= numPoints; i++) {
       final t = 2 * math.pi * i / numPoints;
       // Standard parametric heart:
       //   x = 16 sin³(t)
-      //   y = 13cos(t) − 5cos(2t) − 2cos(3t) − cos(4t)
+      //   y = 13cos(t) − 5cos(2t) − 2cos(3t) − cos(4t)  (negated: +y is down)
       final hx = 16 * math.pow(math.sin(t), 3).toDouble();
-      final hy =
-          -(13 * math.cos(t) -
-              5 * math.cos(2 * t) -
-              2 * math.cos(3 * t) -
-              math.cos(4 * t));
+      final hy = -(13 * math.cos(t) -
+          5 * math.cos(2 * t) -
+          2 * math.cos(3 * t) -
+          math.cos(4 * t));
+      xs[i] = hx;
+      ys[i] = hy;
+      if (hx < minX) minX = hx;
+      if (hx > maxX) maxX = hx;
+      if (hy < minY) minY = hy;
+      if (hy > maxY) maxY = hy;
+    }
 
-      // Map from parametric range (~[-17,17] x and ~[-10,13] y) to [0,side].
-      final px = offsetX + (hx / 17.0 + 1.0) * side / 2.0;
-      final py = offsetY + (hy / 13.0 + 1.0) * side / 2.0;
+    final rawW = maxX - minX, rawH = maxY - minY;
+    if (rawW <= 0 || rawH <= 0) return ui.Path();
+    // Uniform scale that fits the heart's bounding box entirely within `size`.
+    final scale = math.min(size.width / rawW, size.height / rawH);
+    final dx = (size.width - rawW * scale) / 2 - minX * scale;
+    final dy = (size.height - rawH * scale) / 2 - minY * scale;
 
-      if (!started) {
+    final path = ui.Path();
+    for (int i = 0; i <= numPoints; i++) {
+      final px = xs[i] * scale + dx;
+      final py = ys[i] * scale + dy;
+      if (i == 0) {
         path.moveTo(px, py);
-        started = true;
       } else {
         path.lineTo(px, py);
       }

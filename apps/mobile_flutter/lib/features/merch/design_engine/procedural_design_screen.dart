@@ -16,6 +16,7 @@ import '../print_style/print_style_pipeline.dart';
 import 'preference_store.dart';
 import 'procedural/procedural.dart';
 import 'procedural_design_service.dart';
+import '../variation_grid_screen.dart';
 import 'reference/design_dna_loader.dart';
 import 'rendering/merged_flag_renderer.dart';
 
@@ -173,6 +174,18 @@ class _ProceduralDesignScreenState
       _items = const [];
     });
     _run();
+  }
+
+  void _showVariations(_ProcItem it) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VariationGridScreen(
+          anchor: it.design,
+          allCodes: widget.allCodes,
+          trips: _tripsFor(it.design.recipe.countryCodes),
+        ),
+      ),
+    );
   }
 
   void _toggleSave(_ProcItem it) {
@@ -442,6 +455,7 @@ class _ProceduralDesignScreenState
         item: _items[i],
         onTap: () => _openDesign(_items[i]),
         onSave: () => _toggleSave(_items[i]),
+        onMoreLikeThis: () => _showVariations(_items[i]),
       ),
     );
   }
@@ -456,10 +470,16 @@ const Map<String, Color> _shirtSwatch = {
 };
 
 class _ProcCard extends StatelessWidget {
-  const _ProcCard({required this.item, required this.onTap, required this.onSave});
+  const _ProcCard({
+    required this.item,
+    required this.onTap,
+    required this.onSave,
+    this.onMoreLikeThis,
+  });
   final _ProcItem item;
   final VoidCallback onTap;
   final VoidCallback onSave;
+  final VoidCallback? onMoreLikeThis;
 
   @override
   Widget build(BuildContext context) {
@@ -488,13 +508,29 @@ class _ProcCard extends StatelessWidget {
             Positioned(
               top: 4,
               right: 4,
-              child: IconButton(
-                iconSize: 20,
-                icon: Icon(
-                  item.saved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: item.saved ? const Color(0xFFFF6B6B) : Colors.white70,
-                ),
-                onPressed: onSave,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onMoreLikeThis != null)
+                    IconButton(
+                      iconSize: 18,
+                      tooltip: 'More like this',
+                      icon: const Icon(Icons.auto_awesome,
+                          color: Colors.white70, size: 18),
+                      onPressed: onMoreLikeThis,
+                    ),
+                  IconButton(
+                    iconSize: 20,
+                    icon: Icon(
+                      item.saved
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color:
+                          item.saved ? const Color(0xFFFF6B6B) : Colors.white70,
+                    ),
+                    onPressed: onSave,
+                  ),
+                ],
               ),
             ),
           ],

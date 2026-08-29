@@ -9,6 +9,20 @@
 
 ---
 
+## Phase 30 — Advanced Merch Studio & Photorealistic Mockups (M174)
+
+> Interactive client-side PSD Smart Object mockup canvas with real-time fold/shadow bleed-through.
+> Full plan: `docs/dev/milestones/m174-interactive-tshirt-mockup-canvas.md`
+
+### M174 — Interactive Photorealistic T-Shirt Mockup Canvas
+**Goal:** Replace static mockup placement with a real-time interactive canvas supporting simultaneous pan, pinch-zoom, and rotation via `Matrix4`. Uses a 3-layer composite architecture (Garment base + Design viewport + Alpha-masked greyscale wrinkle overlay) running at 60/120fps with strict chest boundary clipping.
+**Phase:** 30 — Advanced Merch Studio & Photorealistic Mockups
+**Depends on:** M58 ✅, M96 ✅, M100 ✅
+**Scope in:** `tshirt_mockup_canvas.dart`, `tshirt_mockup_painter.dart`, `mockup_transform_controller.dart`, `product_mockup_specs.dart`, `local_mockup_preview_screen.dart`.
+**Status:** 🔜 Queued
+
+---
+
 ## Phase 29 — Photo Map Thumbnails (M167–M170)
 
 > Google Photos-style photo thumbnails on the rotating globe and flat map.

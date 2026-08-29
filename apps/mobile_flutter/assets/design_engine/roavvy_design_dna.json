@@ -92,7 +92,8 @@
     "typographicIntegration": 0.7,
     "chronoSequence": 0.6,
     "splitField": 0.6,
-    "duoBlend": 0.8
+    "duoBlend": 0.8,
+    "statementCount": 0.8
   },
   "printStyleAffinity": {
     "clean": 0.9,
