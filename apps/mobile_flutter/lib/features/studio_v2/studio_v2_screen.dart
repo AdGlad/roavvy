@@ -17,19 +17,11 @@ import 'widgets/travels_workspace.dart';
 import 'widgets/vibe_workspace.dart';
 import 'widgets/words_workspace.dart';
 
-/// **Studio V2 shell** (M1) — the permanent visual hierarchy for the whole V2
-/// workflow. The live t-shirt is the hero and is ALWAYS visible; a persistent
-/// Tier-1 control bar (garment colour · orientation · artwork size · front/back)
-/// stays reachable at every stage; below sits a contextual workspace that later
-/// milestones populate per stage.
+/// Consumer-facing Studio V2 shell.
 ///
-/// Two independent histories:
-///  * **Workflow navigation** (which [StudioStage] is shown) — owned here.
-///  * **Design recipe** undo/redo — owned by the shared [StudioController].
-/// The app bar surfaces them as *separate* actions; they are never conflated.
-///
-/// This shell implements NO creative workflow logic yet (Travels/Direction/Vibe/
-/// Words/Fine-Tune are later milestones) — only the frame and its guarantees.
+/// The shirt is the canvas; the current creative decision is secondary. Tier-1
+/// controls remain one tap away without permanently occupying a toolbar, while
+/// every workflow stage stays reachable through the compact Steps sheet.
 class StudioV2Screen extends StatefulWidget {
   const StudioV2Screen({
     super.key,
@@ -37,13 +29,7 @@ class StudioV2Screen extends StatefulWidget {
     this.onAddToCart,
   });
 
-  /// The shared session (recipe, front/back, colour, orientation, size, undo).
   final StudioController controller;
-
-  /// Host-injected bridge to the existing merch cart/checkout flow, used by the
-  /// Review step's Add-to-cart. Null in dev/test builds with no commerce wired;
-  /// Studio V2 stays isolated from `features/merch` and only builds a neutral
-  /// [GarmentCartRequest] for this callback.
   final AddToCartCallback? onAddToCart;
 
   @override
@@ -54,14 +40,9 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   StudioController get _c => widget.controller;
 
   static const _stages = StudioStage.values;
-
-  /// Current workflow stage (NOT the recipe). Default = Instant.
   StudioStage _stage = StudioStage.instant;
-
-  /// Workflow back-stack — entirely separate from recipe undo history.
   final List<StudioStage> _navHistory = [];
 
-  // ── Test-facing ──
   StudioStage get stage => _stage;
   bool get canWorkflowBack => _navHistory.isNotEmpty;
 
@@ -82,7 +63,6 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     if (mounted) setState(() {});
   }
 
-  // ── Workflow navigation (stage) — never mutates the recipe ──────────────────
   void _goToStage(StudioStage s) {
     if (s == _stage) return;
     setState(() {
@@ -91,8 +71,6 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     });
   }
 
-  /// Stages visible in the strip / reachable via Next. Detail is Flags-only, so
-  /// it is hidden (and skipped) for every other Direction.
   List<StudioStage> get _visibleStages => [
         for (final s in _stages)
           if (s != StudioStage.detail || _c.detailApplies) s,
@@ -112,138 +90,211 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   @override
   Widget build(BuildContext context) {
     v2bump('StudioV2Screen.build', detail: 'stage=${_stage.name}');
-    final canBack = canWorkflowBack;
     final canUndo = _c.history.isNotEmpty;
     return Scaffold(
       backgroundColor: const Color(0xFF0E0F12),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF16181D),
+        elevation: 0,
+        backgroundColor: const Color(0xFF0E0F12),
         foregroundColor: Colors.white,
-        // Workflow Back (stage) — NOT recipe undo.
         leading: IconButton(
           key: const Key('v2-workflow-back'),
           tooltip: 'Back a step',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: canBack ? _workflowBack : null,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          onPressed: canWorkflowBack ? _workflowBack : null,
         ),
-        title: Text('Studio V2  ·  ${_stage.label}',
-            style: const TextStyle(fontSize: 15)),
+        title: const Text(
+          'Design your travel tee',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+        centerTitle: true,
         actions: [
-          // Recipe Undo — a SEPARATE action from workflow Back.
           IconButton(
             key: const Key('v2-recipe-undo'),
             tooltip: canUndo ? 'Undo design change' : 'Nothing to undo',
-            icon: const Icon(Icons.undo),
+            icon: const Icon(Icons.undo_rounded),
             onPressed: canUndo ? _c.undo : null,
           ),
-          const SizedBox(width: 4),
+          IconButton(
+            key: const Key('v2-open-steps'),
+            tooltip: 'All design steps',
+            icon: const Icon(Icons.more_horiz),
+            onPressed: _showStages,
+          ),
         ],
       ),
-      body: Column(
-        children: [
-          // ── Hero: the live shirt, occupying the majority of the screen ──
-          Expanded(
-            flex: 5,
-            child: Container(
-              width: double.infinity,
-              color: const Color(0xFF0E0F12),
-              padding: const EdgeInsets.all(20),
-              alignment: Alignment.center,
-              child: GarmentPreview(
-                key: const Key('v2-garment-preview'),
-                service: _c.service,
-                recipe: _c.current,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(flex: 6, child: _hero()),
+            _quickControls(),
+            Expanded(flex: 4, child: _workspace()),
+            _progressFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _hero() => Container(
+        width: double.infinity,
+        color: const Color(0xFF0E0F12),
+        padding: const EdgeInsets.fromLTRB(18, 6, 18, 8),
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: GarmentPreview(
+                  key: const Key('v2-garment-preview'),
+                  service: _c.service,
+                  recipe: _c.current,
+                ),
               ),
             ),
+            const SizedBox(height: 4),
+            _sideSelector(),
+          ],
+        ),
+      );
+
+  Widget _sideSelector() => Container(
+        height: 38,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1C21),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sidePill('side-front', 'Front', _c.onFront, () => _c.setSide(true)),
+            _sidePill('side-back', 'Back', !_c.onFront, () => _c.setSide(false)),
+          ],
+        ),
+      );
+
+  Widget _sidePill(String id, String label, bool selected, VoidCallback onTap) =>
+      GestureDetector(
+        key: Key('v2-$id'),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(17),
           ),
-          _tier1Bar(),
-          Expanded(flex: 4, child: _workspace()),
-          _stageStrip(),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.black : Colors.white60,
+            ),
+          ),
+        ),
+      );
+
+  /// Persistent reachability without a permanently expanded settings toolbar.
+  Widget _quickControls() {
+    final comp = _c.current.composition;
+    final garment = _c.current.palette?.garmentColour ?? '#1F2B33';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _quickButton(
+            key: const Key('v2-shirt-colour-menu'),
+            icon: Icons.checkroom_outlined,
+            label: 'Shirt',
+            leading: Container(
+              width: 13,
+              height: 13,
+              decoration: BoxDecoration(
+                color: _hexColour(garment),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white30),
+              ),
+            ),
+            onTap: _showGarmentColours,
+          ),
+          const SizedBox(width: 8),
+          _quickButton(
+            key: const Key('v2-aspect-menu'),
+            icon: Icons.crop_portrait_rounded,
+            label: _orientationLabel(comp.orientation),
+            onTap: _showOrientations,
+          ),
+          const SizedBox(width: 8),
+          _quickButton(
+            key: const Key('v2-size-menu'),
+            icon: Icons.aspect_ratio_rounded,
+            label: 'Art ${_sizeLabel(comp.sizeClass)}',
+            onTap: _showSizes,
+          ),
         ],
       ),
     );
   }
 
-  // ── Tier-1 persistent controls (survive all later creative changes) ─────────
-  Widget _tier1Bar() {
-    final comp = _c.current.composition;
-    final garment = _c.current.palette?.garmentColour;
-    return Container(
-      color: const Color(0xFF1B1E24),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [
-          // Persistent GARMENT colour — distinct from the artwork "Colour" stage.
-          _label('Shirt colour'),
-          for (final (hex, name) in StudioController.garments)
-            _swatch(hex, name, garment == hex),
-          _divider(),
-          _label('Aspect'),
-          for (final (o, lbl) in const [
-            (Orientation.portrait, 'Portrait'),
-            (Orientation.landscape, 'Landscape'),
-            (Orientation.square, 'Square'),
-          ])
-            _pill('aspect-${o.name}', lbl, comp.orientation == o,
-                () => _c.setOrientation(o)),
-          _divider(),
-          // Artwork print scale S/M/L — NOT physical garment fit (XS–XXL lives at
-          // cart/checkout, a later milestone).
-          _label('Size'),
-          for (final (s, lbl) in const [
-            (SizeClass.small, 'S'),
-            (SizeClass.medium, 'M'),
-            (SizeClass.large, 'L'),
-          ])
-            _pill('size-${s.name}', lbl, comp.sizeClass == s,
-                () => _c.setSize(s)),
-          _divider(),
-          _label('Side'),
-          _pill('side-back', 'Back', !_c.onFront, () => _c.setSide(false)),
-          _pill('side-front', 'Front', _c.onFront, () => _c.setSide(true)),
-        ]),
-      ),
-    );
-  }
+  Widget _quickButton({
+    Key? key,
+    required IconData icon,
+    required String label,
+    Widget? leading,
+    required VoidCallback onTap,
+  }) => OutlinedButton.icon(
+        key: key,
+        onPressed: onTap,
+        icon: leading ?? Icon(icon, size: 16),
+        label: Text(label, style: const TextStyle(fontSize: 11)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white70,
+          side: const BorderSide(color: Color(0xFF35383F)),
+          backgroundColor: const Color(0xFF17191E),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          minimumSize: const Size(0, 38),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+      );
 
-  // ── Contextual workspace — real controls for implemented stages, else a
-  //    placeholder. The live shirt above stays visible at every stage.
-  Widget _workspace() {
-    return Container(
-      key: const Key('v2-workspace'),
-      width: double.infinity,
-      color: const Color(0xFF121317),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: switch (_stage) {
-        StudioStage.travels => TravelsWorkspace(controller: _c),
-        StudioStage.direction => DirectionWorkspace(controller: _c),
-        StudioStage.detail => _c.detailApplies
-            ? DetailWorkspace(controller: _c)
-            : _detailNotApplicable(),
-        StudioStage.vibe => VibeWorkspace(controller: _c),
-        StudioStage.focus => FocusWorkspace(controller: _c),
-        StudioStage.colour => ColourWorkspace(controller: _c),
-        StudioStage.words => WordsWorkspace(controller: _c),
-        StudioStage.front => FrontWorkspace(controller: _c),
-        StudioStage.fineTune => FineTuneWorkspace(controller: _c),
-        StudioStage.review =>
-          ReviewWorkspace(controller: _c, onAddToCart: widget.onAddToCart),
-        _ => _placeholder(),
-      },
-    );
-  }
+  Widget _workspace() => Container(
+        key: const Key('v2-workspace'),
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFF121317),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+        child: switch (_stage) {
+          StudioStage.travels => TravelsWorkspace(controller: _c),
+          StudioStage.direction => DirectionWorkspace(controller: _c),
+          StudioStage.detail => _c.detailApplies
+              ? DetailWorkspace(controller: _c)
+              : _detailNotApplicable(),
+          StudioStage.vibe => VibeWorkspace(controller: _c),
+          StudioStage.focus => FocusWorkspace(controller: _c),
+          StudioStage.colour => ColourWorkspace(controller: _c),
+          StudioStage.words => WordsWorkspace(controller: _c),
+          StudioStage.front => FrontWorkspace(controller: _c),
+          StudioStage.fineTune => FineTuneWorkspace(controller: _c),
+          StudioStage.review =>
+            ReviewWorkspace(controller: _c, onAddToCart: widget.onAddToCart),
+          _ => _placeholder(),
+        },
+      );
 
   Widget _detailNotApplicable() => const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('DETAIL',
-              style: TextStyle(
-                  fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+          Text('Detail',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
           SizedBox(height: 6),
-          Text('The shape step applies to Flags designs.',
-              style: TextStyle(fontSize: 13, color: Colors.white70)),
+          Text('Shape choices are available for Flags designs.',
+              style: TextStyle(fontSize: 13, color: Colors.white60)),
         ],
       );
 
@@ -251,122 +302,228 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(_stage.label.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+          Text(_stage.label,
+              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(_stage.blurb,
-              style: const TextStyle(fontSize: 13, color: Colors.white70)),
-          const SizedBox(height: 4),
-          const Text('Controls for this step arrive in a later milestone.',
-              style: TextStyle(fontSize: 11, color: Colors.white38)),
+              style: const TextStyle(fontSize: 13, color: Colors.white60)),
         ],
       );
 
-  // ── Stage strip: current-stage indicator + jump-to-stage + Next ─────────────
-  Widget _stageStrip() {
+  Widget _progressFooter() {
     final vis = _visibleStages;
+    final index = vis.indexOf(_stage).clamp(0, vis.length - 1);
+    final last = index == vis.length - 1;
     return Container(
-      color: const Color(0xFF16181D),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      child: Row(children: [
-        Expanded(
-          child: SizedBox(
-            height: 30,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: vis.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 6),
-              itemBuilder: (context, i) {
-                final s = vis[i];
-                final on = s == _stage;
-                return GestureDetector(
-                  key: Key('v2-stage-${s.name}'),
-                  onTap: () => _goToStage(s),
-                  child: Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: on
-                          ? Colors.tealAccent.withValues(alpha: 0.18)
-                          : const Color(0xFF23262C),
-                      border: Border.all(
-                          color:
-                              on ? Colors.tealAccent : const Color(0xFF3A3D44)),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(s.label,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: on ? Colors.tealAccent : Colors.white70)),
+      color: const Color(0xFF121317),
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: _showStages,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+              child: Row(
+                children: [
+                  Text(
+                    '${index + 1} of ${vis.length}',
+                    style: const TextStyle(fontSize: 12, color: Colors.white54),
                   ),
-                );
-              },
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 78,
+                    child: LinearProgressIndicator(
+                      value: (index + 1) / vis.length,
+                      minHeight: 4,
+                      borderRadius: BorderRadius.circular(3),
+                      backgroundColor: Colors.white12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        FilledButton(
-          key: const Key('v2-next'),
-          onPressed: _stage == vis.last ? null : _next,
-          child: const Text('Next'),
-        ),
-      ]),
+          const Spacer(),
+          FilledButton.icon(
+            key: const Key('v2-next'),
+            onPressed: last ? null : _next,
+            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            iconAlignment: IconAlignment.end,
+            label: Text(last ? 'Done' : 'Continue'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _label(String s) => Padding(
-        padding: const EdgeInsets.only(right: 6),
-        child:
-            Text(s, style: const TextStyle(fontSize: 10, color: Colors.white38)),
+  void _showStages() {
+    final vis = _visibleStages;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1C21),
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+          itemCount: vis.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+          itemBuilder: (_, i) {
+            final s = vis[i];
+            final selected = s == _stage;
+            return ListTile(
+              key: Key('v2-stage-${s.name}'),
+              dense: true,
+              leading: CircleAvatar(
+                radius: 14,
+                backgroundColor: selected ? Colors.tealAccent : Colors.white10,
+                child: Text('${i + 1}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: selected ? Colors.black : Colors.white70)),
+              ),
+              title: Text(s.label,
+                  style: TextStyle(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? Colors.white : Colors.white70)),
+              trailing: selected
+                  ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
+                  : null,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _goToStage(s);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showGarmentColours() => _showChoiceSheet(
+        title: 'Shirt colour',
+        children: [
+          for (final (hex, name) in StudioController.garments)
+            ListTile(
+              key: Key('v2-garment-$name'),
+              leading: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: _hexColour(hex),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+              ),
+              title: Text(name),
+              trailing: _c.current.palette?.garmentColour == hex
+                  ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                _c.setGarment(hex);
+              },
+            ),
+        ],
       );
 
-  Widget _divider() => Container(
-      width: 1,
-      height: 20,
-      color: Colors.white12,
-      margin: const EdgeInsets.symmetric(horizontal: 8));
-
-  Widget _pill(String id, String label, bool selected, VoidCallback onTap) =>
-      Padding(
-        padding: const EdgeInsets.only(right: 6),
-        child: GestureDetector(
-          key: Key('v2-$id'),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: selected
-                  ? Colors.tealAccent.withValues(alpha: 0.2)
-                  : const Color(0xFF23262C),
-              border: Border.all(
-                  color: selected ? Colors.tealAccent : const Color(0xFF3A3D44)),
-              borderRadius: BorderRadius.circular(14),
+  void _showOrientations() => _showChoiceSheet(
+        title: 'Artwork shape',
+        children: [
+          for (final (o, label, icon) in const [
+            (Orientation.portrait, 'Portrait', Icons.crop_portrait_rounded),
+            (Orientation.landscape, 'Landscape', Icons.crop_landscape_rounded),
+            (Orientation.square, 'Square', Icons.crop_square_rounded),
+          ])
+            ListTile(
+              key: Key('v2-aspect-${o.name}'),
+              leading: Icon(icon),
+              title: Text(label),
+              trailing: _c.current.composition.orientation == o
+                  ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                _c.setOrientation(o);
+              },
             ),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: selected ? Colors.tealAccent : Colors.white70)),
+        ],
+      );
+
+  void _showSizes() => _showChoiceSheet(
+        title: 'Artwork size',
+        subtitle: 'This changes the print size, not the physical T-shirt size.',
+        children: [
+          for (final (s, label) in const [
+            (SizeClass.small, 'Small'),
+            (SizeClass.medium, 'Medium'),
+            (SizeClass.large, 'Large'),
+          ])
+            ListTile(
+              key: Key('v2-size-${s.name}'),
+              title: Text(label),
+              trailing: _c.current.composition.sizeClass == s
+                  ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                _c.setSize(s);
+              },
+            ),
+        ],
+      );
+
+  void _showChoiceSheet({
+    required String title,
+    String? subtitle,
+    required List<Widget> children,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1C21),
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.white54)),
+              ],
+              const SizedBox(height: 8),
+              ...children,
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 
-  Widget _swatch(String hex, String name, bool selected) => Padding(
-        padding: const EdgeInsets.only(right: 6),
-        child: GestureDetector(
-          key: Key('v2-garment-$name'),
-          onTap: () => _c.setGarment(hex),
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
-              shape: BoxShape.circle,
-              border: Border.all(
-                  color: selected ? Colors.tealAccent : Colors.white24,
-                  width: selected ? 2 : 1),
-            ),
-          ),
-        ),
-      );
+  static Color _hexColour(String hex) =>
+      Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
+
+  static String _orientationLabel(Orientation o) => switch (o) {
+        Orientation.portrait => 'Portrait',
+        Orientation.landscape => 'Landscape',
+        Orientation.square => 'Square',
+      };
+
+  static String _sizeLabel(SizeClass s) => switch (s) {
+        SizeClass.small => 'S',
+        SizeClass.medium => 'M',
+        SizeClass.large => 'L',
+      };
 }
