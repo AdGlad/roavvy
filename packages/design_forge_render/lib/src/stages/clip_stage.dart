@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:design_forge/design_forge.dart';
 
 import '../asset_resolver.dart';
+import '../clip/passport_stamp_fallback.dart';
 import '../clip/shape_geometry.dart';
 import '../clip/text_mask.dart';
 import 'render_stage.dart';
@@ -46,7 +47,22 @@ class ClipStage extends RenderStage {
         stampScale: clip.scale <= 0 ? 1.0 : clip.scale,
         ink: _resolveInk(clip.ink, recipe, ctx.target.background),
       );
-      if (collage != null) ctx.artwork = collage;
+      if (collage != null) {
+        ctx.artwork = collage;
+        return;
+      }
+      // No real stamp artwork for these countries (or the host bundles none):
+      // draw the built-in stamp geometry instead. Passport NEVER degrades into a
+      // plain flag print — it stays passport stamps, with the same entry/exit and
+      // trip-date semantics.
+      await _applyMask(
+          ctx,
+          await PassportStampFallback.build(stamps,
+              width: ctx.width,
+              height: ctx.height,
+              seed: recipe.seed,
+              scatter: clip.scatter.clamp(0.0, 1.0),
+              stampScale: clip.scale <= 0 ? 1.0 : clip.scale));
       return;
     }
 
@@ -77,7 +93,24 @@ class ClipStage extends RenderStage {
           width: ctx.width,
           height: ctx.height,
         );
-        if (mask == null) return;
+        if (mask == null) {
+          // A single real stamp the resolver can't supply still renders as a
+          // passport stamp (built-in geometry), never as an unclipped flag.
+          final ref = meta.resolverKind == ClipShape.passportStampOutline
+              ? _parseStampRef(clip.code ?? '')
+              : null;
+          if (ref != null) {
+            await _applyMask(
+                ctx,
+                await PassportStampFallback.build([ref],
+                    width: ctx.width,
+                    height: ctx.height,
+                    seed: recipe.seed,
+                    scatter: 0,
+                    stampScale: clip.scale <= 0 ? 1.0 : clip.scale));
+          }
+          return;
+        }
         await _applyMask(ctx, mask);
         break;
       case ClipShapeSource.svgAsset:
@@ -121,6 +154,16 @@ class ClipStage extends RenderStage {
     if (h.length != 8) return null;
     final v = int.tryParse(h, radix: 16);
     return v == null ? null : ui.Color(v);
+  }
+
+  /// Parse a single real-stamp code (`<slug>` or `<slug>|DATE`, e.g.
+  /// `au_entry|12 MAR 24`) into a stamp ref. Null when there is no slug.
+  static PassportStampRef? _parseStampRef(String code) {
+    final bar = code.indexOf('|');
+    final slug = (bar < 0 ? code : code.substring(0, bar)).trim();
+    if (slug.isEmpty) return null;
+    final date = bar < 0 ? '' : code.substring(bar + 1).trim();
+    return PassportStampRef(slug, date.isEmpty ? null : date);
   }
 
   /// Parse a passport-page code into per-trip entry/exit stamp refs. Format is

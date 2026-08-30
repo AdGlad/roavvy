@@ -712,6 +712,15 @@ enum LabGenre {
     }
   }
 
+  /// The subject to fall back to when NONE of the genre's own subjects are
+  /// available for the current selection. A genre must never silently degrade
+  /// into another genre's subject: [passport] stays a passport page (the
+  /// renderer draws built-in stamp geometry when no stamp artwork is bundled),
+  /// everything else falls back to the plain flag.
+  List<ClipArchetype> get fallbackRotation => this == passport
+      ? const [ClipArchetype.passportPage]
+      : const [ClipArchetype.basicFlag];
+
   /// The clip subjects a (non-data) genre draws from. Empty for [flags], which
   /// reuses the style's rotation minus the other genres' subjects.
   List<ClipArchetype> get rotation {

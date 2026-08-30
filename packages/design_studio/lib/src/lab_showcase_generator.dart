@@ -366,6 +366,13 @@ class LabShowcaseGenerator implements RecipeGenerator {
       for (final c in codes.map((e) => e.toLowerCase()))
         if (stampSlugs.any((s) => s.split('_').first == c)) c,
     ];
+    // The PASSPORT genre owns the page as its own subject, so it must stay a
+    // passport page for the selected countries even when the host ships no stamp
+    // inventory (the renderer then draws built-in stamp geometry). Only passport
+    // widens like this — every other genre keeps its inventory gate unchanged.
+    final pageCcs = stampCcs.isNotEmpty || genre != LabGenre.passport
+        ? stampCcs
+        : (codes.isEmpty ? [code] : [for (final c in codes) c.toLowerCase()]);
 
     bool available(ClipArchetype a) {
       switch (a) {
@@ -378,7 +385,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
         case ClipArchetype.passportStampReal:
           return stamps.isNotEmpty; // single-country single stamp
         case ClipArchetype.passportPage:
-          return stampCcs.isNotEmpty; // one or many countries
+          return pageCcs.isNotEmpty; // one or many countries
         case ClipArchetype.countryOutline:
           return single;
         case ClipArchetype.continentOutline:
@@ -397,7 +404,9 @@ class LabShowcaseGenerator implements RecipeGenerator {
     // Walk the rotation across the grid; offset by the default base seed (1) so
     // the first tile lands on rotation[0]. Deterministic per seed.
     var avail = [for (final a in rotation) if (available(a)) a];
-    if (avail.isEmpty) avail = [ClipArchetype.basicFlag];
+    // Never cross genres when nothing is available — Passport falls back to a
+    // passport page, not to a plain flag.
+    if (avail.isEmpty) avail = genre.fallbackRotation;
     // Subject choice is owned by the DIRECTION axis, so it walks on that axis's
     // effective seed (== seed when not re-rolled).
     final arc = avail[(sfa(DesignAxis.direction) - 1).abs() % avail.length];
@@ -405,7 +414,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
     final clip = _clipFor(
       arc, dirRng.stream('clip'), spec, code,
       animals: animals, plants: plants, landmarks: landmarks, stamps: stamps,
-      stampCcs: stampCcs, history: context.history,
+      stampCcs: pageCcs, history: context.history,
     );
 
     // Finish: edge/effects from the style (VIBE axis). Don't tear a clipped shape

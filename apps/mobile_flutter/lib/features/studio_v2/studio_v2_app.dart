@@ -8,16 +8,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import 'commerce/garment_cart_request.dart';
 import 'host/bundle_asset_resolver.dart';
+import 'host/passport_stamp_inventory.g.dart';
 import 'host/prefs_persistence.dart';
 import 'host/silhouette_inventory.g.dart';
 import 'host/studio_v2_trace.dart';
 import 'host/travel_context.dart';
 import 'studio_v2_screen.dart';
 
-/// The bundled silhouette inventory keyed by [ClipShape], built once from the
-/// generated kind manifest. Feeds the generator so the Detail step's Animals /
+/// The bundled shape inventory keyed by [ClipShape], built once from the
+/// generated manifests. Feeds the generator so the Detail step's Animals /
 /// Plants / Landmarks pickers reach the full on-device inventory (159 animals,
-/// 2 landmarks; plants require additional bundled art — see the manifest).
+/// 2 landmarks; plants require additional bundled art — see the manifest), and
+/// so the **Passport** direction sees the bundled real entry/exit stamps —
+/// without that inventory its subjects are unavailable and Passport degrades
+/// into a plain flag design.
 Map<ClipShape, List<String>> _bundledSilhouettesByShape() => {
       ClipShape.animalSilhouette:
           kStudioV2SilhouettesByKind['animal'] ?? const [],
@@ -25,6 +29,7 @@ Map<ClipShape, List<String>> _bundledSilhouettesByShape() => {
           kStudioV2SilhouettesByKind['plant'] ?? const [],
       ClipShape.landmarkSilhouette:
           kStudioV2SilhouettesByKind['landmark'] ?? const [],
+      ClipShape.passportStampOutline: kStudioV2PassportStampSlugs,
     };
 
 /// Builds a [StudioController] over a supplied [DesignContext], wired to the
