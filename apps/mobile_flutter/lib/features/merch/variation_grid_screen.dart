@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:design_forge/design_forge.dart' hide Clip;
+// `Clip` and `Orientation` collide with Flutter's own types of the same name,
+// so the forge's versions come in under a prefix.
+import 'package:design_forge/design_forge.dart' hide Clip, Orientation;
+import 'package:design_forge/design_forge.dart' as forge show Clip, Orientation;
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart' show TripRecord;
 
@@ -64,10 +67,12 @@ class _VariationGridScreenState extends State<VariationGridScreen> {
           (f) => f.name == r.family.name,
           orElse: () => DesignFamily.singleHero,
         ),
-        orientation: r.isPortrait ? Orientation.portrait : Orientation.landscape,
+        orientation: r.isPortrait
+            ? forge.Orientation.portrait
+            : forge.Orientation.landscape,
       ),
       clip: r.mask != GridClipShape.none
-          ? Clip(shapeId: r.mask.name, code: r.maskCode)
+          ? forge.Clip(shapeId: r.mask.name, code: r.maskCode)
           : null,
       palette: Palette(
         garmentColour: r.garmentColour,

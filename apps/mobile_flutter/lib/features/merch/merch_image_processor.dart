@@ -2,6 +2,8 @@ import 'dart:math' show min;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'mockup_transform_controller.dart';
+
 /// On-device image processor replicating the server-side Sharp operations.
 ///
 /// Produces:
@@ -24,6 +26,7 @@ class MerchImageProcessor {
     required int heightPx,
     required int dpi,
     required bool transparentBackground,
+    MockupTransform transform = MockupTransform.identity,
   }) async {
     if (frontPosition == 'none' || sourceBytes.isEmpty) return null;
 
@@ -78,6 +81,7 @@ class MerchImageProcessor {
         canvasW: widthPx,
         canvasH: heightPx,
         bgColor: const ui.Color(0x00000000),
+        transform: transform,
       );
 
       // Mockup: small square crop sent to Printful mockup API.
@@ -97,6 +101,7 @@ class MerchImageProcessor {
         bgColor: transparentBackground
             ? const ui.Color(0x00000000)
             : const ui.Color(0xFFFFFFFF),
+        transform: transform,
       );
 
       // Mockup: fill Printful's full DTG print area.
@@ -126,6 +131,7 @@ class MerchImageProcessor {
     required int heightPx,
     required bool transparentBackground,
     double fillFraction = 1.0,
+    MockupTransform transform = MockupTransform.identity,
   }) async {
     if (sourceBytes.isEmpty) return null;
     final src = await _decode(sourceBytes);
@@ -137,6 +143,7 @@ class MerchImageProcessor {
       bgColor: transparentBackground
           ? const ui.Color(0x00000000)
           : const ui.Color(0xFFFFFFFF),
+      transform: transform,
     );
     src.dispose();
     return result;
@@ -156,6 +163,7 @@ class MerchImageProcessor {
     required int targetW,
     required int targetH,
     required ui.Color bgColor,
+    MockupTransform transform = MockupTransform.identity,
   }) {
     final srcW = src.width.toDouble();
     final srcH = src.height.toDouble();
@@ -171,6 +179,7 @@ class MerchImageProcessor {
       canvasW: targetW,
       canvasH: targetH,
       bgColor: bgColor,
+      transform: transform,
     );
   }
 
@@ -183,6 +192,7 @@ class MerchImageProcessor {
     required int canvasH,
     required double fillFraction,
     required ui.Color bgColor,
+    MockupTransform transform = MockupTransform.identity,
   }) {
     final f = fillFraction.clamp(0.05, 1.0);
     final srcW = src.width.toDouble();
@@ -201,10 +211,18 @@ class MerchImageProcessor {
       canvasW: canvasW,
       canvasH: canvasH,
       bgColor: bgColor,
+      transform: transform,
     );
   }
 
   /// Renders [src] at [dstRect] on a [canvasW]×[canvasH] canvas.
+  ///
+  /// [transform] (M174) is the placement the user arranged on the mockup. The
+  /// print canvas IS the printable area, so the same normalised values apply
+  /// here unchanged — translation as a fraction of the canvas, scale/rotation
+  /// about the artwork's own centre — which is what makes the printed file
+  /// match the on-screen preview. Artwork is clipped to the canvas, so a
+  /// dragged design can never escape the printable area.
   static Future<Uint8List> _renderToCanvas({
     required ui.Image src,
     required ui.Rect srcRect,
@@ -212,6 +230,7 @@ class MerchImageProcessor {
     required int canvasW,
     required int canvasH,
     required ui.Color bgColor,
+    MockupTransform transform = MockupTransform.identity,
   }) async {
     final canvasRect =
         ui.Rect.fromLTWH(0, 0, canvasW.toDouble(), canvasH.toDouble());
@@ -221,12 +240,27 @@ class MerchImageProcessor {
     if (bgColor.a > 0) {
       canvas.drawRect(canvasRect, ui.Paint()..color = bgColor);
     }
+
+    final transformed = !transform.isIdentity;
+    if (transformed) {
+      canvas.save();
+      canvas.clipRect(canvasRect);
+      final c = dstRect.center;
+      canvas.translate(
+        c.dx + transform.translation.dx * canvasW,
+        c.dy + transform.translation.dy * canvasH,
+      );
+      canvas.rotate(transform.rotation);
+      canvas.scale(transform.scale);
+      canvas.translate(-c.dx, -c.dy);
+    }
     canvas.drawImageRect(
       src,
       srcRect,
       dstRect,
       ui.Paint()..filterQuality = ui.FilterQuality.high,
     );
+    if (transformed) canvas.restore();
 
     final picture = recorder.endRecording();
     final image = await picture.toImage(canvasW, canvasH);

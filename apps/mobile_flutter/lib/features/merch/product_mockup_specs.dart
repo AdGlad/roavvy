@@ -52,9 +52,24 @@ class ProductMockupSpec {
     required this.assetPath,
     required this.printAreaNorm,
     this.srcRectNorm,
+    this.shadowMapAssetPath,
   });
 
   final String assetPath;
+
+  /// Optional greyscale fabric shadow/wrinkle map registered alongside
+  /// [assetPath] (M174). When a companion map is bundled it is multiplied over
+  /// the artwork so the garment's folds bleed through the print.
+  ///
+  /// Null means **use the garment photo itself** as the shading source: the
+  /// photo's own luminance already carries the folds and creases, which is how
+  /// the mockup has shaded artwork since ADR-115. Adding a hand-authored map
+  /// later is a drop-in upgrade — register the path here and nothing else
+  /// changes.
+  final String? shadowMapAssetPath;
+
+  /// The image whose luminance supplies the fabric shading pass.
+  String get shadingAssetPath => shadowMapAssetPath ?? assetPath;
 
   /// Print area in normalised image coordinates (0.0–1.0, Rect.fromLTWH).
   /// Expressed relative to the effective (post-crop) image area.
@@ -84,6 +99,11 @@ const _kTshirtBack = <String, String>{
   'Grey': 'assets/mockups/Grey-tshirt-back.jpeg',
   'Red': 'assets/mockups/Red-tshirt-back.jpeg',
 };
+
+// Companion greyscale wrinkle/shadow maps, keyed by garment asset path (M174).
+// Empty until hand-authored maps are bundled — every garment then falls back to
+// its own photo luminance, which already carries the real fabric folds.
+const _kTshirtShadowMaps = <String, String>{};
 
 // ── Printable-area constants ──────────────────────────────────────────────────
 //
@@ -190,6 +210,10 @@ abstract final class ProductMockupSpecs {
       printableArea = _kTshirtBackPrintArea;
     }
     final printArea = scaledPrintArea(printableArea, imageSize.fillFraction);
-    return ProductMockupSpec(assetPath: assetPath, printAreaNorm: printArea);
+    return ProductMockupSpec(
+      assetPath: assetPath,
+      printAreaNorm: printArea,
+      shadowMapAssetPath: _kTshirtShadowMaps[assetPath],
+    );
   }
 }

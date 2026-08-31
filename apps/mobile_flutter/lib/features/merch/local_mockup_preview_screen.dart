@@ -25,6 +25,8 @@ import 'flag_clip_options.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
+import 'mockup_transform_controller.dart';
+import 'tshirt_mockup_canvas.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
 import 'merch_cart_screen.dart';
@@ -402,6 +404,20 @@ class _LocalMockupPreviewScreenState
   ui.Image? _backShirtImage;
   ui.Image? _frontRibbonImage;
   Uint8List? _frontRibbonBytes;
+
+  // M174 — fabric wrinkle/shadow sources per face. Equal to the garment photo
+  // unless a companion map is bundled (see ProductMockupSpec.shadowMapAssetPath).
+  ui.Image? _frontShadingImage;
+  ui.Image? _backShadingImage;
+
+  /// M174 — live artwork placement per face. Owned here (not by the canvas) so
+  /// the print export and the cart item read exactly what the user arranged.
+  final MockupTransformController _frontTransform =
+      MockupTransformController();
+  final MockupTransformController _backTransform = MockupTransformController();
+
+  /// True while the user is arranging the design directly on the shirt.
+  bool _adjustMode = false;
   // Ribbon rendered with ALL codes — for mini preview tiles.
   ui.Image? _frontRibbonAllImage;
 
@@ -784,6 +800,8 @@ class _LocalMockupPreviewScreenState
     _artworkImage?.dispose();
     _frontRibbonImage?.dispose();
     _frontRibbonAllImage?.dispose();
+    _frontTransform.dispose();
+    _backTransform.dispose();
     super.dispose();
   }
 
@@ -940,6 +958,8 @@ class _LocalMockupPreviewScreenState
         setState(() {
           _frontShirtImage = null;
           _backShirtImage = null;
+          _frontShadingImage = null;
+          _backShadingImage = null;
         });
       }
       return;
@@ -957,16 +977,19 @@ class _LocalMockupPreviewScreenState
     );
 
     try {
-      final frontImage = await LocalMockupImageCache.instance.load(
-        frontSpec.assetPath,
-      );
-      final backImage = await LocalMockupImageCache.instance.load(
-        backSpec.assetPath,
-      );
+      // M174: each face loads its garment together with the fabric shading
+      // source. With no companion wrinkle map bundled the two are the SAME
+      // cached image — no extra decode, no extra memory.
+      final (frontImage, frontShading) = await LocalMockupImageCache.instance
+          .loadWithShading(frontSpec);
+      final (backImage, backShading) = await LocalMockupImageCache.instance
+          .loadWithShading(backSpec);
       if (!mounted) return;
       setState(() {
         _frontShirtImage = frontImage;
         _backShirtImage = backImage;
+        _frontShadingImage = frontShading;
+        _backShadingImage = backShading;
       });
     } catch (_) {
       // Non-fatal — painter handles null productImage gracefully.
@@ -2282,6 +2305,8 @@ class _LocalMockupPreviewScreenState
                 heightPx: printDims.heightPx,
                 dpi: printDims.dpi,
                 transparentBackground: printDims.transparent,
+                // M174: print exactly what the preview showed.
+                transform: _frontTransform.value,
               )
             : null;
         final backPrintBytes = sendBackImage
@@ -2291,8 +2316,10 @@ class _LocalMockupPreviewScreenState
                 heightPx: printDims.heightPx,
                 transparentBackground: printDims.transparent,
                 // Match the preview: the design fills the same fraction of the
-                // printable area that the chosen Image Size shows (M190).
+                // printable area that the chosen Image Size shows (M190), then
+                // carries the user's own placement on top (M174).
                 fillFraction: _imageSize.fillFraction,
+                transform: _backTransform.value,
               )
             : null;
         processSw.stop();
@@ -3031,6 +3058,49 @@ class _LocalMockupPreviewScreenState
                     ),
                   ),
                 ),
+                // M174 — arrange the design directly on the shirt.
+                GestureDetector(
+                  key: const Key('mockup-adjust-toggle'),
+                  onTap: () => setState(() => _adjustMode = !_adjustMode),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _adjustMode
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.3,
+                            ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _adjustMode
+                              ? Icons.check_rounded
+                              : Icons.open_with_rounded,
+                          size: 13,
+                          color: _adjustMode
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _adjustMode ? 'Done' : 'Adjust',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: _adjustMode
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 ],
               ),
             ),
@@ -3675,6 +3745,11 @@ class _LocalMockupPreviewScreenState
             backArtwork: _backPosition != 'none' ? artworkImage : null,
             frontShirt: _frontShirtImage,
             backShirt: _backShirtImage,
+            frontShading: _frontShadingImage,
+            backShading: _backShadingImage,
+            frontTransform: _frontTransform,
+            backTransform: _backTransform,
+            adjustMode: _adjustMode,
             frontSpec: frontSpec,
             backSpec: backSpec,
             showFront: showFront,
@@ -4056,6 +4131,11 @@ class _ShirtFlipView extends StatefulWidget {
     required this.artworkBlendMode,
     this.onNextColour,
     this.onSwipeUp,
+    this.frontShading,
+    this.backShading,
+    this.frontTransform,
+    this.backTransform,
+    this.adjustMode = false,
   });
 
   final ui.Image? frontArtwork;
@@ -4076,6 +4156,20 @@ class _ShirtFlipView extends StatefulWidget {
 
   /// Called when the user swipes up to cycle stamp colour variants.
   final VoidCallback? onSwipeUp;
+
+  /// Fabric wrinkle/shadow sources for each face (M174). Null falls back to the
+  /// garment photo, whose own luminance carries the folds.
+  final ui.Image? frontShading;
+  final ui.Image? backShading;
+
+  /// Live artwork placement per face (M174). Owned by the screen so the print
+  /// export and the cart item see the same transform the user arranged.
+  final MockupTransformController? frontTransform;
+  final MockupTransformController? backTransform;
+
+  /// When true the visible face accepts pan/pinch/rotate on the artwork, and
+  /// the whole-view zoom + flip gestures stand down so the arena is unambiguous.
+  final bool adjustMode;
 
   @override
   State<_ShirtFlipView> createState() => _ShirtFlipViewState();
@@ -4140,10 +4234,15 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
 
   @override
   Widget build(BuildContext context) {
+    // While adjusting the design, the artwork owns the gesture arena: the
+    // view-level swipe/zoom would otherwise steal the same drags and pinches.
+    final adjusting = widget.adjustMode;
     return GestureDetector(
-      onVerticalDragStart: _onVerticalDragStart,
-      onVerticalDragEnd: _onVerticalDragEnd,
-      onDoubleTap: () => _transformationController.value = Matrix4.identity(),
+      onVerticalDragStart: adjusting ? null : _onVerticalDragStart,
+      onVerticalDragEnd: adjusting ? null : _onVerticalDragEnd,
+      onDoubleTap: adjusting
+          ? null
+          : () => _transformationController.value = Matrix4.identity(),
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -4165,6 +4264,8 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
           // Pan disabled so a single-finger horizontal drag reaches the
           // clip-swipe handler on the parent; pinch-to-zoom still works.
           panEnabled: false,
+          // M174: view zoom yields to artwork editing while adjusting.
+          scaleEnabled: !adjusting,
           child: _buildCurrentFace(),
         ),
       ),
@@ -4188,14 +4289,18 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     final blendMode =
         _showingFront ? ui.BlendMode.srcOver : widget.artworkBlendMode;
 
-    return CustomPaint(
-      painter: LocalMockupPainter(
-        artworkImage: artwork,
-        productImage: shirt,
-        spec: spec,
-        artworkBlendMode: blendMode,
-      ),
-      child: const SizedBox.expand(),
+    // M174: the same composite as before (garment → artwork → fabric folds
+    // masked to the ink), but the artwork now sits on a live transform the user
+    // can drag, pinch and twist while `adjustMode` is on.
+    return TshirtMockupCanvas(
+      spec: spec,
+      garmentImage: shirt,
+      shadingImage: _showingFront ? widget.frontShading : widget.backShading,
+      artworkImage: artwork,
+      controller: _showingFront ? widget.frontTransform : widget.backTransform,
+      artworkBlendMode: blendMode,
+      interactive: widget.adjustMode && artwork != null,
+      showHud: widget.adjustMode && artwork != null,
     );
   }
 }

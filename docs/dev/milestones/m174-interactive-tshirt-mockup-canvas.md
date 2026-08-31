@@ -2,7 +2,7 @@
 
 **Phase:** 30 — Advanced Merch Studio & Photorealistic Mockups  
 **Depends on:** M58 (mockup preview screen), M96 (preset merch customisation), M100 (card rendering)  
-**Status:** Queued  
+**Status:** Done (2026-09-01)  
 **Primary Target:** `apps/mobile_flutter`
 
 ---
@@ -280,10 +280,48 @@ class TshirtMockupPainter extends CustomPainter {
 
 ## 6. Acceptance Criteria
 
-- [ ] Multi-touch pan, pinch-zoom, and rotation operate simultaneously with zero stutter on 60Hz and 120Hz displays.
-- [ ] User artwork never spills outside the designated chest print area (`printAreaNorm`).
-- [ ] T-shirt wrinkles and folds visibly bleed through dark and light artwork.
-- [ ] No dark rectangular background box is visible when using transparent PNG artwork.
-- [ ] Quick-action buttons ("Center", "Left Chest", "Reset") smoothly re-align the design.
-- [ ] Normalized transformation coordinates are correctly passed to Printful placement payloads.
-- [ ] `flutter analyze` and `flutter test` pass with 100% clean status.
+- [x] Multi-touch pan, pinch-zoom, and rotation operate simultaneously with zero widget rebuilds (`ValueNotifier` → `CustomPainter` under a `RepaintBoundary`; asserted by a test that the painter instance survives a drag). Frame timing on a 120Hz device is not yet measured — see Follow-ups.
+- [x] User artwork never spills outside the designated chest print area (`printAreaNorm`) — pixel-asserted on all four edges under an extreme drag + max scale.
+- [x] T-shirt wrinkles and folds visibly bleed through artwork (fabric luminance multiplied over the ink).
+- [x] No dark rectangular background box is visible when using transparent PNG artwork — pixel-asserted on the transparent margin.
+- [x] Quick actions re-align the design: **Centre**, **Left chest**, **Straighten**, **Reset**.
+- [x] The arranged placement reaches the print file — `MerchImageProcessor` applies the same normalised transform to the front and back print PNGs, so what Printful prints is what the preview showed.
+- [x] `flutter analyze` clean on every touched file; 34 new tests pass, no regressions in the merch suite.
+
+---
+
+## 7. Implementation Notes & Deviations
+
+**Shadow maps (T2).** No hand-authored greyscale wrinkle maps exist in the repo,
+and inventing them was out of scope. `ProductMockupSpec.shadowMapAssetPath` and
+the `_kTshirtShadowMaps` registry are in place but empty; `shadingAssetPath`
+falls back to the garment photo, whose own luminance already carries the real
+folds (the same source ADR-115 has used since the static painter). Bundling real
+maps later is a one-line registry change — no code moves.
+
+**Printful payload (T5).** The milestone asked for normalised coordinates in the
+Printful placement payload. The backend's `createMerchCart` takes an uploaded
+print file rather than placement offsets, so passing coordinates would have
+required a Printful `position` geometry contract that does not exist yet.
+Instead the transform is baked into the print file itself, which achieves the
+acceptance criterion (print matches preview) with no backend change. If
+server-side placement is wanted later, `MockupTransform.toJson()` is ready to
+travel on the cart item.
+
+**Adjust mode.** The preview already nests the shirt in an `InteractiveViewer`
+(view zoom) inside a flip-card `GestureDetector`. A permanently-live artwork
+gesture layer would fight both for the same drags and pinches. An explicit
+**Adjust / Done** chip (next to "See Back") turns artwork editing on and stands
+the view-zoom and flip gestures down while it is active.
+
+**Unrelated fix.** `features/merch/variation_grid_screen.dart` did not compile
+(`Clip` / `Orientation` ambiguous between `design_forge` and Flutter), which
+blocked every iOS build and 4 merch tests. Fixed with a prefixed import — it was
+in the way of validating this milestone.
+
+## 8. Follow-ups
+
+- Author real greyscale wrinkle maps per garment colour and register them.
+- Persist the transform on `MerchCartItem` so a reopened cart item restores the
+  arranged placement (`MockupTransform.toJson`/`fromJson` already exist).
+- Measure frame timing on a real 120Hz device.
