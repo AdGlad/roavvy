@@ -134,7 +134,7 @@ void main() {
       // The Studio offers the blank's full range; this is what keeps the two
       // lists honest. A colour added to the palette without deciding its variant
       // fails here rather than at a customer's door.
-      for (final (hex, name) in StudioController.garments) {
+      for (final (_, name) in StudioController.garments) {
         final mapped = StudioV2CartAdapter.v1ColourName(name);
         if (mapped == null) {
           expect(

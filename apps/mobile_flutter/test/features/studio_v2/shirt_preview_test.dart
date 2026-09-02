@@ -3,6 +3,8 @@
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
+import 'package:design_forge_render/design_forge_render.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/garment_mockup_canvas.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +14,33 @@ import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
 import 'package:mobile_flutter/features/studio_v2/widgets/garment_preview.dart';
 import 'package:mobile_flutter/features/studio_v2/widgets/shirt_preview.dart';
+
+/// Rendering is not exercised here — only how the artwork meets the fabric.
+class _NoopResolver implements AssetResolver {
+  @override
+  Future<ui.Image> resolveFlag(
+    String code, {
+    required int width,
+    required int height,
+  }) => throw UnimplementedError();
+  @override
+  Future<ui.Image?> resolveClipMask(
+    ClipShape shape,
+    String? code, {
+    required int width,
+    required int height,
+  }) async => null;
+  @override
+  Future<ui.Image?> resolvePassportCollage(
+    List<PassportStampRef> stamps, {
+    required int width,
+    required int height,
+    int seed = 0,
+    double scatter = 0.5,
+    double stampScale = 1.0,
+    PassportInk ink = PassportInk.flag,
+  }) async => null;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,70 +107,35 @@ void main() {
   });
 
   group('how a design meets the fabric', () {
-    DesignRecipe recipe(DesignFamily family, {Clip? clip}) => DesignRecipe(
-      seed: 1,
-      content: const RecipeContent(flags: [FlagRef('us')]),
-      composition: Composition(family: family),
-      clip: clip,
-    );
-
-    test('a flag composition is multiplied into the cloth', () {
-      // Full-bleed: painting it over the shirt would stamp a white rectangle
-      // around the design — the bug this rule exists to prevent.
-      for (final f in [
-        DesignFamily.grid,
-        DesignFamily.singleHero,
-        DesignFamily.duoBlend,
-        DesignFamily.tornHero,
-      ]) {
+    testWidgets('the design keeps its own colours on a coloured shirt', (
+      tester,
+    ) async {
+      // Multiplying the artwork into the garment tints every ink by the shirt:
+      // on red, blue reads purple and white reads pink. The design has to reach
+      // the fabric untouched, with the shirt showing through its transparency.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ShirtPreview(
+            service: RenderService(_NoopResolver()),
+            recipe: DesignRecipe(
+              seed: 1,
+              content: const RecipeContent(flags: [FlagRef('fr')]),
+              composition: const Composition(family: DesignFamily.grid),
+              palette: const Palette(garmentColour: '#FF1B2B'),
+            ),
+            front: false,
+          ),
+        ),
+      );
+      await tester.pump();
+      final canvas = tester.widgetList<GarmentMockupCanvas>(
+        find.byType(GarmentMockupCanvas),
+      );
+      for (final c in canvas) {
         expect(
-          ShirtPreview.blendFor(recipe(f)),
-          ui.BlendMode.multiply,
-          reason: '\$f fills its canvas and must multiply',
-        );
-      }
-    });
-
-    test('a clipped design keeps its own colours', () {
-      // It carries real transparency, so it composites over the shirt and stays
-      // true on a dark garment instead of going muddy.
-      expect(
-        ShirtPreview.blendFor(
-          recipe(DesignFamily.grid, clip: const Clip(shapeId: 'heart')),
-        ),
-        ui.BlendMode.srcOver,
-      );
-      expect(
-        ShirtPreview.blendFor(
-          recipe(DesignFamily.grid, clip: const Clip(shapeId: 'passportPage')),
-        ),
-        ui.BlendMode.srcOver,
-      );
-    });
-
-    test('an explicit no-clip still counts as full-bleed', () {
-      expect(
-        ShirtPreview.blendFor(
-          recipe(DesignFamily.grid, clip: const Clip(shapeId: 'none')),
-        ),
-        ui.BlendMode.multiply,
-      );
-    });
-
-    test('data-driven families composite over the shirt', () {
-      for (final f in [
-        DesignFamily.timeline,
-        DesignFamily.journeys,
-        DesignFamily.wordCloud,
-        DesignFamily.badge,
-        DesignFamily.stats,
-        DesignFamily.achievements,
-        DesignFamily.frontRibbon,
-      ]) {
-        expect(
-          ShirtPreview.blendFor(recipe(f)),
+          c.artworkBlendMode,
           ui.BlendMode.srcOver,
-          reason: '\$f draws on transparency',
+          reason: 'the artwork must not be tinted by the garment',
         );
       }
     });
