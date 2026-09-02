@@ -4,15 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/country_names.dart';
+import '../studio_v2_theme.dart';
 
 /// **Detail** workspace (M3) — only shown for the **Flags** Direction. Chooses
 /// the *shape the flags fill*: Grid · Map · Animals · Plants · Landmarks · Heart
-/// · Circle, driven by [StudioController.applyDetail]. The three silhouette
-/// shapes open a bottom-sheet picker over the full bundled inventory
-/// ([StudioController.allSilhouetteOptions] / [StudioController.silhouetteOptions]),
-/// so a specific national silhouette can be chosen; the pick updates the live
-/// shirt immediately and is preserved when returning. The shirt above stays the
-/// hero — this strip only swaps the shape.
+/// · Circle, driven by [StudioController.applyDetail].
 class DetailWorkspace extends StatelessWidget {
   const DetailWorkspace({super.key, required this.controller});
 
@@ -45,7 +41,9 @@ class DetailWorkspace extends StatelessWidget {
       children: [
         const Text('DETAIL',
             style: TextStyle(
-                fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+                fontSize: 11,
+                letterSpacing: 1.4,
+                color: StudioV2Theme.accent)),
         const SizedBox(height: 4),
         const Text('Choose the shape your flags fill.',
             style: TextStyle(fontSize: 13, color: Colors.white70)),
@@ -88,8 +86,8 @@ class DetailWorkspace extends StatelessWidget {
       OutlinedButton.icon(
         key: const Key('v2-detail-silhouette-pick'),
         style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.tealAccent,
-            side: const BorderSide(color: Color(0xFF3A3D44))),
+            foregroundColor: StudioV2Theme.accent,
+            side: const BorderSide(color: StudioV2Theme.border)),
         icon: const Icon(Icons.grid_view, size: 16),
         label: const Text('Choose'),
         onPressed: () => _openSheet(context, shape),
@@ -100,7 +98,7 @@ class DetailWorkspace extends StatelessWidget {
   void _openSheet(BuildContext context, ClipShape shape) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF121317),
+      backgroundColor: StudioV2Theme.workspace,
       isScrollControlled: true,
       builder: (_) => _SilhouetteSheet(controller: controller, shape: shape),
     );
@@ -114,25 +112,21 @@ class DetailWorkspace extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: selected
-                ? Colors.tealAccent.withValues(alpha: 0.16)
-                : const Color(0xFF23262C),
+                ? StudioV2Theme.accent.withValues(alpha: 0.14)
+                : StudioV2Theme.control,
             border: Border.all(
-                color: selected ? Colors.tealAccent : const Color(0xFF3A3D44),
+                color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
                 width: selected ? 1.5 : 1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(label,
               style: TextStyle(
                   fontSize: 12,
-                  color: selected ? Colors.tealAccent : Colors.white70)),
+                  color: selected ? StudioV2Theme.accent : Colors.white70)),
         ),
       );
 }
 
-/// The full-inventory silhouette picker. Defaults to the design's own countries
-/// (["silhouetteOptions"]) but a toggle reveals the complete bundled inventory
-/// (["allSilhouetteOptions"]) so nothing is out of reach. Thumbnails render the
-/// bundled SVG directly (offline); the current pick is outlined.
 class _SilhouetteSheet extends StatefulWidget {
   const _SilhouetteSheet({required this.controller, required this.shape});
 
@@ -157,7 +151,6 @@ class _SilhouetteSheetState extends State<_SilhouetteSheet> {
     ]..sort();
     final currentSlug = c.current.clip?.code;
 
-    // Group by country (slug = `<cc>_<name>`) for a scannable list.
     final byCountry = <String, List<String>>{};
     for (final slug in options) {
       byCountry.putIfAbsent(slug.split('_').first, () => []).add(slug);
@@ -186,7 +179,7 @@ class _SilhouetteSheetState extends State<_SilhouetteSheet> {
                   Switch(
                     key: const Key('v2-silhouette-all-toggle'),
                     value: _allCountries,
-                    activeThumbColor: Colors.tealAccent,
+                    activeThumbColor: StudioV2Theme.accent,
                     onChanged: (v) => setState(() => _allCountries = v),
                   ),
                 ]),
@@ -218,7 +211,7 @@ class _SilhouetteSheetState extends State<_SilhouetteSheet> {
                               style: const TextStyle(
                                   fontSize: 12,
                                   letterSpacing: 0.5,
-                                  color: Colors.tealAccent)),
+                                  color: StudioV2Theme.accent)),
                         ),
                         Wrap(
                           spacing: 8,
@@ -252,9 +245,9 @@ class _SilhouetteSheetState extends State<_SilhouetteSheet> {
         width: 84,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B1E24),
+          color: StudioV2Theme.card,
           border: Border.all(
-              color: selected ? Colors.tealAccent : const Color(0xFF3A3D44),
+              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
               width: selected ? 2 : 1),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -266,7 +259,7 @@ class _SilhouetteSheetState extends State<_SilhouetteSheet> {
               child: SvgPicture.asset(
                 'assets/silhouettes/$slug.svg',
                 colorFilter: ColorFilter.mode(
-                    selected ? Colors.tealAccent : Colors.white70,
+                    selected ? StudioV2Theme.accent : Colors.white70,
                     BlendMode.srcIn),
                 placeholderBuilder: (_) => const SizedBox.shrink(),
               ),
