@@ -1,26 +1,12 @@
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../studio_v2_theme.dart';
 import 'garment_preview.dart';
 
 /// **Front** workspace (M6) — configures the *complementary* shirt front. The
 /// hero back stays the main design; the front is a supporting motif: a flag
-/// ribbon, a matching complement, or the same artwork. Every control reads and
-/// writes the shared [StudioController] Front state directly — no duplicated
-/// widget state:
-///  * **Placement** ([StudioController.frontFit]) — Full · Chest · None. None
-///    prints nothing on the front.
-///  * **Chest side** ([StudioController.chestRight]) — Left · Right, only when
-///    the placement is Chest.
-///  * **Artwork** ([StudioController.frontArt]) — Ribbon · Complement · Match
-///    back. Only meaningful when something is printed (placement ≠ None).
-///  * **Ribbon coverage** ([StudioController.ribbonAllCountries]) — the selected
-///    travels vs every country, only when the artwork is a Ribbon.
-///
-/// A small shirt-front schematic previews the placement using the engine's own
-/// [StudioController.frontPrintRect] geometry (chest left/right reflected, None
-/// shows a blank front). The persistent Front/Back toggle in the bar above
-/// switches the *hero* preview between the two real faces.
+/// ribbon, a matching complement, or the same artwork.
 class FrontWorkspace extends StatelessWidget {
   const FrontWorkspace({super.key, required this.controller});
 
@@ -37,7 +23,9 @@ class FrontWorkspace extends StatelessWidget {
         children: [
           const Text('FRONT',
               style: TextStyle(
-                  fontSize: 11, letterSpacing: 1.4, color: Colors.tealAccent)),
+                  fontSize: 11,
+                  letterSpacing: 1.4,
+                  color: StudioV2Theme.accent)),
           const SizedBox(height: 4),
           const Text('A complementary front for your hero back. Switch '
               'Front/Back in the bar above to preview each side.',
@@ -131,24 +119,20 @@ class FrontWorkspace extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: selected
-                ? Colors.tealAccent.withValues(alpha: 0.2)
-                : const Color(0xFF23262C),
+                ? StudioV2Theme.accent.withValues(alpha: 0.16)
+                : StudioV2Theme.control,
             border: Border.all(
-                color: selected ? Colors.tealAccent : const Color(0xFF3A3D44)),
+                color: selected ? StudioV2Theme.accent : StudioV2Theme.border),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Text(label,
               style: TextStyle(
                   fontSize: 12,
-                  color: selected ? Colors.tealAccent : Colors.white70)),
+                  color: selected ? StudioV2Theme.accent : Colors.white70)),
         ),
       );
 }
 
-/// A small shirt-front schematic that places a thumbnail of the front design
-/// using the engine's [StudioController.frontPrintRect] fractions, so chest
-/// left/right and a blank (None) front are reflected without hard-coded
-/// coordinates.
 class _FrontMockup extends StatelessWidget {
   const _FrontMockup({required this.controller});
 
@@ -164,8 +148,8 @@ class _FrontMockup extends StatelessWidget {
       width: w,
       height: h,
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1E24),
-        border: Border.all(color: const Color(0xFF3A3D44)),
+        color: StudioV2Theme.card,
+        border: Border.all(color: StudioV2Theme.border),
         borderRadius: BorderRadius.circular(10),
       ),
       child: rect.isEmpty
