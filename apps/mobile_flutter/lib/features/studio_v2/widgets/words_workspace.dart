@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../studio_v2_theme.dart';
 import 'axis_controls.dart';
 
 /// **Words** workspace (M5) — a title EDITOR, not a generic generator. Wraps the
@@ -11,9 +12,6 @@ import 'axis_controls.dart';
 /// ([StudioController.suggestTitles] / [StudioController.titleIdeas]) offers local,
 /// deterministic ideas — no network, no AI artwork. Tapping a suggestion applies
 /// it immediately; the button re-rolls a fresh set each press.
-///
-/// Includes the per-axis lock + Remix so a title can be pinned while the rest is
-/// re-rolled. The shirt above stays the hero.
 class WordsWorkspace extends StatefulWidget {
   const WordsWorkspace({super.key, required this.controller});
 
@@ -33,21 +31,15 @@ class _WordsWorkspaceState extends State<WordsWorkspace> {
   void initState() {
     super.initState();
     _field = TextEditingController(text: _c.currentTitle);
-    // Seed the initial suggestions once the first frame is up (focusWords
-    // notifies listeners, so it must not run during build).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _c.focusWords();
     });
-    // Keep the field in step with the recipe (e.g. after Undo/Redo) while the
-    // user isn't actively typing.
     _c.addListener(_syncField);
   }
 
   void _syncField() {
     if (!mounted || _focus.hasFocus) return;
-    if (_field.text != _c.currentTitle) {
-      _field.text = _c.currentTitle;
-    }
+    if (_field.text != _c.currentTitle) _field.text = _c.currentTitle;
   }
 
   @override
@@ -78,7 +70,7 @@ class _WordsWorkspaceState extends State<WordsWorkspace> {
                   style: TextStyle(
                       fontSize: 11,
                       letterSpacing: 1.4,
-                      color: Colors.tealAccent)),
+                      color: StudioV2Theme.accent)),
             ),
             AxisLockChip(controller: _c, axis: DesignAxis.words),
             const SizedBox(width: 8),
@@ -103,16 +95,16 @@ class _WordsWorkspaceState extends State<WordsWorkspace> {
                   hintText: 'Your title',
                   hintStyle: const TextStyle(color: Colors.white38),
                   filled: true,
-                  fillColor: const Color(0xFF1B1E24),
+                  fillColor: StudioV2Theme.card,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF3A3D44)),
+                    borderSide: const BorderSide(color: StudioV2Theme.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.tealAccent),
+                    borderSide: const BorderSide(color: StudioV2Theme.accent),
                   ),
                 ),
               ),
@@ -132,7 +124,7 @@ class _WordsWorkspaceState extends State<WordsWorkspace> {
                   style: const TextStyle(
                       fontSize: 11,
                       letterSpacing: 1.2,
-                      color: Colors.tealAccent)),
+                      color: StudioV2Theme.accent)),
             ),
             TextButton.icon(
               key: const Key('v2-title-suggest'),
@@ -189,17 +181,17 @@ class _IdeaChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? Colors.tealAccent.withValues(alpha: 0.16)
-              : const Color(0xFF1B1E24),
+              ? StudioV2Theme.accent.withValues(alpha: 0.14)
+              : StudioV2Theme.card,
           border: Border.all(
-              color: selected ? Colors.tealAccent : const Color(0xFF3A3D44),
+              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
               width: selected ? 1.5 : 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(label,
             style: TextStyle(
                 fontSize: 13,
-                color: selected ? Colors.tealAccent : Colors.white)),
+                color: selected ? StudioV2Theme.accent : Colors.white)),
       ),
     );
   }
