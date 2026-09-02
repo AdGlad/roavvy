@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/country_names.dart';
 import '../../map/globe_map_widget.dart';
+import '../studio_v2_theme.dart';
 
 /// Choose the travels represented by the shirt. Map and List are two views onto
 /// the same controller selection; the globe is the primary Roavvy experience.
@@ -18,8 +19,6 @@ class TravelsWorkspace extends StatefulWidget {
 class _TravelsWorkspaceState extends State<TravelsWorkspace> {
   StudioController get _c => widget.controller;
 
-  /// Roavvy's globe is the primary experience; List remains available for
-  /// precise selection.
   bool _mapView = true;
 
   @override
@@ -87,7 +86,7 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
         onPressed: () => setState(() => _mapView = !_mapView),
         icon: Icon(_mapView ? Icons.list_rounded : Icons.public, size: 17),
         label: Text(_mapView ? 'List' : 'Map'),
-        style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+        style: TextButton.styleFrom(foregroundColor: StudioV2Theme.accent),
       );
 
   Widget _yearRange() {
@@ -144,7 +143,7 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
               style: const TextStyle(fontSize: 14, color: Colors.white)),
           trailing: Icon(
             selected ? Icons.check_circle : Icons.circle_outlined,
-            color: selected ? Colors.tealAccent : Colors.white30,
+            color: selected ? StudioV2Theme.accent : Colors.white30,
             size: 20,
           ),
           onTap: () => _c.toggleCountry(cc),
@@ -174,7 +173,7 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
   Widget _segment({required List<Widget> children}) => Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFF23262C),
+          color: StudioV2Theme.control,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: children),
@@ -187,13 +186,16 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: on ? Colors.tealAccent.withValues(alpha: 0.2) : null,
+            color: on ? StudioV2Theme.accent.withValues(alpha: 0.16) : null,
+            border: Border.all(
+              color: on ? StudioV2Theme.accent : Colors.transparent,
+            ),
             borderRadius: BorderRadius.circular(13),
           ),
           child: Text(label,
               style: TextStyle(
                   fontSize: 12,
-                  color: on ? Colors.tealAccent : Colors.white60)),
+                  color: on ? StudioV2Theme.accent : Colors.white60)),
         ),
       );
 
@@ -201,7 +203,7 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
         key: Key('v2-$id'),
         onPressed: onTap,
         style: TextButton.styleFrom(
-          foregroundColor: Colors.tealAccent,
+          foregroundColor: StudioV2Theme.accent,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           minimumSize: const Size(0, 30),
         ),
