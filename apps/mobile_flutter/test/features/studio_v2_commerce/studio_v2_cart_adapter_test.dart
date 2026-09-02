@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:design_forge/design_forge.dart';
+import 'package:design_studio/design_studio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_models/shared_models.dart' show CardTemplateType;
 import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart'
@@ -15,10 +16,10 @@ import 'package:mobile_flutter/features/studio_v2_commerce/studio_v2_cart_adapte
 /// logic is duplicated (the adapter only maps + navigates).
 void main() {
   DesignRecipe recipe(int seed) => DesignRecipe(
-        seed: seed,
-        content: const RecipeContent(flags: [FlagRef('us')]),
-        composition: const Composition(family: DesignFamily.grid),
-      );
+    seed: seed,
+    content: const RecipeContent(flags: [FlagRef('us')]),
+    composition: const Composition(family: DesignFamily.grid),
+  );
 
   GarmentCartRequest request({
     String colourName = 'Navy',
@@ -26,47 +27,50 @@ void main() {
     String backPosition = 'center',
     String? title = 'Wanderer',
     bool frontPrint = true,
-  }) =>
-      GarmentCartRequest(
-        garment: GarmentDesign(
-          back: recipe(1),
-          front: recipe(2),
-          garmentColour: '#22303A',
-          themeSeed: 3,
-        ),
-        renderBackArtwork: () async => Uint8List.fromList([1, 2, 3, 4]),
-        renderFrontArtwork:
-            frontPrint ? () async => Uint8List.fromList([5, 6, 7, 8]) : null,
-        garmentColourHex: '#22303A',
-        garmentColourName: colourName,
-        selectedCountryCodes: const ['us', 'fr', 'jp'],
-        trips: [
-          Trip(
-              countryCode: 'us',
-              startedOn: DateTime(2020, 6, 1),
-              endedOn: DateTime(2020, 6, 8),
-              photoCount: 12),
-          Trip(
-              countryCode: 'fr',
-              startedOn: DateTime(2021, 3, 1),
-              endedOn: DateTime(2021, 3, 9)),
-        ],
-        frontPosition: frontPosition,
-        backPosition: backPosition,
-        aspectRatio: 4 / 5,
-        title: title,
-      );
+  }) => GarmentCartRequest(
+    garment: GarmentDesign(
+      back: recipe(1),
+      front: recipe(2),
+      garmentColour: '#22303A',
+      themeSeed: 3,
+    ),
+    renderBackArtwork: () async => Uint8List.fromList([1, 2, 3, 4]),
+    renderFrontArtwork:
+        frontPrint ? () async => Uint8List.fromList([5, 6, 7, 8]) : null,
+    garmentColourHex: '#22303A',
+    garmentColourName: colourName,
+    selectedCountryCodes: const ['us', 'fr', 'jp'],
+    trips: [
+      Trip(
+        countryCode: 'us',
+        startedOn: DateTime(2020, 6, 1),
+        endedOn: DateTime(2020, 6, 8),
+        photoCount: 12,
+      ),
+      Trip(
+        countryCode: 'fr',
+        startedOn: DateTime(2021, 3, 1),
+        endedOn: DateTime(2021, 3, 9),
+      ),
+    ],
+    frontPosition: frontPosition,
+    backPosition: backPosition,
+    aspectRatio: 4 / 5,
+    title: title,
+  );
 
-  test('back artwork renders lazily; fixed-artwork flag set (hero is the print)',
-      () async {
-    final r = request();
-    final input = StudioV2CartAdapter.map(r);
-    expect(input.fixedArtwork, isTrue); // never re-rendered from a template
-    expect(input.template, CardTemplateType.grid);
-    // The print file is produced on demand via the request's render closure.
-    final png = await r.renderBackArtwork();
-    expect(png, isNotEmpty);
-  });
+  test(
+    'back artwork renders lazily; fixed-artwork flag set (hero is the print)',
+    () async {
+      final r = request();
+      final input = StudioV2CartAdapter.map(r);
+      expect(input.fixedArtwork, isTrue); // never re-rendered from a template
+      expect(input.template, CardTemplateType.grid);
+      // The print file is produced on demand via the request's render closure.
+      final png = await r.renderBackArtwork();
+      expect(png, isNotEmpty);
+    },
+  );
 
   test('placement transfers in the existing commerce vocabulary', () {
     final input = StudioV2CartAdapter.map(request());
@@ -92,19 +96,62 @@ void main() {
     expect(StudioV2CartAdapter.map(r).frontPosition, 'none');
   });
 
-  test('garment colour maps to the nearest existing t-shirt colour', () {
+  test('garment colour maps onto a colour the store actually carries', () {
+    // Exact where the store carries the same shirt.
     expect(StudioV2CartAdapter.v1ColourName('Black'), 'Black');
     expect(StudioV2CartAdapter.v1ColourName('White'), 'White');
+    expect(StudioV2CartAdapter.v1ColourName('Red'), 'Red');
+    // Nearest stocked relative for the rest of the supplier's range.
     expect(StudioV2CartAdapter.v1ColourName('Navy'), 'Blue');
-    expect(StudioV2CartAdapter.v1ColourName('Grey'), 'Grey');
+    expect(StudioV2CartAdapter.v1ColourName('Royal'), 'Blue');
+    expect(StudioV2CartAdapter.v1ColourName('Dark Heather'), 'Grey');
+    expect(StudioV2CartAdapter.v1ColourName('Sport Grey'), 'Grey');
+    // Designs saved under the retired palette still resolve.
     expect(StudioV2CartAdapter.v1ColourName('Sand'), 'White');
     expect(StudioV2CartAdapter.v1ColourName('Olive'), 'Grey');
-    // Unknown labels fall back to a valid existing colour (never invalid input).
-    final fallback = StudioV2CartAdapter.v1ColourName('Chartreuse');
-    expect(tshirtColors.contains(fallback), isTrue);
     // Mapped colour flows through the input.
     expect(StudioV2CartAdapter.map(request()).colourName, 'Blue');
   });
+
+  test('a colour the store cannot make resolves to null, not a substitute', () {
+    // The failure this guards against is silent: resolveVariantGid falls back
+    // to its FIRST entry, so an unmapped colour would take payment for one
+    // shirt and ship a black S.
+    for (final colour in StudioV2CartAdapter.unstockedColours) {
+      expect(
+        StudioV2CartAdapter.v1ColourName(colour),
+        isNull,
+        reason: '\$colour must not resolve to some other shirt',
+      );
+    }
+    expect(StudioV2CartAdapter.v1ColourName('Chartreuse'), isNull);
+  });
+
+  test(
+    'every Studio garment colour is either stocked or declared unstocked',
+    () {
+      // The Studio offers the blank's full range; this is what keeps the two
+      // lists honest. A colour added to the palette without deciding its variant
+      // fails here rather than at a customer's door.
+      for (final (hex, name) in StudioController.garments) {
+        final mapped = StudioV2CartAdapter.v1ColourName(name);
+        if (mapped == null) {
+          expect(
+            StudioV2CartAdapter.unstockedColours,
+            contains(name),
+            reason:
+                '\$name (\$hex) has no variant and is not declared unstocked',
+          );
+        } else {
+          expect(
+            tshirtColors,
+            contains(mapped),
+            reason: '\$name maps to \$mapped, which the store does not carry',
+          );
+        }
+      }
+    },
+  );
 
   test('travel metadata transfers; trips convert to TripRecords', () {
     final input = StudioV2CartAdapter.map(request());

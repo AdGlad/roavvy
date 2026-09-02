@@ -19,7 +19,7 @@ import '../../shared/garment_mockup/garment_tint.dart';
 abstract final class StudioGarments {
   /// Default garment when a recipe carries no colour — the Studio's first
   /// palette entry (Black).
-  static const defaultColour = ui.Color(0xFF1F2B33);
+  static const defaultColour = ui.Color(0xFF0E0E0E);
 
   static final Map<String, Future<ui.Image>> _cache = {};
 

@@ -243,7 +243,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   /// Persistent reachability without a permanently expanded settings toolbar.
   Widget _quickControls() {
     final comp = _c.current.composition;
-    final garment = _c.current.palette?.garmentColour ?? '#1F2B33';
+    final garment = _c.current.palette?.garmentColour ?? '#0E0E0E';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
       child: Row(

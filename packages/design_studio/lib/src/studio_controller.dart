@@ -101,13 +101,21 @@ class StudioController extends ChangeNotifier {
   ];
 
   /// Garment (blank) colours: (hex, name).
+  /// The garment colours a design may be made in — the exact eight the blank
+  /// is stocked in (Gildan 64000 Softstyle), with their real hexes.
+  ///
+  /// This list is the product's colour range, not a designer's palette: every
+  /// entry has to be a shirt that can actually be printed and shipped, and
+  /// nothing printable may be missing. Keep it in step with the supplier.
   static const List<(String, String)> garments = [
-    ('#1F2B33', 'Black'),
-    ('#F5F5F5', 'White'),
-    ('#22303A', 'Navy'),
-    ('#8A8F98', 'Grey'),
-    ('#D8C9A3', 'Sand'),
-    ('#6B7350', 'Olive'),
+    ('#0E0E0E', 'Black'),
+    ('#0F1830', 'Navy'),
+    ('#424848', 'Dark Heather'),
+    ('#FF1B2B', 'Red'),
+    ('#2665CC', 'Royal'),
+    ('#FF5723', 'Orange'),
+    ('#D1D2D6', 'Sport Grey'),
+    ('#FFFFFF', 'White'),
   ];
 
   /// One-tap named finishes: (label, effects, vintageGrade, colourStrategy?).

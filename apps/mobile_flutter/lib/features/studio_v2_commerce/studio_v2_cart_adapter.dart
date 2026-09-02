@@ -35,7 +35,7 @@ class StudioV2CartAdapter {
       // V2's selection IS the design's country set (no separate all-time axis).
       allCodes: r.selectedCountryCodes,
       trips: [for (final t in r.trips) _toTripRecord(t)],
-      colourName: v1ColourName(r.garmentColourName),
+      colourName: v1ColourName(r.garmentColourName) ?? tshirtColors.first,
       title: r.title,
       aspectRatio: r.aspectRatio,
       // Fixed artwork: template is irrelevant to rendering (never re-rendered),
@@ -53,6 +53,17 @@ class StudioV2CartAdapter {
   /// to production inputs and pushes [LocalMockupPreviewScreen], which owns the
   /// entire cart/checkout/Printful pipeline from here on.
   Future<void> addToCart(BuildContext context, GarmentCartRequest r) async {
+    // Refuse a colour the store cannot actually make, by name. Falling through
+    // to a substitute here would charge for one shirt and ship another.
+    if (v1ColourName(r.garmentColourName) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          '${r.garmentColourName} isn\'t available to order yet — '
+          'pick another shirt colour.',
+        ),
+      ));
+      return;
+    }
     final input = map(r);
     // Render the print files now (the host owns when the expensive rasterise
     // runs). The back is the main artwork; the front is the real V2 chest face
@@ -85,24 +96,45 @@ class StudioV2CartAdapter {
     );
   }
 
-  /// Maps a Studio garment-colour label to the nearest existing t-shirt colour
-  /// (`tshirtColors`). The Studio palette is a superset (Navy/Sand/Olive), so
-  /// unknown labels fall back to the closest neutral, and anything else to Black.
-  static String v1ColourName(String studioName) {
+  /// Studio garment colours that the store has no variant for yet.
+  ///
+  /// The Studio offers the blank's full stocked range; Shopify carries variants
+  /// for only some of it. A colour listed here can be designed but not ordered,
+  /// and [addToCart] refuses it by name rather than letting
+  /// `resolveVariantGid` fall through to its first entry — which would take
+  /// payment for one colour and ship another.
+  ///
+  /// Empty this list by adding the real variants, not by guessing a substitute.
+  static const unstockedColours = <String>{'Orange'};
+
+  /// Maps a Studio garment colour onto the store's variant colour.
+  ///
+  /// Exact where the store carries the same shirt (Black, White, Red); nearest
+  /// where it carries a close relative (both blues map to Blue, both greys to
+  /// Grey) — approximations the buyer sees in the commerce screen, not silent
+  /// substitutions at checkout. Returns null for [unstockedColours].
+  static String? v1ColourName(String studioName) {
+    if (unstockedColours.contains(studioName)) return null;
     const map = {
+      // Exact matches.
       'Black': 'Black',
       'White': 'White',
+      'Red': 'Red',
+      // Nearest stocked relative.
       'Navy': 'Blue',
-      'Blue': 'Blue',
+      'Royal': 'Blue',
+      'Dark Heather': 'Grey',
+      'Sport Grey': 'Grey',
+      // Legacy Studio palette, kept so older saved designs still resolve.
       'Grey': 'Grey',
       'Gray': 'Grey',
+      'Blue': 'Blue',
       'Sand': 'White',
       'Olive': 'Grey',
-      'Red': 'Red',
     };
     final resolved = map[studioName];
     if (resolved != null && tshirtColors.contains(resolved)) return resolved;
-    return tshirtColors.first; // 'Black'
+    return null;
   }
 
   static TripRecord _toTripRecord(Trip t) => TripRecord(
