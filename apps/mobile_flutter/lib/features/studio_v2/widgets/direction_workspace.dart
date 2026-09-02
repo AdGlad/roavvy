@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'axis_controls.dart';
 
+const _accent = Color(0xFFE84C22);
+
 /// Direction chooses what the shirt is about. The controller behaviour is
 /// unchanged; this widget only presents the six subjects as visual creative
 /// choices rather than a settings-style icon grid.
@@ -44,8 +46,7 @@ class _DirectionWorkspaceState extends State<DirectionWorkspace> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('What should lead the design?',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w700)),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                     SizedBox(height: 4),
                     Text('Choose the idea that feels most like your trip.',
                         style: TextStyle(fontSize: 12, color: Colors.white54)),
@@ -62,8 +63,7 @@ class _DirectionWorkspaceState extends State<DirectionWorkspace> {
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,
-              child: AxisLockChip(
-                  controller: controller, axis: DesignAxis.direction),
+              child: AxisLockChip(controller: controller, axis: DesignAxis.direction),
             ),
           ],
           const SizedBox(height: 14),
@@ -119,20 +119,18 @@ class _DirectionCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           height: 132,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: selected
-                ? Colors.tealAccent.withValues(alpha: 0.10)
-                : const Color(0xFF1B1E24),
+            color: selected ? _accent.withValues(alpha: 0.08) : const Color(0xFF1B1E24),
             border: Border.all(
-              color: selected ? Colors.tealAccent : Colors.white10,
+              color: selected ? _accent : Colors.white10,
               width: selected ? 1.6 : 1,
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,12 +141,10 @@ class _DirectionCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(label,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w700)),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                   ),
                   if (selected)
-                    const Icon(Icons.check_circle,
-                        size: 18, color: Colors.tealAccent),
+                    const Icon(Icons.check_circle, size: 18, color: _accent),
                 ],
               ),
               const SizedBox(height: 2),
@@ -156,8 +152,7 @@ class _DirectionCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 10.5,
-                      color: Colors.white.withValues(alpha: 0.46))),
+                      fontSize: 10.5, color: Colors.white.withValues(alpha: 0.46))),
             ],
           ),
         ),
@@ -174,14 +169,14 @@ class _DirectionMotif extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = selected ? Colors.tealAccent : Colors.white54;
-    final muted = selected ? Colors.tealAccent.withValues(alpha: .35) : Colors.white12;
+    final accent = selected ? _accent : Colors.white54;
+    final muted = selected ? _accent.withValues(alpha: .35) : Colors.white12;
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFF111318),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: switch (index) {
         0 => Row(
@@ -202,23 +197,15 @@ class _DirectionMotif extends StatelessWidget {
         1 => Stack(
             alignment: Alignment.center,
             children: [
-              Transform.rotate(
-                angle: -.18,
-                child: _stamp(accent.withValues(alpha: .5)),
-              ),
+              Transform.rotate(angle: -.18, child: _stamp(accent.withValues(alpha: .5))),
               Transform.translate(
                 offset: const Offset(22, 4),
                 child: Transform.rotate(angle: .14, child: _stamp(accent)),
               ),
             ],
           ),
-        2 => CustomPaint(
-            painter: _RoutePainter(accent),
-            child: const SizedBox.expand(),
-          ),
-        3 => Center(
-            child: Icon(Icons.public_rounded, size: 54, color: accent),
-          ),
+        2 => CustomPaint(painter: _RoutePainter(accent), child: const SizedBox.expand()),
+        3 => Center(child: Icon(Icons.public_rounded, size: 54, color: accent)),
         4 => Center(
             child: Text('ROAM',
                 style: TextStyle(
@@ -233,10 +220,7 @@ class _DirectionMotif extends StatelessWidget {
               Icon(Icons.flag_rounded, color: muted, size: 26),
               const SizedBox(width: 8),
               Text('12',
-                  style: TextStyle(
-                      color: accent,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900)),
+                  style: TextStyle(color: accent, fontSize: 30, fontWeight: FontWeight.w900)),
               const SizedBox(width: 8),
               Icon(Icons.location_on_rounded, color: muted, size: 26),
             ],
@@ -278,6 +262,5 @@ class _RoutePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RoutePainter oldDelegate) =>
-      oldDelegate.colour != colour;
+  bool shouldRepaint(covariant _RoutePainter oldDelegate) => oldDelegate.colour != colour;
 }
