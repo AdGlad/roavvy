@@ -2,7 +2,9 @@
 // exists for. If this drifts, shirts come out the wrong colour or full of holes.
 import 'dart:ui' as ui;
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/garment_mockup_spec.dart';
 import 'package:mobile_flutter/features/shared/garment_mockup/garment_tint.dart';
 
 /// A stand-in for the bundled photography: a pure-white studio sweep with a
@@ -188,5 +190,82 @@ void main() {
       expect((await rgbaAt(out, corner.$1, corner.$2))[3], 0);
       expect(await rgbaAt(out, body.$1, body.$2), before);
     });
+  });
+
+  // ── The real bundled photography ───────────────────────────────────────────
+  //
+  // Synthetic fixtures cannot catch this class of bug: the first tint base was
+  // the WHITE shirt, whose blown-out shoulders are pixel-identical to the white
+  // studio sweep. The cutout leaked straight through them and bit black holes
+  // out of both shoulders on screen. These run the actual assets.
+  group('bundled tint bases', () {
+    Future<ui.Image> loadAsset(String path) async {
+      final data = await rootBundle.load(path);
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+      return (await codec.getNextFrame()).image;
+    }
+
+    /// Points that are unambiguously garment on both faces.
+    const garmentPoints = <String, (double, double)>{
+      'left shoulder': (0.30, 0.14),
+      'right shoulder': (0.70, 0.14),
+      'neck below collar': (0.50, 0.18),
+      'left sleeve': (0.16, 0.30),
+      'right sleeve': (0.84, 0.30),
+      'chest centre': (0.50, 0.35),
+      'belly': (0.50, 0.65),
+      'hem': (0.50, 0.88),
+    };
+
+    for (final (face, path) in [
+      ('front', BundledGarments.tintBaseFront),
+      ('back', BundledGarments.tintBaseBack),
+    ]) {
+      testWidgets('the $face tint base cuts out without holing the garment', (
+        tester,
+      ) async {
+        await tester.runAsync(() async {
+          final src = await loadAsset(path);
+          final out = await GarmentTint.recolour(
+            src,
+            const ui.Color(0xFF6B7350),
+          );
+          src.dispose();
+
+          for (final entry in garmentPoints.entries) {
+            final x = (entry.value.$1 * out.width).round();
+            final y = (entry.value.$2 * out.height).round();
+            expect(
+              (await rgbaAt(out, x, y))[3],
+              255,
+              reason: '${entry.key} was cut out of the $face garment',
+            );
+          }
+        });
+      });
+
+      testWidgets('the $face studio sweep is fully removed', (tester) async {
+        await tester.runAsync(() async {
+          final src = await loadAsset(path);
+          final out = await GarmentTint.recolour(
+            src,
+            const ui.Color(0xFF6B7350),
+          );
+          src.dispose();
+          for (final p in [
+            (2, 2),
+            (out.width - 3, 2),
+            (2, out.height - 3),
+            (out.width - 3, out.height - 3),
+          ]) {
+            expect(
+              (await rgbaAt(out, p.$1, p.$2))[3],
+              0,
+              reason: 'backdrop left behind at $p on the $face',
+            );
+          }
+        });
+      });
+    }
   });
 }

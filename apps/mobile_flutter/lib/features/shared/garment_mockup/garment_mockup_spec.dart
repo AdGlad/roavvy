@@ -81,11 +81,18 @@ abstract final class BundledGarments {
     'Red': 'assets/mockups/Red-tshirt-back.jpeg',
   };
 
-  /// The photos used as the neutral base for tinting. The white shirt carries
-  /// the fullest fold detail (a black shirt's shadows crush), so it recolours to
-  /// any hue most faithfully.
-  static const tintBaseFront = 'assets/mockups/White-tshirt-front.jpg';
-  static const tintBaseBack = 'assets/mockups/White-tshirt-back.jpg';
+  /// The photos used as the neutral base for tinting.
+  ///
+  /// The GREY shirt, deliberately — not the white one. Recolouring needs the
+  /// garment separated from the studio sweep, and a white shirt on a white
+  /// sweep cannot be: its blown-out shoulders are pixel-identical to the
+  /// background, with no edge between them to find. Using it bit black holes
+  /// out of both shoulders on screen. The grey shirt has an unambiguous edge,
+  /// and its mid luminance leaves headroom to scale both up toward Sand and
+  /// down toward Navy. Framing matches the rest of the set, so the print areas
+  /// land identically.
+  static const tintBaseFront = 'assets/mockups/Grey-tshirt-front.jpeg';
+  static const tintBaseBack = 'assets/mockups/Grey-tshirt-back.jpeg';
 
   /// Full printable areas, normalised to the garment photo. A design at the
   /// largest print size fills these exactly; smaller sizes fill a centred
