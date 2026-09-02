@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'mockup_transform_controller.dart';
-import 'product_mockup_specs.dart';
-import 'tshirt_mockup_painter.dart';
+import 'garment_mockup_painter.dart';
+import 'garment_mockup_spec.dart';
+import 'mockup_transform.dart';
 
 /// M174 — the interactive photorealistic mockup surface.
 ///
@@ -18,8 +18,8 @@ import 'tshirt_mockup_painter.dart';
 /// [ValueNotifier]s that the painter listens to. Nothing here calls `setState`
 /// during a gesture, and the painter sits under a [RepaintBoundary], so a drag
 /// costs one paint of one layer.
-class TshirtMockupCanvas extends StatefulWidget {
-  const TshirtMockupCanvas({
+class GarmentMockupCanvas extends StatefulWidget {
+  const GarmentMockupCanvas({
     super.key,
     required this.spec,
     this.garmentImage,
@@ -35,7 +35,7 @@ class TshirtMockupCanvas extends StatefulWidget {
     this.debugPrintArea = false,
   });
 
-  final ProductMockupSpec spec;
+  final GarmentMockupSpec spec;
   final ui.Image? garmentImage;
   final ui.Image? shadingImage;
   final ui.Image? artworkImage;
@@ -63,10 +63,10 @@ class TshirtMockupCanvas extends StatefulWidget {
   final bool debugPrintArea;
 
   @override
-  State<TshirtMockupCanvas> createState() => _TshirtMockupCanvasState();
+  State<GarmentMockupCanvas> createState() => _GarmentMockupCanvasState();
 }
 
-class _TshirtMockupCanvasState extends State<TshirtMockupCanvas> {
+class _GarmentMockupCanvasState extends State<GarmentMockupCanvas> {
   late MockupTransformController _controller;
   bool _ownsController = false;
 
@@ -98,7 +98,7 @@ class _TshirtMockupCanvasState extends State<TshirtMockupCanvas> {
   }
 
   @override
-  void didUpdateWidget(TshirtMockupCanvas old) {
+  void didUpdateWidget(GarmentMockupCanvas old) {
     super.didUpdateWidget(old);
     if (old.controller != widget.controller) {
       if (_ownsController) _controller.dispose();
@@ -153,7 +153,7 @@ class _TshirtMockupCanvasState extends State<TshirtMockupCanvas> {
 
         Widget canvas = RepaintBoundary(
           child: CustomPaint(
-            painter: TshirtMockupPainter(
+            painter: GarmentMockupPainter(
               spec: widget.spec,
               controller: _controller,
               garmentImage: widget.garmentImage,
@@ -320,10 +320,10 @@ class _HudChip extends StatelessWidget {
 }
 
 /// Convenience: loads a spec's garment + shading images, then builds a
-/// [TshirtMockupCanvas]. Hosts that already hold decoded images should use the
+/// [GarmentMockupCanvas]. Hosts that already hold decoded images should use the
 /// widget directly.
-class TshirtMockupCanvasLoader extends StatefulWidget {
-  const TshirtMockupCanvasLoader({
+class GarmentMockupCanvasLoader extends StatefulWidget {
+  const GarmentMockupCanvasLoader({
     super.key,
     required this.spec,
     required this.loader,
@@ -333,11 +333,11 @@ class TshirtMockupCanvasLoader extends StatefulWidget {
     this.onTransformCommitted,
   });
 
-  final ProductMockupSpec spec;
+  final GarmentMockupSpec spec;
 
   /// Returns `(garment, shading)` for the spec — normally
   /// `LocalMockupImageCache.instance.loadWithShading`.
-  final Future<(ui.Image, ui.Image)> Function(ProductMockupSpec) loader;
+  final Future<(ui.Image, ui.Image)> Function(GarmentMockupSpec) loader;
 
   final ui.Image? artworkImage;
   final MockupTransformController? controller;
@@ -345,11 +345,11 @@ class TshirtMockupCanvasLoader extends StatefulWidget {
   final ValueChanged<MockupTransform>? onTransformCommitted;
 
   @override
-  State<TshirtMockupCanvasLoader> createState() =>
-      _TshirtMockupCanvasLoaderState();
+  State<GarmentMockupCanvasLoader> createState() =>
+      _GarmentMockupCanvasLoaderState();
 }
 
-class _TshirtMockupCanvasLoaderState extends State<TshirtMockupCanvasLoader> {
+class _GarmentMockupCanvasLoaderState extends State<GarmentMockupCanvasLoader> {
   (ui.Image, ui.Image)? _images;
 
   @override
@@ -359,7 +359,7 @@ class _TshirtMockupCanvasLoaderState extends State<TshirtMockupCanvasLoader> {
   }
 
   @override
-  void didUpdateWidget(TshirtMockupCanvasLoader old) {
+  void didUpdateWidget(GarmentMockupCanvasLoader old) {
     super.didUpdateWidget(old);
     if (old.spec.assetPath != widget.spec.assetPath) unawaited(_load());
   }
@@ -376,7 +376,7 @@ class _TshirtMockupCanvasLoaderState extends State<TshirtMockupCanvasLoader> {
   @override
   Widget build(BuildContext context) {
     final images = _images;
-    return TshirtMockupCanvas(
+    return GarmentMockupCanvas(
       spec: widget.spec,
       garmentImage: images?.$1,
       shadingImage: images?.$2,

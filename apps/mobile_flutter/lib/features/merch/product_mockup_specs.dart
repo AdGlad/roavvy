@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../shared/garment_mockup/garment_mockup_spec.dart';
 import 'merch_variant_lookup.dart';
 
 /// Curated print-size presets for the composited artwork (M189/M190).
@@ -47,58 +48,30 @@ enum ImageSize {
 /// non-null, only that sub-rectangle of [assetPath] is used when drawing the
 /// shirt background. Used to extract the front (left half) or back (right half)
 /// from a single split image (ADR-115).
-class ProductMockupSpec {
+/// The merch flow's [GarmentMockupSpec]: the same renderer contract, named for
+/// the commerce domain and produced by [ProductMockupSpecs] from a product,
+/// colour, placement and print size.
+///
+/// A companion greyscale wrinkle map can be registered via `shadowMapAssetPath`
+/// (M174); with none bundled, shading falls back to the garment photo's own
+/// luminance, which is how the mockup has shaded artwork since ADR-115.
+class ProductMockupSpec extends GarmentMockupSpec {
   const ProductMockupSpec({
-    required this.assetPath,
-    required this.printAreaNorm,
-    this.srcRectNorm,
-    this.shadowMapAssetPath,
+    required super.assetPath,
+    required super.printAreaNorm,
+    super.srcRectNorm,
+    super.shadowMapAssetPath,
+    super.tintColour,
   });
-
-  final String assetPath;
-
-  /// Optional greyscale fabric shadow/wrinkle map registered alongside
-  /// [assetPath] (M174). When a companion map is bundled it is multiplied over
-  /// the artwork so the garment's folds bleed through the print.
-  ///
-  /// Null means **use the garment photo itself** as the shading source: the
-  /// photo's own luminance already carries the folds and creases, which is how
-  /// the mockup has shaded artwork since ADR-115. Adding a hand-authored map
-  /// later is a drop-in upgrade — register the path here and nothing else
-  /// changes.
-  final String? shadowMapAssetPath;
-
-  /// The image whose luminance supplies the fabric shading pass.
-  String get shadingAssetPath => shadowMapAssetPath ?? assetPath;
-
-  /// Print area in normalised image coordinates (0.0–1.0, Rect.fromLTWH).
-  /// Expressed relative to the effective (post-crop) image area.
-  final Rect printAreaNorm;
-
-  /// Optional source crop (0.0–1.0, Rect.fromLTWH). When non-null, the painter
-  /// uses only this sub-rectangle of the asset image. Null means full image.
-  final Rect? srcRectNorm;
 }
 
 // ── Asset path constants ──────────────────────────────────────────────────────
 
-const _kPosterA4 = 'assets/mockups/poster_a4.png';
-
-// Per-colour t-shirt mockup JPEGs (front and back for each available colour).
-const _kTshirtFront = <String, String>{
-  'Black': 'assets/mockups/Black-tshirt-front.jpeg',
-  'White': 'assets/mockups/White-tshirt-front.jpg',
-  'Blue': 'assets/mockups/Blue-tshirt-front.jpeg',
-  'Grey': 'assets/mockups/Grey-tshirt-front.jpeg',
-  'Red': 'assets/mockups/Red-tshirt-front.jpeg',
-};
-const _kTshirtBack = <String, String>{
-  'Black': 'assets/mockups/Black-tshirt-back.jpeg',
-  'White': 'assets/mockups/White-tshirt-back.jpg',
-  'Blue': 'assets/mockups/Blue-tshirt-back.jpeg',
-  'Grey': 'assets/mockups/Grey-tshirt-back.jpeg',
-  'Red': 'assets/mockups/Red-tshirt-back.jpeg',
-};
+// The bundled garment photography lives in the shared mockup module, so the
+// merch registry and Studio V2 can never drift apart about which photo is which.
+const _kPosterA4 = BundledGarments.posterAsset;
+const _kTshirtFront = BundledGarments.tshirtFront;
+const _kTshirtBack = BundledGarments.tshirtBack;
 
 // Companion greyscale wrinkle/shadow maps, keyed by garment asset path (M174).
 // Empty until hand-authored maps are bundled — every garment then falls back to
@@ -120,9 +93,9 @@ const _kTshirtShadowMaps = <String, String>{};
 //   Front center      (aspect 0.75, matches the DTG printfile)
 //   Front right-chest (wearer's right = viewer's left)
 //   Back              (aspect 0.75, matches the DTG printfile)
-const _kTshirtFrontLeftChestArea = Rect.fromLTWH(0.55, 0.25, 0.18, 0.25);
-const _kTshirtFrontCenterArea = Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
-const _kTshirtFrontRightChestArea = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
+const _kTshirtFrontLeftChestArea = BundledGarments.frontLeftChestArea;
+const _kTshirtFrontCenterArea = BundledGarments.frontCenterArea;
+const _kTshirtFrontRightChestArea = BundledGarments.frontRightChestArea;
 // Back print area (M190) — calibrated against Printful's real DTG geometry.
 // Printful catalog product 12 (Gildan 64000), back placement: print area
 // 1014×1352 px on a 3000×3000 template (aspect 0.75 = 12in×16in). Mapped onto
@@ -130,10 +103,10 @@ const _kTshirtFrontRightChestArea = Rect.fromLTWH(0.27, 0.25, 0.18, 0.25);
 // starting just below the collar): the design fills ~0.42 of the photo width,
 // centred, from ~0.10 to ~0.66 of its height. This is the FULL printable area
 // (Image Size Large); smaller sizes fill a centred fraction of it.
-const _kTshirtBackPrintArea = Rect.fromLTWH(0.29, 0.10, 0.42, 0.56);
+const _kTshirtBackPrintArea = BundledGarments.backPrintArea;
 
 // Poster: edge-to-edge with a small margin (poster_a4.png has 5% padding on all sides)
-const _kPosterPrintArea = Rect.fromLTWH(0.05, 0.05, 0.90, 0.90);
+const _kPosterPrintArea = BundledGarments.posterPrintArea;
 
 /// Returns the centred sub-rect of [area] scaled by [fraction] (0–1). At
 /// `fraction == 1.0` the printable area is returned unchanged; smaller values

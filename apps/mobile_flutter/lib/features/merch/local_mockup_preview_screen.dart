@@ -25,8 +25,8 @@ import 'flag_clip_options.dart';
 import 'grid_clip_shape_orientation.dart';
 import 'local_mockup_image_cache.dart';
 import 'local_mockup_painter.dart';
-import 'mockup_transform_controller.dart';
-import 'tshirt_mockup_canvas.dart';
+import '../shared/garment_mockup/garment_mockup_canvas.dart';
+import '../shared/garment_mockup/mockup_transform.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_repository.dart';
 import 'merch_cart_screen.dart';
@@ -4292,7 +4292,7 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     // M174: the same composite as before (garment → artwork → fabric folds
     // masked to the ink), but the artwork now sits on a live transform the user
     // can drag, pinch and twist while `adjustMode` is on.
-    return TshirtMockupCanvas(
+    return GarmentMockupCanvas(
       spec: spec,
       garmentImage: shirt,
       shadingImage: _showingFront ? widget.frontShading : widget.backShading,

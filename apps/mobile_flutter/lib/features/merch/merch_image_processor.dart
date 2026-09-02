@@ -2,7 +2,7 @@ import 'dart:math' show min;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'mockup_transform_controller.dart';
+import '../shared/garment_mockup/mockup_transform.dart';
 
 /// On-device image processor replicating the server-side Sharp operations.
 ///

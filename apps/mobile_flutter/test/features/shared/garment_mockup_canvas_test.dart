@@ -6,11 +6,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile_flutter/features/merch/mockup_transform_controller.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/mockup_transform.dart';
 import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart';
 import 'package:mobile_flutter/features/merch/product_mockup_specs.dart';
-import 'package:mobile_flutter/features/merch/tshirt_mockup_canvas.dart';
-import 'package:mobile_flutter/features/merch/tshirt_mockup_painter.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/garment_mockup_canvas.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/garment_mockup_painter.dart';
 
 /// A solid [colour] image — stands in for a garment photo or a shading map.
 Future<ui.Image> solid(int w, int h, ui.Color colour) {
@@ -79,7 +79,7 @@ void main() {
         addTearDown(controller.dispose);
 
         final rgba = await rasterise(
-          TshirtMockupPainter(
+          GarmentMockupPainter(
             spec: spec,
             controller: controller,
             garmentImage: shirt,
@@ -119,7 +119,7 @@ void main() {
         addTearDown(controller.dispose);
 
         final rgba = await rasterise(
-          TshirtMockupPainter(
+          GarmentMockupPainter(
             spec: spec,
             controller: controller,
             garmentImage: shirt,
@@ -147,7 +147,7 @@ void main() {
         final controller = MockupTransformController();
         addTearDown(controller.dispose);
         final rgba = await rasterise(
-          TshirtMockupPainter(
+          GarmentMockupPainter(
             spec: spec,
             controller: controller,
             garmentImage: shirt,
@@ -173,7 +173,7 @@ void main() {
     tearDown(() => controller.dispose());
 
     Widget canvas({bool interactive = true}) => host(
-      TshirtMockupCanvas(
+      GarmentMockupCanvas(
         spec: spec,
         controller: controller,
         garmentImage: shirt,
@@ -186,7 +186,7 @@ void main() {
       final commits = <MockupTransform>[];
       await tester.pumpWidget(
         host(
-          TshirtMockupCanvas(
+          GarmentMockupCanvas(
             spec: spec,
             controller: controller,
             garmentImage: shirt,
@@ -196,7 +196,7 @@ void main() {
         ),
       );
 
-      await tester.drag(find.byType(TshirtMockupCanvas), const Offset(45, 0));
+      await tester.drag(find.byType(GarmentMockupCanvas), const Offset(45, 0));
       await tester.pumpAndSettle();
 
       // The 200×200 garment contain-fits 360×360, so the print area is
@@ -212,19 +212,19 @@ void main() {
       final buildsBefore = tester.widget<CustomPaint>(
         find
             .descendant(
-              of: find.byType(TshirtMockupCanvas),
+              of: find.byType(GarmentMockupCanvas),
               matching: find.byType(CustomPaint),
             )
             .first,
       );
 
-      await tester.drag(find.byType(TshirtMockupCanvas), const Offset(20, 20));
+      await tester.drag(find.byType(GarmentMockupCanvas), const Offset(20, 20));
       await tester.pumpAndSettle();
 
       final buildsAfter = tester.widget<CustomPaint>(
         find
             .descendant(
-              of: find.byType(TshirtMockupCanvas),
+              of: find.byType(GarmentMockupCanvas),
               matching: find.byType(CustomPaint),
             )
             .first,
@@ -238,7 +238,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(canvas(interactive: false));
-      await tester.drag(find.byType(TshirtMockupCanvas), const Offset(40, 40));
+      await tester.drag(find.byType(GarmentMockupCanvas), const Offset(40, 40));
       await tester.pumpAndSettle();
       expect(controller.value, MockupTransform.identity);
       expect(find.byKey(const Key('mockup-hud-center')), findsNothing);
@@ -284,7 +284,7 @@ void main() {
       expect(controller.isGestureActive.value, isFalse);
 
       final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(TshirtMockupCanvas)),
+        tester.getCenter(find.byType(GarmentMockupCanvas)),
       );
       await gesture.moveBy(const Offset(15, 15));
       await tester.pump();

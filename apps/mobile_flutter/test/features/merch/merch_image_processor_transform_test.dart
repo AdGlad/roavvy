@@ -4,10 +4,9 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/merch/merch_image_processor.dart';
-import 'package:mobile_flutter/features/merch/mockup_transform_controller.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/mockup_transform.dart';
 
 /// A small opaque square, PNG-encoded — stands in for card artwork.
 Future<Uint8List> squarePng(int size) async {

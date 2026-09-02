@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'product_mockup_specs.dart';
+import '../shared/garment_mockup/garment_mockup_spec.dart';
 
 /// Singleton cache for bundled product mockup images.
 ///
@@ -66,10 +66,10 @@ class LocalMockupImageCache {
   /// Loads a spec's garment image and its fabric shading source together
   /// (M174), returning `(garment, shading)`.
   ///
-  /// When the spec has no companion wrinkle map, [ProductMockupSpec.shadingAssetPath]
+  /// When the spec has no companion wrinkle map, [GarmentMockupSpec.shadingAssetPath]
   /// is the garment photo itself — the two records are then the SAME cached
   /// [ui.Image], costing no extra memory and no second decode.
-  Future<(ui.Image, ui.Image)> loadWithShading(ProductMockupSpec spec) async {
+  Future<(ui.Image, ui.Image)> loadWithShading(GarmentMockupSpec spec) async {
     final garment = await load(spec.assetPath);
     if (spec.shadingAssetPath == spec.assetPath) return (garment, garment);
     return (garment, await load(spec.shadingAssetPath));

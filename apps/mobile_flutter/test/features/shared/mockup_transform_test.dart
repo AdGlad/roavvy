@@ -4,10 +4,9 @@
 // the print file, so they are pinned here rather than eyeballed on device.
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile_flutter/features/merch/mockup_transform_controller.dart';
+import 'package:mobile_flutter/features/shared/garment_mockup/mockup_transform.dart';
 
 void main() {
   const printSize = Size(200, 400);

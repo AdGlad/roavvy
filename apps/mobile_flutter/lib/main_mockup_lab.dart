@@ -16,9 +16,9 @@ import 'package:flutter/material.dart';
 
 import 'features/merch/local_mockup_image_cache.dart';
 import 'features/merch/merch_variant_lookup.dart';
-import 'features/merch/mockup_transform_controller.dart';
+import 'features/shared/garment_mockup/mockup_transform.dart';
 import 'features/merch/product_mockup_specs.dart';
-import 'features/merch/tshirt_mockup_canvas.dart';
+import 'features/shared/garment_mockup/garment_mockup_canvas.dart';
 
 void main() => runApp(const MockupLabApp());
 
@@ -190,7 +190,7 @@ class _MockupLabState extends State<_MockupLab> {
                 child:
                     _garment == null
                         ? const Center(child: CircularProgressIndicator())
-                        : TshirtMockupCanvas(
+                        : GarmentMockupCanvas(
                           spec: _spec,
                           controller: _controller,
                           garmentImage: _garment,

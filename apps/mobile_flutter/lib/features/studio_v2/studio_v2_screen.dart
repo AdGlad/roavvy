@@ -13,6 +13,7 @@ import 'widgets/focus_workspace.dart';
 import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
 import 'widgets/review_workspace.dart';
+import 'widgets/shirt_preview.dart';
 import 'widgets/travels_workspace.dart';
 import 'widgets/vibe_workspace.dart';
 import 'widgets/words_workspace.dart';
@@ -41,6 +42,10 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
 
   static const _stages = StudioStage.values;
   StudioStage _stage = StudioStage.instant;
+
+  /// Hero view: the design on the shirt (default) or the flat artwork. A pure
+  /// view preference — it never touches the recipe or the undo history.
+  bool _onShirt = true;
   final List<StudioStage> _navHistory = [];
 
   StudioStage get stage => _stage;
@@ -145,15 +150,54 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
           children: [
             Expanded(
               child: Center(
-                child: GarmentPreview(
-                  key: const Key('v2-garment-preview'),
-                  service: _c.service,
-                  recipe: _c.current,
-                ),
+                // The hero shows the design ON the shirt by default — the
+                // garment colour you chose, with its folds falling across the
+                // ink — so every Direction / Vibe / Colour decision is judged
+                // against the real thing. The flat artwork stays one tap away
+                // for judging the design on its own.
+                child: _onShirt
+                    ? ShirtPreview(
+                        key: const Key('v2-garment-preview'),
+                        service: _c.service,
+                        recipe: _c.current,
+                        front: _c.onFront,
+                      )
+                    : GarmentPreview(
+                        key: const Key('v2-garment-preview'),
+                        service: _c.service,
+                        recipe: _c.current,
+                      ),
               ),
             ),
             const SizedBox(height: 4),
-            _sideSelector(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _sideSelector(),
+                const SizedBox(width: 8),
+                _viewToggle(),
+              ],
+            ),
+          ],
+        ),
+      );
+
+  /// Shirt ⇄ flat artwork. Purely a view of the same design — it touches no
+  /// recipe state, so it never enters the undo history.
+  Widget _viewToggle() => Container(
+        height: 38,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1C21),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sidePill('view-shirt', 'Shirt', _onShirt,
+                () => setState(() => _onShirt = true)),
+            _sidePill('view-artwork', 'Artwork', !_onShirt,
+                () => setState(() => _onShirt = false)),
           ],
         ),
       );

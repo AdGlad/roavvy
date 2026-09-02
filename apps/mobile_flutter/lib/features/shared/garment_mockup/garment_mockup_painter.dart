@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-import 'mockup_transform_controller.dart';
-import 'product_mockup_specs.dart';
+import 'garment_mockup_spec.dart';
+import 'mockup_transform.dart';
 
 /// M174 — the photorealistic mockup composite: a garment photo, the user's
 /// artwork transformed live inside the printable area, and the fabric's own
@@ -26,8 +26,8 @@ import 'product_mockup_specs.dart';
 ///
 /// The painter repaints from [MockupTransformController]'s notifiers, never
 /// from `setState`, so a gesture costs one paint pass and zero rebuilds.
-class TshirtMockupPainter extends CustomPainter {
-  TshirtMockupPainter({
+class GarmentMockupPainter extends CustomPainter {
+  GarmentMockupPainter({
     required this.spec,
     required this.controller,
     this.garmentImage,
@@ -54,7 +54,7 @@ class TshirtMockupPainter extends CustomPainter {
   /// The user's artwork. Null renders a blank garment.
   final ui.Image? artworkImage;
 
-  final ProductMockupSpec spec;
+  final GarmentMockupSpec spec;
   final MockupTransformController controller;
 
   /// [BlendMode.multiply] for opaque artwork on a white card background;
@@ -279,7 +279,7 @@ class TshirtMockupPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(TshirtMockupPainter old) =>
+  bool shouldRepaint(GarmentMockupPainter old) =>
       !identical(garmentImage, old.garmentImage) ||
       !identical(shadingImage, old.shadingImage) ||
       !identical(artworkImage, old.artworkImage) ||
