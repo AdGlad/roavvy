@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../studio_v2_theme.dart';
 import 'alternatives_tray.dart';
 import 'axis_controls.dart';
 import 'garment_preview.dart';
@@ -122,25 +123,25 @@ class _VibeCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           width: 116,
           decoration: BoxDecoration(
             color: selected
-                ? Colors.tealAccent.withValues(alpha: 0.10)
-                : const Color(0xFF1B1E24),
+                ? StudioV2Theme.accent.withValues(alpha: 0.10)
+                : StudioV2Theme.card,
             border: Border.all(
-                color: selected ? Colors.tealAccent : Colors.white10,
-                width: selected ? 1.6 : 1),
-            borderRadius: BorderRadius.circular(18),
+                color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
+                width: selected ? 2 : 1),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.all(7),
           child: Column(
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                   child: GarmentPreview(
                       service: service, recipe: recipe, longSide: 220),
                 ),
@@ -161,7 +162,7 @@ class _VibeCard extends StatelessWidget {
                   ),
                   if (selected)
                     const Icon(Icons.check_circle,
-                        size: 16, color: Colors.tealAccent),
+                        size: 16, color: StudioV2Theme.accent),
                 ],
               ),
             ],
