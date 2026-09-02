@@ -117,13 +117,6 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
     final trips = tripsAsync.valueOrNull;
     final visits = visitsAsync.valueOrNull;
 
-    // The studio must OPEN even when travel data is unavailable — e.g. a dev
-    // entrypoint launched without the `roavvyDatabaseProvider` override, where
-    // `tripListProvider` throws and `.valueOrNull` silently yields null. Waiting
-    // for `trips != null` in that case hangs forever on a blank spinner (with no
-    // visible exception, because the error was swallowed). Instead, once prefs
-    // are loaded, treat a SETTLED trips provider — data OR error — as ready and
-    // fall back to visited/demo codes; only a still-loading provider waits.
     if (tripsAsync.hasError) {
       v2trace('tripListProvider ERROR (using fallback context): '
           '${tripsAsync.error}');
@@ -150,10 +143,31 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
           'flagsInRecipe=${_controller!.current.content.flags.length}');
     }
 
+    const accent = Color(0xFFE84C22);
+    final colourScheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: Brightness.dark,
+      surface: const Color(0xFF0E0F12),
+    ).copyWith(
+      primary: accent,
+      secondary: accent,
+      surface: const Color(0xFF0E0F12),
+    );
+
     return MaterialApp(
       title: 'Roavvy Studio V2',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        colorScheme: colourScheme,
+        scaffoldBackgroundColor: const Color(0xFF0E0F12),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0E0F12),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        sliderTheme: const SliderThemeData(activeTrackColor: accent, thumbColor: accent),
+        progressIndicatorTheme: const ProgressIndicatorThemeData(color: accent),
+      ),
       home: _controller == null
           ? const Scaffold(
               backgroundColor: Color(0xFF0E0F12),
