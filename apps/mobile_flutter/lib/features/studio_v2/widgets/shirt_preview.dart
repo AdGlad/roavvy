@@ -38,6 +38,35 @@ class ShirtPreview extends StatefulWidget {
 
   final int longSide;
 
+  /// Whether this design is painted onto the fabric or multiplied into it.
+  ///
+  /// A design that carries its own transparency — anything clipped to a shape,
+  /// and every data-driven family (a timeline, a journey map, a word cloud, a
+  /// badge) — composites straight over the shirt and keeps its true colours,
+  /// which is what a white-underbase print looks like on a dark garment.
+  ///
+  /// A flag composition has no transparency: it fills its whole canvas edge to
+  /// edge. Painting that over the shirt stamps a visible rectangle around the
+  /// design, so it is multiplied instead and its light areas — flag whites,
+  /// negative space — fall through to the cloth. This is also how the V1 merch
+  /// preview has always composited opaque artwork.
+  ///
+  /// Derived from the recipe, deliberately: reading the bitmap's own alpha
+  /// would mean a full GPU readback of a 1024px image before the hero could
+  /// paint at all.
+  static ui.BlendMode blendFor(DesignRecipe recipe) {
+    final clip = recipe.clip;
+    final isClipped = clip != null && clip.shapeId != 'none';
+    if (isClipped) return ui.BlendMode.srcOver;
+    return switch (recipe.composition.family) {
+      DesignFamily.singleHero ||
+      DesignFamily.duoBlend ||
+      DesignFamily.grid ||
+      DesignFamily.tornHero => ui.BlendMode.multiply,
+      _ => ui.BlendMode.srcOver,
+    };
+  }
+
   @override
   State<ShirtPreview> createState() => _ShirtPreviewState();
 }
@@ -73,7 +102,13 @@ class _ShirtPreviewState extends State<ShirtPreview> {
 
   Future<void> _loadArtwork() async {
     try {
-      final img = await widget.service.imageFor(widget.recipe, widget.longSide);
+      // The artwork LAYER, with nothing behind it: anything opaque would show
+      // as a card around the design instead of printing onto the fabric.
+      final img = await widget.service.imageFor(
+        widget.recipe,
+        widget.longSide,
+        transparent: true,
+      );
       if (mounted) setState(() => _artwork = img);
     } catch (e) {
       // A transient render failure must never take the shell down; the next
@@ -122,9 +157,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
       // shading source — exactly as it does for the untinted photographs.
       shadingImage: garment,
       artworkImage: artwork,
-      // Studio artwork is rendered on transparency, so it composites straight
-      // over the fabric and the shading masks to its own alpha.
-      artworkBlendMode: ui.BlendMode.srcOver,
+      artworkBlendMode: ShirtPreview.blendFor(widget.recipe),
       interactive: false,
       showHud: false,
     );

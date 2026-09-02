@@ -55,13 +55,20 @@ class RenderService {
   }
 
   RenderTarget targetFor(DesignRecipe r, int longSide,
-      {RenderQuality quality = RenderQuality.preview, ui.Color? background}) {
+      {RenderQuality quality = RenderQuality.preview,
+      ui.Color? background,
+      bool paintBackground = true}) {
     final (w, h) = dimsFor(r.composition.orientation, longSide);
     // The garment colour is a real design property: fill the background with the
     // recipe's garmentColour when set, so garment-aware re-inking has the right
     // tone to contrast against. Falls back to the neutral preview grey.
     final bg = background ?? _garmentColour(r) ?? _bg;
-    return RenderTarget(width: w, height: h, quality: quality, background: bg);
+    return RenderTarget(
+        width: w,
+        height: h,
+        quality: quality,
+        background: bg,
+        paintBackground: paintBackground);
   }
 
   /// The recipe's garment colour as a [ui.Color], or null when unset/unparseable
@@ -77,8 +84,19 @@ class RenderService {
 
   int _renderCalls = 0;
 
-  Future<ui.Image> imageFor(DesignRecipe recipe, int longSide) async {
-    final key = '${recipe.recipeId}@$longSide';
+  /// A rendered image of [recipe] at [longSide], cached.
+  ///
+  /// [transparent] renders the artwork LAYER alone, with nothing behind it —
+  /// what an on-garment preview needs, so the design sits on fabric instead of
+  /// carrying a coloured card around it. The default bakes the recipe's garment
+  /// colour behind the art (falling back to a neutral grey), which is what a
+  /// standalone preview tile wants.
+  Future<ui.Image> imageFor(
+    DesignRecipe recipe,
+    int longSide, {
+    bool transparent = false,
+  }) async {
+    final key = '${recipe.recipeId}@$longSide${transparent ? '#alpha' : ''}';
     final cached = _cache[key];
     if (cached != null) {
       // Touch: move to the most-recently-used end so it survives eviction.
@@ -93,7 +111,10 @@ class RenderService {
           'longSide=$longSide cache=${_cache.length} key=$key');
     }
     final sw = _kTrace ? (Stopwatch()..start()) : null;
-    final result = await _renderer.render(recipe, targetFor(recipe, longSide));
+    // `transparent` withholds the FILL, not the colour: the stages still ink
+    // titles and contrast against the garment tone they will sit on.
+    final result = await _renderer.render(recipe,
+        targetFor(recipe, longSide, paintBackground: !transparent));
     if (sw != null) {
       debugPrint('[v2trace] RenderService.render #$_renderCalls DONE '
           'in ${sw.elapsedMilliseconds}ms');
@@ -128,10 +149,9 @@ class RenderService {
           {int longSide = 2048}) =>
       _renderer.render(
         recipe,
-        // A fully-transparent background: the renderer's background rect becomes
-        // a no-op, leaving only the opaque artwork pixels.
+        // The garment fill is withheld, leaving only the artwork — but the
+        // garment tone still reaches the stages so the ink stays legible.
         targetFor(recipe, longSide,
-            quality: RenderQuality.print,
-            background: const ui.Color(0x00000000)),
+            quality: RenderQuality.print, paintBackground: false),
       );
 }

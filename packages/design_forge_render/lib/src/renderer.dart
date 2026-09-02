@@ -56,7 +56,7 @@ class CanvasRenderer implements Renderer {
 
     // Flatten: background (garment) then the final artwork layer.
     final image = await ctx.rasterise((canvas) {
-      if (target.background != null) {
+      if (target.background != null && target.paintBackground) {
         canvas.drawRect(ctx.fullRect, ui.Paint()..color = target.background!);
       }
       final art = ctx.artwork;

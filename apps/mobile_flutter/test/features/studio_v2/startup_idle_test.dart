@@ -45,7 +45,11 @@ class _CountingService extends RenderService {
   ui.Image? _memo;
 
   @override
-  Future<ui.Image> imageFor(DesignRecipe recipe, int longSide) async {
+  Future<ui.Image> imageFor(
+    DesignRecipe recipe,
+    int longSide, {
+    bool transparent = false,
+  }) async {
     calls++;
     keys.add('${recipe.recipeId}@$longSide');
     return _memo ??= await _onePx();

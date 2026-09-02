@@ -18,6 +18,7 @@ class RenderTarget {
     required this.height,
     this.quality = RenderQuality.preview,
     this.background,
+    this.paintBackground = true,
   });
 
   final int width;
@@ -25,15 +26,32 @@ class RenderTarget {
   final RenderQuality quality;
 
   /// Optional flat background fill (e.g. garment colour). Null = transparent.
+  ///
+  /// Stages also read this to choose a legible ink — title text, contrast
+  /// re-colouring, passport stamp ink all key off the tone behind the artwork.
   final ui.Color? background;
 
+  /// Whether [background] is actually painted behind the artwork.
+  ///
+  /// False renders the artwork LAYER alone on transparency while still telling
+  /// the stages what tone it will sit against. That distinction matters: an
+  /// on-garment preview composites the design onto real fabric, so no flat fill
+  /// may be baked in — but the title still has to be inked for a white shirt
+  /// rather than for the transparency it is drawn on.
+  final bool paintBackground;
+
   /// A standard preview square.
-  factory RenderTarget.preview({int size = 768, ui.Color? background}) =>
+  factory RenderTarget.preview({
+    int size = 768,
+    ui.Color? background,
+    bool paintBackground = true,
+  }) =>
       RenderTarget(
         width: size,
         height: size,
         quality: RenderQuality.preview,
         background: background,
+        paintBackground: paintBackground,
       );
 
   /// The Printful print-file target (1800×2400 @ 150 DPI).
@@ -41,12 +59,14 @@ class RenderTarget {
     int width = 1800,
     int height = 2400,
     ui.Color? background,
+    bool paintBackground = true,
   }) =>
       RenderTarget(
         width: width,
         height: height,
         quality: RenderQuality.print,
         background: background,
+        paintBackground: paintBackground,
       );
 
   ui.Size get size => ui.Size(width.toDouble(), height.toDouble());

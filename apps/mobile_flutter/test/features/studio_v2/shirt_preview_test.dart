@@ -1,5 +1,8 @@
 // The Studio hero on a real garment: the design shown on the shirt colour you
 // actually chose, with a toggle back to the flat artwork.
+import 'dart:ui' as ui;
+
+import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +74,76 @@ void main() {
       expect(StudioGarments.parseHex('#6B7350')!.toARGB32(), 0xFF6B7350);
       expect(StudioGarments.parseHex('FF6B7350')!.toARGB32(), 0xFF6B7350);
       expect(StudioGarments.parseHex('zzz'), isNull);
+    });
+  });
+
+  group('how a design meets the fabric', () {
+    DesignRecipe recipe(DesignFamily family, {Clip? clip}) => DesignRecipe(
+      seed: 1,
+      content: const RecipeContent(flags: [FlagRef('us')]),
+      composition: Composition(family: family),
+      clip: clip,
+    );
+
+    test('a flag composition is multiplied into the cloth', () {
+      // Full-bleed: painting it over the shirt would stamp a white rectangle
+      // around the design — the bug this rule exists to prevent.
+      for (final f in [
+        DesignFamily.grid,
+        DesignFamily.singleHero,
+        DesignFamily.duoBlend,
+        DesignFamily.tornHero,
+      ]) {
+        expect(
+          ShirtPreview.blendFor(recipe(f)),
+          ui.BlendMode.multiply,
+          reason: '\$f fills its canvas and must multiply',
+        );
+      }
+    });
+
+    test('a clipped design keeps its own colours', () {
+      // It carries real transparency, so it composites over the shirt and stays
+      // true on a dark garment instead of going muddy.
+      expect(
+        ShirtPreview.blendFor(
+          recipe(DesignFamily.grid, clip: const Clip(shapeId: 'heart')),
+        ),
+        ui.BlendMode.srcOver,
+      );
+      expect(
+        ShirtPreview.blendFor(
+          recipe(DesignFamily.grid, clip: const Clip(shapeId: 'passportPage')),
+        ),
+        ui.BlendMode.srcOver,
+      );
+    });
+
+    test('an explicit no-clip still counts as full-bleed', () {
+      expect(
+        ShirtPreview.blendFor(
+          recipe(DesignFamily.grid, clip: const Clip(shapeId: 'none')),
+        ),
+        ui.BlendMode.multiply,
+      );
+    });
+
+    test('data-driven families composite over the shirt', () {
+      for (final f in [
+        DesignFamily.timeline,
+        DesignFamily.journeys,
+        DesignFamily.wordCloud,
+        DesignFamily.badge,
+        DesignFamily.stats,
+        DesignFamily.achievements,
+        DesignFamily.frontRibbon,
+      ]) {
+        expect(
+          ShirtPreview.blendFor(recipe(f)),
+          ui.BlendMode.srcOver,
+          reason: '\$f draws on transparency',
+        );
+      }
     });
   });
 
