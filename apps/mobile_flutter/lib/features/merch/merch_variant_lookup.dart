@@ -41,6 +41,15 @@ enum MerchProduct {
   final String gid;
 }
 
+/// The store's t-shirt variant colours, by their Shopify option label.
+///
+/// Two labels are misnomers held for compatibility: the variants behind
+/// **'Blue'** and **'Grey'** are in fact Printful's **Navy** (catalog 496…620)
+/// and **Heather Grey** (22352…22356) — see `PRINTFUL_VARIANT_IDS` in
+/// `apps/functions/src/printDimensions.ts`, verified against Printful on
+/// 2026-03-24. Renaming them would orphan the GID keys and every cart item
+/// already written with the old label, so the names stay and the truth is
+/// recorded here.
 const tshirtColors = ['Black', 'White', 'Blue', 'Grey', 'Red'];
 const tshirtSizes = ['S', 'M', 'L', 'XL', '2XL'];
 const posterPapers = ['Enhanced Matte', 'Luster', 'Fine Art'];
@@ -120,11 +129,36 @@ const _tshirtDims = MerchPrintDimensions(
 );
 
 const _posterDimsBySize = <String, MerchPrintDimensions>{
-  '12x18in': MerchPrintDimensions(widthPx: 3600, heightPx: 5400, dpi: 300, transparent: false),
-  '18x24in': MerchPrintDimensions(widthPx: 5400, heightPx: 7200, dpi: 300, transparent: false),
-  '24x36in': MerchPrintDimensions(widthPx: 7200, heightPx: 10800, dpi: 300, transparent: false),
-  'A3': MerchPrintDimensions(widthPx: 3508, heightPx: 4961, dpi: 300, transparent: false),
-  'A4': MerchPrintDimensions(widthPx: 2480, heightPx: 3508, dpi: 300, transparent: false),
+  '12x18in': MerchPrintDimensions(
+    widthPx: 3600,
+    heightPx: 5400,
+    dpi: 300,
+    transparent: false,
+  ),
+  '18x24in': MerchPrintDimensions(
+    widthPx: 5400,
+    heightPx: 7200,
+    dpi: 300,
+    transparent: false,
+  ),
+  '24x36in': MerchPrintDimensions(
+    widthPx: 7200,
+    heightPx: 10800,
+    dpi: 300,
+    transparent: false,
+  ),
+  'A3': MerchPrintDimensions(
+    widthPx: 3508,
+    heightPx: 4961,
+    dpi: 300,
+    transparent: false,
+  ),
+  'A4': MerchPrintDimensions(
+    widthPx: 2480,
+    heightPx: 3508,
+    dpi: 300,
+    transparent: false,
+  ),
 };
 
 /// Returns the print dimensions for the given product + size combination.

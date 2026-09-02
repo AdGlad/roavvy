@@ -1,7 +1,8 @@
 import 'package:design_forge/design_forge.dart' show Trip;
 import 'package:flutter/material.dart';
 
-import 'package:shared_models/shared_models.dart' show CardTemplateType, TripRecord;
+import 'package:shared_models/shared_models.dart'
+    show CardTemplateType, TripRecord;
 
 import '../merch/local_mockup_preview_screen.dart';
 import '../merch/merch_variant_lookup.dart' show tshirtColors;
@@ -56,12 +57,14 @@ class StudioV2CartAdapter {
     // Refuse a colour the store cannot actually make, by name. Falling through
     // to a substitute here would charge for one shirt and ship another.
     if (v1ColourName(r.garmentColourName) == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          '${r.garmentColourName} isn\'t available to order yet — '
-          'pick another shirt colour.',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${r.garmentColourName} isn\'t available to order yet — '
+            'pick another shirt colour.',
+          ),
         ),
-      ));
+      );
       return;
     }
     final input = map(r);
@@ -74,24 +77,25 @@ class StudioV2CartAdapter {
     if (!context.mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          artworkImageBytes: backArtworkPng,
-          fixedArtwork: input.fixedArtwork,
-          // The real V2 front face replaces the V1 ribbon as the front print.
-          frontArtworkOverride: frontArtworkPng,
-          // Placement + print scale come from the design, not the V1 defaults.
-          initialFrontPosition: input.frontPosition,
-          initialBackPosition: input.backPosition,
-          initialImageSize: ImageSize.large,
-          selectedCodes: input.selectedCodes,
-          allCodes: input.allCodes,
-          trips: input.trips,
-          initialColour: input.colourName,
-          initialTemplate: input.template,
-          titleOverride: input.title,
-          confirmedAspectRatio: input.aspectRatio,
-          transparentBackground: true,
-        ),
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              artworkImageBytes: backArtworkPng,
+              fixedArtwork: input.fixedArtwork,
+              // The real V2 front face replaces the V1 ribbon as the front print.
+              frontArtworkOverride: frontArtworkPng,
+              // Placement + print scale come from the design, not the V1 defaults.
+              initialFrontPosition: input.frontPosition,
+              initialBackPosition: input.backPosition,
+              initialImageSize: ImageSize.large,
+              selectedCodes: input.selectedCodes,
+              allCodes: input.allCodes,
+              trips: input.trips,
+              initialColour: input.colourName,
+              initialTemplate: input.template,
+              titleOverride: input.title,
+              confirmedAspectRatio: input.aspectRatio,
+              transparentBackground: true,
+            ),
       ),
     );
   }
@@ -105,7 +109,12 @@ class StudioV2CartAdapter {
   /// payment for one colour and ship another.
   ///
   /// Empty this list by adding the real variants, not by guessing a substitute.
-  static const unstockedColours = <String>{'Orange'};
+  ///
+  /// Royal is here because the store's only blue IS Navy (the 'Blue' option
+  /// label sits on Printful's Navy variant). Mapping Royal onto it would ship a
+  /// navy shirt to someone who chose a bright blue — a difference nobody would
+  /// call close enough.
+  static const unstockedColours = <String>{'Orange', 'Royal'};
 
   /// Maps a Studio garment colour onto the store's variant colour.
   ///
@@ -116,13 +125,14 @@ class StudioV2CartAdapter {
   static String? v1ColourName(String studioName) {
     if (unstockedColours.contains(studioName)) return null;
     const map = {
-      // Exact matches.
+      // Exact matches. 'Blue' and 'Grey' are Shopify option labels for what are
+      // really Navy and Heather Grey variants — see [tshirtColors].
       'Black': 'Black',
       'White': 'White',
       'Red': 'Red',
-      // Nearest stocked relative.
       'Navy': 'Blue',
-      'Royal': 'Blue',
+      // Near matches: the store carries ONE heather, so both of the blank's
+      // greys resolve to it. Worth confirming which of Gildan's two it is.
       'Dark Heather': 'Grey',
       'Sport Grey': 'Grey',
       // Legacy Studio palette, kept so older saved designs still resolve.
@@ -138,13 +148,13 @@ class StudioV2CartAdapter {
   }
 
   static TripRecord _toTripRecord(Trip t) => TripRecord(
-        id: '${t.countryCode}_${t.startedOn.toIso8601String()}',
-        countryCode: t.countryCode,
-        startedOn: t.startedOn,
-        endedOn: t.endedOn,
-        photoCount: t.photoCount,
-        isManual: false,
-      );
+    id: '${t.countryCode}_${t.startedOn.toIso8601String()}',
+    countryCode: t.countryCode,
+    startedOn: t.startedOn,
+    endedOn: t.endedOn,
+    photoCount: t.photoCount,
+    isManual: false,
+  );
 }
 
 /// The production inputs [LocalMockupPreviewScreen] consumes, derived purely from

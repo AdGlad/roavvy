@@ -102,8 +102,9 @@ void main() {
     expect(StudioV2CartAdapter.v1ColourName('White'), 'White');
     expect(StudioV2CartAdapter.v1ColourName('Red'), 'Red');
     // Nearest stocked relative for the rest of the supplier's range.
+    // 'Blue' is the Shopify label for what is really the Navy variant.
     expect(StudioV2CartAdapter.v1ColourName('Navy'), 'Blue');
-    expect(StudioV2CartAdapter.v1ColourName('Royal'), 'Blue');
+    // Royal is NOT mapped: the store's only blue is Navy (see unstockedColours).
     expect(StudioV2CartAdapter.v1ColourName('Dark Heather'), 'Grey');
     expect(StudioV2CartAdapter.v1ColourName('Sport Grey'), 'Grey');
     // Designs saved under the retired palette still resolve.
