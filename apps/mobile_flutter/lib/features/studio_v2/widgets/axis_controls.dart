@@ -2,6 +2,8 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../studio_v2_theme.dart';
+
 /// A per-axis **lock** toggle (M4). Locking an axis pins it so [Remix] leaves it
 /// untouched — the "keep what I love" half of *keep what I love, remix the rest*.
 /// Uses the shared [StudioController.toggleLock] / [StudioController.locked]
@@ -26,20 +28,21 @@ class AxisLockChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: locked
-              ? Colors.amber.withValues(alpha: 0.18)
-              : const Color(0xFF23262C),
+              ? StudioV2Theme.accent.withValues(alpha: 0.14)
+              : StudioV2Theme.control,
           border: Border.all(
-              color: locked ? Colors.amber : const Color(0xFF3A3D44)),
+              color: locked ? StudioV2Theme.accent : StudioV2Theme.border),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(locked ? Icons.lock : Icons.lock_open,
-              size: 13, color: locked ? Colors.amber : Colors.white54),
+              size: 13,
+              color: locked ? StudioV2Theme.accent : Colors.white54),
           const SizedBox(width: 4),
           Text(locked ? 'Locked' : 'Lock',
               style: TextStyle(
                   fontSize: 11,
-                  color: locked ? Colors.amber : Colors.white54)),
+                  color: locked ? StudioV2Theme.accent : Colors.white54)),
         ]),
       ),
     );
@@ -61,8 +64,8 @@ class RemixButton extends StatelessWidget {
       key: const Key('v2-remix'),
       onPressed: controller.surprise,
       style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.tealAccent,
-        side: const BorderSide(color: Color(0xFF3A3D44)),
+        foregroundColor: StudioV2Theme.accent,
+        side: const BorderSide(color: StudioV2Theme.border),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
       icon: const Icon(Icons.casino_outlined, size: 16),
