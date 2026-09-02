@@ -201,11 +201,13 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('studio-size-large')));
     await tester.pump();
+    // The colour row scrolls — White sits at the end of the stocked range.
+    await tester.ensureVisible(find.byKey(const Key('studio-garment-White')));
     await tester.tap(find.byKey(const Key('studio-garment-White')));
     await tester.pump();
     expect(state.currentRecipe.composition.orientation, Orientation.square);
     expect(state.currentRecipe.composition.sizeClass, SizeClass.large);
-    expect(state.currentRecipe.palette?.garmentColour, '#F5F5F5');
+    expect(state.currentRecipe.palette?.garmentColour, '#FFFFFF');
 
     // A Style change (Vibe re-roll) must NOT reset the fixed Tier-1 controls.
     await tester.tap(find.byKey(Key('studio-chip-${DesignAxis.vibe.key}')));
@@ -214,7 +216,7 @@ void main() {
         reason: 'aspect must survive a style change');
     expect(state.currentRecipe.composition.sizeClass, SizeClass.large,
         reason: 'size must survive a style change');
-    expect(state.currentRecipe.palette?.garmentColour, '#F5F5F5',
+    expect(state.currentRecipe.palette?.garmentColour, '#FFFFFF',
         reason: 'garment colour must survive a style change');
   });
 
@@ -233,10 +235,10 @@ void main() {
     expect(state.currentRecipe.recipeId, isNot(heroId));
 
     // Edit the Front only.
-    await tester.ensureVisible(find.byKey(const Key('studio-garment-Olive')));
-    await tester.tap(find.byKey(const Key('studio-garment-Olive')));
+    await tester.ensureVisible(find.byKey(const Key('studio-garment-Navy')));
+    await tester.tap(find.byKey(const Key('studio-garment-Navy')));
     await tester.pump();
-    expect(state.currentRecipe.palette?.garmentColour, '#6B7350');
+    expect(state.currentRecipe.palette?.garmentColour, '#0F1830');
 
     // Returning to the Back leaves the hero byte-identical (the edit hit the
     // front face).

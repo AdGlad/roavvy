@@ -207,16 +207,16 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      controller.setGarment('#6B7350'); // Olive — no photograph exists
+      controller.setGarment('#FF5723'); // Orange — no photograph exists
       await tester.pump();
 
       final preview = tester.widget<ShirtPreview>(find.byType(ShirtPreview));
-      expect(preview.recipe.palette?.garmentColour, '#6B7350');
+      expect(preview.recipe.palette?.garmentColour, '#FF5723');
       final spec = StudioGarments.specFor(
         garmentColour: preview.recipe.palette?.garmentColour,
         front: preview.front,
       );
-      expect(spec.tintColour!.toARGB32(), 0xFF6B7350);
+      expect(spec.tintColour!.toARGB32(), 0xFFFF5723);
     });
 
     testWidgets('the shirt follows the front/back side selector', (

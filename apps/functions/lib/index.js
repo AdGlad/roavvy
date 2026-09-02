@@ -68,7 +68,9 @@ const TSHIRT_FRONT_PRINT_H_IN = 16.0;
  *
  * left_chest  (wearer's left = viewer's right): top=3.0, left=8.25 (center at 10")
  * right_chest (wearer's right = viewer's left): top=3.0, left=0.25 (center at 2")
- * center: undefined → Printful auto-centres (fills the 12"×16" print area)
+ * center ('front'): top=3.0, left=4.25 (center at 6") — a centred chest logo, NOT
+ *   the full print area. Auto-centring here stretched the ribbon (or duplicated
+ *   the back design) across the whole front → "double backside" mockups.
  */
 function frontLayerPosition(frontPosition) {
     if (frontPosition === 'left_chest' || frontPosition === 'front_left') {
@@ -79,7 +81,8 @@ function frontLayerPosition(frontPosition) {
         // Wearer's right (viewer's left): logo center at 2" from canvas left, 3" from top.
         return { top: 3.0, left: 0.25, width: 3.5, height: 3.5 };
     }
-    return undefined; // center: auto
+    // center: chest-sized ribbon centred on the 12" width (mid-point 6").
+    return { top: 3.0, left: 4.25, width: 3.5, height: 3.5 };
 }
 /**
  * Submits a Printful v2 mockup task and returns the task ID immediately (M157).
@@ -156,6 +159,10 @@ exports.CART_CREATE_MUTATION = `
       cart {
         id
         checkoutUrl
+        cost {
+          totalAmount { amount currencyCode }
+          subtotalAmount { amount currencyCode }
+        }
       }
       userErrors {
         field
@@ -174,13 +181,22 @@ function normalizeBuyerCountry(raw, fallback = 'AU') {
     return /^[A-Z]{2}$/.test(upper) ? upper : fallback;
 }
 // ── getMerchPrices ────────────────────────────────────────────────────────────
+// Representative Storefront ProductVariant GIDs used only to fetch a live
+// "from" price. These are the SAME known-good variant IDs the cart uses (see
+// printDimensions.ts), so the query resolves reliably — unlike a hardcoded
+// product ID, which silently returns null if the product is recreated or not
+// published to the Storefront sales channel (the cause of the stale-fallback
+// price bug).
+const TSHIRT_PRICE_VARIANT_GID = 'gid://shopify/ProductVariant/47577103466683';
+const POSTER_PRICE_VARIANT_GID = 'gid://shopify/ProductVariant/47577104318651';
 const MERCH_PRICES_QUERY = `
-  query GetMerchPrices($country: CountryCode) @inContext(country: $country) {
-    tshirt: product(id: "gid://shopify/Product/8357194694843") {
-      priceRange { minVariantPrice { amount currencyCode } }
-    }
-    poster: product(id: "gid://shopify/Product/8357218353339") {
-      priceRange { minVariantPrice { amount currencyCode } }
+  query GetMerchPrices($ids: [ID!]!, $country: CountryCode) @inContext(country: $country) {
+    nodes(ids: $ids) {
+      ... on ProductVariant {
+        id
+        price { amount currencyCode }
+        product { priceRange { minVariantPrice { amount currencyCode } } }
+      }
     }
   }
 `;
@@ -205,18 +221,34 @@ exports.getMerchPrices = (0, https_1.onCall)(async (request) => {
             'Content-Type': 'application/json',
             'X-Shopify-Storefront-Access-Token': storefrontToken,
         },
-        body: JSON.stringify({ query: MERCH_PRICES_QUERY, variables: { country } }),
+        body: JSON.stringify({
+            query: MERCH_PRICES_QUERY,
+            variables: {
+                ids: [TSHIRT_PRICE_VARIANT_GID, POSTER_PRICE_VARIANT_GID],
+                country,
+            },
+        }),
     });
     if (!shopifyRes.ok) {
         throw new https_1.HttpsError('internal', `Shopify request failed: ${shopifyRes.status}`);
     }
     const shopifyData = (await shopifyRes.json());
     if (shopifyData.errors && shopifyData.errors.length > 0) {
+        console.error('[getMerchPrices] Shopify errors:', JSON.stringify(shopifyData.errors));
         throw new https_1.HttpsError('internal', shopifyData.errors[0].message);
     }
-    const tshirt = shopifyData.data?.tshirt?.priceRange?.minVariantPrice;
-    const poster = shopifyData.data?.poster?.priceRange?.minVariantPrice;
+    // Prefer the product's true "from" (min variant) price; fall back to the
+    // representative variant's own price. Match by id (nodes order should mirror
+    // the ids array, but be defensive).
+    const nodes = shopifyData.data?.nodes ?? [];
+    const priceOf = (gid, fallbackIndex) => {
+        const node = nodes.find((n) => n?.id === gid) ?? nodes[fallbackIndex];
+        return node?.product?.priceRange?.minVariantPrice ?? node?.price;
+    };
+    const tshirt = priceOf(TSHIRT_PRICE_VARIANT_GID, 0);
+    const poster = priceOf(POSTER_PRICE_VARIANT_GID, 1);
     if (!tshirt || !poster) {
+        console.error('[getMerchPrices] incomplete price data — raw response:', JSON.stringify(shopifyData));
         throw new https_1.HttpsError('internal', 'Shopify returned incomplete price data.');
     }
     return { tshirtPrice: tshirt, posterPrice: poster };
@@ -390,8 +422,12 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
                         .resize(printDims.widthPx, printDims.heightPx, { fit: 'contain', background: bgColour })
                         .toFormat('png')
                         .toBuffer();
+                    // 'front' is the mapped value for the app's 'center' front placement.
+                    const isCenterPosition = effectiveFrontPosition === 'center'
+                        || effectiveFrontPosition === 'front_center' || effectiveFrontPosition === 'front';
                     const isChestPosition = effectiveFrontPosition === 'left_chest' || effectiveFrontPosition === 'front_left'
-                        || effectiveFrontPosition === 'right_chest' || effectiveFrontPosition === 'front_right';
+                        || effectiveFrontPosition === 'right_chest' || effectiveFrontPosition === 'front_right'
+                        || isCenterPosition;
                     const chestPx = Math.round(3.5 * printDims.dpi);
                     const mockupBuf = isChestPosition
                         ? await sharp(clientBuf)
@@ -440,6 +476,25 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
                             .png()
                             .toBuffer();
                         console.log(`[print] right_chest composited at top=${top}px (${top / printDims.dpi}") left=${left}px (${left / printDims.dpi}")`);
+                        return { printBuf, mockupBuf };
+                    }
+                    if (isCenterPosition) {
+                        const canvasW = printDims.widthPx;
+                        const canvasH = printDims.heightPx;
+                        // Logo: 3.5"×3.5". Centre on the 12" width (mid-point 6"). Top 3".
+                        const sizePx = Math.round(3.5 * printDims.dpi); // 525px
+                        const top = Math.round(3.0 * printDims.dpi); // 450px
+                        const centerX = Math.round(6.0 * printDims.dpi); // 900px
+                        const left = centerX - Math.round(sizePx / 2); // 637px
+                        const resized = await sharp(designBuf).resize(sizePx, sizePx, { fit: 'inside' }).toBuffer();
+                        const { width: rw = sizePx } = await sharp(resized).metadata();
+                        const printBuf = await sharp({
+                            create: { width: canvasW, height: canvasH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+                        })
+                            .composite([{ input: resized, top, left: left + Math.round((sizePx - rw) / 2) }])
+                            .png()
+                            .toBuffer();
+                        console.log(`[print] center composited at top=${top}px (${top / printDims.dpi}") left=${left}px (${left / printDims.dpi}")`);
                         return { printBuf, mockupBuf };
                     }
                     return { printBuf: designBuf, mockupBuf };
@@ -588,6 +643,9 @@ exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2G
         checkoutUrl: cart.checkoutUrl,
         cartId: cart.id,
         merchConfigId: configId,
+        // Exact cart total (buyer currency) so the Review screen matches the
+        // Shopify checkout price rather than a product-level "from" estimate.
+        totalPrice: cart.cost?.totalAmount ?? cart.cost?.subtotalAmount ?? null,
         frontMockupUrl: null,
         backMockupUrl: null,
     };
