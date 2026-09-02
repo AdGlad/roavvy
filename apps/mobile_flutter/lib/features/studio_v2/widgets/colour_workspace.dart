@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../studio_v2_theme.dart';
 import 'alternatives_tray.dart';
 import 'axis_controls.dart';
 import 'garment_preview.dart';
@@ -14,10 +15,6 @@ import 'garment_preview.dart';
 /// treatment applied to the CURRENT design. Tapping one commits it through
 /// [StudioController.setColourTreatment] — palette-only, so the layout, Vibe and
 /// garment colour are all preserved, and it is undoable.
-///
-/// Below sits the shared [AlternativesTray] over the Colour axis (deterministic
-/// re-rolls of the palette) plus the per-axis lock and global Remix. The shirt
-/// above stays the hero.
 class ColourWorkspace extends StatelessWidget {
   const ColourWorkspace({super.key, required this.controller});
 
@@ -26,9 +23,6 @@ class ColourWorkspace extends StatelessWidget {
   static String _slug(String label) =>
       label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-  /// Whether treatment [t] is the one currently applied. Two treatments share
-  /// [ColourStrategy.flagDerived] (Flag colours vs Vintage), so the vintage grade
-  /// disambiguates them.
   bool _isActive((String, ColourStrategy, double) t) {
     if (controller.colourStrategy != t.$2) return false;
     final wantsVintage = t.$3 >= 0.3;
@@ -37,7 +31,6 @@ class ColourWorkspace extends StatelessWidget {
         : controller.vintageGrade < 0.3;
   }
 
-  /// A cheap preview recipe = the current design with only this treatment applied.
   DesignRecipe _preview((String, ColourStrategy, double) t) {
     final pal = controller.current.palette ?? const Palette();
     return controller.current
@@ -58,7 +51,7 @@ class ColourWorkspace extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 11,
                       letterSpacing: 1.4,
-                      color: Colors.tealAccent)),
+                      color: StudioV2Theme.accent)),
             ),
             AxisLockChip(controller: controller, axis: DesignAxis.colour),
             const SizedBox(width: 8),
@@ -124,10 +117,10 @@ class _TreatmentCard extends StatelessWidget {
         width: 104,
         decoration: BoxDecoration(
           color: selected
-              ? Colors.tealAccent.withValues(alpha: 0.14)
-              : const Color(0xFF1B1E24),
+              ? StudioV2Theme.accent.withValues(alpha: 0.12)
+              : StudioV2Theme.card,
           border: Border.all(
-              color: selected ? Colors.tealAccent : const Color(0xFF3A3D44),
+              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
               width: selected ? 2 : 1),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -147,7 +140,7 @@ class _TreatmentCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     fontSize: 11,
-                    color: selected ? Colors.tealAccent : Colors.white70)),
+                    color: selected ? StudioV2Theme.accent : Colors.white70)),
           ],
         ),
       ),
