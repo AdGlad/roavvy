@@ -81,6 +81,53 @@ abstract final class GarmentTint {
     return _decode(px, w, h);
   }
 
+  /// The garment's folds alone: backdrop stripped, exposure anchored so the lit
+  /// fabric reads white, and colour discarded entirely.
+  ///
+  /// **This is what the mockup painter's shading pass must be fed.** That pass
+  /// multiplies its source over the print, so any colour the source carries is
+  /// multiplied into the ink: hand it a red shirt — photographed or recoloured
+  /// — and every flag is dragged towards red while white lettering disappears.
+  /// Anchoring the lit tone to white leaves a map that can only ever *darken*,
+  /// and only where the cloth actually folds, whatever colour the shirt is.
+  ///
+  /// Uses the same backdrop flood fill and exposure anchor as [recolour], so
+  /// the folds land in register with the garment layer.
+  static Future<ui.Image> luminanceMap(ui.Image source) async {
+    final byteData = await source.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
+    if (byteData == null) return source;
+
+    final w = source.width;
+    final h = source.height;
+    final px = byteData.buffer.asUint8List();
+
+    final isBackdrop = _floodBackdrop(px, w, h);
+    final gain = _exposureGain(px, isBackdrop);
+
+    for (var i = 0, p = 0; i < w * h; i++, p += 4) {
+      if (isBackdrop[i]) {
+        px[p] = 0;
+        px[p + 1] = 0;
+        px[p + 2] = 0;
+        px[p + 3] = 0;
+        continue;
+      }
+      final lum = ((px[p] * 0.2126 + px[p + 1] * 0.7152 + px[p + 2] * 0.0722) /
+              255.0 *
+              gain)
+          .clamp(0.0, 1.0);
+      final g = _byte(lum);
+      px[p] = g;
+      px[p + 1] = g;
+      px[p + 2] = g;
+      px[p + 3] = 255;
+    }
+
+    return _decode(px, w, h);
+  }
+
   /// Strips the backdrop without recolouring — the garment on transparency, at
   /// its photographed colour. Used for the palette's real photographs so they
   /// sit on a dark surface the same way tinted ones do.

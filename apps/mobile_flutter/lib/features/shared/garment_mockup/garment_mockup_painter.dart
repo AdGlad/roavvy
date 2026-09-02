@@ -20,9 +20,11 @@ import 'mockup_transform.dart';
 ///
 /// **Why the alpha mask matters.** A plain `multiply` of the shading over the
 /// whole print rectangle darkens transparent pixels too, stamping a visible
-/// grey box onto the shirt. Drawing the artwork again with [BlendMode.dstIn]
-/// inside the same `saveLayer` erases the shading everywhere the artwork is
-/// transparent, so folds land on the ink only.
+/// grey box onto the shirt. So inside the `saveLayer` the artwork is drawn
+/// first as a pure alpha mask and the folds are then let through it with
+/// [BlendMode.srcIn], which clears the shading everywhere the artwork is
+/// transparent — including outside the artwork's own rect, where a `dstIn`
+/// pass could never reach.
 ///
 /// The painter repaints from [MockupTransformController]'s notifiers, never
 /// from `setState`, so a gesture costs one paint pass and zero rebuilds.
@@ -48,7 +50,13 @@ class GarmentMockupPainter extends CustomPainter {
   final ui.Image? garmentImage;
 
   /// Luminance source for the fabric shading pass — the companion wrinkle map
-  /// when one is bundled, otherwise the garment photo itself.
+  /// when one is bundled, otherwise a `GarmentTint.luminanceMap` derived from
+  /// the garment photo.
+  ///
+  /// **Must be greyscale.** This layer is composited with [ui.BlendMode.multiply],
+  /// so any colour it carries is multiplied into the ink: a red garment — shot
+  /// that way or recoloured to it — drags every design towards its own dye.
+  /// Callers derive the map once and cache it; the painter trusts it.
   final ui.Image? shadingImage;
 
   /// The user's artwork. Null renders a blank garment.
@@ -105,18 +113,17 @@ class GarmentMockupPainter extends CustomPainter {
       if (shadingImage != null && shadingOpacity > 0) {
         canvas.save();
         canvas.clipRect(printPixels);
-        canvas.saveLayer(printPixels, ui.Paint());
-
-        // Pass A — the fold luminance, aligned to the garment.
-        _drawGarment(
-          canvas,
-          size,
-          shadingImage!,
-          opacity: shadingOpacity,
-          blendMode: ui.BlendMode.multiply,
+        // The layer composites down with MULTIPLY, so the folds darken the
+        // ink. Compositing srcOver (the old default) instead lerped the print
+        // `shadingOpacity` of the way towards the shading image's own colour —
+        // which, whenever the shading source is a tinted garment, painted the
+        // shirt's dye flat over the artwork.
+        canvas.saveLayer(
+          printPixels,
+          ui.Paint()..blendMode = ui.BlendMode.multiply,
         );
 
-        // Pass B — keep the shading only where there is ink.
+        // Pass A — the MASK: the artwork's own alpha, in its live placement.
         canvas.save();
         canvas.translate(printPixels.left, printPixels.top);
         canvas.transform(matrix.storage);
@@ -124,11 +131,28 @@ class GarmentMockupPainter extends CustomPainter {
           artworkImage!,
           artSrc,
           artDst,
-          ui.Paint()
-            ..blendMode = ui.BlendMode.dstIn
-            ..filterQuality = ui.FilterQuality.medium,
+          ui.Paint()..filterQuality = ui.FilterQuality.medium,
         );
         canvas.restore();
+
+        // Pass B — the folds, admitted only where the mask has ink.
+        //
+        // The mask is laid down FIRST and the folds are let through it with
+        // `srcIn`, rather than the folds first and the artwork punched over
+        // them with `dstIn`. A Porter-Duff blend only touches the pixels the
+        // drawn geometry covers, so a `dstIn` pass bounded by the artwork's
+        // rect leaves any shading outside that rect standing — and a design
+        // contain-fitted into a taller print area leaves a band above and
+        // below it. That residue is the ghost rectangle of the print area on
+        // the shirt. `srcIn` under a full-bleed garment draw covers the whole
+        // print area, so everything the mask does not admit is cleared.
+        _drawGarment(
+          canvas,
+          size,
+          shadingImage!,
+          opacity: shadingOpacity,
+          blendMode: ui.BlendMode.srcIn,
+        );
 
         canvas.restore(); // composite the masked shading down
         canvas.restore(); // clipRect

@@ -22,6 +22,7 @@ abstract final class StudioGarments {
   static const defaultColour = ui.Color(0xFF0E0E0E);
 
   static final Map<String, Future<ui.Image>> _cache = {};
+  static final Map<String, Future<ui.Image>> _shadingCache = {};
 
   /// The mockup spec for a Studio [garmentColour] (a `#RRGGBB` hex) and face.
   static GarmentMockupSpec specFor({
@@ -49,6 +50,25 @@ abstract final class StudioGarments {
         return out;
       });
 
+  /// Loads the *fold* layer for [spec] — the photograph reduced to a
+  /// [GarmentTint.luminanceMap].
+  ///
+  /// The shading pass exists to lay the fabric's folds back over the ink, and a
+  /// fold is a luminance, not a colour. Feeding it the tinted garment instead
+  /// hands the print the shirt's own dye: on a red shirt the flags wash out
+  /// pink and the lettering all but disappears. Cached by
+  /// [GarmentMockupSpec.shadingAssetPath], so all six colours share one entry —
+  /// the folds are a property of the photograph, not of the tint.
+  static Future<ui.Image> loadShading(GarmentMockupSpec spec) =>
+      _shadingCache.putIfAbsent(spec.shadingAssetPath, () async {
+        final data = await rootBundle.load(spec.shadingAssetPath);
+        final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+        final source = (await codec.getNextFrame()).image;
+        final out = await GarmentTint.luminanceMap(source);
+        source.dispose();
+        return out;
+      });
+
   /// `#RRGGBB` / `#AARRGGBB` → colour. Null for null or malformed input, so a
   /// bad value falls back to the default rather than crashing the preview.
   static ui.Color? parseHex(String? hex) {
@@ -66,5 +86,9 @@ abstract final class StudioGarments {
       f.then((img) => img.dispose()).ignore();
     }
     _cache.clear();
+    for (final f in _shadingCache.values) {
+      f.then((img) => img.dispose()).ignore();
+    }
+    _shadingCache.clear();
   }
 }

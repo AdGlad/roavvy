@@ -45,7 +45,9 @@ class ShirtPreview extends StatefulWidget {
 class _ShirtPreviewState extends State<ShirtPreview> {
   ui.Image? _artwork;
   ui.Image? _garment;
+  ui.Image? _shading;
   String? _garmentKey;
+  String? _shadingKey;
 
   GarmentMockupSpec get _spec => StudioGarments.specFor(
     garmentColour: widget.recipe.palette?.garmentColour,
@@ -57,6 +59,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     super.initState();
     _loadArtwork();
     _loadGarment();
+    _loadShading();
   }
 
   @override
@@ -69,6 +72,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
       _loadArtwork();
     }
     if (_spec.garmentKey != _garmentKey) _loadGarment();
+    if (_spec.shadingAssetPath != _shadingKey) _loadShading();
   }
 
   Future<void> _loadArtwork() async {
@@ -101,6 +105,20 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     }
   }
 
+  Future<void> _loadShading() async {
+    final spec = _spec;
+    final key = spec.shadingAssetPath;
+    _shadingKey = key;
+    try {
+      final img = await StudioGarments.loadShading(spec);
+      if (mounted && _shadingKey == key) setState(() => _shading = img);
+    } catch (e) {
+      // Losing the folds costs realism, never the preview: the shirt and the
+      // print still render, just flat.
+      v2trace('ShirtPreview.shading.ERROR $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final garment = _garment;
@@ -124,9 +142,12 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     return GarmentMockupCanvas(
       spec: _spec,
       garmentImage: garment,
-      // The recoloured garment carries its own folds, so it doubles as the
-      // shading source — exactly as it does for the untinted photographs.
-      shadingImage: garment,
+      // The NEUTRAL photograph, never the recoloured garment. The shading pass
+      // multiplies this over the ink to bed the print into the fabric, so it
+      // must supply folds — a luminance — and nothing else. Passing the tinted
+      // shirt here is what put a red wash over the flags and swallowed the
+      // lettering on a red tee.
+      shadingImage: _shading,
       artworkImage: artwork,
       // The design prints as it was designed. It is rendered with no
       // background fill, so what reaches the fabric is the artwork alone and

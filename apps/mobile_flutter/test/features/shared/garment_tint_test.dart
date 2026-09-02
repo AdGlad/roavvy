@@ -198,6 +198,65 @@ void main() {
   // the WHITE shirt, whose blown-out shoulders are pixel-identical to the white
   // studio sweep. The cutout leaked straight through them and bit black holes
   // out of both shoulders on screen. These run the actual assets.
+  group('the fold map fed to the shading pass', () {
+    testWidgets('is greyscale whatever colour the garment is', (tester) async {
+      await tester.runAsync(() async {
+        // A garment photographed in a saturated colour. The painter MULTIPLIES
+        // the shading over the print, so if any of that colour survives into
+        // the map it is multiplied straight into the ink.
+        final recorder = ui.PictureRecorder();
+        final canvas = ui.Canvas(recorder);
+        canvas.drawRect(
+          const ui.Rect.fromLTWH(0, 0, 64, 64),
+          ui.Paint()..color = const ui.Color(0xFFFFFFFF),
+        );
+        canvas.drawRect(
+          const ui.Rect.fromLTWH(16, 16, 32, 32),
+          ui.Paint()..color = const ui.Color(0xFFFF1B2B), // Printful Red
+        );
+        canvas.drawRect(
+          const ui.Rect.fromLTWH(16, 28, 32, 5),
+          ui.Paint()..color = const ui.Color(0xFF8E0F18), // a fold in it
+        );
+        final red = await recorder.endRecording().toImage(64, 64);
+
+        final map = await GarmentTint.luminanceMap(red);
+
+        final lit = await rgbaAt(map, 20, 20);
+        expect(lit[0], lit[1], reason: 'red channel leaked into the fold map');
+        expect(lit[1], lit[2], reason: 'blue channel leaked into the fold map');
+        expect(lit[3], 255, reason: 'the garment must stay opaque');
+
+        // Anchored so lit fabric is white: multiplying it over ink is a no-op
+        // everywhere the cloth is flat, which is what keeps the design's own
+        // colours intact.
+        expect(lit[0], greaterThan(240));
+
+        // The fold is the only thing that darkens.
+        final shaded = await rgbaAt(map, 20, 30);
+        expect(shaded[0], lessThan(lit[0]));
+        expect(shaded[0], shaded[1]);
+        expect(shaded[1], shaded[2]);
+      });
+    });
+
+    testWidgets('keeps the studio sweep out of the folds', (tester) async {
+      await tester.runAsync(() async {
+        final map = await GarmentTint.luminanceMap(
+          await fakeShirtPhoto(size: size),
+        );
+        // Transparent backdrop => the shading pass cannot darken bare shirt
+        // outside the garment.
+        expect((await rgbaAt(map, corner.$1, corner.$2))[3], 0);
+        expect((await rgbaAt(map, body.$1, body.$2))[3], 255);
+        // The fold still reads darker than the flat body.
+        final flat = (await rgbaAt(map, body.$1, body.$2))[0];
+        final dip = (await rgbaAt(map, fold.$1, fold.$2))[0];
+        expect(dip, lessThan(flat));
+      });
+    });
+  });
+
   group('bundled tint bases', () {
     Future<ui.Image> loadAsset(String path) async {
       final data = await rootBundle.load(path);

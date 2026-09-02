@@ -139,6 +139,42 @@ void main() {
         );
       }
     });
+
+    testWidgets('the fold pass never reuses the recoloured garment', (
+      tester,
+    ) async {
+      // The shading pass multiplies its source back over the ink. Handing it
+      // the tinted shirt paints the garment's dye across the design — on red,
+      // the flags wash out pink and the lettering all but vanishes. It must be
+      // fed the neutral photograph, whose folds are a luminance and nothing
+      // more.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ShirtPreview(
+            service: RenderService(_NoopResolver()),
+            recipe: DesignRecipe(
+              seed: 1,
+              content: const RecipeContent(flags: [FlagRef('fr')]),
+              composition: const Composition(family: DesignFamily.grid),
+              palette: const Palette(garmentColour: '#FF1B2B'),
+            ),
+            front: false,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      for (final c in tester.widgetList<GarmentMockupCanvas>(
+        find.byType(GarmentMockupCanvas),
+      )) {
+        if (c.garmentImage == null) continue;
+        expect(
+          identical(c.shadingImage, c.garmentImage),
+          isFalse,
+          reason: 'the folds must come from the neutral shirt, not the tint',
+        );
+      }
+    });
   });
 
   group('Studio hero', () {

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../shared/garment_mockup/garment_mockup_spec.dart';
+import '../shared/garment_mockup/garment_tint.dart';
 
 /// Singleton cache for bundled product mockup images.
 ///
@@ -66,13 +67,44 @@ class LocalMockupImageCache {
   /// Loads a spec's garment image and its fabric shading source together
   /// (M174), returning `(garment, shading)`.
   ///
-  /// When the spec has no companion wrinkle map, [GarmentMockupSpec.shadingAssetPath]
-  /// is the garment photo itself — the two records are then the SAME cached
-  /// [ui.Image], costing no extra memory and no second decode.
+  /// When the spec registers a companion wrinkle map, that map is already a
+  /// greyscale luminance and is loaded as-is. Otherwise the shading is derived
+  /// from the garment photo with [GarmentTint.luminanceMap].
+  ///
+  /// It must NOT be the photo itself. The painter multiplies the shading over
+  /// the print, so a colour photo multiplies its colour into the ink — the
+  /// coloured garment shots (`Red-tshirt-front.jpeg` and friends) would drag
+  /// every design towards the shirt's own dye. The derived map is cached under
+  /// its own key, so a colour swap costs one pixel pass, once.
   Future<(ui.Image, ui.Image)> loadWithShading(GarmentMockupSpec spec) async {
     final garment = await load(spec.assetPath);
-    if (spec.shadingAssetPath == spec.assetPath) return (garment, garment);
-    return (garment, await load(spec.shadingAssetPath));
+    if (spec.shadingAssetPath != spec.assetPath) {
+      return (garment, await load(spec.shadingAssetPath));
+    }
+    return (garment, await _luminanceOf(spec.assetPath, garment));
+  }
+
+  /// The cached luminance map derived from an already-decoded garment photo.
+  Future<ui.Image> _luminanceOf(String assetPath, ui.Image garment) async {
+    final key = '$assetPath#luma';
+    final cached = _cache[key];
+    if (cached != null) {
+      _cache.remove(key);
+      _cache[key] = cached;
+      return cached;
+    }
+    final map = await GarmentTint.luminanceMap(garment);
+    // Never evict the garment we were just handed to derive this from.
+    if (_cache.length >= maxEntries) {
+      final oldest = _cache.keys.firstWhere(
+        (k) => !identical(_cache[k], garment),
+        orElse: () => _cache.keys.first,
+      );
+      _cache[oldest]?.dispose();
+      _cache.remove(oldest);
+    }
+    _cache[key] = map;
+    return map;
   }
 
   /// Disposes all cached [ui.Image] handles and clears the cache.

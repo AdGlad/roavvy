@@ -107,6 +107,56 @@ void main() {
       });
     });
 
+    testWidgets('no ghost rectangle above and below a contain-fitted design', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        // A print area TALLER than it is wide. A square design contain-fits to
+        // its width, leaving a band above and below that sits inside the print
+        // rectangle but outside the artwork's own rect. A `dstIn` mask can
+        // never reach that band — a Porter-Duff blend only touches the pixels
+        // its geometry covers — so the fold pass used to survive there and
+        // print the outline of the print area onto the shirt.
+        //
+        // The existing shading test cannot catch this: its print area is
+        // square and its artwork is square, so the artwork covers the print
+        // rectangle exactly and no such band exists.
+        const tallSpec = ProductMockupSpec(
+          assetPath: 'test://shirt',
+          printAreaNorm: Rect.fromLTWH(0.25, 0.1, 0.5, 0.8),
+        );
+        final shirt = await solid(200, 200, const ui.Color(0xFFFFFFFF));
+        final shading = await solid(200, 200, const ui.Color(0xFF303030));
+        final art = await artworkWithTransparentMargin(100);
+        final controller = MockupTransformController();
+        addTearDown(controller.dispose);
+
+        final rgba = await rasterise(
+          GarmentMockupPainter(
+            spec: tallSpec,
+            controller: controller,
+            garmentImage: shirt,
+            shadingImage: shading,
+            artworkImage: art,
+            artworkBlendMode: ui.BlendMode.srcOver,
+            shadingOpacity: 1.0,
+          ),
+          canvasSize,
+        );
+
+        // Print area spans y 20..180; the square artwork contain-fits to
+        // y 50..150. y = 30 and y = 165 are inside the print rectangle and
+        // outside the design — bare shirt, and it must stay bare.
+        for (final y in [30, 165]) {
+          expect(
+            pixelAt(rgba, canvasSize, 100, y),
+            const ui.Color(0xFFFFFFFF),
+            reason: 'the print area is showing as a shadow at y=$y',
+          );
+        }
+      });
+    });
+
     testWidgets('artwork never escapes the printable area', (tester) async {
       await tester.runAsync(() async {
         final shirt = await solid(200, 200, const ui.Color(0xFFFFFFFF));
