@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../studio_v2_theme.dart';
 import 'garment_preview.dart';
 
 /// A compact **alternatives tray** (M4) — several deterministic interpretations
@@ -37,9 +38,6 @@ class _AlternativesTrayState extends State<AlternativesTray> {
   @override
   void initState() {
     super.initState();
-    // Populate this axis's alternatives once the first frame is up (never during
-    // build — focusAxis notifies listeners). Idempotent: only (re)rolls when the
-    // tray isn't already showing this axis.
     WidgetsBinding.instance.addPostFrameCallback((_) => _ensureFocused());
   }
 
@@ -67,7 +65,7 @@ class _AlternativesTrayState extends State<AlternativesTray> {
                 style: const TextStyle(
                     fontSize: 11,
                     letterSpacing: 1.2,
-                    color: Colors.tealAccent)),
+                    color: StudioV2Theme.accent)),
           ),
           TextButton.icon(
             key: const Key('v2-alt-more'),
@@ -106,9 +104,9 @@ class _AlternativesTrayState extends State<AlternativesTray> {
       child: Container(
         width: 96,
         decoration: BoxDecoration(
-          color: const Color(0xFF1B1E24),
+          color: StudioV2Theme.card,
           border: Border.all(
-              color: selected ? Colors.tealAccent : const Color(0xFF3A3D44),
+              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
               width: selected ? 2 : 1),
           borderRadius: BorderRadius.circular(10),
         ),
