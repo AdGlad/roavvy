@@ -16,6 +16,7 @@ import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
 import 'widgets/instant_workspace.dart';
 import 'widgets/placement_workspace.dart';
+import 'widgets/saved_designs_sheet.dart';
 import 'widgets/review_workspace.dart';
 import 'widgets/shirt_preview.dart';
 import 'widgets/travels_workspace.dart';
@@ -138,6 +139,12 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             tooltip: canUndo ? 'Undo design change' : 'Nothing to undo',
             icon: const Icon(Icons.undo_rounded),
             onPressed: canUndo ? _c.undo : null,
+          ),
+          IconButton(
+            key: const Key('v2-saved-designs'),
+            tooltip: 'Your saved designs',
+            icon: const Icon(Icons.bookmark_border_rounded),
+            onPressed: _showSavedDesigns,
           ),
           IconButton(
             key: const Key('v2-open-steps'),
@@ -603,6 +610,22 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
           ),
     );
   }
+
+  /// Your wardrobe, reachable from every step — like buying, it is not
+  /// something to walk to the end of the flow for.
+  void _showSavedDesigns() => showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: const Color(0xFF1A1C21),
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder:
+        (_) => SavedDesignsSheet(
+          controller: _c,
+          onAddToCart: widget.onAddToCart,
+          // Saving happened at Review, so that is where carrying on resumes.
+          onOpen: (_) => _goToStage(StudioStage.review),
+        ),
+  );
 
   void _showGarmentColours() => _showChoiceSheet(
     title: 'Shirt colour',

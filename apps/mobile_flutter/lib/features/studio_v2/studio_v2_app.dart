@@ -38,6 +38,7 @@ StudioController buildStudioV2ControllerFor(
   DesignContext context, {
   DesignPreferences preferences = DesignPreferences.neutral,
   Set<String> unavailableGarments = const {},
+  PersistentDesignLibrary? library,
 }) {
   final generator = LabShowcaseGenerator(
     silhouettesByShape: _bundledSilhouettesByShape(),
@@ -45,6 +46,10 @@ StudioController buildStudioV2ControllerFor(
   );
   final service = RenderService(createBundleAssetResolver());
   final prefsStore = PrefsPreferenceStore();
+  // Building a controller stays pure: it creates the wardrobe but never reads
+  // it. Reading is disk work with its own failure modes, and it belongs to
+  // whoever owns the app lifecycle — [StudioV2App] hands in a library it has
+  // already loaded (see [openDesignLibrary]).
   return StudioController(
     generator: generator,
     service: service,
@@ -52,9 +57,38 @@ StudioController buildStudioV2ControllerFor(
     initialSeed: 1,
     preferences: preferences,
     unavailableGarments: unavailableGarments,
-    library: PersistentDesignLibrary(PrefsDesignStore()),
-    savePreferences: (p) => unawaited(prefsStore.save(p)),
+    library: library ?? PersistentDesignLibrary(PrefsDesignStore()),
+    savePreferences:
+        (p) => unawaited(_ignoringFailure(() => prefsStore.save(p))),
   );
+}
+
+/// The saved-designs wardrobe, read back off disk.
+///
+/// Nothing read it, so every restart quietly started from an empty wardrobe —
+/// designs were being written to a file no one opened. A wardrobe that cannot
+/// be read is an empty wardrobe, never a Studio that fails to open, so a
+/// failed read is discarded rather than propagated.
+Future<PersistentDesignLibrary> openDesignLibrary() async {
+  final library = PersistentDesignLibrary(PrefsDesignStore());
+  await _ignoringFailure(library.load);
+  return library;
+}
+
+/// Runs [work], discarding any failure.
+///
+/// Persistence here is a convenience, never a precondition: a wardrobe that
+/// cannot be read is an empty wardrobe and preferences that cannot be written
+/// are preferences not learned — neither is a reason for the Studio to fail to
+/// open. Unguarded, these surface as unhandled async errors that land on
+/// whatever is running when the write fails, which in tests means an unrelated
+/// case fails after it has already passed.
+Future<void> _ignoringFailure(Future<void> Function() work) async {
+  try {
+    await work();
+  } catch (_) {
+    // Deliberately swallowed — see above.
+  }
 }
 
 /// Test/dev convenience: a controller over a fixed demo context (no Riverpod).
@@ -100,19 +134,25 @@ class StudioV2App extends ConsumerStatefulWidget {
 class _StudioV2AppState extends ConsumerState<StudioV2App> {
   StudioController? _controller;
   DesignPreferences? _prefs;
+  PersistentDesignLibrary? _library;
   bool _prefsLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPrefs();
+    _loadSaved();
   }
 
-  Future<void> _loadPrefs() async {
+  /// Everything persisted between sessions: what the Studio has learned, and
+  /// the designs already saved. Both are read before the controller exists, so
+  /// it opens with them rather than acquiring them later.
+  Future<void> _loadSaved() async {
     final p = await PrefsPreferenceStore().load();
+    final lib = await openDesignLibrary();
     if (mounted) {
       setState(() {
         _prefs = p;
+        _library = lib;
         _prefsLoaded = true;
       });
     }
@@ -159,6 +199,7 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
         ctx,
         preferences: _prefs ?? DesignPreferences.neutral,
         unavailableGarments: widget.unavailableGarments,
+        library: _library,
       );
       v2trace(
         'controller ready: heroRecipeId=${_controller!.current.recipeId} '

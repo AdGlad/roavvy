@@ -290,7 +290,20 @@ class PersistentDesignLibrary {
     _lib = DesignLibrary.decode(await _store.read());
   }
 
-  Future<void> _persist() => _store.write(_lib.encode());
+  /// Writes the library out, discarding a store failure.
+  ///
+  /// Every caller in the Studio is a synchronous user action — save, like,
+  /// reject — that cannot await this, so a thrown write becomes an unhandled
+  /// async error landing on whatever happens to be running. Losing a write is
+  /// a lost bookmark; an unhandled error is a crash, and the in-memory library
+  /// is still correct either way.
+  Future<void> _persist() async {
+    try {
+      await _store.write(_lib.encode());
+    } catch (_) {
+      // Deliberately swallowed — see above.
+    }
+  }
 
   Future<bool> toggleLike(DesignRecipe r, {int? nowMs}) async {
     final liked =
