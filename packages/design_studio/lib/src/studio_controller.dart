@@ -21,7 +21,16 @@ enum FrontFit { full, chest, none }
 enum FrontArt { ribbon, complement, matchBack }
 
 /// The Refine ("Fine Tune") categories — the storyboard's category menu.
-enum RefineCategory { finish, layout, graphic, text, colour, edges, effects, print }
+enum RefineCategory {
+  finish,
+  layout,
+  graphic,
+  text,
+  colour,
+  edges,
+  effects,
+  print
+}
 
 extension RefineCategoryLabel on RefineCategory {
   String get label => switch (this) {
@@ -119,7 +128,8 @@ class StudioController extends ChangeNotifier {
   ];
 
   /// One-tap named finishes: (label, effects, vintageGrade, colourStrategy?).
-  static const List<(String, Effects, double, ColourStrategy?)> finishPresets = [
+  static const List<(String, Effects, double, ColourStrategy?)> finishPresets =
+      [
     ('Clean', Effects(), 0.0, ColourStrategy.flagDerived),
     ('Vintage', Effects(fade: 0.35, grain: 0.3), 0.6, null),
     ('Retro', Effects(halftone: 0.5, halftoneScale: 5), 0.2, null),
@@ -283,6 +293,117 @@ class StudioController extends ChangeNotifier {
     return scored;
   }
 
+  // ── Instant: ready-to-wear picks ────────────────────────────────────────────
+
+  /// How many ready-made designs the Instant step offers.
+  static const int instantCount = 8;
+
+  List<DesignRecipe>? _instantPicks;
+  int _instantIndex = 0;
+
+  /// A set of finished designs chosen for this traveller — the opening offer,
+  /// before any of the workflow is touched.
+  ///
+  /// Built from [LabSmartGenerator] once preferences exist, so the deck is
+  /// preference-weighted and diversity-constrained rather than eight variations
+  /// on one idea. With nothing learned yet it walks the SUBJECTS instead
+  /// (Flags, Passport, Route, World, Words, Milestones), which gives a first-run
+  /// traveller the same breadth by construction.
+  ///
+  /// Deterministic for a given context + seed, and built once per session so
+  /// swiping back and forth never re-rolls what you already saw.
+  List<DesignRecipe> get instantPicks {
+    final cached = _instantPicks;
+    if (cached != null) return cached;
+
+    final picks = <DesignRecipe>[];
+    if (_preferences.sampleCount > 0) {
+      picks.addAll(LabSmartGenerator(
+        preferences: _preferences,
+        silhouettesByShape: generator.silhouettesByShape,
+        continents: generator.continents,
+        countryNames: generator.countryNames,
+        outputCount: instantCount,
+      ).generate(_context, seed: initialSeed, count: instantCount));
+    }
+    // Top up (and, on a first run, fill) by walking the subjects so the deck is
+    // never a single family repeated.
+    for (var i = 0;
+        picks.length < instantCount && i < subjects.length * 3;
+        i++) {
+      final (g, t, _) = subjects[i % subjects.length];
+      final made = generator
+          .withGenre(g, template: t)
+          .generate(_context, seed: initialSeed + i * 7 + 1, count: 1);
+      for (final r in made) {
+        if (picks.every((p) => p.recipeId != r.recipeId)) picks.add(r);
+      }
+    }
+    final deck = picks.take(instantCount).toList();
+    _instantPicks = deck;
+    return deck;
+  }
+
+  /// A short, human name for a design — what the Instant deck calls each pick.
+  ///
+  /// Reads the design itself rather than storing a label, so a pick is named
+  /// the same wherever it appears. The printed title wins when the design has
+  /// one: that is what the wearer chose to call it.
+  String instantName(DesignRecipe r) {
+    final title = (r.content.meta['title'] as String?)?.trim();
+    if (title != null && title.isNotEmpty) return title;
+
+    final shape = r.clip?.shapeId;
+    if (shape == 'passportPage' || shape == 'passportStampOutline') {
+      return 'Passport stamps';
+    }
+    if (shape != null && silhouetteShapeIds.contains(shape)) {
+      return 'Silhouette';
+    }
+    if (shape == 'countryOutline' || shape == 'continentOutline') return 'Map';
+    if (shape == 'text') return 'Word';
+
+    return switch (r.composition.family) {
+      DesignFamily.timeline => 'Timeline',
+      DesignFamily.journeys => 'Route',
+      DesignFamily.wordCloud => 'World in words',
+      DesignFamily.badge => 'Badge',
+      DesignFamily.achievements => 'Milestone',
+      DesignFamily.stats => 'Travel stats',
+      DesignFamily.frontRibbon => 'Chest ribbon',
+      DesignFamily.singleHero => 'Single flag',
+      DesignFamily.duoBlend => 'Two flags',
+      _ => 'Flag grid',
+    };
+  }
+
+  /// Which pick is on the shirt right now.
+  int get instantIndex => _instantIndex;
+
+  /// Show pick [i] — swiping the Instant deck.
+  ///
+  /// Browsing is not choosing: this sets the visible design WITHOUT pushing undo
+  /// history or teaching the preference model, so flicking through eight shirts
+  /// doesn't bury the design you started on or skew what you are shown next.
+  /// Acting on one ([takeInstant]) is what counts as a choice.
+  void showInstant(int i) {
+    final deck = instantPicks;
+    if (deck.isEmpty) return;
+    final index = i % deck.length;
+    _instantIndex = index < 0 ? index + deck.length : index;
+    _hero = _carryGarment(deck[_instantIndex], _hero);
+    _frontFace = _ribbonOf(_hero);
+    notifyListeners();
+  }
+
+  /// Commit the pick on screen as the design being worked on — what Configure
+  /// and Buy both act through. Undoable, and it teaches the preference model.
+  void takeInstant() {
+    final deck = instantPicks;
+    if (deck.isEmpty) return;
+    _observe(_hero, PreferenceSignal.styleChosen);
+  }
+
   /// The single learning choke-point: fold [signal] into preferences + persist.
   void _observe(DesignRecipe recipe, PreferenceSignal signal) {
     _preferences = learner.observe(_preferences, recipe, signal);
@@ -337,7 +458,12 @@ class StudioController extends ChangeNotifier {
     final base = current;
     return [
       for (final s in LabStyle.values)
-        (s, _gen.withStyle(s).reroll(base, DesignAxis.vibe, newSeed: 7000 + s.index)),
+        (
+          s,
+          _gen
+              .withStyle(s)
+              .reroll(base, DesignAxis.vibe, newSeed: 7000 + s.index)
+        ),
     ];
   }
 
@@ -603,8 +729,9 @@ class StudioController extends ChangeNotifier {
   List<RefineCategory> refineCategories() {
     final genre = subjects[_subjectIndex].$1;
     final clip = current.clip;
-    final clipped =
-        clip != null && clip.shapeId != 'none' && clip.shapeId != 'passportPage';
+    final clipped = clip != null &&
+        clip.shapeId != 'none' &&
+        clip.shapeId != 'passportPage';
     final isPassport = genre == LabGenre.passport;
     return [
       RefineCategory.finish,
@@ -623,6 +750,7 @@ class StudioController extends ChangeNotifier {
       setComp(current.composition.copyWith(sizeClass: s));
   void setOrientation(Orientation o) =>
       setComp(current.composition.copyWith(orientation: o));
+
   /// Set the blank GARMENT colour. Applied to BOTH faces (a t-shirt is one
   /// colour front and back) as a live palette edit — no layout re-roll, no
   /// history step, so each face keeps its own design.
@@ -735,7 +863,8 @@ class StudioController extends ChangeNotifier {
         _frontFace = _ribbonOf(_hero);
       case FrontArt.complement:
         _frontFace = GarmentDesign.deriveBack(_hero,
-            themeSeed: _nextSeed(), garmentColour: _hero.palette?.garmentColour);
+            themeSeed: _nextSeed(),
+            garmentColour: _hero.palette?.garmentColour);
       case FrontArt.matchBack:
         _frontFace = _hero;
     }
@@ -804,7 +933,10 @@ class StudioController extends ChangeNotifier {
   /// one per visit. Flat visited data (no trips) ignores Source/Year.
   List<String> _effectiveCodes() {
     if (!designContext.hasTrips) {
-      return [for (final c in availableCountryCodes) if (_selected.contains(c)) c];
+      return [
+        for (final c in availableCountryCodes)
+          if (_selected.contains(c)) c
+      ];
     }
     final range = DateRange.years(_yearLo, _yearHi);
     final kept = [

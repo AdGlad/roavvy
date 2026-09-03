@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:design_forge/design_forge.dart';
-import 'package:flutter/widgets.dart';
+import 'package:design_studio/design_studio.dart';
+import 'package:flutter/widgets.dart' hide Orientation;
 
 /// The V1-agnostic hand-off payload the Review step produces so a host-side
 /// commerce adapter can drop a Studio V2 design into the EXISTING merch cart /
@@ -76,5 +77,42 @@ class GarmentCartRequest {
 /// the built [GarmentCartRequest], the host adapter maps it onto the existing
 /// merch cart/checkout flow and navigates there. Null in dev/test builds with no
 /// commerce wired — the Review step then surfaces that gracefully.
-typedef AddToCartCallback = Future<void> Function(
-    BuildContext context, GarmentCartRequest request);
+typedef AddToCartCallback =
+    Future<void> Function(BuildContext context, GarmentCartRequest request);
+
+/// Builds the cart hand-off from a live [StudioController] session.
+///
+/// Shared so every route to the checkout — Review's "Add to cart" and Instant's
+/// "Buy it" — sends byte-identical inputs. A second hand-rolled copy is how the
+/// quick path quietly starts ordering something other than what the careful
+/// path orders.
+GarmentCartRequest buildGarmentCartRequest(StudioController c) {
+  final hero = c.hero;
+  final service = c.service;
+  final frontFace = c.frontFace;
+  final hasFrontPrint = c.frontFit != FrontFit.none;
+  return GarmentCartRequest(
+    garment: c.garment,
+    renderBackArtwork: () async => (await service.renderArtwork(hero)).pngBytes,
+    renderFrontArtwork:
+        hasFrontPrint
+            ? () async => (await service.renderArtwork(frontFace)).pngBytes
+            : null,
+    garmentColourHex: hero.palette?.garmentColour,
+    garmentColourName: c.garmentName,
+    selectedCountryCodes: c.selectedCountryCodes.toList(),
+    trips: c.context.trips,
+    frontPosition: switch (c.frontFit) {
+      FrontFit.full => 'center',
+      FrontFit.chest => c.chestRight ? 'right_chest' : 'left_chest',
+      FrontFit.none => 'none',
+    },
+    backPosition: 'center',
+    aspectRatio: switch (hero.composition.orientation) {
+      Orientation.portrait => 4 / 5,
+      Orientation.landscape => 5 / 4,
+      Orientation.square => 1.0,
+    },
+    title: c.currentTitle.isEmpty ? null : c.currentTitle,
+  );
+}
