@@ -20,8 +20,18 @@ class DataLayouts {
   static const _ink = ui.Color(0xFF23262B);
   static const _muted = ui.Color(0xFF6B7078);
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static const _accent = ui.Color(0xFFC24D3A);
@@ -45,7 +55,8 @@ class DataLayouts {
     // Resolve each distinct flag once (chips), at a modest working size.
     final flags = <String, ui.Image>{};
     for (final e in entries) {
-      flags[e.code] ??= await ctx.assets.resolveFlag(e.code, width: 256, height: 256);
+      flags[e.code] ??=
+          await ctx.assets.resolveFlag(e.code, width: 256, height: 256);
     }
 
     switch (recipe.composition.family) {
@@ -62,10 +73,12 @@ class DataLayouts {
         ctx.artwork = await _badge(ctx, entries, flags, recipe.content.meta);
         break;
       case DesignFamily.frontRibbon:
-        ctx.artwork = await _frontRibbon(ctx, entries, flags);
+        ctx.artwork =
+            await _frontRibbon(ctx, entries, flags, recipe.content.meta);
         break;
       case DesignFamily.achievements:
-        ctx.artwork = await _achievements(ctx, entries, flags, recipe.content.meta);
+        ctx.artwork =
+            await _achievements(ctx, entries, flags, recipe.content.meta);
         break;
       case DesignFamily.stats:
         ctx.artwork = await _stats(ctx, entries, flags, recipe.content.meta);
@@ -92,8 +105,13 @@ class DataLayouts {
         ..color = _ink
         ..strokeWidth = math.max(3, r * 0.03);
       canvas.drawCircle(centre, r, ring);
-      canvas.drawCircle(centre, r * 0.86,
-          ui.Paint()..style = ui.PaintingStyle.stroke..color = _ink..strokeWidth = math.max(1.5, r * 0.012));
+      canvas.drawCircle(
+          centre,
+          r * 0.86,
+          ui.Paint()
+            ..style = ui.PaintingStyle.stroke
+            ..color = _ink
+            ..strokeWidth = math.max(1.5, r * 0.012));
       const ticks = 60;
       for (var i = 0; i < ticks; i++) {
         final a = i * 2 * math.pi / ticks;
@@ -101,7 +119,9 @@ class DataLayouts {
         canvas.drawLine(
             centre + ui.Offset(math.cos(a) * r1, math.sin(a) * r1),
             centre + ui.Offset(math.cos(a) * r2, math.sin(a) * r2),
-            ui.Paint()..color = _muted..strokeWidth = r * 0.006);
+            ui.Paint()
+              ..color = _muted
+              ..strokeWidth = r * 0.006);
       }
       // Flag chips in an arc across the top.
       final show = cc.take(9).toList();
@@ -117,51 +137,160 @@ class DataLayouts {
       _text(canvas, '$count', ui.Offset(centre.dx - r, centre.dy - r * 0.12),
           r * 0.6, _accent, ui.FontWeight.w900,
           maxWidth: r * 2, center: true);
-      _text(canvas, count == 1 ? 'COUNTRY' : 'COUNTRIES',
-          ui.Offset(centre.dx - r, centre.dy + r * 0.34), r * 0.16, _ink,
-          ui.FontWeight.w700, maxWidth: r * 2, center: true);
-      _text(canvas, scope.toUpperCase(),
-          ui.Offset(centre.dx - r, centre.dy + r * 0.56), r * 0.12, _muted,
-          ui.FontWeight.w600, maxWidth: r * 2, center: true);
+      _text(
+          canvas,
+          count == 1 ? 'COUNTRY' : 'COUNTRIES',
+          ui.Offset(centre.dx - r, centre.dy + r * 0.34),
+          r * 0.16,
+          _ink,
+          ui.FontWeight.w700,
+          maxWidth: r * 2,
+          center: true);
+      _text(
+          canvas,
+          scope.toUpperCase(),
+          ui.Offset(centre.dx - r, centre.dy + r * 0.56),
+          r * 0.12,
+          _muted,
+          ui.FontWeight.w600,
+          maxWidth: r * 2,
+          center: true);
     });
   }
 
-  // ── Front ribbon (medal-bar of flag stripes) ─────────────────────────────────
+  // ── Front ribbon (the chest wordmark + flag grid) ───────────────────────────
 
-  static Future<ui.Image> _frontRibbon(RenderContext ctx,
-      List<RecipeEntry> entries, Map<String, ui.Image> flags) async {
-    final w = ctx.width.toDouble(), h = ctx.height.toDouble();
-    final cc = entries.map((e) => e.code).toList();
-    return ctx.rasterise((canvas) {
-      if (cc.isEmpty) return;
-      // A centred block of short flag "ribbons" in rows (military medal bar).
-      final perRow = math.max(1, math.min(6, math.sqrt(cc.length * 1.6).ceil()));
-      final rows = (cc.length / perRow).ceil();
-      final gap = w * 0.015;
-      final ribbonW = (w * 0.8 - gap * (perRow - 1)) / perRow;
-      final ribbonH = math.min(ribbonW * 1.5, h * 0.7 / rows - gap);
-      final blockW = ribbonW * perRow + gap * (perRow - 1);
-      final blockH = ribbonH * rows + gap * (rows - 1);
-      final x0 = (w - blockW) / 2, y0 = (h - blockH) / 2;
-      for (var i = 0; i < cc.length; i++) {
-        final col = i % perRow, row = i ~/ perRow;
-        final rect = ui.Rect.fromLTWH(x0 + col * (ribbonW + gap),
-            y0 + row * (ribbonH + gap), ribbonW, ribbonH);
-        _flagChip(canvas, flags[cc[i]]!, rect, ribbonW * 0.10);
-        canvas.drawRRect(
-            ui.RRect.fromRectAndRadius(rect, ui.Radius.circular(ribbonW * 0.10)),
-            ui.Paint()
-              ..style = ui.PaintingStyle.stroke
-              ..color = const ui.Color(0x33000000)
-              ..strokeWidth = ribbonW * 0.03);
+  /// The shirt FRONT: the ROAVVY wordmark over a centred grid of flag tiles.
+  ///
+  /// This is the app's original front artwork (`FrontRibbonCard`) rebuilt for
+  /// the forge renderer, and it is deliberately literal about it — the same
+  /// wordmark band at 14% of the block width, the same 4:3 tiles at up to eight
+  /// per row with the last row centred, the same hairline gap and corner
+  /// rounding. A chest print is small, so the composition has to stay the one
+  /// people already recognise rather than a new arrangement.
+  ///
+  /// Two overrides keep it a family rather than a single fixed lockup:
+  ///   * `meta['frontWordmark']` replaces the wordmark; `''` drops it, leaving
+  ///     flags alone.
+  ///   * `meta['frontSubtitle']` adds a line beneath the flags (the traveller
+  ///     level the original card carried). Absent by default.
+  static Future<ui.Image> _frontRibbon(
+      RenderContext ctx,
+      List<RecipeEntry> entries,
+      Map<String, ui.Image> flags,
+      Map<String, Object?> meta) async {
+    final cw = ctx.width.toDouble(), ch = ctx.height.toDouble();
+    final cc = [for (final e in entries) e.code];
+    if (cc.isEmpty) return ctx.rasterise((_) {});
+
+    final wordmark = (meta['frontWordmark'] as String?)?.trim() ?? 'ROAVVY';
+    final subtitle = (meta['frontSubtitle'] as String?)?.trim() ?? '';
+    // Legible against the garment it will be printed on — the original card
+    // took its text colour from the caller for the same reason.
+    final ink = _legibleInk(ctx.target.background);
+
+    // Laid out in TILE units (one tile wide = 1.0), then scaled to the canvas,
+    // so the proportions hold at preview size and at print resolution alike.
+    const tileH = 0.75; // 4:3 tiles, as the original
+    const maxPerRow = 8;
+
+    // How many tiles per row. The original always used eight, which suits the
+    // wide full-front print it was drawn for; squeezed into a left-chest badge
+    // that same row leaves the flags a few pixels tall. So the grid is shaped
+    // to the print area it is actually given — eight across a wide front, fewer
+    // and stacked on a chest badge — which keeps the composition legible at
+    // every placement without changing what it is.
+    final target = cw / math.max(1.0, ch);
+    var perRow = math.min(maxPerRow, cc.length);
+    var best = double.infinity;
+    for (var n = 1; n <= math.min(maxPerRow, cc.length); n++) {
+      final r = (cc.length / n).ceil();
+      final w = n.toDouble();
+      final h = (wordmark.isEmpty ? 0.0 : w * 0.14) +
+          r * tileH +
+          (subtitle.isEmpty ? 0.0 : w * 0.14);
+      final diff = (math.log(w / h) - math.log(target)).abs();
+      if (diff < best) {
+        best = diff;
+        perRow = n;
       }
+    }
+
+    final rows = (cc.length / perRow).ceil();
+    final blockW = perRow.toDouble();
+    final bandH = blockW * 0.14;
+    final topH = wordmark.isEmpty ? 0.0 : bandH;
+    final subH = subtitle.isEmpty ? 0.0 : bandH;
+    final totalH = topH + rows * tileH + subH;
+
+    final scale = math.min(cw / blockW, ch / totalH);
+    final drawW = blockW * scale, drawH = totalH * scale;
+    final ox = (cw - drawW) / 2, oy = (ch - drawH) / 2;
+    final tile = scale; // one tile unit in pixels
+    final gap = math.max(1.0, tile * 0.02);
+
+    return ctx.rasterise((canvas) {
+      canvas.save();
+      canvas.translate(ox, oy);
+
+      if (wordmark.isNotEmpty) {
+        final size = bandH * scale * 0.45;
+        _text(canvas, wordmark, ui.Offset(0, (topH * scale - size * 1.2) / 2),
+            size, ink, ui.FontWeight.w800,
+            maxWidth: drawW, center: true, letterSpacing: size * 0.22);
+      }
+
+      var i = 0;
+      for (var r = 0; r < rows; r++) {
+        // The last row may be short — centre it, as the original does.
+        final inRow = math.min(perRow, cc.length - r * perRow);
+        final rowW = tile * inRow;
+        final startX = (drawW - rowW) / 2;
+        for (var c = 0; c < inRow; c++) {
+          final rect = ui.Rect.fromLTWH(
+            startX + c * tile + gap / 2,
+            topH * scale + r * tileH * scale + gap / 2,
+            tile - gap,
+            tileH * scale - gap,
+          );
+          _flagChip(canvas, flags[cc[i]]!, rect, gap);
+          i++;
+        }
+      }
+
+      if (subtitle.isNotEmpty) {
+        final size = bandH * scale * 0.35;
+        final y = topH * scale + rows * tileH * scale;
+        _text(
+            canvas,
+            subtitle.toUpperCase(),
+            ui.Offset(0, y + (subH * scale - size * 1.2) / 2),
+            size,
+            ink,
+            ui.FontWeight.w600,
+            maxWidth: drawW,
+            center: true,
+            letterSpacing: size * 0.18);
+      }
+      canvas.restore();
     });
+  }
+
+  /// Dark ink on a light garment, light ink on a dark one. Mirrors the
+  /// typography stage so the front and the printed title agree.
+  static ui.Color _legibleInk(ui.Color? background) {
+    if (background == null) return _ink;
+    final lum =
+        0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b;
+    return lum > 0.5 ? _ink : const ui.Color(0xFFF5F5F5);
   }
 
   // ── Achievements (milestone emblem) ──────────────────────────────────────────
 
-  static Future<ui.Image> _achievements(RenderContext ctx,
-      List<RecipeEntry> entries, Map<String, ui.Image> flags,
+  static Future<ui.Image> _achievements(
+      RenderContext ctx,
+      List<RecipeEntry> entries,
+      Map<String, ui.Image> flags,
       Map<String, Object?> meta) async {
     final w = ctx.width.toDouble(), h = ctx.height.toDouble();
     final milestone = (meta['milestone'] as String?) ?? 'EXPLORER';
@@ -184,11 +313,12 @@ class DataLayouts {
         _flagCircle(canvas, flags[cc.first]!, centre, r * 0.5);
       }
       // Milestone title + subtitle beneath.
-      _text(canvas, milestone.toUpperCase(),
-          ui.Offset(w * 0.1, h * 0.74), h * 0.075, _ink, ui.FontWeight.w900,
+      _text(canvas, milestone.toUpperCase(), ui.Offset(w * 0.1, h * 0.74),
+          h * 0.075, _ink, ui.FontWeight.w900,
           maxWidth: w * 0.8, center: true);
-      _text(canvas, sub.toUpperCase(), ui.Offset(w * 0.1, h * 0.83),
-          h * 0.035, _muted, ui.FontWeight.w600, maxWidth: w * 0.8, center: true);
+      _text(canvas, sub.toUpperCase(), ui.Offset(w * 0.1, h * 0.83), h * 0.035,
+          _muted, ui.FontWeight.w600,
+          maxWidth: w * 0.8, center: true);
     });
   }
 
@@ -213,10 +343,12 @@ class DataLayouts {
       final rowH = h * 0.20;
       for (var i = 0; i < stats.length; i++) {
         final y = h * 0.10 + i * rowH;
-        _text(canvas, stats[i].$1, ui.Offset(w * 0.10, y), rowH * 0.62,
-            _accent, ui.FontWeight.w900, maxWidth: w * 0.8);
+        _text(canvas, stats[i].$1, ui.Offset(w * 0.10, y), rowH * 0.62, _accent,
+            ui.FontWeight.w900,
+            maxWidth: w * 0.8);
         _text(canvas, stats[i].$2, ui.Offset(w * 0.10, y + rowH * 0.62),
-            rowH * 0.22, _muted, ui.FontWeight.w700, maxWidth: w * 0.8);
+            rowH * 0.22, _muted, ui.FontWeight.w700,
+            maxWidth: w * 0.8);
       }
       // '$trips trips' note.
       _text(canvas, '$trips ${trips == 1 ? 'TRIP' : 'TRIPS'}',
@@ -237,7 +369,8 @@ class DataLayouts {
     });
   }
 
-  static ui.Path _starPath(ui.Offset c, double rOuter, double rInner, int points) {
+  static ui.Path _starPath(
+      ui.Offset c, double rOuter, double rInner, int points) {
     final p = ui.Path();
     for (var i = 0; i < points * 2; i++) {
       final r = i.isEven ? rOuter : rInner;
@@ -250,19 +383,20 @@ class DataLayouts {
 
   // ── Timeline ───────────────────────────────────────────────────────────────
 
-  static Future<ui.Image> _timeline(RenderContext ctx, List<RecipeEntry> entries,
-      Map<String, ui.Image> flags) async {
+  static Future<ui.Image> _timeline(RenderContext ctx,
+      List<RecipeEntry> entries, Map<String, ui.Image> flags) async {
     final w = ctx.width.toDouble(), h = ctx.height.toDouble();
     // Chronological; cap so rows stay legible.
-    final rows = [...entries]
-      ..sort((a, b) => (a.start ?? DateTime(0)).compareTo(b.start ?? DateTime(0)));
+    final rows = [...entries]..sort(
+        (a, b) => (a.start ?? DateTime(0)).compareTo(b.start ?? DateTime(0)));
     final shown = rows.take(10).toList();
     return ctx.rasterise((canvas) {
       final padX = w * 0.08, padY = h * 0.08;
       final spineX = padX + w * 0.06;
       final rowH = (h - padY * 2) / shown.length;
       // Spine.
-      canvas.drawLine(ui.Offset(spineX, padY + rowH * 0.5),
+      canvas.drawLine(
+          ui.Offset(spineX, padY + rowH * 0.5),
           ui.Offset(spineX, padY + rowH * (shown.length - 0.5)),
           ui.Paint()
             ..color = _muted
@@ -276,15 +410,19 @@ class DataLayouts {
         // Flag chip (rounded) just right of the spine.
         final chip = math.min(rowH * 0.62, w * 0.14);
         final chipRect = ui.Rect.fromCenter(
-            center: ui.Offset(spineX + w * 0.09, cy), width: chip * 1.5, height: chip);
+            center: ui.Offset(spineX + w * 0.09, cy),
+            width: chip * 1.5,
+            height: chip);
         _flagChip(canvas, flags[e.code]!, chipRect, chip * 0.16);
         // Text: name (bold) + date range.
         final tx = chipRect.right + w * 0.03;
         final name = e.label.isEmpty ? e.code.toUpperCase() : e.label;
         _text(canvas, name.toUpperCase(), ui.Offset(tx, cy - rowH * 0.30),
-            rowH * 0.30, _ink, ui.FontWeight.w800, maxWidth: w - tx - padX);
-        _text(canvas, _range(e), ui.Offset(tx, cy + rowH * 0.02),
-            rowH * 0.22, _muted, ui.FontWeight.w500, maxWidth: w - tx - padX);
+            rowH * 0.30, _ink, ui.FontWeight.w800,
+            maxWidth: w - tx - padX);
+        _text(canvas, _range(e), ui.Offset(tx, cy + rowH * 0.02), rowH * 0.22,
+            _muted, ui.FontWeight.w500,
+            maxWidth: w - tx - padX);
       }
     });
   }
@@ -324,17 +462,23 @@ class DataLayouts {
         final c = at(i);
         _flagCircle(canvas, flags[e.code]!, c, chip / 2);
         final name = e.label.isEmpty ? e.code.toUpperCase() : e.label;
-        _text(canvas, name.toUpperCase(), ui.Offset(c.dx - w * 0.18, c.dy + chip * 0.55),
-            chip * 0.26, _ink, ui.FontWeight.w700,
-            maxWidth: w * 0.36, center: true);
+        _text(
+            canvas,
+            name.toUpperCase(),
+            ui.Offset(c.dx - w * 0.18, c.dy + chip * 0.55),
+            chip * 0.26,
+            _ink,
+            ui.FontWeight.w700,
+            maxWidth: w * 0.36,
+            center: true);
       }
     });
   }
 
   // ── Word cloud (names sized by visit frequency, spiral-packed) ───────────────
 
-  static Future<ui.Image> _wordCloud(RenderContext ctx, List<RecipeEntry> entries,
-      Map<String, ui.Image> flags, int seed) async {
+  static Future<ui.Image> _wordCloud(RenderContext ctx,
+      List<RecipeEntry> entries, Map<String, ui.Image> flags, int seed) async {
     final w = ctx.width.toDouble(), h = ctx.height.toDouble();
     // Largest weight first — big words claim the centre, smaller ones fill in.
     final words = [...entries]..sort((a, b) => b.weight.compareTo(a.weight));
@@ -348,7 +492,12 @@ class DataLayouts {
 
     // Frequency → font size (like the mobile word_cloud mintextsize/maxtextsize).
     final minSize = h * (n <= 3 ? 0.07 : 0.030);
-    final maxSize = h * (n <= 3 ? 0.15 : n <= 10 ? 0.11 : 0.085);
+    final maxSize = h *
+        (n <= 3
+            ? 0.15
+            : n <= 10
+                ? 0.11
+                : 0.085);
     final rng = DeterministicRng(seed).stream('wordcloud');
 
     return ctx.rasterise((canvas) {
@@ -392,8 +541,8 @@ class DataLayouts {
           // Squash vertically so the cloud fills a landscape-ish oval.
           final cx = centre.dx + rad * math.cos(ang);
           final cy = centre.dy + rad * math.sin(ang) * 0.72;
-          final rect =
-              ui.Rect.fromCenter(center: ui.Offset(cx, cy), width: boxW, height: boxH);
+          final rect = ui.Rect.fromCenter(
+              center: ui.Offset(cx, cy), width: boxW, height: boxH);
           if (rect.left < 2 ||
               rect.top < 2 ||
               rect.right > w - 2 ||
@@ -409,8 +558,7 @@ class DataLayouts {
           }
           if (ok) spot = rect;
         }
-        spot ??=
-            ui.Rect.fromCenter(center: centre, width: boxW, height: boxH);
+        spot ??= ui.Rect.fromCenter(center: centre, width: boxW, height: boxH);
         placed.add(spot);
         canvas.drawParagraph(
             para, ui.Offset(spot.center.dx - tw / 2, spot.center.dy - th / 2));
@@ -420,20 +568,25 @@ class DataLayouts {
 
   // ── shared drawing helpers ───────────────────────────────────────────────────
 
-  static void _flagChip(ui.Canvas canvas, ui.Image img, ui.Rect rect, double radius) {
+  static void _flagChip(
+      ui.Canvas canvas, ui.Image img, ui.Rect rect, double radius) {
     canvas.save();
-    canvas.clipRRect(ui.RRect.fromRectAndRadius(rect, ui.Radius.circular(radius)));
+    canvas.clipRRect(
+        ui.RRect.fromRectAndRadius(rect, ui.Radius.circular(radius)));
     _cover(canvas, img, rect);
     canvas.restore();
   }
 
-  static void _flagCircle(ui.Canvas canvas, ui.Image img, ui.Offset c, double r) {
+  static void _flagCircle(
+      ui.Canvas canvas, ui.Image img, ui.Offset c, double r) {
     final rect = ui.Rect.fromCircle(center: c, radius: r);
     canvas.save();
     canvas.clipPath(ui.Path()..addOval(rect));
     _cover(canvas, img, rect);
     canvas.restore();
-    canvas.drawCircle(c, r,
+    canvas.drawCircle(
+        c,
+        r,
         ui.Paint()
           ..style = ui.PaintingStyle.stroke
           ..strokeWidth = r * 0.09
@@ -453,21 +606,24 @@ class DataLayouts {
 
   static ui.Paragraph _para(
       String text, double size, ui.Color color, ui.FontWeight weight,
-      {bool center = false}) {
+      {bool center = false, double letterSpacing = 0}) {
     final b = ui.ParagraphBuilder(ui.ParagraphStyle(
       fontSize: size,
       fontWeight: weight,
       textAlign: center ? ui.TextAlign.center : ui.TextAlign.left,
     ))
-      ..pushStyle(ui.TextStyle(color: color))
+      ..pushStyle(ui.TextStyle(color: color, letterSpacing: letterSpacing))
       ..addText(text);
     return b.build();
   }
 
-  static void _text(ui.Canvas canvas, String text, ui.Offset topLeft, double size,
-      ui.Color color, ui.FontWeight weight,
-      {double maxWidth = 100000, bool center = false}) {
-    final para = _para(text, size, color, weight, center: center);
+  static void _text(ui.Canvas canvas, String text, ui.Offset topLeft,
+      double size, ui.Color color, ui.FontWeight weight,
+      {double maxWidth = 100000,
+      bool center = false,
+      double letterSpacing = 0}) {
+    final para = _para(text, size, color, weight,
+        center: center, letterSpacing: letterSpacing);
     para.layout(ui.ParagraphConstraints(width: maxWidth));
     canvas.drawParagraph(para, topLeft);
   }
@@ -489,11 +645,15 @@ class DataLayouts {
     for (var i = 0; i < total; i += step) {
       final o = i * 4;
       if (data[o + 3] < 40) continue;
-      r += data[o]; g += data[o + 1]; b += data[o + 2]; n++;
+      r += data[o];
+      g += data[o + 1];
+      b += data[o + 2];
+      n++;
     }
     if (n == 0) return _ink;
     // Darken toward ink so light flags stay legible on a light page.
     double mix(int v) => (v / n) * 0.82;
-    return ui.Color.fromARGB(255, mix(r).round(), mix(g).round(), mix(b).round());
+    return ui.Color.fromARGB(
+        255, mix(r).round(), mix(g).round(), mix(b).round());
   }
 }

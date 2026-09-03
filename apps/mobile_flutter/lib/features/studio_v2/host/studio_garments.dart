@@ -1,18 +1,19 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/widgets.dart' show Rect;
 
 import '../../shared/garment_mockup/garment_mockup_spec.dart';
 import '../../shared/garment_mockup/garment_tint.dart';
 
 /// Turns a Studio garment colour into a renderable shirt.
 ///
-/// The Studio's palette (Black, White, Navy, Grey, Sand, Olive) is wider than
-/// the bundled photography (Black, White, Blue, Grey, Red), and three of its
-/// colours have no photograph at all. Rather than mapping Olive onto a grey
-/// shirt and calling it close enough, every colour is produced by recolouring
-/// one neutral garment to the exact hex — so what you pick is what you see, and
-/// adding a seventh colour later needs no new asset.
+/// The Studio's palette is the eight colourways the shirt is actually stocked
+/// in (see `StudioController.garments`), which is wider than the bundled
+/// photography and does not line up with it. Rather than mapping a colour onto
+/// the nearest photographed shirt and calling it close enough, every colour is
+/// produced by recolouring one neutral garment to the exact hex — so what you
+/// pick is what you see, and adding a ninth colour later needs no new asset.
 ///
 /// Recoloured garments are cached by colour for the session: the pixel pass is
 /// cheap but not free, and the Studio re-renders on every design change.
@@ -25,12 +26,20 @@ abstract final class StudioGarments {
   static final Map<String, Future<ui.Image>> _shadingCache = {};
 
   /// The mockup spec for a Studio [garmentColour] (a `#RRGGBB` hex) and face.
+  /// The mockup spec for a Studio [garmentColour] (a `#RRGGBB` hex) and face.
+  ///
+  /// [printArea] places the artwork on the garment — the Studio's front print
+  /// moves between left chest, right chest and full front, so the preview has
+  /// to follow it rather than always centring. Null uses the face's default
+  /// region.
   static GarmentMockupSpec specFor({
     required String? garmentColour,
     required bool front,
+    Rect? printArea,
   }) => BundledGarments.tshirt(
     colour: parseHex(garmentColour) ?? defaultColour,
     front: front,
+    printArea: printArea,
   );
 
   /// Loads the garment layer for [spec] — the neutral shirt photo recoloured to

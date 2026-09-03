@@ -713,9 +713,18 @@ class StudioController extends ChangeNotifier {
         );
       }
     }
+    // The front is the wordmark over the flags and nothing else — the back's
+    // printed title does not belong on a chest badge. The Words step can still
+    // add one here deliberately; it just isn't carried over by default.
+    final meta = {...content.meta}..remove('title');
     return r.copyWith(
       composition: r.composition.copyWith(family: DesignFamily.frontRibbon),
-      content: content,
+      content: RecipeContent(
+        flags: content.flags,
+        source: content.source,
+        entries: content.entries,
+        meta: meta,
+      ),
     );
   }
 

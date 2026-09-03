@@ -27,6 +27,7 @@ class ShirtPreview extends StatefulWidget {
     required this.service,
     required this.recipe,
     required this.front,
+    this.printArea,
     this.longSide = 1024,
   });
 
@@ -35,6 +36,11 @@ class ShirtPreview extends StatefulWidget {
 
   /// Which face to show — picks the garment photo and the print area.
   final bool front;
+
+  /// Where the artwork prints on this face, as fractions of the garment photo.
+  /// [Rect.zero] is a blank face (a garment with no print); null takes the
+  /// face's default region.
+  final Rect? printArea;
 
   final int longSide;
 
@@ -49,9 +55,13 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   String? _garmentKey;
   String? _shadingKey;
 
+  /// True when this face carries no print at all (Front → Blank).
+  bool get _blank => widget.printArea == Rect.zero;
+
   GarmentMockupSpec get _spec => StudioGarments.specFor(
     garmentColour: widget.recipe.palette?.garmentColour,
     front: widget.front,
+    printArea: _blank ? null : widget.printArea,
   );
 
   @override
@@ -122,7 +132,17 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   @override
   Widget build(BuildContext context) {
     final garment = _garment;
-    final artwork = _artwork;
+    final artwork = _blank ? null : _artwork;
+    if (garment != null && _blank) {
+      // A blank front is a real choice, not a missing render.
+      return GarmentMockupCanvas(
+        spec: _spec,
+        garmentImage: garment,
+        shadingImage: garment,
+        interactive: false,
+        showHud: false,
+      );
+    }
     if (artwork == null) {
       return const Center(
         child: SizedBox(
