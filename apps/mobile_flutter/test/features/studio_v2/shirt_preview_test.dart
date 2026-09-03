@@ -178,6 +178,10 @@ void main() {
   });
 
   group('Studio hero', () {
+    // The Instant deck renders thumbnails with the same widget, so every
+    // assertion about THE hero has to name it rather than take the only one.
+    final hero = find.byKey(const Key('v2-garment-preview'));
+
     late StudioController controller;
 
     setUp(() => controller = buildStudioV2Controller());
@@ -196,7 +200,8 @@ void main() {
 
     testWidgets('opens on the shirt, not the flat artwork', (tester) async {
       await pump(tester);
-      expect(find.byType(ShirtPreview), findsOneWidget);
+      expect(hero, findsOneWidget);
+      expect(tester.widget(hero), isA<ShirtPreview>());
       expect(find.byType(GarmentPreview), findsNothing);
       // The hero keeps its identity either way.
       expect(find.byKey(const Key('v2-garment-preview')), findsOneWidget);
@@ -208,11 +213,11 @@ void main() {
       await tester.tap(find.byKey(const Key('v2-view-artwork')));
       await tester.pump();
       expect(find.byType(GarmentPreview), findsOneWidget);
-      expect(find.byType(ShirtPreview), findsNothing);
+      expect(tester.widget(hero), isA<GarmentPreview>());
 
       await tester.tap(find.byKey(const Key('v2-view-shirt')));
       await tester.pump();
-      expect(find.byType(ShirtPreview), findsOneWidget);
+      expect(tester.widget(hero), isA<ShirtPreview>());
     });
 
     testWidgets('switching the view never touches the design', (tester) async {
@@ -240,7 +245,7 @@ void main() {
       controller.setGarment('#FF5723'); // Orange — no photograph exists
       await tester.pump();
 
-      final preview = tester.widget<ShirtPreview>(find.byType(ShirtPreview));
+      final preview = tester.widget<ShirtPreview>(hero);
       expect(preview.recipe.palette?.garmentColour, '#FF5723');
       final spec = StudioGarments.specFor(
         garmentColour: preview.recipe.palette?.garmentColour,
@@ -253,17 +258,13 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      final front =
-          tester.widget<ShirtPreview>(find.byType(ShirtPreview)).front;
+      final front = tester.widget<ShirtPreview>(hero).front;
 
       await tester.tap(
         find.byKey(Key(front ? 'v2-side-back' : 'v2-side-front')),
       );
       await tester.pump();
-      expect(
-        tester.widget<ShirtPreview>(find.byType(ShirtPreview)).front,
-        !front,
-      );
+      expect(tester.widget<ShirtPreview>(hero).front, !front);
     });
   });
 }

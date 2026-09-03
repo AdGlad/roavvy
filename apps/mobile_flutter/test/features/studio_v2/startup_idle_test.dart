@@ -114,8 +114,13 @@ void main() {
     expect(service.calls, callsAtRest, reason: 'render calls grew while idle');
     expect(service.keys.length, keysAtRest,
         reason: 'distinct render keys (cache) grew while idle');
-    // The Instant screen shows exactly one hero — one distinct render key.
-    expect(keysAtRest, 1);
+    // Instant shows the hero plus the deck thumbnail for the visible pick, so
+    // more than one key is expected — but the deck must stay LAZY. Eight
+    // thumbnails at rest would mean the PageView is building its whole list.
+    expect(keysAtRest, lessThanOrEqualTo(3),
+        reason: 'the deck should render around the current page, not all of it');
+    // Exactly one FULL-SIZE render: the hero. Thumbnails are a smaller tier.
+    expect(service.keys.where((k) => k.endsWith('@1024')).length, 1);
   });
 
   testWidgets('a pure stage change never re-renders the full-size hero',

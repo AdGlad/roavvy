@@ -29,6 +29,7 @@ class ShirtPreview extends StatefulWidget {
     required this.front,
     this.printArea,
     this.longSide = 1024,
+    this.placeholder,
   });
 
   final RenderService service;
@@ -43,6 +44,11 @@ class ShirtPreview extends StatefulWidget {
   final Rect? printArea;
 
   final int longSide;
+
+  /// Shown until the design has rendered. Defaults to a spinner, which suits
+  /// the hero; a deck of eight thumbnails passes something quieter, because
+  /// eight spinners is worse than none.
+  final Widget? placeholder;
 
   @override
   State<ShirtPreview> createState() => _ShirtPreviewState();
@@ -144,13 +150,14 @@ class _ShirtPreviewState extends State<ShirtPreview> {
       );
     }
     if (artwork == null) {
-      return const Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
+      return widget.placeholder ??
+          const Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
     }
     if (garment == null) {
       // The garment layer is recoloured on first use of a colour. Never hold

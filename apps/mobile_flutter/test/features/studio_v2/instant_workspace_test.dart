@@ -10,6 +10,7 @@ import 'package:flutter/material.dart' hide Orientation;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/studio_v2/commerce/garment_cart_request.dart';
 import 'package:mobile_flutter/features/studio_v2/widgets/instant_workspace.dart';
+import 'package:mobile_flutter/features/studio_v2/widgets/shirt_preview.dart';
 
 class _NoopResolver implements AssetResolver {
   @override
@@ -280,6 +281,27 @@ void main() {
     await mouse.up();
     await tester.pumpAndSettle();
     expect(controller.instantIndex, 1);
+  });
+
+  testWidgets('the deck shows shirts, not just names', (tester) async {
+    // The promise of the screen is swiping through ready-made shirts.
+    await pump(tester);
+    expect(find.byType(ShirtPreview), findsWidgets);
+  });
+
+  testWidgets('only the visible page renders a shirt, not all eight', (
+    tester,
+  ) async {
+    // Eight garment renders on open would put the studio behind a spinner. The
+    // PageView must stay lazy.
+    await pump(tester);
+    final shown =
+        tester.widgetList<ShirtPreview>(find.byType(ShirtPreview)).length;
+    expect(
+      shown,
+      lessThan(controller.instantPicks.length),
+      reason: 'the deck should build around the current page, not all of it',
+    );
   });
 
   testWidgets('Custom leaves the pick alone and hands off', (tester) async {

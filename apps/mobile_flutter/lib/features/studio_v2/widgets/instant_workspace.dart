@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../commerce/garment_cart_request.dart';
 import '../studio_v2_theme.dart';
+import 'shirt_preview.dart';
 
 /// **Instant** — the opening offer: a finished shirt, chosen for this traveller,
 /// that can be bought without touching the workflow at all.
@@ -117,7 +118,7 @@ class _InstantWorkspaceState extends State<InstantWorkspace> {
               _arrow('v2-instant-prev', Icons.chevron_left_rounded, -1),
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: 132,
                   // A PageView will not drag with a MOUSE under the default
                   // desktop scroll behaviour, so the deck simply would not
                   // swipe on macOS. Accept every pointer that can express the
@@ -230,33 +231,61 @@ class _InstantWorkspaceState extends State<InstantWorkspace> {
     );
   }
 
-  /// One page of the deck: what this design is, and where it sits in the set.
+  /// One page of the deck: the shirt itself, named.
   ///
-  /// Deliberately a single row. Stacked text overflowed the moment the
-  /// workspace panel got short — a phone in landscape, a small window — and an
-  /// overflow here is a striped bar across the first thing anyone sees.
-  Widget _card(DesignRecipe r, int i) => Container(
-    margin: const EdgeInsets.only(right: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 14),
-    decoration: BoxDecoration(
-      color: StudioV2Theme.card,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: StudioV2Theme.subtleBorder),
-    ),
-    child: Row(
+  /// A real garment render rather than a label, because the promise of this
+  /// screen is swiping through ready-made shirts. It reuses [ShirtPreview], so
+  /// the tinted garment is cut out once per colour and each design's artwork
+  /// goes through the same render cache the hero uses — eight thumbnails cost
+  /// eight small renders, not eight pipelines.
+  ///
+  /// `PageView.builder` keeps this lazy: only the visible page and its
+  /// neighbours are ever built, so opening the studio renders one shirt here,
+  /// not eight.
+  Widget _card(DesignRecipe r, int i) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: Column(
       children: [
         Expanded(
-          child: Text(
-            _c.instantName(r),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          child: ShirtPreview(
+            key: ValueKey('v2-instant-thumb-${r.recipeId}'),
+            service: _c.service,
+            recipe: r,
+            front: false,
+            // A thumbnail, not the hero — small enough that eight of them do
+            // not compete with the full-size render above.
+            longSide: 256,
+            // Never a spinner here: a deck of eight would flicker on open and
+            // says nothing. The design's name is the honest stand-in.
+            placeholder: Center(
+              child: Text(
+                _c.instantName(r),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Colors.white38),
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
-        Text(
-          '${i + 1}/${_c.instantPicks.length}',
-          style: const TextStyle(fontSize: 11, color: Colors.white38),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _c.instantName(r),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              '${i + 1}/${_c.instantPicks.length}',
+              style: const TextStyle(fontSize: 11, color: Colors.white38),
+            ),
+          ],
         ),
       ],
     ),
