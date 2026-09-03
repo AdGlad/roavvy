@@ -3,7 +3,7 @@
 **Phase:** T-Shirt Experience (M175–M183)
 **Promise it makes true:** Rule 8 — the preview is a promise
 **Depends on:** M179
-**Status:** Queued
+**Status:** Done
 **Primary target:** `apps/mobile_flutter` · `packages/design_studio`
 
 Definition: [`docs/product/tshirt-experience-definition.md`](../../product/tshirt-experience-definition.md)

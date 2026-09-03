@@ -3,7 +3,7 @@
 **Phase:** T-Shirt Experience (M175–M183)
 **Promise it makes true:** S14 / Rule 9 — every design is reproducible
 **Depends on:** —
-**Status:** Queued
+**Status:** Done
 **Primary target:** `apps/mobile_flutter` · `packages/design_studio`
 
 Definition: [`docs/product/tshirt-experience-definition.md`](../../product/tshirt-experience-definition.md)

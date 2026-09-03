@@ -3,7 +3,7 @@
 **Phase:** T-Shirt Experience (M175–M183)
 **Promise it makes true:** Quality — the shirt is the hero
 **Depends on:** —
-**Status:** Queued
+**Status:** Partial — T2–T4 delivered; T1 (reshoot) blocked on asset work
 **Primary target:** `apps/mobile_flutter` · `packages/design_studio`
 
 Definition: [`docs/product/tshirt-experience-definition.md`](../../product/tshirt-experience-definition.md)

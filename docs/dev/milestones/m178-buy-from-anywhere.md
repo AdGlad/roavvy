@@ -3,7 +3,7 @@
 **Phase:** T-Shirt Experience (M175–M183)
 **Promise it makes true:** Rule 3 — buying is reachable from everywhere
 **Depends on:** M175
-**Status:** Queued
+**Status:** Done
 **Primary target:** `apps/mobile_flutter` · `packages/design_studio`
 
 Definition: [`docs/product/tshirt-experience-definition.md`](../../product/tshirt-experience-definition.md)
