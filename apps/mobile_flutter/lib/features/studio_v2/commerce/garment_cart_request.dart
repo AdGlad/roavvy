@@ -34,6 +34,7 @@ class GarmentCartRequest {
     required this.backPosition,
     required this.aspectRatio,
     this.title,
+    this.onOrdered,
   });
 
   /// The full two-face design (both faces + colour + theme) — the deterministic,
@@ -75,6 +76,12 @@ class GarmentCartRequest {
 
   /// Optional design title (order/branding metadata).
   final String? title;
+
+  /// Called by the host once this design has actually become an order — not
+  /// when checkout was opened. An abandoned checkout is not a shirt, so the
+  /// Studio must not record one; when this fires it keeps the design in the
+  /// wardrobe permanently, tagged as printed.
+  final VoidCallback? onOrdered;
 }
 
 /// Injected by the host so the isolated Review screen can reach commerce. Given
@@ -143,5 +150,6 @@ GarmentCartRequest buildGarmentCartRequest(
       Orientation.square => 1.0,
     },
     title: c.currentTitle.isEmpty ? null : c.currentTitle,
+    onOrdered: c.markOrdered,
   );
 }

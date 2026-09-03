@@ -1,13 +1,16 @@
 import 'package:design_forge/design_forge.dart' show Trip;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:shared_models/shared_models.dart'
     show CardTemplateType, TripRecord;
 
 import '../merch/local_mockup_preview_screen.dart';
+import '../merch/merch_orders_screen.dart' show merchOrdersProvider;
 import '../merch/merch_variant_lookup.dart' show tshirtColors;
 import '../merch/product_mockup_specs.dart' show ImageSize;
 import '../studio_v2/commerce/garment_cart_request.dart';
+import 'after_purchase_sheet.dart';
 
 /// **Studio V2 → commerce adapter** (M8). The single, thin boundary between the
 /// isolated Studio V2 (`design_studio` / `design_forge`) and the EXISTING merch
@@ -75,6 +78,13 @@ class StudioV2CartAdapter {
     final backArtworkPng = await r.renderBackArtwork();
     final frontArtworkPng = await r.renderFrontArtwork?.call();
     if (!context.mounted) return;
+    // How many orders existed before the buyer went to checkout. The commerce
+    // screen owns everything past this point and reports nothing back, so this
+    // is how the Studio learns whether a shirt was actually bought — an
+    // abandoned checkout must not be recorded as one.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final ordersBefore = await _orderCount(container);
+    if (!context.mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder:
@@ -98,6 +108,39 @@ class StudioV2CartAdapter {
             ),
       ),
     );
+
+    // Back in the Studio. If an order appeared while they were away, the shirt
+    // is real: keep it in the wardrobe for good, and offer the two things
+    // wanted most in the minute after buying — showing it off, and knowing
+    // where it is. Nothing is claimed when the count cannot be read.
+    if (!context.mounted) return;
+    final ordersAfter = await _orderCount(container, refresh: true);
+    if (ordersBefore == null || ordersAfter == null) return;
+    if (ordersAfter <= ordersBefore) return;
+    r.onOrdered?.call();
+    if (!context.mounted) return;
+    await AfterPurchaseSheet.show(
+      context,
+      artworkBytes: backArtworkPng,
+      title: r.title,
+    );
+  }
+
+  /// The buyer's order count, or null when it cannot be read (signed out,
+  /// offline, Firestore unavailable) — never a guess, because the difference
+  /// between the two reads is what decides whether a shirt was bought.
+  static Future<int?> _orderCount(
+    ProviderContainer container, {
+    bool refresh = false,
+  }) async {
+    try {
+      return (refresh
+              ? await container.refresh(merchOrdersProvider.future)
+              : await container.read(merchOrdersProvider.future))
+          .length;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Studio garment colours that the store has no variant for yet.

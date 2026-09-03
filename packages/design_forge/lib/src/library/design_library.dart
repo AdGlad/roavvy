@@ -173,6 +173,23 @@ class DesignLibrary {
             recipe: back, garment: g, liked: true, savedAtEpochMs: nowMs);
   }
 
+  /// Mark a saved two-face garment as ordered.
+  ///
+  /// Distinct from [setUsedForTshirt], which keys by a single recipe id: a
+  /// garment is keyed by [GarmentDesign.garmentId], so using the recipe form
+  /// here would leave the wardrobe entry untouched and add a second, faceless
+  /// one beside it. Saving is implied — an ordered design is in the wardrobe
+  /// whether or not it was saved by hand first.
+  void markGarmentOrdered(GarmentDesign g, {required int nowMs}) {
+    likeGarment(g, nowMs: nowMs);
+    final entry = _byId[g.garmentId];
+    if (entry == null) return;
+    _byId[g.garmentId] = entry.copyWith(
+      usedForTshirt: true,
+      usedAtEpochMs: nowMs,
+    );
+  }
+
   /// The saved two-face garments (newest first).
   List<SavedDesign> get garments =>
       entries.where((e) => e.garment != null).toList();
@@ -316,6 +333,14 @@ class PersistentDesignLibrary {
   /// identity, so repeated Save keeps a single entry (no uncontrolled duplicates).
   Future<void> saveGarment(GarmentDesign g, {int? nowMs}) async {
     _lib.likeGarment(g, nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
+    await _persist();
+  }
+
+  Future<void> markGarmentOrdered(GarmentDesign g, {int? nowMs}) async {
+    _lib.markGarmentOrdered(
+      g,
+      nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch,
+    );
     await _persist();
   }
 

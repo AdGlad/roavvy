@@ -226,6 +226,7 @@ void main() {
     final state = await pumpScreen(tester, key);
     // The default view is the Back — the hero/main design.
     final heroId = state.currentRecipe.recipeId;
+    final heroFamily = state.currentRecipe.composition.family;
 
     // Flip to the Front — it defaults to a distinct flag *ribbon*. (The Format
     // bar scrolls horizontally, so reveal the control before tapping.)
@@ -240,12 +241,19 @@ void main() {
     await tester.pump();
     expect(state.currentRecipe.palette?.garmentColour, '#0F1830');
 
-    // Returning to the Back leaves the hero byte-identical (the edit hit the
-    // front face).
+    // Returning to the Back: the DESIGN is untouched by an edit made on the
+    // front. The shirt colour is the exception, and deliberately so — it is a
+    // property of the garment, not of a face, so both sides wear it.
     await tester.ensureVisible(find.byKey(const Key('studio-side-back')));
     await tester.tap(find.byKey(const Key('studio-side-back')));
     await tester.pump();
-    expect(state.currentRecipe.recipeId, heroId);
+    expect(state.currentRecipe.composition.family, heroFamily);
+    expect(state.currentRecipe.palette?.garmentColour, '#0F1830');
+    expect(
+      state.currentRecipe.recipeId,
+      isNot(heroId),
+      reason: 'the shared shirt colour is part of the back design too',
+    );
   });
 
   testWidgets('(s) Front ribbon "All" covers every context country',

@@ -1079,6 +1079,17 @@ class StudioController extends ChangeNotifier {
     _observe(current, PreferenceSignal.saved);
   }
 
+  /// The design became a real order.
+  ///
+  /// Keeps it in the wardrobe permanently and tags it as printed, so
+  /// re-ordering never means re-designing. Called once the order actually
+  /// exists, never at the moment of handing off to checkout — an abandoned
+  /// checkout is not a shirt.
+  void markOrdered() {
+    library?.markGarmentOrdered(garment);
+    notifyListeners();
+  }
+
   /// Reopen a previously saved [GarmentDesign] (M9). Restores BOTH printed faces
   /// so the design renders identically to when it was saved: the persisted front
   /// + back recipes and garment colour fully determine the print, so a
