@@ -1,5 +1,6 @@
 import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import '../commerce/garment_cart_request.dart';
@@ -111,15 +112,30 @@ class _InstantWorkspaceState extends State<InstantWorkspace> {
           // The deck. The pages carry the name and index rather than a second
           // copy of the shirt — the hero above is already showing it, and two
           // previews of the same design would only disagree.
-          SizedBox(
-            height: 62,
-            child: PageView.builder(
-              key: const Key('v2-instant-deck'),
-              controller: _pages,
-              itemCount: deck.length,
-              onPageChanged: (i) => setState(() => _c.showInstant(i)),
-              itemBuilder: (context, i) => _card(deck[i], i),
-            ),
+          Row(
+            children: [
+              _arrow('v2-instant-prev', Icons.chevron_left_rounded, -1),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  // A PageView will not drag with a MOUSE under the default
+                  // desktop scroll behaviour, so the deck simply would not
+                  // swipe on macOS. Accept every pointer that can express the
+                  // gesture.
+                  child: ScrollConfiguration(
+                    behavior: const _AnyPointerScroll(),
+                    child: PageView.builder(
+                      key: const Key('v2-instant-deck'),
+                      controller: _pages,
+                      itemCount: deck.length,
+                      onPageChanged: (i) => setState(() => _c.showInstant(i)),
+                      itemBuilder: (context, i) => _card(deck[i], i),
+                    ),
+                  ),
+                ),
+              ),
+              _arrow('v2-instant-next', Icons.chevron_right_rounded, 1),
+            ],
           ),
           const SizedBox(height: 10),
           if (deck.length > 1)
@@ -215,9 +231,13 @@ class _InstantWorkspaceState extends State<InstantWorkspace> {
   }
 
   /// One page of the deck: what this design is, and where it sits in the set.
+  ///
+  /// Deliberately a single row. Stacked text overflowed the moment the
+  /// workspace panel got short — a phone in landscape, a small window — and an
+  /// overflow here is a striped bar across the first thing anyone sees.
   Widget _card(DesignRecipe r, int i) => Container(
     margin: const EdgeInsets.only(right: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 14),
     decoration: BoxDecoration(
       color: StudioV2Theme.card,
       borderRadius: BorderRadius.circular(12),
@@ -226,31 +246,45 @@ class _InstantWorkspaceState extends State<InstantWorkspace> {
     child: Row(
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _c.instantName(r),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${i + 1} of ${_c.instantPicks.length}',
-                style: const TextStyle(fontSize: 11, color: Colors.white38),
-              ),
-            ],
+          child: Text(
+            _c.instantName(r),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
           ),
         ),
-        const Icon(Icons.swipe_rounded, size: 18, color: Colors.white24),
+        const SizedBox(width: 8),
+        Text(
+          '${i + 1}/${_c.instantPicks.length}',
+          style: const TextStyle(fontSize: 11, color: Colors.white38),
+        ),
       ],
     ),
   );
+
+  /// Step the deck by [delta]. The arrows exist because a mouse cannot swipe
+  /// comfortably even once the drag is accepted.
+  Widget _arrow(String key, IconData icon, int delta) {
+    final deck = _c.instantPicks;
+    return IconButton(
+      key: Key(key),
+      visualDensity: VisualDensity.compact,
+      iconSize: 22,
+      color: Colors.white54,
+      onPressed:
+          deck.length < 2
+              ? null
+              : () {
+                final next = (_c.instantIndex + delta) % deck.length;
+                _pages.animateToPage(
+                  next < 0 ? next + deck.length : next,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                );
+              },
+      icon: Icon(icon),
+    );
+  }
 
   Widget _swatch(String hex, String name) {
     final selected = _c.current.palette?.garmentColour == hex;
@@ -294,4 +328,22 @@ class _MiniLabel extends StatelessWidget {
       color: Colors.white38,
     ),
   );
+}
+
+/// Lets the deck be dragged by mouse and trackpad as well as by touch.
+///
+/// Flutter's desktop scroll behaviour deliberately omits the mouse, on the
+/// reasoning that desktop users scroll with a wheel. A PageView has no wheel
+/// affordance, so without this the deck cannot be swiped at all on macOS.
+class _AnyPointerScroll extends MaterialScrollBehavior {
+  const _AnyPointerScroll();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+  };
 }

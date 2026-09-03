@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
 import 'package:design_studio/design_studio.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart' hide Orientation;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/studio_v2/commerce/garment_cart_request.dart';
@@ -165,6 +166,71 @@ void main() {
       chosen,
       reason: 'Configure edits this design; it must not roll a new one',
     );
+  });
+
+  testWidgets('the deck fits a narrow phone panel without overflowing', (
+    tester,
+  ) async {
+    // The reported failure: a 310-wide panel gave the deck card 40px of height
+    // and its stacked text needed 47, painting a striped overflow bar across
+    // the first thing anyone sees.
+    tester.view.physicalSize = const Size(310, 620);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InstantWorkspace(
+            controller: controller,
+            onConfigure: () {},
+            onCustom: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the arrows step the deck for anyone who cannot swipe', (
+    tester,
+  ) async {
+    // A mouse cannot swipe comfortably even once the drag is accepted.
+    await pump(tester);
+    expect(controller.instantIndex, 0);
+
+    await tester.tap(find.byKey(const Key('v2-instant-next')));
+    await tester.pumpAndSettle();
+    expect(controller.instantIndex, 1);
+
+    await tester.tap(find.byKey(const Key('v2-instant-prev')));
+    await tester.pumpAndSettle();
+    expect(controller.instantIndex, 0);
+
+    // …and back past the first, which wraps to the end.
+    await tester.tap(find.byKey(const Key('v2-instant-prev')));
+    await tester.pumpAndSettle();
+    expect(controller.instantIndex, controller.instantPicks.length - 1);
+  });
+
+  testWidgets('the deck accepts a mouse drag, not just touch', (tester) async {
+    // Flutter's desktop scroll behaviour omits the mouse, which left the deck
+    // completely unswipeable on macOS.
+    await pump(tester);
+    final centre = tester.getCenter(find.byKey(const Key('v2-instant-deck')));
+    final mouse = await tester.startGesture(
+      centre,
+      kind: PointerDeviceKind.mouse,
+    );
+    // Past the halfway point, so the page commits rather than springing back.
+    for (var i = 0; i < 7; i++) {
+      await mouse.moveBy(const Offset(-110, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await mouse.up();
+    await tester.pumpAndSettle();
+    expect(controller.instantIndex, 1);
   });
 
   testWidgets('Custom leaves the pick alone and hands off', (tester) async {
