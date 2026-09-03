@@ -71,6 +71,7 @@ class StudioController extends ChangeNotifier {
     this.library,
     this.savePreferences,
     this.onPreferencesChanged,
+    this.unavailableGarments = const {},
   }) : _preferences = preferences {
     _init();
   }
@@ -97,6 +98,13 @@ class StudioController extends ChangeNotifier {
 
   /// Called with the new preferences after each update so the host can sync.
   final ValueChanged<DesignPreferences>? onPreferencesChanged;
+
+  /// Garment colours (by [garments] label) the studio may show but cannot sell.
+  ///
+  /// Injected by the host, because whether a shirt can be made is a fact about
+  /// a supplier, and this package deliberately knows nothing about one. Empty
+  /// means everything in the palette is orderable.
+  final Set<String> unavailableGarments;
 
   // ── Static catalogue (shared between hosts) ────────────────────────────────
   /// The Direction axis subjects: (genre, pinned family, label).
@@ -343,6 +351,26 @@ class StudioController extends ChangeNotifier {
     _instantPicks = deck;
     return deck;
   }
+
+  /// Whether a garment colour can actually be bought, by its palette label.
+  ///
+  /// A colour that fails this is still shown — someone may want to see their
+  /// design on it — but it must be visibly unavailable at the point of choice
+  /// rather than silently designable and refused at the till.
+  bool canOrderGarment(String name) => !unavailableGarments.contains(name);
+
+  /// The palette label for a garment hex, or null if it is not in the palette.
+  String? garmentLabelFor(String? hex) {
+    if (hex == null) return null;
+    for (final (h, name) in garments) {
+      if (h.toUpperCase() == hex.toUpperCase()) return name;
+    }
+    return null;
+  }
+
+  /// True when the design currently on screen can be ordered as it stands.
+  bool get canOrderCurrent =>
+      canOrderGarment(garmentLabelFor(_hero.palette?.garmentColour) ?? '');
 
   /// A short, human name for a design — what the Instant deck calls each pick.
   ///

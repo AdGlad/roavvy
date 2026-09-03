@@ -12,6 +12,7 @@ import 'widgets/fine_tune_workspace.dart';
 import 'widgets/focus_workspace.dart';
 import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
+import 'widgets/instant_workspace.dart';
 import 'widgets/review_workspace.dart';
 import 'widgets/shirt_preview.dart';
 import 'widgets/travels_workspace.dart';
@@ -24,11 +25,7 @@ import 'widgets/words_workspace.dart';
 /// controls remain one tap away without permanently occupying a toolbar, while
 /// every workflow stage stays reachable through the compact Steps sheet.
 class StudioV2Screen extends StatefulWidget {
-  const StudioV2Screen({
-    super.key,
-    required this.controller,
-    this.onAddToCart,
-  });
+  const StudioV2Screen({super.key, required this.controller, this.onAddToCart});
 
   final StudioController controller;
   final AddToCartCallback? onAddToCart;
@@ -77,9 +74,9 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   }
 
   List<StudioStage> get _visibleStages => [
-        for (final s in _stages)
-          if (s != StudioStage.detail || _c.detailApplies) s,
-      ];
+    for (final s in _stages)
+      if (s != StudioStage.detail || _c.detailApplies) s,
+  ];
 
   void _next() {
     final vis = _visibleStages;
@@ -143,142 +140,181 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   }
 
   Widget _hero() => Container(
-        width: double.infinity,
-        color: const Color(0xFF0E0F12),
-        padding: const EdgeInsets.fromLTRB(18, 6, 18, 8),
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                // The hero shows the design ON the shirt by default — the
-                // garment colour you chose, with its folds falling across the
-                // ink — so every Direction / Vibe / Colour decision is judged
-                // against the real thing. The flat artwork stays one tap away
-                // for judging the design on its own.
-                child: _onShirt
+    width: double.infinity,
+    color: const Color(0xFF0E0F12),
+    padding: const EdgeInsets.fromLTRB(18, 6, 18, 8),
+    child: Column(
+      children: [
+        Expanded(
+          child: Center(
+            // The hero shows the design ON the shirt by default — the
+            // garment colour you chose, with its folds falling across the
+            // ink — so every Direction / Vibe / Colour decision is judged
+            // against the real thing. The flat artwork stays one tap away
+            // for judging the design on its own.
+            child:
+                _onShirt
                     ? ShirtPreview(
-                        key: const Key('v2-garment-preview'),
-                        service: _c.service,
-                        recipe: _c.current,
-                        front: _c.onFront,
-                      )
+                      key: const Key('v2-garment-preview'),
+                      service: _c.service,
+                      recipe: _c.current,
+                      front: _c.onFront,
+                      // The front print moves — left chest by default — and the
+                      // shirt has to show it where it will actually be.
+                      printArea: _c.onFront ? _c.frontPrintRect() : null,
+                    )
                     : GarmentPreview(
-                        key: const Key('v2-garment-preview'),
-                        service: _c.service,
-                        recipe: _c.current,
-                      ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _sideSelector(),
-                const SizedBox(width: 8),
-                _viewToggle(),
-              ],
-            ),
-          ],
+                      key: const Key('v2-garment-preview'),
+                      service: _c.service,
+                      recipe: _c.current,
+                    ),
+          ),
         ),
-      );
+        const SizedBox(height: 4),
+        // Four pills side by side overflow a phone by ~115px. Scroll rather
+        // than clip: on a wide window they stay centred, on a narrow one they
+        // remain reachable instead of hiding behind a striped bar.
+        LayoutBuilder(
+          builder:
+              (context, c) => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: c.maxWidth),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _sideSelector(),
+                      const SizedBox(width: 8),
+                      _viewToggle(),
+                    ],
+                  ),
+                ),
+              ),
+        ),
+      ],
+    ),
+  );
 
   /// Shirt ⇄ flat artwork. Purely a view of the same design — it touches no
   /// recipe state, so it never enters the undo history.
   Widget _viewToggle() => Container(
-        height: 38,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1C21),
-          borderRadius: BorderRadius.circular(20),
+    height: 38,
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1A1C21),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _sidePill(
+          'view-shirt',
+          'Shirt',
+          _onShirt,
+          () => setState(() => _onShirt = true),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _sidePill('view-shirt', 'Shirt', _onShirt,
-                () => setState(() => _onShirt = true)),
-            _sidePill('view-artwork', 'Artwork', !_onShirt,
-                () => setState(() => _onShirt = false)),
-          ],
+        _sidePill(
+          'view-artwork',
+          'Artwork',
+          !_onShirt,
+          () => setState(() => _onShirt = false),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _sideSelector() => Container(
-        height: 38,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1C21),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _sidePill('side-front', 'Front', _c.onFront, () => _c.setSide(true)),
-            _sidePill('side-back', 'Back', !_c.onFront, () => _c.setSide(false)),
-          ],
-        ),
-      );
+    height: 38,
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1A1C21),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _sidePill('side-front', 'Front', _c.onFront, () => _c.setSide(true)),
+        _sidePill('side-back', 'Back', !_c.onFront, () => _c.setSide(false)),
+      ],
+    ),
+  );
 
-  Widget _sidePill(String id, String label, bool selected, VoidCallback onTap) =>
-      GestureDetector(
-        key: Key('v2-$id'),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(17),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.black : Colors.white60,
-            ),
-          ),
+  Widget _sidePill(
+    String id,
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) => GestureDetector(
+    key: Key('v2-$id'),
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
+      decoration: BoxDecoration(
+        color: selected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: selected ? Colors.black : Colors.white60,
         ),
-      );
+      ),
+    ),
+  );
 
   /// Persistent reachability without a permanently expanded settings toolbar.
   Widget _quickControls() {
     final comp = _c.current.composition;
     final garment = _c.current.palette?.garmentColour ?? '#0E0E0E';
+    // Same treatment as the hero controls: these must stay reachable on a
+    // narrow phone rather than disappear behind an overflow bar.
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _quickButton(
-            key: const Key('v2-shirt-colour-menu'),
-            icon: Icons.checkroom_outlined,
-            label: 'Shirt',
-            leading: Container(
-              width: 13,
-              height: 13,
-              decoration: BoxDecoration(
-                color: _hexColour(garment),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white30),
+      child: LayoutBuilder(
+        builder:
+            (context, c) => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: c.maxWidth),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _quickButton(
+                      key: const Key('v2-shirt-colour-menu'),
+                      icon: Icons.checkroom_outlined,
+                      label: 'Shirt',
+                      leading: Container(
+                        width: 13,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: _hexColour(garment),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white30),
+                        ),
+                      ),
+                      onTap: _showGarmentColours,
+                    ),
+                    const SizedBox(width: 8),
+                    _quickButton(
+                      key: const Key('v2-aspect-menu'),
+                      icon: Icons.crop_portrait_rounded,
+                      label: _orientationLabel(comp.orientation),
+                      onTap: _showOrientations,
+                    ),
+                    const SizedBox(width: 8),
+                    _quickButton(
+                      key: const Key('v2-size-menu'),
+                      icon: Icons.aspect_ratio_rounded,
+                      label: 'Art ${_sizeLabel(comp.sizeClass)}',
+                      onTap: _showSizes,
+                    ),
+                  ],
+                ),
               ),
             ),
-            onTap: _showGarmentColours,
-          ),
-          const SizedBox(width: 8),
-          _quickButton(
-            key: const Key('v2-aspect-menu'),
-            icon: Icons.crop_portrait_rounded,
-            label: _orientationLabel(comp.orientation),
-            onTap: _showOrientations,
-          ),
-          const SizedBox(width: 8),
-          _quickButton(
-            key: const Key('v2-size-menu'),
-            icon: Icons.aspect_ratio_rounded,
-            label: 'Art ${_sizeLabel(comp.sizeClass)}',
-            onTap: _showSizes,
-          ),
-        ],
       ),
     );
   }
@@ -290,69 +326,87 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     Widget? leading,
     required VoidCallback onTap,
   }) => OutlinedButton.icon(
-        key: key,
-        onPressed: onTap,
-        icon: leading ?? Icon(icon, size: 16),
-        label: Text(label, style: const TextStyle(fontSize: 11)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white70,
-          side: const BorderSide(color: Color(0xFF35383F)),
-          backgroundColor: const Color(0xFF17191E),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          minimumSize: const Size(0, 38),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
-      );
+    key: key,
+    onPressed: onTap,
+    icon: leading ?? Icon(icon, size: 16),
+    label: Text(label, style: const TextStyle(fontSize: 11)),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: Colors.white70,
+      side: const BorderSide(color: Color(0xFF35383F)),
+      backgroundColor: const Color(0xFF17191E),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      minimumSize: const Size(0, 38),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+  );
 
   Widget _workspace() => Container(
-        key: const Key('v2-workspace'),
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFF121317),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
-        child: switch (_stage) {
-          StudioStage.travels => TravelsWorkspace(controller: _c),
-          StudioStage.direction => DirectionWorkspace(controller: _c),
-          StudioStage.detail => _c.detailApplies
-              ? DetailWorkspace(controller: _c)
-              : _detailNotApplicable(),
-          StudioStage.vibe => VibeWorkspace(controller: _c),
-          StudioStage.focus => FocusWorkspace(controller: _c),
-          StudioStage.colour => ColourWorkspace(controller: _c),
-          StudioStage.words => WordsWorkspace(controller: _c),
-          StudioStage.front => FrontWorkspace(controller: _c),
-          StudioStage.fineTune => FineTuneWorkspace(controller: _c),
-          StudioStage.review =>
-            ReviewWorkspace(controller: _c, onAddToCart: widget.onAddToCart),
-          _ => _placeholder(),
-        },
-      );
+    key: const Key('v2-workspace'),
+    width: double.infinity,
+    decoration: const BoxDecoration(
+      color: Color(0xFF121317),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    ),
+    padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+    child: switch (_stage) {
+      StudioStage.instant => InstantWorkspace(
+        controller: _c,
+        onAddToCart: widget.onAddToCart,
+        // Configure keeps the pick and opens the steps that restyle it;
+        // Custom drops it and starts the flow at Direction.
+        onConfigure: () => _goToStage(StudioStage.vibe),
+        onCustom: () => _goToStage(StudioStage.direction),
+      ),
+      StudioStage.travels => TravelsWorkspace(controller: _c),
+      StudioStage.direction => DirectionWorkspace(controller: _c),
+      StudioStage.detail =>
+        _c.detailApplies
+            ? DetailWorkspace(controller: _c)
+            : _detailNotApplicable(),
+      StudioStage.vibe => VibeWorkspace(controller: _c),
+      StudioStage.focus => FocusWorkspace(controller: _c),
+      StudioStage.colour => ColourWorkspace(controller: _c),
+      StudioStage.words => WordsWorkspace(controller: _c),
+      StudioStage.front => FrontWorkspace(controller: _c),
+      StudioStage.fineTune => FineTuneWorkspace(controller: _c),
+      StudioStage.review => ReviewWorkspace(
+        controller: _c,
+        onAddToCart: widget.onAddToCart,
+      ),
+    },
+  );
 
   Widget _detailNotApplicable() => const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Detail',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-          SizedBox(height: 6),
-          Text('Shape choices are available for Flags designs.',
-              style: TextStyle(fontSize: 13, color: Colors.white60)),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        'Detail',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+      ),
+      SizedBox(height: 6),
+      Text(
+        'Shape choices are available for Flags designs.',
+        style: TextStyle(fontSize: 13, color: Colors.white60),
+      ),
+    ],
+  );
 
   Widget _placeholder() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(_stage.label,
-              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(_stage.blurb,
-              style: const TextStyle(fontSize: 13, color: Colors.white60)),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        _stage.label,
+        style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        _stage.blurb,
+        style: const TextStyle(fontSize: 13, color: Colors.white60),
+      ),
+    ],
+  );
 
   Widget _progressFooter() {
     final vis = _visibleStages;
@@ -413,116 +467,142 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       context: context,
       backgroundColor: const Color(0xFF1A1C21),
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
-          itemCount: vis.length,
-          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
-          itemBuilder: (_, i) {
-            final s = vis[i];
-            final selected = s == _stage;
-            return ListTile(
-              key: Key('v2-stage-${s.name}'),
-              dense: true,
-              leading: CircleAvatar(
-                radius: 14,
-                backgroundColor: selected ? Colors.tealAccent : Colors.white10,
-                child: Text('${i + 1}',
-                    style: TextStyle(
+      builder:
+          (sheetContext) => SafeArea(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+              itemCount: vis.length,
+              separatorBuilder:
+                  (_, __) => const Divider(height: 1, color: Colors.white10),
+              itemBuilder: (_, i) {
+                final s = vis[i];
+                final selected = s == _stage;
+                return ListTile(
+                  key: Key('v2-stage-${s.name}'),
+                  dense: true,
+                  leading: CircleAvatar(
+                    radius: 14,
+                    backgroundColor:
+                        selected ? Colors.tealAccent : Colors.white10,
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
                         fontSize: 11,
-                        color: selected ? Colors.black : Colors.white70)),
-              ),
-              title: Text(s.label,
-                  style: TextStyle(
+                        color: selected ? Colors.black : Colors.white70,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    s.label,
+                    style: TextStyle(
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? Colors.white : Colors.white70)),
-              trailing: selected
-                  ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
-                  : null,
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _goToStage(s);
+                      color: selected ? Colors.white : Colors.white70,
+                    ),
+                  ),
+                  trailing:
+                      selected
+                          ? const Icon(
+                            Icons.check_rounded,
+                            color: Colors.tealAccent,
+                          )
+                          : null,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _goToStage(s);
+                  },
+                );
               },
-            );
-          },
-        ),
-      ),
+            ),
+          ),
     );
   }
 
   void _showGarmentColours() => _showChoiceSheet(
-        title: 'Shirt colour',
-        children: [
-          for (final (hex, name) in StudioController.garments)
-            ListTile(
-              key: Key('v2-garment-$name'),
-              leading: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _hexColour(hex),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white24),
-                ),
-              ),
-              title: Text(name),
-              trailing: _c.current.palette?.garmentColour == hex
+    title: 'Shirt colour',
+    children: [
+      for (final (hex, name) in StudioController.garments)
+        ListTile(
+          key: Key('v2-garment-$name'),
+          leading: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: _hexColour(hex),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24),
+            ),
+          ),
+          title: Text(name),
+          // Shown, but never silently sellable: a colour the store cannot
+          // fulfil says so here, at the moment of choosing, rather than
+          // being refused later at the till.
+          subtitle:
+              _c.canOrderGarment(name)
+                  ? null
+                  : const Text(
+                    'Not available to order yet',
+                    style: TextStyle(fontSize: 11),
+                  ),
+          trailing:
+              _c.current.palette?.garmentColour == hex
                   ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
                   : null,
-              onTap: () {
-                Navigator.pop(context);
-                _c.setGarment(hex);
-              },
-            ),
-        ],
-      );
+          onTap: () {
+            Navigator.pop(context);
+            _c.setGarment(hex);
+          },
+        ),
+    ],
+  );
 
   void _showOrientations() => _showChoiceSheet(
-        title: 'Artwork shape',
-        children: [
-          for (final (o, label, icon) in const [
-            (Orientation.portrait, 'Portrait', Icons.crop_portrait_rounded),
-            (Orientation.landscape, 'Landscape', Icons.crop_landscape_rounded),
-            (Orientation.square, 'Square', Icons.crop_square_rounded),
-          ])
-            ListTile(
-              key: Key('v2-aspect-${o.name}'),
-              leading: Icon(icon),
-              title: Text(label),
-              trailing: _c.current.composition.orientation == o
+    title: 'Artwork shape',
+    children: [
+      for (final (o, label, icon) in const [
+        (Orientation.portrait, 'Portrait', Icons.crop_portrait_rounded),
+        (Orientation.landscape, 'Landscape', Icons.crop_landscape_rounded),
+        (Orientation.square, 'Square', Icons.crop_square_rounded),
+      ])
+        ListTile(
+          key: Key('v2-aspect-${o.name}'),
+          leading: Icon(icon),
+          title: Text(label),
+          trailing:
+              _c.current.composition.orientation == o
                   ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
                   : null,
-              onTap: () {
-                Navigator.pop(context);
-                _c.setOrientation(o);
-              },
-            ),
-        ],
-      );
+          onTap: () {
+            Navigator.pop(context);
+            _c.setOrientation(o);
+          },
+        ),
+    ],
+  );
 
   void _showSizes() => _showChoiceSheet(
-        title: 'Artwork size',
-        subtitle: 'This changes the print size, not the physical T-shirt size.',
-        children: [
-          for (final (s, label) in const [
-            (SizeClass.small, 'Small'),
-            (SizeClass.medium, 'Medium'),
-            (SizeClass.large, 'Large'),
-          ])
-            ListTile(
-              key: Key('v2-size-${s.name}'),
-              title: Text(label),
-              trailing: _c.current.composition.sizeClass == s
+    title: 'Artwork size',
+    subtitle: 'This changes the print size, not the physical T-shirt size.',
+    children: [
+      for (final (s, label) in const [
+        (SizeClass.small, 'Small'),
+        (SizeClass.medium, 'Medium'),
+        (SizeClass.large, 'Large'),
+      ])
+        ListTile(
+          key: Key('v2-size-${s.name}'),
+          title: Text(label),
+          trailing:
+              _c.current.composition.sizeClass == s
                   ? const Icon(Icons.check_rounded, color: Colors.tealAccent)
                   : null,
-              onTap: () {
-                Navigator.pop(context);
-                _c.setSize(s);
-              },
-            ),
-        ],
-      );
+          onTap: () {
+            Navigator.pop(context);
+            _c.setSize(s);
+          },
+        ),
+    ],
+  );
 
   void _showChoiceSheet({
     required String title,
@@ -533,26 +613,37 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       context: context,
       backgroundColor: const Color(0xFF1A1C21),
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              if (subtitle != null) ...[
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.white54)),
-              ],
-              const SizedBox(height: 8),
-              ...children,
-            ],
+      builder:
+          (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  ...children,
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -560,14 +651,14 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
 
   static String _orientationLabel(Orientation o) => switch (o) {
-        Orientation.portrait => 'Portrait',
-        Orientation.landscape => 'Landscape',
-        Orientation.square => 'Square',
-      };
+    Orientation.portrait => 'Portrait',
+    Orientation.landscape => 'Landscape',
+    Orientation.square => 'Square',
+  };
 
   static String _sizeLabel(SizeClass s) => switch (s) {
-        SizeClass.small => 'S',
-        SizeClass.medium => 'M',
-        SizeClass.large => 'L',
-      };
+    SizeClass.small => 'S',
+    SizeClass.medium => 'M',
+    SizeClass.large => 'L',
+  };
 }

@@ -288,24 +288,33 @@ class _InstantWorkspaceState extends State<InstantWorkspace> {
 
   Widget _swatch(String hex, String name) {
     final selected = _c.current.palette?.garmentColour == hex;
+    // A colour the store cannot make is dimmed and labelled, not hidden —
+    // seeing the design on it is fine; being sold it is not.
+    final orderable = _c.canOrderGarment(name);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Semantics(
         button: true,
         selected: selected,
-        label: name,
+        label: orderable ? name : '$name — not available to order yet',
         child: GestureDetector(
           key: Key('v2-instant-garment-$name'),
           onTap: () => setState(() => _c.setGarment(hex)),
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? StudioV2Theme.accent : Colors.white24,
-                width: selected ? 2.5 : 1,
+          child: Opacity(
+            opacity: orderable ? 1.0 : 0.35,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color:
+                      selected
+                          ? StudioV2Theme.accent
+                          : (orderable ? Colors.white24 : Colors.white10),
+                  width: selected ? 2.5 : 1,
+                ),
               ),
             ),
           ),

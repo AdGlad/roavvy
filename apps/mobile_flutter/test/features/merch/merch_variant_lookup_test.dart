@@ -116,14 +116,26 @@ void main() {
       }
     });
 
-    test('unknown combination returns a non-empty fallback GID', () {
-      final gid = resolveVariantGid(
-        product: MerchProduct.tshirt,
-        colour: 'Pink',
-        size: '3XL',
+    test('unknown combination throws rather than substituting (M175)', () {
+      // It used to return the FIRST gid — a black size S — so an unstocked
+      // colour took payment for one shirt and shipped another, silently.
+      expect(
+        () => resolveVariantGid(
+          product: MerchProduct.tshirt,
+          colour: 'Pink',
+          size: '3XL',
+        ),
+        throwsStateError,
       );
-      expect(gid, isNotEmpty);
-      expect(gid.startsWith('gid://shopify/ProductVariant/'), isTrue);
+      // …and there is a non-throwing way to ask first.
+      expect(
+        variantExists(
+          product: MerchProduct.tshirt,
+          colour: 'Pink',
+          size: '3XL',
+        ),
+        isFalse,
+      );
     });
   });
 

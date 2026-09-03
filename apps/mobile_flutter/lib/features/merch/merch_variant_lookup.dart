@@ -174,8 +174,11 @@ MerchPrintDimensions? resolvePrintDimensions({
 
 /// Resolves the Shopify ProductVariant GID for the given product configuration.
 ///
-/// Returns the first GID as a fallback if the combination is not found (should
-/// not happen in production with the locked-down pickers).
+/// **Throws** when the combination has no variant. It used to return the first
+/// GID instead, which meant an unstocked colour silently resolved to a black
+/// size S — taking payment for one shirt and shipping another, with nothing
+/// logged. A configuration that cannot be made must fail loudly and early;
+/// [variantExists] is the way to ask without throwing.
 String resolveVariantGid({
   required MerchProduct product,
   required String colour,
@@ -183,8 +186,30 @@ String resolveVariantGid({
   String paper = 'Enhanced Matte',
 }) {
   if (product == MerchProduct.tshirt) {
-    return tshirtGids[(colour, size)] ?? tshirtGids.values.first;
-  } else {
-    return posterGids[(paper, size)] ?? posterGids.values.first;
+    final gid = tshirtGids[(colour, size)];
+    if (gid == null) {
+      throw StateError(
+          'No t-shirt variant for colour "$colour" size "$size". '
+          'The picker offered a garment the store does not carry.');
+    }
+    return gid;
   }
+  final gid = posterGids[(paper, size)];
+  if (gid == null) {
+    throw StateError(
+        'No poster variant for paper "$paper" size "$size".');
+  }
+  return gid;
 }
+
+/// Whether a configuration can actually be ordered — the non-throwing question
+/// a picker should ask before offering something.
+bool variantExists({
+  required MerchProduct product,
+  required String colour,
+  required String size,
+  String paper = 'Enhanced Matte',
+}) =>
+    product == MerchProduct.tshirt
+        ? tshirtGids.containsKey((colour, size))
+        : posterGids.containsKey((paper, size));

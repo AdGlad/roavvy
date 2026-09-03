@@ -4,8 +4,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_models/shared_models.dart' show CardTemplateType;
-import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart'
-    show tshirtColors;
+import 'package:mobile_flutter/features/merch/merch_variant_lookup.dart';
 import 'package:mobile_flutter/features/studio_v2/commerce/garment_cart_request.dart';
 import 'package:mobile_flutter/features/studio_v2_commerce/studio_v2_cart_adapter.dart';
 
@@ -112,6 +111,37 @@ void main() {
     expect(StudioV2CartAdapter.v1ColourName('Olive'), 'Grey');
     // Mapped colour flows through the input.
     expect(StudioV2CartAdapter.map(request()).colourName, 'Blue');
+  });
+
+  test('the variant lookup fails loudly rather than substituting', () {
+    // It used to return the first GID for an unknown combination — a black
+    // size S — which took payment for one shirt and shipped another.
+    expect(
+      () => resolveVariantGid(
+        product: MerchProduct.tshirt,
+        colour: 'Orange',
+        size: 'M',
+      ),
+      throwsStateError,
+    );
+    expect(
+      variantExists(product: MerchProduct.tshirt, colour: 'Orange', size: 'M'),
+      isFalse,
+    );
+    expect(
+      variantExists(product: MerchProduct.tshirt, colour: 'Black', size: 'M'),
+      isTrue,
+    );
+    // Every colour the store lists must resolve for every size it lists.
+    for (final c in tshirtColors) {
+      for (final z in tshirtSizes) {
+        expect(
+          variantExists(product: MerchProduct.tshirt, colour: c, size: z),
+          isTrue,
+          reason: '$c / $z is offered but has no variant',
+        );
+      }
+    }
   });
 
   test('a colour the store cannot make resolves to null, not a substitute', () {

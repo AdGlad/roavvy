@@ -27,6 +27,11 @@ void main() {
   const adapter = StudioV2CartAdapter();
   runApp(ProviderScope(
     overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
-    child: StudioV2App(onAddToCart: adapter.addToCart),
+    child: StudioV2App(
+      onAddToCart: adapter.addToCart,
+      // The entrypoint is the only layer that may know both sides, so this is
+      // where the store's stock reaches the Studio.
+      unavailableGarments: StudioV2CartAdapter.unstockedColours,
+    ),
   ));
 }

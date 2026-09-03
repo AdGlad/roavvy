@@ -52,7 +52,8 @@ Future<void> main() async {
     runApp(ProviderScope(
         overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
         child: StudioV2App(
-            onAddToCart: const StudioV2CartAdapter().addToCart)));
+            onAddToCart: const StudioV2CartAdapter().addToCart,
+            unavailableGarments: StudioV2CartAdapter.unstockedColours)));
     return;
   }
   runZonedGuarded(

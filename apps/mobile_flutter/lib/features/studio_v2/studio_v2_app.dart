@@ -39,6 +39,7 @@ Map<ClipShape, List<String>> _bundledSilhouettesByShape() => {
 StudioController buildStudioV2ControllerFor(
   DesignContext context, {
   DesignPreferences preferences = DesignPreferences.neutral,
+  Set<String> unavailableGarments = const {},
 }) {
   final generator = LabShowcaseGenerator(
     silhouettesByShape: _bundledSilhouettesByShape(),
@@ -52,6 +53,7 @@ StudioController buildStudioV2ControllerFor(
     designContext: context,
     initialSeed: 1,
     preferences: preferences,
+    unavailableGarments: unavailableGarments,
     library: PersistentDesignLibrary(PrefsDesignStore()),
     savePreferences: (p) => unawaited(prefsStore.save(p)),
   );
@@ -76,7 +78,16 @@ StudioController buildStudioV2Controller() => buildStudioV2ControllerFor(
 /// → [Trip] → [DesignContext.fromTrips], with the flat visited-country list as the
 /// no-dated-trips fallback), and saved Studio preferences are loaded on open.
 class StudioV2App extends ConsumerStatefulWidget {
-  const StudioV2App({super.key, this.onAddToCart});
+  const StudioV2App({
+    super.key,
+    this.onAddToCart,
+    this.unavailableGarments = const {},
+  });
+
+  /// Garment colours the store cannot currently fulfil, supplied by the
+  /// entrypoint (the only layer that may know both the Studio and commerce).
+  /// The Studio shows them, marked unavailable, rather than pretending.
+  final Set<String> unavailableGarments;
 
   /// Host-injected bridge to the existing merch cart/checkout flow (Review →
   /// Add to cart). Passed straight through to [StudioV2Screen]; the App itself
@@ -142,6 +153,7 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
       _controller = buildStudioV2ControllerFor(
         ctx,
         preferences: _prefs ?? DesignPreferences.neutral,
+        unavailableGarments: widget.unavailableGarments,
       );
       v2trace('controller ready: heroRecipeId=${_controller!.current.recipeId} '
           'family=${_controller!.current.composition.family.name} '

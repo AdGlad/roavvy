@@ -39,6 +39,7 @@ class MerchShopScreen extends ConsumerWidget {
                 MaterialPageRoute<void>(
                   builder: (_) => StudioV2App(
                     onAddToCart: const StudioV2CartAdapter().addToCart,
+                    unavailableGarments: StudioV2CartAdapter.unstockedColours,
                   ),
                 ),
               ),
