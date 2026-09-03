@@ -45,11 +45,18 @@ class _DirectionWorkspaceState extends State<DirectionWorkspace> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('What should lead the design?',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                    Text(
+                      'What should lead the design?',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Choose the idea that feels most like your trip.',
-                        style: TextStyle(fontSize: 12, color: Colors.white54)),
+                    Text(
+                      'Choose the idea that feels most like your trip.',
+                      style: TextStyle(fontSize: 12, color: Colors.white54),
+                    ),
                   ],
                 ),
               ),
@@ -63,7 +70,10 @@ class _DirectionWorkspaceState extends State<DirectionWorkspace> {
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,
-              child: AxisLockChip(controller: controller, axis: DesignAxis.direction),
+              child: AxisLockChip(
+                controller: controller,
+                axis: DesignAxis.direction,
+              ),
             ),
           ],
           const SizedBox(height: 14),
@@ -125,7 +135,10 @@ class _DirectionCard extends StatelessWidget {
           height: 132,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: selected ? _accent.withValues(alpha: 0.08) : const Color(0xFF1B1E24),
+            color:
+                selected
+                    ? _accent.withValues(alpha: 0.08)
+                    : const Color(0xFF1B1E24),
             border: Border.all(
               color: selected ? _accent : Colors.white10,
               width: selected ? 1.6 : 1,
@@ -135,24 +148,35 @@ class _DirectionCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _DirectionMotif(index: index, selected: selected)),
+              Expanded(
+                child: _DirectionMotif(index: index, selected: selected),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
-                    child: Text(label,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   if (selected)
                     const Icon(Icons.check_circle, size: 18, color: _accent),
                 ],
               ),
               const SizedBox(height: 2),
-              Text(description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 10.5, color: Colors.white.withValues(alpha: 0.46))),
+              Text(
+                description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: Colors.white.withValues(alpha: 0.46),
+                ),
+              ),
             ],
           ),
         ),
@@ -180,64 +204,79 @@ class _DirectionMotif extends StatelessWidget {
       ),
       child: switch (index) {
         0 => Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < 4; i++)
-                Container(
-                  width: 22,
-                  height: 30 + (i.isEven ? 8 : 0),
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
-                    color: i.isEven ? accent : muted,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < 4; i++)
+              Container(
+                width: 22,
+                height: 30 + (i.isEven ? 8 : 0),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: i.isEven ? accent : muted,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-            ],
-          ),
-        1 => Stack(
-            alignment: Alignment.center,
-            children: [
-              Transform.rotate(angle: -.18, child: _stamp(accent.withValues(alpha: .5))),
-              Transform.translate(
-                offset: const Offset(22, 4),
-                child: Transform.rotate(angle: .14, child: _stamp(accent)),
               ),
-            ],
-          ),
-        2 => CustomPaint(painter: _RoutePainter(accent), child: const SizedBox.expand()),
+          ],
+        ),
+        1 => Stack(
+          alignment: Alignment.center,
+          children: [
+            Transform.rotate(
+              angle: -.18,
+              child: _stamp(accent.withValues(alpha: .5)),
+            ),
+            Transform.translate(
+              offset: const Offset(22, 4),
+              child: Transform.rotate(angle: .14, child: _stamp(accent)),
+            ),
+          ],
+        ),
+        2 => CustomPaint(
+          painter: _RoutePainter(accent),
+          child: const SizedBox.expand(),
+        ),
         3 => Center(child: Icon(Icons.public_rounded, size: 54, color: accent)),
         4 => Center(
-            child: Text('ROAM',
-                style: TextStyle(
-                    color: accent,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2)),
+          child: Text(
+            'ROAM',
+            style: TextStyle(
+              color: accent,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+            ),
           ),
+        ),
         _ => Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.flag_rounded, color: muted, size: 26),
-              const SizedBox(width: 8),
-              Text('12',
-                  style: TextStyle(color: accent, fontSize: 30, fontWeight: FontWeight.w900)),
-              const SizedBox(width: 8),
-              Icon(Icons.location_on_rounded, color: muted, size: 26),
-            ],
-          ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.flag_rounded, color: muted, size: 26),
+            const SizedBox(width: 8),
+            Text(
+              '12',
+              style: TextStyle(
+                color: accent,
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.location_on_rounded, color: muted, size: 26),
+          ],
+        ),
       },
     );
   }
 
   Widget _stamp(Color colour) => Container(
-        width: 48,
-        height: 38,
-        decoration: BoxDecoration(
-          border: Border.all(color: colour, width: 2),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.flight_rounded, size: 18, color: colour),
-      );
+    width: 48,
+    height: 38,
+    decoration: BoxDecoration(
+      border: Border.all(color: colour, width: 2),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(Icons.flight_rounded, size: 18, color: colour),
+  );
 }
 
 class _RoutePainter extends CustomPainter {
@@ -246,15 +285,23 @@ class _RoutePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = colour
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    final path = Path()
-      ..moveTo(size.width * .16, size.height * .7)
-      ..cubicTo(size.width * .32, size.height * .1, size.width * .58,
-          size.height * .88, size.width * .84, size.height * .3);
+    final paint =
+        Paint()
+          ..color = colour
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round;
+    final path =
+        Path()
+          ..moveTo(size.width * .16, size.height * .7)
+          ..cubicTo(
+            size.width * .32,
+            size.height * .1,
+            size.width * .58,
+            size.height * .88,
+            size.width * .84,
+            size.height * .3,
+          );
     canvas.drawPath(path, paint);
     final dot = Paint()..color = colour;
     canvas.drawCircle(Offset(size.width * .16, size.height * .7), 5, dot);
@@ -262,5 +309,6 @@ class _RoutePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RoutePainter oldDelegate) => oldDelegate.colour != colour;
+  bool shouldRepaint(covariant _RoutePainter oldDelegate) =>
+      oldDelegate.colour != colour;
 }

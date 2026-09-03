@@ -9,11 +9,7 @@ import '../studio_v2_theme.dart';
 /// Uses the shared [StudioController.toggleLock] / [StudioController.locked]
 /// semantics directly; it adds no new state.
 class AxisLockChip extends StatelessWidget {
-  const AxisLockChip({
-    super.key,
-    required this.controller,
-    required this.axis,
-  });
+  const AxisLockChip({super.key, required this.controller, required this.axis});
 
   final StudioController controller;
   final DesignAxis axis;
@@ -27,23 +23,33 @@ class AxisLockChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: locked
-              ? StudioV2Theme.accent.withValues(alpha: 0.14)
-              : StudioV2Theme.control,
+          color:
+              locked
+                  ? StudioV2Theme.accent.withValues(alpha: 0.14)
+                  : StudioV2Theme.control,
           border: Border.all(
-              color: locked ? StudioV2Theme.accent : StudioV2Theme.border),
+            color: locked ? StudioV2Theme.accent : StudioV2Theme.border,
+          ),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(locked ? Icons.lock : Icons.lock_open,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              locked ? Icons.lock : Icons.lock_open,
               size: 13,
-              color: locked ? StudioV2Theme.accent : Colors.white54),
-          const SizedBox(width: 4),
-          Text(locked ? 'Locked' : 'Lock',
+              color: locked ? StudioV2Theme.accent : Colors.white54,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              locked ? 'Locked' : 'Lock',
               style: TextStyle(
-                  fontSize: 11,
-                  color: locked ? StudioV2Theme.accent : Colors.white54)),
-        ]),
+                fontSize: 11,
+                color: locked ? StudioV2Theme.accent : Colors.white54,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -69,8 +75,10 @@ class RemixButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
       icon: const Icon(Icons.casino_outlined, size: 16),
-      label: Text(n == 0 ? 'Remix' : 'Remix ($n kept)',
-          style: const TextStyle(fontSize: 12)),
+      label: Text(
+        n == 0 ? 'Remix' : 'Remix ($n kept)',
+        style: const TextStyle(fontSize: 12),
+      ),
     );
   }
 }

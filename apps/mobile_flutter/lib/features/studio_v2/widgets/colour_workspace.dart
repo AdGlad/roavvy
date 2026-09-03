@@ -33,8 +33,9 @@ class ColourWorkspace extends StatelessWidget {
 
   DesignRecipe _preview((String, ColourStrategy, double) t) {
     final pal = controller.current.palette ?? const Palette();
-    return controller.current
-        .copyWith(palette: pal.copyWith(strategy: t.$2, vintageGrade: t.$3));
+    return controller.current.copyWith(
+      palette: pal.copyWith(strategy: t.$2, vintageGrade: t.$3),
+    );
   }
 
   @override
@@ -45,22 +46,29 @@ class ColourWorkspace extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(children: [
-            const Expanded(
-              child: Text('COLOUR',
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'COLOUR',
                   style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.4,
-                      color: StudioV2Theme.accent)),
-            ),
-            AxisLockChip(controller: controller, axis: DesignAxis.colour),
-            const SizedBox(width: 8),
-            RemixButton(controller: controller),
-          ]),
+                    fontSize: 11,
+                    letterSpacing: 1.4,
+                    color: StudioV2Theme.accent,
+                  ),
+                ),
+              ),
+              AxisLockChip(controller: controller, axis: DesignAxis.colour),
+              const SizedBox(width: 8),
+              RemixButton(controller: controller),
+            ],
+          ),
           const SizedBox(height: 4),
-          const Text('How the artwork is coloured — your shirt colour stays in '
-              'the bar above.',
-              style: TextStyle(fontSize: 13, color: Colors.white70)),
+          const Text(
+            'How the artwork is coloured — your shirt colour stays in '
+            'the bar above.',
+            style: TextStyle(fontSize: 13, color: Colors.white70),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 132,
@@ -116,12 +124,14 @@ class _TreatmentCard extends StatelessWidget {
       child: Container(
         width: 104,
         decoration: BoxDecoration(
-          color: selected
-              ? StudioV2Theme.accent.withValues(alpha: 0.12)
-              : StudioV2Theme.card,
+          color:
+              selected
+                  ? StudioV2Theme.accent.withValues(alpha: 0.12)
+                  : StudioV2Theme.card,
           border: Border.all(
-              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
-              width: selected ? 2 : 1),
+            color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
+            width: selected ? 2 : 1,
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.all(6),
@@ -132,15 +142,21 @@ class _TreatmentCard extends StatelessWidget {
               height: 84,
               width: double.infinity,
               child: GarmentPreview(
-                  service: service, recipe: recipe, longSide: 220),
+                service: service,
+                recipe: recipe,
+                longSide: 220,
+              ),
             ),
             const SizedBox(height: 4),
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: selected ? StudioV2Theme.accent : Colors.white70)),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: selected ? StudioV2Theme.accent : Colors.white70,
+              ),
+            ),
           ],
         ),
       ),

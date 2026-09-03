@@ -23,14 +23,12 @@ import 'studio_v2_screen.dart';
 /// without that inventory its subjects are unavailable and Passport degrades
 /// into a plain flag design.
 Map<ClipShape, List<String>> _bundledSilhouettesByShape() => {
-      ClipShape.animalSilhouette:
-          kStudioV2SilhouettesByKind['animal'] ?? const [],
-      ClipShape.plantSilhouette:
-          kStudioV2SilhouettesByKind['plant'] ?? const [],
-      ClipShape.landmarkSilhouette:
-          kStudioV2SilhouettesByKind['landmark'] ?? const [],
-      ClipShape.passportStampOutline: kStudioV2PassportStampSlugs,
-    };
+  ClipShape.animalSilhouette: kStudioV2SilhouettesByKind['animal'] ?? const [],
+  ClipShape.plantSilhouette: kStudioV2SilhouettesByKind['plant'] ?? const [],
+  ClipShape.landmarkSilhouette:
+      kStudioV2SilhouettesByKind['landmark'] ?? const [],
+  ClipShape.passportStampOutline: kStudioV2PassportStampSlugs,
+};
 
 /// Builds a [StudioController] over a supplied [DesignContext], wired to the
 /// mobile host adapters: the bundle [AssetResolver] (rootBundle) for rendering,
@@ -63,11 +61,11 @@ StudioController buildStudioV2ControllerFor(
 /// The real app path uses [StudioV2App], which sources the context from live
 /// Roavvy travel data.
 StudioController buildStudioV2Controller() => buildStudioV2ControllerFor(
-      const DesignContext(
-        flagCodes: ['us', 'fr', 'jp', 'br', 'au', 'it', 'gr', 'th'],
-        scopeKey: 'studio_v2:demo',
-      ),
-    );
+  const DesignContext(
+    flagCodes: ['us', 'fr', 'jp', 'br', 'au', 'it', 'gr', 'th'],
+    scopeKey: 'studio_v2:demo',
+  ),
+);
 
 /// The developer-only V2 app root. Launched independently of production V1 via
 /// `--dart-define=STUDIO_V2=true` (see `main.dart`) or the dedicated entrypoint
@@ -134,30 +132,39 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
     final visits = visitsAsync.valueOrNull;
 
     if (tripsAsync.hasError) {
-      v2trace('tripListProvider ERROR (using fallback context): '
-          '${tripsAsync.error}');
+      v2trace(
+        'tripListProvider ERROR (using fallback context): '
+        '${tripsAsync.error}',
+      );
     }
     final ready = _prefsLoaded && !tripsAsync.isLoading;
-    v2bump('StudioV2App.build',
-        detail: 'ready=$ready ctrl=${_controller != null} '
-            'tripsLoading=${tripsAsync.isLoading} tripsErr=${tripsAsync.hasError} '
-            'trips=${trips?.length} visits=${visits?.length}');
+    v2bump(
+      'StudioV2App.build',
+      detail:
+          'ready=$ready ctrl=${_controller != null} '
+          'tripsLoading=${tripsAsync.isLoading} tripsErr=${tripsAsync.hasError} '
+          'trips=${trips?.length} visits=${visits?.length}',
+    );
 
     if (ready && _controller == null) {
       final ctx = StudioV2TravelContext.build(
         trips: trips ?? const [],
         visitedCodes: [for (final v in (visits ?? const [])) v.countryCode],
       );
-      v2trace('creating controller: flagCodes=${ctx.flagCodes.length} '
-          'trips=${ctx.trips.length} prefsSamples=${_prefs?.sampleCount ?? 0}');
+      v2trace(
+        'creating controller: flagCodes=${ctx.flagCodes.length} '
+        'trips=${ctx.trips.length} prefsSamples=${_prefs?.sampleCount ?? 0}',
+      );
       _controller = buildStudioV2ControllerFor(
         ctx,
         preferences: _prefs ?? DesignPreferences.neutral,
         unavailableGarments: widget.unavailableGarments,
       );
-      v2trace('controller ready: heroRecipeId=${_controller!.current.recipeId} '
-          'family=${_controller!.current.composition.family.name} '
-          'flagsInRecipe=${_controller!.current.content.flags.length}');
+      v2trace(
+        'controller ready: heroRecipeId=${_controller!.current.recipeId} '
+        'family=${_controller!.current.composition.family.name} '
+        'flagsInRecipe=${_controller!.current.content.flags.length}',
+      );
     }
 
     const accent = Color(0xFFE84C22);
@@ -182,16 +189,22 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
           foregroundColor: Colors.white,
           elevation: 0,
         ),
-        sliderTheme: const SliderThemeData(activeTrackColor: accent, thumbColor: accent),
+        sliderTheme: const SliderThemeData(
+          activeTrackColor: accent,
+          thumbColor: accent,
+        ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(color: accent),
       ),
-      home: _controller == null
-          ? const Scaffold(
-              backgroundColor: Color(0xFF0E0F12),
-              body: Center(child: CircularProgressIndicator()),
-            )
-          : StudioV2Screen(
-              controller: _controller!, onAddToCart: widget.onAddToCart),
+      home:
+          _controller == null
+              ? const Scaffold(
+                backgroundColor: Color(0xFF0E0F12),
+                body: Center(child: CircularProgressIndicator()),
+              )
+              : StudioV2Screen(
+                controller: _controller!,
+                onAddToCart: widget.onAddToCart,
+              ),
     );
   }
 }

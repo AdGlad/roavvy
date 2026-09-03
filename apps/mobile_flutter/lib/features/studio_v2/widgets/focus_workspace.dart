@@ -33,12 +33,18 @@ class _FocusWorkspaceState extends State<FocusWorkspace> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Pick the layout',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w700)),
+                    Text(
+                      'Pick the layout',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Try a few arrangements without changing your style.',
-                        style: TextStyle(fontSize: 12, color: Colors.white54)),
+                    Text(
+                      'Try a few arrangements without changing your style.',
+                      style: TextStyle(fontSize: 12, color: Colors.white54),
+                    ),
                   ],
                 ),
               ),

@@ -16,13 +16,26 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   List<Trip> tripsFixture() => [
-        Trip(countryCode: 'us', startedOn: DateTime(2020, 6, 1), endedOn: DateTime(2020, 6, 8)),
-        Trip(countryCode: 'fr', startedOn: DateTime(2021, 3, 1), endedOn: DateTime(2021, 3, 9)),
-        Trip(countryCode: 'jp', startedOn: DateTime(2021, 8, 1), endedOn: DateTime(2021, 8, 5)),
-      ];
+    Trip(
+      countryCode: 'us',
+      startedOn: DateTime(2020, 6, 1),
+      endedOn: DateTime(2020, 6, 8),
+    ),
+    Trip(
+      countryCode: 'fr',
+      startedOn: DateTime(2021, 3, 1),
+      endedOn: DateTime(2021, 3, 9),
+    ),
+    Trip(
+      countryCode: 'jp',
+      startedOn: DateTime(2021, 8, 1),
+      endedOn: DateTime(2021, 8, 5),
+    ),
+  ];
 
   StudioController controller() => buildStudioV2ControllerFor(
-      DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:m8'));
+    DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:m8'),
+  );
 
   Future<StudioV2ScreenState> pumpAt(
     WidgetTester tester,
@@ -35,23 +48,28 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final key = GlobalKey<StudioV2ScreenState>();
-    await tester.pumpWidget(MaterialApp(
-        home: StudioV2Screen(
-            key: key, controller: c, onAddToCart: onAddToCart)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StudioV2Screen(key: key, controller: c, onAddToCart: onAddToCart),
+      ),
+    );
     await tester.pump();
     await tester.tap(find.byKey(Key('v2-stage-${stage.name}')));
     await tester.pump();
     return key.currentState!;
   }
 
-  testWidgets('Review replaces the placeholder and switches Front/Back',
-      (tester) async {
+  testWidgets('Review replaces the placeholder and switches Front/Back', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.review);
 
-    expect(find.text('Controls for this step arrive in a later milestone.'),
-        findsNothing);
+    expect(
+      find.text('Controls for this step arrive in a later milestone.'),
+      findsNothing,
+    );
     expect(find.byKey(const Key('v2-review-save')), findsOneWidget);
     expect(find.byKey(const Key('v2-review-addtocart')), findsOneWidget);
 
@@ -65,8 +83,9 @@ void main() {
     expect(c.onFront, isFalse);
   });
 
-  testWidgets('summary reflects the actual design (colour + direction)',
-      (tester) async {
+  testWidgets('summary reflects the actual design (colour + direction)', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     c.setGarment('#F5F5F5'); // White
@@ -77,8 +96,9 @@ void main() {
     expect(find.text(c.subjectLabel), findsWidgets);
   });
 
-  testWidgets('Save design persists the whole two-face garment (idempotent)',
-      (tester) async {
+  testWidgets('Save design persists the whole two-face garment (idempotent)', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.review);
@@ -95,8 +115,9 @@ void main() {
     expect(lib.library.garments.first.garment!.garmentId, c.garment.garmentId);
   });
 
-  testWidgets('Add to cart hands a well-formed request to the host callback',
-      (tester) async {
+  testWidgets('Add to cart hands a well-formed request to the host callback', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     c.setGarment('#1F2B33'); // Black
@@ -104,9 +125,14 @@ void main() {
     c.setFrontFit(FrontFit.chest);
 
     GarmentCartRequest? captured;
-    await pumpAt(tester, c, StudioStage.review, onAddToCart: (ctx, req) async {
-      captured = req;
-    });
+    await pumpAt(
+      tester,
+      c,
+      StudioStage.review,
+      onAddToCart: (ctx, req) async {
+        captured = req;
+      },
+    );
 
     await tester.tap(find.byKey(const Key('v2-review-addtocart')));
     await tester.pump();
@@ -125,16 +151,22 @@ void main() {
     expect(captured!.renderFrontArtwork, isNotNull);
   });
 
-  testWidgets('Front None hands no front render → blank front print (M9)',
-      (tester) async {
+  testWidgets('Front None hands no front render → blank front print (M9)', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     c.setFrontFit(FrontFit.none);
 
     GarmentCartRequest? captured;
-    await pumpAt(tester, c, StudioStage.review, onAddToCart: (ctx, req) async {
-      captured = req;
-    });
+    await pumpAt(
+      tester,
+      c,
+      StudioStage.review,
+      onAddToCart: (ctx, req) async {
+        captured = req;
+      },
+    );
     await tester.tap(find.byKey(const Key('v2-review-addtocart')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -144,8 +176,9 @@ void main() {
     expect(captured!.renderFrontArtwork, isNull); // no front print
   });
 
-  testWidgets('Add to cart with no host wired is a graceful no-op (snackbar)',
-      (tester) async {
+  testWidgets('Add to cart with no host wired is a graceful no-op (snackbar)', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.review); // onAddToCart == null
@@ -155,8 +188,9 @@ void main() {
     expect(find.text('Cart is not available in this build'), findsOneWidget);
   });
 
-  testWidgets('Back to edit preserves the whole design state (M0–M7)',
-      (tester) async {
+  testWidgets('Back to edit preserves the whole design state (M0–M7)', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
 

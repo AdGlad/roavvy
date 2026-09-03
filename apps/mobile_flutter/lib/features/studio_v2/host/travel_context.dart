@@ -14,11 +14,11 @@ class StudioV2TravelContext {
   /// One [Trip] per [TripRecord] (repeat visits stay distinct → "Trips" mode can
   /// repeat a country).
   static Trip tripFromRecord(TripRecord r) => Trip(
-        countryCode: r.countryCode,
-        startedOn: r.startedOn,
-        endedOn: r.endedOn,
-        photoCount: r.photoCount,
-      );
+    countryCode: r.countryCode,
+    startedOn: r.startedOn,
+    endedOn: r.endedOn,
+    photoCount: r.photoCount,
+  );
 
   /// Build the Studio's [DesignContext] from the best available real data:
   ///  * dated [trips] when present (enables Countries/Trips + year range), else
@@ -31,10 +31,9 @@ class StudioV2TravelContext {
     String scopeKey = 'studio_v2',
   }) {
     if (trips.isNotEmpty) {
-      return DesignContext.fromTrips(
-        [for (final r in trips) tripFromRecord(r)],
-        scopeKey: scopeKey,
-      );
+      return DesignContext.fromTrips([
+        for (final r in trips) tripFromRecord(r),
+      ], scopeKey: scopeKey);
     }
     final codes = visitedCodes.isNotEmpty ? visitedCodes : fallbackCodes;
     return DesignContext(

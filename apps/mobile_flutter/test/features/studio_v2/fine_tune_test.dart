@@ -15,23 +15,40 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   List<Trip> tripsFixture() => [
-        Trip(countryCode: 'us', startedOn: DateTime(2020, 6, 1), endedOn: DateTime(2020, 6, 8)),
-        Trip(countryCode: 'fr', startedOn: DateTime(2021, 3, 1), endedOn: DateTime(2021, 3, 9)),
-        Trip(countryCode: 'jp', startedOn: DateTime(2021, 8, 1), endedOn: DateTime(2021, 8, 5)),
-      ];
+    Trip(
+      countryCode: 'us',
+      startedOn: DateTime(2020, 6, 1),
+      endedOn: DateTime(2020, 6, 8),
+    ),
+    Trip(
+      countryCode: 'fr',
+      startedOn: DateTime(2021, 3, 1),
+      endedOn: DateTime(2021, 3, 9),
+    ),
+    Trip(
+      countryCode: 'jp',
+      startedOn: DateTime(2021, 8, 1),
+      endedOn: DateTime(2021, 8, 5),
+    ),
+  ];
 
   StudioController controller() => buildStudioV2ControllerFor(
-      DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:m7'));
+    DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:m7'),
+  );
 
   Future<StudioV2ScreenState> pumpAt(
-      WidgetTester tester, StudioController c, StudioStage stage) async {
+    WidgetTester tester,
+    StudioController c,
+    StudioStage stage,
+  ) async {
     tester.view.physicalSize = const Size(1600, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final key = GlobalKey<StudioV2ScreenState>();
     await tester.pumpWidget(
-        MaterialApp(home: StudioV2Screen(key: key, controller: c)));
+      MaterialApp(home: StudioV2Screen(key: key, controller: c)),
+    );
     await tester.pump();
     await tester.tap(find.byKey(Key('v2-stage-${stage.name}')));
     await tester.pump();
@@ -50,10 +67,19 @@ void main() {
     await pumpAt(tester, c, StudioStage.fineTune);
 
     // Placeholder is gone…
-    expect(find.text('Controls for this step arrive in a later milestone.'),
-        findsNothing);
+    expect(
+      find.text('Controls for this step arrive in a later milestone.'),
+      findsNothing,
+    );
     // …replaced by the contextual category set for a (default) Flags recipe.
-    for (final cat in ['finish', 'layout', 'colour', 'edges', 'effects', 'print']) {
+    for (final cat in [
+      'finish',
+      'layout',
+      'colour',
+      'edges',
+      'effects',
+      'print',
+    ]) {
       expect(find.byKey(Key('v2-ft-cat-$cat')), findsOneWidget, reason: cat);
     }
     // Flags is not typographic and (by default) not clipped.
@@ -115,8 +141,10 @@ void main() {
 
     await expand(tester, 'graphic');
     final before = c.current.recipeId;
-    await tester.drag(find.byKey(const Key('v2-ft-clip-scale')),
-        const Offset(-120, 0));
+    await tester.drag(
+      find.byKey(const Key('v2-ft-clip-scale')),
+      const Offset(-120, 0),
+    );
     await tester.pump();
     expect(c.current.clip!.scale, lessThan(1.0)); // dragged smaller
     expect(c.current.recipeId, isNot(before)); // live preview updated
@@ -127,8 +155,9 @@ void main() {
     expect(c.current.clip!.rotationDeg, 0.0);
   });
 
-  testWidgets('Colour treatment is undoable; vintage grade is a live knob',
-      (tester) async {
+  testWidgets('Colour treatment is undoable; vintage grade is a live knob', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.fineTune);
@@ -145,8 +174,10 @@ void main() {
     expect(c.colourStrategy, isNot(ColourStrategy.monochrome));
 
     // Vintage grade slider is a live palette edit.
-    await tester.drag(find.byKey(const Key('v2-ft-vintage')),
-        const Offset(200, 0));
+    await tester.drag(
+      find.byKey(const Key('v2-ft-vintage')),
+      const Offset(200, 0),
+    );
     await tester.pump();
     expect(c.vintageGrade, greaterThan(0));
   });
@@ -161,14 +192,17 @@ void main() {
     await tester.pump();
     expect(c.edges.style, TearStyle.frayed);
 
-    await tester.drag(find.byKey(const Key('v2-ft-edge-damage')),
-        const Offset(-300, 0));
+    await tester.drag(
+      find.byKey(const Key('v2-ft-edge-damage')),
+      const Offset(-300, 0),
+    );
     await tester.pump();
     expect(c.edges.edgeDamage, lessThan(0.5)); // dragged down from default
   });
 
-  testWidgets('Effects sliders + reset preserves the Print looks',
-      (tester) async {
+  testWidgets('Effects sliders + reset preserves the Print looks', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.fineTune);
@@ -181,8 +215,10 @@ void main() {
     await expand(tester, 'print'); // collapse
 
     await expand(tester, 'effects');
-    await tester.drag(find.byKey(const Key('v2-ft-fx-distress')),
-        const Offset(300, 0));
+    await tester.drag(
+      find.byKey(const Key('v2-ft-fx-distress')),
+      const Offset(300, 0),
+    );
     await tester.pump();
     expect(c.fx.distress, greaterThan(0));
 
@@ -195,7 +231,9 @@ void main() {
     expect(c.fx.riso, greaterThan(0)); // …Print look preserved
   });
 
-  testWidgets('Print looks are mutually distinct and clearable', (tester) async {
+  testWidgets('Print looks are mutually distinct and clearable', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.fineTune);
@@ -215,8 +253,9 @@ void main() {
     expect(c.fx.photocopy, 0);
   });
 
-  testWidgets('Finish presets apply effects + palette (undoable)',
-      (tester) async {
+  testWidgets('Finish presets apply effects + palette (undoable)', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.fineTune);
@@ -230,8 +269,9 @@ void main() {
     expect(c.history.length, histLen + 1); // committed → undoable
   });
 
-  testWidgets('Locks are preserved and M0–M6 state survives Fine Tune edits',
-      (tester) async {
+  testWidgets('Locks are preserved and M0–M6 state survives Fine Tune edits', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
 
@@ -250,8 +290,10 @@ void main() {
     await tester.tap(find.byKey(const Key('v2-stage-fineTune')));
     await tester.pump();
     await expand(tester, 'effects');
-    await tester.drag(find.byKey(const Key('v2-ft-fx-grain')),
-        const Offset(200, 0));
+    await tester.drag(
+      find.byKey(const Key('v2-ft-fx-grain')),
+      const Offset(200, 0),
+    );
     await tester.pump();
 
     // The lock is still held; unrelated axes are intact.

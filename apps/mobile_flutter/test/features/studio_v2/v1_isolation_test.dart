@@ -37,7 +37,10 @@ void main() {
         }
       }
     }
-    expect(offenders, isEmpty,
-        reason: 'V2 must stay isolated:\n${offenders.join('\n')}');
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'V2 must stay isolated:\n${offenders.join('\n')}',
+    );
   });
 }

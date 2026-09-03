@@ -64,83 +64,104 @@ class _WordsWorkspaceState extends State<WordsWorkspace> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(children: [
-            const Expanded(
-              child: Text('WORDS',
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'WORDS',
                   style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.4,
-                      color: StudioV2Theme.accent)),
-            ),
-            AxisLockChip(controller: _c, axis: DesignAxis.words),
-            const SizedBox(width: 8),
-            RemixButton(controller: _c),
-          ]),
-          const SizedBox(height: 4),
-          const Text('Add a title to your design — type your own or tap a '
-              'suggestion.',
-              style: TextStyle(fontSize: 13, color: Colors.white70)),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(
-              child: TextField(
-                key: const Key('v2-title-field'),
-                controller: _field,
-                focusNode: _focus,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                textInputAction: TextInputAction.done,
-                onSubmitted: _apply,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'Your title',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: StudioV2Theme.card,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: StudioV2Theme.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: StudioV2Theme.accent),
+                    fontSize: 11,
+                    letterSpacing: 1.4,
+                    color: StudioV2Theme.accent,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              key: const Key('v2-title-remove'),
-              onPressed: hasTitle ? () => _apply('') : null,
-              style: TextButton.styleFrom(foregroundColor: Colors.white70),
-              child: const Text('Remove'),
-            ),
-          ]),
+              AxisLockChip(controller: _c, axis: DesignAxis.words),
+              const SizedBox(width: 8),
+              RemixButton(controller: _c),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Add a title to your design — type your own or tap a '
+            'suggestion.',
+            style: TextStyle(fontSize: 13, color: Colors.white70),
+          ),
           const SizedBox(height: 12),
-          Row(children: [
-            Expanded(
-              child: Text(ideas.isEmpty ? 'SUGGESTIONS' : 'TAP TO APPLY',
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const Key('v2-title-field'),
+                  controller: _field,
+                  focusNode: _focus,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: _apply,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Your title',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: StudioV2Theme.card,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: StudioV2Theme.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: StudioV2Theme.accent),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                key: const Key('v2-title-remove'),
+                onPressed: hasTitle ? () => _apply('') : null,
+                style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ideas.isEmpty ? 'SUGGESTIONS' : 'TAP TO APPLY',
                   style: const TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.2,
-                      color: StudioV2Theme.accent)),
-            ),
-            TextButton.icon(
-              key: const Key('v2-title-suggest'),
-              onPressed: _c.suggestTitles,
-              style: TextButton.styleFrom(
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                    color: StudioV2Theme.accent,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                key: const Key('v2-title-suggest'),
+                onPressed: _c.suggestTitles,
+                style: TextButton.styleFrom(
                   foregroundColor: Colors.white70,
-                  padding: const EdgeInsets.symmetric(horizontal: 8)),
-              icon: const Icon(Icons.refresh, size: 15),
-              label: Text(ideas.isEmpty ? 'Suggest titles' : 'More',
-                  style: const TextStyle(fontSize: 12)),
-            ),
-          ]),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                icon: const Icon(Icons.refresh, size: 15),
+                label: Text(
+                  ideas.isEmpty ? 'Suggest titles' : 'More',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           if (ideas.isEmpty)
-            const Text('Tap “Suggest titles” for ideas from your travels.',
-                style: TextStyle(fontSize: 12, color: Colors.white38))
+            const Text(
+              'Tap “Suggest titles” for ideas from your travels.',
+              style: TextStyle(fontSize: 12, color: Colors.white38),
+            )
           else
             Wrap(
               spacing: 8,
@@ -180,18 +201,23 @@ class _IdeaChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected
-              ? StudioV2Theme.accent.withValues(alpha: 0.14)
-              : StudioV2Theme.card,
+          color:
+              selected
+                  ? StudioV2Theme.accent.withValues(alpha: 0.14)
+                  : StudioV2Theme.card,
           border: Border.all(
-              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
-              width: selected ? 1.5 : 1),
+            color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
+            width: selected ? 1.5 : 1,
+          ),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                color: selected ? StudioV2Theme.accent : Colors.white)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: selected ? StudioV2Theme.accent : Colors.white,
+          ),
+        ),
       ),
     );
   }

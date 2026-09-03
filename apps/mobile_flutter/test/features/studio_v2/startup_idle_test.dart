@@ -15,22 +15,28 @@ import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
 /// the production one.
 class _NoopResolver implements AssetResolver {
   @override
-  Future<ui.Image> resolveFlag(String code,
-          {required int width, required int height}) =>
-      throw UnimplementedError();
+  Future<ui.Image> resolveFlag(
+    String code, {
+    required int width,
+    required int height,
+  }) => throw UnimplementedError();
   @override
-  Future<ui.Image?> resolveClipMask(ClipShape shape, String? code,
-          {required int width, required int height}) async =>
-      null;
+  Future<ui.Image?> resolveClipMask(
+    ClipShape shape,
+    String? code, {
+    required int width,
+    required int height,
+  }) async => null;
   @override
-  Future<ui.Image?> resolvePassportCollage(List<PassportStampRef> stamps,
-          {required int width,
-          required int height,
-          int seed = 0,
-          double scatter = 0.5,
-          double stampScale = 1.0,
-          PassportInk ink = PassportInk.flag}) async =>
-      null;
+  Future<ui.Image?> resolvePassportCollage(
+    List<PassportStampRef> stamps, {
+    required int width,
+    required int height,
+    int seed = 0,
+    double scatter = 0.5,
+    double stampScale = 1.0,
+    PassportInk ink = PassportInk.flag,
+  }) async => null;
 }
 
 /// A [RenderService] that never rasterises real assets: it counts every
@@ -63,13 +69,17 @@ class _CountingService extends RenderService {
 }
 
 StudioController _controller(_CountingService service) => StudioController(
-      generator: LabShowcaseGenerator(
-          silhouettesByShape: const {}, countryNames: const {}),
-      service: service,
-      designContext: const DesignContext(
-          flagCodes: ['us', 'fr', 'jp'], scopeKey: 'test:idle'),
-      initialSeed: 1,
-    );
+  generator: LabShowcaseGenerator(
+    silhouettesByShape: const {},
+    countryNames: const {},
+  ),
+  service: service,
+  designContext: const DesignContext(
+    flagCodes: ['us', 'fr', 'jp'],
+    scopeKey: 'test:idle',
+  ),
+  initialSeed: 1,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -96,7 +106,9 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
   });
 
-  testWidgets('idle rebuilds mint no new recipe or render work', (tester) async {
+  testWidgets('idle rebuilds mint no new recipe or render work', (
+    tester,
+  ) async {
     final service = _CountingService();
     final c = await pump(tester, service);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
@@ -110,21 +122,32 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
     }
 
-    expect(c.current.recipeId, idAtRest, reason: 'recipe id drifted while idle');
+    expect(
+      c.current.recipeId,
+      idAtRest,
+      reason: 'recipe id drifted while idle',
+    );
     expect(service.calls, callsAtRest, reason: 'render calls grew while idle');
-    expect(service.keys.length, keysAtRest,
-        reason: 'distinct render keys (cache) grew while idle');
+    expect(
+      service.keys.length,
+      keysAtRest,
+      reason: 'distinct render keys (cache) grew while idle',
+    );
     // Instant shows the hero plus the deck thumbnail for the visible pick, so
     // more than one key is expected — but the deck must stay LAZY. Eight
     // thumbnails at rest would mean the PageView is building its whole list.
-    expect(keysAtRest, lessThanOrEqualTo(3),
-        reason: 'the deck should render around the current page, not all of it');
+    expect(
+      keysAtRest,
+      lessThanOrEqualTo(3),
+      reason: 'the deck should render around the current page, not all of it',
+    );
     // Exactly one FULL-SIZE render: the hero. Thumbnails are a smaller tier.
     expect(service.keys.where((k) => k.endsWith('@1024')).length, 1);
   });
 
-  testWidgets('a pure stage change never re-renders the full-size hero',
-      (tester) async {
+  testWidgets('a pure stage change never re-renders the full-size hero', (
+    tester,
+  ) async {
     final service = _CountingService();
     final c = await pump(tester, service);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
@@ -142,7 +165,10 @@ void main() {
     }
 
     // Exactly one full-size (@1024) hero render key ever exists.
-    expect(service.keys.where((k) => k.endsWith('@1024')).length, 1,
-        reason: 'the full-size hero was re-rendered by stage navigation');
+    expect(
+      service.keys.where((k) => k.endsWith('@1024')).length,
+      1,
+      reason: 'the full-size hero was re-rendered by stage navigation',
+    );
   });
 }

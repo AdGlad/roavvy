@@ -37,12 +37,18 @@ class _VibeWorkspaceState extends State<VibeWorkspace> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Choose a vibe',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w700)),
+                    Text(
+                      'Choose a vibe',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Same travels. A completely different feel.',
-                        style: TextStyle(fontSize: 12, color: Colors.white54)),
+                    Text(
+                      'Same travels. A completely different feel.',
+                      style: TextStyle(fontSize: 12, color: Colors.white54),
+                    ),
                   ],
                 ),
               ),
@@ -128,12 +134,14 @@ class _VibeCard extends StatelessWidget {
           duration: const Duration(milliseconds: 160),
           width: 116,
           decoration: BoxDecoration(
-            color: selected
-                ? StudioV2Theme.accent.withValues(alpha: 0.10)
-                : StudioV2Theme.card,
+            color:
+                selected
+                    ? StudioV2Theme.accent.withValues(alpha: 0.10)
+                    : StudioV2Theme.card,
             border: Border.all(
-                color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
-                width: selected ? 2 : 1),
+              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
+              width: selected ? 2 : 1,
+            ),
             borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.all(7),
@@ -143,26 +151,34 @@ class _VibeCard extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(9),
                   child: GarmentPreview(
-                      service: service, recipe: recipe, longSide: 220),
+                    service: service,
+                    recipe: recipe,
+                    longSide: 220,
+                  ),
                 ),
               ),
               const SizedBox(height: 7),
               Row(
                 children: [
                   Expanded(
-                    child: Text(label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: Colors.white)),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                   if (selected)
-                    const Icon(Icons.check_circle,
-                        size: 16, color: StudioV2Theme.accent),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: StudioV2Theme.accent,
+                    ),
                 ],
               ),
             ],

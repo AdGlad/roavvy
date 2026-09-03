@@ -33,11 +33,15 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Choose your travels',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  Text(
+                    'Choose your travels',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
                   SizedBox(height: 3),
-                  Text('Tap the places you want represented on your shirt.',
-                      style: TextStyle(fontSize: 12, color: Colors.white54)),
+                  Text(
+                    'Tap the places you want represented on your shirt.',
+                    style: TextStyle(fontSize: 12, color: Colors.white54),
+                  ),
                 ],
               ),
             ),
@@ -46,35 +50,58 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
         ),
         if (dated) ...[
           const SizedBox(height: 10),
-          Row(children: [
-            _segment(
-              children: [
-                _seg('travels-source-countries', 'Countries', !_c.sourceTrips,
-                    () => _c.setSource(false)),
-                _seg('travels-source-trips', 'Trips', _c.sourceTrips,
-                    () => _c.setSource(true)),
-              ],
-            ),
-            const Spacer(),
-            Text('${_c.selectedCountryCodes.length} selected',
-                style: const TextStyle(fontSize: 12, color: Colors.white60)),
-          ]),
+          Row(
+            children: [
+              _segment(
+                children: [
+                  _seg(
+                    'travels-source-countries',
+                    'Countries',
+                    !_c.sourceTrips,
+                    () => _c.setSource(false),
+                  ),
+                  _seg(
+                    'travels-source-trips',
+                    'Trips',
+                    _c.sourceTrips,
+                    () => _c.setSource(true),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                '${_c.selectedCountryCodes.length} selected',
+                style: const TextStyle(fontSize: 12, color: Colors.white60),
+              ),
+            ],
+          ),
           _yearRange(),
         ] else ...[
           const SizedBox(height: 10),
-          Row(children: [
-            Text('${_c.selectedCountryCodes.length} countries selected',
-                style: const TextStyle(fontSize: 12, color: Colors.white60)),
-            const Spacer(),
-            _textButton('travels-select-all', 'All', _c.selectAllCountries),
-            _textButton('travels-clear', 'Clear', _c.clearCountries),
-          ]),
+          Row(
+            children: [
+              Text(
+                '${_c.selectedCountryCodes.length} countries selected',
+                style: const TextStyle(fontSize: 12, color: Colors.white60),
+              ),
+              const Spacer(),
+              _textButton('travels-select-all', 'All', _c.selectAllCountries),
+              _textButton('travels-clear', 'Clear', _c.clearCountries),
+            ],
+          ),
         ],
         if (dated)
-          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            _textButton('travels-select-all', 'Select all', _c.selectAllCountries),
-            _textButton('travels-clear', 'Clear', _c.clearCountries),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _textButton(
+                'travels-select-all',
+                'Select all',
+                _c.selectAllCountries,
+              ),
+              _textButton('travels-clear', 'Clear', _c.clearCountries),
+            ],
+          ),
         const SizedBox(height: 6),
         Expanded(child: _mapView ? _map() : _list()),
       ],
@@ -82,12 +109,12 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
   }
 
   Widget _viewButton() => TextButton.icon(
-        key: const Key('v2-travels-view-toggle'),
-        onPressed: () => setState(() => _mapView = !_mapView),
-        icon: Icon(_mapView ? Icons.list_rounded : Icons.public, size: 17),
-        label: Text(_mapView ? 'List' : 'Map'),
-        style: TextButton.styleFrom(foregroundColor: StudioV2Theme.accent),
-      );
+    key: const Key('v2-travels-view-toggle'),
+    onPressed: () => setState(() => _mapView = !_mapView),
+    icon: Icon(_mapView ? Icons.list_rounded : Icons.public, size: 17),
+    label: Text(_mapView ? 'List' : 'Map'),
+    style: TextButton.styleFrom(foregroundColor: StudioV2Theme.accent),
+  );
 
   Widget _yearRange() {
     final span = _c.span;
@@ -97,8 +124,10 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
     if (maxY <= minY) {
       return Padding(
         padding: const EdgeInsets.only(top: 8),
-        child: Text('Trips from $minY',
-            style: const TextStyle(fontSize: 12, color: Colors.white60)),
+        child: Text(
+          'Trips from $minY',
+          style: const TextStyle(fontSize: 12, color: Colors.white60),
+        ),
       );
     }
     final lo = _c.yearLo.clamp(minY, maxY).toDouble();
@@ -108,8 +137,10 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${_c.yearLo} – ${_c.yearHi}',
-              style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(
+            '${_c.yearLo} – ${_c.yearHi}',
+            style: const TextStyle(fontSize: 12, color: Colors.white70),
+          ),
           RangeSlider(
             key: const Key('v2-travels-year'),
             min: minY.toDouble(),
@@ -139,8 +170,10 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
           dense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Text(_flagEmoji(cc), style: const TextStyle(fontSize: 22)),
-          title: Text(name,
-              style: const TextStyle(fontSize: 14, color: Colors.white)),
+          title: Text(
+            name,
+            style: const TextStyle(fontSize: 14, color: Colors.white),
+          ),
           trailing: Icon(
             selected ? Icons.check_circle : Icons.circle_outlined,
             color: selected ? StudioV2Theme.accent : Colors.white30,
@@ -171,13 +204,13 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
   }
 
   Widget _segment({required List<Widget> children}) => Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: StudioV2Theme.control,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: children),
-      );
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: StudioV2Theme.control,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: children),
+  );
 
   Widget _seg(String id, String label, bool on, VoidCallback onTap) =>
       GestureDetector(
@@ -192,28 +225,32 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
             ),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: on ? StudioV2Theme.accent : Colors.white60)),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: on ? StudioV2Theme.accent : Colors.white60,
+            ),
+          ),
         ),
       );
 
   Widget _textButton(String id, String label, VoidCallback onTap) => TextButton(
-        key: Key('v2-$id'),
-        onPressed: onTap,
-        style: TextButton.styleFrom(
-          foregroundColor: StudioV2Theme.accent,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          minimumSize: const Size(0, 30),
-        ),
-        child: Text(label, style: const TextStyle(fontSize: 12)),
-      );
+    key: Key('v2-$id'),
+    onPressed: onTap,
+    style: TextButton.styleFrom(
+      foregroundColor: StudioV2Theme.accent,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      minimumSize: const Size(0, 30),
+    ),
+    child: Text(label, style: const TextStyle(fontSize: 12)),
+  );
 
   String _flagEmoji(String iso) {
     final code = iso.toUpperCase();
     if (code.length != 2) return '🏳️';
-    return String.fromCharCodes(
-        [for (final u in code.codeUnits) 0x1F1E6 + (u - 0x41)]);
+    return String.fromCharCodes([
+      for (final u in code.codeUnits) 0x1F1E6 + (u - 0x41),
+    ]);
   }
 }

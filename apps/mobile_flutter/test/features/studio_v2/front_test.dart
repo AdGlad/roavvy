@@ -15,23 +15,40 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   List<Trip> tripsFixture() => [
-        Trip(countryCode: 'us', startedOn: DateTime(2020, 6, 1), endedOn: DateTime(2020, 6, 8)),
-        Trip(countryCode: 'fr', startedOn: DateTime(2021, 3, 1), endedOn: DateTime(2021, 3, 9)),
-        Trip(countryCode: 'jp', startedOn: DateTime(2021, 8, 1), endedOn: DateTime(2021, 8, 5)),
-      ];
+    Trip(
+      countryCode: 'us',
+      startedOn: DateTime(2020, 6, 1),
+      endedOn: DateTime(2020, 6, 8),
+    ),
+    Trip(
+      countryCode: 'fr',
+      startedOn: DateTime(2021, 3, 1),
+      endedOn: DateTime(2021, 3, 9),
+    ),
+    Trip(
+      countryCode: 'jp',
+      startedOn: DateTime(2021, 8, 1),
+      endedOn: DateTime(2021, 8, 5),
+    ),
+  ];
 
   StudioController controller() => buildStudioV2ControllerFor(
-      DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:m6'));
+    DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:m6'),
+  );
 
   Future<StudioV2ScreenState> pumpAt(
-      WidgetTester tester, StudioController c, StudioStage stage) async {
+    WidgetTester tester,
+    StudioController c,
+    StudioStage stage,
+  ) async {
     tester.view.physicalSize = const Size(1600, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final key = GlobalKey<StudioV2ScreenState>();
     await tester.pumpWidget(
-        MaterialApp(home: StudioV2Screen(key: key, controller: c)));
+      MaterialApp(home: StudioV2Screen(key: key, controller: c)),
+    );
     await tester.pump();
     await tester.tap(find.byKey(Key('v2-stage-${stage.name}')));
     await tester.pump();
@@ -176,8 +193,9 @@ void main() {
     expect(c.frontFit, isNotNull);
   });
 
-  testWidgets('M0–M5 state (travel / detail / colour) survives Front edits',
-      (tester) async {
+  testWidgets('M0–M5 state (travel / detail / colour) survives Front edits', (
+    tester,
+  ) async {
     final c = controller();
     addTearDown(c.dispose);
     await pumpAt(tester, c, StudioStage.detail);

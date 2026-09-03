@@ -59,45 +59,64 @@ class _AlternativesTrayState extends State<AlternativesTray> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(children: [
-          Expanded(
-            child: Text(widget.label.toUpperCase(),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.label.toUpperCase(),
                 style: const TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 1.2,
-                    color: StudioV2Theme.accent)),
-          ),
-          TextButton.icon(
-            key: const Key('v2-alt-more'),
-            onPressed: () => c.focusAxis(widget.axis),
-            style: TextButton.styleFrom(
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  color: StudioV2Theme.accent,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              key: const Key('v2-alt-more'),
+              onPressed: () => c.focusAxis(widget.axis),
+              style: TextButton.styleFrom(
                 foregroundColor: Colors.white70,
-                padding: const EdgeInsets.symmetric(horizontal: 8)),
-            icon: const Icon(Icons.refresh, size: 15),
-            label: const Text('More', style: TextStyle(fontSize: 12)),
-          ),
-        ]),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              icon: const Icon(Icons.refresh, size: 15),
+              label: const Text('More', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 108,
-          child: alts.isEmpty
-              ? const Center(
-                  child: Text('Rolling variations…',
-                      style: TextStyle(fontSize: 12, color: Colors.white38)))
-              : ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: alts.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, i) => _tile(c, alts[i], i,
-                      selected: alts[i].recipeId == currentId),
-                ),
+          child:
+              alts.isEmpty
+                  ? const Center(
+                    child: Text(
+                      'Rolling variations…',
+                      style: TextStyle(fontSize: 12, color: Colors.white38),
+                    ),
+                  )
+                  : ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: alts.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder:
+                        (context, i) => _tile(
+                          c,
+                          alts[i],
+                          i,
+                          selected: alts[i].recipeId == currentId,
+                        ),
+                  ),
         ),
       ],
     );
   }
 
-  Widget _tile(StudioController c, DesignRecipe alt, int i,
-      {required bool selected}) {
+  Widget _tile(
+    StudioController c,
+    DesignRecipe alt,
+    int i, {
+    required bool selected,
+  }) {
     return GestureDetector(
       key: Key('v2-alt-$i'),
       onTap: () => c.onAlternativeTap(i, alt),
@@ -106,37 +125,46 @@ class _AlternativesTrayState extends State<AlternativesTray> {
         decoration: BoxDecoration(
           color: StudioV2Theme.card,
           border: Border.all(
-              color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
-              width: selected ? 2 : 1),
+            color: selected ? StudioV2Theme.accent : StudioV2Theme.border,
+            width: selected ? 2 : 1,
+          ),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Stack(children: [
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: GarmentPreview(
-              service: c.service,
-              recipe: alt,
-              longSide: AlternativesTray._thumbLongSide,
-            ),
-          ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: GestureDetector(
-              key: Key('v2-alt-dismiss-$i'),
-              onTap: () => c.dismissAlternative(i),
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(
-                    color: Color(0xCC121317),
-                    borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(8),
-                        topRight: Radius.circular(9))),
-                child: const Icon(Icons.close, size: 13, color: Colors.white54),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: GarmentPreview(
+                service: c.service,
+                recipe: alt,
+                longSide: AlternativesTray._thumbLongSide,
               ),
             ),
-          ),
-        ]),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: GestureDetector(
+                key: Key('v2-alt-dismiss-$i'),
+                onTap: () => c.dismissAlternative(i),
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    color: Color(0xCC121317),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(8),
+                      topRight: Radius.circular(9),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 13,
+                    color: Colors.white54,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

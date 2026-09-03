@@ -45,27 +45,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  testWidgets('the studio opens on Instant with a design already on the shirt',
-      (tester) async {
-    await pumpPhone(tester);
-    expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
-    expect(find.byKey(const Key('v2-garment-preview')), findsOneWidget);
-    expect(controller.instantPicks, isNotEmpty);
-  });
+  testWidgets(
+    'the studio opens on Instant with a design already on the shirt',
+    (tester) async {
+      await pumpPhone(tester);
+      expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
+      expect(find.byKey(const Key('v2-garment-preview')), findsOneWidget);
+      expect(controller.instantPicks, isNotEmpty);
+    },
+  );
 
-  testWidgets('a finger swipe pages the deck inside the shell',
-      (tester) async {
+  testWidgets('a finger swipe pages the deck inside the shell', (tester) async {
     await pumpPhone(tester);
     expect(controller.instantIndex, 0);
     await swipe(tester, -240);
-    expect(controller.instantIndex, 1,
-        reason: 'the shell must not swallow the deck swipe');
+    expect(
+      controller.instantIndex,
+      1,
+      reason: 'the shell must not swallow the deck swipe',
+    );
     await swipe(tester, 240);
     expect(controller.instantIndex, 0);
   });
 
-  testWidgets('the opening screen paints without overflowing a phone',
-      (tester) async {
+  testWidgets('the opening screen paints without overflowing a phone', (
+    tester,
+  ) async {
     await pumpPhone(tester);
     expect(tester.takeException(), isNull);
   });

@@ -15,34 +15,52 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   List<Trip> tripsFixture() => [
-        Trip(countryCode: 'us', startedOn: DateTime(2020, 6, 1), endedOn: DateTime(2020, 6, 8)),
-        Trip(countryCode: 'fr', startedOn: DateTime(2021, 3, 1), endedOn: DateTime(2021, 3, 9)),
-        Trip(countryCode: 'jp', startedOn: DateTime(2021, 8, 1), endedOn: DateTime(2021, 8, 5)),
-      ];
+    Trip(
+      countryCode: 'us',
+      startedOn: DateTime(2020, 6, 1),
+      endedOn: DateTime(2020, 6, 8),
+    ),
+    Trip(
+      countryCode: 'fr',
+      startedOn: DateTime(2021, 3, 1),
+      endedOn: DateTime(2021, 3, 9),
+    ),
+    Trip(
+      countryCode: 'jp',
+      startedOn: DateTime(2021, 8, 1),
+      endedOn: DateTime(2021, 8, 5),
+    ),
+  ];
 
   StudioController datedController() => buildStudioV2ControllerFor(
-      DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:dated'));
+    DesignContext.fromTrips(tripsFixture(), scopeKey: 'test:dated'),
+  );
 
   StudioController flatController() => buildStudioV2ControllerFor(
-      const DesignContext(flagCodes: ['us', 'fr', 'jp'], scopeKey: 'test:flat'));
+    const DesignContext(flagCodes: ['us', 'fr', 'jp'], scopeKey: 'test:flat'),
+  );
 
   Future<StudioV2ScreenState> pumpTravels(
-      WidgetTester tester, StudioController c) async {
+    WidgetTester tester,
+    StudioController c,
+  ) async {
     tester.view.physicalSize = const Size(1600, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final key = GlobalKey<StudioV2ScreenState>();
     await tester.pumpWidget(
-        MaterialApp(home: StudioV2Screen(key: key, controller: c)));
+      MaterialApp(home: StudioV2Screen(key: key, controller: c)),
+    );
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-stage-travels')));
     await tester.pump();
     return key.currentState!;
   }
 
-  testWidgets('live shirt stays visible; Countries list selects/deselects',
-      (tester) async {
+  testWidgets('live shirt stays visible; Countries list selects/deselects', (
+    tester,
+  ) async {
     final c = datedController();
     addTearDown(c.dispose);
     await pumpTravels(tester, c);
@@ -80,7 +98,9 @@ void main() {
     expect(c.selectedCountryCodes, {'us', 'fr', 'jp'});
   });
 
-  testWidgets('Trips source + year range show for dated history', (tester) async {
+  testWidgets('Trips source + year range show for dated history', (
+    tester,
+  ) async {
     final c = datedController();
     addTearDown(c.dispose);
     await pumpTravels(tester, c);
@@ -96,8 +116,9 @@ void main() {
     expect(c.context.flagCodes.length, 3);
   });
 
-  testWidgets('Trips + year controls hide when there is no dated history',
-      (tester) async {
+  testWidgets('Trips + year controls hide when there is no dated history', (
+    tester,
+  ) async {
     final c = flatController();
     addTearDown(c.dispose);
     await pumpTravels(tester, c);
@@ -110,8 +131,9 @@ void main() {
     expect(c.isSelected('us'), isFalse);
   });
 
-  testWidgets('a Map-path toggle is reflected in the List (shared state)',
-      (tester) async {
+  testWidgets('a Map-path toggle is reflected in the List (shared state)', (
+    tester,
+  ) async {
     final c = datedController();
     addTearDown(c.dispose);
     await pumpTravels(tester, c);
@@ -122,33 +144,37 @@ void main() {
     expect(c.isSelected('us'), isFalse);
     // The List row now renders the deselected state (unchecked icon present).
     final tile = tester.widget<ListTile>(
-        find.byKey(const Key('v2-travels-country-us')));
+      find.byKey(const Key('v2-travels-country-us')),
+    );
     expect((tile.trailing as Icon).icon, Icons.circle_outlined);
   });
 
-  testWidgets('travel change keeps garment; navigate away/back keeps selection',
-      (tester) async {
-    final c = datedController();
-    addTearDown(c.dispose);
-    final state = await pumpTravels(tester, c);
+  testWidgets(
+    'travel change keeps garment; navigate away/back keeps selection',
+    (tester) async {
+      final c = datedController();
+      addTearDown(c.dispose);
+      final state = await pumpTravels(tester, c);
 
-    // Set a garment colour, then change travels — garment must survive.
-    await tester.tap(find.byKey(const Key('v2-garment-Olive')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('v2-travels-country-fr')));
-    await tester.pump();
-    expect(c.isSelected('fr'), isFalse);
-    expect(c.current.palette?.garmentColour, '#6B7350');
+      // Set a garment colour, then change travels — garment must survive.
+      await tester.tap(find.byKey(const Key('v2-garment-Olive')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('v2-travels-country-fr')));
+      await tester.pump();
+      expect(c.isSelected('fr'), isFalse);
+      expect(c.current.palette?.garmentColour, '#6B7350');
 
-    // Navigate away (Instant) and back to Travels — selection is preserved.
-    await tester.tap(find.byKey(const Key('v2-stage-instant')));
-    await tester.pump();
-    expect(state.stage, StudioStage.instant);
-    await tester.tap(find.byKey(const Key('v2-stage-travels')));
-    await tester.pump();
-    expect(c.isSelected('fr'), isFalse); // still deselected
-    final tile = tester.widget<ListTile>(
-        find.byKey(const Key('v2-travels-country-fr')));
-    expect((tile.trailing as Icon).icon, Icons.circle_outlined);
-  });
+      // Navigate away (Instant) and back to Travels — selection is preserved.
+      await tester.tap(find.byKey(const Key('v2-stage-instant')));
+      await tester.pump();
+      expect(state.stage, StudioStage.instant);
+      await tester.tap(find.byKey(const Key('v2-stage-travels')));
+      await tester.pump();
+      expect(c.isSelected('fr'), isFalse); // still deselected
+      final tile = tester.widget<ListTile>(
+        find.byKey(const Key('v2-travels-country-fr')),
+      );
+      expect((tile.trailing as Icon).icon, Icons.circle_outlined);
+    },
+  );
 }

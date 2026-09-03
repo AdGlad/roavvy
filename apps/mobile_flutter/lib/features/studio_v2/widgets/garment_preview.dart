@@ -52,18 +52,24 @@ class _GarmentPreviewState extends State<GarmentPreview> {
 
   Future<void> _load() async {
     final sw = Stopwatch()..start();
-    v2bump('GarmentPreview.load.start',
-        detail: 'longSide=${widget.longSide} recipeId=${widget.recipe.recipeId}');
+    v2bump(
+      'GarmentPreview.load.start',
+      detail: 'longSide=${widget.longSide} recipeId=${widget.recipe.recipeId}',
+    );
     try {
       final img = await widget.service.imageFor(widget.recipe, widget.longSide);
-      v2trace('GarmentPreview.load.done longSide=${widget.longSide} '
-          'in ${sw.elapsedMilliseconds}ms');
+      v2trace(
+        'GarmentPreview.load.done longSide=${widget.longSide} '
+        'in ${sw.elapsedMilliseconds}ms',
+      );
       if (mounted) setState(() => _image = img);
     } catch (e) {
       // A transient render/asset failure must never crash the shell; keep the
       // spinner and let a later recipe change retry.
-      v2trace('GarmentPreview.load.ERROR longSide=${widget.longSide} '
-          'after ${sw.elapsedMilliseconds}ms: $e');
+      v2trace(
+        'GarmentPreview.load.ERROR longSide=${widget.longSide} '
+        'after ${sw.elapsedMilliseconds}ms: $e',
+      );
     }
   }
 

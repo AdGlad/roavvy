@@ -28,8 +28,11 @@ void main() {
       FillAlgorithm.mosaic,
     };
     test('all values reachable', () {
-      expect(reachable, containsAll(FillAlgorithm.values),
-          reason: 'A new FillAlgorithm must get a v2-ft-fill-<name> chip.');
+      expect(
+        reachable,
+        containsAll(FillAlgorithm.values),
+        reason: 'A new FillAlgorithm must get a v2-ft-fill-<name> chip.',
+      );
     });
   });
 
@@ -45,24 +48,29 @@ void main() {
       TearStyle.heavyEdgeDamage,
     };
     test('all values reachable', () {
-      expect(reachable, containsAll(TearStyle.values),
-          reason: 'A new TearStyle must get a v2-ft-tear-<name> chip.');
+      expect(
+        reachable,
+        containsAll(TearStyle.values),
+        reason: 'A new TearStyle must get a v2-ft-tear-<name> chip.',
+      );
     });
   });
 
   group('Colour — ColourStrategy', () {
     // Reachable via the discrete colour treatments (v2-ft-colour-*).
-    final reachable = {
-      for (final t in StudioController.colourTreatments) t.$2,
-    };
+    final reachable = {for (final t in StudioController.colourTreatments) t.$2};
     // `brand` is generator/brand-owned, not a user-selectable artwork treatment.
     const excluded = {
-      ColourStrategy.brand: 'Brand palette is generator-owned, not a user knob.',
+      ColourStrategy.brand:
+          'Brand palette is generator-owned, not a user knob.',
     };
     test('every strategy is reachable or documented-excluded', () {
       for (final s in ColourStrategy.values) {
-        expect(reachable.contains(s) || excluded.containsKey(s), isTrue,
-            reason: 'ColourStrategy.$s must be reachable or excluded.');
+        expect(
+          reachable.contains(s) || excluded.containsKey(s),
+          isTrue,
+          reason: 'ColourStrategy.$s must be reachable or excluded.',
+        );
       }
     });
   });
@@ -138,7 +146,8 @@ void main() {
     };
     test('every Effects field is reachable or documented-excluded', () {
       for (final f in allFields) {
-        final accounted = inEffects.containsKey(f) ||
+        final accounted =
+            inEffects.containsKey(f) ||
             inPrint.containsKey(f) ||
             excluded.containsKey(f);
         expect(accounted, isTrue, reason: 'Effects.$f is unaccounted for.');
@@ -167,8 +176,11 @@ void main() {
         sunFaded: 0.5,
         photocopy: 0.5,
       );
-      expect(allFields, containsAll(full.toJson().keys),
-          reason: 'Effects grew a field the coverage mirror is missing.');
+      expect(
+        allFields,
+        containsAll(full.toJson().keys),
+        reason: 'Effects grew a field the coverage mirror is missing.',
+      );
     });
   });
 
@@ -189,12 +201,25 @@ void main() {
     };
     test('every clip param is reachable or documented-excluded', () {
       const all = {
-        'shapeId', 'code', 'text', 'scale', 'rotationDeg', 'aspectRatio',
-        'cornerRadius', 'feather', 'position', 'scatter', 'ink', 'stampMode',
+        'shapeId',
+        'code',
+        'text',
+        'scale',
+        'rotationDeg',
+        'aspectRatio',
+        'cornerRadius',
+        'feather',
+        'position',
+        'scatter',
+        'ink',
+        'stampMode',
       };
       for (final p in all) {
-        expect(reachable.contains(p) || excluded.containsKey(p), isTrue,
-            reason: 'Clip.$p is unaccounted for.');
+        expect(
+          reachable.contains(p) || excluded.containsKey(p),
+          isTrue,
+          reason: 'Clip.$p is unaccounted for.',
+        );
       }
     });
   });

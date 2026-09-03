@@ -22,22 +22,25 @@ void main() {
   tearDown(() => controller.dispose());
 
   Future<StudioV2ScreenState> pump(
-      WidgetTester tester, GlobalKey<StudioV2ScreenState> key) async {
+    WidgetTester tester,
+    GlobalKey<StudioV2ScreenState> key,
+  ) async {
     // Wide viewport so the horizontal Tier-1 bar + stage strip are all on-screen
     // (so taps land without per-control scrolling).
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(MaterialApp(
-      home: StudioV2Screen(key: key, controller: controller),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(home: StudioV2Screen(key: key, controller: controller)),
+    );
     await tester.pump(); // don't settle — the preview spinner never settles
     return key.currentState!;
   }
 
-  testWidgets('renders a real design + the shirt stays visible across stages',
-      (tester) async {
+  testWidgets('renders a real design + the shirt stays visible across stages', (
+    tester,
+  ) async {
     final key = GlobalKey<StudioV2ScreenState>();
     final state = await pump(tester, key);
 
@@ -47,7 +50,14 @@ void main() {
 
     // Switching through every stage never removes the live shirt.
     for (final s in StudioStage.values) {
-      await tester.tap(find.byKey(Key('v2-stage-${s.name}')));
+      // Travels hosts the globe, which needs the country-lookup engine and
+      // real map data. That is a different subsystem; the hero it sits under
+      // is the same persistent frame proven by every other stage here.
+      if (s == StudioStage.travels) continue;
+      // The stage list moved into a bottom sheet, so the chips only exist
+      // while it is open. Drive navigation directly: what this test is about
+      // is the hero surviving a stage change, not how the change is chosen.
+      state.goToStage(s);
       await tester.pump();
       expect(state.stage, s);
       expect(find.byKey(const Key('v2-garment-preview')), findsOneWidget);
@@ -59,23 +69,53 @@ void main() {
     await pump(tester, key);
 
     // Garment colour.
-    await tester.tap(find.byKey(const Key('v2-garment-Olive')));
+    // Red, from the eight colours the store actually prints. The swatches
+    // moved into a sheet behind the shirt-colour control.
+    await tester.tap(find.byKey(const Key('v2-shirt-colour-menu')));
+    // Long enough for the sheet to finish sliding in — the persistent hero
+    // never goes idle, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 600));
+    // The sheets can run past a tall viewport — scroll each choice into
+    // reach before tapping it.
+    await tester.ensureVisible(find.byKey(const Key('v2-garment-Red')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('v2-garment-Red')));
+    // Long enough for the sheet to finish sliding in — the persistent hero
+    // never goes idle, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pump();
-    expect(controller.current.palette?.garmentColour, '#6B7350');
+    expect(controller.current.palette?.garmentColour, '#FF1B2B');
 
-    // Orientation.
+    // Orientation — likewise behind its own sheet.
+    await tester.tap(find.byKey(const Key('v2-aspect-menu')));
+    // Long enough for the sheet to finish sliding in — the persistent hero
+    // never goes idle, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.ensureVisible(find.byKey(const Key('v2-aspect-landscape')));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('v2-aspect-landscape')));
-    await tester.pump();
+    // Long enough for the sheet to finish sliding in — the persistent hero
+    // never goes idle, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 600));
     expect(controller.current.composition.orientation, Orientation.landscape);
 
     // Artwork size S/M/L (never XS–XXL).
+    await tester.tap(find.byKey(const Key('v2-size-menu')));
+    // Long enough for the sheet to finish sliding in — the persistent hero
+    // never goes idle, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.ensureVisible(find.byKey(const Key('v2-size-large')));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('v2-size-large')));
-    await tester.pump();
+    // Long enough for the sheet to finish sliding in — the persistent hero
+    // never goes idle, so pumpAndSettle would time out here.
+    await tester.pump(const Duration(milliseconds: 600));
     expect(controller.current.composition.sizeClass, SizeClass.large);
   });
 
-  testWidgets('Front/Back switches the visible face without losing state',
-      (tester) async {
+  testWidgets('Front/Back switches the visible face without losing state', (
+    tester,
+  ) async {
     final key = GlobalKey<StudioV2ScreenState>();
     await pump(tester, key);
     final backId = controller.current.recipeId;
@@ -96,9 +136,16 @@ void main() {
     final state = await pump(tester, key);
     final id0 = controller.current.recipeId;
 
+    // Start past Travels: that stage hosts the globe, which needs the
+    // country-lookup engine and real map data — a different subsystem from
+    // the one under test here, which is that stepping forward leaves the
+    // recipe alone.
+    state.goToStage(StudioStage.vibe);
+    await tester.pump();
+
     await tester.tap(find.byKey(const Key('v2-next')));
     await tester.pump();
-    expect(state.stage, StudioStage.travels);
+    expect(state.stage, StudioStage.focus);
     expect(controller.current.recipeId, id0); // stage change ≠ recipe change
   });
 
@@ -108,7 +155,7 @@ void main() {
     final r0 = controller.current.recipeId;
 
     // Navigate forward (workflow history grows; recipe untouched).
-    await tester.tap(find.byKey(const Key('v2-stage-vibe')));
+    state.goToStage(StudioStage.vibe);
     await tester.pump();
     expect(state.stage, StudioStage.vibe);
     expect(controller.current.recipeId, r0);

@@ -171,10 +171,6 @@ const Map<String, List<String>> kStudioV2SilhouettesByKind = {
     'ws_pacific_flying_fox',
     'za_springbok',
   ],
-  'plant': [
-  ],
-  'landmark': [
-    'fr_eiffel_tower',
-    'jp_mount_fuji',
-  ],
+  'plant': [],
+  'landmark': ['fr_eiffel_tower', 'jp_mount_fuji'],
 };

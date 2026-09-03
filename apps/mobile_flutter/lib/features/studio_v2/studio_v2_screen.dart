@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Orientation;
 import 'commerce/garment_cart_request.dart';
 import 'host/studio_v2_trace.dart';
 import 'studio_v2_stage.dart';
+import 'studio_v2_theme.dart';
 import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
 import 'widgets/direction_workspace.dart';
@@ -43,6 +44,9 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   /// Hero view: the design on the shirt (default) or the flat artwork. A pure
   /// view preference — it never touches the recipe or the undo history.
   bool _onShirt = true;
+
+  /// True while a buy is in flight, so the action cannot be double-tapped.
+  bool _busyBuying = false;
   final List<StudioStage> _navHistory = [];
 
   StudioStage get stage => _stage;
@@ -64,6 +68,11 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     v2bump('controller.notify', detail: 'recipeId=${_c.current.recipeId}');
     if (mounted) setState(() {});
   }
+
+  /// Jump to a step. Public so tests can walk the flow the way a person does,
+  /// rather than reaching into private state.
+  @visibleForTesting
+  void goToStage(StudioStage s) => _goToStage(s);
 
   void _goToStage(StudioStage s) {
     if (s == _stage) return;
@@ -392,21 +401,69 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     ],
   );
 
-  Widget _placeholder() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        _stage.label,
-        style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+  /// Buy what is on the shirt right now, from any step.
+  ///
+  /// Goes through the same `buildGarmentCartRequest` the Review step uses — a
+  /// second hand-rolled payload is how a quick path starts ordering something
+  /// the careful path would not. A colour the store cannot make says so here
+  /// rather than failing at the till.
+  Widget _buyButton() {
+    final orderable = _c.canOrderCurrent;
+    return OutlinedButton.icon(
+      key: const Key('v2-buy-now'),
+      onPressed: _busyBuying ? null : (orderable ? _buyNow : _explainUnbuyable),
+      icon:
+          _busyBuying
+              ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+              : Icon(
+                orderable
+                    ? Icons.shopping_bag_outlined
+                    : Icons.info_outline_rounded,
+                size: 17,
+              ),
+      label: const Text('Buy'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: orderable ? Colors.white : Colors.white38,
+        side: BorderSide(
+          color: orderable ? StudioV2Theme.border : StudioV2Theme.subtleBorder,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
-      const SizedBox(height: 6),
-      Text(
-        _stage.blurb,
-        style: const TextStyle(fontSize: 13, color: Colors.white60),
+    );
+  }
+
+  void _explainUnbuyable() {
+    final name = _c.garmentLabelFor(_c.current.palette?.garmentColour);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${name ?? 'That shirt colour'} is not available to order yet — '
+          'pick another colour to buy this design.',
+        ),
       ),
-    ],
-  );
+    );
+  }
+
+  Future<void> _buyNow() async {
+    final cb = widget.onAddToCart;
+    if (cb == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is not available in this build')),
+      );
+      return;
+    }
+    setState(() => _busyBuying = true);
+    try {
+      await cb(context, buildGarmentCartRequest(_c));
+    } finally {
+      if (mounted) setState(() => _busyBuying = false);
+    }
+  }
 
   Widget _progressFooter() {
     final vis = _visibleStages;
@@ -417,32 +474,30 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
       child: Row(
         children: [
-          InkWell(
-            onTap: _showStages,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-              child: Row(
-                children: [
-                  Text(
-                    '${index + 1} of ${vis.length}',
-                    style: const TextStyle(fontSize: 12, color: Colors.white54),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 78,
-                    child: LinearProgressIndicator(
-                      value: (index + 1) / vis.length,
-                      minHeight: 4,
-                      borderRadius: BorderRadius.circular(3),
-                      backgroundColor: Colors.white12,
-                    ),
-                  ),
-                ],
+          Flexible(
+            child: InkWell(
+              onTap: _showStages,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                // The progress bar went when the footer gained a second
+                // action: on a phone the count says the same thing in far
+                // less width, and the two buttons matter more than a meter.
+                child: Text(
+                  'Step ${index + 1} of ${vis.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+                ),
               ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 10),
+          // Rule 3: buying is reachable from everywhere, not gated behind the
+          // end of the flow. Someone who is happy at step two should not have
+          // to walk to step eleven to pay.
+          _buyButton(),
+          const SizedBox(width: 8),
           FilledButton.icon(
             key: const Key('v2-next'),
             onPressed: last ? null : _next,
