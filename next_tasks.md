@@ -25,6 +25,7 @@ where a milestone names the file explicitly. `features/studio_v2` must not impor
 ## WAVE 1 — parallel-safe, start together
 
 ### M175 · Only offer shirts that can be made
+*Issue [#103](https://github.com/AdGlad/roavvy/issues/103) · spec `docs/dev/milestones/m175-orderable-colours.md`*
 **Rule 10.** The palette offers eight colours; the store carries five variants, and two of
 those are mislabelled. Today Orange and Royal are blocked by name at add-to-cart, and Dark
 Heather / Sport Grey both resolve to one store heather, so one of them ships a visibly
@@ -44,6 +45,7 @@ Done when: every palette colour maps to a real variant, and a colour with no var
 appear on the swatch row.
 
 ### M176 · Swipe through shirts, not names
+*Issue [#104](https://github.com/AdGlad/roavvy/issues/104) · spec `docs/dev/milestones/m176-instant-deck-thumbnails.md`*
 **S1.** The Instant deck shows each pick's name and position. The promise is swiping through
 ready-made shirts.
 
@@ -57,6 +59,7 @@ Files: `instant_workspace.dart` · possibly `render_service.dart` (a thumbnail s
 Depends on: nothing. Done when: the deck shows shirts, and the settle guard still passes.
 
 ### M177 · The step contract, enforced
+*Issue [#105](https://github.com/AdGlad/roavvy/issues/105) · spec `docs/dev/milestones/m177-step-contract-tests.md`*
 **Rule 4.** The definition's "appears when" column is a contract with no test behind it. A
 control that leaks into the wrong context is the failure mode that makes depth feel like
 clutter, and it will regress silently.
@@ -74,6 +77,7 @@ Files: new `test/features/studio_v2/step_contract_test.dart` · possibly small a
 ## WAVE 2 — after Wave 1
 
 ### M178 · Buy from anywhere
+*Issue [#106](https://github.com/AdGlad/roavvy/issues/106) · spec `docs/dev/milestones/m178-buy-from-anywhere.md`*
 **Rule 3.** Buying is reachable from Instant and Review only; the definition says a confident
 person can leave at any point.
 
@@ -86,6 +90,7 @@ Files: `studio_v2_screen.dart` (contested — coordinate with the phone-layout w
 Depends on: **M175** (buying must be truthful before it is everywhere).
 
 ### M179 · Placement inside the journey
+*Issue [#107](https://github.com/AdGlad/roavvy/issues/107) · spec `docs/dev/milestones/m179-placement-in-journey.md`*
 **S12.** The M174 mockup canvas lives on the V1 merch screen the Studio hands off to. The
 definition places it as a step in the flow.
 
@@ -99,6 +104,7 @@ Files: `studio_v2_screen.dart` · `studio_v2_cart_adapter.dart` ·
 `features/shared/garment_mockup/*`. Depends on: **M178** (shares the frame changes).
 
 ### M180 · What you see is what prints
+*Issue [#108](https://github.com/AdGlad/roavvy/issues/108) · spec `docs/dev/milestones/m180-print-parity.md`*
 **Rule 8.** Preview and print file are produced by different paths. Placement, colour and
 scale agreeing is currently an assumption.
 
@@ -114,6 +120,7 @@ Depends on: **M179** (parity is only meaningful once placement is final).
 ## WAVE 3 — independent, pull forward freely
 
 ### M181 · Saved designs
+*Issue [#109](https://github.com/AdGlad/roavvy/issues/109) · spec `docs/dev/milestones/m181-saved-designs-library.md`*
 **S14 / rule 9.** `PersistentDesignLibrary` saves garments; nothing browses them. A
 reproducible design nobody can reopen is a promise with no payoff.
 
@@ -121,11 +128,13 @@ reproducible design nobody can reopen is a promise with no payoff.
 Files: new `features/studio_v2/widgets/library_*.dart` · `prefs_persistence.dart`.
 
 ### M182 · After the purchase
+*Issue [#110](https://github.com/AdGlad/roavvy/issues/110) · spec `docs/dev/milestones/m182-after-purchase.md`*
 **S14.** Order status through to delivery, and sharing the design — the shirt is a travel
 brag, not just a transaction. V1 has share and confirmation screens to reuse.
 Files: `merch_order_confirmation_screen.dart` · `merch_share_exporter.dart` (read-only reuse).
 
 ### M183 · Garment photography
+*Issue [#111](https://github.com/AdGlad/roavvy/issues/111) · spec `docs/dev/milestones/m183-garment-photography.md`*
 The bundled shots are 513×640 — sized for the merch preview they were taken for, soft as a
 full-height Studio hero. Asset work, not code: reshoot or source at 2–3×, same framing
 (garment bounding boxes currently agree within 0.006 normalised, and the tint pipeline
